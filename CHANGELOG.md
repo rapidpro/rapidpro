@@ -1,3 +1,29 @@
+v3.0.430
+----------
+ * Fix message flow updating
+
+v3.0.429
+----------
+ * Remove org.is_purgeable
+ * Fix format of archived run json to match latest rp-archiver
+ * Fix checking of result.text values in the context
+ * Import/Export column headers with type prefixes
+ * Add groups membership to contacts exports
+ * Retry calls that are in IVRCall.RETRY_CALL
+ * Retry IVR outgoing calls if contact did not answer
+
+v3.0.428
+----------
+ * Add FlowRun.modified_on to results exports
+ * Change how we select archives for use in run exports to avoid race conditions
+ * Report to sentry when @flow.foo.text doesn't match @step.text
+
+v3.0.427
+----------
+ * Release webhook events on run release
+ * Fetch run results from archives when exporting results
+ * Don't create action logs for non-test contacts
+
 v3.0.426
 ----------
  * Migrations for FK protects, including all SmartModels
