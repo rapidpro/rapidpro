@@ -474,13 +474,6 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BaseUpdateFlowFormMixin:
-            expires_after_minutes = forms.ChoiceField(
-                label=_("Expire inactive contacts"),
-                help_text=_("When inactive contacts should be removed from the flow"),
-                initial=str(60 * 24 * 7),
-                choices=EXPIRES_CHOICES,
-            )
-
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -494,6 +487,12 @@ class FlowCRUDL(SmartCRUDL):
                     self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
         class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+            expires_after_minutes = forms.ChoiceField(
+                label=_("Expire inactive contacts"),
+                help_text=_("When inactive contacts should be removed from the flow"),
+                initial=str(60 * 24 * 7),
+                choices=EXPIRES_CHOICES,
+            )
             contact_creation = forms.ChoiceField(
                 label=_("Create a contact "),
                 help_text=_("Whether surveyor logins should be used as the contact for each run"),
