@@ -4664,12 +4664,11 @@ class RuleSet(models.Model):
                 )
 
             # if we have a custom operand, figure that out
+            operand = None
             if self.operand:
                 (operand, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
             elif msg:
                 operand = str(msg)
-            else:
-                operand = None
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
