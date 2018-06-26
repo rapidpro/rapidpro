@@ -44,3 +44,6 @@ class WeChatType(ChannelType):
         dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.wc' channel.uuid %}"),
         dict(label=_("Token"), url="{{ channel.config.secret }}"),
     )
+
+    def is_available_to(self, user):
+        return user.groups.filter(name="Beta")
