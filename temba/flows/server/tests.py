@@ -253,13 +253,6 @@ class TrialTest(TembaTest):
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_resume_with_expiration_in_subflow(self, mock_report_success, mock_report_failure):
-        def failure(trial):
-            import pdb
-
-            pdb.set_trace()
-
-        # mock_report_failure.side_effect = failure
-
         self.get_flow("subflow")
         parent_flow = Flow.objects.get(org=self.org, name="Parent Flow")
 
