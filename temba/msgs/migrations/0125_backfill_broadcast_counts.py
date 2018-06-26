@@ -6,6 +6,10 @@ from django.db import migrations
 
 from temba.utils import chunk_list
 
+CREATE_INDEX = """
+CREATE INDEX CONCURRENTLY msgs_broadcast_sending_idx ON msgs_broadcast(org_id, created_on) WHERE status = 'I' OR status = 'Q';
+"""
+
 
 def backfill_broadcast_counts(Broadcast, Msg, BroadcastMsgCount):
     broadcast_ids = list(Broadcast.objects.all().values_list("id", flat=True))
@@ -48,7 +52,8 @@ def apply_manual():
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [("msgs", "0124_broadcastmsgcount_triggers")]
 
-    operations = [migrations.RunPython(apply_as_migration)]
+    operations = [migrations.RunPython(apply_as_migration), migrations.RunSQL(CREATE_INDEX)]

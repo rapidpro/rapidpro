@@ -32,7 +32,7 @@ from temba.utils import analytics, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import INITIALIZING, PENDING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -694,8 +694,8 @@ class MsgCRUDL(SmartCRUDL):
 
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = Broadcast.objects.filter(
-                org=self.request.user.get_org(), status__in=[INITIALIZING, PENDING, QUEUED]
-            )
+                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING]
+            ).order_by("-created_on")
             return context
 
         def get_queryset(self, **kwargs):

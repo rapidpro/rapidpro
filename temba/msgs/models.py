@@ -631,6 +631,9 @@ class Broadcast(models.Model):
         if not partial_recipients or self.get_message_count() >= self.recipient_count:
             self.status = SENT
             self.save(update_fields=("status",))
+        else:
+            self.status = QUEUED
+            self.save(update_fields=("status",))
 
         return all_created_msg_ids
 
