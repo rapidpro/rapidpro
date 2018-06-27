@@ -2056,6 +2056,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
         # to prevent conflicts with get_or_create which uses an org-level lock.
 
+        # list of other contacts that were modified
+        modified_contacts = set()
+
         with self.org.lock_on(OrgLock.contacts):
 
             # urns are submitted in order of priority
@@ -2069,8 +2072,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
 
-                # unassigned URN or assigned to someone else
+                # unassigned URN or different contact
                 elif not urn.contact or urn.contact != self:
+                    if urn.contact:
+                        modified_contacts.add(urn.contact.id)
+
                     urn.contact = self
                     urn.priority = priority
                     urn.save()
@@ -2096,6 +2102,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # trigger updates based all urns created or detached
         self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
+
+        # update modified on any other modified contacts
+        if modified_contacts:
+            Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
         # clear URN cache
         if hasattr(self, "__urns"):
