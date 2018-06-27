@@ -843,7 +843,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -1094,7 +1094,7 @@ class FlowTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(36):
             workbook = self.export_flow_results(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -1188,7 +1188,7 @@ class FlowTest(TembaTest):
                 contact3_run1.contact.uuid,
                 "+250788123456",
                 "Norbert",
-                "false",
+                "False",
                 contact3_run1.created_on,
                 contact3_run1.modified_on,
                 "",
@@ -1206,7 +1206,7 @@ class FlowTest(TembaTest):
                 contact1_run1.contact.uuid,
                 "+250788382382",
                 "Eric",
-                "true",
+                "True",
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
@@ -1224,7 +1224,7 @@ class FlowTest(TembaTest):
                 contact2_run1.contact.uuid,
                 "+250788383383",
                 "Nic",
-                "false",
+                "False",
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
@@ -1242,7 +1242,7 @@ class FlowTest(TembaTest):
                 contact2_run2.contact.uuid,
                 "+250788383383",
                 "Nic",
-                "false",
+                "False",
                 contact2_run2.created_on,
                 contact2_run2.modified_on,
                 "",
@@ -1260,7 +1260,7 @@ class FlowTest(TembaTest):
                 contact1_run2.contact.uuid,
                 "+250788382382",
                 "Eric",
-                "true",
+                "True",
                 contact1_run2.created_on,
                 contact1_run2.modified_on,
                 contact1_run2.exited_on,
@@ -1404,7 +1404,7 @@ class FlowTest(TembaTest):
                 contact1_run1.contact.uuid,
                 "+250788382382",
                 "Eric",
-                "true",
+                "True",
                 contact1_run1.created_on,
                 contact1_run1.modified_on,
                 contact1_run1.exited_on,
@@ -1422,7 +1422,7 @@ class FlowTest(TembaTest):
                 contact2_run1.contact.uuid,
                 "+250788383383",
                 "Nic",
-                "false",
+                "False",
                 contact2_run1.created_on,
                 contact2_run1.modified_on,
                 contact2_run1.exited_on,
@@ -1486,7 +1486,7 @@ class FlowTest(TembaTest):
                 "erictweets",
                 "",
                 "Eric",
-                "true",
+                "True",
                 "36",
                 contact1_run1.created_on,
                 contact1_run1.modified_on,

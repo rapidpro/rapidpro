@@ -5343,9 +5343,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context["flows"] = self.flows.all()
         return context
 
-    def _get_runs_columns(
-        self, extra_urn_columns, group_fields, contact_fields, result_nodes, show_submitted_by=False
-    ):
+    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -5359,8 +5357,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
         columns.append("Name")
 
-        for gr in group_fields:
-            columns.append("Group:%s" % gr["name"])
+        for gr in groups:
+            columns.append("Group:%s" % gr.name)
 
         for cf in contact_fields:
             columns.append("Field:%s" % cf.label)
@@ -5408,11 +5406,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
         contact_fields = [cf for cf in self.org.cached_contact_fields.values() if cf.id in contact_field_ids]
 
-        group_fields = [
-            gr
-            for gr in ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY).values()
-            if gr["id"] in group_memberships
-        ]
+        groups = ContactGroup.user_groups.filter(
+            org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
+        )
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
@@ -5437,7 +5433,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, group_fields, contact_fields, result_nodes, show_submitted_by=show_submitted_by
+            extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -5458,7 +5454,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 batch,
                 include_msgs,
                 extra_urn_columns,
-                group_fields,
+                groups,
                 contact_fields,
                 show_submitted_by,
                 runs_columns,
@@ -5540,7 +5536,7 @@ class ExportFlowResultsTask(BaseExportTask):
         runs,
         include_msgs,
         extra_urn_columns,
-        group_fields,
+        groups,
         contact_fields,
         show_submitted_by,
         runs_columns,
@@ -5572,8 +5568,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
             contact_values.append(self.prepare_value(contact.name))
             contact_groups_ids = [g.id for g in contact.all_groups.all()]
-            for gr in group_fields:
-                contact_values.append("true" if gr["id"] in contact_groups_ids else "false")
+            for gr in groups:
+                contact_values.append(gr.id in contact_groups_ids)
 
             for cf in contact_fields:
                 field_value = contact.get_field_display(cf)
