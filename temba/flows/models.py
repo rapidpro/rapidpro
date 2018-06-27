@@ -1341,9 +1341,7 @@ class Flow(TembaModel):
             event.release()
 
         # release any triggers that depend on this flow
-        from temba.triggers.models import Trigger
-
-        for trigger in Trigger.objects.filter(flow=self):
+        for trigger in self.triggers.all():
             trigger.release()
 
         self.group_dependencies.clear()

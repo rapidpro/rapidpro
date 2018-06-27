@@ -28,11 +28,7 @@ class Archive(models.Model):
     PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
     org = models.ForeignKey(
-        "orgs.Org",
-        related_name="archives",
-        on_delete=models.PROTECT,
-        db_constraint=False,
-        help_text="The org this archive is for",
+        "orgs.Org", related_name="archives", on_delete=models.PROTECT, help_text="The org this archive is for"
     )
     archive_type = models.CharField(
         choices=TYPE_CHOICES, max_length=16, help_text="The type of record this is an archive for"

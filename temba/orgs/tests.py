@@ -761,7 +761,6 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
         response = self.client.get(update_url)
-        self.assertContains(response, "Reactivate")
 
     def test_accounts(self):
         url = reverse("orgs.org_accounts")
