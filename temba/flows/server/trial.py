@@ -314,13 +314,7 @@ def reduce_path(path):
     """
     Reduces path to just node/exit. Other fields are datetimes or generated step UUIDs which are non-deterministic
     """
-    reduced = [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
-
-    # rapidpro doesn't set exit_uuid on terminal actions
-    if "exit_uuid" in reduced[-1]:
-        del reduced[-1]["exit_uuid"]
-
-    return reduced
+    return [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
 
 
 def reduce_results(results):
