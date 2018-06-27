@@ -4057,9 +4057,14 @@ class ContactTest(TembaTest):
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
 
         # check that we can steal other contact's URNs
+        now = timezone.now()
         contact5.update_urns(self.user, ["tel:0788333444"])
         self.assertEqual(contact5, ContactURN.objects.get(identity="tel:+250788333444").contact)
+
+        # assert contact 4 no longer has the URN and had its modified_on updated
         self.assertFalse(contact4.urns.all())
+        contact4.refresh_from_db()
+        self.assertTrue(contact4.modified_on > now)
 
     def test_from_urn(self):
         self.assertEqual(Contact.from_urn(self.org, "tel:+250781111111"), self.joe)  # URN with contact
