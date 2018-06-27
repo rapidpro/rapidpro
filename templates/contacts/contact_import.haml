@@ -14,7 +14,7 @@
           -trans "You can import your contacts from an XLS file you create in Excel."
 
         %p
-          -trans "Each row should have the phone number as URN:tel (including country code) and the name of the contact if available."
+          -trans "Each row should have the phone number as <code><i>URN:tel</i></code> (including country code) and the name of the contact if available."
 
         %table#example.table
           %tr
@@ -35,7 +35,7 @@
         -if show_form
 
           %p
-            -trans "You can also import custom contact fields values in XLS file for columns with prefix 'Field:'."
+            -trans "You can also import custom contact fields values in XLS file for columns with prefix <code><i>Field:</i></code>, for example: <code><i>Field:Team</i></code>."
 
           %table#example.table
             %tr
@@ -76,16 +76,16 @@
               %td
                 -trans "Name"
               %td
-                -trans "contact name"
+                -trans "Contact name"
               %td
 
             %tr
               %td
                 -trans "Language"
               %td
-                -trans "contact language"
+                -trans "Contact language"
               %td
-                -trans "Only valid ISO639-3 code supportted"
+                -trans "Only valid ISO639-3 codes supportted"
 
             -for conf in urn_scheme_config
               %tr
@@ -97,21 +97,23 @@
 
             %tr
               %td
-                Field:custom_field
+                Field:<code><i>custom_field</i></code>
               %td
-                custom_field
+                <code><i>custom_field</i></code>
               %td
                 -blocktrans
                   You will have the option to choose the columns to import and to which field to import them.
-                  custom_field is anything containing only letters, numbers, hyphens or spaces.
+                  <code><i>custom_field</i></code> is anything containing only letters, numbers, hyphens or spaces.
 
             %tr
               %td
                 Group:Group Name
               %td
-                -trans "IGNORED"
+                %code
+                  %i
+                    -trans "IGNORED"
               %td
-                Columns starting by Group: prefix are all ignored by the %import
+                Columns starting with the prefix <code><i>Group:</i></code> are ignored by the import
 
         - block import-status
           #import-status
