@@ -29,6 +29,11 @@ class String(MatcherMixin, str):
         return True
 
 
+class Dict(MatcherMixin, dict):
+    def __eq__(self, other):
+        return isinstance(other, dict)
+
+
 class ISODate(String):
     """
     Matches any ISO8601 formatted datetime string

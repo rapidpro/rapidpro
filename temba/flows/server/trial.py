@@ -14,7 +14,7 @@ from jsondiff import diff as jsondiff
 from django.conf import settings
 from django.utils import timezone
 
-from .client import Events, get_client
+from .client import Events, FlowServerException, get_client
 from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,9 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             report_success(trial)
             return True
 
+    except FlowServerException as e:
+        logger.error("trial resume in flowserver caused server error", extra=e.as_json())
+        return False
     except Exception as e:
         logger.error(
             "flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True

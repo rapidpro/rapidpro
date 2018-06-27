@@ -10,7 +10,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Label, Msg
-from temba.tests import MockResponse, TembaTest, skip_if_no_flowserver
+from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
@@ -128,7 +128,10 @@ class ClientTest(TembaTest):
         with self.assertRaises(FlowServerException) as e:
             self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
-        self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
+            self.assertEqual(
+                e.exception.as_json(),
+                {"endpoint": "start", "request": matchers.Dict, "response": {"errors": ["Bad request", "Doh!"]}},
+            )
 
 
 class TrialTest(TembaTest):
