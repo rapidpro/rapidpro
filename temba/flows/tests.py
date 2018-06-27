@@ -666,7 +666,12 @@ class FlowTest(TembaTest):
                     "arrived_on": matchers.ISODate(),
                     "exit_uuid": str(orange_rule.uuid),
                 },
-                {"uuid": matchers.UUID4String(), "node_uuid": str(color_reply.uuid), "arrived_on": matchers.ISODate()},
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(color_reply.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(color_reply.exit_uuid),
+                },
             ],
         )
         self.assertEqual(

@@ -5109,13 +5109,7 @@ class FlowPathCount(SquashableModel):
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     def __str__(self):  # pragma: no cover
-        return "FlowPathCount(%d) %s:%s %s count: %d" % (
-            self.flow_id,
-            self.from_uuid,
-            self.to_uuid,
-            self.period,
-            self.count,
-        )
+        return f"FlowPathCount({self.flow_id}) {self.from_uuid}:{self.to_uuid} {self.period} count: {self.count}"
 
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
