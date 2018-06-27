@@ -40,6 +40,9 @@ class TwitterType(ChannelType):
         "users who are not following you",
     )  # handle no longer follows us
 
+    def is_available_to(self, user):
+        return user.is_beta()
+
     def activate(self, channel):
         # tell Mage to activate this channel
         notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name)
