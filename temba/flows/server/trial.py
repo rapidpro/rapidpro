@@ -325,9 +325,9 @@ def reduce_path(path):
 
 def reduce_results(results):
     """
-    Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
+    Excludes created_on
     """
-    return {k: copy_keys(v, {"category", "name", "value", "node_uuid"}) for k, v in results.items()}
+    return {k: copy_keys(v, {"category", "name", "value", "node_uuid", "input"}) for k, v in results.items()}
 
 
 def reduce_events(events):
