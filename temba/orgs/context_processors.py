@@ -47,7 +47,7 @@ def user_orgs_for_brand(request):
         if not request.user.is_anonymous():
             user_orgs = request.user.get_user_orgs(request.branding.get("brand"))
             return dict(user_orgs=user_orgs)
-    return []
+    return {}
 
 
 def user_group_perms_processor(request):
