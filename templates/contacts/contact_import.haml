@@ -16,49 +16,33 @@
         %p
           -trans "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 
+        %p
+          -trans "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
+
         %table#example.table
           %tr
             %th
-              -trans "URN:tel"
+              -trans "URN:Tel"
             %th
               -trans "Name"
+            %th
+              -trans "Field:Team"
           %tr
-            %td 
+            %td
               -trans "+250788123123"
-            %td 
+            %td
               -trans "John Doe"
+            %td
+              -trans "Managers"
           %tr
             %td
               -trans "+250788111222"
             %td
               -trans "Jane Doe"
+            %td
+              -trans "Advisors"
+       
         -if show_form
-
-          %p
-            -trans "You can also import custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
-
-          %table#example.table
-            %tr
-              %th
-                -trans "URN:Tel"
-              %th
-                -trans "Name"
-              %th
-                -trans "Field:Team"
-            %tr
-              %td
-                -trans "+250788123123"
-              %td
-                -trans "John Doe"
-              %td
-                -trans "Managers"
-            %tr
-              %td
-                -trans "+250788111222"
-              %td
-                -trans "Jane Doe"
-              %td
-                -trans "Advisors"
 
           %p
             -trans "Supported fields, all other columns are ignored."
