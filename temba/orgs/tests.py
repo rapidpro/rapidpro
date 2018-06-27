@@ -88,18 +88,18 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class UserTest(TembaTest):
-    def test_ui_permessions(self):
+    def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
         self.assertRedirect(response, "/users/login/")
-        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
         self.assertRedirect(response, "/users/login/")
 
         # either can admins
         self.login(self.admin)
         response = self.client.get(reverse("orgs.user_list"))
         self.assertRedirect(response, "/users/login/")
-        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
         self.assertRedirect(response, "/users/login/")
 
         self.editor.refresh_from_db()
@@ -128,7 +128,7 @@ class UserTest(TembaTest):
         # our user with lots of orgs should get ellipsized
         self.assertContains(response, ", ...")
 
-        response = self.client.post(reverse("orgs.user_deactivate", args=(self.editor.pk,)), dict(deactivate=True))
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
         self.assertEqual(302, response.status_code)
 
         self.editor.refresh_from_db()
@@ -287,57 +287,60 @@ class OrgDeleteTest(TembaTest):
         daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
         create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
 
-    def deactivate_org(self, org, child_org=None):
-
-        # save off the ids of our current users
-        org_user_ids = list(org.get_org_users().values_list("id", flat=True))
-
-        # deactivate our primary org
-        org.release()
-
-        # all our users not in the other org should be deactivated
-        self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
-        self.assertEqual(1, User.objects.filter(id__in=org_user_ids, is_active=True).count())
-
-        # our channel should have been made inactive
-        self.assertFalse(Channel.objects.filter(org=org, is_active=True).exists())
-        self.assertTrue(Channel.objects.filter(org=org, is_active=False).exists())
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_active)
-
-        # our child org lost it's parent, but maintains an active lifestyle
-        if child_org:
-            child_org.refresh_from_db()
-            self.assertIsNone(child_org.parent)
-
-    def release_org(self, org, child_org=None):
-        # we should be starting with some mock s3 objects
-        self.assertEqual(4, len(self.mock_s3.objects))
+    def release_org(self, org, child_org=None, immediately=False):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
-            org.release(immediately=True)
+            # save off the ids of our current users
+            org_user_ids = list(org.get_org_users().values_list("id", flat=True))
 
-        # oh noes, we deleted our archive files!
-        self.assertEqual(2, len(self.mock_s3.objects))
+            # we should be starting with some mock s3 objects
+            self.assertEqual(4, len(self.mock_s3.objects))
 
-    def test_deactivate_parent(self):
-        self.deactivate_org(self.parent_org, self.child_org)
+            # release our primary org
+            org.release(immediately=immediately)
 
-    def test_deactivate_child(self):
-        self.deactivate_org(self.child_org)
+            # all our users not in the other org should be inactive
+            self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
+            self.assertEqual(1, User.objects.filter(id__in=org_user_ids, is_active=True).count())
+
+            # our child org lost it's parent, but maintains an active lifestyle
+            if child_org:
+                child_org.refresh_from_db()
+                self.assertIsNone(child_org.parent)
+
+            if immediately:
+                # oh noes, we deleted our archive files!
+                self.assertEqual(2, len(self.mock_s3.objects))
+
+                # our channels and org are gone too
+                self.assertFalse(Channel.objects.filter(org=org).exists())
+                self.assertFalse(Org.objects.filter(id=org.id).exists())
+            else:
+
+                org.refresh_from_db()
+                self.assertFalse(org.is_active)
+
+                # our channel should have been made inactive
+                self.assertFalse(Channel.objects.filter(org=org, is_active=True).exists())
+                self.assertTrue(Channel.objects.filter(org=org, is_active=False).exists())
 
     def test_release_parent(self):
         self.release_org(self.parent_org, self.child_org)
 
     def test_release_child(self):
+        self.release_org(self.child_org)
+
+    def test_release_parent_immediately(self):
+        self.release_org(self.parent_org, self.child_org, immediately=True)
+
+    def test_release_child_immediately(self):
 
         # 300 credits were given to our child org and each used one
         self.assertEqual(699, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org)
+        self.release_org(self.child_org, immediately=True)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
@@ -753,17 +756,12 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_suspended())
 
         # deactivate
-        post_data["status"] = "deactivate"
+        post_data["status"] = "delete"
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
         response = self.client.get(update_url)
         self.assertContains(response, "Reactivate")
-
-        post_data["status"] = "reactivate"
-        response = self.client.post(update_url, post_data)
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_active)
 
     def test_accounts(self):
         url = reverse("orgs.org_accounts")

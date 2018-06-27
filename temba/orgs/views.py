@@ -339,7 +339,7 @@ class OrgGrantForm(forms.ModelForm):
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "deactivate")
+    actions = ("list", "edit", "delete")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -365,15 +365,15 @@ class UserCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
 
-    class Deactivate(SmartUpdateView):
-        class DeactivateForm(forms.ModelForm):
-            deactivate = forms.BooleanField()
+    class Delete(SmartUpdateView):
+        class DeleteForm(forms.ModelForm):
+            delete = forms.BooleanField()
 
             class Meta:
                 model = User
-                fields = ("deactivate",)
+                fields = ("delete",)
 
-        form_class = DeactivateForm
+        form_class = DeleteForm
         permission = "auth.user_update"
 
         def form_valid(self, form):
@@ -1226,16 +1226,6 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(dict(title=_("Delete"), style="btn-primary", js_class="org-delete-button", href="#"))
-            else:
-                links.append(
-                    dict(
-                        title=_("Reactivate"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href="%s?status=reactivate" % reverse("orgs.org_update", args=[org.pk]),
-                    )
-                )
-
             return links
 
         def post(self, request, *args, **kwargs):
@@ -1246,12 +1236,8 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().set_whitelisted()
                 elif request.POST.get("status", None) == RESTORED:
                     self.get_object().set_restored()
-                elif request.POST.get("status", None) == "deactivate":
+                elif request.POST.get("status", None) == "delete":
                     self.get_object().release()
-                elif request.POST.get("status", None) == "reactivate":
-                    org = self.get_object()
-                    org.is_active = True
-                    org.save()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 

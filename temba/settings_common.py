@@ -478,6 +478,7 @@ GROUP_PERMISSIONS = {
         "flows.flowrun_delete",
         "flows.flow_editor_next",
         "orgs.org_dashboard",
+        "orgs.org_delete",
         "orgs.org_grant",
         "orgs.org_manage",
         "orgs.org_update",
