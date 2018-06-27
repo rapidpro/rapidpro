@@ -107,18 +107,23 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print("Flowserver trial resume for run %s in flow '%s' succeeded" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' failed")
 
     logger.error(
         "trial resume in flowserver produced different output",
-        extra={"run_id": trial.run.id, "differences": trial.differences},
+        extra={
+            "org": trial.run.org.name,
+            "flow": {"uuid": str(trial.run.flow.uuid), "name": trial.run.flow.name},
+            "run_id": trial.run.id,
+            "differences": trial.differences,
+        },
     )
 
 
