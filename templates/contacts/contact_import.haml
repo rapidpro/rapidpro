@@ -14,7 +14,7 @@
           -trans "You can import your contacts from an XLS file you create in Excel."
 
         %p
-          -trans "Each row should have the phone number as <code><i>URN:tel</i></code> (including country code) and the name of the contact if available."
+          -trans "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 
         %table#example.table
           %tr
@@ -35,7 +35,7 @@
         -if show_form
 
           %p
-            -trans "You can also import custom contact fields values in XLS file for columns with prefix <code><i>Field:</i></code>, for example: <code><i>Field:Team</i></code>."
+            -trans "You can also import custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 
           %table#example.table
             %tr
@@ -61,7 +61,7 @@
                 -trans "Advisors"
 
           %p
-            -trans "Supported fields, Any other columns is ignored too"
+            -trans "Supported fields, all other columns are ignored."
 
           %table#example.table
             %tr
@@ -97,23 +97,21 @@
 
             %tr
               %td
-                Field:<code><i>custom_field</i></code>
+                Field:<i>custom_field</i>
               %td
-                <code><i>custom_field</i></code>
+                <i>custom_field</i>
               %td
                 -blocktrans
                   You will have the option to choose the columns to import and to which field to import them.
-                  <code><i>custom_field</i></code> is anything containing only letters, numbers, hyphens or spaces.
 
             %tr
               %td
                 Group:Group Name
               %td
-                %code
-                  %i
-                    -trans "IGNORED"
+                %i
+                  -trans "IGNORED"
               %td
-                Columns starting with the prefix <code><i>Group:</i></code> are ignored by the import
+                Columns starting with the prefix <i>Group:</i> are ignored
 
         - block import-status
           #import-status
