@@ -903,6 +903,7 @@ class ContactCRUDL(SmartCRUDL):
             context["task"] = None
             context["group"] = None
             context["show_form"] = True
+            context["urn_scheme_config"] = URN_SCHEME_CONFIG
 
             task_id = self.request.GET.get("task", None)
             if task_id:

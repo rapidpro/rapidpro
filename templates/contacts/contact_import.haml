@@ -14,12 +14,12 @@
           -trans "You can import your contacts from an XLS file you create in Excel."
 
         %p
-          -trans "Each row should have the phone number (including country code) and the name of the contact if available."
+          -trans "Each row should have the phone number as URN:tel (including country code) and the name of the contact if available."
 
         %table#example.table
           %tr
             %th
-              -trans "Phone"
+              -trans "URN:tel"
             %th
               -trans "Name"
           %tr
@@ -32,6 +32,86 @@
               -trans "+250788111222"
             %td
               -trans "Jane Doe"
+        -if show_form
+
+          %p
+            -trans "You can also import custom contact fields values in XLS file for columns with prefix 'Field:'."
+
+          %table#example.table
+            %tr
+              %th
+                -trans "URN:Tel"
+              %th
+                -trans "Name"
+              %th
+                -trans "Field:Team"
+            %tr
+              %td
+                -trans "+250788123123"
+              %td
+                -trans "John Doe"
+              %td
+                -trans "Managers"
+            %tr
+              %td
+                -trans "+250788111222"
+              %td
+                -trans "Jane Doe"
+              %td
+                -trans "Advisors"
+
+          %p
+            -trans "Supported fields, Any other columns is ignored too"
+
+          %table#example.table
+            %tr
+              %th
+                -trans "Column Header"
+              %th
+                -trans "Imported as"
+              %th
+                -trans "Details"
+
+            %tr
+              %td
+                -trans "Name"
+              %td
+                -trans "contact name"
+              %td
+
+            %tr
+              %td
+                -trans "Language"
+              %td
+                -trans "contact language"
+              %td
+                -trans "Only valid ISO639-3 code supportted"
+
+            -for conf in urn_scheme_config
+              %tr
+                %td
+                  URN:{{conf.0}}
+                %td
+                  {{conf.1}}
+                %td
+
+            %tr
+              %td
+                Field:custom_field
+              %td
+                custom_field
+              %td
+                -blocktrans
+                  You will have the option to choose the columns to import and to which field to import them.
+                  custom_field is anything containing only letters, numbers, hyphens or spaces.
+
+            %tr
+              %td
+                Group:Group Name
+              %td
+                -trans "IGNORED"
+              %td
+                Columns starting by Group: prefix are all ignored by the %import
 
         - block import-status
           #import-status
