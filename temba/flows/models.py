@@ -1325,12 +1325,12 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
+    def release(self, release_runs=True):
         """
         Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import deactivate_flow_runs_task
+        from .tasks import release_flow_runs_task
 
         self.is_active = False
         self.save()
@@ -1342,9 +1342,7 @@ class Flow(TembaModel):
             event.release()
 
         # release any triggers that depend on this flow
-        from temba.triggers.models import Trigger
-
-        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+        for trigger in self.triggers.all():
             trigger.release()
 
         self.group_dependencies.clear()
@@ -1352,7 +1350,8 @@ class Flow(TembaModel):
         self.field_dependencies.clear()
 
         # deactivate our runs in the background
-        on_transaction_commit(lambda: deactivate_flow_runs_task.delay(self.id))
+        if release_runs:
+            on_transaction_commit(lambda: release_flow_runs_task.delay(self.id))
 
     def get_category_counts(self, deleted_nodes=True):
 
@@ -1405,19 +1404,19 @@ class Flow(TembaModel):
 
         return dict(counts=result_list)
 
-    def deactivate_runs(self):
+    def release_runs(self):
         """
         Exits all flow runs
         """
 
-        # grab the ids of all our active runs
-        run_ids = self.runs.filter(is_active=True).values_list("id", flat=True)
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list("id", flat=True)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
-            now = timezone.now()
             runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(is_active=False, exited_on=now, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED, modified_on=now)
+            for run in runs:
+                run.release()
 
         # clear all our cached stats
         self.clear_props_cache()
@@ -5012,6 +5011,9 @@ class FlowRevision(SmartModel):
             version=self.spec_version,
             revision=self.revision,
         )
+
+    def release(self):
+        self.delete()
 
 
 class FlowCategoryCount(SquashableModel):

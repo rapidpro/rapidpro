@@ -170,7 +170,7 @@ def squash_flowruncounts():
     FlowStartCount.squash()
 
 
-@task(track_started=True, name="deactivate_flow_runs_task")
-def deactivate_flow_runs_task(flow_id):
+@task(track_started=True, name="release_flow_runs_task")
+def release_flow_runs_task(flow_id):
     flow = Flow.objects.get(id=flow_id)
-    flow.deactivate_runs()
+    flow.release_runs()

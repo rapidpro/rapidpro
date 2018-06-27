@@ -1500,7 +1500,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
 
         def save(self, obj):
-            obj.release_async(self.request.user)
+            obj.release(self.request.user)
             return obj
 
 

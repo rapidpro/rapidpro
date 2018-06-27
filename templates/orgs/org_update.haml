@@ -1,29 +1,129 @@
--extends "smartmin/update.html"
+-extends "smartmin/form.html"
+-load i18n
 
 -block title-text
   %h1= org.name
 
--block above-bar
-  .pull-right
-    -block buttons-right
-      -block gear-menu
-        -include "gear_links_include.haml"
+
+-block page-top
+  -if org.is_active
+
+    -if org.is_suspended
+      .alert.alert-error
+        -trans "This organization has been suspended"
+
+    -if org.is_whitelisted
+      .alert.alert-info
+        -trans "This organization has been whitelisted against spaminess"
+  -else
+    .alert.alert-error
+      -trans "This organization has been scheduled for deletion"
+
+  {{ block.super }}
+
 
 -block post-form
-  -if perms.auth.org_clear_cache
-    <form class="smartmin-form form-horizontal" action="{% url 'orgs.org_clear_cache' object.id %}" method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div class="control-group">
-        <label class="control-label">Cache</label>
-        <div class="controls">
-          <button type="submit" name="cache" value="2" class="btn btn-primary">Clear Credits</button>
-        </div>
-      </div>
-    </form>
+  .pull-right.roles
+    -if org.administrators.all
+      .role
+        .title
+          Administrators
+        .users
+          -for user in org.administrators.all
+            .user
+              %a{href:'{% url "users.user_update" user.id %}'}
+                {{user.email}}
+
+    -if org.editors.all
+      .role
+        .title
+          Editors
+        .users
+          -for user in org.editors.all
+            .user
+              %a{href:'{% url "users.user_update" user.id %}'}
+                {{user.email}}
+
+    -if org.viewers.all
+      .role
+        .title
+          Viewers
+        .users
+          -for user in org.viewers.all
+            .user
+              %a{href:'{% url "users.user_update" user.id %}'}
+                {{user.email}}
+
+    -if org.surveyors.all
+      .role
+        .title
+          Surveyors
+        .users
+          -for user in org.surveyors.all
+            .user
+              %a{href:'{% url "users.user_update" user.id %}'}
+                {{user.email}}
+
+  .deletion.hide
+    .title
+      -trans "Delete"
+
+    .body
+      .attn
+        -trans "Whoa, whoa, whoa!"
+      -blocktrans with org.name as name
+        Are you sure you want to delete everything for {{name}}? Everything will be gone and there is no going back.
+        This includes all flows, contacts, messages, etc.
+
+      .delete-warning
+        -blocktrans
+          Also, any user accounts will be deleted if they don't belong to another organization.
+
+    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?status=delete'}
+
+-block extra-script
+  <script>
+    $(".org-delete-button").live('click', function() {
+      $(".gear-menu").removeClass("open");
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){
+        $('#delete-form').click();
+      }}, false);
+      modal.setPrimaryButton('{% trans "Delete" %}');
+      modal.show();
+    });
+  </script>
 
 -block extra-style
   {{block.super}}
   :css
+
+    form {
+      float: left;
+    }
+    .delete-warning {
+      margin-top: 10px;
+    }
+
+    .attn {
+      font-weight: 400;
+      font-size: 110%;
+    }
+    .roles {
+      margin-top: 15px;
+      border: 1px solid #e6e6e6;
+    }
+
+    .role {
+      padding: 15px;
+      width: 300px;
+    }
+
+    .role .title {
+      font-weight: 400;
+    }
+
     .form-horizontal .controls {
       margin-left: 180px;
     }

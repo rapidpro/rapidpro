@@ -87,6 +87,7 @@ class Resthook(SmartModel):
         related_name="resthooks",
         help_text=_("The organization this resthook belongs to"),
     )
+
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
     @classmethod
@@ -143,6 +144,7 @@ class ResthookSubscriber(SmartModel):
     resthook = models.ForeignKey(
         Resthook, on_delete=models.PROTECT, related_name="subscribers", help_text=_("The resthook being subscribed to")
     )
+
     target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
 
     def as_json(self):  # pragma: needs cover
@@ -220,6 +222,7 @@ class WebHookEvent(SmartModel):
         blank=True,
         help_text="The channel that this event is relating to",
     )
+
     event = models.CharField(max_length=16, choices=TYPE_CHOICES, help_text="The event type for this event")
     data = JSONAsTextField(default=dict, help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0, help_text="The number of times this event has been tried")
