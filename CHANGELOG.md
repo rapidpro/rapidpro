@@ -1,3 +1,8 @@
+v3.0.432
+----------
+ * Update modified_on on contacts that have their URN stolen
+ * Full releasing of orgs and users
+
 v3.0.431
 ----------
  * Set exit_uuid at end of path when run completes
