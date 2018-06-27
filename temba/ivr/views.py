@@ -147,7 +147,7 @@ class CallHandler(View):
                     runs = FlowRun.objects.filter(connection=call)
                     for run in runs:
                         if not run.is_completed():
-                            run.set_completed()
+                            run.set_completed(exit_uuid=None)
 
                 response = dict(
                     description="Updated call status",

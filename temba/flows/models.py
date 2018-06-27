@@ -803,7 +803,7 @@ class Flow(TembaModel):
 
         if not destination:  # pragma: no cover
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return voice_response
 
         # go and actually handle wherever we are in the flow
@@ -821,7 +821,7 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
 
         return voice_response
 
@@ -965,7 +965,7 @@ class Flow(TembaModel):
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                run.set_completed()
+                run.set_completed(exit_uuid=None)
                 Msg.mark_handled(msg)
                 return True, []
 
@@ -1138,7 +1138,7 @@ class Flow(TembaModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -2257,7 +2257,7 @@ class Flow(TembaModel):
                         run_msgs += step_msgs
 
                     else:
-                        run.set_completed()
+                        run.set_completed(exit_uuid=None)
 
                 elif entry_rules:
                     self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
@@ -4147,7 +4147,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.delete()
 
-    def set_completed(self, completed_on=None, exit_uuid=None):
+    def set_completed(self, *, exit_uuid, completed_on=None):
         """
         Mark a run as complete
         """
