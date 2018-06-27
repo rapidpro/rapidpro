@@ -20,6 +20,34 @@ from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 
 
+def migrate_to_version_11_4(json_flow, flow=None):
+    """
+    Replaces @flow.foo.text with @step.value for non-waiting rulesets, to bring old world functionality inline with the
+    new engine, where @run.results.foo.input is always the router operand.
+    """
+    # figure out which rulesets aren't waits
+    rule_sets = json_flow.get("rule_sets", [])
+    non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
+
+    # make a regex that matches a context reference to the .text on any result from these
+    replace_pattern = r"flow\.(" + "|".join(non_waiting) + ")\.text"
+    replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
+    replace_with = "step.value"
+
+    # for every action in this flow, replace such references with @step.text
+    for actionset in json_flow.get("action_sets", []):
+        for action in actionset.get("actions", []):
+            if action["type"] in ["reply", "send", "say", "email"]:
+                msg = action["msg"]
+                if isinstance(msg, str):
+                    action["msg"] = replace_regex.sub(replace_with, msg)
+                else:
+                    for lang, text in msg.items():
+                        msg[lang] = replace_regex.sub(replace_with, text)
+
+    return json_flow
+
+
 def migrate_to_version_11_3(json_flow, flow=None):
     """
     Migrates webhooks to support legacy format

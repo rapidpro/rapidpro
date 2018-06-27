@@ -13,6 +13,9 @@ class AfricastalkingTypeTest(TembaTest):
         url = reverse("channels.types.africastalking.claim")
         self.login(self.admin)
 
+        self.org.timezone = "Africa/Cairo"  # not supported
+        self.org.save()
+
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertNotContains(response, url)
 
