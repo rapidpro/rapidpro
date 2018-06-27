@@ -5398,15 +5398,6 @@ class ExportFlowResultsTask(BaseExportTask):
         self.append_row(sheet, headers)
         return sheet
 
-    def _get_contact_groups_display(self, contact):
-        group_names = []
-        for group in contact.all_groups.all():
-            if group.group_type == ContactGroup.TYPE_USER_DEFINED:
-                group_names.append(group.name)
-
-        group_names.sort()
-        return ", ".join(group_names)
-
     def write_export(self):
         config = self.config
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
