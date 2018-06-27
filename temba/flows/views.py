@@ -31,6 +31,7 @@ from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, QuerySet, Sum
+from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.encoding import force_text
@@ -1040,6 +1041,13 @@ class FlowCRUDL(SmartCRUDL):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
+
+            group_memberships = forms.ModelMultipleChoiceField(
+                queryset=ContactGroup.user_groups.none(),
+                required=False,
+                label=_("Which group memberships, if any, to include in the export"),
+            )
+
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.objects.filter(id__lt=0),
                 required=False,
@@ -1071,6 +1079,11 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["contact_fields"].queryset = ContactField.objects.filter(
                     org=self.user.get_org(), is_active=True
                 )
+
+                self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+                    org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
+                ).order_by(Lower("name"))
+
                 self.fields["flows"].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
 
             def clean(self):
@@ -1128,6 +1141,7 @@ class FlowCRUDL(SmartCRUDL):
                     include_msgs=form.cleaned_data["include_messages"],
                     responded_only=form.cleaned_data["responded_only"],
                     extra_urns=form.cleaned_data["extra_urns"],
+                    group_memberships=form.cleaned_data["group_memberships"],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
