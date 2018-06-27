@@ -803,7 +803,7 @@ class Flow(TembaModel):
 
         if not destination:  # pragma: no cover
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return voice_response
 
         # go and actually handle wherever we are in the flow
@@ -821,7 +821,7 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
 
         return voice_response
 
@@ -965,7 +965,7 @@ class Flow(TembaModel):
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                run.set_completed()
+                run.set_completed(exit_uuid=None)
                 Msg.mark_handled(msg)
                 return True, []
 
@@ -1138,7 +1138,7 @@ class Flow(TembaModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -1150,7 +1150,7 @@ class Flow(TembaModel):
         if destination:
             run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
         else:
-            run.set_completed()
+            run.set_completed(exit_uuid=actionset.exit_uuid)
 
         return dict(handled=True, destination=destination, msgs=msgs)
 
@@ -1248,7 +1248,7 @@ class Flow(TembaModel):
                 run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
             else:
-                run.set_completed()
+                run.set_completed(exit_uuid=result_rule.uuid)
                 return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
@@ -2257,7 +2257,7 @@ class Flow(TembaModel):
                         run_msgs += step_msgs
 
                     else:
-                        run.set_completed()
+                        run.set_completed(exit_uuid=None)
 
                 elif entry_rules:
                     self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
@@ -4147,7 +4147,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.delete()
 
-    def set_completed(self, completed_on=None):
+    def set_completed(self, *, exit_uuid, completed_on=None):
         """
         Mark a run as complete
         """
@@ -4161,13 +4161,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
+            if exit_uuid:
+                self.path[-1]["exit_uuid"] = str(exit_uuid)
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
             self.is_active = False
             self.parent_context = None
             self.child_context = None
             self.save(
-                update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+                update_fields=(
+                    "path",
+                    "exit_type",
+                    "exited_on",
+                    "modified_on",
+                    "is_active",
+                    "parent_context",
+                    "child_context",
+                )
             )
 
         if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
@@ -5086,13 +5096,7 @@ class FlowPathCount(SquashableModel):
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     def __str__(self):  # pragma: no cover
-        return "FlowPathCount(%d) %s:%s %s count: %d" % (
-            self.flow_id,
-            self.from_uuid,
-            self.to_uuid,
-            self.period,
-            self.count,
-        )
+        return f"FlowPathCount({self.flow_id}) {self.from_uuid}:{self.to_uuid} {self.period} count: {self.count}"
 
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
