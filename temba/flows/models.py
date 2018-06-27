@@ -432,6 +432,7 @@ class Flow(TembaModel):
         "11.1",
         "11.2",
         "11.3",
+        "11.4",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -3756,7 +3757,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             """
             return {
                 "__default__": res[FlowRun.RESULT_VALUE],
-                "text": CheckedContextItem(res.get(FlowRun.RESULT_INPUT), check_text),
+                "text": res.get(FlowRun.RESULT_INPUT),
                 "time": res[FlowRun.RESULT_CREATED_ON],
                 "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
                 "value": res[FlowRun.RESULT_VALUE],
@@ -3764,13 +3765,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         context = {}
         default_lines = []
-
-        def check_text(val):
-            if raw_input and val != raw_input:
-                logger.error(
-                    ".text was accessed in a run and didn't match @step.value",
-                    extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
-                )
 
         for key, result in self.results.items():
             context[key] = result_wrapper(result)
@@ -4371,22 +4365,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
 
 
-class CheckedContextItem(dict):
-    """
-    Wrapper for an item in the context that we want to monitor access to
-    """
-
-    def __init__(self, val, lookup_callback):
-        super().__init__()
-        self.lookup_callback = lookup_callback
-        self.update({"__default__": val})
-
-    def __getitem__(self, key):
-        val = super().__getitem__(key)
-        self.lookup_callback(val)
-        return val
-
-
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = "wait_message"
 
@@ -4686,11 +4664,11 @@ class RuleSet(models.Model):
                 )
 
             # if we have a custom operand, figure that out
-            text = None
+            operand = None
             if self.operand:
-                (text, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
+                (operand, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
             elif msg:
-                text = msg.text
+                operand = str(msg)
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
@@ -4710,15 +4688,24 @@ class RuleSet(models.Model):
                 context = run.flow.build_expressions_context(run.contact, msg)
 
                 # airtime test evaluate against the status of the airtime
-                text = airtime.status
+                operand = airtime.status
+
+            elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                # lookup the subflow run
+                subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+                if subflow_run:
+                    if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                        operand = "completed"
+                    elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                        operand = "expired"
 
             try:
                 rules = self.get_rules()
                 for rule in rules:
-                    (result, value) = rule.matches(run, msg, context, text)
+                    (result, value) = rule.matches(run, msg, context, operand)
                     if result:
                         # treat category as the base category
-                        return rule, value, str(msg)
+                        return rule, value, operand
             finally:
                 if msg:
                     msg.text = orig_text
@@ -7557,8 +7544,6 @@ class SubflowTest(Test):
     TYPE_COMPLETED = "completed"
     TYPE_EXPIRED = "expired"
 
-    EXIT_MAP = {TYPE_COMPLETED: FlowRun.EXIT_TYPE_COMPLETED, TYPE_EXPIRED: FlowRun.EXIT_TYPE_EXPIRED}
-
     def __init__(self, exit_type):
         self.exit_type = exit_type
 
@@ -7570,10 +7555,7 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-        # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
-
-        if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
+        if self.exit_type == text:
             return 1, self.exit_type
         return 0, None
 

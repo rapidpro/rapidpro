@@ -296,7 +296,7 @@ class WebHookTest(TembaTest):
                     "category": "Other",
                     "node_uuid": matchers.UUID4String(),
                     "name": "color",
-                    "value": "Mauve",
+                    "value": "Mauve\nhttp://s3.com/text.jpg\nhttp://s3.com/text.mp4",
                     "created_on": matchers.ISODate(),
                     "input": "Mauve\nhttp://s3.com/text.jpg\nhttp://s3.com/text.mp4",
                 }
