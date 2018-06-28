@@ -93,13 +93,9 @@ class Campaign(TembaModel):
                     campaign.group = group
                     campaign.save()
 
-                # we want to nuke old single message flows
+                # release all of our events, we'll recreate these
                 for event in campaign.events.all():
-                    if event.flow.flow_type == Flow.MESSAGE:
-                        event.flow.release()
-
-                # and all of the events, we'll recreate these
-                campaign.events.all().delete()
+                    event.release()
 
                 # fill our campaign with events
                 for event_spec in campaign_spec["events"]:
