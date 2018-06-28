@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class TwitterActivityType(ChannelType):
     """
-    A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
+    A Twitter channel which uses Twitter's Account Activity API to send and receive direct messages.
     """
 
     code = "TWT"
@@ -23,12 +23,13 @@ class TwitterActivityType(ChannelType):
 
     courier_url = r"^twt/(?P<uuid>[a-z0-9\-]+)/receive$"
 
-    name = "Twitter Activity API"
+    name = "Twitter"
     icon = "icon-twitter"
 
     claim_blurb = _(
-        """If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
-    Activity API</a> which is currently in beta, you can add a Twitter channel for that here."""
+        """Send and receive messages on Twitter using their
+        <a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">
+        Twitter Activity API.</a> You will have to apply for Twitter API access and create a Twitter application."""
     )
     claim_view = ClaimView
 
@@ -37,9 +38,6 @@ class TwitterActivityType(ChannelType):
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
-
-    def is_available_to(self, user):
-        return user.is_beta()
 
     def activate(self, channel):
         config = channel.config

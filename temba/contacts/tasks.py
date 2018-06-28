@@ -42,13 +42,13 @@ def reevaluate_dynamic_group(group_id):
     ContactGroup.user_groups.get(id=group_id).reevaluate()
 
 
-@task(track_started=True, name="release_contact")
-def release_contact(contact_id, user_id):
+@task(track_started=True, name="full_release_contact")
+def full_release_contact(contact_id, user_id):
     contact = Contact.objects.filter(id=contact_id).first()
     user = User.objects.filter(id=user_id).first()
 
-    if contact:
-        contact.release(user)
+    if contact and not contact.is_active:
+        contact._full_release(user)
 
 
 @task(name="check_elasticsearch_lag")

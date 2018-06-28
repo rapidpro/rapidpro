@@ -1,24 +1,75 @@
 -extends "smartmin/update.html"
 
--load smartmin
+-load smartmin i18n temba
 
--block post-form
-  -if perms.auth.user_mimic
-    <form class="smartmin-form form-horizontal" action="{% url 'users.user_mimic' object.id %}" method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      .control-group{ style:"margin-top:15px" }
-        %label.control-label
-          Login as
-        .controls
-          %button.btn.btn-primary{type:"submit"}
-            {{object|user_as_string}}
-    </form>
+- block pre-form
+  .pull-right
+    %a.btn.btn-alert.delete
+      -with user.get_owned_orgs as orgs
+        -if orgs
+          -trans "Delete "
+          -for org in orgs
+            %span.org
+              {{org.name}}{{forloop|oxford}}
+        -else
+          -trans "Delete"
+
+- block post-form
+
+  - with user.get_owned_orgs as orgs
+    .deletion.hide
+      .title
+        -if orgs
+          -trans "Delete Organization"
+        -else
+          -trans "Delete User"
+
+      .body
+        - with user.get_owned_orgs as orgs
+          -if orgs
+            .delete-warning
+              .attn
+                -trans "Whoa, whoa, whoa!"
+              .orgs
+                -trans "By deleting this user,"
+                -for org in orgs
+                  %span.org
+                    {{org.name}}{{forloop|oxford}}
+                -blocktrans
+                  will also be deleted. All organization data will be deleted and there is no
+                  going back. This includes all flows, contacts, messages, etc.
+          - else
+            -blocktrans with user.username as name
+              Are you sure you want to delete the user {{name}}?
+
+    %a#delete-form.posterize{href:'{% url "orgs.user_delete" user.id %}?delete=true'}
+
+- block extra-script
+  :javascript
+
+    $(document).ready(()=>{
+      $('.delete').live('click', () => {
+        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+        modal.addClass('alert');
+        modal.setListeners({onPrimary: function(){
+          $('#delete-form').click();
+        }}, false);
+        modal.setPrimaryButton('{% trans "Delete" %}');
+        modal.show();
+
+      });
+    });
 
 - block extra-style
   {{block.super}}
   :css
-    .smartmin-form-buttons button[type="submit"] {
-      margin-left: 0px;
+
+    .attn {
+      font-weight: 500;
+    }
+
+    .delete-warning {
+      margin-top: 10px;
     }
 
     .form-horizontal .controls {

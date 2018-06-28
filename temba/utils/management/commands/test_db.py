@@ -118,7 +118,7 @@ CONTACT_NAMES = (
     ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
     ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
-CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
+CONTACT_LANGS = (None, "eng", "fra", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
 CONTACT_HAS_TWITTER_PROB = 0.1  # 1/10 contacts have a twitter handle
 CONTACT_IS_STOPPED_PROB = 0.01  # 1/100 contacts are stopped

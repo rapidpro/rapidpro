@@ -48,7 +48,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, languages
+from temba.utils import analytics, get_anonymous_user, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -339,7 +339,52 @@ class OrgGrantForm(forms.ModelForm):
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("edit",)
+    actions = ("list", "edit", "delete")
+
+    class List(SmartListView):
+        fields = ("username", "orgs", "date_joined")
+        link_fields = ("username",)
+        ordering = ("-date_joined",)
+        search_fields = ("username",)
+
+        def get_username(self, user):
+            return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")
+
+        def get_orgs(self, user):
+            orgs = user.get_user_orgs()[0:6]
+
+            more = ""
+            if len(orgs) > 5:
+                more = ", ..."
+                orgs = orgs[0:5]
+            org_links = ", ".join(
+                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{org.name}</a>" for org in orgs]
+            )
+            return mark_safe(f"{org_links}{more}")
+
+        def derive_queryset(self, **kwargs):
+            return super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
+
+    class Delete(SmartUpdateView):
+        class DeleteForm(forms.ModelForm):
+            delete = forms.BooleanField()
+
+            class Meta:
+                model = User
+                fields = ("delete",)
+
+        form_class = DeleteForm
+        permission = "auth.user_update"
+
+        def form_valid(self, form):
+            user = self.get_object()
+            username = user.username
+
+            brand = self.request.branding.get("brand")
+            user.release(brand)
+
+            messages.success(self.request, _(f"Deleted user {username}"))
+            return HttpResponseRedirect(reverse("orgs.user_list", args=()))
 
     class Edit(SmartUpdateView):
         class EditForm(forms.ModelForm):
@@ -500,6 +545,7 @@ class OrgCRUDL(SmartCRUDL):
         "create_login",
         "chatbase",
         "choose",
+        "delete",
         "manage_accounts",
         "manage_accounts_sub_org",
         "manage",
@@ -1107,14 +1153,15 @@ class OrgCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
-                return reverse("users.user_update", args=[obj.created_by.pk])
+                owner = obj.latest_admin() or obj.created_by
+                return reverse("users.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ("name", "slug", "stripe_customer", "is_active", "is_anon", "brand", "parent")
+        fields = ("name", "brand", "parent", "is_anon")
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
@@ -1138,39 +1185,47 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
 
-            links.append(
-                dict(title=_("Topups"), style="btn-primary", href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk))
-            )
+            if org.is_active:
 
-            if org.is_suspended():
                 links.append(
                     dict(
-                        title=_("Restore"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href="%s?status=restored" % reverse("orgs.org_update", args=[org.pk]),
-                    )
-                )
-            else:  # pragma: needs cover
-                links.append(
-                    dict(
-                        title=_("Suspend"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href="%s?status=suspended" % reverse("orgs.org_update", args=[org.pk]),
+                        title=_("Topups"),
+                        style="btn-primary",
+                        href="%s?org=%d" % (reverse("orgs.topup_manage"), org.pk),
                     )
                 )
 
-            if not org.is_whitelisted():
-                links.append(
-                    dict(
-                        title=_("Whitelist"),
-                        style="btn-secondary",
-                        posterize=True,
-                        href="%s?status=whitelisted" % reverse("orgs.org_update", args=[org.pk]),
+                if org.is_suspended():
+                    links.append(
+                        dict(
+                            title=_("Restore"),
+                            style="btn-secondary",
+                            posterize=True,
+                            href="%s?status=restored" % reverse("orgs.org_update", args=[org.pk]),
+                        )
                     )
-                )
+                else:  # pragma: needs cover
+                    links.append(
+                        dict(
+                            title=_("Suspend"),
+                            style="btn-secondary",
+                            posterize=True,
+                            href="%s?status=suspended" % reverse("orgs.org_update", args=[org.pk]),
+                        )
+                    )
 
+                if not org.is_whitelisted():
+                    links.append(
+                        dict(
+                            title=_("Whitelist"),
+                            style="btn-secondary",
+                            posterize=True,
+                            href="%s?status=whitelisted" % reverse("orgs.org_update", args=[org.pk]),
+                        )
+                    )
+
+                if self.request.user.has_perm("orgs.org_delete"):
+                    links.append(dict(title=_("Delete"), style="btn-primary", js_class="org-delete-button", href="#"))
             return links
 
         def post(self, request, *args, **kwargs):
@@ -1181,6 +1236,8 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().set_whitelisted()
                 elif request.POST.get("status", None) == RESTORED:
                     self.get_object().set_restored()
+                elif request.POST.get("status", None) == "delete":
+                    self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 
@@ -1534,8 +1591,8 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            host = self.request.branding.get("brand")
-            return self.request.user.get_user_orgs(host)
+            brand = self.request.branding.get("brand")
+            return self.request.user.get_user_orgs(brand)
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user

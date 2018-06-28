@@ -192,22 +192,19 @@
 
     -if user_org
       .org-header
-        -with user.get_user_orgs as orgs
-          -if orgs|length > 1
-            .pull-right.toggle
-              .icon-menu-2
+        -if user_orgs|length > 1
+          .pull-right.toggle
+            .icon-menu-2
 
-          .org
-            {{ user_org.name|truncatechars:30 }}
+        .org
+          {{ user_org.name|truncatechars:30 }}
 
-          .other-orgs.hide
-
-            -for org in orgs
-              -if org != user_org
-                .org
-                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                    {{ org.name }}
-
+        .other-orgs.hide
+          -for org in user_orgs
+            -if org != user_org
+              .org
+                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                  {{ org.name }}
 
     -block post-header
     <!-- Content -->
@@ -236,13 +233,12 @@
               %hr.top-bar
 
           - if messages
-            .row
+            .row-fluid
               .span12
                 - block messages
                   - if messages
                     -for msg in messages
                       %div{class:"alert alert-{{ message.tags }}"}
-                        %a.close{data-dismiss:"alert"} x
                         {{ msg }}
 
           -block content

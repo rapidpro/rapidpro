@@ -1,3 +1,18 @@
+v3.0.432
+----------
+ * Update modified_on on contacts that have their URN stolen
+ * Full releasing of orgs and users
+
+v3.0.431
+----------
+ * Set exit_uuid at end of path when run completes
+ * Make twitter activity API the default twitter channel type
+ * Add Nigeria and Rwanda to AT supported countries
+ * Don't exclude result input from flowserver trial result comparisons
+ * Use operand rather than msg text for result input
+ * Remove reporting to sentry when @flow.foo.text doesn't equal @step.text
+ * Add flow migration to replace @flow.foo.text expressions on non-waiting rulesets
+
 v3.0.430
 ----------
  * Fix message flow updating

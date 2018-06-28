@@ -1001,7 +1001,7 @@ class ChannelTest(TembaTest):
         )
 
         # one recommended channel (Mtarget in Rwanda)
-        self.assertEqual(len(response.context["recommended_channels"]), 1)
+        self.assertEqual(len(response.context["recommended_channels"]), 2)
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "T")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "TMS")

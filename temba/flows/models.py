@@ -432,6 +432,7 @@ class Flow(TembaModel):
         "11.1",
         "11.2",
         "11.3",
+        "11.4",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -802,7 +803,7 @@ class Flow(TembaModel):
 
         if not destination:  # pragma: no cover
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return voice_response
 
         # go and actually handle wherever we are in the flow
@@ -820,7 +821,7 @@ class Flow(TembaModel):
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
             voice_response.hangup()
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
 
         return voice_response
 
@@ -964,7 +965,7 @@ class Flow(TembaModel):
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
-                run.set_completed()
+                run.set_completed(exit_uuid=None)
                 Msg.mark_handled(msg)
                 return True, []
 
@@ -1137,7 +1138,7 @@ class Flow(TembaModel):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
         if not actionset:  # pragma: no cover
-            run.set_completed()
+            run.set_completed(exit_uuid=None)
             return dict(handled=True, destination=None, destination_type=None)
 
         # actually execute all the actions in our actionset
@@ -1149,7 +1150,7 @@ class Flow(TembaModel):
         if destination:
             run.flow.add_step(run, destination, exit_uuid=actionset.exit_uuid)
         else:
-            run.set_completed()
+            run.set_completed(exit_uuid=actionset.exit_uuid)
 
         return dict(handled=True, destination=destination, msgs=msgs)
 
@@ -1247,7 +1248,7 @@ class Flow(TembaModel):
                 run.set_interrupted()
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
             else:
-                run.set_completed()
+                run.set_completed(exit_uuid=result_rule.uuid)
                 return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
@@ -1324,12 +1325,12 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
+    def release(self, release_runs=True):
         """
         Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import deactivate_flow_runs_task
+        from .tasks import release_flow_runs_task
 
         self.is_active = False
         self.save()
@@ -1341,9 +1342,7 @@ class Flow(TembaModel):
             event.release()
 
         # release any triggers that depend on this flow
-        from temba.triggers.models import Trigger
-
-        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+        for trigger in self.triggers.all():
             trigger.release()
 
         self.group_dependencies.clear()
@@ -1351,7 +1350,8 @@ class Flow(TembaModel):
         self.field_dependencies.clear()
 
         # deactivate our runs in the background
-        on_transaction_commit(lambda: deactivate_flow_runs_task.delay(self.id))
+        if release_runs:
+            on_transaction_commit(lambda: release_flow_runs_task.delay(self.id))
 
     def get_category_counts(self, deleted_nodes=True):
 
@@ -1404,19 +1404,19 @@ class Flow(TembaModel):
 
         return dict(counts=result_list)
 
-    def deactivate_runs(self):
+    def release_runs(self):
         """
         Exits all flow runs
         """
 
-        # grab the ids of all our active runs
-        run_ids = self.runs.filter(is_active=True).values_list("id", flat=True)
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list("id", flat=True)
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 1000):
-            now = timezone.now()
             runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(is_active=False, exited_on=now, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED, modified_on=now)
+            for run in runs:
+                run.release()
 
         # clear all our cached stats
         self.clear_props_cache()
@@ -2256,7 +2256,7 @@ class Flow(TembaModel):
                         run_msgs += step_msgs
 
                     else:
-                        run.set_completed()
+                        run.set_completed(exit_uuid=None)
 
                 elif entry_rules:
                     self.add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
@@ -3756,7 +3756,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             """
             return {
                 "__default__": res[FlowRun.RESULT_VALUE],
-                "text": CheckedContextItem(res.get(FlowRun.RESULT_INPUT), check_text),
+                "text": res.get(FlowRun.RESULT_INPUT),
                 "time": res[FlowRun.RESULT_CREATED_ON],
                 "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
                 "value": res[FlowRun.RESULT_VALUE],
@@ -3764,13 +3764,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         context = {}
         default_lines = []
-
-        def check_text(val):
-            if raw_input and val != raw_input:
-                logger.error(
-                    ".text was accessed in a run and didn't match @step.value",
-                    extra={"org": self.org.name, "flow": self.flow.name, "input": raw_input, "text": val},
-                )
 
         for key, result in self.results.items():
             context[key] = result_wrapper(result)
@@ -4153,7 +4146,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.delete()
 
-    def set_completed(self, completed_on=None):
+    def set_completed(self, *, exit_uuid, completed_on=None):
         """
         Mark a run as complete
         """
@@ -4167,13 +4160,23 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
+            if exit_uuid:
+                self.path[-1]["exit_uuid"] = str(exit_uuid)
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
             self.is_active = False
             self.parent_context = None
             self.child_context = None
             self.save(
-                update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+                update_fields=(
+                    "path",
+                    "exit_type",
+                    "exited_on",
+                    "modified_on",
+                    "is_active",
+                    "parent_context",
+                    "child_context",
+                )
             )
 
         if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
@@ -4369,22 +4372,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):
         return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
-
-
-class CheckedContextItem(dict):
-    """
-    Wrapper for an item in the context that we want to monitor access to
-    """
-
-    def __init__(self, val, lookup_callback):
-        super().__init__()
-        self.lookup_callback = lookup_callback
-        self.update({"__default__": val})
-
-    def __getitem__(self, key):
-        val = super().__getitem__(key)
-        self.lookup_callback(val)
-        return val
 
 
 class RuleSet(models.Model):
@@ -4686,11 +4673,11 @@ class RuleSet(models.Model):
                 )
 
             # if we have a custom operand, figure that out
-            text = None
+            operand = None
             if self.operand:
-                (text, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
+                (operand, errors) = Msg.evaluate_template(self.operand, context, org=run.flow.org)
             elif msg:
-                text = msg.text
+                operand = str(msg)
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
@@ -4710,15 +4697,24 @@ class RuleSet(models.Model):
                 context = run.flow.build_expressions_context(run.contact, msg)
 
                 # airtime test evaluate against the status of the airtime
-                text = airtime.status
+                operand = airtime.status
+
+            elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                # lookup the subflow run
+                subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+                if subflow_run:
+                    if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                        operand = "completed"
+                    elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                        operand = "expired"
 
             try:
                 rules = self.get_rules()
                 for rule in rules:
-                    (result, value) = rule.matches(run, msg, context, text)
+                    (result, value) = rule.matches(run, msg, context, operand)
                     if result:
                         # treat category as the base category
-                        return rule, value, str(msg)
+                        return rule, value, operand
             finally:
                 if msg:
                     msg.text = orig_text
@@ -5016,6 +5012,9 @@ class FlowRevision(SmartModel):
             revision=self.revision,
         )
 
+    def release(self):
+        self.delete()
+
 
 class FlowCategoryCount(SquashableModel):
     """
@@ -5099,13 +5098,7 @@ class FlowPathCount(SquashableModel):
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     def __str__(self):  # pragma: no cover
-        return "FlowPathCount(%d) %s:%s %s count: %d" % (
-            self.flow_id,
-            self.from_uuid,
-            self.to_uuid,
-            self.period,
-            self.count,
-        )
+        return f"FlowPathCount({self.flow_id}) {self.from_uuid}:{self.to_uuid} {self.period} count: {self.count}"
 
     class Meta:
         index_together = ["flow", "from_uuid", "to_uuid", "period"]
@@ -7561,8 +7554,6 @@ class SubflowTest(Test):
     TYPE_COMPLETED = "completed"
     TYPE_EXPIRED = "expired"
 
-    EXIT_MAP = {TYPE_COMPLETED: FlowRun.EXIT_TYPE_COMPLETED, TYPE_EXPIRED: FlowRun.EXIT_TYPE_EXPIRED}
-
     def __init__(self, exit_type):
         self.exit_type = exit_type
 
@@ -7574,10 +7565,7 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-        # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
-
-        if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
+        if self.exit_type == text:
             return 1, self.exit_type
         return 0, None
 

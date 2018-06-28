@@ -671,7 +671,12 @@ class FlowTest(TembaTest):
                     "arrived_on": matchers.ISODate(),
                     "exit_uuid": str(orange_rule.uuid),
                 },
-                {"uuid": matchers.UUID4String(), "node_uuid": str(color_reply.uuid), "arrived_on": matchers.ISODate()},
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(color_reply.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(color_reply.exit_uuid),
+                },
             ],
         )
         self.assertEqual(
@@ -735,7 +740,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
         self.assertEqual("orange", str(context["flow"]["color"]["value"]))
         self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
+        self.assertEqual("orange", context["flow"]["color"]["text"])
         self.assertIsNotNone(context["flow"]["color"]["time"])
 
         self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
@@ -755,7 +760,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Orange", context["flow"]["color"]["category"])
 
         # this is drawn from the message which didn't change
-        self.assertEqual({"__default__": "orange"}, context["flow"]["color"]["text"])
+        self.assertEqual("orange", context["flow"]["color"]["text"])
 
     def test_add_messages(self):
         run, = self.flow.start([], [self.contact])
@@ -5448,7 +5453,7 @@ class WebhookTest(TembaTest):
                     "name": "Order Status",
                     "value": "Get ",
                     "created_on": matchers.ISODate(),
-                    "input": "Get " if in_flowserver else "",
+                    "input": "Get ",
                 },
                 "response_1": {
                     "category": "Success",
@@ -5482,7 +5487,7 @@ class WebhookTest(TembaTest):
                     "name": "Order Status",
                     "value": "Post ",
                     "created_on": matchers.ISODate(),
-                    "input": "Post " if in_flowserver else "",
+                    "input": "Post ",
                 },
                 "response_1": {
                     "category": "Success",
@@ -5893,6 +5898,21 @@ class SimulationTest(FlowFileTest):
 
 
 class FlowsTest(FlowFileTest):
+    def test_release(self):
+
+        # create a flow run
+        favorites = self.get_flow("favorites")
+        self.send_message(favorites, "green")
+
+        # now release our flow
+        favorites.release()
+
+        # flow should be inactive
+        self.assertFalse(Flow.objects.filter(id=favorites.id, is_active=True).exists())
+
+        # but all the runs should be deleted
+        self.assertFalse(FlowRun.objects.all().exists())
+
     def run_flowrun_deletion(self, delete_reason, test_cases):
         """
         Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final
@@ -6102,15 +6122,32 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertIsNotNone(run.exited_on)
 
-    def test_checking_result_text(self):
-        flow = self.get_flow("check_result_text")
+    @also_in_flowserver
+    def test_terminal_nodes(self, in_flowserver):
+        flow = self.get_flow("terminal_nodes")
+        action_set1, action_set2 = flow.action_sets.order_by("y")
+        rule_set1, rule_set2 = flow.rule_sets.order_by("y")
+        ben_rule = rule_set2.rules[0]
+
         run, = flow.start([], [self.contact])
 
-        with patch("logging.Logger.error") as mock_logger_error:
-            Msg.create_incoming(self.channel, "tel:+12065552020", "ping")
-            Msg.create_incoming(self.channel, "tel:+12065552020", "pong")
+        # answer with A to first ruleset which is Action (A) or Ruleset (R)
+        Msg.create_incoming(self.channel, "tel:+12065552020", "A")
+        run.refresh_from_db()
 
-            mock_logger_error.assert_called_once()
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(run.exit_type, "C")
+        self.assertEqual(run.path[2]["exit_uuid"], str(action_set2.exit_uuid))
+
+        run, = flow.start([], [self.contact], restart_participants=True)
+
+        # this time choose to end on a non-waiting ruleset
+        Msg.create_incoming(self.channel, "tel:+12065552020", "R")
+        run.refresh_from_db()
+
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(run.exit_type, "C")
+        self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
 
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
@@ -7461,7 +7498,7 @@ class FlowsTest(FlowFileTest):
 
         # should have an interrupted run
         self.assertEqual(
-            2, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
+            1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
         )
 
     def test_decimal_substitution(self):
@@ -7763,23 +7800,15 @@ class FlowsTest(FlowFileTest):
         flow.refresh_from_db()
         self.assertFalse(flow.is_active)
 
-        # should still have runs though
-        self.assertEqual(flow.runs.count(), 2)
-
-        # but they should all be inactive
-        self.assertEqual(flow.runs.filter(is_active=True).count(), 0)
-
-        # one is completed, the other interrupted
-        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 1)
-        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 1)
+        # runs should be deleted
+        self.assertEqual(flow.runs.count(), 0)
 
         # our campaign event should no longer be active
         event1.refresh_from_db()
         self.assertFalse(event1.is_active)
 
         # nor should our trigger
-        trigger.refresh_from_db()
-        self.assertFalse(trigger.is_active)
+        self.assertFalse(Trigger.objects.filter(id=trigger.id).exists())
 
     def test_flow_delete_with_dependencies(self):
         self.login(self.admin)
@@ -9073,6 +9102,27 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_4(self):
+        flow = self.get_flow("migrate_to_11_4")
+        flow_json = flow.as_json()
+
+        # gather up replies to check expressions were migrated
+        replies = []
+        for action_set in flow_json["action_sets"]:
+            for action in action_set["actions"]:
+                if "msg" in action:
+                    if isinstance(action["msg"], str):
+                        replies.append(action["msg"])
+                    else:
+                        for text in sorted(action["msg"].values()):
+                            replies.append(text)
+
+        self.assertEqual(
+            replies,
+            ['@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3\n@(CONCATENATE(step.value, "blerg"))']
+            * 3,
+        )
 
     def test_migrate_to_11_2(self):
         fre_definition = {

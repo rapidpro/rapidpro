@@ -33,6 +33,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, languages, on_transaction_commit
@@ -903,6 +904,15 @@ class ContactCRUDL(SmartCRUDL):
             context["task"] = None
             context["group"] = None
             context["show_form"] = True
+            org = self.derive_org()
+            connected_channels = Channel.objects.filter(is_active=True, org=org)
+            ch_schemes = set()
+            for ch in connected_channels:
+                ch_schemes.add(*ch.schemes)
+
+            context["urn_scheme_config"] = [
+                conf for conf in URN_SCHEME_CONFIG if conf[0] == TEL_SCHEME or conf[0] in ch_schemes
+            ]
 
             task_id = self.request.GET.get("task", None)
             if task_id:
@@ -1500,7 +1510,7 @@ class ContactCRUDL(SmartCRUDL):
         success_message = ""
 
         def save(self, obj):
-            obj.release_async(self.request.user)
+            obj.release(self.request.user)
             return obj
 
 
