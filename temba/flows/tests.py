@@ -11051,6 +11051,26 @@ class AssetServerTest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.json())
 
+    def test_environment(self):
+        self.login(self.admin)
+        response = self.client.get("/flow/assets/%d/1234/environment/" % self.org.id)
+        self.assertEqual(
+            response.json(),
+            {
+                "date_format": "DD-MM-YYYY",
+                "time_format": "tt:mm",
+                "timezone": "Africa/Kigali",
+                "languages": [],
+                "redaction_policy": "none",
+            },
+        )
+
+    def test_languages(self):
+        self.login(self.admin)
+        self.org.set_languages(self.admin, ["eng", "spa"], "eng")
+        response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
+        self.assertEqual(response.json(), [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}])
+
     def test_channels(self):
         self.login(self.admin)
 
