@@ -443,7 +443,7 @@ class MsgTest(TembaTest):
 
     def test_empty(self):
         broadcast = Broadcast.create(
-            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", []
+            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?"
         )
         broadcast.send(True)
 
@@ -458,11 +458,10 @@ class MsgTest(TembaTest):
             self.org,
             self.admin,
             "If a broadcast is sent and nobody receives it, does it still send?",
-            [contact],
+            contacts=[contact],
             send_all=True,
         )
-        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
-        broadcast.send(True, partial_recipients=partial_recipients)
+        broadcast.send(True, contacts=Contact.objects.filter(pk=contact.pk))
 
         self.assertEqual(2, broadcast.msgs.all().count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path="+12078778899").count())
@@ -473,13 +472,12 @@ class MsgTest(TembaTest):
             self.org,
             self.admin,
             "If a broadcast is sent and nobody receives it, does it still send?",
-            [contact],
+            contacts=[contact],
             send_all=True,
         )
         BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
 
-        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
-        broadcast.send(True, partial_recipients=partial_recipients)
+        broadcast.send(True, contacts=Contact.objects.filter(pk=contact.pk))
 
         self.assertEqual(2, broadcast.msgs.all().count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path="+12078778899").count())
@@ -496,7 +494,7 @@ class MsgTest(TembaTest):
                 self.org,
                 self.admin,
                 "If a broadcast is sent and nobody receives it, does it still send?",
-                [contact1],
+                contacts=[contact1],
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
@@ -509,7 +507,7 @@ class MsgTest(TembaTest):
             self.org,
             self.admin,
             "If a broadcast is sent and nobody receives it, does it still send?",
-            [contact1, contact2],
+            contacts=[contact1, contact2],
             send_all=True,
             quick_replies=[dict(eng="Yes", fra="Oui"), dict(eng="No")],
         )
@@ -527,7 +525,7 @@ class MsgTest(TembaTest):
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(
-            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", []
+            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?"
         )
 
         # update the contacts using contact ids
@@ -540,7 +538,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
-        broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", [contact])
+        broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", contacts=[contact])
 
         # now send the broadcast so we have messages
         broadcast1.send(trigger_send=False)
@@ -553,7 +551,7 @@ class MsgTest(TembaTest):
         self.assertEqual(set(response.context_data["object_list"]), {msg1})
 
         broadcast2 = Broadcast.create(
-            self.channel.org, self.admin, "kLab is an awesome place", [self.kevin, self.joe_and_frank]
+            self.channel.org, self.admin, "kLab is an awesome place", contacts=[self.kevin, self.joe_and_frank]
         )
 
         # now send the broadcast so we have messages
@@ -793,10 +791,10 @@ class MsgTest(TembaTest):
             group.contacts.add(contact)
 
         # create a broadcast and send it off
-        bcast = Broadcast.create(self.org, self.admin, "This is my spam message", recipients=[group])
+        bcast = Broadcast.create(self.org, self.admin, "This is my spam message", groups=[group])
         bcast.send()
 
-        bcast2 = Broadcast.create(self.org, self.admin, "This is my spam message", recipients=[group])
+        bcast2 = Broadcast.create(self.org, self.admin, "This is my spam message", groups=[group])
         with self.assertRaises(Exception):
             bcast2.send()
 
@@ -812,7 +810,11 @@ class MsgTest(TembaTest):
 
         # create broadcast and fail the only message
         broadcast = Broadcast.create(
-            self.org, self.admin, "message number 2", [self.joe], quick_replies=[{"base": "Yes"}, {"base": "No"}]
+            self.org,
+            self.admin,
+            "message number 2",
+            contacts=[self.joe],
+            quick_replies=[{"base": "Yes"}, {"base": "No"}],
         )
         broadcast.send(trigger_send=False)
         broadcast.get_messages().update(status="F")
@@ -1392,12 +1394,12 @@ class BroadcastTest(TembaTest):
         Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
 
         # create a broadcast which is a response to an incoming message
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", contacts=[self.joe])
         broadcast1.send(trigger_send=False, response_to=msg_in1)
 
         # create a broadcast which is to several contacts
         broadcast2 = Broadcast.create(
-            self.org, self.user, "Very old broadcast", [self.joe_and_frank, self.kevin, self.lucy]
+            self.org, self.user, "Very old broadcast", contacts=[self.joe_and_frank, self.kevin, self.lucy]
         )
         broadcast2.send(trigger_send=False)
 
@@ -1551,7 +1553,7 @@ class BroadcastTest(TembaTest):
         )
 
     def test_broadcast_batch(self):
-        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
+        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", contacts=[self.joe_and_frank, self.kevin])
         self.assertEqual(3, broadcast.recipient_count)
 
         # change our broadcast size to 2
@@ -1569,7 +1571,9 @@ class BroadcastTest(TembaTest):
             msgs_models.BATCH_SIZE = orig_batch_size
 
     def test_broadcast_model(self):
-        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast = Broadcast.create(
+            self.org, self.user, "Like a tweet", contacts=[self.joe_and_frank, self.kevin, self.lucy]
+        )
         self.assertEqual("I", broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
 
@@ -1720,10 +1724,11 @@ class BroadcastTest(TembaTest):
         no_urns = Contact.get_or_create_by_urns(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
         twitter_contact = self.create_contact("Lucy", twitter="lucy", force_urn_update=True)
-        recipients = [no_urns, tel_contact, twitter_contact]
 
         # send a broadcast to all (org has a tel and a twitter channel)
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast = Broadcast.create(
+            self.org, self.admin, "Want to go thrift shopping?", urns=no_urns, contacts=[tel_contact, twitter_contact]
+        )
         broadcast.send(True)
 
         # should have only messages for Ryan and Lucy
@@ -1733,7 +1738,12 @@ class BroadcastTest(TembaTest):
 
         # send another broadcast to all and force use of the twitter channel
         broadcast = Broadcast.create(
-            self.org, self.admin, "Want to go thrift shopping?", recipients, channel=self.twitter
+            self.org,
+            self.admin,
+            "Want to go thrift shopping?",
+            urns=no_urns,
+            contacts=[tel_contact, twitter_contact],
+            channel=self.twitter,
         )
         broadcast.send(True)
 
@@ -1747,7 +1757,9 @@ class BroadcastTest(TembaTest):
         self.org.clear_cached_channels()
 
         # send another broadcast to all
-        broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
+        broadcast = Broadcast.create(
+            self.org, self.admin, "Want to go thrift shopping?", urns=no_urns, contacts=[tel_contact, twitter_contact]
+        )
         broadcast.send(True)
         self.assertEqual(3, broadcast.recipient_count)
 
@@ -1945,7 +1957,7 @@ class BroadcastTest(TembaTest):
             self.org,
             self.user,
             "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
-            [self.joe_and_frank, self.kevin],
+            contacts=[self.joe_and_frank, self.kevin],
         )
         broadcast1.send(trigger_send=False, expressions_context={})
 
@@ -1965,7 +1977,7 @@ class BroadcastTest(TembaTest):
 
         # if we don't provide a context then substitution isn't performed
         broadcast2 = Broadcast.create(
-            self.org, self.user, "Hi @contact.name on @channel", [self.joe_and_frank, self.kevin]
+            self.org, self.user, "Hi @contact.name on @channel", contacts=[self.joe_and_frank, self.kevin]
         )
         broadcast2.send(trigger_send=False)
 
@@ -2400,7 +2412,7 @@ class ScheduleTest(TembaTest):
         batch_group = self.create_group("Batch Group", contacts)
 
         # create our broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Many message but only 5 batches.", [batch_group])
+        broadcast = Broadcast.create(self.org, self.admin, "Many message but only 5 batches.", groups=[batch_group])
 
         self.channel.channel_type = "EX"
         self.channel.save()
@@ -2527,7 +2539,7 @@ class BroadcastLanguageTest(TembaTest):
             self.org,
             self.admin,
             dict(eng=eng_msg, fra=fra_msg),
-            [self.francois, self.greg, self.wilbert],
+            contacts=[self.francois, self.greg, self.wilbert],
             base_language="eng",
         )
 
@@ -2549,7 +2561,7 @@ class BroadcastLanguageTest(TembaTest):
             self.org,
             self.admin,
             dict(eng=eng_msg, fra=fra_msg),
-            [self.francois, self.greg, self.wilbert],
+            contacts=[self.francois, self.greg, self.wilbert],
             base_language="eng",
             media=dict(eng=eng_attachment, fra=fra_attachment),
         )
@@ -2598,17 +2610,19 @@ class SystemLabelTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 3")
         msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
         call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
-        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
+        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", contacts=[contact1, contact2])
         Broadcast.create(
             self.org,
             self.user,
             "Broadcast 2",
-            [contact1, contact2],
+            contacts=[contact1, contact2],
             schedule=Schedule.create_schedule(timezone.now(), "D", self.user),
         )
 
         # create a broadcast with a test contact to make sure they aren't included
-        test_bcast = Broadcast.create(self.org, self.user, "Test Broadcast", [Contact.get_test_contact(self.admin)])
+        test_bcast = Broadcast.create(
+            self.org, self.user, "Test Broadcast", contacts=[Contact.get_test_contact(self.admin)]
+        )
 
         # this will create some test outgoing messages as well
         test_bcast.send()
@@ -2635,7 +2649,7 @@ class SystemLabelTest(TembaTest):
             self.org,
             self.user,
             "Broadcast 3",
-            [contact1],
+            contacts=[contact1],
             schedule=Schedule.create_schedule(timezone.now(), "W", self.user),
         )
 

@@ -192,7 +192,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         .values_list("id", flat=True)
     )
 
-    broadcast = Broadcast.create(org, user, text, recipients=[])
+    broadcast = Broadcast.create(org, user, text)
     broadcast.update_contacts(contact_ids)
     broadcast.send(expressions_context={})
 
@@ -220,7 +220,7 @@ def send_spam(user_id, contact_id):  # pragma: no cover
 
     # only trigger sync on the last one
     for idx in range(10):
-        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
+        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), contacts=[contact])
         broadcast.send(trigger_send=(idx == 149))
 
 

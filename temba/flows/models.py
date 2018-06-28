@@ -1,4 +1,3 @@
-import itertools
 import json
 import logging
 import numbers
@@ -2036,7 +2035,7 @@ class Flow(TembaModel):
                         self.org,
                         self.created_by,
                         send_action.msg,
-                        [],
+                        contacts=[],
                         media=send_action.media,
                         base_language=self.base_language,
                         send_all=send_action.send_all,
@@ -3341,7 +3340,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.org,
             user,
             text,
-            recipients=itertools.chain(urns, contacts),
+            contacts=contacts,
+            urns=urns,
             media=media,
             quick_replies=quick_replies,
             base_language=event["base_language"],
@@ -7257,13 +7257,12 @@ class SendAction(VariableContactAction):
                 if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
-                recipients = groups + contacts
-
                 broadcast = Broadcast.create(
                     flow.org,
                     flow.modified_by,
                     self.msg,
-                    recipients,
+                    groups=groups,
+                    contacts=contacts,
                     media=self.media,
                     base_language=flow.base_language,
                 )

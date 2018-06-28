@@ -2348,6 +2348,32 @@ class ContactURN(models.Model):
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
 
     @classmethod
+    def get_urn_ids_for_contacts(self, contact_ids, schemes):
+        """
+        Optimized call that fetches the preferred URN ids for the passed in contacts within the passed in
+        schemes.
+        """
+        urn_ids = list()
+
+        for chunk in chunk_list(contact_ids, 1000):
+            with connection.cursor() as cursor:
+                urns = cursor.execute(
+                    """
+                    SELECT DISTINCT ON(contact_id) contact_id, id
+                    FROM contacts_contacturn
+                    WHERE contact_id IN (%s) AND scheme IN (%s)
+                    ORDER BY contact_id, priority DESC;
+                    """,
+                    chunk,
+                    schemes,
+                ).fetchall()
+
+                for urn in urns:
+                    urn_ids.add(urn[1])
+
+        return urn_ids
+
+    @classmethod
     def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
         urn = cls.lookup(org, urn_as_string)
 

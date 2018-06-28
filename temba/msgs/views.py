@@ -280,7 +280,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # set our new message
             broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
-            broadcast.update_recipients(list(omnibox["groups"]) + list(omnibox["contacts"]) + list(omnibox["urns"]))
+            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
 
             broadcast.save()
             return broadcast
@@ -358,7 +358,6 @@ class BroadcastCRUDL(SmartCRUDL):
             groups = list(omnibox["groups"])
             contacts = list(omnibox["contacts"])
             urns = list(omnibox["urns"])
-            recipients = list()
 
             if step_uuid:
                 from .tasks import send_to_flow_node
@@ -371,21 +370,19 @@ class BroadcastCRUDL(SmartCRUDL):
                 else:
                     return HttpResponseRedirect(self.get_success_url())
 
+            # if simulating only use the test contact
             if simulation:
-                # when simulating make sure we only use test contacts
+                groups = []
+                urns = []
                 for contact in contacts:
                     if contact.is_test:
-                        recipients.append(contact)
-            else:
-                for group in groups:
-                    recipients.append(group)
-                for contact in contacts:
-                    recipients.append(contact)
-                for urn in urns:
-                    recipients.append(urn)
+                        contacts = [contact]
+                        break
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(org, user, text, recipients, schedule=schedule)
+            broadcast = Broadcast.create(
+                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule
+            )
 
             if not has_schedule:
                 self.post_save(broadcast)

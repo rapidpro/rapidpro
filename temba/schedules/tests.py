@@ -244,7 +244,7 @@ class ScheduleTest(TembaTest):
         schedule = self.create_schedule("D", start_date=eleven_fifteen_est)
         schedule.save()
 
-        Broadcast.create(self.org, self.admin, "Message", [], schedule=schedule)
+        Broadcast.create(self.org, self.admin, "Message", schedule=schedule)
         schedule = Schedule.objects.get(pk=schedule.pk)
 
         # when is the next fire once our first one passes
@@ -260,7 +260,7 @@ class ScheduleTest(TembaTest):
         tz = self.org.timezone
 
         sched = self.create_schedule("D")
-        Broadcast.create(self.org, self.admin, "Message", [], schedule=sched)
+        Broadcast.create(self.org, self.admin, "Message", schedule=sched)
         sched = Schedule.objects.get(pk=sched.pk)
 
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
