@@ -321,11 +321,9 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.get(id=event.id).is_active)
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).exists())
 
         # our single message flow should be released and take its dependencies with it
-        event.flow.refresh_from_db()
-        self.assertFalse(event.flow.is_active)
         self.assertEqual(0, event.flow.field_dependencies.all().count())
 
     def test_views(self):
@@ -656,9 +654,9 @@ class CampaignTest(TembaTest):
         self.assertEqual(response.context["scheduled_event_fires_count"], 0)
         self.assertEqual(len(response.context["scheduled_event_fires"]), 2)
 
-        # delete an event
+        # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.all()[0].is_active)
+        self.assertFalse(CampaignEvent.objects.all().exists())
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
         self.assertNotContains(response, "Color Flow")
 
