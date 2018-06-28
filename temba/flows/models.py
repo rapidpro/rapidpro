@@ -4399,6 +4399,7 @@ class RuleSet(models.Model):
     TYPE_FORM_FIELD = "form_field"
     TYPE_CONTACT_FIELD = "contact_field"
     TYPE_EXPRESSION = "expression"
+    TYPE_GROUP = "group"
     TYPE_RANDOM = "random"
     TYPE_SUBFLOW = "subflow"
 
@@ -4707,6 +4708,10 @@ class RuleSet(models.Model):
                         operand = "completed"
                     elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                         operand = "expired"
+
+            elif self.ruleset_type == RuleSet.TYPE_GROUP:
+                # this won't actually be used by the rules, but will end up in the results
+                operand = run.contact.name
 
             try:
                 rules = self.get_rules()
