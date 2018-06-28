@@ -1,3 +1,10 @@
+v3.0.433
+----------
+ * Write boolean natively when exporting to xlsx
+ * Improve reporting of flow server errors during trials
+ * Clarify about contact import columns
+ * Update flow result exports to match recent changes to contact exports
+
 v3.0.432
 ----------
  * Update modified_on on contacts that have their URN stolen
