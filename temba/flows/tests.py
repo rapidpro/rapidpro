@@ -7612,7 +7612,8 @@ class FlowsTest(FlowFileTest):
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
 
-    def test_group_split(self):
+    @also_in_flowserver
+    def test_group_split(self, in_flowserver):
         flow = self.get_flow("group_split")
 
         rulesets = RuleSet.objects.filter(flow=flow)
@@ -7626,7 +7627,7 @@ class FlowsTest(FlowFileTest):
                     group_count += 1
         self.assertEqual(2, group_count)
 
-        flow.start_msg_flow([self.contact.id])
+        run, = flow.start_msg_flow([self.contact.id])
 
         # not in any group
         self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
@@ -7642,6 +7643,19 @@ class FlowsTest(FlowFileTest):
         # now split us on group membership
         self.send("split")
         self.assertEqual("You are in Group A", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
+
+        run.refresh_from_db()
+        self.assertEqual(
+            run.results["member"],
+            {
+                "category": "Group A",
+                "created_on": matchers.ISODate(),
+                "input": "Ben Haggerty",
+                "name": "Member",
+                "node_uuid": matchers.UUID4String(),
+                "value": "Group A",
+            },
+        )
 
         # now add us to group b and remove from group a
         self.send("remove group a")
