@@ -177,23 +177,38 @@ def create_webhook_mocks(trial):
     return [{"method": r.event.action, "url": r.url, "status": r.status_code, "body": r.body} for r in results]
 
 
+def get_session_runs(run):
+    """
+    Get all the runs that make up the given run's session or its trigger
+    """
+    from temba.flows.models import FlowRun
+
+    session_runs = [run]  # include the run itself
+    trigger_run = None
+
+    # include all of its children
+    session_runs += list(FlowRun.objects.filter(parent=run, contact=run.contact))
+
+    r = run
+    while r.parent:
+        if r.parent.contact == r.contact:
+            session_runs.append(r.parent)
+        else:
+            trigger_run = r.parent
+            break
+        r = r.parent
+
+    session_runs = sorted(session_runs, key=lambda r: r.created_on)
+    return session_runs, trigger_run
+
+
 def reconstruct_session(run):
     """
     Reconstruct session JSON from the given resumable run which is assumed to be WAITING
     """
-    from temba.flows.models import FlowRun
 
     # get all the runs that would be in the same session or part of the trigger
-    trigger_run = None
-    session_runs = [run]
-    session_runs += list(FlowRun.objects.filter(parent=run, contact=run.contact))
-    if run.parent:
-        if run.parent.contact == run.contact:
-            session_runs.append(run.parent)
-        else:
-            trigger_run = run.parent
-
-    session_runs = sorted(session_runs, key=lambda r: r.created_on)
+    session_runs, trigger_run = get_session_runs(run)
     session_root_run = session_runs[0]
 
     trigger = {
