@@ -6185,7 +6185,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
-                        "true",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -6198,7 +6198,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
-                        "true",
+                        True,
                     ],
                 ],
             )
@@ -6239,7 +6239,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
-                        "true",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -6253,10 +6253,10 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
-                        "true",
+                        True,
                     ],
-                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", "", "false"],
-                    [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", "", "false"],
+                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", "", False],
+                    [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", "", False],
                 ],
             )
 

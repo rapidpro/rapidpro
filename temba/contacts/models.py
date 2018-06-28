@@ -3118,12 +3118,7 @@ class ExportContactsTask(BaseExportTask):
                     contact_groups_ids = [g.id for g in contact.all_groups.all()]
                     for col in range(len(group_fields)):
                         field = group_fields[col]
-                        field_value = "true" if field["group_id"] in contact_groups_ids else "false"
-
-                        if field_value:
-                            field_value = str(clean_string(field_value))
-
-                        group_values.append(field_value)
+                        group_values.append(field["group_id"] in contact_groups_ids)
 
                 # write this contact's values
                 exporter.write_row(values + group_values)
