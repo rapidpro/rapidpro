@@ -168,6 +168,42 @@ class TrialTest(TembaTest):
         self.assertEqual(mock_report_failure.call_count, 0)
 
     @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="on")
+    @patch("temba.flows.server.trial.report_failure")
+    @patch("temba.flows.server.trial.report_success")
+    def test_finding_session_runs(self, mock_report_success, mock_report_failure):
+        contact2 = self.create_contact("Oprah Winfrey", "+12065552121")
+        self.get_flow("hierarchy")
+
+        hierarchy = Flow.objects.get(name="Hierarchy 1")
+        hierarchy.start([], [self.contact])
+
+        contact1_run1, contact1_run2 = FlowRun.objects.filter(contact=self.contact).order_by("id")
+        contact2_run1, contact2_run2, contact2_run3 = FlowRun.objects.filter(contact=contact2).order_by("id")
+
+        self.assertEqual(contact1_run2.parent, contact1_run1)
+        self.assertEqual(contact2_run1.parent, contact1_run2)
+        self.assertEqual(contact2_run2.parent, contact2_run1)
+        self.assertEqual(contact2_run3.parent, contact2_run2)
+
+        session = trial.reconstruct_session(contact2_run3)
+
+        # check the session runs don't include the runs for the other contact
+        self.assertEqual(
+            [r["uuid"] for r in session["runs"]],
+            [str(contact2_run1.uuid), str(contact2_run2.uuid), str(contact2_run3.uuid)],
+        )
+
+        # but the one that triggered the runs for the second contact, is included on the trigger
+        self.assertEqual(session["trigger"]["type"], "flow_action")
+        self.assertEqual(session["trigger"]["run"]["uuid"], str(contact1_run2.uuid))
+
+        # and that the parent field is set correctly on each session run
+        self.assertNotIn("parent_uuid", session["runs"][0])  # because it's parent isn't in same session
+        self.assertEqual(session["runs"][1]["parent_uuid"], str(contact2_run1.uuid))
+        self.assertEqual(session["runs"][2]["parent_uuid"], str(contact2_run2.uuid))
+
+    @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
