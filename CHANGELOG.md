@@ -1,3 +1,9 @@
+v3.0.434
+----------
+ * Add option for two day run expiration
+ * Change group rulesets to use contact as operand same as new engine
+ * Fix reconstructing sessions for runs being trialled in the flowserver so that we include all session runs
+
 v3.0.433
 ----------
  * Write boolean natively when exporting to xlsx
