@@ -128,10 +128,10 @@ class ClientTest(TembaTest):
         with self.assertRaises(FlowServerException) as e:
             self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
-            self.assertEqual(
-                e.exception.as_json(),
-                {"endpoint": "start", "request": matchers.Dict, "response": {"errors": ["Bad request", "Doh!"]}},
-            )
+        self.assertEqual(
+            e.exception.as_json(),
+            {"endpoint": "start", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
+        )
 
 
 class TrialTest(TembaTest):
@@ -332,7 +332,16 @@ class TrialTest(TembaTest):
             run.refresh_from_db()
             self.assertEqual(len(run.path), 4)
 
-        # an exception in end_resume also shouldn't prevent normal flow execution
+        # a flow server exception in end_resume also shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.resume") as mock_resume:
+            mock_resume.side_effect = FlowServerException("resume", {}, {"errors": ["Boom!"]})
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # any other exception in end_resume also shouldn't prevent normal flow execution
         with patch("temba.flows.server.trial.resume") as mock_resume:
             mock_resume.side_effect = ValueError("BOOM")
 

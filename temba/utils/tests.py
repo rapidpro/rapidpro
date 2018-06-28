@@ -1969,6 +1969,12 @@ class MatchersTest(TembaTest):
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
 
+    def test_dict(self):
+        self.assertEqual({}, matchers.Dict())
+        self.assertEqual({"a": "b"}, matchers.Dict())
+        self.assertNotEqual(None, matchers.Dict())
+        self.assertNotEqual([], matchers.Dict())
+
 
 class NonBlockingLockTest(TestCase):
     def test_nonblockinglock(self):
