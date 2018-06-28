@@ -154,6 +154,8 @@ class BaseExportTask(TembaModel):
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
+        elif isinstance(value, bool):
+            return value
         else:
             return clean_string(str(value))
 
