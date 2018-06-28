@@ -7663,6 +7663,26 @@ class FlowsTest(FlowFileTest):
         self.send("split")
         self.assertEqual("You are in Group B", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
 
+        # now remove from both groups
+        self.send("remove group b")
+        self.send("split")
+        self.assertEqual(
+            "You aren't in either group.", Msg.objects.filter(direction="O").order_by("-created_on")[1].text
+        )
+
+        run.refresh_from_db()
+        self.assertEqual(
+            run.results["member"],
+            {
+                "category": "Other",
+                "created_on": matchers.ISODate(),
+                "input": "Ben Haggerty",
+                "name": "Member",
+                "node_uuid": matchers.UUID4String(),
+                "value": "Ben Haggerty",
+            },
+        )
+
     def test_media_first_action(self):
         flow = self.get_flow("media_first_action")
 
