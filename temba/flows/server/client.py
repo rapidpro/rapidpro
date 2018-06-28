@@ -264,7 +264,13 @@ class Output(object):
 
 
 class FlowServerException(Exception):
-    pass
+    def __init__(self, endpoint, request, response):
+        self.endpoint = endpoint
+        self.request = request
+        self.response = response
+
+    def as_json(self):
+        return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
 class FlowServerClient(object):
@@ -308,8 +314,7 @@ class FlowServerClient(object):
             print("[GOFLOW]=============== /%s response ===============" % endpoint)
 
         if 400 <= response.status_code < 500:
-            errors = "\n".join(resp_json["errors"])
-            raise FlowServerException("Invalid request: " + errors)
+            raise FlowServerException(endpoint, payload, resp_json)
 
         response.raise_for_status()
 

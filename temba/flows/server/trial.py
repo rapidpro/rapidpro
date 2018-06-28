@@ -14,7 +14,7 @@ from jsondiff import diff as jsondiff
 from django.conf import settings
 from django.utils import timezone
 
-from .client import Events, get_client
+from .client import Events, FlowServerException, get_client
 from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,9 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             report_success(trial)
             return True
 
+    except FlowServerException as e:
+        logger.error("trial resume in flowserver caused server error", extra=e.as_json())
+        return False
     except Exception as e:
         logger.error(
             "flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True
@@ -107,18 +110,23 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print("Flowserver trial resume for run %s in flow '%s' succeeded" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' failed")
 
     logger.error(
         "trial resume in flowserver produced different output",
-        extra={"run_id": trial.run.id, "differences": trial.differences},
+        extra={
+            "org": trial.run.org.name,
+            "flow": {"uuid": str(trial.run.flow.uuid), "name": trial.run.flow.name},
+            "run_id": trial.run.id,
+            "differences": trial.differences,
+        },
     )
 
 
@@ -314,13 +322,7 @@ def reduce_path(path):
     """
     Reduces path to just node/exit. Other fields are datetimes or generated step UUIDs which are non-deterministic
     """
-    reduced = [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
-
-    # rapidpro doesn't set exit_uuid on terminal actions
-    if "exit_uuid" in reduced[-1]:
-        del reduced[-1]["exit_uuid"]
-
-    return reduced
+    return [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
 
 
 def reduce_results(results):

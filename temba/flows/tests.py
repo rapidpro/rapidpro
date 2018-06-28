@@ -11019,7 +11019,7 @@ class FlowServerTest(TembaTest):
 
         # when flowserver returns an error
         with patch("temba.flows.server.FlowServerClient.start") as mock_start:
-            mock_start.side_effect = FlowServerException("nope")
+            mock_start.side_effect = FlowServerException("start", {}, {"errors": ["Nope"]})
 
             self.assertEqual(flow.start([], [self.contact], restart_participants=True), [])
 
@@ -11039,7 +11039,7 @@ class FlowServerTest(TembaTest):
 
         # when flowserver returns an error
         with patch("temba.flows.server.FlowServerClient.resume") as mock_resume:
-            mock_resume.side_effect = FlowServerException("nope")
+            mock_resume.side_effect = FlowServerException("start", {}, {"errors": ["Nope"]})
 
             msg2 = self.create_msg(direction="I", text="Primus", contact=self.contact)
             run1.session.resume_by_input(msg2)
