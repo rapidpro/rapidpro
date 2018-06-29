@@ -24,7 +24,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models, transaction
@@ -71,6 +70,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import JSONAsTextField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.queues import push_task
+from temba.utils.s3 import PublicFileStorage
 from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
@@ -1540,7 +1540,8 @@ class Flow(TembaModel):
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urlopen(url).read())
                 temp.flush()
-                return default_storage.save(path, temp)
+                file_storage = PublicFileStorage()
+                return file_storage.save(path, temp)
             except Exception:  # pragma: needs cover
                 # its okay if its no longer there, we'll remove the recording
                 return None
