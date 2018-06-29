@@ -70,7 +70,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import JSONAsTextField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.queues import push_task
-from temba.utils.s3 import PublicFileStorage
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
@@ -1540,8 +1540,7 @@ class Flow(TembaModel):
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urlopen(url).read())
                 temp.flush()
-                file_storage = PublicFileStorage()
-                return file_storage.save(path, temp)
+                return public_file_storage.save(path, temp)
             except Exception:  # pragma: needs cover
                 # its okay if its no longer there, we'll remove the recording
                 return None

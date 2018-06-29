@@ -43,7 +43,7 @@ from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
 from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
-from temba.utils.s3 import PublicFileStorage
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
 
 EARLIEST_IMPORT_VERSION = "3"
@@ -2105,8 +2105,7 @@ class Org(SmartModel):
             filename = "%s.%s" % (filename, extension)
 
         path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
-        file_storage = PublicFileStorage()
-        location = file_storage.save(path, file)
+        location = public_file_storage.save(path, file)
 
         # force http for localhost
         scheme = "https"

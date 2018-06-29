@@ -1,6 +1,9 @@
-from storages.backends.s3boto3 import S3Boto3Storage
+from django.core.files.storage import DefaultStorage
 
 
-class PublicFileStorage(S3Boto3Storage):
+class PublicFileStorage(DefaultStorage):
     default_acl = "public-read"
     file_overwrite = False
+
+
+public_file_storage = PublicFileStorage()
