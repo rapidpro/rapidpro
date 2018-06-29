@@ -1479,21 +1479,13 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
 
             except TwilioRestException as e:
-                if e.code == 20003:
-                    messages.error(
-                        request,
-                        _(
-                            "We can no longer authenticate with your Twilio Account. To delete this channel please update your Twilio connection settings."
-                        ),
-                    )
-                else:
-                    messages.error(
-                        request,
-                        _(
-                            "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
-                            % e.code
-                        ),
-                    )
+                messages.error(
+                    request,
+                    _(
+                        "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+                        % e.code
+                    ),
+                )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
             except Exception as e:  # pragma: no cover
