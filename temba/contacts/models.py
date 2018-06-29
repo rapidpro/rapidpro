@@ -1496,12 +1496,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 unsupported_headers.append(h_lower_stripped)
 
         joined_possible_headers = '", "'.join([h for h in possible_headers])
+        joined_unsupported_headers = ", ".join([h for h in unsupported_headers])
 
         if unsupported_headers:
             raise Exception(
                 ugettext(
-                    'The file you provided has unsuported headers. "%s". '
-                    "should be removed." % '", "'.join([h for h in unsupported_headers])
+                    f"The file you provided has unsuported headers. {joined_unsupported_headers} should be removed."
                 )
             )
 
@@ -1511,8 +1511,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not found_headers:
             raise Exception(
                 ugettext(
-                    'The file you provided is missing a required header. At least one of "%s" '
-                    'or "Contact UUID" should be included.' % joined_possible_headers
+                    f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
                 )
             )
 

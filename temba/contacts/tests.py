@@ -4081,8 +4081,11 @@ class ContactTest(TembaTest):
         with self.assertRaises(Exception):
             Contact.validate_org_import_header(["urn:tel", "urn:twitter", "urn:ext"], self.org)  # missing name
 
+        with self.assertRaises(Exception):
+            Contact.validate_org_import_header(["urn:tel", "name", "age"], self.org)  # unsupported header
+
         Contact.validate_org_import_header(["uuid"], self.org)
-        Contact.validate_org_import_header(["uuid", "age"], self.org)
+        Contact.validate_org_import_header(["uuid", "field:age"], self.org)
         Contact.validate_org_import_header(["uuid", "name"], self.org)
         Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
         Contact.validate_org_import_header(["name", "urn:tel"], self.org)
@@ -4091,7 +4094,7 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             Contact.validate_org_import_header(["uuid"], self.org)
-            Contact.validate_org_import_header(["uuid", "age"], self.org)
+            Contact.validate_org_import_header(["uuid", "field:age"], self.org)
             Contact.validate_org_import_header(["uuid", "name"], self.org)
             Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
             Contact.validate_org_import_header(["name", "urn:tel"], self.org)
