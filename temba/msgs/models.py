@@ -402,7 +402,7 @@ class Broadcast(models.Model):
             urns.add(urn)
 
         # if we are fewer than on batch, send right away
-        if len(urns) < BATCH_SIZE:
+        if len(urns) <= BATCH_SIZE:
             self.send_batch(
                 urns=urns,
                 trigger_send=True,
@@ -631,7 +631,7 @@ class Broadcast(models.Model):
         """
         unique_contacts = set([c.id for c in contacts])
 
-        # for each group add in those IDs as wll
+        # for each group add in those IDs as well
         for group in groups:
             for contact in group.contacts.all().values_list("id", flat=True):
                 unique_contacts.add(contact)

@@ -60,7 +60,6 @@ from temba.msgs.models import (
     Label,
     Msg,
 )
-from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit
 from temba.utils.dates import datetime_to_str, str_to_datetime
@@ -2037,7 +2036,6 @@ class Flow(TembaModel):
                         self.org,
                         self.created_by,
                         send_action.msg,
-                        contacts=[],
                         media=send_action.media,
                         base_language=self.base_language,
                         send_all=send_action.send_all,
@@ -3348,8 +3346,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             base_language=event["base_language"],
         )
 
-        # send in task
-        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id, with_expressions=False))
+        # send it (will happen in task if appropriate)
+        broadcast.send(expressions_context={})
 
     def apply_msg_created(self, event, msg_in):
         """
