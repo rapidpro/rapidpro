@@ -1100,6 +1100,7 @@ class Channel(TembaModel):
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
+
             except TwilioRestException as e:
                 raise e
 
