@@ -1483,9 +1483,6 @@ class FlowCRUDL(SmartCRUDL):
                 if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(user.username, "temba.flow_simulated")
 
-                action_log_ids = list(ActionLog.objects.filter(run__in=runs).values_list("id", flat=True))
-                ActionLog.objects.filter(id__in=action_log_ids).delete()
-
                 msg_ids = list(Msg.objects.filter(contact=test_contact).only("id").values_list("id", flat=True))
 
                 for batch in chunk_list(msg_ids, 25):

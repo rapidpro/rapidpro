@@ -4133,6 +4133,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
+            # delete any action logs associated with us
+            ActionLog.objects.filter(run=self).delete()
+
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
