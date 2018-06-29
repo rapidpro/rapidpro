@@ -1476,19 +1476,26 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def validate_org_import_header(cls, headers, org):
         possible_headers = [h[0] for h in IMPORT_HEADERS]
         possible_headers_case_insensitive = [h.lower() for h in possible_headers]
-        found_headers = [h.lower() for h in headers if h in possible_headers_case_insensitive]
+
+        found_headers = []
+        unsupported_headers = []
+
+        for h in headers:
+            h_lower_stripped = h.strip().lower()
+
+            if h_lower_stripped in possible_headers_case_insensitive:
+                found_headers.append(h_lower_stripped)
+
+            if (
+                h_lower_stripped
+                and not h_lower_stripped.startswith("urn:")
+                and not h_lower_stripped.startswith("field:")
+                and not h_lower_stripped.startswith("group:")
+                and h_lower_stripped not in ["uuid", "contact uuid", "name", "language"]
+            ):
+                unsupported_headers.append(h_lower_stripped)
 
         joined_possible_headers = '", "'.join([h for h in possible_headers])
-
-        unsupported_headers = [
-            h
-            for h in headers
-            if h.lower().strip()
-            and not h.lower().strip().startswith("urn:")
-            and not h.lower().strip().startswith("field:")
-            and not h.lower().strip().startswith("group:")
-            and not h.lower() in ["uuid", "contact uuid", "name", "language"]
-        ]
 
         if unsupported_headers:
             raise Exception(
