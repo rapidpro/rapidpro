@@ -1,3 +1,11 @@
+v3.0.435
+----------
+ * Fix group test operand when contact name is null
+ * Mention all AfricasTalking countries on claim page
+ * Warn user of columns to remove on import
+ * Release events properly on campaign import
+ * Add languages endpoint to asset server
+
 v3.0.434
 ----------
  * Add option for two day run expiration
