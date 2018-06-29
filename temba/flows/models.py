@@ -7269,7 +7269,7 @@ class SendAction(VariableContactAction):
                     media=self.media,
                     base_language=flow.base_language,
                 )
-                broadcast.send(trigger_send=False, expressions_context=context)
+                broadcast.send(expressions_context=context)
                 return list(broadcast.get_messages())
 
             else:

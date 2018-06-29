@@ -591,7 +591,7 @@ class Broadcast(models.Model):
             parent=self,
         )
 
-        broadcast.send(trigger_send=True, expressions_context={})
+        broadcast.send(expressions_context={})
         return broadcast
 
     def get_messages(self):

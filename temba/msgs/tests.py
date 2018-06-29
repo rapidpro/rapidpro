@@ -444,7 +444,7 @@ class MsgTest(TembaTest):
         broadcast = Broadcast.create(
             self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?"
         )
-        broadcast.send(trigger_send=True)
+        broadcast.send()
 
         # should have no messages but marked as sent
         self.assertEqual(0, broadcast.msgs.all().count())
@@ -460,7 +460,7 @@ class MsgTest(TembaTest):
             contacts=[contact],
             send_all=True,
         )
-        broadcast.send(trigger_send=True)
+        broadcast.send()
 
         self.assertEqual(2, broadcast.msgs.all().count())
         self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path="+12078778899").count())
@@ -524,7 +524,7 @@ class MsgTest(TembaTest):
         broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", contacts=[contact])
 
         # now send the broadcast so we have messages
-        broadcast1.send(trigger_send=False)
+        broadcast1.send()
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
         with self.assertNumQueries(45):
@@ -542,7 +542,7 @@ class MsgTest(TembaTest):
         )
 
         # now send the broadcast so we have messages
-        broadcast2.send(trigger_send=False)
+        broadcast2.send()
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
         with self.assertNumQueries(39):
@@ -803,7 +803,7 @@ class MsgTest(TembaTest):
             contacts=[self.joe],
             quick_replies=[{"base": "Yes"}, {"base": "No"}],
         )
-        broadcast.send(trigger_send=False)
+        broadcast.send()
         broadcast.get_messages().update(status="F")
         msg2 = broadcast.get_messages()[0]
 
@@ -1382,13 +1382,13 @@ class BroadcastTest(TembaTest):
 
         # create a broadcast which is a response to an incoming message
         broadcast1 = Broadcast.create(self.org, self.user, "Noted", contacts=[self.joe])
-        broadcast1.send(trigger_send=False, response_to=msg_in1)
+        broadcast1.send(response_to=msg_in1)
 
         # create a broadcast which is to several contacts
         broadcast2 = Broadcast.create(
             self.org, self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
         )
-        broadcast2.send(trigger_send=False)
+        broadcast2.send()
 
         # start joe in a flow
         favorites.start([], [self.joe])
@@ -1566,7 +1566,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("I", broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
 
-        broadcast.send(trigger_send=False)
+        broadcast.send()
         self.assertEqual("S", broadcast.status)
         self.assertEqual(broadcast.get_message_count(), 4)
 
@@ -1718,7 +1718,7 @@ class BroadcastTest(TembaTest):
         broadcast = Broadcast.create(
             self.org, self.admin, "Want to go thrift shopping?", contacts=[no_urns, tel_contact, twitter_contact]
         )
-        broadcast.send(trigger_send=True)
+        broadcast.send()
 
         # should have only messages for Ryan and Lucy
         msgs = broadcast.msgs.all()
@@ -1733,7 +1733,7 @@ class BroadcastTest(TembaTest):
             contacts=[no_urns, tel_contact, twitter_contact],
             channel=self.twitter,
         )
-        broadcast.send(trigger_send=True)
+        broadcast.send()
 
         # should have only one message created to Lucy
         msgs = broadcast.msgs.all()
@@ -1748,7 +1748,7 @@ class BroadcastTest(TembaTest):
         broadcast = Broadcast.create(
             self.org, self.admin, "Want to go thrift shopping?", contacts=[no_urns, tel_contact, twitter_contact]
         )
-        broadcast.send(trigger_send=True)
+        broadcast.send()
         self.assertEqual(1, broadcast.recipient_count)
 
         # should have only one message created to Ryan
@@ -1948,7 +1948,7 @@ class BroadcastTest(TembaTest):
             groups=[self.joe_and_frank],
             contacts=[self.kevin],
         )
-        broadcast1.send(trigger_send=False, expressions_context={})
+        broadcast1.send(expressions_context={})
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEqual(Msg.objects.all().count(), 3)
@@ -1968,7 +1968,7 @@ class BroadcastTest(TembaTest):
         broadcast2 = Broadcast.create(
             self.org, self.user, "Hi @contact.name on @channel", groups=[self.joe_and_frank], contacts=[self.kevin]
         )
-        broadcast2.send(trigger_send=False)
+        broadcast2.send()
 
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
         self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
@@ -2406,25 +2406,14 @@ class ScheduleTest(TembaTest):
         self.channel.channel_type = "EX"
         self.channel.save()
 
-        # create our messages, but don't sync
-        broadcast.send(trigger_send=False)
+        # create our messages
+        broadcast.send()
 
         # get one of our messages, should be at low priority since it was to more than one recipient
         sms = broadcast.get_messages()[0]
         self.assertFalse(sms.high_priority)
 
-        # we should now have 11 messages pending
-        self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
-
-        # let's trigger a sending of the messages
-        self.org.trigger_send()
-
-        # we still should have 11 messages that have been created
-        self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
-
-        # let's send the messages by hand
-        self.org.trigger_send(Msg.objects.filter(channel=self.channel, status=PENDING))
-
+        # we should now have 11 messages wired
         self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
 
 
