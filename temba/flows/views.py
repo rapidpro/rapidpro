@@ -49,7 +49,7 @@ from temba.flows.server import get_client
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.msgs.models import PENDING, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Language, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -1780,6 +1780,7 @@ class FlowCRUDL(SmartCRUDL):
         /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779  -> the channel with that UUID in org #123
         /flow_assets/123/xyz/group                                         -> all groups for org #123
         /flow_assets/123/xyz/location_hierarchy                            -> country>states>districts>wards for org #123
+        /flow_assets/123/xyz/environment                                   -> timezone, date_format, languages, etc
         """
 
         class Resource(object):
@@ -1800,8 +1801,16 @@ class FlowCRUDL(SmartCRUDL):
             def get_root(self, org):
                 return org.country
 
+        class EnvironmentResource(object):
+            def __init__(self, serializer):
+                self.serializer = serializer
+
+            def get_root(self, org):
+                return org
+
         resources = {
             "channel": Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
+            "environment": EnvironmentResource(server.serialize_environment),
             "field": Resource(ContactField.objects.filter(is_active=True), server.serialize_field),
             "flow": Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
             "group": Resource(
@@ -1809,6 +1818,7 @@ class FlowCRUDL(SmartCRUDL):
                 server.serialize_group,
             ),
             "label": Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
+            "language": Resource(Language.objects.filter(is_active=True), server.serialize.serialize_language),
             "location_hierarchy": BoundaryResource(server.serialize_location_hierarchy),
         }
 
