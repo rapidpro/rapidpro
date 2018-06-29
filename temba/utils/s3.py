@@ -8,3 +8,4 @@ class PublicFileStorage(DefaultStorage):
 
 public_file_storage = PublicFileStorage()
 public_file_storage.default_acl = "public-read"
+
