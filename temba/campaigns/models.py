@@ -93,13 +93,9 @@ class Campaign(TembaModel):
                     campaign.group = group
                     campaign.save()
 
-                # we want to nuke old single message flows
+                # release all of our events, we'll recreate these
                 for event in campaign.events.all():
-                    if event.flow.flow_type == Flow.MESSAGE:
-                        event.flow.release()
-
-                # and all of the events, we'll recreate these
-                campaign.events.all().delete()
+                    event.release()
 
                 # fill our campaign with events
                 for event_spec in campaign_spec["events"]:
@@ -447,16 +443,19 @@ class CampaignEvent(TembaModel):
         """
         Removes this event.. also takes care of removing any event fires that were scheduled and unfired
         """
-        # mark ourselves inactive
-        self.is_active = False
-        self.save()
 
-        # delete any pending event fires
-        EventFire.update_eventfires_for_event(self)
+        # we need to be inactive so our message flows don't try to circle back and release us
+        self.is_active = False
+        self.save(update_fields=("is_active",))
+
+        # delete any event fires
+        self.event_fires.all().delete()
 
         # if our flow is a single message flow, release that too
         if self.flow.flow_type == Flow.MESSAGE:
             self.flow.release()
+
+        self.delete()
 
     def calculate_scheduled_fire(self, contact):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())

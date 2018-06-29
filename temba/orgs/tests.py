@@ -3382,6 +3382,36 @@ class BulkExportTest(TembaTest):
         self.assertEqual(action_msg["swa"], "hello")
         self.assertEqual(action_msg["eng"], "Hey")
 
+    def test_reimport(self):
+        self.import_file("survey_campaign")
+
+        campaign = Campaign.objects.filter(is_active=True).last()
+        event = campaign.events.filter(is_active=True).last()
+
+        # create a contact and place her into our campaign
+        sally = self.create_contact("Sally", "+12345")
+        campaign.group.contacts.add(sally)
+        sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
+
+        # shoud have one event fire
+        self.assertEqual(1, event.event_fires.all().count())
+        original_fire = event.event_fires.all().first()
+
+        # importing it again shouldn't result in failures
+        self.import_file("survey_campaign")
+
+        # get our latest campaign and event
+        new_campaign = Campaign.objects.filter(is_active=True).last()
+        new_event = campaign.events.filter(is_active=True).last()
+
+        # same campaign, but new event
+        self.assertEqual(campaign.id, new_campaign.id)
+        self.assertNotEqual(event.id, new_event.id)
+
+        # should still have one fire, but it's been recreated
+        self.assertEqual(1, new_event.event_fires.all().count())
+        self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
+
     def test_export_import(self):
         def assert_object_counts():
             self.assertEqual(
