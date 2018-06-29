@@ -21,7 +21,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
@@ -1476,23 +1476,47 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def validate_org_import_header(cls, headers, org):
         possible_headers = [h[0] for h in IMPORT_HEADERS]
         possible_headers_case_insensitive = [h.lower() for h in possible_headers]
-        found_headers = [h.lower() for h in headers if h in possible_headers_case_insensitive]
+
+        found_headers = []
+        unsupported_headers = []
+
+        for h in headers:
+            h_lower_stripped = h.strip().lower()
+
+            if h_lower_stripped in possible_headers_case_insensitive:
+                found_headers.append(h_lower_stripped)
+
+            if (
+                h_lower_stripped
+                and not h_lower_stripped.startswith("urn:")
+                and not h_lower_stripped.startswith("field:")
+                and not h_lower_stripped.startswith("group:")
+                and h_lower_stripped not in ["uuid", "contact uuid", "name", "language"]
+            ):
+                unsupported_headers.append(h_lower_stripped)
 
         joined_possible_headers = '", "'.join([h for h in possible_headers])
+        joined_unsupported_headers = '", "'.join([h for h in unsupported_headers])
+
+        if unsupported_headers:
+            raise Exception(
+                _(
+                    f'The provided file has unrecognized headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
+                )
+            )
 
         if "uuid" in headers or "contact uuid" in headers:
             return
 
         if not found_headers:
             raise Exception(
-                ugettext(
-                    'The file you provided is missing a required header. At least one of "%s" '
-                    'or "Contact UUID" should be included.' % joined_possible_headers
+                _(
+                    f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
                 )
             )
 
         if "name" not in headers:
-            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
+            raise Exception(_('The file you provided is missing a required header called "Name".'))
 
     @classmethod
     def normalize_value(cls, val):
