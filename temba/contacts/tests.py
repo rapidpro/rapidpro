@@ -1105,8 +1105,8 @@ class ContactTest(TembaTest):
         self.assertEqual(6, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
-        # first try a deactivate and check our urns are anonymized
-        contact.deactivate(self.admin)
+        # first try a regular release and make sure our urns are anonymized
+        contact.release(self.admin, immediately=False)
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
@@ -4057,9 +4057,14 @@ class ContactTest(TembaTest):
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
 
         # check that we can steal other contact's URNs
+        now = timezone.now()
         contact5.update_urns(self.user, ["tel:0788333444"])
         self.assertEqual(contact5, ContactURN.objects.get(identity="tel:+250788333444").contact)
+
+        # assert contact 4 no longer has the URN and had its modified_on updated
         self.assertFalse(contact4.urns.all())
+        contact4.refresh_from_db()
+        self.assertTrue(contact4.modified_on > now)
 
     def test_from_urn(self):
         self.assertEqual(Contact.from_urn(self.org, "tel:+250781111111"), self.joe)  # URN with contact
@@ -4076,8 +4081,11 @@ class ContactTest(TembaTest):
         with self.assertRaises(Exception):
             Contact.validate_org_import_header(["urn:tel", "urn:twitter", "urn:ext"], self.org)  # missing name
 
+        with self.assertRaises(Exception):
+            Contact.validate_org_import_header(["urn:tel", "name", "age"], self.org)  # unsupported header
+
         Contact.validate_org_import_header(["uuid"], self.org)
-        Contact.validate_org_import_header(["uuid", "age"], self.org)
+        Contact.validate_org_import_header(["uuid", "field:age"], self.org)
         Contact.validate_org_import_header(["uuid", "name"], self.org)
         Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
         Contact.validate_org_import_header(["name", "urn:tel"], self.org)
@@ -4086,7 +4094,7 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             Contact.validate_org_import_header(["uuid"], self.org)
-            Contact.validate_org_import_header(["uuid", "age"], self.org)
+            Contact.validate_org_import_header(["uuid", "field:age"], self.org)
             Contact.validate_org_import_header(["uuid", "name"], self.org)
             Contact.validate_org_import_header(["name", "urn:tel", "urn:twitter", "urn:ext"], self.org)
             Contact.validate_org_import_header(["name", "urn:tel"], self.org)
@@ -4216,7 +4224,7 @@ class ContactTest(TembaTest):
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
         #
         # first import brings in 3 contacts
         user = self.user
@@ -4824,6 +4832,18 @@ class ContactTest(TembaTest):
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
             '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+        )
+
+        csv_file = open(
+            "%s/test_imports/sample_contacts_with_extra_fields_unsupported.xls" % settings.MEDIA_ROOT, "rb"
+        )
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(
+            response,
+            "form",
+            "csv_file",
+            'The provided file has unrecognized headers. Columns "age", "speed" should be removed or prepended with the prefix "Field:".',
         )
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -6180,7 +6200,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
-                        "true",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -6193,7 +6213,7 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
-                        "true",
+                        True,
                     ],
                 ],
             )
@@ -6234,7 +6254,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "",
                         "",
-                        "true",
+                        True,
                     ],
                     [
                         contact.uuid,
@@ -6248,10 +6268,10 @@ class ContactFieldTest(TembaTest):
                         "20-12-2015 08:30",
                         "",
                         "One",
-                        "true",
+                        True,
                     ],
-                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", "", "false"],
-                    [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", "", "false"],
+                    [contact3.uuid, "Luol Deng", "", "", "+12078776655", "", "", "deng", "", "", "", False],
+                    [contact4.uuid, "Stephen", "", "", "+12078778899", "", "", "stephen", "", "", "", False],
                 ],
             )
 

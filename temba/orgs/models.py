@@ -38,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, languages
+from temba.utils import analytics, chunk_list, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -384,7 +384,7 @@ class Org(SmartModel):
             ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
             ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
             ORG_ACTIVE_TOPUP_KEY % self.pk,
-            *active_topup_keys
+            *active_topup_keys,
         )
 
     def set_status(self, status):
@@ -2114,6 +2114,98 @@ class Org(SmartModel):
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
+    def release(self, *, release_users=True, immediately=False):
+
+        # free our children
+        Org.objects.filter(parent=self).update(parent=None)
+
+        # deactivate ourselves
+        self.is_active = False
+        self.save(update_fields=("is_active", "modified_on"))
+
+        # immediately release our channels
+        from temba.channels.models import Channel
+
+        for channel in Channel.objects.filter(org=self, is_active=True):
+            channel.release()
+
+        # release any user that belongs only to us
+        if release_users:
+            for user in self.get_org_users():
+                # check if this user is a member of any org on any brand
+                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                if not other_orgs:
+                    user.release(self.brand)
+
+        # clear out all of our users
+        self.administrators.clear()
+        self.editors.clear()
+        self.viewers.clear()
+        self.surveyors.clear()
+
+        if immediately:
+            self._full_release()
+
+    def _full_release(self):
+        """
+        Do the dirty work of deleting this org
+        """
+        msg_ids = self.msgs.all().values_list("id", flat=True)
+
+        # might be a lot of messages, batch this
+        for id_batch in chunk_list(msg_ids, 1000):
+            for msg in self.msgs.filter(id__in=msg_ids):
+                msg.release()
+
+        # our system label counts
+        self.system_labels.all().delete()
+
+        for channel in self.channels.all():
+            channel.release()
+            channel.delete()
+
+        # any airtime transfers associate with us go away
+        self.airtime_transfers.all().delete()
+
+        # delete our contacts
+        for contact in self.org_contacts.all():
+            contact.release(contact.modified_by)
+            contact.delete()
+
+        # and all of the groups
+        for group in self.all_groups.all():
+            group.release()
+            group.delete()
+
+        # delete everything associated with our flows
+        for flow in self.flows.all():
+
+            # we want to manually release runs so we dont fire a task to do it
+            flow.release(release_runs=False)
+            flow.release_runs()
+
+            for rev in flow.revisions.all():
+                rev.release()
+
+            flow.rule_sets.all().delete()
+            flow.action_sets.all().delete()
+            flow.counts.all().delete()
+
+            flow.delete()
+
+        for archive in self.archives.all():
+            archive.release()
+
+        # return any unused credits to our parent
+        if self.parent:
+            self.allocate_credits(self.modified_by, self.parent, self.get_credits_remaining())
+
+        for topup in self.topups.all():
+            topup.release()
+
+        # now what we've all been waiting for
+        self.delete()
+
     @classmethod
     def create_user(cls, email, password):
         user = User.objects.create_user(username=email, email=email, password=password)
@@ -2138,16 +2230,53 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
+def release(user, brand):
+
+    # if our user exists across brands don't muck with the user
+    if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
+        user_uuid = str(uuid4())
+        user.first_name = ""
+        user.last_name = ""
+        user.email = f"{user_uuid}@rapidpro.io"
+        user.username = f"{user_uuid}@rapidpro.io"
+        user.password = ""
+        user.is_active = False
+        user.save()
+
+    # release any orgs we own on this brand
+    for org in user.get_owned_orgs(brand):
+        org.release(release_users=False)
+
+    # remove us as a user on any org for our brand
+    for org in user.get_user_orgs(brand):
+        org.administrators.remove(user)
+        org.editors.remove(user)
+        org.viewers.remove(user)
+        org.surveyors.remove(user)
+
+
 def get_user_orgs(user, brand=None):
-    if not brand:
-        org = Org.get_org(user)
-        brand = org.brand if org else settings.DEFAULT_BRAND
 
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.filter(brand=brand, is_active=True).distinct().order_by("name")
+
+    if brand:
+        user_orgs = user_orgs.filter(brand=brand)
+
+    return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+
+def get_owned_orgs(user, brand=None):
+    """
+    Gets all the orgs where this is the only user for the currend brand
+    """
+    owned_orgs = []
+    for org in user.get_user_orgs(brand=brand):
+        if not org.get_org_users().exclude(id=user.id).exists():
+            owned_orgs.append(org)
+    return owned_orgs
 
 
 def get_org(obj):
@@ -2210,6 +2339,7 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
+User.release = release
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
@@ -2217,8 +2347,8 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
-
 
 USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))
 
@@ -2435,6 +2565,22 @@ class TopUp(SmartModel):
         org.clear_credit_cache()
         return topup
 
+    def release(self):
+
+        # clear us off any debits we are connected to
+        Debit.objects.filter(topup=self).update(topup=None)
+
+        # any debits benefitting us are deleted
+        Debit.objects.filter(beneficiary=self).delete()
+
+        # remove any credits associated with us
+        TopUpCredits.objects.filter(topup=self)
+
+        for used in TopUpCredits.objects.filter(topup=self):
+            used.release()
+
+        self.delete()
+
     def get_ledger(self):  # pragma: needs cover
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by("-created_by")
         balance = self.credits
@@ -2535,7 +2681,7 @@ class TopUp(SmartModel):
         return self.credits - self.get_used()
 
     def __str__(self):  # pragma: needs cover
-        return "%s Credits" % self.credits
+        return f"{self.credits} Credits"
 
 
 class Debit(models.Model):
@@ -2552,6 +2698,7 @@ class Debit(models.Model):
     topup = models.ForeignKey(
         TopUp,
         on_delete=models.PROTECT,
+        null=True,
         related_name="debits",
         help_text=_("The topup these credits are applied against"),
     )
@@ -2589,6 +2736,12 @@ class TopUpCredits(SquashableModel):
         TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
     )
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+
+    def release(self):
+        self.delete()
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.topup} (Used: {self.used})"
 
     @classmethod
     def get_squash_query(cls, distinct_set):

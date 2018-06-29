@@ -1238,6 +1238,8 @@ class ExportTest(TembaTest):
         self.assertEqual(self.task.prepare_value(None), "")
         self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
         self.assertEqual(self.task.prepare_value(123), "123")
+        self.assertEqual(self.task.prepare_value(True), True)
+        self.assertEqual(self.task.prepare_value(False), False)
 
         dt = pytz.timezone("Africa/Nairobi").localize(datetime.datetime(2017, 2, 7, 15, 41, 23, 123456))
         self.assertEqual(self.task.prepare_value(dt), datetime.datetime(2017, 2, 7, 14, 41, 23, 0))
@@ -1968,6 +1970,12 @@ class MatchersTest(TembaTest):
         self.assertEqual("85ecbe45-e2df-4785-8fc8-16fa941e0a79", matchers.UUID4String())
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
+
+    def test_dict(self):
+        self.assertEqual({}, matchers.Dict())
+        self.assertEqual({"a": "b"}, matchers.Dict())
+        self.assertNotEqual(None, matchers.Dict())
+        self.assertNotEqual([], matchers.Dict())
 
 
 class NonBlockingLockTest(TestCase):

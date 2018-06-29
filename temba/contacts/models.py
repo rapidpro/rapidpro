@@ -21,7 +21,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
@@ -1476,23 +1476,47 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def validate_org_import_header(cls, headers, org):
         possible_headers = [h[0] for h in IMPORT_HEADERS]
         possible_headers_case_insensitive = [h.lower() for h in possible_headers]
-        found_headers = [h.lower() for h in headers if h in possible_headers_case_insensitive]
+
+        found_headers = []
+        unsupported_headers = []
+
+        for h in headers:
+            h_lower_stripped = h.strip().lower()
+
+            if h_lower_stripped in possible_headers_case_insensitive:
+                found_headers.append(h_lower_stripped)
+
+            if (
+                h_lower_stripped
+                and not h_lower_stripped.startswith("urn:")
+                and not h_lower_stripped.startswith("field:")
+                and not h_lower_stripped.startswith("group:")
+                and h_lower_stripped not in ["uuid", "contact uuid", "name", "language"]
+            ):
+                unsupported_headers.append(h_lower_stripped)
 
         joined_possible_headers = '", "'.join([h for h in possible_headers])
+        joined_unsupported_headers = '", "'.join([h for h in unsupported_headers])
+
+        if unsupported_headers:
+            raise Exception(
+                _(
+                    f'The provided file has unrecognized headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
+                )
+            )
 
         if "uuid" in headers or "contact uuid" in headers:
             return
 
         if not found_headers:
             raise Exception(
-                ugettext(
-                    'The file you provided is missing a required header. At least one of "%s" '
-                    'or "Contact UUID" should be included.' % joined_possible_headers
+                _(
+                    f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
                 )
             )
 
         if "name" not in headers:
-            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
+            raise Exception(_('The file you provided is missing a required header called "Name".'))
 
     @classmethod
     def normalize_value(cls, val):
@@ -1790,47 +1814,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
-    def deactivate(self, user):
-        if self.is_active:
-            with transaction.atomic():
-
-                # prep our urns for deletion so our old path creates a new urn
-                for urn in self.urns.all():
-                    path = str(uuid.uuid4())
-                    urn.identity = f"{DELETED_SCHEME}:{path}"
-                    urn.path = path
-                    urn.scheme = DELETED_SCHEME
-                    urn.channel = None
-                    urn.save(update_fields=("identity", "path", "scheme", "channel"))
-
-                # no group for you!
-                self.clear_all_groups(user)
-
-                # now deactivate the contact itself
-                self.is_active = False
-                self.name = None
-                self.fields = None
-                self.modified_by = user
-                self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
-
-    def release_async(self, user):
+    def release(self, user, *, immediately=True):
         """
         Marks this contact for deletion
         """
+        with transaction.atomic():
+            # prep our urns for deletion so our old path creates a new urn
+            for urn in self.urns.all():
+                path = str(uuid.uuid4())
+                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.path = path
+                urn.scheme = DELETED_SCHEME
+                urn.channel = None
+                urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-        # mark us as inactive
-        self.deactivate(user)
+            # no group for you!
+            self.clear_all_groups(user)
+
+            # now deactivate the contact itself
+            self.is_active = False
+            self.name = None
+            self.fields = None
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
 
         # kick off a task to remove all the things related to us
-        from temba.contacts.tasks import release_contact
+        if immediately:
+            from temba.contacts.tasks import full_release_contact
 
-        release_contact.delay(self.id, user.id)
+            full_release_contact.delay(self.id, user.id)
 
-    def release(self, user):
+    def _full_release(self, user):
         with transaction.atomic():
-
-            # make sure we've been deactivated
-            self.deactivate(user)
 
             # release our messages
             for msg in self.msgs.all():
@@ -2056,6 +2071,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
         # to prevent conflicts with get_or_create which uses an org-level lock.
 
+        # list of other contacts that were modified
+        modified_contacts = set()
+
         with self.org.lock_on(OrgLock.contacts):
 
             # urns are submitted in order of priority
@@ -2069,8 +2087,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
 
-                # unassigned URN or assigned to someone else
+                # unassigned URN or different contact
                 elif not urn.contact or urn.contact != self:
+                    if urn.contact:
+                        modified_contacts.add(urn.contact.id)
+
                     urn.contact = self
                     urn.priority = priority
                     urn.save()
@@ -2096,6 +2117,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # trigger updates based all urns created or detached
         self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
+
+        # update modified on any other modified contacts
+        if modified_contacts:
+            Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
         # clear URN cache
         if hasattr(self, "__urns"):
@@ -2930,6 +2955,7 @@ class ContactGroup(TembaModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+        self.counts.all().delete()
 
         # delete any event fires related to our group
         from temba.campaigns.models import EventFire
@@ -3167,12 +3193,7 @@ class ExportContactsTask(BaseExportTask):
                     contact_groups_ids = [g.id for g in contact.all_groups.all()]
                     for col in range(len(group_fields)):
                         field = group_fields[col]
-                        field_value = "true" if field["group_id"] in contact_groups_ids else "false"
-
-                        if field_value:
-                            field_value = str(clean_string(field_value))
-
-                        group_values.append(field_value)
+                        group_values.append(field["group_id"] in contact_groups_ids)
 
                 # write this contact's values
                 exporter.write_row(values + group_values)

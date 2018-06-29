@@ -45,3 +45,12 @@ class UUID4String(String):
 
     def __new__(cls):
         return super().__new__(cls, pattern=UUID4_REGEX)
+
+
+class Dict(MatcherMixin, dict):
+    """
+    Matches any dict
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, dict)

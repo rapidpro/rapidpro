@@ -26,7 +26,10 @@ class AirtimeTransfer(SmartModel):
     STATUS_CHOICES = ((PENDING, "Pending"), (SUCCESS, "Success"), (FAILED, "Failed"))
 
     org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, help_text="The organization that this airtime was triggered for"
+        Org,
+        on_delete=models.PROTECT,
+        related_name="airtime_transfers",
+        help_text="The organization that this airtime was triggered for",
     )
 
     status = models.CharField(
@@ -36,6 +39,7 @@ class AirtimeTransfer(SmartModel):
     channel = models.ForeignKey(
         Channel,
         on_delete=models.PROTECT,
+        related_name="airtime_transfers",
         null=True,
         blank=True,
         help_text="The channel that this airtime is relating to",

@@ -31,6 +31,7 @@ from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, QuerySet, Sum
+from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.encoding import force_text
@@ -48,7 +49,7 @@ from temba.flows.server import get_client
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.msgs.models import PENDING, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Language, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -81,6 +82,7 @@ EXPIRES_CHOICES = (
     (60 * 6, _("After 6 hours")),
     (60 * 12, _("After 12 hours")),
     (60 * 24, _("After 1 day")),
+    (60 * 24 * 2, _("After 2 days")),
     (60 * 24 * 3, _("After 3 days")),
     (60 * 24 * 7, _("After 1 week")),
     (60 * 24 * 14, _("After 2 weeks")),
@@ -1040,6 +1042,13 @@ class FlowCRUDL(SmartCRUDL):
             flows = forms.ModelMultipleChoiceField(
                 Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
             )
+
+            group_memberships = forms.ModelMultipleChoiceField(
+                queryset=ContactGroup.user_groups.none(),
+                required=False,
+                label=_("Which group memberships, if any, to include in the export"),
+            )
+
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.objects.filter(id__lt=0),
                 required=False,
@@ -1071,6 +1080,11 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["contact_fields"].queryset = ContactField.objects.filter(
                     org=self.user.get_org(), is_active=True
                 )
+
+                self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+                    org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
+                ).order_by(Lower("name"))
+
                 self.fields["flows"].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
 
             def clean(self):
@@ -1128,6 +1142,7 @@ class FlowCRUDL(SmartCRUDL):
                     include_msgs=form.cleaned_data["include_messages"],
                     responded_only=form.cleaned_data["responded_only"],
                     extra_urns=form.cleaned_data["extra_urns"],
+                    group_memberships=form.cleaned_data["group_memberships"],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
@@ -1765,6 +1780,7 @@ class FlowCRUDL(SmartCRUDL):
         /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779  -> the channel with that UUID in org #123
         /flow_assets/123/xyz/group                                         -> all groups for org #123
         /flow_assets/123/xyz/location_hierarchy                            -> country>states>districts>wards for org #123
+        /flow_assets/123/xyz/environment                                   -> timezone, date_format, languages, etc
         """
 
         class Resource(object):
@@ -1785,8 +1801,16 @@ class FlowCRUDL(SmartCRUDL):
             def get_root(self, org):
                 return org.country
 
+        class EnvironmentResource(object):
+            def __init__(self, serializer):
+                self.serializer = serializer
+
+            def get_root(self, org):
+                return org
+
         resources = {
             "channel": Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
+            "environment": EnvironmentResource(server.serialize_environment),
             "field": Resource(ContactField.objects.filter(is_active=True), server.serialize_field),
             "flow": Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
             "group": Resource(
@@ -1794,6 +1818,7 @@ class FlowCRUDL(SmartCRUDL):
                 server.serialize_group,
             ),
             "label": Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
+            "language": Resource(Language.objects.filter(is_active=True), server.serialize.serialize_language),
             "location_hierarchy": BoundaryResource(server.serialize_location_hierarchy),
         }
 

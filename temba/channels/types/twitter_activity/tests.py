@@ -1,7 +1,6 @@
 
 from mock import patch
 
-from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
 
@@ -41,21 +40,14 @@ class TwitterActivityTypeTest(TembaTest):
     @patch("twython.Twython.verify_credentials")
     def test_claim(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
         url = reverse("channels.types.twitter_activity.claim")
-
         self.login(self.admin)
-
-        # check that channel is only available to beta users
-        response = self.client.get(reverse("channels.channel_claim"))
-        self.assertNotContains(response, "/channels/types/twitter_activity/claim")
-
-        Group.objects.get(name="Beta").user_set.add(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, "/channels/types/twitter_activity/claim")
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Connect Twitter Activity API")
+        self.assertContains(response, "Connect Twitter")
 
         self.assertEqual(
             list(response.context["form"].fields.keys()),

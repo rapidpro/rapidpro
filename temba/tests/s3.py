@@ -26,3 +26,7 @@ class MockS3Client:
         stream = self.objects[(Bucket, Key)]
         stream.seek(0)
         return {"Bucket": Bucket, "Key": Key, "Body": stream}
+
+    def delete_object(self, Bucket, Key, **kwargs):
+        del self.objects[(Bucket, Key)]
+        return {"DeleteMarker": False, "VersionId": "versionId", "RequestCharged": "requester"}
