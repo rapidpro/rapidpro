@@ -6,4 +6,4 @@ class PublicFileStorage(DefaultStorage):
     file_overwrite = False
 
 
-public_file_storage = PublicFileStorage()
+public_file_storage = PublicFileStorage(acl="public-read")
