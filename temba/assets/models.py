@@ -73,7 +73,7 @@ class BaseAssetStore(object):
 
         path = self.derive_path(asset.org, asset.uuid)
 
-        file_storage = PublicFileStorage(acl="public-read")
+        file_storage = PublicFileStorage()
         if not file_storage.exists(path):  # pragma: needs cover
             raise AssetFileNotFound()
 
