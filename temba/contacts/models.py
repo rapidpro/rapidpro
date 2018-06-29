@@ -21,7 +21,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
@@ -1500,8 +1500,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if unsupported_headers:
             raise Exception(
-                ugettext(
-                    f'The file you provided has unsuported headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
+                _(
+                    f'The provided file has unrecognized headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
                 )
             )
 
@@ -1510,13 +1510,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if not found_headers:
             raise Exception(
-                ugettext(
+                _(
                     f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
                 )
             )
 
         if "name" not in headers:
-            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
+            raise Exception(_('The file you provided is missing a required header called "Name".'))
 
     @classmethod
     def normalize_value(cls, val):

@@ -4843,7 +4843,7 @@ class ContactTest(TembaTest):
             response,
             "form",
             "csv_file",
-            'The file you provided has unsuported headers. Columns "age", "speed" should be removed or prepended with the prefix "Field:".',
+            'The provided file has unrecognized headers. Columns "age", "speed" should be removed or prepended with the prefix "Field:".',
         )
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
