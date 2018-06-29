@@ -1501,7 +1501,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if unsupported_headers:
             raise Exception(
                 ugettext(
-                    f'The file you provided has unsuported headers. "{joined_unsupported_headers}" should be removed.'
+                    f'The file you provided has unsuported headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
                 )
             )
 
