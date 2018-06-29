@@ -279,6 +279,10 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES["default"]
         try:
+            print(
+                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
+                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}"
+            )
             check_call(
                 f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
                 f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
@@ -407,7 +411,7 @@ class Command(BaseCommand):
 
         for org in orgs:
             for type in Archive.TYPE_CHOICES:
-                end = timezone.now()
+                end = timezone.now() - timedelta(days=90)
 
                 # daily archives up until now
                 for idx in range(0, end.day - 2):
@@ -416,7 +420,7 @@ class Command(BaseCommand):
                     create_archive(MAX_RECORDS_PER_DAY, start, Archive.PERIOD_DAILY)
 
                 # month archives before that
-                end = timezone.now()
+                end = timezone.now() - timedelta(days=90)
                 for idx in range(0, ARCHIVES):
                     # last day of the previous month
                     end = end.replace(day=1) - timedelta(days=1)
