@@ -72,6 +72,8 @@ USSD = "U"
 
 MSG_SENT_KEY = "msgs_sent_%y_%m_%d"
 
+BROADCAST_BATCH = "broadcast_batch"
+
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
     # special state for flows used to hold off sending the message until the flow is ready to receive a response
@@ -324,102 +326,170 @@ class Broadcast(models.Model):
             RelatedModel.objects.bulk_create(bulk_contacts)
 
         schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-        urns = ContactURN.get_urn_ids_for_contacts(contact_ids, schemes)
+        contact_urns = ContactURN.get_urn_ids_for_contacts(contact_ids, schemes)
 
-        self.recipient_count = len(urns)
+        self.recipient_count = len(contact_urns)
         self.save(update_fields=("recipient_count",))
 
-        return urns
-
-    def update_recipients(self, *, groups=[], contacts=[], urns=[]):
+    def update_recipients(self, *, groups=None, contacts=None, urns=None):
         """
         Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a
         broadcast after it has been created - the exception is scheduled broadcasts which are never really sent (clones
         of them are sent).
         """
+        groups = groups if groups else []
+        contacts = contacts if contacts else []
+        urns = urns if urns else []
+
         self.groups.clear()
-        self.groups.add(*groups)
+        if groups:
+            self.groups.add(*groups)
+
         self.contacts.clear()
-        self.contacts.add(*contacts)
+        if contacts:
+            self.contacts.add(*contacts)
+
         self.urns.clear()
-        self.urns.add(*urns)
+        if urns:
+            self.urns.add(*urns)
 
         contact_ids = self._get_unique_contact_ids(groups=groups, contacts=contacts)
 
         schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-        contact_urns = set(ContactURN.get_urn_ids_for_contacts(contact_ids, schemes))
+        urn_ids = set(ContactURN.get_urn_ids_for_contacts(contact_ids, schemes, all=self.send_all))
 
         # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
         for urn in urns:
-            contact_urns.add(urn)
+            if urn.scheme in schemes:
+                urn_ids.add(urn.id)
 
         # update the recipient count - the number of messages we intend to send
-        self.recipient_count = len(urns)
+        self.recipient_count = len(urn_ids)
         self.save(update_fields=("recipient_count",))
-
-        return urns
 
     def send(
         self,
         *,
+        expressions_context=None,
+        response_to=None,
+        status=PENDING,
+        msg_type=INBOX,
+        run_map=None,
+        high_priority=False,
+    ):
+        """
+        Sends this broadcast, taking care of creating multiple jobs to send it if necessary
+        """
+        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
+
+        # if we are sending to groups and any of them are big, make sure we aren't spamming
+        for group in self.groups.all():
+            if group.get_member_count() > 30:
+                bcast_value = "%d_%s" % (group.id, self.text)
+
+                # have we sent this exact message today or yesterday and with this message?
+                if check_and_mark_in_timerange("bcasts", 1, bcast_value):
+                    self.status = FAILED
+                    self.save(update_fields=["status"])
+                    raise Exception("Not sending broadcast %d due to duplicate" % self.id)
+
+        # get our unique contacts
+        contact_ids = self._get_unique_contact_ids(groups=self.groups.all(), contacts=self.contacts.all())
+        urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all=self.send_all))
+
+        # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
+        for urn in self.urns.all():
+            urns.add(urn)
+
+        # if we are fewer than on batch, send right away
+        if len(urns) < BATCH_SIZE:
+            self.send_batch(
+                urns=urns,
+                trigger_send=True,
+                expressions_context=expressions_context,
+                response_to=response_to,
+                status=status,
+                msg_type=msg_type,
+                run_map=run_map,
+                high_priority=high_priority,
+            )
+
+        # otherwise, create batches and fire those off
+        else:
+            from temba.flows.models import Flow
+
+            for batch in chunk_list(urns, BATCH_SIZE):
+                kwargs = dict(
+                    urn_ids=[u.id for u in batch],
+                    trigger_send=True,
+                    expressions_context=expressions_context,
+                    response_to=response_to,
+                    status=status,
+                    msg_type=msg_type,
+                    run_map=run_map,
+                    high_priority=high_priority,
+                )
+                push_task(
+                    self.org,
+                    "flows",
+                    Flow.START_MSG_FLOW_BATCH,
+                    dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
+                )
+
+    def send_batch(
+        self,
+        *,
+        urn_ids=None,
+        urns=None,
+        contacts=None,
         trigger_send=True,
         expressions_context=None,
         response_to=None,
         status=PENDING,
         msg_type=INBOX,
-        contacts=None,
         run_map=None,
         high_priority=False,
     ):
         """
-        Sends this broadcast by creating outgoing messages for each recipient. Returns the ids of the created messages.
+        Sends this broadcast to the passed in URNs
         """
+        # load urns if we have ids
+        if urn_ids:
+            urns = ContactURN.objects.filter(org=self.org, id__in=urn_ids)
+
+        # can pass either contacts or urns, not both
+        if (contacts and urns) or (contacts is None and urns is None):
+            raise Exception("Must pass either contacts or urns")
+
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
 
-        if not contacts:
-            groups = self.groups.all()
+        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
 
-            # if we are sending to groups and any of them are big, make sure we aren't spamming
-            for group in groups:
-                if group.get_member_count() > 30:
-                    bcast_value = "%d_%s" % (group.id, self.text)
+        # if we are passed URNs, map them to contacts
+        if urns is not None:
+            # build our list of contacts that map to our URNs
+            contact_map = {c.id: c for c in Contact.objects.filter(urns__in=urns)}
 
-                    # have we sent this exact message today or yesterday and with this message?
-                    if check_and_mark_in_timerange("bcasts", 1, bcast_value):
-                        self.status = FAILED
-                        self.save(update_fields=["status"])
-                        raise Exception("Not sending broadcast %d due to duplicate" % self.id)
+            # bulk initialize them
+            Contact.bulk_cache_initialize(self.org, contact_map.values())
 
-            if hasattr(self, "_recipient_cache"):
-                # look to see if previous call to update_recipients left a cached value
-                urns, contacts = self._recipient_cache
-            else:
-                # otherwise fetch everything and calculate
-                contacts = self._get_unique_contact_ids(groups, self.contacts.all())
+        # otherwise build our list of URNs we are sending to from our contacts
+        else:
+            contact_map = {}
+            urns = []
+            for c in contacts:
+                contact_map[c.id] = c
+                urns.append(c.get_urn(schemes))
 
-        Contact.bulk_cache_initialize(self.org, contacts)
-        recipients = list(urns) + list(contacts)
-
-        if self.send_all:
-            recipients = list(urns)
-            contact_list = list(contacts)
-            for contact in contact_list:
-                contact_urns = contact.get_urns()
-                for c_urn in contact_urns:
-                    recipients.append(c_urn)
-
-            recipients = set(recipients)
-
-        # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
+        batch_ids = []
 
-        all_created_msg_ids = []
-
-        for recipient in recipients:
-            contact = recipient if isinstance(recipient, Contact) else recipient.contact
+        for urn in urns:
+            contact = contact_map[urn.contact_id]
             contact.org = self.org
+            urn.contact = contact
 
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
@@ -445,7 +515,7 @@ class Broadcast(models.Model):
 
             # add in our parent context if the message references @parent
             if run_map:
-                run = run_map.get(recipient.pk, None)
+                run = run_map.get(contact.pk, None)
                 if run and run.flow:
                     # a bit kludgy here, but should avoid most unnecessary context creations.
                     # since this path is an optimization for flow starts, we don't need to
@@ -459,7 +529,7 @@ class Broadcast(models.Model):
                 msg = Msg.create_outgoing(
                     self.org,
                     self.created_by,
-                    recipient,
+                    urn,
                     text,
                     broadcast=self,
                     channel=self.channel,
@@ -481,44 +551,25 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
 
-            # we commit our messages in batches
-            if len(batch) >= BATCH_SIZE:
-                batch_created_msgs = Msg.objects.bulk_create(batch)
-                batch_created_msg_ids = [m.id for m in batch_created_msgs]
-                all_created_msg_ids += batch_created_msg_ids
-
-                # send any messages
-                if trigger_send:
-                    self.org.trigger_send(
-                        Msg.objects.filter(id__in=batch_created_msg_ids).select_related(
-                            "contact", "contact_urn", "channel"
-                        )
-                    )
-
-                batch = []
-
         # commit any remaining objects
         if batch:
-            batch_created_msgs = Msg.objects.bulk_create(batch)
-            batch_created_msg_ids = [m.id for m in batch_created_msgs]
-            all_created_msg_ids += batch_created_msg_ids
+            batch_msgs = Msg.objects.bulk_create(batch)
+            batch_ids = [m.id for m in batch_msgs]
 
             if trigger_send:
                 self.org.trigger_send(
-                    Msg.objects.filter(id__in=batch_created_msg_ids).select_related(
-                        "contact", "contact_urn", "channel"
-                    )
+                    Msg.objects.filter(id__in=batch_ids).select_related("contact", "contact_urn", "channel")
                 )
 
         # mark ourselves as sent if appropriate
-        if not contacts or self.get_message_count() >= self.recipient_count:
+        if self.get_message_count() >= self.recipient_count:
             self.status = SENT
             self.save(update_fields=("status",))
         else:
             self.status = QUEUED
             self.save(update_fields=("status",))
 
-        return all_created_msg_ids
+        return batch_ids
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
@@ -543,15 +594,11 @@ class Broadcast(models.Model):
         broadcast.send(trigger_send=True, expressions_context={})
         return broadcast
 
+    def get_messages(self):
+        return self.msgs.all()
+
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
-
-    def get_translated_text(self, contact, org=None):
-        """
-        Gets the appropriate translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.text, preferred_languages)
 
     def get_translated_media(self, contact, org=None):
         """
@@ -559,6 +606,19 @@ class Broadcast(models.Model):
         """
         preferred_languages = self._get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
+
+    def get_default_text(self):
+        """
+        Gets the appropriate display text for the broadcast without a contact
+        """
+        return self.text[self.base_language]
+
+    def get_translated_text(self, contact, org=None):
+        """
+        Gets the appropriate translation for the given contact
+        """
+        preferred_languages = self._get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def release(self):
         for msg in self.msgs.all():
@@ -569,11 +629,11 @@ class Broadcast(models.Model):
         """
         Builds a list of the unique contacts and groups
         """
-        unique_contacts = set(contacts)
+        unique_contacts = set([c.id for c in contacts])
 
         # for each group add in those IDs as wll
         for group in groups:
-            for contact in group.contacts.all().values("id", flat=True):
+            for contact in group.contacts.all().values_list("id", flat=True):
                 unique_contacts.add(contact)
 
         return unique_contacts

@@ -109,6 +109,8 @@ FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 
 UNREAD_FLOW_RESPONSES = "unread_flow_responses"
 
+FLOW_BATCH = "flow_batch"
+
 
 class FlowLock(Enum):
     """
@@ -2068,6 +2070,7 @@ class Flow(TembaModel):
         else:
             # for all our contacts, build up start sms batches
             task_context = dict(
+                task_type=FLOW_BATCH,
                 contacts=[],
                 flow=self.pk,
                 flow_start=flow_start_id,
@@ -2172,17 +2175,15 @@ class Flow(TembaModel):
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
                 broadcast.org = self.org
-                # provide the broadcast with a partial recipient list
-                partial_recipients = list(), batch_contacts
 
                 # create the messages
-                msg_ids = broadcast.send(
+                msg_ids = broadcast.send_batch(
+                    contacts=batch_contacts,
                     expressions_context=expressions_context_base,
                     trigger_send=False,
                     response_to=start_msg,
                     status=INITIALIZING,
                     msg_type=FLOW,
-                    partial_recipients=partial_recipients,
                     run_map=run_map,
                 )
 
