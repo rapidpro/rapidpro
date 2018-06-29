@@ -4221,7 +4221,7 @@ class ContactTest(TembaTest):
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
         self.releaseContacts(delete=True)
-        ContactGroup.user_groups.all().delete()
+        self.release(ContactGroup.user_groups.all())
         #
         # first import brings in 3 contacts
         user = self.user
@@ -4829,6 +4829,18 @@ class ContactTest(TembaTest):
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
             '"URN:jiochat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+        )
+
+        csv_file = open(
+            "%s/test_imports/sample_contacts_with_extra_fields_unsupported.xls" % settings.MEDIA_ROOT, "rb"
+        )
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(
+            response,
+            "form",
+            "csv_file",
+            'The file you provided has unsuported headers. "age", "speed". should be removed.',
         )
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):

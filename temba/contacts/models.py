@@ -1480,6 +1480,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         joined_possible_headers = '", "'.join([h for h in possible_headers])
 
+        unsupported_headers = [
+            h
+            for h in headers
+            if h.lower().strip()
+            and not h.lower().strip().startswith("urn:")
+            and not h.lower().strip().startswith("field:")
+            and not h.lower().strip().startswith("group:")
+            and not h.lower() in ["uuid", "contact uuid", "name", "language"]
+        ]
+
+        if unsupported_headers:
+            raise Exception(
+                ugettext(
+                    'The file you provided has unsuported headers. "%s". '
+                    "should be removed." % '", "'.join([h for h in unsupported_headers])
+                )
+            )
+
         if "uuid" in headers or "contact uuid" in headers:
             return
 
