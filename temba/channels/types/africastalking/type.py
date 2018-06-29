@@ -20,7 +20,7 @@ class AfricasTalkingType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _(
-        """If you are based in Kenya, Uganda or Malawi you can purchase a short
+        """If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short
     code from <a href="http://africastalking.com">Africa's Talking</a> and connect it
     in a few simple steps."""
     )
