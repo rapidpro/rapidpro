@@ -4711,7 +4711,7 @@ class RuleSet(models.Model):
 
             elif self.ruleset_type == RuleSet.TYPE_GROUP:
                 # this won't actually be used by the rules, but will end up in the results
-                operand = run.contact.name
+                operand = run.contact.name or ""
 
             try:
                 rules = self.get_rules()
