@@ -279,10 +279,6 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES["default"]
         try:
-            print(
-                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
-                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}"
-            )
             check_call(
                 f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
                 f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
