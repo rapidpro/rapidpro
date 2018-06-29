@@ -841,7 +841,7 @@ class MsgCreateSerializer(WriteSerializer):
 
         # create the broadcast
         broadcast = Broadcast.create(
-            self.org, self.user, self.validated_data["text"], recipients=contacts, channel=channel
+            self.org, self.user, self.validated_data["text"], contacts=contacts, channel=channel
         )
 
         # send it
