@@ -2,9 +2,11 @@ import inspect
 import os
 import shutil
 import string
+import sys
 import time
 from datetime import datetime, timedelta
 from functools import wraps
+from io import StringIO
 from unittest import skipIf
 from uuid import uuid4
 
@@ -1010,3 +1012,21 @@ class MigrationTest(TembaTest):
 
     def setUpBeforeMigration(self, apps):
         pass
+
+
+class CaptureSTDOUT(object):
+    """
+    Redirects STDOUT output to a StringIO which can be inspected later
+    """
+
+    def __init__(self,):
+        self.new_stdout = StringIO()
+
+        self.old_stdout = sys.stdout
+        sys.stdout = self.new_stdout
+
+    def __enter__(self):
+        return self.new_stdout
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self.old_stdout
