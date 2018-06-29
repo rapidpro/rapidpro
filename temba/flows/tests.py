@@ -7683,6 +7683,29 @@ class FlowsTest(FlowFileTest):
             },
         )
 
+        # if contact has null name, value will be empty string
+        nameless = self.create_contact(name=None, number="+12065553030")
+        run, = flow.start_msg_flow([nameless.id])
+
+        self.send("split", contact=nameless)
+        self.assertEqual(
+            "You aren't in either group.",
+            Msg.objects.filter(direction="O", contact=nameless).order_by("created_on")[1].text,
+        )
+
+        run.refresh_from_db()
+        self.assertEqual(
+            run.results["member"],
+            {
+                "category": "Other",
+                "created_on": matchers.ISODate(),
+                "input": "",
+                "name": "Member",
+                "node_uuid": matchers.UUID4String(),
+                "value": "",
+            },
+        )
+
     def test_media_first_action(self):
         flow = self.get_flow("media_first_action")
 
