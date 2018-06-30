@@ -4225,6 +4225,7 @@ class ContactTest(TembaTest):
     def test_contact_import(self):
         self.releaseContacts(delete=True)
         self.release(ContactGroup.user_groups.all())
+        Channel.create(self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=["twitter", "twitterid"])
         #
         # first import brings in 3 contacts
         user = self.user
