@@ -908,7 +908,7 @@ class ContactCRUDL(SmartCRUDL):
             connected_channels = Channel.objects.filter(is_active=True, org=org)
             ch_schemes = set()
             for ch in connected_channels:
-                ch_schemes.add(*ch.schemes)
+                ch_schemes.union(ch.schemes)
 
             context["urn_scheme_config"] = [
                 conf for conf in URN_SCHEME_CONFIG if conf[0] == TEL_SCHEME or conf[0] in ch_schemes
