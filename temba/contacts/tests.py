@@ -3016,7 +3016,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(68):
+            with self.assertNumQueries(70):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -4223,6 +4223,7 @@ class ContactTest(TembaTest):
     def test_contact_import(self):
         self.releaseContacts(delete=True)
         self.release(ContactGroup.user_groups.all())
+        Channel.create(self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=["twitter", "twitterid"])
         #
         # first import brings in 3 contacts
         user = self.user
