@@ -1,3 +1,7 @@
+v3.0.437
+----------
+ * Fix import of header ID from anon export
+
 v3.0.436
 ----------
  * Fix supported scheme display lookup
