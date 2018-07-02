@@ -50,16 +50,22 @@ class TwilioType(ChannelType):
             number_update_args["voice_application_sid"] = ""
 
         try:
-            number_sid = channel.bod or channel.config["number_sid"]
-            client.phone_numbers.update(number_sid, **number_update_args)
-        except Exception:
-            if client:
-                matching = client.phone_numbers.list(phone_number=channel.address)
-                if matching:
-                    client.phone_numbers.update(matching[0].sid, **number_update_args)
-
-        if "application_sid" in config:
             try:
-                client.applications.delete(sid=config["application_sid"])
-            except TwilioRestException:  # pragma: no cover
-                pass
+                number_sid = channel.bod or channel.config.get("number_sid")
+                client.phone_numbers.update(number_sid, **number_update_args)
+            except Exception:
+                if client:
+                    matching = client.phone_numbers.list(phone_number=channel.address)
+                    if matching:
+                        client.phone_numbers.update(matching[0].sid, **number_update_args)
+
+            if "application_sid" in config:
+                try:
+                    client.applications.delete(sid=config["application_sid"])
+                except TwilioRestException:  # pragma: no cover
+                    pass
+
+        except TwilioRestException as e:
+            # we swallow 20003 which means our twilio key is no longer valid
+            if e.code != 20003:
+                raise e
