@@ -415,3 +415,20 @@ class TrialTest(TembaTest):
 
         self.assertEqual(mock_report_success.call_count, 1)
         self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="always")
+    @patch("temba.flows.server.trial.report_failure")
+    @patch("temba.flows.server.trial.report_success")
+    def test_msg_events_with_attachments(self, mock_report_success, mock_report_failure):
+        # test an outgoing message with media
+        flow = self.get_flow("color")
+        flow_json = flow.as_json()
+        flow_json["action_sets"][2]["actions"][0]["media"] = {"base": "image/jpg:files/blue.jpg"}
+        flow.update(flow_json)
+
+        flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, "tel:+12065552020", "blue")
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
