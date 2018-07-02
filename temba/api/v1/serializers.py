@@ -76,7 +76,6 @@ class StringArrayField(serializers.ListField):
 
 
 class StringDictField(serializers.DictField):
-
     def __init__(self, **kwargs):
         super().__init__(child=serializers.CharField(), **kwargs)
 
@@ -115,13 +114,11 @@ class PhoneArrayField(serializers.ListField):
 
 
 class ChannelField(serializers.PrimaryKeyRelatedField):
-
     def __init__(self, **kwargs):
         super().__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
 
 
 class UUIDField(serializers.CharField):
-
     def __init__(self, **kwargs):
         super().__init__(max_length=36, **kwargs)
 
@@ -135,6 +132,7 @@ class ReadSerializer(serializers.ModelSerializer):
     """
     We deviate slightly from regular REST framework usage with distinct serializers for reading and writing
     """
+
     pass
 
 
@@ -622,9 +620,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-
         class VersionNode:
-
             def __init__(self, node, is_ruleset):
                 self.node = node
                 self.uuid = node["uuid"]
@@ -712,7 +708,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if completed:
             completed_on = steps[len(steps) - 1]["arrived_on"] if steps else None
 
-            run.set_completed(completed_on=completed_on)
+            run.set_completed(exit_uuid=None, completed_on=completed_on)
         else:
             run.save(update_fields=("modified_on",))
 

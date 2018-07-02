@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class ExternalTypeTest(TembaTest):
-
     def test_claim(self):
         url = reverse("channels.types.external.claim")
 

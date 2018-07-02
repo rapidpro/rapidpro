@@ -12,7 +12,6 @@ from ...models import Channel, ChannelLog
 
 
 class JioChatTypeTest(TembaTest):
-
     def test_claim(self):
         url = reverse("channels.types.jiochat.claim")
 

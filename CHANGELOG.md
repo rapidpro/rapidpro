@@ -1,3 +1,155 @@
+v3.0.436
+----------
+ * Fix supported scheme display lookup
+ * Move action log delete to flow run release
+
+v3.0.435
+----------
+ * Fix group test operand when contact name is null
+ * Mention all AfricasTalking countries on claim page
+ * Warn user of columns to remove on import
+ * Release events properly on campaign import
+ * Add languages endpoint to asset server
+
+v3.0.434
+----------
+ * Add option for two day run expiration
+ * Change group rulesets to use contact as operand same as new engine
+ * Fix reconstructing sessions for runs being trialled in the flowserver so that we include all session runs
+
+v3.0.433
+----------
+ * Write boolean natively when exporting to xlsx
+ * Improve reporting of flow server errors during trials
+ * Clarify about contact import columns
+ * Update flow result exports to match recent changes to contact exports
+
+v3.0.432
+----------
+ * Update modified_on on contacts that have their URN stolen
+ * Full releasing of orgs and users
+
+v3.0.431
+----------
+ * Set exit_uuid at end of path when run completes
+ * Make twitter activity API the default twitter channel type
+ * Add Nigeria and Rwanda to AT supported countries
+ * Don't exclude result input from flowserver trial result comparisons
+ * Use operand rather than msg text for result input
+ * Remove reporting to sentry when @flow.foo.text doesn't equal @step.text
+ * Add flow migration to replace @flow.foo.text expressions on non-waiting rulesets
+
+v3.0.430
+----------
+ * Fix message flow updating
+
+v3.0.429
+----------
+ * Remove org.is_purgeable
+ * Fix format of archived run json to match latest rp-archiver
+ * Fix checking of result.text values in the context
+ * Import/Export column headers with type prefixes
+ * Add groups membership to contacts exports
+ * Retry calls that are in IVRCall.RETRY_CALL
+ * Retry IVR outgoing calls if contact did not answer
+
+v3.0.428
+----------
+ * Add FlowRun.modified_on to results exports
+ * Change how we select archives for use in run exports to avoid race conditions
+ * Report to sentry when @flow.foo.text doesn't match @step.text
+
+v3.0.427
+----------
+ * Release webhook events on run release
+ * Fetch run results from archives when exporting results
+ * Don't create action logs for non-test contacts
+
+v3.0.426
+----------
+ * Migrations for FK protects, including all SmartModels
+ * Update to latest xlsxlite to fix exporting date fields
+ * Remove  merged runs sheet from results exports
+ * Modified the key used in the transferto API call
+
+v3.0.425
+----------
+ * Enable burst sms type
+
+v3.0.424
+----------
+ * add burst sms channel type (Australia and New Zealand)
+
+v3.0.423
+----------
+ * trim event fires every 15 minutes
+
+v3.0.422
+----------
+ * Trim event fires older than a certain age
+ * More consistent name of date field on archive model
+ * Remove no longer needed functionality for runs that don't have child_context/parent_context set
+
+v3.0.421
+----------
+ * Degroup contacts on deactivate
+
+v3.0.420
+----------
+ * release sessions on reclaimed urns
+
+v3.0.419
+----------
+ * special case deleted scheme in urn parsing
+ * release urn messages when releasing a contact
+ * add delete reason to run
+
+v3.0.418
+----------
+ * Clear child run parent reference when releasing parent
+ * Make sync events release their alerts
+ * Release sessions, anonymize urns
+
+v3.0.417
+----------
+ * add protect to contacts and flows, you can fake the migrations in this release
+
+v3.0.416
+----------
+ * add deletion_date, use full path as link name
+ * add unique constraint to disallow dupe archives
+
+v3.0.415
+----------
+ * add needs_deletion field, remove is_purged
+
+v3.0.414
+----------
+ * Set run.child_context when child has no waits
+ * Use latest openpyxl and log the errors to sentry
+ * Don't blow up if trialled run has no events
+ * Allow editors to see archives / api
+ * Migration to backfill run parent_context and child_context
+
+v3.0.412
+----------
+ * Fix archive filter test
+ * Include id when serializing contacts for goflow
+
+v3.0.411
+----------
+ * Show when build failed becuse black was not executed
+ * Fix calculation of low threshold for credits to consider only the top with unused credits
+ * All flows with subflows to be trialled in the flowserver
+ * Create webhook mocks for use in flowserver trials from webhook results
+ * Enable Archive list API endpoint
+
+v3.0.410
+----------
+ * Remove purging, add release with delete_reason
+ * Set parent_context in Flow.start and use it in FlowRun.build_expressions_context if available
+ * Add is_archived counts for LabelCounts and SystemLabelCounts, update triggers
+
 v3.0.409
 ----------
  * Remove explicit use of uservoice

@@ -14,7 +14,15 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import (
+    STOP_CONTACT_EVENT,
+    TEL_SCHEME,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactGroupCount,
+    ContactURN,
+)
 from temba.flows.models import RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs import models
@@ -40,12 +48,13 @@ from temba.msgs.models import (
     BroadcastRecipient,
     ExportMessagesTask,
     Label,
+    LabelCount,
     Msg,
     SystemLabel,
     SystemLabelCount,
     UnreachableException,
 )
-from temba.orgs.models import Debit, Language, Org
+from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.utils import dict_to_json, dict_to_struct
@@ -60,7 +69,6 @@ from .templatetags.sms import as_icon
 
 
 class MsgTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -72,6 +80,26 @@ class MsgTest(TembaTest):
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_deletes(self):
+
+        # create some incoming messages
+        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
+        msg2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "ignore joe, he's a liar")
+
+        # we've used two credits
+        self.assertEqual(2, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 2)
+
+        # a hard delete on a message should reduce credits used
+        msg1.delete()
+        self.assertEqual(1, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
+
+        # a purge delete on a message should keep credits the same
+        msg2.release(Msg.DELETE_FOR_USER)
+        self.assertEqual(0, Msg.objects.all().count())
+        self.assertEqual(self.org._calculate_credits_used()[0], 1)
 
     def test_get_sync_commands(self):
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
@@ -137,15 +165,15 @@ class MsgTest(TembaTest):
 
         msg1.restore()
 
-        msg1 = Msg.objects.get(pk=msg1.pk)
+        msg1 = Msg.objects.get(pk=msg1.id)
         self.assertEqual(msg1.visibility, Msg.VISIBILITY_VISIBLE)
 
         msg1.release()
+        self.assertFalse(Msg.objects.filter(pk=msg1.pk).exists())
 
-        msg1 = Msg.objects.get(pk=msg1.pk)
-        self.assertEqual(msg1.visibility, Msg.VISIBILITY_DELETED)
-        self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
-        self.assertTrue(Label.label_objects.filter(pk=label.pk).exists())  # though don't delete the label object
+        label = Label.label_objects.filter(pk=label.pk).first()
+        self.assertEqual(0, label.get_messages().count())  # do remove labels
+        self.assertIsNotNone(label)
 
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
@@ -518,7 +546,7 @@ class MsgTest(TembaTest):
         broadcast1.send(trigger_send=False)
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(44):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (1)")
@@ -587,7 +615,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(61):
+        with self.assertNumQueries(62):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
         self.assertEqual(response.context["refresh"], 20000)
@@ -751,7 +779,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(42):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
@@ -804,7 +832,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(64):
+        with self.assertNumQueries(65):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 3)
@@ -1265,7 +1293,6 @@ class MsgTest(TembaTest):
 
 
 class MsgCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1343,7 +1370,6 @@ class MsgCRUDLTest(TembaTest):
 
 
 class BroadcastTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1359,6 +1385,173 @@ class BroadcastTest(TembaTest):
 
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, "TT")
+
+    def run_msg_release_test(self, tc):
+        favorites = self.get_flow("favorites")
+        label = Label.get_or_create(self.org, self.user, "Labeled")
+
+        # create some incoming messages
+        msg_in1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "Hello")
+        Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
+
+        # create a broadcast which is a response to an incoming message
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1.send(trigger_send=False, response_to=msg_in1)
+
+        # create a broadcast which is to several contacts
+        broadcast2 = Broadcast.create(
+            self.org, self.user, "Very old broadcast", [self.joe_and_frank, self.kevin, self.lucy]
+        )
+        broadcast2.send(trigger_send=False)
+
+        # start joe in a flow
+        favorites.start([], [self.joe])
+        msg_in3 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "red!")
+
+        # mark all outgoing messages as sent except broadcast #2 to Joe
+        Msg.objects.filter(direction="O").update(status="S")
+        broadcast2.msgs.filter(contact=self.joe).update(status="F")
+
+        # label one of our messages
+        msg_in1.labels.add(label)
+        self.assertEqual(LabelCount.get_totals([label])[label], 1)
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 2)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 1)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 6)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
+
+        today = timezone.now().date()
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
+
+        self.org.clear_credit_cache()
+        self.assertEqual(self.org.get_credits_used(), 10)
+        self.assertEqual(self.org.get_credits_remaining(), 990)
+
+        # archive all our messages save for our flow incoming message
+        for m in Msg.objects.exclude(id=msg_in3.id):
+            m.release(tc["delete_reason"])
+
+        # broadcasts should be unaffected
+        self.assertEqual(Broadcast.objects.count(), tc["broadcast_count"])
+
+        # credit usage remains the same
+        self.org.clear_credit_cache()
+        self.assertEqual(self.org.get_credits_used(), tc["credits_used"])
+        self.assertEqual(self.org.get_credits_remaining(), tc["credits_remaining"])
+
+        # check system label counts have been updated
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], tc["inbox_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], tc["flow_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], tc["sent_count"])
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], tc["failed_count"])
+
+        # check our archived counts as well
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_INBOX], tc["archived_inbox_count"]
+        )
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FLOWS], tc["archived_flow_count"]
+        )
+        self.assertEqual(SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_SENT], tc["archived_sent_count"])
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True)[SystemLabel.TYPE_FAILED], tc["archived_failed_count"]
+        )
+
+        # check user labels
+        self.assertEqual(LabelCount.get_totals([label])[label], tc["label_count"])
+        self.assertEqual(LabelCount.get_totals([label], True)[label], tc["archived_label_count"])
+
+        # but daily channel counts should be unchanged
+        self.assertEqual(
+            ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), tc["sms_incoming_count"]
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), tc["sms_outgoing_count"]
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today),
+            tc["twitter_incoming_count"],
+        )
+        self.assertEqual(
+            ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today),
+            tc["twitter_outgoing_count"],
+        )
+
+    def test_archive_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": Msg.DELETE_FOR_ARCHIVE,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 1,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 2,
+                "archived_flow_count": 0,
+                "archived_sent_count": 6,
+                "archived_failed_count": 1,
+                "credits_used": 10,
+                "credits_remaining": 990,
+                "sms_incoming_count": 3,
+                "sms_outgoing_count": 6,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 1,
+            }
+        )
+
+    def test_user_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": Msg.DELETE_FOR_USER,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 0,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 0,
+                "archived_flow_count": 0,
+                "archived_sent_count": 0,
+                "archived_failed_count": 0,
+                "credits_used": 10,
+                "credits_remaining": 990,
+                "sms_incoming_count": 3,
+                "sms_outgoing_count": 6,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 1,
+            }
+        )
+
+    def test_delete_release(self):
+        self.run_msg_release_test(
+            {
+                "delete_reason": None,
+                "broadcast_count": 2,
+                "label_count": 0,
+                "archived_label_count": 0,
+                "inbox_count": 0,
+                "flow_count": 1,
+                "sent_count": 0,
+                "failed_count": 0,
+                "archived_inbox_count": 0,
+                "archived_flow_count": 0,
+                "archived_sent_count": 0,
+                "archived_failed_count": 0,
+                "credits_used": 1,
+                "credits_remaining": 999,
+                "sms_incoming_count": 1,
+                "sms_outgoing_count": 0,
+                "twitter_incoming_count": 0,
+                "twitter_outgoing_count": 0,
+            }
+        )
 
     def test_broadcast_batch(self):
         broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
@@ -1379,7 +1572,6 @@ class BroadcastTest(TembaTest):
             msgs_models.BATCH_SIZE = orig_batch_size
 
     def test_broadcast_model(self):
-
         def assertBroadcastStatus(msg, new_msg_status, broadcast_status):
             msg.status = new_msg_status
             msg.save(update_fields=("status",))
@@ -1457,7 +1649,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(Broadcast.objects.all()[0].contacts.all()[0], test_contact)
 
         # delete this broadcast to keep future test right
-        Broadcast.objects.all()[0].delete()
+        Broadcast.objects.all()[0].release()
 
         # test when we have many channels
         Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="1234")
@@ -1616,33 +1808,25 @@ class BroadcastTest(TembaTest):
         self.assertEqual([""], Msg.get_text_parts(sms.text))
 
         # 160 chars
-        sms.text = (
-            "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        )
+        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
         self.assertEqual(1, len(Msg.get_text_parts(sms.text)))
 
         # 161 characters with space
-        sms.text = (
-            "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 1234567890"
-        )
+        sms.text = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 1234567890"
         parts = Msg.get_text_parts(sms.text)
         self.assertEqual(2, len(parts))
         self.assertEqual(150, len(parts[0]))
         self.assertEqual(10, len(parts[1]))
 
         # 161 characters without space
-        sms.text = (
-            "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
-        )
+        sms.text = "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
         parts = Msg.get_text_parts(sms.text)
         self.assertEqual(2, len(parts))
         self.assertEqual(160, len(parts[0]))
         self.assertEqual(1, len(parts[1]))
 
         # 160 characters with max length 40
-        sms.text = (
-            "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        )
+        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
         parts = Msg.get_text_parts(sms.text, max_length=40)
         self.assertEqual(4, len(parts))
         self.assertEqual(40, len(parts[0]))
@@ -1830,70 +2014,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
         self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
-    def test_purging_messages(self):
-        # create some incoming messages
-        msg_in1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "Hello")
-        msg_in2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
-
-        # create a broadcast which is a response to an incoming message
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
-        broadcast1.send(trigger_send=False, response_to=msg_in1)
-
-        # create a broadcast which is to several contacts
-        broadcast2 = Broadcast.create(
-            self.org, self.user, "Very old broadcast", [self.joe_and_frank, self.kevin, self.lucy]
-        )
-        broadcast2.send(trigger_send=False)
-
-        # start joe in a flow
-        favorites = self.get_flow("favorites")
-        favorites.start([], [self.joe])
-        Msg.create_incoming(self.channel, self.joe.get_urn().urn, "red!")
-
-        # mark all outgoing messages as sent except broadcast #2 to Joe
-        Msg.objects.filter(direction="O").update(status="S")
-        broadcast2.msgs.filter(contact=self.joe).update(status="F")
-
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 2)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 1)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 6)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
-
-        today = timezone.now().date()
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
-
-        self.assertEqual(self.org.get_credits_used(), 10)
-        self.assertEqual(self.org.get_credits_remaining(), 990)
-
-        # purge all  messages except msg_in2
-        Msg.bulk_purge(Msg.objects.exclude(id=msg_in2.id))
-
-        # broadcasts should be unaffected
-        self.assertEqual(Broadcast.objects.count(), 2)
-
-        # check a debit was created for the deleted messages
-        debit1 = Debit.objects.get(topup__org=self.org)
-        self.assertEqual(debit1.amount, 9)
-
-        # so credit usage remains the same
-        self.assertEqual(self.org.get_credits_used(), 10)
-        self.assertEqual(self.org.get_credits_remaining(), 990)
-
-        # check system label counts have been updated
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX], 1)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FLOWS], 0)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 0)
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 0)
-
-        # but daily channel counts should be unchanged
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.INCOMING_MSG_TYPE, today), 3)
-        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 6)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
-        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
-
     def test_clear_old_msg_external_ids(self):
         last_month = timezone.now() - timedelta(days=31)
         msg1 = self.create_msg(
@@ -1916,7 +2036,6 @@ class BroadcastTest(TembaTest):
 
 
 class BroadcastCRUDLTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2020,7 +2139,6 @@ class BroadcastCRUDLTest(TembaTest):
 
 
 class LabelTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2118,6 +2236,30 @@ class LabelTest(TembaTest):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         self.assertRaises(ValueError, folder.get_visible_count)
 
+        # archive one of our messages, should change count but keep an archived count as well
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 0)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 2)
+
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # squash and check once more
+        squash_labelcounts()
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
+
+        # do a user release
+        msg3.release(Msg.DELETE_FOR_USER)
+
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+        squash_labelcounts()
+        self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
+        self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
+
     def test_get_messages_and_hierarchy(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Sorted")
         folder2 = Label.get_or_create_folder(self.org, self.user, "Todo")
@@ -2171,7 +2313,7 @@ class LabelTest(TembaTest):
         label2.toggle_label([msg1], add=True)
         label3.toggle_label([msg3], add=True)
 
-        folder1.delete()
+        folder1.release()
 
         self.assertFalse(Label.all_objects.filter(pk=folder1.pk).exists())
 
@@ -2181,14 +2323,13 @@ class LabelTest(TembaTest):
         self.assertEqual(set(Msg.objects.get(pk=msg2.pk).labels.all()), set())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), {label3})
 
-        label3.delete()
+        label3.release()
 
         self.assertFalse(Label.all_objects.filter(pk=label3.pk).exists())
         self.assertEqual(set(Msg.objects.get(pk=msg3.pk).labels.all()), set())
 
 
 class LabelCRUDLTest(TembaTest):
-
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_create_and_update(self):
         create_label_url = reverse("msgs.label_create")
@@ -2231,7 +2372,8 @@ class LabelCRUDLTest(TembaTest):
         response = self.client.post(reverse("msgs.label_update", args=[label_one.pk]), dict(name="+label_1"))
         self.assertFormError(response, "form", "name", "Name must not be blank or begin with punctuation")
 
-        Label.all_objects.all().delete()
+        self.release(Label.folder_objects.all())
+        self.release(Label.label_objects.all())
 
         for i in range(Label.MAX_ORG_LABELS):
             Label.get_or_create(self.org, self.user, "label%d" % i)
@@ -2285,7 +2427,6 @@ class LabelCRUDLTest(TembaTest):
 
 
 class ScheduleTest(TembaTest):
-
     def tearDown(self):
         from temba.channels import models as channel_models
 
@@ -2329,7 +2470,6 @@ class ScheduleTest(TembaTest):
 
 
 class ConsoleTest(TembaTest):
-
     def setUp(self):
         from temba.triggers.models import Trigger
 
@@ -2407,7 +2547,6 @@ class ConsoleTest(TembaTest):
 
 
 class BroadcastLanguageTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2479,7 +2618,6 @@ class BroadcastLanguageTest(TembaTest):
 
 
 class SystemLabelTest(TembaTest):
-
     def test_get_counts(self):
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2579,7 +2717,6 @@ class SystemLabelTest(TembaTest):
         )
 
         msg1.restore()
-        msg3.release()  # already released
         msg5.status_fail()  # already failed
         msg6.status_delivered()
 
@@ -2621,9 +2758,42 @@ class SystemLabelTest(TembaTest):
         # we should only have one system label per type
         self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
+        # archive one of our inbox messages
+        msg1.release(Msg.DELETE_FOR_ARCHIVE)
+
+        self.assertEqual(
+            SystemLabel.get_counts(self.org),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
+            },
+        )
+
+        squash_labelcounts()
+
+        # check our archived count
+        self.assertEqual(
+            SystemLabelCount.get_totals(self.org, True),
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 0,
+            },
+        )
+
 
 class TagsTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2691,7 +2861,6 @@ class TagsTest(TembaTest):
 
 
 class CeleryTaskTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2712,11 +2881,22 @@ class CeleryTaskTest(TembaTest):
         )
 
     def _fixture_teardown(self):
-        Msg.objects.all().delete()
-        Channel.objects.all().delete()
-        AdminBoundary.objects.all().delete()
+
+        self.releaseMessages()
+        self.releaseContacts(delete=True)
+        self.releaseChannels(delete=True)
+
+        TopUpCredits.objects.all().delete()
+        TopUp.objects.all().delete()
+
+        SystemLabelCount.objects.all().delete()
+        ContactGroupCount.objects.all().delete()
+        ContactGroup.all_groups.all().delete()
         Org.objects.all().delete()
-        Contact.objects.all().delete()
+
+        for boundary in AdminBoundary.objects.all():
+            boundary.release()
+
         User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 
     @classmethod
@@ -2769,7 +2949,6 @@ class CeleryTaskTest(TembaTest):
 
 
 class HandleEventTest(TembaTest):
-
     def test_stop_contact_task(self):
         self.joe = self.create_contact("Joe", "+12065551212")
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))

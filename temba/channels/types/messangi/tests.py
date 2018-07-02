@@ -11,7 +11,6 @@ from ...models import Channel
 
 
 class MessangiTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

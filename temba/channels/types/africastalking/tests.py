@@ -7,12 +7,14 @@ from ...models import Channel
 
 
 class AfricastalkingTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 
         url = reverse("channels.types.africastalking.claim")
         self.login(self.admin)
+
+        self.org.timezone = "Africa/Cairo"  # not supported
+        self.org.save()
 
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertNotContains(response, url)

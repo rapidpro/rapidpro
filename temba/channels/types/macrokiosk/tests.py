@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class MacrokioskTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

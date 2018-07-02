@@ -18,6 +18,7 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     """
     Responsible for firing off our contact refresh task
     """
+
     model = Channel
     fields = ()
     success_message = _("Contacts refresh begun, it may take a few minutes to complete.")
@@ -35,7 +36,6 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
         country = forms.ChoiceField(

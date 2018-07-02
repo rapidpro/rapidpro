@@ -1,6 +1,7 @@
 
 from mock import patch
 
+from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
 
@@ -10,7 +11,6 @@ from ...models import Channel
 
 
 class TwitterTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -35,20 +35,8 @@ class TwitterTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
 
-        self.login(self.user)
-
-        # also can't access if just a regular user
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
-
+        Group.objects.get(name="Beta").user_set.add(self.admin)
         self.login(self.admin)
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-        # check that claim page URL appears on claim list page
-        response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, url)
 
         # can fetch the claim page
         response = self.client.get(url)

@@ -109,6 +109,7 @@ class InboxView(OrgPermsMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
+
     refresh = 10000
     add_button = True
     system_label = None
@@ -178,7 +179,6 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = any(counts.values())
         context["send_form"] = SendMessageForm(self.request.user)
-        context["org_is_purged"] = org.is_purgeable
         context["actions"] = self.actions
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
@@ -437,7 +437,6 @@ class MsgActionForm(BaseActionForm):
 
 
 class MsgActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -762,7 +761,6 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class BaseLabelForm(forms.ModelForm):
-
     def clean_name(self):
         name = self.cleaned_data["name"]
 

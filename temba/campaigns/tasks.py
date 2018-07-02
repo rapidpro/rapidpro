@@ -1,8 +1,10 @@
 import logging
 from collections import defaultdict
+from datetime import timedelta
 
 from django_redis import get_redis_connection
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -106,3 +108,15 @@ def update_event_fires_for_campaign(campaign_id):
 
             # bubble up the exception so sentry sees it
             raise e
+
+
+@nonoverlapping_task(track_started=True, name="trim_event_fires_task")
+def trim_event_fires_task():
+    start = timezone.now()
+    boundary = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS)
+    trim_ids = EventFire.objects.filter(fired__lt=boundary).values_list("id", flat=True).order_by("fired")[:100000]
+    for batch in chunk_list(trim_ids, 100):
+        # use a bulk delete for performance reasons, nothing references EventFire
+        EventFire.objects.filter(id__in=batch).delete()
+
+    print(f"Deleted {len(trim_ids)} event fires in {timezone.now()-start}")

@@ -13,14 +13,12 @@ logger = logging.getLogger(__name__)
 
 # default manager for AdminBoundary, doesn't load geometries
 class NoGeometryManager(models.GeoManager):
-
     def get_queryset(self):
         return super().get_queryset().defer("geometry", "simplified_geometry")
 
 
 # optional 'geometries' manager for AdminBoundary, loads everything
 class GeometryManager(models.GeoManager):
-
     def get_queryset(self):
         return super().get_queryset()
 
@@ -29,6 +27,7 @@ class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
     """
+
     LEVEL_COUNTRY = 0
     LEVEL_STATE = 1
     LEVEL_DISTRICT = 2
@@ -52,6 +51,7 @@ class AdminBoundary(MPTTModel, models.Model):
     parent = TreeForeignKey(
         "self",
         null=True,
+        on_delete=models.PROTECT,
         blank=True,
         related_name="children",
         db_index=True,
@@ -123,6 +123,10 @@ class AdminBoundary(MPTTModel, models.Model):
 
         _update_child_paths(self)
 
+    def release(self):
+        AdminBoundary.objects.filter(parent=self).update(parent=None)
+        self.delete()
+
     @classmethod
     def create(cls, osm_id, name, level, parent=None, **kwargs):
         """
@@ -167,13 +171,17 @@ class BoundaryAlias(SmartModel):
     """
     Alternative names for a boundaries
     """
+
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
     boundary = models.ForeignKey(
-        AdminBoundary, help_text="The admin boundary this alias applies to", related_name="aliases"
+        AdminBoundary,
+        on_delete=models.PROTECT,
+        help_text="The admin boundary this alias applies to",
+        related_name="aliases",
     )
 
-    org = models.ForeignKey("orgs.Org", help_text="The org that owns this alias")
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, help_text="The org that owns this alias")
 
     @classmethod
     def create(cls, org, user, boundary, name):

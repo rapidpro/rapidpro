@@ -17,6 +17,7 @@ class NexmoClient(nx.Client):
     """
     Simple implementation of Nexmo API
     """
+
     URL = "https://rest.nexmo.com"
     SEND_URL = "https://rest.nexmo.com/sms/json"
 
@@ -154,7 +155,6 @@ class NCCOException(Exception):
 
 
 class NCCOResponse(object):
-
     def __init__(self, **kwargs):
         self.document = []
 

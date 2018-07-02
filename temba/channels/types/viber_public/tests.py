@@ -12,7 +12,6 @@ from ...models import Channel
 
 
 class ViberPublicTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

@@ -14,6 +14,7 @@ class ViberPublicType(ChannelType):
     """
     A Viber public account channel (https://www.viber.com/public-accounts/)
     """
+
     code = "VP"
     category = ChannelType.Category.SOCIAL_MEDIA
 

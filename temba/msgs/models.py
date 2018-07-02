@@ -1,4 +1,3 @@
-
 import logging
 import time
 import traceback
@@ -14,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
-from django.db import connection, models, transaction
+from django.db import models, transaction
 from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
@@ -23,9 +22,9 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import Debit, Language, Org, TopUp
+from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
 from temba.utils.cache import check_and_mark_in_timerange
@@ -138,6 +137,7 @@ class UnreachableException(Exception):
     """
     Exception thrown when a message is being sent to a contact that we don't have a sendable URN for
     """
+
     pass
 
 
@@ -145,9 +145,10 @@ class BroadcastRecipient(models.Model):
     """
     Through table for broadcast recipients many-to-many
     """
-    broadcast = models.ForeignKey("msgs.Broadcast")
 
-    contact = models.ForeignKey(Contact)
+    broadcast = models.ForeignKey("msgs.Broadcast", on_delete=models.PROTECT)
+
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
 
     purged_status = models.CharField(
         null=True, max_length=1, help_text=_("Used when broadcast is purged to record contact's message's state")
@@ -163,13 +164,16 @@ class Broadcast(models.Model):
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
+
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     METADATA_QUICK_REPLIES = "quick_replies"
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this broadcast is connected to"))
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this broadcast is connected to")
+    )
 
     groups = models.ManyToManyField(
         ContactGroup,
@@ -205,7 +209,11 @@ class Broadcast(models.Model):
     )
 
     channel = models.ForeignKey(
-        Channel, null=True, verbose_name=_("Channel"), help_text=_("Channel to use for message sending")
+        Channel,
+        on_delete=models.PROTECT,
+        null=True,
+        verbose_name=_("Channel"),
+        help_text=_("Channel to use for message sending"),
     )
 
     status = models.CharField(
@@ -218,13 +226,16 @@ class Broadcast(models.Model):
 
     schedule = models.OneToOneField(
         Schedule,
+        on_delete=models.PROTECT,
         verbose_name=_("Schedule"),
         null=True,
         help_text=_("Our recurring schedule if we have one"),
         related_name="broadcast",
     )
 
-    parent = models.ForeignKey("Broadcast", verbose_name=_("Parent"), null=True, related_name="children")
+    parent = models.ForeignKey(
+        "Broadcast", on_delete=models.PROTECT, verbose_name=_("Parent"), null=True, related_name="children"
+    )
 
     text = TranslatableField(
         verbose_name=_("Translations"),
@@ -239,7 +250,10 @@ class Broadcast(models.Model):
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
 
     created_by = models.ForeignKey(
-        User, related_name="%(app_label)s_%(class)s_creations", help_text="The user which originally created this item"
+        User,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
     )
 
     created_on = models.DateTimeField(
@@ -247,7 +261,10 @@ class Broadcast(models.Model):
     )
 
     modified_by = models.ForeignKey(
-        User, related_name="%(app_label)s_%(class)s_modifications", help_text="The user which last modified this item"
+        User,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
     )
 
     modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
@@ -669,6 +686,11 @@ class Broadcast(models.Model):
 
         self.save(update_fields=["status"])
 
+    def release(self):
+        for msg in self.msgs.all():
+            msg.release()
+        self.delete()
+
     def __str__(self):
         return "%s (%s)" % (self.org.name, self.pk)
 
@@ -713,6 +735,7 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
+
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     VISIBILITY_VISIBLE = "V"
@@ -737,6 +760,11 @@ class Msg(models.Model):
         (USSD, _("USSD Message")),
     )
 
+    DELETE_FOR_ARCHIVE = "A"
+    DELETE_FOR_USER = "U"
+
+    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
     MEDIA_VIDEO = "video"
@@ -751,11 +779,16 @@ class Msg(models.Model):
     uuid = models.UUIDField(null=True, default=uuid4, help_text=_("The UUID for this message"))
 
     org = models.ForeignKey(
-        Org, related_name="msgs", verbose_name=_("Org"), help_text=_("The org this message is connected to")
+        Org,
+        on_delete=models.PROTECT,
+        related_name="msgs",
+        verbose_name=_("Org"),
+        help_text=_("The org this message is connected to"),
     )
 
     channel = models.ForeignKey(
         Channel,
+        on_delete=models.PROTECT,
         null=True,
         related_name="msgs",
         verbose_name=_("Channel"),
@@ -764,6 +797,7 @@ class Msg(models.Model):
 
     contact = models.ForeignKey(
         Contact,
+        on_delete=models.PROTECT,
         related_name="msgs",
         verbose_name=_("Contact"),
         help_text=_("The contact this message is communicating with"),
@@ -772,6 +806,7 @@ class Msg(models.Model):
 
     contact_urn = models.ForeignKey(
         ContactURN,
+        on_delete=models.PROTECT,
         null=True,
         related_name="msgs",
         verbose_name=_("Contact URN"),
@@ -780,6 +815,7 @@ class Msg(models.Model):
 
     broadcast = models.ForeignKey(
         Broadcast,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="msgs",
@@ -832,6 +868,7 @@ class Msg(models.Model):
 
     response_to = models.ForeignKey(
         "Msg",
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="responses",
@@ -889,7 +926,7 @@ class Msg(models.Model):
         null=True,
         blank=True,
         related_name="msgs",
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         help_text="The topup that this message was deducted from",
     )
 
@@ -898,10 +935,18 @@ class Msg(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession", null=True, help_text=_("The session this message was a part of if any")
+        "channels.ChannelSession",
+        on_delete=models.PROTECT,
+        related_name="msgs",
+        null=True,
+        help_text=_("The session this message was a part of if any"),
     )
 
     metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
+
+    delete_reason = models.CharField(
+        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the message is being deleted")
+    )
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -1853,43 +1898,21 @@ class Msg(models.Model):
         self.visibility = Msg.VISIBILITY_VISIBLE
         self.save(update_fields=("visibility", "modified_on"))
 
-    def release(self):
+    def release(self, delete_reason=DELETE_FOR_USER):
         """
         Releases (i.e. deletes) this message
         """
-        self.visibility = Msg.VISIBILITY_DELETED
-        self.text = ""
-        self.save(update_fields=("visibility", "text", "modified_on"))
+        Msg.objects.filter(response_to=self).update(response_to=None)
 
-        # remove labels
-        self.labels.clear()
+        for log in ChannelLog.objects.filter(msg=self):
+            log.release()
 
-    @classmethod
-    def bulk_purge(cls, msgs):
-        """
-        Purges the given messages
-        """
-        debits_to_create = []
-        topup_counts = msgs.values("topup_id").annotate(count=Count("topup_id"))
+        if delete_reason:
+            self.delete_reason = delete_reason
+            self.save(update_fields=["delete_reason"])
 
-        # figure out which topups needs debits added to them
-        for tc in topup_counts:
-            topup_id = tc["topup_id"]
-            msg_count = tc["count"]
-            if tc["topup_id"] and msg_count:
-                debits_to_create.append(Debit(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE))
-
-        with transaction.atomic():
-            Debit.objects.bulk_create(debits_to_create)
-            Debit.squash()
-
-            # delete messages in batches to avoid long locks
-            for msg_batch in chunk_list(msgs, 1000):
-                # manually delete to avoid slow and unnecessary checks on related fields like response_to
-                cursor = connection.cursor()
-                msg_ids = tuple([m.id for m in msg_batch])
-                cursor.execute("DELETE FROM channels_channellog WHERE msg_id IN %s", params=[msg_ids])
-                cursor.execute("DELETE FROM msgs_msg WHERE id IN %s", params=[msg_ids])
+        # delete this object
+        self.delete()
 
     @classmethod
     def apply_action_label(cls, user, msgs, label, add):
@@ -2015,11 +2038,14 @@ class SystemLabelCount(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
-    SQUASH_OVER = ("org_id", "label_type")
 
-    org = models.ForeignKey(Org, related_name="system_labels")
+    SQUASH_OVER = ("org_id", "label_type", "is_archived")
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
 
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
+
+    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
 
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
@@ -2027,22 +2053,22 @@ class SystemLabelCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
         WITH deleted as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s and "is_archived" = %%s RETURNING "count"
         )
-        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        INSERT INTO %(table)s("org_id", "label_type", "is_archived", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
         """ % {
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
+        return sql, (distinct_set.org_id, distinct_set.label_type, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, org):
+    def get_totals(cls, org, is_archived=False):
         """
         Gets all system label counts by type for the given org
         """
-        counts = cls.objects.filter(org=org)
+        counts = cls.objects.filter(org=org, is_archived=is_archived)
         counts = counts.values_list("label_type").annotate(count_sum=Sum("count"))
         counts_by_type = {c[0]: c[1] for c in counts}
 
@@ -2054,13 +2080,11 @@ class SystemLabelCount(SquashableModel):
 
 
 class UserFolderManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(label_type=Label.TYPE_FOLDER)
 
 
 class UserLabelManager(models.Manager):
-
     def get_queryset(self):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
@@ -2070,6 +2094,7 @@ class Label(TembaModel):
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
     """
+
     MAX_NAME_LEN = 64
     MAX_ORG_LABELS = 250
     MAX_ORG_FOLDERS = 250
@@ -2079,11 +2104,13 @@ class Label(TembaModel):
 
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
-    org = models.ForeignKey(Org)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
     name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
 
-    folder = models.ForeignKey("Label", verbose_name=_("Folder"), null=True, related_name="children")
+    folder = models.ForeignKey(
+        "Label", on_delete=models.PROTECT, verbose_name=_("Folder"), null=True, related_name="children"
+    )
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
 
@@ -2217,6 +2244,15 @@ class Label(TembaModel):
         return self.label_type == Label.TYPE_FOLDER
 
     def release(self):
+
+        # release our children if we are a folder
+        if self.is_folder():
+            for label in self.children.all():
+                label.release()
+        else:
+            Msg.labels.through.objects.filter(label=self).delete()
+
+        self.counts.all().delete()
         self.delete()
 
     def __str__(self):
@@ -2232,9 +2268,12 @@ class LabelCount(SquashableModel):
     """
     Counts of user labels maintained by database level triggers
     """
-    SQUASH_OVER = ("label_id",)
 
-    label = models.ForeignKey(Label, related_name="counts")
+    SQUASH_OVER = ("label_id", "is_archived")
+
+    label = models.ForeignKey(Label, on_delete=models.PROTECT, related_name="counts")
+
+    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
 
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
@@ -2242,22 +2281,26 @@ class LabelCount(SquashableModel):
     def get_squash_query(cls, distinct_set):
         sql = """
             WITH deleted as (
-                DELETE FROM %(table)s WHERE "label_id" = %%s RETURNING "count"
+                DELETE FROM %(table)s WHERE "label_id" = %%s AND "is_archived" = %%s RETURNING "count"
             )
-            INSERT INTO %(table)s("label_id", "count", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            INSERT INTO %(table)s("label_id", "is_archived", "count", "is_squashed")
+            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
             """ % {
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.label_id, distinct_set.label_id)
+        return sql, (distinct_set.label_id, distinct_set.is_archived) * 2
 
     @classmethod
-    def get_totals(cls, labels):
+    def get_totals(cls, labels, is_archived=False):
         """
         Gets total counts for all the given labels
         """
-        counts = cls.objects.filter(label__in=labels).values_list("label_id").annotate(count_sum=Sum("count"))
+        counts = (
+            cls.objects.filter(label__in=labels, is_archived=is_archived)
+            .values_list("label_id")
+            .annotate(count_sum=Sum("count"))
+        )
         counts_by_label_id = {c[0]: c[1] for c in counts}
         return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
@@ -2307,13 +2350,14 @@ class ExportMessagesTask(BaseExportTask):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
+
     analytics_key = "msg_export"
     email_subject = "Your messages export is ready"
     email_template = "msgs/email/msg_export_download"
 
     groups = models.ManyToManyField(ContactGroup)
 
-    label = models.ForeignKey(Label, null=True)
+    label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
 
     system_label = models.CharField(null=True, max_length=1)
 

@@ -11,7 +11,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
 

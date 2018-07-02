@@ -15,7 +15,6 @@ from temba.policies.models import Policy
 
 
 class ExceptionMiddleware(object):
-
     def process_exception(self, request, exception):
         if settings.DEBUG:
             traceback.print_exc()
@@ -38,7 +37,6 @@ class OrgHeaderMiddleware(object):
 
 
 class BrandingMiddleware(object):
-
     @classmethod
     def get_branding_for_host(cls, host):
 
@@ -89,7 +87,6 @@ class ConsentMiddleware(object):  # pragma: no cover
 
 
 class ActivateLanguageMiddleware(object):
-
     def process_request(self, request):
         user = request.user
         language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
@@ -102,7 +99,6 @@ class ActivateLanguageMiddleware(object):
 
 
 class OrgTimezoneMiddleware(object):
-
     def process_request(self, request):
         user = request.user
         org = None

@@ -14,6 +14,7 @@ class MessangiType(ChannelType):
     """
     An Messangi channel (http://messangi.com/)
     """
+
     CONFIG_PUBLIC_KEY = "public_key"
     CONFIG_PRIVATE_KEY = "private_key"
     CONFIG_CARRIER_ID = "carrier_id"

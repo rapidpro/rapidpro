@@ -37,7 +37,6 @@ from .serializers import (
 
 
 class APITest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -958,7 +957,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # remove all our contacts
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
 
         # no contacts yet
         response = self.fetchJSON(url)
@@ -983,7 +982,7 @@ class APITest(TembaTest):
         self.assertEqual("Snoop Dog", contact.name)
         self.assertEqual(self.org, contact.org)
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
 
         # add a contact using urns field, also set language
         response = self.postJSON(url, dict(name="Snoop Dog", urns=["tel:+250788123456", "twitter:snoop"]))
@@ -1331,6 +1330,7 @@ class APITest(TembaTest):
             contact = Contact.objects.get(name="Test Name", urns__path="external-id", urns__scheme="ext")
 
             # remove it
+            contact.release(self.admin)
             contact.delete()
 
         # check fetching deleted contacts
@@ -1385,7 +1385,8 @@ class APITest(TembaTest):
             contacts.append(
                 Contact(org=self.org, name="Minion %d" % (c + 1), created_by=self.admin, modified_by=self.admin)
             )
-        Contact.objects.all().delete()
+
+        self.releaseContacts(delete=True)
         Contact.objects.bulk_create(contacts)
 
         # login as surveyor

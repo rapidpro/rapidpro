@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class JunebugTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
         self.login(self.admin)

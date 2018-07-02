@@ -14,6 +14,7 @@ class TelegramType(ChannelType):
     """
     A Telegram bot channel
     """
+
     code = "TG"
     category = ChannelType.Category.SOCIAL_MEDIA
 

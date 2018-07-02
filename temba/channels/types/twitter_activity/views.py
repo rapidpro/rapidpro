@@ -12,7 +12,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         api_key = forms.CharField(label=_("Consumer Key"))
         api_secret = forms.CharField(label=_("Consumer Secret"))

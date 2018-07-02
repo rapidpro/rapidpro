@@ -13,6 +13,7 @@ class Schedule(SmartModel):
     Describes a point in the future to execute some action. These are used to schedule Broadcasts
     as a single event or with a specified interval for recurrence.
     """
+
     REPEAT_CHOICES = (("O", "Never"), ("D", "Daily"), ("W", "Weekly"), ("M", "Monthly"))
 
     STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))

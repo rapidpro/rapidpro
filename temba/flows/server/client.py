@@ -48,7 +48,6 @@ class Events(Enum):
 
 
 class RequestBuilder(object):
-
     def __init__(self, client, org, base_assets_url):
         self.client = client
         self.org = org
@@ -252,7 +251,6 @@ class RequestBuilder(object):
 
 
 class Output(object):
-
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json["session"], output_json.get("events", []))
@@ -266,13 +264,20 @@ class Output(object):
 
 
 class FlowServerException(Exception):
-    pass
+    def __init__(self, endpoint, request, response):
+        self.endpoint = endpoint
+        self.request = request
+        self.response = response
+
+    def as_json(self):
+        return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
 class FlowServerClient(object):
     """
     Basic client for GoFlow's flow server
     """
+
     headers = {"User-Agent": "Temba"}
 
     def __init__(self, base_url, debug=False):
@@ -309,8 +314,7 @@ class FlowServerClient(object):
             print("[GOFLOW]=============== /%s response ===============" % endpoint)
 
         if 400 <= response.status_code < 500:
-            errors = "\n".join(resp_json["errors"])
-            raise FlowServerException("Invalid request: " + errors)
+            raise FlowServerException(endpoint, payload, resp_json)
 
         response.raise_for_status()
 

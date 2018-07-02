@@ -6,6 +6,12 @@
   %h2.font_normalize.header-margin
     {{ title }}
 
+
+-block pre-form
+  .info
+    %p
+      {{ form_blurb }}
+
 -block extra-style
   :css
     .form-horizontal input + .help-block,

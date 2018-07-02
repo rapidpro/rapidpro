@@ -10,7 +10,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class ZVClaimForm(ClaimViewMixin.Form):
         shortcode = forms.CharField(max_length=6, min_length=1, help_text=_("The Zenvia short code"))
         username = forms.CharField(max_length=32, help_text=_("The account username provided by Zenvia"))

@@ -3,9 +3,9 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
-from openpyxl.worksheet.write_only import WriteOnlyCell
+from openpyxl.worksheet.write_only import WriteOnlyCell, WriteOnlyWorksheet
+from xlsxlite.writer import XLSXBook
 
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -22,7 +22,6 @@ from .text import clean_string
 
 
 class BaseExportAssetStore(BaseAssetStore):
-
     def is_asset_ready(self, asset):
         return asset.status == BaseExportTask.STATUS_COMPLETE
 
@@ -31,6 +30,7 @@ class BaseExportTask(TembaModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
+
     analytics_key = None
     asset_type = None
 
@@ -52,7 +52,9 @@ class BaseExportTask(TembaModel):
         (STATUS_FAILED, _("Failed")),
     )
 
-    org = models.ForeignKey("orgs.Org", related_name="%(class)ss", help_text=_("The organization of the user."))
+    org = models.ForeignKey(
+        "orgs.Org", on_delete=models.PROTECT, related_name="%(class)ss", help_text=_("The organization of the user.")
+    )
 
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
@@ -85,23 +87,24 @@ class BaseExportTask(TembaModel):
             if hasattr(temp_file, "delete"):
                 if temp_file.delete is False:  # pragma: no cover
                     os.unlink(temp_file.name)
-            else:
+            else:  # pragma: no cover
                 os.unlink(temp_file.name)
 
-        except Exception:
+        except Exception as e:
             import traceback
 
             traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
+
+            raise e  # log the error to sentry
         else:
             self.update_status(self.STATUS_COMPLETE)
-        finally:
             elapsed = time.time() - start
             print("Completed %s in %.1f seconds" % (self.analytics_key, elapsed))
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
-
+        finally:
             gc.collect()  # force garbage collection
 
     def write_export(self):  # pragma: no cover
@@ -130,11 +133,17 @@ class BaseExportTask(TembaModel):
         )
 
     def append_row(self, sheet, values):
-        row = []
-        for value in values:
-            cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
-            row.append(cell)
-        sheet.append(row)
+        # openpyxl
+        if isinstance(sheet, WriteOnlyWorksheet):
+            row = []
+            for value in values:
+                cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
+                row.append(cell)
+            sheet.append(row)
+
+        # xlsxlite
+        else:
+            sheet.append_row(*[self.prepare_value(v) for v in values])
 
     def prepare_value(self, value):
         if value is None:
@@ -145,6 +154,8 @@ class BaseExportTask(TembaModel):
             return clean_string(value)
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
+        elif isinstance(value, bool):
+            return value
         else:
             return clean_string(str(value))
 
@@ -171,18 +182,15 @@ class TableExporter(object):
     rows, as again, Excel file only support that many per sheet.
     """
 
-    def __init__(self, task, sheet_name, extra_sheet_name, columns, extra_columns):
+    def __init__(self, task, sheet_name, columns):
         self.task = task
         self.columns = columns
-        self.extra_columns = extra_columns
         self.sheet_name = sheet_name
-        self.extra_sheet_name = extra_sheet_name
 
         self.current_sheet = 0
         self.current_row = 0
 
-        self.file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wt+")
-        self.workbook = Workbook(write_only=True)
+        self.workbook = XLSXBook()
         self.sheet_number = 0
         self._add_sheet()
 
@@ -190,15 +198,12 @@ class TableExporter(object):
         self.sheet_number += 1
 
         # add our sheet
-        self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        self.extra_sheet = self.workbook.create_sheet(u"%s %d" % (self.extra_sheet_name, self.sheet_number))
-
-        self.task.append_row(self.sheet, self.columns)
-        self.task.append_row(self.extra_sheet, self.extra_columns)
+        self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.sheet.append_row(*self.columns)
 
         self.sheet_row = 2
 
-    def write_row(self, values, extra_values):
+    def write_row(self, values):
         """
         Writes the passed in row to our exporter, taking care of creating new sheets if necessary
         """
@@ -206,8 +211,7 @@ class TableExporter(object):
         if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
             self._add_sheet()
 
-        self.task.append_row(self.sheet, values)
-        self.task.append_row(self.extra_sheet, extra_values)
+        self.sheet.append_row(*values)
 
         self.sheet_row += 1
 
@@ -217,11 +221,9 @@ class TableExporter(object):
         """
         gc.collect()  # force garbage collection
 
-        self.file.close()
-        self.file = open(self.file.name, "rb+")
-
         print("Writing Excel workbook...")
-        self.workbook.save(self.file)
+        temp_file = NamedTemporaryFile(delete=False, suffix=".xlsx", mode="wb+")
+        self.workbook.finalize(to_file=temp_file)
+        temp_file.flush()
 
-        self.file.flush()
-        return self.file, "xlsx"
+        return temp_file, "xlsx"

@@ -8,7 +8,6 @@ from temba.tests import MockResponse, TembaTest
 
 
 class NexmoTypeTest(TembaTest):
-
     @patch("temba.utils.nexmo.time.sleep")
     def test_claim(self, mock_time_sleep):
         mock_time_sleep.return_value = None

@@ -6,7 +6,6 @@ from temba.utils import analytics
 
 
 class MageError(Exception):  # pragma: needs cover
-
     def __init__(self, caused_by=None, error_code=None):
         self.caused_by = caused_by
         self.error_code = error_code
