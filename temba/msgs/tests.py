@@ -63,7 +63,7 @@ from temba.utils.queues import DEFAULT_PRIORITY, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
-from .tasks import clear_old_msg_external_ids, process_message_task, squash_labelcounts
+from .tasks import clear_old_msg_external_ids, process_message_task, squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -1540,10 +1540,8 @@ class BroadcastTest(TembaTest):
         )
 
     def test_broadcast_batch(self):
-        broadcast = Broadcast.create(
-            self.org, self.user, "Like a tweet", groups=[self.joe_and_frank], contacts=[self.kevin]
-        )
-        self.assertEqual(3, broadcast.recipient_count)
+        # create a contact we can't reach
+        tg_contact, _ = Contact.get_or_create(self.org, "telegram:12345", user=self.admin)
 
         # change our broadcast size to 2
         import temba.msgs.models as msgs_models
@@ -1551,11 +1549,32 @@ class BroadcastTest(TembaTest):
         orig_batch_size = msgs_models.BATCH_SIZE
 
         try:
-            # downsize our batches and send it (this tests other code paths)
             msgs_models.BATCH_SIZE = 2
-            broadcast.send()
 
+            broadcast = Broadcast.create(
+                self.org, self.user, "Broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, tg_contact]
+            )
+
+            # downsize our batches and send it (this tests other code paths)
+            broadcast.send()
+            broadcast.refresh_from_db()
+
+            # should have 3 recipients and 3 messages sent
+            self.assertEqual(3, broadcast.recipient_count)
             self.assertEqual(broadcast.get_message_count(), 3)
+            self.assertEqual(SENT, broadcast.status)
+
+            # do it again but add contacts by hand (like flow batch starts)
+            broadcast = Broadcast.create(self.org, self.user, "Flow broadcast")
+            broadcast.update_contacts([tg_contact.id, self.kevin.id, self.joe.id, self.frank.id])
+            broadcast.send_batch(contacts=[tg_contact, self.kevin, self.joe, self.frank])
+            broadcast.refresh_from_db()
+
+            # 4 recipients, but only 3 messages sent, but we end up as sent
+            self.assertEqual(4, broadcast.recipient_count)
+            self.assertEqual(broadcast.get_message_count(), 3)
+            self.assertEqual(SENT, broadcast.status)
+
         finally:
             msgs_models.BATCH_SIZE = orig_batch_size
 
@@ -1564,10 +1583,10 @@ class BroadcastTest(TembaTest):
             self.org, self.user, "Like a tweet", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
         )
         self.assertEqual("I", broadcast.status)
-        self.assertEqual(4, broadcast.recipient_count)
 
         broadcast.send()
         self.assertEqual("S", broadcast.status)
+        self.assertEqual(4, broadcast.recipient_count)
         self.assertEqual(broadcast.get_message_count(), 4)
 
     def test_send(self):
@@ -2149,7 +2168,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # check still correct after squashing
-        squash_labelcounts()
+        squash_msgcounts()
         self.assertEqual(label.get_visible_count(), 2)
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
@@ -2205,7 +2224,7 @@ class LabelTest(TembaTest):
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
 
         # squash and check once more
-        squash_labelcounts()
+        squash_msgcounts()
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 1)
@@ -2215,7 +2234,7 @@ class LabelTest(TembaTest):
 
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
-        squash_labelcounts()
+        squash_msgcounts()
         self.assertEqual(LabelCount.get_totals([label], is_archived=True)[label], 1)
         self.assertEqual(LabelCount.get_totals([label], is_archived=False)[label], 0)
 
@@ -2689,7 +2708,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_labelcounts()
+        squash_msgcounts()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2725,7 +2744,7 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        squash_labelcounts()
+        squash_msgcounts()
 
         # check our archived count
         self.assertEqual(

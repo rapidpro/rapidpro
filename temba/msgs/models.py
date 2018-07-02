@@ -325,10 +325,7 @@ class Broadcast(models.Model):
             bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
             RelatedModel.objects.bulk_create(bulk_contacts)
 
-        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-        contact_urns = ContactURN.get_urn_ids_for_contacts(contact_ids, schemes)
-
-        self.recipient_count = len(contact_urns)
+        self.recipient_count = len(contact_ids)
         self.save(update_fields=("recipient_count",))
 
     def update_recipients(self, *, groups=None, contacts=None, urns=None):
@@ -352,20 +349,6 @@ class Broadcast(models.Model):
         self.urns.clear()
         if urns:
             self.urns.add(*urns)
-
-        contact_ids = self._get_unique_contact_ids(groups=groups, contacts=contacts)
-
-        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-        urn_ids = set(ContactURN.get_urn_ids_for_contacts(contact_ids, schemes, all=self.send_all))
-
-        # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
-        for urn in urns:
-            if urn.scheme in schemes:
-                urn_ids.add(urn.id)
-
-        # update the recipient count - the number of messages we intend to send
-        self.recipient_count = len(urn_ids)
-        self.save(update_fields=("recipient_count",))
 
     def send(
         self,
@@ -401,6 +384,10 @@ class Broadcast(models.Model):
         for urn in self.urns.all():
             urns.add(urn)
 
+        # update our recipient count
+        self.recipient_count = len(urns)
+        self.save(update_fields=["recipient_count"])
+
         # if we are fewer than on batch, send right away
         if len(urns) <= BATCH_SIZE:
             self.send_batch(
@@ -416,7 +403,7 @@ class Broadcast(models.Model):
 
         # otherwise, create batches and fire those off
         else:
-            from temba.flows.models import Flow
+            from temba.flows.models import FLOWS_QUEUE, Flow
 
             for batch in chunk_list(urns, BATCH_SIZE):
                 kwargs = dict(
@@ -431,7 +418,7 @@ class Broadcast(models.Model):
                 )
                 push_task(
                     self.org,
-                    "flows",
+                    FLOWS_QUEUE,
                     Flow.START_MSG_FLOW_BATCH,
                     dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
                 )
@@ -461,6 +448,19 @@ class Broadcast(models.Model):
         if (contacts and urns) or (contacts is None and urns is None):
             raise Exception("Must pass either contacts or urns")
 
+        # the count of recipients we are batching
+        batch_count = len(urns) if urns is not None else len(contacts)
+
+        # Update the number of recipients that have been batched for this broadcast. This can't be counted via
+        # our squashable model as not all recipients end up resolving to a message being created (due to duplicates
+        # between groups/contacts for example or because they aren't addressable by any channel)
+        bcast_key = f"bcast_{self.id}_count"
+        r = get_redis_connection()
+        with r.pipeline() as pipe:
+            pipe.incrby(bcast_key, batch_count)
+            pipe.expire(bcast_key, 60 * 60)
+            pipe.execute()
+
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
@@ -481,7 +481,11 @@ class Broadcast(models.Model):
             urns = []
             for c in contacts:
                 contact_map[c.id] = c
-                urns.append(c.get_urn(schemes))
+                contact_urn = c.get_urn(schemes)
+
+                # if we can address this contact, add it to our list of urns to send to
+                if contact_urn:
+                    urns.append(contact_urn)
 
         batch = []
         batch_ids = []
@@ -562,7 +566,8 @@ class Broadcast(models.Model):
                 )
 
         # mark ourselves as sent if appropriate
-        if self.get_message_count() >= self.recipient_count:
+        sent_count = int(r.get(bcast_key)) if r.get(bcast_key) else 0
+        if sent_count >= self.recipient_count:
             self.status = SENT
             self.save(update_fields=("status",))
         else:
@@ -1945,7 +1950,7 @@ class BroadcastMsgCount(SquashableModel):
             "table": cls._meta.db_table
         }
 
-        return sql, (distinct_set.start_id,) * 2
+        return sql, (distinct_set.broadcast_id,) * 2
 
     @classmethod
     def get_count(cls, broadcast):

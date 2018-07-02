@@ -26,6 +26,7 @@ from .models import (
     PENDING,
     TIMEOUT_EVENT,
     Broadcast,
+    BroadcastMsgCount,
     ExportMessagesTask,
     LabelCount,
     Msg,
@@ -388,10 +389,11 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_systemlabels")
-def squash_labelcounts():
+@nonoverlapping_task(track_started=True, name="squash_msgcounts")
+def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
+    BroadcastMsgCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name="clear_old_msg_external_ids", time_limit=60 * 60 * 36)

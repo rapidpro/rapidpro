@@ -109,6 +109,7 @@ FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 UNREAD_FLOW_RESPONSES = "unread_flow_responses"
 
 FLOW_BATCH = "flow_batch"
+FLOWS_QUEUE = "flows"
 
 
 class FlowLock(Enum):
@@ -2084,13 +2085,13 @@ class Flow(TembaModel):
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                    push_task(self.org, "flows", Flow.START_MSG_FLOW_BATCH, task_context)
+                    push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context["contacts"] = batch_contacts
 
             if batch_contacts:
                 print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                push_task(self.org, "flows", Flow.START_MSG_FLOW_BATCH, task_context)
+                push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
 
@@ -5785,7 +5786,7 @@ class FlowStart(SmartModel):
     def async_start(self):
         from temba.flows.tasks import start_flow_task
 
-        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue="flows"))
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=FLOWS_QUEUE))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
