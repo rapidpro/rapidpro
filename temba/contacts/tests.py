@@ -3273,9 +3273,9 @@ class ContactTest(TembaTest):
         self.assertEqual(activity_icon(item), '<span class="glyph icon-call-incoming"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
-        # simulate a broadcast to 5 people
-        msg.broadcast = Broadcast.create(self.org, self.admin, "Test message")
-        msg.broadcast.recipient_count = 5
+        # simulate a broadcast to 2 people
+        joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+        msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
         msg.status = "F"
         self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
@@ -3308,7 +3308,7 @@ class ContactTest(TembaTest):
 
         self.assertFalse(self.joe.get_scheduled_messages())
 
-        broadcast = Broadcast.create(self.org, self.admin, "Hello")
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.frank])
         self.assertFalse(self.joe.get_scheduled_messages())
 
         broadcast.contacts.add(self.joe)
@@ -3428,8 +3428,7 @@ class ContactTest(TembaTest):
         self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
 
         # add a scheduled broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Hello")
-        broadcast.contacts.add(self.joe)
+        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.joe])
         schedule_time = now + timedelta(days=5)
         broadcast.schedule = Schedule.create_schedule(schedule_time, "O", self.admin)
         broadcast.save()
