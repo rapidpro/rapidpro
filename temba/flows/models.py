@@ -6751,15 +6751,15 @@ class VariableContactAction(Action):
                 if scheme and path:
                     urns.append(URN.from_parts(scheme, path))
 
+            if phone:  # pragma: needs cover
+                urns.append(URN.from_tel(phone))
+
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
 
-            if not contact and (phone or urn):
-                if phone:  # pragma: needs cover
-                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=[URN.from_tel(phone)])
-                elif urns:
-                    contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
+            if not contact:
+                contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
 
-                # if they dont have a name use the one in our action
+                # if they don't have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
                     contact.name = name
                     contact.save(update_fields=["name"])
