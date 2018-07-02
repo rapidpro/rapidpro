@@ -442,12 +442,13 @@ class MsgTest(TembaTest):
 
     def test_empty(self):
         broadcast = Broadcast.create(
-            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?"
+            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", contacts=[]
         )
         broadcast.send()
 
         # should have no messages but marked as sent
-        self.assertEqual(0, broadcast.msgs.all().count())
+        self.assertEqual(0, broadcast.recipient_count)
+        self.assertEqual(0, broadcast.get_message_count())
         self.assertEqual(SENT, broadcast.status)
 
     def test_send_all(self):
@@ -505,17 +506,6 @@ class MsgTest(TembaTest):
         self.assertEqual(msg1.metadata, {"quick_replies": ["Oui", "No"]})
         self.assertEqual(msg2.metadata, {"quick_replies": ["Yes", "No"]})
         self.assertEqual(msg3.metadata, {"quick_replies": ["Yes", "No"]})
-
-    def test_update_contacts(self):
-        broadcast = Broadcast.create(
-            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?"
-        )
-
-        # update the contacts using contact ids
-        broadcast.update_contacts([self.joe.id])
-
-        broadcast.refresh_from_db()
-        self.assertEqual(1, broadcast.recipient_count)
 
     def test_outbox(self):
         self.login(self.admin)
@@ -1556,6 +1546,7 @@ class BroadcastTest(TembaTest):
             )
 
             # downsize our batches and send it (this tests other code paths)
+            self.assertEqual(4, broadcast.recipient_count)
             broadcast.send()
             broadcast.refresh_from_db()
 
@@ -1565,8 +1556,13 @@ class BroadcastTest(TembaTest):
             self.assertEqual(SENT, broadcast.status)
 
             # do it again but add contacts by hand (like flow batch starts)
-            broadcast = Broadcast.create(self.org, self.user, "Flow broadcast")
-            broadcast.update_contacts([tg_contact.id, self.kevin.id, self.joe.id, self.frank.id])
+            broadcast = Broadcast.create(
+                self.org,
+                self.user,
+                "Flow broadcast",
+                contacts=[tg_contact.id, self.kevin.id, self.joe.id, self.frank.id],
+            )
+            self.assertEqual(4, broadcast.recipient_count)
             broadcast.send_batch(contacts=[tg_contact, self.kevin, self.joe, self.frank])
             broadcast.refresh_from_db()
 

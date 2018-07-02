@@ -23,7 +23,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
@@ -269,6 +269,7 @@ class Broadcast(models.Model):
         groups=None,
         contacts=None,
         urns=None,
+        contact_ids=None,
         base_language=None,
         channel=None,
         media=None,
@@ -281,10 +282,16 @@ class Broadcast(models.Model):
             base_language = org.primary_language.iso_code if org.primary_language else "base"
             text = {base_language: text}
 
+        # check we have at least one recipient type
+        if groups is None and contacts is None and contact_ids is None and urns is None:
+            raise ValueError("Must specify at least one recipient kind in broadcast creation")
+
         if base_language not in text:  # pragma: no cover
             raise ValueError("Base language '%s' doesn't exist in the provided translations dict" % base_language)
+
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language '%s' doesn't exist in the provided media dict" % base_language)
+
         if quick_replies:
             for quick_reply in quick_replies:
                 if base_language not in quick_reply:
@@ -307,48 +314,11 @@ class Broadcast(models.Model):
             metadata=metadata,
             **kwargs,
         )
-        broadcast.update_recipients(groups=groups, contacts=contacts, urns=urns)
+
+        # set our recipients
+        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns, contact_ids=contact_ids)
+
         return broadcast
-
-    def update_contacts(self, contact_ids):
-        """
-        Optimization for broadcasts that only contain contacts. Updates our contacts according to the passed in
-        queryset or array.
-        """
-        self.urns.clear()
-        self.groups.clear()
-        self.contacts.clear()
-
-        # get our through model
-        RelatedModel = self.contacts.through
-        for chunk in chunk_list(contact_ids, 1000):
-            bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
-            RelatedModel.objects.bulk_create(bulk_contacts)
-
-        self.recipient_count = len(contact_ids)
-        self.save(update_fields=("recipient_count",))
-
-    def update_recipients(self, *, groups=None, contacts=None, urns=None):
-        """
-        Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a
-        broadcast after it has been created - the exception is scheduled broadcasts which are never really sent (clones
-        of them are sent).
-        """
-        groups = groups if groups else []
-        contacts = contacts if contacts else []
-        urns = urns if urns else []
-
-        self.groups.clear()
-        if groups:
-            self.groups.add(*groups)
-
-        self.contacts.clear()
-        if contacts:
-            self.contacts.add(*contacts)
-
-        self.urns.clear()
-        if urns:
-            self.urns.add(*urns)
 
     def send(
         self,
@@ -363,20 +333,20 @@ class Broadcast(models.Model):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
-        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-
         # if we are sending to groups and any of them are big, make sure we aren't spamming
         for group in self.groups.all():
             if group.get_member_count() > 30:
                 bcast_value = "%d_%s" % (group.id, self.text)
 
-                # have we sent this exact message today or yesterday and with this message?
+                # have we sent this exact message in the past few hours?
                 if check_and_mark_in_timerange("bcasts", 1, bcast_value):
                     self.status = FAILED
                     self.save(update_fields=["status"])
                     raise Exception("Not sending broadcast %d due to duplicate" % self.id)
 
-        # get our unique contacts
+        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
+
+        # calculate a more accurate recipient count, each of these will map to a message created
         contact_ids = self._get_unique_contact_ids(groups=self.groups.all(), contacts=self.contacts.all())
         urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all=self.send_all))
 
@@ -629,6 +599,47 @@ class Broadcast(models.Model):
         for msg in self.msgs.all():
             msg.release()
         self.delete()
+
+    def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+        """
+        Only used to update recipients for scheduled / repeating broadcasts
+        """
+        # clear our current recipients
+        self.groups.clear()
+        self.contacts.clear()
+        self.urns.clear()
+
+        self._set_recipients(groups=groups, contacts=contacts, urns=urns)
+
+    def _set_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+        """
+        Sets the recipients which may be contact groups, contacts or contact URNs.
+        """
+        recipient_count = 0
+
+        if groups:
+            self.groups.add(*groups)
+            for c in ContactGroupCount.get_totals(groups).values():
+                recipient_count += c
+
+        if contacts:
+            self.contacts.add(*contacts)
+            recipient_count += len(contacts)
+
+        if urns:
+            self.urns.add(*urns)
+            recipient_count += len(urns)
+
+        if contact_ids:
+            RelatedModel = self.contacts.through
+            for chunk in chunk_list(contact_ids, 1000):
+                bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
+                RelatedModel.objects.bulk_create(bulk_contacts)
+            recipient_count += len(contact_ids)
+
+        # set an estimate of our number of recipients, we calculate this more carefully when actually sent
+        self.recipient_count = recipient_count
+        self.save(update_fields=["recipient_count"])
 
     def _get_unique_contact_ids(self, *, groups=[], contacts=[]):
         """

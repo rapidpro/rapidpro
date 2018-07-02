@@ -2037,12 +2037,12 @@ class Flow(TembaModel):
                         self.org,
                         self.created_by,
                         send_action.msg,
+                        contact_ids=all_contact_ids,
                         media=send_action.media,
                         base_language=self.base_language,
                         send_all=send_action.send_all,
                         quick_replies=send_action.quick_replies,
                     )
-                    broadcast.update_contacts(all_contact_ids)
 
                     # add it to the list of broadcasts in this flow start
                     broadcasts.append(broadcast)

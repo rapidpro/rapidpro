@@ -193,8 +193,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         .values_list("id", flat=True)
     )
 
-    broadcast = Broadcast.create(org, user, text)
-    broadcast.update_contacts(contact_ids)
+    broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
     broadcast.send(expressions_context={})
 
     analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
