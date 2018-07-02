@@ -6285,6 +6285,16 @@ class FlowsTest(FlowFileTest):
         self.assertIsNotNone(msg.queued_on)
         self.assertEqual(WIRED, msg.status)
 
+    def test_send_msg_to_urnless(self):
+        flow = self.get_flow("send_msg_to_urnless")
+        flow.start([], [self.contact])
+
+        # check we create the contact
+        self.assertIsNotNone(Contact.objects.get(name="Bob"))
+
+        # even tho we can't send them the message until they get some URNs
+        self.assertEqual(Msg.objects.count(), 0)
+
     def test_sms_forms(self):
         flow = self.get_flow("sms_form")
 
