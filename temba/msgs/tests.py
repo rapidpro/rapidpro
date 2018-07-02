@@ -832,7 +832,7 @@ class MsgTest(TembaTest):
         # make sure there was a new outgoing message created that got attached to our broadcast
         self.assertEqual(2, broadcast.get_message_count())
 
-        resent_msg = broadcast.get_messages()[1]
+        resent_msg = broadcast.msgs.order_by("-pk")[0]
         self.assertNotEqual(msg2, resent_msg)
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
@@ -2603,7 +2603,7 @@ class SystemLabelTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 3")
         msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
         call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
-        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", contacts=[contact1, contact2])
+        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", contacts=[contact1, contact2], status=QUEUED)
         Broadcast.create(
             self.org,
             self.user,
@@ -2626,7 +2626,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 4,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
@@ -2635,7 +2635,7 @@ class SystemLabelTest(TembaTest):
         )
 
         msg3.archive()
-        bcast1.send(status=QUEUED)
+        bcast1.send()
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(
@@ -2701,7 +2701,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 27)
 
         # squash our counts
         squash_msgcounts()

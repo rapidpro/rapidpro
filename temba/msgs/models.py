@@ -275,6 +275,7 @@ class Broadcast(models.Model):
         media=None,
         send_all=False,
         quick_replies=None,
+        status=INITIALIZING,
         **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -312,6 +313,7 @@ class Broadcast(models.Model):
             created_by=user,
             modified_by=user,
             metadata=metadata,
+            status=status,
             **kwargs,
         )
 
@@ -320,16 +322,7 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(
-        self,
-        *,
-        expressions_context=None,
-        response_to=None,
-        status=PENDING,
-        msg_type=INBOX,
-        run_map=None,
-        high_priority=False,
-    ):
+    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, run_map=None, high_priority=False):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
@@ -365,7 +358,6 @@ class Broadcast(models.Model):
                 trigger_send=True,
                 expressions_context=expressions_context,
                 response_to=response_to,
-                status=status,
                 msg_type=msg_type,
                 run_map=run_map,
                 high_priority=high_priority,
@@ -381,7 +373,6 @@ class Broadcast(models.Model):
                     trigger_send=True,
                     expressions_context=expressions_context,
                     response_to=response_to,
-                    status=status,
                     msg_type=msg_type,
                     run_map=run_map,
                     high_priority=high_priority,
@@ -539,9 +530,6 @@ class Broadcast(models.Model):
         sent_count = int(r.get(bcast_key)) if r.get(bcast_key) else 0
         if sent_count >= self.recipient_count:
             self.status = SENT
-            self.save(update_fields=("status",))
-        else:
-            self.status = QUEUED
             self.save(update_fields=("status",))
 
         return batch_ids

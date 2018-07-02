@@ -120,6 +120,23 @@ CREATE OR REPLACE FUNCTION temba_insert_broadcastmsgcount(_broadcast_id INTEGER,
     END IF;
   END;
 $$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Determines the (mutually exclusive) system label for a broadcast record
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_broadcast_determine_system_label(_broadcast msgs_broadcast) RETURNS CHAR(1) AS $$
+BEGIN
+  IF _broadcast.is_active AND _broadcast.schedule_id IS NOT NULL THEN
+    RETURN 'E';
+  END IF;
+
+  IF _broadcast.is_active AND _broadcast.status = 'Q' THEN
+    RETURN 'O';
+  END IF;
+
+  RETURN NULL; -- does not match any label
+END;
+$$ LANGUAGE plpgsql;
 """
 
 
