@@ -4,6 +4,7 @@ from gettext import gettext as _
 from urllib.parse import urlparse
 
 import boto3
+from dateutil.relativedelta import relativedelta
 
 from django.conf import settings
 from django.db import models
@@ -66,6 +67,15 @@ class Archive(models.Model):
     def s3_location(self):
         url_parts = urlparse(self.url)
         return dict(Bucket=url_parts.netloc.split(".")[0], Key=url_parts.path[1:])
+
+    def get_end_date(self):
+        """
+        Gets the date this archive ends non-inclusive
+        """
+        if self.period == Archive.PERIOD_DAILY:
+            return self.start_date + relativedelta(days=1)
+        else:
+            return self.start_date + relativedelta(months=1)
 
     @classmethod
     def s3_client(cls):

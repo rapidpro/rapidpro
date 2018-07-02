@@ -12,7 +12,7 @@ from .models import Archive
 class ArchiveCRUDL(SmartCRUDL):
 
     model = Archive
-    actions = ("list", "read")
+    actions = ("read", "run", "message")
     permissions = True
 
     class List(OrgPermsMixin, SmartListView):
@@ -21,14 +21,6 @@ class ArchiveCRUDL(SmartCRUDL):
         default_order = ("-start_date", "-period", "archive_type")
         search_fields = ("archive_type",)
         paginate_by = 250
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            archive_types = (choice[0] for choice in Archive.TYPE_CHOICES)
-            return r"^%s/(%s)/$" % (path, "|".join(archive_types))
-
-        def get_archive_type(self):
-            return self.request.path.split("/")[-2]
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
@@ -51,6 +43,22 @@ class ArchiveCRUDL(SmartCRUDL):
             context["archive_types"] = Archive.TYPE_CHOICES
             context["selected"] = self.get_archive_type()
             return context
+
+    class Run(List):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/$" % (path, Archive.TYPE_FLOWRUN)
+
+        def get_archive_type(self):
+            return Archive.TYPE_FLOWRUN
+
+    class Message(List):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/$" % (path, Archive.TYPE_MSG)
+
+        def get_archive_type(self):
+            return Archive.TYPE_MSG
 
     class Read(OrgPermsMixin, SmartReadView):
         def render_to_response(self, context, **response_kwargs):

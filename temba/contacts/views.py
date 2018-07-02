@@ -33,6 +33,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -1179,6 +1180,7 @@ class ContactCRUDL(SmartCRUDL):
             context["before"] = datetime_to_ms(after)
             context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context["activity"] = activity
+            context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
             return context
 
     class List(ContactActionMixin, ContactListView):
