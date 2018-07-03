@@ -2,11 +2,14 @@
 -load smartmin sms temba compress contacts
 -load i18n humanize
 
+-block search-details
+  .search-details
+
 -block message-list
   %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
     %tbody
       -for broadcast in pending_broadcasts
-        %tr{ style: "color: #aaa;" }
+        %tr.broadcast
 
           %td.value-phone.field_phone
             %nobr
@@ -58,3 +61,13 @@
           %tr
             %td{colspan:3}
               -trans "No matching messages."
+
+-block extra-style
+  {{ block.super }}
+
+
+  :css
+    .table.list-table tr.broadcast:hover td, .table.list-table tr.broadcast td {
+      color: #aaa
+    }
+
