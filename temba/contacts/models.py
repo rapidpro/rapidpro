@@ -2375,13 +2375,13 @@ class ContactURN(models.Model):
     auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
 
     @classmethod
-    def get_urns_for_contacts(self, contact_ids, schemes, all=False):
+    def get_urns_for_contacts(self, contact_ids, schemes, all_urns=False):
         """
         Optimized call that fetches the preferred URN for the passed in contacts within the passed in
         schemes.
         """
         urns = list()
-        distinct = "" if all else "DISTINCT ON(contact_id)"
+        distinct = "" if all_urns else "DISTINCT ON(contact_id)"
 
         for chunk in chunk_list(contact_ids, 1000):
             chunk_urns = ContactURN.objects.raw(

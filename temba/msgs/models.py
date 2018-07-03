@@ -341,7 +341,7 @@ class Broadcast(models.Model):
 
         # calculate a more accurate recipient count, each of these will map to a message created
         contact_ids = self._get_unique_contact_ids(groups=self.groups.all(), contacts=self.contacts.all())
-        urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all=self.send_all))
+        urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all_urns=self.send_all))
 
         # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
         for urn in self.urns.all():
