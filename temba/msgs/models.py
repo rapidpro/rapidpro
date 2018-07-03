@@ -8,6 +8,7 @@ import pytz
 import regex
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import DateStyle, EvaluationContext
+from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -2383,8 +2384,6 @@ class ExportMessagesTask(BaseExportTask):
         return export
 
     def write_export(self):
-        from xlsxlite.writer import XLSXBook
-
         book = XLSXBook()
 
         fields = ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"]
