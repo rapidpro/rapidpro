@@ -65,6 +65,7 @@ class BaseExportTask(TembaModel):
         """
         try:
             self.update_status(self.STATUS_PROCESSING)
+            print(f"Started perfoming {self.analytics_key} with ID {self.id}")
 
             start = time.time()
 
@@ -95,12 +96,13 @@ class BaseExportTask(TembaModel):
 
             traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
+            print(f"Failed to complete {self.analytics_key} with ID {self.id}")
 
             raise e  # log the error to sentry
         else:
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
-            print("Completed %s in %.1f seconds" % (self.analytics_key, elapsed))
+            print(f"Completed {self.analytics_key} in {elapsed:.1f} seconds")
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
@@ -198,7 +200,7 @@ class TableExporter(object):
         self.sheet_number += 1
 
         # add our sheet
-        self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.sheet = self.workbook.add_sheet("%s %d" % (self.sheet_name, self.sheet_number))
         self.sheet.append_row(*self.columns)
 
         self.sheet_row = 2
