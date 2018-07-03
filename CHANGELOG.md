@@ -1,3 +1,20 @@
+v3.0.438
+----------
+ * When comparsing msg events in flowserver trials, make paths relative again
+ * Change VariableContactAction to create contacts even without URNs
+ * Fix import of ID columns from anon export
+ * Don't fail twilio channel releases if auth key is no longer vaild
+ * Add UI messaging for archived data
+
+v3.0.437
+----------
+ * Fix import of header ID from anon export
+
+v3.0.436
+----------
+ * Fix supported scheme display lookup
+ * Move action log delete to flow run release
+
 v3.0.435
 ----------
  * Fix group test operand when contact name is null

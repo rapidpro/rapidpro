@@ -40,6 +40,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
@@ -1358,6 +1359,7 @@ class FlowCRUDL(SmartCRUDL):
                     run.value_list.append(results.get(key, None))
 
             context["runs"] = runs
+            context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
             context["paginate_by"] = self.paginate_by
             return context
 
@@ -1482,9 +1484,6 @@ class FlowCRUDL(SmartCRUDL):
                 # if their last simulation was more than a day ago, log this simulation
                 if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(user.username, "temba.flow_simulated")
-
-                action_log_ids = list(ActionLog.objects.filter(run__in=runs).values_list("id", flat=True))
-                ActionLog.objects.filter(id__in=action_log_ids).delete()
 
                 msg_ids = list(Msg.objects.filter(contact=test_contact).only("id").values_list("id", flat=True))
 

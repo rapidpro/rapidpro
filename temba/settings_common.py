@@ -334,7 +334,7 @@ PERMISSIONS = {
     "contacts.contactfield": ("api", "json", "managefields"),
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
-    "archives.archive": ("api",),
+    "archives.archive": ("api", "run", "message"),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "orgs.org": (
         "accounts",

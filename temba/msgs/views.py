@@ -23,6 +23,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
@@ -183,6 +184,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
         context["show_channel_logs"] = self.show_channel_logs
+        context["start_date"] = org.get_delete_date(archive_type=Archive.TYPE_MSG)
 
         # if refresh was passed in, increase it by our normal refresh time
         previous_refresh = self.request.GET.get("refresh")

@@ -36,6 +36,7 @@ from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 
+from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, chunk_list, languages
@@ -2066,6 +2067,15 @@ class Org(SmartModel):
             )
 
         return self.save_media(File(temp), extension)
+
+    def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
+        """
+        Gets the most recent date for which data hasn't been deleted yet or None if no deletion has been done
+        :return:
+        """
+        archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
+        if archive:
+            return archive.get_end_date()
 
     def save_response_media(self, response):
         disposition = response.headers.get("Content-Disposition", None)
