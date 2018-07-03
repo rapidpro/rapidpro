@@ -1529,50 +1529,36 @@ class BroadcastTest(TembaTest):
             }
         )
 
+    @patch("temba.msgs.models.BATCH_SIZE", 2)
     def test_broadcast_batch(self):
         # create a contact we can't reach
         tg_contact, _ = Contact.get_or_create(self.org, "telegram:12345", user=self.admin)
+        broadcast = Broadcast.create(
+            self.org, self.user, "Broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, tg_contact]
+        )
 
-        # change our broadcast size to 2
-        import temba.msgs.models as msgs_models
+        # downsize our batches and send it (this tests other code paths)
+        self.assertEqual(4, broadcast.recipient_count)
+        broadcast.send()
+        broadcast.refresh_from_db()
 
-        orig_batch_size = msgs_models.BATCH_SIZE
+        # should have 3 recipients and 3 messages sent
+        self.assertEqual(3, broadcast.recipient_count)
+        self.assertEqual(broadcast.get_message_count(), 3)
+        self.assertEqual(SENT, broadcast.status)
 
-        try:
-            msgs_models.BATCH_SIZE = 2
+        # do it again but add contacts by hand (like flow batch starts)
+        broadcast = Broadcast.create(
+            self.org, self.user, "Flow broadcast", contacts=[tg_contact.id, self.kevin.id, self.joe.id, self.frank.id]
+        )
+        self.assertEqual(4, broadcast.recipient_count)
+        broadcast.send_batch(contacts=[tg_contact, self.kevin, self.joe, self.frank])
+        broadcast.refresh_from_db()
 
-            broadcast = Broadcast.create(
-                self.org, self.user, "Broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, tg_contact]
-            )
-
-            # downsize our batches and send it (this tests other code paths)
-            self.assertEqual(4, broadcast.recipient_count)
-            broadcast.send()
-            broadcast.refresh_from_db()
-
-            # should have 3 recipients and 3 messages sent
-            self.assertEqual(3, broadcast.recipient_count)
-            self.assertEqual(broadcast.get_message_count(), 3)
-            self.assertEqual(SENT, broadcast.status)
-
-            # do it again but add contacts by hand (like flow batch starts)
-            broadcast = Broadcast.create(
-                self.org,
-                self.user,
-                "Flow broadcast",
-                contacts=[tg_contact.id, self.kevin.id, self.joe.id, self.frank.id],
-            )
-            self.assertEqual(4, broadcast.recipient_count)
-            broadcast.send_batch(contacts=[tg_contact, self.kevin, self.joe, self.frank])
-            broadcast.refresh_from_db()
-
-            # 4 recipients, but only 3 messages sent, but we end up as sent
-            self.assertEqual(4, broadcast.recipient_count)
-            self.assertEqual(broadcast.get_message_count(), 3)
-            self.assertEqual(SENT, broadcast.status)
-
-        finally:
-            msgs_models.BATCH_SIZE = orig_batch_size
+        # 4 recipients, but only 3 messages sent, but we end up as sent
+        self.assertEqual(4, broadcast.recipient_count)
+        self.assertEqual(broadcast.get_message_count(), 3)
+        self.assertEqual(SENT, broadcast.status)
 
     def test_broadcast_model(self):
         broadcast = Broadcast.create(

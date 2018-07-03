@@ -164,7 +164,7 @@ class BroadcastWriteSerializer(WriteSerializer):
         contact_urns = []
         for urn in self.validated_data.get("urns", []):
             # create contacts for URNs if necessary
-            _, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
+            __, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
             contact_urns.append(contact_urn)
 
         text, base_language = self.validated_data["text"]

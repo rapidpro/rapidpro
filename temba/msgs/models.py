@@ -675,7 +675,7 @@ class Broadcast(models.Model):
         return preferred_languages
 
     def __str__(self):
-        return "%s (%s)" % (self.org.name, self.pk)
+        return f"Broadcast[{self.pk}]{self.text}"
 
 
 class Attachment(object):
@@ -1336,7 +1336,9 @@ class Msg(models.Model):
             handled = True
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
-        self.save()  # first save message status before updating the broadcast status
+        self.save(
+            update_fields=["status", "sent_on"]
+        )  # first save message status before updating the broadcast status
 
         return handled
 
@@ -1957,7 +1959,7 @@ class BroadcastMsgCount(SquashableModel):
         return count if count else 0
 
     def __str__(self):  # pragma: needs cover
-        return "BroadcastMsgCount[%d:%d]" % (self.broadcast_id, self.count)
+        return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
 
 
 STOP_WORDS = (
