@@ -252,7 +252,7 @@ class ContactGroupTest(TembaTest):
 
     def test_create_dynamic(self):
         age = ContactField.get_or_create(self.org, self.admin, "age", value_type=Value.TYPE_NUMBER)
-        gender = ContactField.get_or_create(self.org, self.admin, "gender")
+        gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
         self.joe.set_field(self.admin, "age", 17)
         self.joe.set_field(self.admin, "gender", "male")
         self.mary.set_field(self.admin, "age", 21)
@@ -316,7 +316,7 @@ class ContactGroupTest(TembaTest):
         filter_url = reverse("contacts.contact_filter", args=[group.uuid])
         response = self.client.get(filter_url)
         self.assertNotIn("unlabel", response.context["actions"])
-
+        self.assertEqual(list(response.context["contact_fields"].values_list("key", flat=True)), ["gender", "age"])
         # put group back into evaluation state
         group.status = ContactGroup.STATUS_EVALUATING
         group.save(update_fields=("status",))

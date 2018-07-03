@@ -1271,7 +1271,9 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = actions
             context["current_group"] = group
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by("pk")
+            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+                "-priority", "pk"
+            )
             context["export_url"] = self.derive_export_url()
             return context
 
