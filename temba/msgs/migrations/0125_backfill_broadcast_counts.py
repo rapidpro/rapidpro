@@ -7,7 +7,7 @@ from django.db import migrations
 from temba.utils import chunk_list
 
 CREATE_INDEX = """
-CREATE INDEX CONCURRENTLY msgs_broadcast_sending_idx ON msgs_broadcast(org_id, created_on) WHERE status = 'Q';
+CREATE INDEX CONCURRENTLY IF NOT EXISTS msgs_broadcast_sending_idx ON msgs_broadcast(org_id, created_on) WHERE status = 'Q';
 """
 
 
