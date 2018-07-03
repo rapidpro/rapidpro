@@ -1532,7 +1532,7 @@ class BroadcastTest(TembaTest):
     @patch("temba.msgs.models.BATCH_SIZE", 2)
     def test_broadcast_batch(self):
         # create a contact we can't reach
-        tg_contact, _ = Contact.get_or_create(self.org, "telegram:12345", user=self.admin)
+        tg_contact, __ = Contact.get_or_create(self.org, "telegram:12345", user=self.admin)
         broadcast = Broadcast.create(
             self.org, self.user, "Broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, tg_contact]
         )
@@ -1556,9 +1556,14 @@ class BroadcastTest(TembaTest):
         broadcast.refresh_from_db()
 
         # 4 recipients, but only 3 messages sent, but we end up as sent
+        self.assertEqual(f"Broadcast[{broadcast.id}]{broadcast.text}", str(broadcast))
         self.assertEqual(4, broadcast.recipient_count)
         self.assertEqual(broadcast.get_message_count(), 3)
         self.assertEqual(SENT, broadcast.status)
+
+        # release the broadcast
+        broadcast.release()
+        self.assertFalse(Broadcast.objects.filter(id=broadcast.id))
 
     def test_broadcast_model(self):
         broadcast = Broadcast.create(
@@ -1570,6 +1575,13 @@ class BroadcastTest(TembaTest):
         self.assertEqual("S", broadcast.status)
         self.assertEqual(4, broadcast.recipient_count)
         self.assertEqual(broadcast.get_message_count(), 4)
+
+        with self.assertRaises(ValueError):
+            Broadcast.create(self.org, self.user, "no recipients")
+
+        with self.assertRaises(ValueError):
+            broadcast = Broadcast.create(self.org, self.user, "batch", contacts=[self.kevin, self.lucy])
+            broadcast.send_batch()
 
     def test_send(self):
         # remove all channels first
@@ -1856,11 +1868,11 @@ class BroadcastTest(TembaTest):
         self.assertRegex(text, "Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
 
         # unicode tests
-        self.joe.name = u"شاملیدل عمومی"
+        self.joe.name = "شاملیدل عمومی"
         self.joe.save(update_fields=("name",))
 
-        self.assertEqual((u"شاملیدل", []), substitute("@(first_word(contact))", dict()))
-        self.assertEqual((u"عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
+        self.assertEqual(("شاملیدل", []), substitute("@(first_word(contact))", dict()))
+        self.assertEqual(("عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = "1234567890123456"

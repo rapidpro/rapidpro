@@ -407,7 +407,7 @@ class Broadcast(models.Model):
 
         # can pass either contacts or urns, not both
         if (contacts and urns) or (contacts is None and urns is None):
-            raise Exception("Must pass either contacts or urns")
+            raise ValueError("Must pass either contacts or urns")
 
         # the count of recipients we are batching
         batch_count = len(urns) if urns is not None else len(contacts)
@@ -586,6 +586,7 @@ class Broadcast(models.Model):
     def release(self):
         for msg in self.msgs.all():
             msg.release()
+        BroadcastMsgCount.objects.filter(broadcast=self).delete()
         self.delete()
 
     def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
