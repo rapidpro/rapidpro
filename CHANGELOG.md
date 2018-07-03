@@ -1,3 +1,9 @@
+v3.0.442
+----------
+ * Fix ContactField priority on filtered groups
+ * Update Django to version 1.11.14
+ * Reenable group broadcasts
+
 v3.0.438
 ----------
  * When comparsing msg events in flowserver trials, make paths relative again
