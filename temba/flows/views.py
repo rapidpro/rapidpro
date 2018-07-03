@@ -1096,6 +1096,13 @@ class FlowCRUDL(SmartCRUDL):
                 ):  # pragma: needs cover
                     raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
 
+                if (
+                    "group_memberships" in cleaned_data and len(cleaned_data["group_memberships"]) > 25
+                ):  # pragma: needs cover
+                    raise forms.ValidationError(
+                        _("You can only include up to 25 groups for group memberships in your export")
+                    )
+
                 return cleaned_data
 
         form_class = ExportForm
