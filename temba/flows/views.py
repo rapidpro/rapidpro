@@ -1078,26 +1078,30 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
-                self.fields["contact_fields"].queryset = ContactField.objects.filter(
+                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.objects.filter(
                     org=self.user.get_org(), is_active=True
                 )
 
-                self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+                self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
                     org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
                 ).order_by(Lower("name"))
 
-                self.fields["flows"].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
+                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(
+                    org=self.user.get_org(), is_active=True
+                )
 
             def clean(self):
                 cleaned_data = super().clean()
 
                 if (
-                    "contact_fields" in cleaned_data and len(cleaned_data["contact_fields"]) > 10
+                    ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
+                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS]) > 10
                 ):  # pragma: needs cover
                     raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
 
                 if (
-                    "group_memberships" in cleaned_data and len(cleaned_data["group_memberships"]) > 25
+                    ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
+                    and len(cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS]) > 25
                 ):  # pragma: needs cover
                     raise forms.ValidationError(
                         _("You can only include up to 25 groups for group memberships in your export")
@@ -1145,12 +1149,12 @@ class FlowCRUDL(SmartCRUDL):
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    form.cleaned_data["flows"],
-                    contact_fields=form.cleaned_data["contact_fields"],
-                    include_msgs=form.cleaned_data["include_messages"],
-                    responded_only=form.cleaned_data["responded_only"],
-                    extra_urns=form.cleaned_data["extra_urns"],
-                    group_memberships=form.cleaned_data["group_memberships"],
+                    form.cleaned_data[ExportFlowResultsTask.FLOWS],
+                    contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
+                    include_msgs=form.cleaned_data[ExportFlowResultsTask.INCLUDE_MSGS],
+                    responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
+                    extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
+                    group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 

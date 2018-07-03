@@ -5318,6 +5318,7 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
+    FLOWS = "flows"
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
