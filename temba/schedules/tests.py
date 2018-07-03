@@ -22,6 +22,10 @@ SUNDAY = 6  # 128
 
 
 class ScheduleTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+        self.joe = self.create_contact(name="Joe Blow", number="123")
+
     def create_schedule(self, repeat_period, repeat_days=[], start_date=None):
 
         if not start_date:
@@ -244,7 +248,7 @@ class ScheduleTest(TembaTest):
         schedule = self.create_schedule("D", start_date=eleven_fifteen_est)
         schedule.save()
 
-        Broadcast.create(self.org, self.admin, "Message", [], schedule=schedule)
+        Broadcast.create(self.org, self.admin, "Message", schedule=schedule, contacts=[self.joe])
         schedule = Schedule.objects.get(pk=schedule.pk)
 
         # when is the next fire once our first one passes
@@ -260,7 +264,7 @@ class ScheduleTest(TembaTest):
         tz = self.org.timezone
 
         sched = self.create_schedule("D")
-        Broadcast.create(self.org, self.admin, "Message", [], schedule=sched)
+        Broadcast.create(self.org, self.admin, "Message", schedule=sched, contacts=[self.joe])
         sched = Schedule.objects.get(pk=sched.pk)
 
         update_url = reverse("schedules.schedule_update", args=[sched.pk])

@@ -33,7 +33,7 @@ from temba.utils import analytics, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -282,7 +282,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # set our new message
             broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
-            broadcast.update_recipients(list(omnibox["groups"]) + list(omnibox["contacts"]) + list(omnibox["urns"]))
+            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
 
             broadcast.save()
             return broadcast
@@ -360,7 +360,6 @@ class BroadcastCRUDL(SmartCRUDL):
             groups = list(omnibox["groups"])
             contacts = list(omnibox["contacts"])
             urns = list(omnibox["urns"])
-            recipients = list()
 
             if step_uuid:
                 from .tasks import send_to_flow_node
@@ -373,21 +372,19 @@ class BroadcastCRUDL(SmartCRUDL):
                 else:
                     return HttpResponseRedirect(self.get_success_url())
 
+            # if simulating only use the test contact
             if simulation:
-                # when simulating make sure we only use test contacts
+                groups = []
+                urns = []
                 for contact in contacts:
                     if contact.is_test:
-                        recipients.append(contact)
-            else:
-                for group in groups:
-                    recipients.append(group)
-                for contact in contacts:
-                    recipients.append(contact)
-                for urn in urns:
-                    recipients.append(urn)
+                        contacts = [contact]
+                        break
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(org, user, text, recipients, schedule=schedule)
+            broadcast = Broadcast.create(
+                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
+            )
 
             if not has_schedule:
                 self.post_save(broadcast)
@@ -685,11 +682,20 @@ class MsgCRUDL(SmartCRUDL):
 
     class Outbox(MsgActionMixin, InboxView):
         title = _("Outbox Messages")
-        template_name = "msgs/message_box.haml"
+        template_name = "msgs/msg_outbox.haml"
         system_label = SystemLabel.TYPE_OUTBOX
         actions = ()
         allow_export = True
         show_channel_logs = True
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # stuff in any pending broadcasts
+            context["pending_broadcasts"] = Broadcast.objects.filter(
+                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING]
+            ).order_by("-created_on")
+            return context
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
