@@ -3,7 +3,6 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from openpyxl.utils.cell import get_column_letter
 from xlsxlite.writer import XLSXBook
 
 from django.core.files import File
@@ -149,10 +148,6 @@ class BaseExportTask(TembaModel):
             return value
         else:
             return clean_string(str(value))
-
-    def set_sheet_column_widths(self, sheet, widths):
-        for index, width in enumerate(widths):
-            sheet.column_dimensions[get_column_letter(index + 1)].width = widths[index]
 
     def get_email_context(self, branding):
         asset_store = get_asset_store(model=self.__class__)
