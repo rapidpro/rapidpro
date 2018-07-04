@@ -1069,7 +1069,7 @@ class FlowCRUDL(SmartCRUDL):
                 initial=True,
                 help_text=_("Only export results for contacts which responded"),
             )
-            include_messages = forms.BooleanField(
+            include_msgs = forms.BooleanField(
                 required=False,
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
