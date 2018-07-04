@@ -64,7 +64,8 @@ class TwitterActivityType(ChannelType):
 
     def deactivate(self, channel):
         config = channel.config
-        client = TembaTwython(
-            config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
-        )
-        client.delete_webhook(config["env_name"], config["webhook_id"])
+        if "webhook_id" in config:
+            client = TembaTwython(
+                config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
+            )
+            client.delete_webhook(config["env_name"], config["webhook_id"])

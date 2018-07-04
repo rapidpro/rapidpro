@@ -84,9 +84,26 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", None, "The provided Twitter credentials do not appear to be valid.")
 
-        # try a valid submission
-        mock_verify_credentials.side_effect = None
+        # error registering webhook
         mock_verify_credentials.return_value = {"id": "87654", "screen_name": "jimmy"}
+        mock_verify_credentials.side_effect = None
+        mock_register_webhook.side_effect = TwythonError("Exceeded number of webhooks")
+
+        response = self.client.post(
+            url,
+            {
+                "api_key": "ak",
+                "api_secret": "as",
+                "access_token": "at",
+                "access_token_secret": "ats",
+                "env_name": "production",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Exceeded number of webhooks")
+
+        # try a valid submission
+        mock_register_webhook.side_effect = None
         mock_register_webhook.return_value = {"id": "1234567"}
 
         response = self.client.post(
@@ -101,7 +118,7 @@ class TwitterActivityTypeTest(TembaTest):
         )
         self.assertEqual(response.status_code, 302)
 
-        channel = Channel.objects.get(address="jimmy")
+        channel = Channel.objects.get(address="jimmy", is_active=True)
         self.assertEqual(
             channel.config,
             {
@@ -116,10 +133,10 @@ class TwitterActivityTypeTest(TembaTest):
             },
         )
 
-        mock_register_webhook.assert_called_once_with(
+        mock_register_webhook.assert_called_with(
             "beta", "https://%s/c/twt/%s/receive" % (channel.callback_domain, channel.uuid)
         )
-        mock_subscribe_to_webhook.assert_called_once_with("beta")
+        mock_subscribe_to_webhook.assert_called_with("beta")
 
     @override_settings(IS_PROD=True)
     @patch("temba.utils.twitter.TembaTwython.delete_webhook")
