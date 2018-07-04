@@ -1,3 +1,7 @@
+v3.0.444
+----------
+ * fix per credit calculation
+
 v3.0.443
 ----------
  * two decimals for per credit costs, remove trailing 0s
