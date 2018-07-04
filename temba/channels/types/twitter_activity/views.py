@@ -3,6 +3,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.twitter import TembaTwython, TwythonError
@@ -12,9 +13,13 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
+    @transaction.non_atomic_requests
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
     class Form(ClaimViewMixin.Form):
-        api_key = forms.CharField(label=_("Consumer Key"))
-        api_secret = forms.CharField(label=_("Consumer Secret"))
+        api_key = forms.CharField(label=_("Consumer API Key"))
+        api_secret = forms.CharField(label=_("Consumer API Secret Key"))
         access_token = forms.CharField(label=_("Access Token"))
         access_token_secret = forms.CharField(label=_("Access Token Secret"))
         env_name = forms.CharField(label=_("Environment Name"))
@@ -26,19 +31,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             access_token = cleaned_data.get("access_token")
             access_token_secret = cleaned_data.get("access_token_secret")
 
-            org = self.request.user.get_org()
-
             if api_key and api_secret and access_token and access_token_secret:
                 twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
                 try:
-                    user = twitter.verify_credentials()
-
-                    # check there isn't already a channel for this Twitter account
-                    if org.channels.filter(
-                        channel_type=self.channel_type.code, address=user["screen_name"], is_active=True
-                    ).exists():
-                        raise ValidationError(_("A Twitter channel already exists for that handle."))
-
+                    twitter.verify_credentials()
                 except TwythonError:
                     raise ValidationError(_("The provided Twitter credentials do not appear to be valid."))
 
@@ -71,14 +67,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_DOMAIN: settings.HOSTNAME,
         }
 
-        self.object = Channel.create(
-            org,
-            self.request.user,
-            None,
-            self.channel_type,
-            name="@%s" % screen_name,
-            address=screen_name,
-            config=config,
-        )
+        try:
+            self.object = Channel.create(
+                org,
+                self.request.user,
+                None,
+                self.channel_type,
+                name="@%s" % screen_name,
+                address=screen_name,
+                config=config,
+            )
+        except ValidationError as e:
+            self.form.add_error(None, e)
+            return self.form_invalid(form)
 
         return super().form_valid(form)

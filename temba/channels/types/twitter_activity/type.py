@@ -1,5 +1,6 @@
 import logging
 
+from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
@@ -38,6 +39,7 @@ class TwitterActivityType(ChannelType):
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
+    async_activation = False
 
     def activate(self, channel):
         config = channel.config
@@ -47,14 +49,22 @@ class TwitterActivityType(ChannelType):
 
         callback_url = "https://%s%s" % (channel.callback_domain, reverse("courier.twt", args=[channel.uuid]))
         try:
-            client.register_webhook(config["env_name"], callback_url)
+            # check for existing hooks, if there is just one, remove it
+            hooks = client.get_webhooks(config["env_name"])
+            if len(hooks) == 1:
+                client.delete_webhook(config["env_name"], hooks[0]["id"])
+
+            resp = client.register_webhook(config["env_name"], callback_url)
+            channel.config["webhook_id"] = resp["id"]
+            channel.save(update_fields=["config"])
             client.subscribe_to_webhook(config["env_name"])
         except Exception as e:  # pragma: no cover
             logger.exception(str(e))
+            raise ValidationError(e)
 
     def deactivate(self, channel):
         config = channel.config
         client = TembaTwython(
             config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
         )
-        client.delete_webhook(config["env_name"])
+        client.delete_webhook(config["env_name"], config["webhook_id"])

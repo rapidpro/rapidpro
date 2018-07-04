@@ -30,15 +30,28 @@ class TwitterActivityTypeTest(TembaTest):
                 "access_token": "at1",
                 "access_token_secret": "ats1",
                 "handle_id": "h123456",
+                "webhook_id": "1234567",
                 "env_name": "beta",
             },
         )
 
     @override_settings(IS_PROD=True)
+    @patch("temba.utils.twitter.TembaTwython.get_webhooks")
+    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
     @patch("temba.utils.twitter.TembaTwython.subscribe_to_webhook")
     @patch("temba.utils.twitter.TembaTwython.register_webhook")
     @patch("twython.Twython.verify_credentials")
-    def test_claim(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
+    def test_claim(
+        self,
+        mock_verify_credentials,
+        mock_register_webhook,
+        mock_subscribe_to_webhook,
+        mock_delete_webhook,
+        mock_get_webhooks,
+    ):
+        mock_get_webhooks.return_value = [{"id": "webhook_id"}]
+        mock_delete_webhook.return_value = {"ok", True}
+
         url = reverse("channels.types.twitter_activity.claim")
         self.login(self.admin)
 
@@ -71,17 +84,8 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", None, "The provided Twitter credentials do not appear to be valid.")
 
-        # try submitting for handle which already has a channel
-        mock_verify_credentials.side_effect = None
-        mock_verify_credentials.return_value = {"id": "345678", "screen_name": "beta_bob"}
-
-        response = self.client.post(
-            url, {"api_key": "ak", "api_secret": "as", "access_token": "at", "access_token_secret": "ats"}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "A Twitter channel already exists for that handle.")
-
         # try a valid submission
+        mock_verify_credentials.side_effect = None
         mock_verify_credentials.return_value = {"id": "87654", "screen_name": "jimmy"}
         mock_register_webhook.return_value = {"id": "1234567"}
 
@@ -107,6 +111,7 @@ class TwitterActivityTypeTest(TembaTest):
                 "access_token": "at",
                 "env_name": "beta",
                 "access_token_secret": "ats",
+                "webhook_id": "1234567",
                 "callback_domain": channel.callback_domain,
             },
         )
@@ -120,7 +125,7 @@ class TwitterActivityTypeTest(TembaTest):
     @patch("temba.utils.twitter.TembaTwython.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release()
-        mock_delete_webhook.assert_called_once_with("beta")
+        mock_delete_webhook.assert_called_once_with("beta", "1234567")
 
     @patch("twython.Twython.lookup_user")
     def test_resolve(self, mock_lookup_user):
