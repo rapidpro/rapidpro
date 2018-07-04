@@ -1,3 +1,7 @@
+v3.0.443
+----------
+ * two decimals for per credit costs, remove trailing 0s
+
 v3.0.442
 ----------
  * Fix ContactField priority on filtered groups
