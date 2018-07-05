@@ -14,7 +14,7 @@ from temba.utils import sizeof_fmt
 
 
 class Archive(models.Model):
-    DOWNLOAD_EXPIRES = 600
+    DOWNLOAD_EXPIRES = 60 * 60 * 24  # Up to 24 hours
     TYPE_MSG = "message"
     TYPE_FLOWRUN = "run"
 
