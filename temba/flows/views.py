@@ -27,7 +27,6 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, QuerySet, Sum
@@ -57,6 +56,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import analytics, chunk_list, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
 
 from .models import (
@@ -690,7 +690,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
             flow = self.get_object()
-            return default_storage.save("recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file)
+            return public_file_storage.save(
+                "recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file
+            )
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
@@ -703,7 +705,7 @@ class FlowCRUDL(SmartCRUDL):
         def save_media_upload(self, file, actionset_id, name_uuid):
             flow = self.get_object()
             extension = file.name.split(".")[-1]
-            return default_storage.save(
+            return public_file_storage.save(
                 "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
             )
 

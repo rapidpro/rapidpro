@@ -56,6 +56,8 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
 
+AWS_DEFAULT_ACL = "private"
+
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
 # timezone as the operating system.
