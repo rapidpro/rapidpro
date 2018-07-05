@@ -581,13 +581,19 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", [self.frank.get_urn("twitter")])
-        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", [self.joe])
-        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", [self.frank], status="S")
+        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=[self.frank.get_urn("twitter")])
+        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", contacts=[self.frank], status="S")
         bcast4 = Broadcast.create(
-            self.org, self.admin, "Hello 4", [self.frank.get_urn("twitter"), self.joe, reporters], status="F"
+            self.org,
+            self.admin,
+            "Hello 4",
+            urns=[self.frank.get_urn("twitter")],
+            contacts=[self.joe],
+            groups=[reporters],
+            status="F",
         )
-        Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
+        Broadcast.create(self.org2, self.admin2, "Different org...", contacts=[self.hans])
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
@@ -2503,7 +2509,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # filter by broadcast
-        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", [self.joe, self.frank])
+        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
         broadcast.send()
         response = self.fetchJSON(url, "broadcast=%s" % broadcast.pk)
 

@@ -1,4 +1,3 @@
-import itertools
 import json
 import logging
 import numbers
@@ -56,13 +55,11 @@ from temba.msgs.models import (
     INITIALIZING,
     OUTGOING,
     PENDING,
-    QUEUED,
     USSD as MSG_TYPE_USSD,
     Broadcast,
     Label,
     Msg,
 )
-from temba.msgs.tasks import send_broadcast_task
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.utils import analytics, chunk_list, on_transaction_commit
 from temba.utils.dates import datetime_to_str, str_to_datetime
@@ -110,6 +107,9 @@ FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 
 UNREAD_FLOW_RESPONSES = "unread_flow_responses"
+
+FLOW_BATCH = "flow_batch"
+FLOWS_QUEUE = "flows"
 
 
 class FlowLock(Enum):
@@ -2037,17 +2037,12 @@ class Flow(TembaModel):
                         self.org,
                         self.created_by,
                         send_action.msg,
-                        [],
+                        contact_ids=all_contact_ids,
                         media=send_action.media,
                         base_language=self.base_language,
                         send_all=send_action.send_all,
                         quick_replies=send_action.quick_replies,
                     )
-                    broadcast.update_contacts(all_contact_ids)
-
-                    # manually set our broadcast status to QUEUED, our sub processes will send things off for us
-                    broadcast.status = QUEUED
-                    broadcast.save(update_fields=["status"])
 
                     # add it to the list of broadcasts in this flow start
                     broadcasts.append(broadcast)
@@ -2074,6 +2069,7 @@ class Flow(TembaModel):
         else:
             # for all our contacts, build up start sms batches
             task_context = dict(
+                task_type=FLOW_BATCH,
                 contacts=[],
                 flow=self.pk,
                 flow_start=flow_start_id,
@@ -2089,13 +2085,13 @@ class Flow(TembaModel):
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                    push_task(self.org, "flows", Flow.START_MSG_FLOW_BATCH, task_context)
+                    push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context["contacts"] = batch_contacts
 
             if batch_contacts:
                 print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                push_task(self.org, "flows", Flow.START_MSG_FLOW_BATCH, task_context)
+                push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
 
@@ -2178,17 +2174,15 @@ class Flow(TembaModel):
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
                 broadcast.org = self.org
-                # provide the broadcast with a partial recipient list
-                partial_recipients = list(), batch_contacts
 
                 # create the messages
-                msg_ids = broadcast.send(
+                msg_ids = broadcast.send_batch(
+                    contacts=batch_contacts,
                     expressions_context=expressions_context_base,
                     trigger_send=False,
                     response_to=start_msg,
                     status=INITIALIZING,
                     msg_type=FLOW,
-                    partial_recipients=partial_recipients,
                     run_map=run_map,
                 )
 
@@ -3346,14 +3340,15 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             self.org,
             user,
             text,
-            recipients=itertools.chain(urns, contacts),
+            contacts=contacts,
+            urns=urns,
             media=media,
             quick_replies=quick_replies,
             base_language=event["base_language"],
         )
 
-        # send in task
-        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id, with_expressions=False))
+        # send it (will happen in task if appropriate)
+        broadcast.send(expressions_context={})
 
     def apply_msg_created(self, event, msg_in):
         """
@@ -5794,7 +5789,7 @@ class FlowStart(SmartModel):
     def async_start(self):
         from temba.flows.tasks import start_flow_task
 
-        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue="flows"))
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=FLOWS_QUEUE))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -7267,17 +7262,16 @@ class SendAction(VariableContactAction):
                 if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
-                recipients = groups + contacts
-
                 broadcast = Broadcast.create(
                     flow.org,
                     flow.modified_by,
                     self.msg,
-                    recipients,
+                    groups=groups,
+                    contacts=contacts,
                     media=self.media,
                     base_language=flow.base_language,
                 )
-                broadcast.send(trigger_send=False, expressions_context=context)
+                broadcast.send(expressions_context=context)
                 return list(broadcast.get_messages())
 
             else:

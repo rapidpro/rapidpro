@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Count, Prefetch, Sum
+from django.db.models import Prefetch, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
@@ -24,7 +24,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
@@ -73,6 +73,8 @@ USSD = "U"
 
 MSG_SENT_KEY = "msgs_sent_%y_%m_%d"
 
+BROADCAST_BATCH = "broadcast_batch"
+
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
     # special state for flows used to hold off sending the message until the flow is ready to receive a response
@@ -108,30 +110,6 @@ def get_message_handlers():
         __message_handlers = handlers
 
     return __message_handlers
-
-
-def get_unique_recipients(urns, contacts, groups):
-    """
-    Builds a list of the unique contacts and URNs by merging urns, contacts and groups
-    """
-    unique_urns = set()
-    unique_contacts = set()
-    included_by_urn = set()  # contact ids of contacts included by URN
-
-    for urn in urns:
-        unique_urns.add(urn)
-        included_by_urn.add(urn.contact_id)
-
-    for group in groups:
-        for contact in group.contacts.all():
-            if contact.id not in included_by_urn:
-                unique_contacts.add(contact)
-
-    for contact in contacts:
-        if contact.id not in included_by_urn:
-            unique_contacts.add(contact)
-
-    return unique_urns, unique_contacts
 
 
 class UnreachableException(Exception):
@@ -288,23 +266,34 @@ class Broadcast(models.Model):
         org,
         user,
         text,
-        recipients,
+        *,
+        groups=None,
+        contacts=None,
+        urns=None,
+        contact_ids=None,
         base_language=None,
         channel=None,
         media=None,
         send_all=False,
         quick_replies=None,
-        **kwargs
+        status=INITIALIZING,
+        **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, str):
             base_language = org.primary_language.iso_code if org.primary_language else "base"
             text = {base_language: text}
 
+        # check we have at least one recipient type
+        if groups is None and contacts is None and contact_ids is None and urns is None:
+            raise ValueError("Must specify at least one recipient kind in broadcast creation")
+
         if base_language not in text:  # pragma: no cover
             raise ValueError("Base language '%s' doesn't exist in the provided translations dict" % base_language)
+
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language '%s' doesn't exist in the provided media dict" % base_language)
+
         if quick_replies:
             for quick_reply in quick_replies:
                 if base_language not in quick_reply:
@@ -325,239 +314,154 @@ class Broadcast(models.Model):
             created_by=user,
             modified_by=user,
             metadata=metadata,
-            **kwargs
-        )
-        broadcast.update_recipients(recipients)
-        return broadcast
-
-    def update_contacts(self, contact_ids):
-        """
-        Optimization for broadcasts that only contain contacts. Updates our contacts according to the passed in
-        queryset or array.
-        """
-        self.urns.clear()
-        self.groups.clear()
-        self.contacts.clear()
-
-        # get our through model
-        RelatedModel = self.contacts.through
-
-        # clear called automatically by django
-        for chunk in chunk_list(contact_ids, 1000):
-            bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
-            RelatedModel.objects.bulk_create(bulk_contacts)
-
-        self.recipient_count = len(contact_ids)
-        self.save(update_fields=("recipient_count",))
-
-        # cache on object for use in subsequent send(..) calls
-        delattr(self, "_recipient_cache")
-
-    def update_recipients(self, recipients):
-        """
-        Updates the recipients which may be contact groups, contacts or contact URNs. Normally you can't update a
-        broadcast after it has been created - the exception is scheduled broadcasts which are never really sent (clones
-        of them are sent).
-        """
-        urns = []
-        contacts = []
-        groups = []
-
-        for recipient in recipients:
-            if isinstance(recipient, ContactURN):
-                urns.append(recipient)
-            elif isinstance(recipient, Contact):
-                contacts.append(recipient)
-            elif isinstance(recipient, ContactGroup):
-                groups.append(recipient)
-            else:  # pragma: needs cover
-                raise ValueError("Recipient item is not a Contact, ContactURN or ContactGroup")
-
-        self.urns.clear()
-        self.urns.add(*urns)
-        self.contacts.clear()
-        self.contacts.add(*contacts)
-        self.groups.clear()
-        self.groups.add(*groups)
-
-        urns, contacts = get_unique_recipients(urns, contacts, groups)
-
-        # update the recipient count - the number of messages we intend to send
-        self.recipient_count = len(urns) + len(contacts)
-        self.save(update_fields=("recipient_count",))
-
-        # cache on object for use in subsequent send(..) calls
-        setattr(self, "_recipient_cache", (urns, contacts))
-
-        return urns, contacts
-
-    def has_pending_fire(self):  # pragma: needs cover
-        return self.schedule and self.schedule.has_pending_fire()
-
-    def fire(self):
-        """
-        Fires a scheduled broadcast, this creates a new broadcast as self here is a placeholder for
-        the broadcast that is scheduled (as opposed to the real broadcast that is being sent)
-        """
-        recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
-        broadcast = Broadcast.create(
-            self.org,
-            self.created_by,
-            self.text,
-            recipients,
-            media=self.media,
-            base_language=self.base_language,
-            parent=self,
+            status=status,
+            **kwargs,
         )
 
-        broadcast.send(trigger_send=True, expressions_context={})
+        # set our recipients
+        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns, contact_ids=contact_ids)
 
         return broadcast
 
-    @classmethod
-    def get_broadcasts(cls, org, scheduled=False):
-        qs = Broadcast.objects.filter(org=org).exclude(contacts__is_test=True)
-        return qs.exclude(schedule=None) if scheduled else qs.filter(schedule=None)
-
-    def get_messages(self):
-        return self.msgs.exclude(status=RESENT)
-
-    def get_message_count(self):
-        return self.get_messages().count()
-
-    def get_message_sending_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[PENDING, QUEUED]).count()
-
-    def get_message_sent_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[SENT, DELIVERED, WIRED]).count()
-
-    def get_message_delivered_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status=DELIVERED).count()
-
-    def get_message_failed_count(self):  # pragma: needs cover
-        return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
-
-    def get_preferred_languages(self, contact=None, org=None):
+    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, run_map=None, high_priority=False):
         """
-        Gets the ordered list of language preferences for the given contact
+        Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
-        org = org or self.org  # org object can be provided to allow caching of org languages
-        preferred_languages = []
+        # if we are sending to groups and any of them are big, make sure we aren't spamming
+        for group in self.groups.all():
+            if group.get_member_count() > 30:
+                bcast_value = "%d_%s" % (group.id, self.text)
 
-        # if contact has a language and it's a valid org language, it has priority
-        if contact is not None and contact.language and contact.language in org.get_language_codes():
-            preferred_languages.append(contact.language)
+                # have we sent this exact message in the past few hours?
+                if check_and_mark_in_timerange("bcasts", 1, bcast_value):
+                    self.status = FAILED
+                    self.save(update_fields=["status"])
+                    raise Exception("Not sending broadcast %d due to duplicate" % self.id)
 
-        if org.primary_language:
-            preferred_languages.append(org.primary_language.iso_code)
+        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
 
-        preferred_languages.append(self.base_language)
+        # calculate a more accurate recipient count, each of these will map to a message created
+        contact_ids = self._get_unique_contact_ids(groups=self.groups.all(), contacts=self.contacts.all())
+        urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all_urns=self.send_all))
 
-        return preferred_languages
+        # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
+        for urn in self.urns.all():
+            urns.add(urn)
 
-    def get_default_text(self):
-        """
-        Gets the appropriate display text for the broadcast without a contact
-        """
-        return self.text[self.base_language]
+        # update our recipient count
+        self.recipient_count = len(urns)
+        self.save(update_fields=["recipient_count"])
 
-    def get_translated_text(self, contact, org=None):
-        """
-        Gets the appropriate translation for the given contact
-        """
-        preferred_languages = self.get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.text, preferred_languages)
+        # if we are fewer than on batch, send right away
+        if len(urns) <= BATCH_SIZE:
+            self.send_batch(
+                urns=urns,
+                trigger_send=True,
+                expressions_context=expressions_context,
+                response_to=response_to,
+                msg_type=msg_type,
+                run_map=run_map,
+                high_priority=high_priority,
+            )
 
-    def get_translated_quick_replies(self, contact, org=None):
-        """
-        Gets the appropriate quick replies translation for the given contact
-        """
-        preferred_languages = self.get_preferred_languages(contact, org)
-        language_metadata = []
-        metadata = self.metadata
+        # otherwise, create batches and fire those off
+        else:
+            from temba.flows.models import FLOWS_QUEUE, Flow
 
-        for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
-            language_metadata.append(text)
+            for batch in chunk_list(urns, BATCH_SIZE):
+                kwargs = dict(
+                    urn_ids=[u.id for u in batch],
+                    trigger_send=True,
+                    expressions_context=expressions_context,
+                    response_to=response_to,
+                    msg_type=msg_type,
+                    run_map=run_map,
+                    high_priority=high_priority,
+                )
+                push_task(
+                    self.org,
+                    FLOWS_QUEUE,
+                    Flow.START_MSG_FLOW_BATCH,
+                    dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
+                )
 
-        return language_metadata
-
-    def get_translated_media(self, contact, org=None):
-        """
-        Gets the appropriate media for the given contact
-        """
-        preferred_languages = self.get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.media, preferred_languages)
-
-    def send(
+    def send_batch(
         self,
+        *,
+        urn_ids=None,
+        urns=None,
+        contacts=None,
         trigger_send=True,
         expressions_context=None,
         response_to=None,
         status=PENDING,
         msg_type=INBOX,
-        partial_recipients=None,
         run_map=None,
         high_priority=False,
     ):
         """
-        Sends this broadcast by creating outgoing messages for each recipient. Returns the ids of the created messages.
+        Sends this broadcast to the passed in URNs
         """
+        # load urns if we have ids
+        if urn_ids:
+            urns = ContactURN.objects.filter(org=self.org, id__in=urn_ids)
+
+        # can pass either contacts or urns, not both
+        if (contacts and urns) or (contacts is None and urns is None):
+            raise ValueError("Must pass either contacts or urns")
+
+        # the count of recipients we are batching
+        batch_count = len(urns) if urns is not None else len(contacts)
+
+        # Update the number of recipients that have been batched for this broadcast. This can't be counted via
+        # our squashable model as not all recipients end up resolving to a message being created (due to duplicates
+        # between groups/contacts for example or because they aren't addressable by any channel)
+        bcast_key = f"bcast_{self.id}_count"
+        r = get_redis_connection()
+        with r.pipeline() as pipe:
+            pipe.incrby(bcast_key, batch_count)
+            pipe.expire(bcast_key, 60 * 60)
+            pipe.execute()
+
         # ignore mock messages
         if response_to and not response_to.id:  # pragma: no cover
             response_to = None
 
-        if partial_recipients:
-            # if flow is being started, it'll provide a batch of unique contacts itself
-            urns, contacts = partial_recipients
+        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
+
+        # if we are passed URNs, map them to contacts
+        if urns is not None:
+            # build our list of contacts that map to our URNs
+            contact_map = {c.id: c for c in Contact.objects.filter(urns__in=urns)}
+
+            # bulk initialize them
+            Contact.bulk_cache_initialize(self.org, contact_map.values())
+
+        # otherwise build our list of URNs we are sending to from our contacts
         else:
-            groups = self.groups.all()
+            contact_map = {}
+            urns = []
+            for c in contacts:
+                contact_map[c.id] = c
+                contact_urn = c.get_urn(schemes)
 
-            # if we are sending to groups and any of them are big, make sure we aren't spamming
-            for group in groups:
-                if group.get_member_count() > 30:
-                    bcast_value = "%d_%s" % (group.id, self.text)
+                # if we can address this contact, add it to our list of urns to send to
+                if contact_urn:
+                    urns.append(contact_urn)
 
-                    # have we sent this exact message today or yesterday and with this message?
-                    if check_and_mark_in_timerange("bcasts", 1, bcast_value):
-                        self.status = FAILED
-                        self.save(update_fields=["status"])
-                        raise Exception("Not sending broadcast %d due to duplicate" % self.id)
-
-            if hasattr(self, "_recipient_cache"):
-                # look to see if previous call to update_recipients left a cached value
-                urns, contacts = self._recipient_cache
-            else:
-                # otherwise fetch everything and calculate
-                urns, contacts = get_unique_recipients(self.urns.all(), self.contacts.all(), groups)
-
-        Contact.bulk_cache_initialize(self.org, contacts)
-        recipients = list(urns) + list(contacts)
-
-        if self.send_all:
-            recipients = list(urns)
-            contact_list = list(contacts)
-            for contact in contact_list:
-                contact_urns = contact.get_urns()
-                for c_urn in contact_urns:
-                    recipients.append(c_urn)
-
-            recipients = set(recipients)
-
-        # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
+        batch_ids = []
 
-        all_created_msg_ids = []
-
-        for recipient in recipients:
-            contact = recipient if isinstance(recipient, Contact) else recipient.contact
+        for urn in urns:
+            contact = contact_map[urn.contact_id]
             contact.org = self.org
+            urn.contact = contact
 
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
             # get the appropriate quick replies translation for this contact
-            quick_replies = self.get_translated_quick_replies(contact)
+            quick_replies = self._get_translated_quick_replies(contact)
 
             media = self.get_translated_media(contact)
             if media:
@@ -577,7 +481,7 @@ class Broadcast(models.Model):
 
             # add in our parent context if the message references @parent
             if run_map:
-                run = run_map.get(recipient.pk, None)
+                run = run_map.get(contact.pk, None)
                 if run and run.flow:
                     # a bit kludgy here, but should avoid most unnecessary context creations.
                     # since this path is an optimization for flow starts, we don't need to
@@ -591,7 +495,7 @@ class Broadcast(models.Model):
                 msg = Msg.create_outgoing(
                     self.org,
                     self.created_by,
-                    recipient,
+                    urn,
                     text,
                     broadcast=self,
                     channel=self.channel,
@@ -613,87 +517,167 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
 
-            # we commit our messages in batches
-            if len(batch) >= BATCH_SIZE:
-                batch_created_msgs = Msg.objects.bulk_create(batch)
-                batch_created_msg_ids = [m.id for m in batch_created_msgs]
-                all_created_msg_ids += batch_created_msg_ids
-
-                # send any messages
-                if trigger_send:
-                    self.org.trigger_send(
-                        Msg.objects.filter(id__in=batch_created_msg_ids).select_related(
-                            "contact", "contact_urn", "channel"
-                        )
-                    )
-
-                batch = []
-
         # commit any remaining objects
         if batch:
-            batch_created_msgs = Msg.objects.bulk_create(batch)
-            batch_created_msg_ids = [m.id for m in batch_created_msgs]
-            all_created_msg_ids += batch_created_msg_ids
+            batch_msgs = Msg.objects.bulk_create(batch)
+            batch_ids = [m.id for m in batch_msgs]
 
             if trigger_send:
                 self.org.trigger_send(
-                    Msg.objects.filter(id__in=batch_created_msg_ids).select_related(
-                        "contact", "contact_urn", "channel"
-                    )
+                    Msg.objects.filter(id__in=batch_ids).select_related("contact", "contact_urn", "channel")
                 )
 
-        # for large batches, status is handled externally
-        # we do this as with the high concurrency of sending we can run into postgresl deadlocks
-        # (this could be our fault, or could be: http://www.postgresql.org/message-id/20140731233051.GN17765@andrew-ThinkPad-X230)
-        if not partial_recipients:
-            self.status = QUEUED if len(recipients) > 0 else SENT
+        # mark ourselves as sent if appropriate
+        sent_count = int(r.get(bcast_key)) if r.get(bcast_key) else 0
+        if sent_count >= self.recipient_count:
+            self.status = SENT
             self.save(update_fields=("status",))
 
-        return all_created_msg_ids
+        return batch_ids
 
-    def update(self):
+    def has_pending_fire(self):  # pragma: needs cover
+        return self.schedule and self.schedule.has_pending_fire()
+
+    def fire(self):
         """
-        Check the status of our messages and update ours accordingly
+        Fires a scheduled broadcast, this creates a new broadcast as self here is a placeholder for
+        the broadcast that is scheduled (as opposed to the real broadcast that is being sent)
         """
-        # build a map from status to the count for that status
-        statuses = self.get_messages().values("status").order_by("status").annotate(count=Count("status"))
-        total = 0
-        status_map = dict()
-        for status in statuses:
-            status_map[status["status"]] = status["count"]
-            total += status["count"]
+        broadcast = Broadcast.create(
+            self.org,
+            self.created_by,
+            self.text,
+            groups=self.groups.all(),
+            contacts=self.contacts.all(),
+            urns=self.urns.all(),
+            media=self.media,
+            base_language=self.base_language,
+            parent=self,
+        )
 
-        # if errored msgs are greater than the half of all msgs
-        if status_map.get(ERRORED, 0) > total // 2:
-            self.status = ERRORED
+        broadcast.send(expressions_context={})
+        return broadcast
 
-        # if there are more than half failed, show failed
-        elif status_map.get(FAILED, 0) > total // 2:
-            self.status = FAILED
+    def get_messages(self):
+        return self.msgs.all()
 
-        # if there are any in Q, we are Q
-        elif status_map.get(QUEUED, 0) or status_map.get(PENDING, 0):
-            self.status = QUEUED
+    def get_message_count(self):
+        return BroadcastMsgCount.get_count(self)
 
-        # at this point we are either sent or delivered
+    def get_translated_media(self, contact, org=None):
+        """
+        Gets the appropriate media for the given contact
+        """
+        preferred_languages = self._get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.media, preferred_languages)
 
-        # if there are any messages that are only in a sent state
-        elif status_map.get(SENT, 0) or status_map.get(WIRED, 0):
-            self.status = SENT
+    def get_default_text(self):
+        """
+        Gets the appropriate display text for the broadcast without a contact
+        """
+        return self.text[self.base_language]
 
-        # otherwise, all messages delivered
-        elif status_map.get(DELIVERED, 0) == total:
-            self.status = DELIVERED
-
-        self.save(update_fields=["status"])
+    def get_translated_text(self, contact, org=None):
+        """
+        Gets the appropriate translation for the given contact
+        """
+        preferred_languages = self._get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def release(self):
         for msg in self.msgs.all():
             msg.release()
+        BroadcastMsgCount.objects.filter(broadcast=self).delete()
         self.delete()
 
+    def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+        """
+        Only used to update recipients for scheduled / repeating broadcasts
+        """
+        # clear our current recipients
+        self.groups.clear()
+        self.contacts.clear()
+        self.urns.clear()
+
+        self._set_recipients(groups=groups, contacts=contacts, urns=urns)
+
+    def _set_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+        """
+        Sets the recipients which may be contact groups, contacts or contact URNs.
+        """
+        recipient_count = 0
+
+        if groups:
+            self.groups.add(*groups)
+            for c in ContactGroupCount.get_totals(groups).values():
+                recipient_count += c
+
+        if contacts:
+            self.contacts.add(*contacts)
+            recipient_count += len(contacts)
+
+        if urns:
+            self.urns.add(*urns)
+            recipient_count += len(urns)
+
+        if contact_ids:
+            RelatedModel = self.contacts.through
+            for chunk in chunk_list(contact_ids, 1000):
+                bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
+                RelatedModel.objects.bulk_create(bulk_contacts)
+            recipient_count += len(contact_ids)
+
+        # set an estimate of our number of recipients, we calculate this more carefully when actually sent
+        self.recipient_count = recipient_count
+        self.save(update_fields=["recipient_count"])
+
+    def _get_unique_contact_ids(self, *, groups=[], contacts=[]):
+        """
+        Builds a list of the unique contacts and groups
+        """
+        unique_contacts = set([c.id for c in contacts])
+
+        # for each group add in those IDs as well
+        for group in groups:
+            for contact in group.contacts.all().values_list("id", flat=True):
+                unique_contacts.add(contact)
+
+        return unique_contacts
+
+    def _get_translated_quick_replies(self, contact, org=None):
+        """
+        Gets the appropriate quick replies translation for the given contact
+        """
+        preferred_languages = self._get_preferred_languages(contact, org)
+        language_metadata = []
+        metadata = self.metadata
+
+        for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
+            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            language_metadata.append(text)
+
+        return language_metadata
+
+    def _get_preferred_languages(self, contact=None, org=None):
+        """
+        Gets the ordered list of language preferences for the given contact
+        """
+        org = org or self.org  # org object can be provided to allow caching of org languages
+        preferred_languages = []
+
+        # if contact has a language and it's a valid org language, it has priority
+        if contact is not None and contact.language and contact.language in org.get_language_codes():
+            preferred_languages.append(contact.language)
+
+        if org.primary_language:
+            preferred_languages.append(org.primary_language.iso_code)
+
+        preferred_languages.append(self.base_language)
+
+        return preferred_languages
+
     def __str__(self):
-        return "%s (%s)" % (self.org.name, self.pk)
+        return f"Broadcast[{self.pk}]{self.text}"
 
 
 class Attachment(object):
@@ -1122,14 +1106,8 @@ class Msg(models.Model):
             created_on__lte=one_week_ago, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]
         )
 
-        failed_broadcasts = list(failed_messages.order_by("broadcast").values("broadcast").distinct())
-
         # fail our messages
         failed_messages.update(status="F", modified_on=timezone.now())
-
-        # and update all related broadcast statuses
-        for broadcast in Broadcast.objects.filter(id__in=[b["broadcast"] for b in failed_broadcasts]):
-            broadcast.update()
 
     @classmethod
     def mark_handled(cls, msg):
@@ -1360,11 +1338,9 @@ class Msg(models.Model):
             handled = True
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
-        self.save()  # first save message status before updating the broadcast status
-
-        # update our broadcast if we have one
-        if self.broadcast:
-            self.broadcast.update()
+        self.save(
+            update_fields=["status", "sent_on"]
+        )  # first save message status before updating the broadcast status
 
         return handled
 
@@ -1442,10 +1418,6 @@ class Msg(models.Model):
         self.status = RESENT
         self.topup = None
         self.save()
-
-        # update our broadcast
-        if cloned.broadcast:
-            cloned.broadcast.update()
 
         # send our message
         self.org.trigger_send([cloned])
@@ -1957,6 +1929,39 @@ class Msg(models.Model):
             msg.resend()
             changed.append(msg.pk)
         return changed
+
+
+class BroadcastMsgCount(SquashableModel):
+    """
+    Maintains count of how many msgs are tied to a broadcast
+    """
+
+    SQUASH_OVER = ("broadcast_id",)
+
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, related_name="counts", db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "broadcast_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("broadcast_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {
+            "table": cls._meta.db_table
+        }
+
+        return sql, (distinct_set.broadcast_id,) * 2
+
+    @classmethod
+    def get_count(cls, broadcast):
+        count = BroadcastMsgCount.objects.filter(broadcast=broadcast).aggregate(count_sum=Sum("count"))["count_sum"]
+        return count if count else 0
+
+    def __str__(self):  # pragma: needs cover
+        return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
 
 
 STOP_WORDS = (

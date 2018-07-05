@@ -7,7 +7,7 @@ def get_brand_bundles(branding):
     for b in bundles:
         b["description"] = "$%d - %d Credits" % (int(b["cents"]) // 100, b["credits"])
         b["dollars"] = int(b["cents"]) // 100
-        b["per_credit"] = (Decimal(b["cents"]) / Decimal(b["credits"])).quantize(Decimal(".1"))
+        b["per_credit"] = str((Decimal(b["cents"]) / Decimal(b["credits"])).quantize(Decimal(".01"))).rstrip("0")
     return bundles
 
 
