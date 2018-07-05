@@ -578,6 +578,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
+    CREATED_ON = "created_on"
     PHONE = "phone"
     UUID = "uuid"
     CONTACT_UUID = "contact uuid"
@@ -3036,6 +3037,7 @@ class ExportContactsTask(BaseExportTask):
             dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
             dict(label="Name", key=Contact.NAME, id=0, field=None, urn_scheme=None),
             dict(label="Language", key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None),
+            dict(label="Created On", key=Contact.CREATED_ON, id=0, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
@@ -3140,6 +3142,8 @@ class ExportContactsTask(BaseExportTask):
                         field_value = contact.uuid
                     elif field["key"] == Contact.LANGUAGE:
                         field_value = contact.language
+                    elif field["key"] == Contact.CREATED_ON:
+                        field_value = self.org.format_datetime(contact.created_on)
                     elif field["key"] == Contact.ID:
                         field_value = str(contact.id)
                     elif field["urn_scheme"] is not None:
