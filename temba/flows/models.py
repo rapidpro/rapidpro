@@ -7272,7 +7272,6 @@ class SendAction(VariableContactAction):
                     base_language=flow.base_language,
                 )
                 broadcast.send(expressions_context=context)
-                return list(broadcast.get_messages())
 
             else:
                 unique_contacts = set()
@@ -7288,9 +7287,7 @@ class SendAction(VariableContactAction):
 
                 self.logger(run, message, len(unique_contacts))
 
-            return []
-        else:  # pragma: no cover
-            return []
+        return []
 
     def logger(self, run, text, contact_count):
         if not run.contact.is_test:  # pragma: no cover
