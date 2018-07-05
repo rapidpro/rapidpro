@@ -12,7 +12,7 @@ from mock import MagicMock, patch
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.files import File
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 

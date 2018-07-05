@@ -18,7 +18,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
 from django.core.cache import cache
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.template import loader
 from django.test import RequestFactory
 from django.test.utils import override_settings

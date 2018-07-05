@@ -16,9 +16,9 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
@@ -3768,13 +3768,14 @@ class EmailContextProcessorsTest(SmartminTest):
     def setUp(self):
         super().setUp()
         self.admin = self.create_user("Administrator")
-        self.middleware = BrandingMiddleware()
+        self.middleware = BrandingMiddleware(get_response=HttpResponse)
 
     def test_link_components(self):
         self.request = Mock(spec=HttpRequest)
         self.request.get_host.return_value = "rapidpro.io"
-        response = self.middleware.process_request(self.request)
-        self.assertIsNone(response)
+
+        self.middleware(self.request)
+
         self.assertEqual(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
 
         with self.settings(HOSTNAME="rapidpro.io"):
@@ -3783,7 +3784,7 @@ class EmailContextProcessorsTest(SmartminTest):
             post_data = dict()
             post_data["email"] = "nouser@nouser.com"
 
-            response = self.client.post(forget_url, post_data, follow=True)
+            self.client.post(forget_url, post_data, follow=True)
             self.assertEqual(1, len(mail.outbox))
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)

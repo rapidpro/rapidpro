@@ -1,6 +1,7 @@
 import json
 
 import iso8601
+import pytz
 from rest_framework import serializers
 
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -110,6 +111,7 @@ class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -172,6 +174,8 @@ class ChannelEventReadSerializer(ReadSerializer):
     contact = fields.ContactField()
     channel = fields.ChannelField()
     extra = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    occurred_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
@@ -187,6 +191,7 @@ class ChannelEventReadSerializer(ReadSerializer):
 class CampaignReadSerializer(ReadSerializer):
     archived = serializers.ReadOnlyField(source="is_archived")
     group = fields.ContactGroupField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     class Meta:
         model = Campaign
@@ -225,6 +230,7 @@ class CampaignEventReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -352,6 +358,8 @@ class CampaignEventWriteSerializer(WriteSerializer):
 class ChannelReadSerializer(ReadSerializer):
     country = serializers.SerializerMethodField()
     device = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    last_seen = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_country(self, obj):
         return str(obj.country) if obj.country else None
@@ -381,6 +389,8 @@ class ContactReadSerializer(ReadSerializer):
     fields = serializers.SerializerMethodField("get_contact_fields")
     blocked = serializers.SerializerMethodField()
     stopped = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -705,6 +715,8 @@ class FlowReadSerializer(ReadSerializer):
     labels = serializers.SerializerMethodField()
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_labels(self, obj):
         return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
@@ -736,6 +748,9 @@ class FlowRunReadSerializer(ReadSerializer):
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    exited_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_start(self, obj):
         return {"uuid": str(obj.start.uuid)} if obj.start else None
@@ -795,6 +810,8 @@ class FlowStartReadSerializer(ReadSerializer):
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
     extra = serializers.JSONField(required=False)
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
@@ -919,6 +936,9 @@ class MsgReadSerializer(ReadSerializer):
     visibility = serializers.SerializerMethodField()
     labels = fields.LabelField(many=True)
     media = serializers.SerializerMethodField()  # deprecated
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    sent_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
@@ -1039,6 +1059,8 @@ class MsgBulkActionSerializer(WriteSerializer):
 
 class ResthookReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_resthook(self, obj):
         return obj.slug
@@ -1050,6 +1072,7 @@ class ResthookReadSerializer(ReadSerializer):
 
 class ResthookSubscriberReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_resthook(self, obj):
         return obj.resthook.slug
@@ -1090,6 +1113,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
 class WebHookEventReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
     data = serializers.SerializerMethodField()
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_resthook(self, obj):
         return obj.resthook.slug

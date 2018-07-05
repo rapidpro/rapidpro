@@ -20,7 +20,7 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import LiveServerTestCase, override_settings
