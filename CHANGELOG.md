@@ -1,3 +1,14 @@
+v3.0.446
+----------
+ * Use constants for max contact fields and max group membership columns
+ * Tweaks to twitter activity claiming that deals with webhooks already being claimed, shows errors etc
+ * Rename form field to be consistent with the constants we use
+ * Writes only now use XLSLite, more coverage
+ * Limit number of groups for group memberships in results exports
+ * Swicth message export to use XLSLite
+ * Fix default ACL value for S3 files
+ * Add WeChat (for beta users)
+
 v3.0.445
 ----------
  * fix dupe sends in broadcast action
