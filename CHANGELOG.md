@@ -1,3 +1,7 @@
+v3.0.445
+----------
+ * fix dupe sends in broadcast action
+
 v3.0.444
 ----------
  * fix per credit calculation
