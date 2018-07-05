@@ -5313,6 +5313,10 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
+    FLOWS = "flows"
+
+    MAX_GROUP_MEMBERSHIPS_COLS = 25
+    MAX_CONTACT_FIELDS_COLS = 10
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
