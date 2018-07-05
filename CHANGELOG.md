@@ -1,3 +1,17 @@
+v3.0.444
+----------
+ * fix per credit calculation
+
+v3.0.443
+----------
+ * two decimals for per credit costs, remove trailing 0s
+
+v3.0.442
+----------
+ * Fix ContactField priority on filtered groups
+ * Update Django to version 1.11.14
+ * Reenable group broadcasts
+
 v3.0.438
 ----------
  * When comparsing msg events in flowserver trials, make paths relative again

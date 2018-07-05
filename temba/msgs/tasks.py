@@ -26,6 +26,7 @@ from .models import (
     PENDING,
     TIMEOUT_EVENT,
     Broadcast,
+    BroadcastMsgCount,
     ExportMessagesTask,
     LabelCount,
     Msg,
@@ -192,8 +193,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         .values_list("id", flat=True)
     )
 
-    broadcast = Broadcast.create(org, user, text, recipients=[])
-    broadcast.update_contacts(contact_ids)
+    broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
     broadcast.send(expressions_context={})
 
     analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
@@ -220,7 +220,7 @@ def send_spam(user_id, contact_id):  # pragma: no cover
 
     # only trigger sync on the last one
     for idx in range(10):
-        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), [contact])
+        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), contacts=[contact])
         broadcast.send(trigger_send=(idx == 149))
 
 
@@ -388,10 +388,11 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_systemlabels")
-def squash_labelcounts():
+@nonoverlapping_task(track_started=True, name="squash_msgcounts")
+def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
+    BroadcastMsgCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name="clear_old_msg_external_ids", time_limit=60 * 60 * 36)

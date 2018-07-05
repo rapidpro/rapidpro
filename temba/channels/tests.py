@@ -114,7 +114,7 @@ class ChannelTest(TembaTest):
 
         group.contacts.add(*contacts)
 
-        broadcast = Broadcast.create(org, user, message, [group])
+        broadcast = Broadcast.create(org, user, message, groups=[group])
         broadcast.send()
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
@@ -395,7 +395,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(self.tel_channel, msg.channel)
         self.assertEqual(1, Msg.get_messages(self.org).count())
         self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.get_broadcasts(self.org).count())
+        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
 
         # start off in the pending state
         self.assertEqual("P", msg.status)
@@ -428,7 +428,7 @@ class ChannelTest(TembaTest):
         # should still be considered that user's message, call and broadcast
         self.assertEqual(1, Msg.get_messages(self.org).count())
         self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.get_broadcasts(self.org).count())
+        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
 
         # syncing this channel should result in a release
         post_data = dict(

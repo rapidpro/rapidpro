@@ -26,7 +26,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import FAILED, INCOMING, OUTGOING, PENDING, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import FAILED, INCOMING, OUTGOING, PENDING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import (
     ESMockWithScroll,
@@ -10051,7 +10051,7 @@ class FlowBatchTest(FlowFileTest):
         """
         flow = self.get_flow("two_in_row")
 
-        # create 10 contacts
+        # create 11 contacts
         contacts = []
         for i in range(11):
             contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
@@ -10061,7 +10061,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=203, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=194, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -10072,6 +10072,9 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEqual(1, Broadcast.objects.all().count())
+
+        # broadcast should be marked as sent
+        self.assertEqual(SENT, Broadcast.objects.get().status)
 
         # our stopped contact should have only received one msg before blowing up
         self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
