@@ -1212,7 +1212,7 @@ class Msg(models.Model):
             "status": STATUSES.get(self.status),
             "visibility": VISIBILITIES.get(self.visibility),
             "text": self.text,
-            "attachments": self.attachments,
+            "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
@@ -2432,14 +2432,16 @@ class ExportMessagesTask(BaseExportTask):
 
         book.headers = [
             "Date",
-            "Contact",
-            "Contact Type",
-            "Name",
             "Contact UUID",
+            "Name",
+            "ID" if self.org.is_anon else "URN",
+            "URN Type",
             "Direction",
             "Text",
-            "Labels",
+            "Attachments",
             "Status",
+            "Channel",
+            "Labels",
         ]
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
@@ -2603,15 +2605,16 @@ class ExportMessagesTask(BaseExportTask):
         for msg in msgs:
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
 
+            urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
+
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:  # pragma: needs cover
                 urn_path = f"{contact.id:010d}"
+                urn_scheme = ""
             elif msg["urn"]:
                 urn_path = URN.format(msg["urn"], international=False, formatted=False)
             else:
                 urn_path = ""
-
-            urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
 
             if book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                 book.current_msgs_sheet = self._add_msgs_sheet(book)
@@ -2620,14 +2623,16 @@ class ExportMessagesTask(BaseExportTask):
                 book.current_msgs_sheet,
                 [
                     msg["created_on"],
+                    msg["contact"]["uuid"],
+                    msg["contact"].get("name", ""),
                     urn_path,
                     urn_scheme,
-                    msg["contact"].get("name", ""),
-                    msg["contact"]["uuid"],
                     msg["direction"].upper() if msg["direction"] else None,
                     msg["text"],
-                    ", ".join(msg_label["name"] for msg_label in msg["labels"]),
+                    ", ".join(attachment["url"] for attachment in msg["attachments"]),
                     msg["status"],
+                    msg["channel"]["name"] if msg["channel"] else "",
+                    ", ".join(msg_label["name"] for msg_label in msg["labels"]),
                 ],
             )
 
