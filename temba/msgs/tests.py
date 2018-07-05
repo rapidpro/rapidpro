@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytz
 from django_redis import get_redis_connection
@@ -13,6 +14,7 @@ from django.db import connection, transaction
 from django.test import override_settings
 from django.utils import timezone
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import (
     STOP_CONTACT_EVENT,
@@ -56,6 +58,7 @@ from temba.msgs.models import (
 from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
+from temba.tests.s3 import MockS3Client
 from temba.utils import dict_to_json, dict_to_struct
 from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
@@ -840,6 +843,181 @@ class MsgTest(TembaTest):
         self.assertEqual(resent_msg.metadata, {"quick_replies": ["Yes", "No"]})
 
     @patch("temba.utils.email.send_temba_email")
+    def test_message_export_from_archives(self, mock_send_temba_email):
+        self.clear_storage()
+        self.login(self.admin)
+
+        self.joe.name = "Jo\02e Blow"
+        self.joe.save(update_fields=("name",))
+
+        self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
+        self.org.save()
+
+        msg1 = self.create_msg(
+            contact=self.joe,
+            text="hello 1",
+            direction="I",
+            status=HANDLED,
+            msg_type="I",
+            created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC),
+        )
+        msg2 = self.create_msg(
+            contact=self.joe,
+            text="hello 2",
+            direction="I",
+            status=HANDLED,
+            msg_type="I",
+            created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC),
+        )
+        msg3 = self.create_msg(
+            contact=self.joe,
+            text="hello 3",
+            direction="I",
+            status=HANDLED,
+            msg_type="I",
+            created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC),
+        )
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_msg(
+            contact=self.joe,
+            contact_urn=None,
+            text="hello 4",
+            direction="I",
+            status=HANDLED,
+            channel=None,
+            msg_type="I",
+            created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC),
+        )
+
+        # inbound message with media attached, such as an ivr recording
+        msg5 = self.create_msg(
+            contact=self.joe,
+            text="Media message",
+            direction="I",
+            status=HANDLED,
+            msg_type="I",
+            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
+            created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC),
+        )
+
+        # create some outbound messages with different statuses
+        msg6 = self.create_msg(
+            contact=self.joe,
+            text="Hey out 6",
+            direction="O",
+            status=SENT,
+            created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC),
+        )
+        msg7 = self.create_msg(
+            contact=self.joe,
+            text="Hey out 7",
+            direction="O",
+            status=DELIVERED,
+            created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC),
+        )
+        msg8 = self.create_msg(
+            contact=self.joe,
+            text="Hey out 8",
+            direction="O",
+            status=ERRORED,
+            created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC),
+        )
+        msg9 = self.create_msg(
+            contact=self.joe,
+            text="Hey out 9",
+            direction="O",
+            status=FAILED,
+            created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC),
+        )
+
+        self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
+
+        # label first message
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label.toggle_label([msg1], add=True)
+
+        # archive last message
+        msg3.visibility = Msg.VISIBILITY_ARCHIVED
+        msg3.save()
+
+        # archive 5 msgs
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_MSG,
+            size=10,
+            hash=uuid4().hex,
+            url="http://test-bucket.aws.com/archive1.jsonl.gz",
+            record_count=6,
+            start_date=timezone.now().date(),
+            period="D",
+            build_time=23425,
+        )
+        mock_s3 = MockS3Client()
+        mock_s3.put_jsonl(
+            "test-bucket",
+            "archive1.jsonl.gz",
+            [
+                msg1.as_archive_json(),
+                msg2.as_archive_json(),
+                msg3.as_archive_json(),
+                msg4.as_archive_json(),
+                msg5.as_archive_json(),
+                msg6.as_archive_json(),
+            ],
+        )
+
+        msg2.release()
+        msg3.release()
+        msg4.release()
+        msg5.release()
+        msg6.release()
+
+        # create an archive earlier than our flow created date so we check that it isn't included
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_MSG,
+            size=10,
+            hash=uuid4().hex,
+            url="http://test-bucket.aws.com/archive2.jsonl.gz",
+            record_count=1,
+            start_date=self.org.created_on - timedelta(days=2),
+            period="D",
+            build_time=5678,
+        )
+        mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [msg7.as_archive_json()])
+
+        msg7.release()
+
+        def request_export(query, data=None):
+            response = self.client.post(reverse("msgs.msg_export") + query, data)
+            self.assertEqual(response.status_code, 302)
+            task = ExportMessagesTask.objects.order_by("-id").first()
+            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+            return load_workbook(filename=filename)
+
+        # export all visible messages (i.e. not msg3) using export_all param
+        with self.assertNumQueries(31):
+            with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+                workbook = request_export("?l=I", {"export_all": 1})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "IN", "hello 1", "label1", "handled"],
+                [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "IN", "hello 2", "", "handled"],
+                [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "IN", "hello 4", "", "handled"],
+                [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "IN", "Media message", "", "handled"],
+                [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "OUT", "Hey out 6", "", "sent"],
+                [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "OUT", "Hey out 8", "", "errored"],
+                [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "OUT", "Hey out 9", "", "failed"],
+            ],
+            self.org.timezone,
+        )
+
+    @patch("temba.utils.email.send_temba_email")
     def test_message_export(self, mock_send_temba_email):
         self.clear_storage()
         self.login(self.admin)
@@ -942,7 +1120,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(8, lambda: blocking_export.perform())
+        self.assertNumQueries(11, lambda: blocking_export.perform())
 
         def request_export(query, data=None):
             response = self.client.post(reverse("msgs.msg_export") + query, data)
@@ -953,7 +1131,7 @@ class MsgTest(TembaTest):
             return workbook.worksheets[0]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(29):
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1}),
                 [
@@ -969,83 +1147,43 @@ class MsgTest(TembaTest):
                         "Status",
                     ],
                     [
-                        msg9.created_on,
+                        msg1.created_on,
                         "123",
                         "tel",
                         "Joe Blow",
-                        msg9.contact.uuid,
-                        "Outgoing",
-                        "Hey out 9",
-                        "",
-                        "Failed Sending",
+                        msg1.contact.uuid,
+                        "IN",
+                        "hello 1",
+                        "label1",
+                        "handled",
                     ],
-                    [
-                        msg8.created_on,
-                        "123",
-                        "tel",
-                        "Joe Blow",
-                        msg8.contact.uuid,
-                        "Outgoing",
-                        "Hey out 8",
-                        "",
-                        "Error Sending",
-                    ],
-                    [
-                        msg7.created_on,
-                        "123",
-                        "tel",
-                        "Joe Blow",
-                        msg7.contact.uuid,
-                        "Outgoing",
-                        "Hey out 7",
-                        "",
-                        "Delivered",
-                    ],
-                    [
-                        msg6.created_on,
-                        "123",
-                        "tel",
-                        "Joe Blow",
-                        msg6.contact.uuid,
-                        "Outgoing",
-                        "Hey out 6",
-                        "",
-                        "Sent",
-                    ],
+                    [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "IN", "hello 2", "", "handled"],
+                    [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "IN", "hello 4", "", "handled"],
                     [
                         msg5.created_on,
                         "123",
                         "tel",
                         "Joe Blow",
                         msg5.contact.uuid,
-                        "Incoming",
+                        "IN",
                         "Media message",
                         "",
-                        "Handled",
+                        "handled",
                     ],
-                    [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", "", "Handled"],
+                    [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "OUT", "Hey out 6", "", "sent"],
                     [
-                        msg2.created_on,
+                        msg7.created_on,
                         "123",
                         "tel",
                         "Joe Blow",
-                        msg2.contact.uuid,
-                        "Incoming",
-                        "hello 2",
+                        msg7.contact.uuid,
+                        "OUT",
+                        "Hey out 7",
                         "",
-                        "Handled",
+                        "delivered",
                     ],
-                    [
-                        msg1.created_on,
-                        "123",
-                        "tel",
-                        "Joe Blow",
-                        msg1.contact.uuid,
-                        "Incoming",
-                        "hello 1",
-                        "label1",
-                        "Handled",
-                    ],
+                    [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "OUT", "Hey out 8", "", "errored"],
+                    [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "OUT", "Hey out 9", "", "failed"],
                 ],
                 self.org.timezone,
             )
@@ -1064,7 +1202,7 @@ class MsgTest(TembaTest):
             request_export("?l=A", {"export_all": 0}),
             [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
-                [msg3.created_on, "123", "tel", "Joe Blow", msg3.contact.uuid, "Incoming", "hello 3", "", "Handled"],
+                [msg3.created_on, "123", "tel", "Joe Blow", msg3.contact.uuid, "IN", "hello 3", "", "handled"],
             ],
             self.org.timezone,
         )
@@ -1078,17 +1216,7 @@ class MsgTest(TembaTest):
             request_export("?l=%s" % label.uuid, {"export_all": 0}),
             [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
-                [
-                    msg1.created_on,
-                    "123",
-                    "tel",
-                    "Joe Blow",
-                    msg1.contact.uuid,
-                    "Incoming",
-                    "hello 1",
-                    "label1",
-                    "Handled",
-                ],
+                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "IN", "hello 1", "label1", "handled"],
             ],
             self.org.timezone,
         )
@@ -1098,17 +1226,7 @@ class MsgTest(TembaTest):
             request_export("?l=%s" % folder.uuid, {"export_all": 0}),
             [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
-                [
-                    msg1.created_on,
-                    "123",
-                    "tel",
-                    "Joe Blow",
-                    msg1.contact.uuid,
-                    "Incoming",
-                    "hello 1",
-                    "label1",
-                    "Handled",
-                ],
+                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "IN", "hello 1", "label1", "handled"],
             ],
             self.org.timezone,
         )
@@ -1125,29 +1243,9 @@ class MsgTest(TembaTest):
             request_export("?l=I", export_data),
             [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
-                [
-                    msg7.created_on,
-                    "123",
-                    "tel",
-                    "Joe Blow",
-                    msg7.contact.uuid,
-                    "Outgoing",
-                    "Hey out 7",
-                    "",
-                    "Delivered",
-                ],
-                [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
-                [
-                    msg5.created_on,
-                    "123",
-                    "tel",
-                    "Joe Blow",
-                    msg5.contact.uuid,
-                    "Incoming",
-                    "Media message",
-                    "",
-                    "Handled",
-                ],
+                [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "IN", "Media message", "", "handled"],
+                [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "OUT", "Hey out 6", "", "sent"],
+                [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "OUT", "Hey out 7", "", "delivered"],
             ],
             self.org.timezone,
         )
@@ -1176,70 +1274,15 @@ class MsgTest(TembaTest):
                         "Status",
                     ],
                     [
-                        msg9.created_on,
+                        msg1.created_on,
                         joe_anon_id,
                         "tel",
                         "Joe Blow",
-                        msg9.contact.uuid,
-                        "Outgoing",
-                        "Hey out 9",
-                        "",
-                        "Failed Sending",
-                    ],
-                    [
-                        msg8.created_on,
-                        joe_anon_id,
-                        "tel",
-                        "Joe Blow",
-                        msg8.contact.uuid,
-                        "Outgoing",
-                        "Hey out 8",
-                        "",
-                        "Error Sending",
-                    ],
-                    [
-                        msg7.created_on,
-                        joe_anon_id,
-                        "tel",
-                        "Joe Blow",
-                        msg7.contact.uuid,
-                        "Outgoing",
-                        "Hey out 7",
-                        "",
-                        "Delivered",
-                    ],
-                    [
-                        msg6.created_on,
-                        joe_anon_id,
-                        "tel",
-                        "Joe Blow",
-                        msg6.contact.uuid,
-                        "Outgoing",
-                        "Hey out 6",
-                        "",
-                        "Sent",
-                    ],
-                    [
-                        msg5.created_on,
-                        joe_anon_id,
-                        "tel",
-                        "Joe Blow",
-                        msg5.contact.uuid,
-                        "Incoming",
-                        "Media message",
-                        "",
-                        "Handled",
-                    ],
-                    [
-                        msg4.created_on,
-                        joe_anon_id,
-                        "",
-                        "Joe Blow",
-                        msg4.contact.uuid,
-                        "Incoming",
-                        "hello 4",
-                        "",
-                        "Handled",
+                        msg1.contact.uuid,
+                        "IN",
+                        "hello 1",
+                        "label1",
+                        "handled",
                     ],
                     [
                         msg2.created_on,
@@ -1247,21 +1290,66 @@ class MsgTest(TembaTest):
                         "tel",
                         "Joe Blow",
                         msg2.contact.uuid,
-                        "Incoming",
+                        "IN",
                         "hello 2",
                         "",
-                        "Handled",
+                        "handled",
                     ],
+                    [msg4.created_on, joe_anon_id, "", "Joe Blow", msg4.contact.uuid, "IN", "hello 4", "", "handled"],
                     [
-                        msg1.created_on,
+                        msg5.created_on,
                         joe_anon_id,
                         "tel",
                         "Joe Blow",
-                        msg1.contact.uuid,
-                        "Incoming",
-                        "hello 1",
-                        "label1",
-                        "Handled",
+                        msg5.contact.uuid,
+                        "IN",
+                        "Media message",
+                        "",
+                        "handled",
+                    ],
+                    [
+                        msg6.created_on,
+                        joe_anon_id,
+                        "tel",
+                        "Joe Blow",
+                        msg6.contact.uuid,
+                        "OUT",
+                        "Hey out 6",
+                        "",
+                        "sent",
+                    ],
+                    [
+                        msg7.created_on,
+                        joe_anon_id,
+                        "tel",
+                        "Joe Blow",
+                        msg7.contact.uuid,
+                        "OUT",
+                        "Hey out 7",
+                        "",
+                        "delivered",
+                    ],
+                    [
+                        msg8.created_on,
+                        joe_anon_id,
+                        "tel",
+                        "Joe Blow",
+                        msg8.contact.uuid,
+                        "OUT",
+                        "Hey out 8",
+                        "",
+                        "errored",
+                    ],
+                    [
+                        msg9.created_on,
+                        joe_anon_id,
+                        "tel",
+                        "Joe Blow",
+                        msg9.contact.uuid,
+                        "OUT",
+                        "Hey out 9",
+                        "",
+                        "failed",
                     ],
                 ],
                 self.org.timezone,

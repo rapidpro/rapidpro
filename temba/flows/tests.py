@@ -818,7 +818,7 @@ class FlowTest(TembaTest):
             1,
             [
                 self.contact.uuid,
-                str(self.contact.id),
+                f"{self.contact.id:010d}",
                 "Eric",
                 run1.created_on,
                 run1.modified_on,
@@ -834,7 +834,7 @@ class FlowTest(TembaTest):
         self.assertExcelRow(
             sheet_msgs,
             2,
-            [self.contact.uuid, str(self.contact.id), "Eric", msg.created_on, "IN", "orange", "Test Channel"],
+            [self.contact.uuid, f"{self.contact.id:010d}", "Eric", msg.created_on, "IN", "orange", "Test Channel"],
             self.org.timezone,
         )
 

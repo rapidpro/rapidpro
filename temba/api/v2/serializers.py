@@ -24,7 +24,7 @@ from temba.msgs.models import (
     Msg,
 )
 from temba.msgs.tasks import send_broadcast_task
-from temba.utils import on_transaction_commit
+from temba.utils import extract_constants, on_transaction_commit
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 
@@ -37,16 +37,6 @@ def format_datetime(value):
     Datetime fields are formatted with microsecond accuracy for v2
     """
     return datetime_to_json_date(value, micros=True) if value else None
-
-
-def extract_constants(config, reverse=False):
-    """
-    Extracts a mapping between db and API codes from a constant config in a model
-    """
-    if reverse:
-        return {t[2]: t[0] for t in config}
-    else:
-        return {t[0]: t[2] for t in config}
 
 
 class ReadSerializer(serializers.ModelSerializer):

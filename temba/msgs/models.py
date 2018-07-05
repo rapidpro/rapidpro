@@ -1,9 +1,11 @@
 import logging
 import time
 import traceback
-from datetime import datetime, timedelta
+from array import array
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
+import iso8601
 import pytz
 import regex
 from django_redis import get_redis_connection
@@ -15,7 +17,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Prefetch, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
@@ -27,7 +29,14 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import analytics, chunk_list, dict_to_json, get_anonymous_user, on_transaction_commit
+from temba.utils import (
+    analytics,
+    chunk_list,
+    dict_to_json,
+    extract_constants,
+    get_anonymous_user,
+    on_transaction_commit,
+)
 from temba.utils.cache import check_and_mark_in_timerange
 from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -1187,6 +1196,28 @@ class Msg(models.Model):
         else:  # pragma: no cover
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    def as_archive_json(self):
+        STATUSES = extract_constants(STATUS_CONFIG)
+        VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
+        DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
+        MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
+
+        return {
+            "id": self.id,
+            "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
+            "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
+            "urn": self.contact_urn.identity if self.contact_urn else None,
+            "direction": DIRECTIONS.get(self.direction),
+            "msg_type": MSG_TYPES.get(self.msg_type),
+            "status": STATUSES.get(self.status),
+            "visibility": VISIBILITIES.get(self.visibility),
+            "text": self.text,
+            "attachments": self.attachments,
+            "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
+            "created_on": self.created_on.isoformat(),
+            "sent_on": self.sent_on.isoformat() if self.sent_on else None,
+        }
+
     def as_json(self):
         return dict(
             direction=self.direction,
@@ -2337,8 +2368,7 @@ class MsgIterator:
             if self._prefetch_related:
                 chunk_queryset = chunk_queryset.prefetch_related(*self._prefetch_related)
 
-            for obj in chunk_queryset:
-                yield obj
+            yield chunk_queryset
 
     def __iter__(self):
         return self
@@ -2388,101 +2418,218 @@ class ExportMessagesTask(BaseExportTask):
         export.groups.add(*groups)
         return export
 
+    def _add_msgs_sheet(self, book):
+        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
+        sheet = book.add_sheet(name, book.num_msgs_sheets)
+        book.num_msgs_sheets += 1
+
+        self.append_row(sheet, book.headers)
+        return sheet
+
     def write_export(self):
         book = XLSXBook()
+        book.num_msgs_sheets = 0
 
-        fields = ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"]
+        book.headers = [
+            "Date",
+            "Contact",
+            "Contact Type",
+            "Name",
+            "Contact UUID",
+            "Direction",
+            "Text",
+            "Labels",
+            "Status",
+        ]
 
-        if self.system_label:
-            messages = SystemLabel.get_queryset(self.org, self.system_label)
-        elif self.label:
-            messages = self.label.get_messages()
-        else:
-            messages = Msg.get_messages(self.org)
+        book.current_msgs_sheet = self._add_msgs_sheet(book)
+
+        msgs_exported = 0
+        start = time.time()
+
+        contact_uuids = set()
+        for group in self.groups.all():
+            contact_uuids.union(set(group.contacts.values_list("uuid", flat=True)))
 
         tz = self.org.timezone
 
+        start_date = self.org.created_on
         if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-            messages = messages.filter(created_on__gte=start_date)
 
+        end_date = timezone.now()
         if self.end_date:
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
-            messages = messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():
-            messages = messages.filter(contact__all_groups__in=self.groups.all())
+        for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
+            self._write_msgs(book, batch)
 
-        all_message_ids = list(messages.order_by("-created_on").values_list("id", flat=True))
-
-        messages_sheet_number = 1
-
-        current_messages_sheet = book.add_sheet(str(_("Messages %d" % messages_sheet_number)))
-
-        self.append_row(current_messages_sheet, fields)
-
-        row = 2
-        processed = 0
-        start = time.time()
-
-        prefetch = Prefetch("labels", queryset=Label.label_objects.order_by("name"))
-        for msg in MsgIterator(
-            all_message_ids,
-            order_by=["" "-created_on"],
-            select_related=["contact", "contact_urn"],
-            prefetch_related=[prefetch],
-        ):
-
-            if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
-                messages_sheet_number += 1
-                current_messages_sheet = book.add_sheet(str(_("Messages %d" % messages_sheet_number)))
-
-                self.append_row(current_messages_sheet, fields)
-                row = 2
-
-            # only show URN path if org isn't anon and there is a URN
-            if self.org.is_anon:  # pragma: needs cover
-                urn_path = msg.contact.anon_identifier
-            elif msg.contact_urn:
-                urn_path = msg.contact_urn.get_display(org=self.org, formatted=False)
-            else:
-                urn_path = ""
-
-            urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ""
-
-            self.append_row(
-                current_messages_sheet,
-                [
-                    msg.created_on,
-                    urn_path,
-                    urn_scheme,
-                    msg.contact.name,
-                    msg.contact.uuid,
-                    msg.get_direction_display(),
-                    msg.text,
-                    ", ".join(msg_label.name for msg_label in msg.labels.all()),
-                    msg.get_status_display(),
-                ],
-            )
-
-            row += 1
-            processed += 1
-
-            if processed % 10000 == 0:  # pragma: needs cover
-                print(
-                    "Export of %d msgs for %s - %d%% complete in %0.2fs"
-                    % (
-                        len(all_message_ids),
-                        self.org.name,
-                        processed * 100 // len(all_message_ids),
-                        time.time() - start,
-                    )
-                )
+            msgs_exported += len(batch)
+            if msgs_exported % 10000 == 0:  # pragma: needs cover
+                mins = (time.time() - start) / 60
+                print(f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins")
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
+
+    def _get_msg_batches(self, system_label, label, start_date, end_date, group_contacts):
+        print(f"Msgs export #{self.id} for org #{self.org.id}: fetching msgs from archives to export...")
+
+        # firstly get runs from archives
+        from temba.archives.models import Archive
+
+        earliest_day = start_date.date()
+        earliest_month = date(earliest_day.year, earliest_day.month, 1)
+
+        latest_day = end_date.date()
+        latest_month_start = date(latest_day.year, latest_day.month, 1)
+
+        archives = (
+            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_MSG, record_count__gt=0, rollup=None)
+            .filter(
+                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month, start_date__lte=latest_month_start)
+                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day, start_date__lte=latest_day)
+            )
+            .order_by("start_date")
+        )
+
+        last_created_on = None
+
+        for archive in archives:
+            for record_batch in chunk_list(archive.iter_records(), 1000):
+                matching = []
+                for record in record_batch:
+                    created_on = iso8601.parse_date(record["created_on"])
+                    if last_created_on is None or last_created_on < created_on:
+                        last_created_on = created_on
+
+                    if created_on < start_date or created_on > end_date:
+                        continue
+
+                    if group_contacts and record["contact"]["uuid"] not in group_contacts:
+                        continue
+
+                    visibility = "visible"
+                    if system_label:
+                        msg_type = None
+                        direction = "in"
+                        statuses = None
+
+                        if system_label == SystemLabel.TYPE_INBOX:
+                            msg_type = "inbox"
+
+                        elif system_label == SystemLabel.TYPE_FLOWS:
+                            msg_type = "flow"
+
+                        elif system_label == SystemLabel.TYPE_ARCHIVED:
+                            visibility = "archived"
+
+                        elif system_label == SystemLabel.TYPE_OUTBOX:
+                            direction = "out"
+                            statuses = ["pending", "queued"]
+
+                        elif system_label == SystemLabel.TYPE_SENT:
+                            direction = "out"
+                            statuses = ["wired", "sent", "delivered"]
+
+                        elif system_label == SystemLabel.TYPE_FAILED:
+                            direction = "out"
+                            statuses = ["failed"]
+
+                        if record["direction"] != direction:
+                            continue
+
+                        if msg_type and record["msg_type"] != msg_type:
+                            continue
+
+                        if statuses and record["status"] not in statuses:
+                            continue
+
+                    elif label:
+                        record_labels = [l["uuid"] for l in record["labels"]]
+                        if label and record_labels and label.uuid not in record_labels:
+                            continue
+
+                    if record["visibility"] != visibility:
+                        continue
+
+                    matching.append(record)
+                yield matching
+
+        if system_label:
+            messages = SystemLabel.get_queryset(self.org, system_label)
+        elif label:
+            messages = label.get_messages()
+        else:
+            messages = Msg.get_messages(self.org)
+
+        if self.start_date:
+            messages = messages.filter(created_on__gte=start_date)
+
+        if self.end_date:
+            messages = messages.filter(created_on__lte=end_date)
+
+        if self.groups.all():
+            messages = messages.filter(contact__all_groups__in=self.groups.all())
+
+        messages = messages.order_by("created_on")
+        if last_created_on:
+            messages = messages.filter(created_on__gt=last_created_on)
+
+        all_message_ids = array(str("l"), messages.values_list("id", flat=True))
+
+        print(
+            f"Msgs export #{self.id} for org #{self.org.id}: found {len(all_message_ids)} msgs in database to export"
+        )
+
+        prefetch = Prefetch("labels", queryset=Label.label_objects.order_by("name"))
+        for msg_batch in MsgIterator(
+            all_message_ids,
+            order_by=["" "created_on"],
+            select_related=["contact", "contact_urn", "channel"],
+            prefetch_related=[prefetch],
+        ):
+            # convert this batch of msgs to same format as records in our archives
+            yield [msg.as_archive_json() for msg in msg_batch]
+
+    def _write_msgs(self, book, msgs):
+        # get all the contacts referenced in this batch
+        contact_uuids = {m["contact"]["uuid"] for m in msgs}
+        contacts = Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+        contacts_by_uuid = {str(c.uuid): c for c in contacts}
+
+        for msg in msgs:
+            contact = contacts_by_uuid.get(msg["contact"]["uuid"])
+
+            # only show URN path if org isn't anon and there is a URN
+            if self.org.is_anon:  # pragma: needs cover
+                urn_path = f"{contact.id:010d}"
+            elif msg["urn"]:
+                urn_path = URN.format(msg["urn"], international=False, formatted=False)
+            else:
+                urn_path = ""
+
+            urn_scheme = URN.to_parts(msg["urn"])[0] if msg["urn"] else ""
+
+            if book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
+                book.current_msgs_sheet = self._add_msgs_sheet(book)
+
+            self.append_row(
+                book.current_msgs_sheet,
+                [
+                    msg["created_on"],
+                    urn_path,
+                    urn_scheme,
+                    msg["contact"].get("name", ""),
+                    msg["contact"]["uuid"],
+                    msg["direction"].upper() if msg["direction"] else None,
+                    msg["text"],
+                    ", ".join(msg_label["name"] for msg_label in msg["labels"]),
+                    msg["status"],
+                ],
+            )
 
 
 @register_asset_store
