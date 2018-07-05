@@ -153,7 +153,7 @@ class FlowTest(TembaTest):
         form = {
             "flows": [flow.id],
             "responded_only": responded_only,
-            "include_messages": include_msgs,
+            "include_msgs": include_msgs,
             "extra_urns": extra_urns,
         }
         if contact_fields:

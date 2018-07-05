@@ -23,7 +23,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models, transaction
@@ -68,6 +67,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import JSONAsTextField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.queues import push_task
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
@@ -1540,7 +1540,7 @@ class Flow(TembaModel):
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urlopen(url).read())
                 temp.flush()
-                return default_storage.save(path, temp)
+                return public_file_storage.save(path, temp)
             except Exception:  # pragma: needs cover
                 # its okay if its no longer there, we'll remove the recording
                 return None
@@ -5313,6 +5313,10 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
+    FLOWS = "flows"
+
+    MAX_GROUP_MEMBERSHIPS_COLS = 25
+    MAX_CONTACT_FIELDS_COLS = 10
 
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
@@ -7272,7 +7276,6 @@ class SendAction(VariableContactAction):
                     base_language=flow.base_language,
                 )
                 broadcast.send(expressions_context=context)
-                return list(broadcast.get_messages())
 
             else:
                 unique_contacts = set()
@@ -7288,9 +7291,7 @@ class SendAction(VariableContactAction):
 
                 self.logger(run, message, len(unique_contacts))
 
-            return []
-        else:  # pragma: no cover
-            return []
+        return []
 
     def logger(self, run, text, contact_count):
         if not run.contact.is_test:  # pragma: no cover

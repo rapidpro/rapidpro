@@ -1474,7 +1474,7 @@ class ChannelCRUDL(SmartCRUDL):
                         ),
                     )
                 else:
-                    messages.info(request, _("Your phone number has been removed."))
+                    messages.info(request, _("Your channel has been removed."))
 
                 return HttpResponseRedirect(self.get_success_url())
 
