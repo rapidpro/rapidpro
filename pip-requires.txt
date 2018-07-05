@@ -38,7 +38,6 @@ elasticsearch_dsl
 geojson
 lxml
 markdown
-openpyxl
 pisa
 pyexcel-xls
 pyexcel-xlsx
@@ -78,5 +77,6 @@ flake8-deprecated
 flake8-print
 isort
 mock
+openpyxl
 responses
 selenium
