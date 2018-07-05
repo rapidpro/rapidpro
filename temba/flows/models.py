@@ -5315,6 +5315,9 @@ class ExportFlowResultsTask(BaseExportTask):
     EXTRA_URNS = "extra_urns"
     FLOWS = "flows"
 
+    MAX_GROUP_MEMBERSHIPS_COLS = 25
+    MAX_CONTACT_FIELDS_COLS = 10
+
     flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
 
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))

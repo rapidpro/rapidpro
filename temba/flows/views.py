@@ -1095,16 +1095,24 @@ class FlowCRUDL(SmartCRUDL):
 
                 if (
                     ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
-                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS]) > 10
+                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS])
+                    > ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS
                 ):  # pragma: needs cover
-                    raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
+                    raise forms.ValidationError(
+                        _(
+                            f"You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
+                        )
+                    )
 
                 if (
                     ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
-                    and len(cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS]) > 25
+                    and len(cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS])
+                    > ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS
                 ):  # pragma: needs cover
                     raise forms.ValidationError(
-                        _("You can only include up to 25 groups for group memberships in your export")
+                        _(
+                            f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
+                        )
                     )
 
                 return cleaned_data
