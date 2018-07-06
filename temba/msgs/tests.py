@@ -866,7 +866,7 @@ class MsgTest(TembaTest):
             text="hello 2",
             direction="I",
             status=HANDLED,
-            msg_type="I",
+            msg_type="F",
             created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC),
         )
         msg3 = self.create_msg(
@@ -1096,6 +1096,114 @@ class MsgTest(TembaTest):
                     "failed",
                     "Test Channel",
                     "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export("?l=S", {"export_all": 0})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg6.created_on,
+                    msg6.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "OUT",
+                    "Hey out 6",
+                    "",
+                    "sent",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export("?l=W", {"export_all": 0})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg2.created_on,
+                    msg2.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "IN",
+                    "hello 2",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export(f"?l={label.uuid}", {"export_all": 0})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg1.created_on,
+                    msg1.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "IN",
+                    "hello 1",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "label1",
                 ],
             ],
             self.org.timezone,
@@ -2955,6 +3063,26 @@ class BroadcastLanguageTest(TembaTest):
 
 
 class SystemLabelTest(TembaTest):
+    def test_get_archive_attributes(self):
+        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(""))
+        self.assertEqual(("visible", "in", "inbox", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_INBOX))
+        self.assertEqual(("visible", "in", "flow", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FLOWS))
+        self.assertEqual(("archived", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_ARCHIVED))
+        self.assertEqual(
+            ("visible", "out", None, ["pending", "queued"]),
+            SystemLabel.get_archive_attributes(SystemLabel.TYPE_OUTBOX),
+        )
+        self.assertEqual(
+            ("visible", "out", None, ["wired", "sent", "delivered"]),
+            SystemLabel.get_archive_attributes(SystemLabel.TYPE_SENT),
+        )
+        self.assertEqual(
+            ("visible", "out", None, ["failed"]), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FAILED)
+        )
+
+        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_SCHEDULED))
+        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_CALLS))
+
     def test_get_counts(self):
         self.assertEqual(
             SystemLabel.get_counts(self.org),

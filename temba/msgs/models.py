@@ -2070,6 +2070,31 @@ class SystemLabel(object):
 
         return qs
 
+    @classmethod
+    def get_archive_attributes(cls, label_type):
+        visibility = "visible"
+        msg_type = None
+        direction = "in"
+        statuses = None
+
+        if label_type == cls.TYPE_INBOX:
+            msg_type = "inbox"
+        elif label_type == cls.TYPE_FLOWS:
+            msg_type = "flow"
+        elif label_type == cls.TYPE_ARCHIVED:
+            visibility = "archived"
+        elif label_type == cls.TYPE_OUTBOX:
+            direction = "out"
+            statuses = ["pending", "queued"]
+        elif label_type == cls.TYPE_SENT:
+            direction = "out"
+            statuses = ["wired", "sent", "delivered"]
+        elif label_type == cls.TYPE_FAILED:
+            direction = "out"
+            statuses = ["failed"]
+
+        return (visibility, direction, msg_type, statuses)
+
 
 class SystemLabelCount(SquashableModel):
     """
@@ -2515,30 +2540,7 @@ class ExportMessagesTask(BaseExportTask):
 
                     visibility = "visible"
                     if system_label:
-                        msg_type = None
-                        direction = "in"
-                        statuses = None
-
-                        if system_label == SystemLabel.TYPE_INBOX:
-                            msg_type = "inbox"
-
-                        elif system_label == SystemLabel.TYPE_FLOWS:
-                            msg_type = "flow"
-
-                        elif system_label == SystemLabel.TYPE_ARCHIVED:
-                            visibility = "archived"
-
-                        elif system_label == SystemLabel.TYPE_OUTBOX:
-                            direction = "out"
-                            statuses = ["pending", "queued"]
-
-                        elif system_label == SystemLabel.TYPE_SENT:
-                            direction = "out"
-                            statuses = ["wired", "sent", "delivered"]
-
-                        elif system_label == SystemLabel.TYPE_FAILED:
-                            direction = "out"
-                            statuses = ["failed"]
+                        visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
 
                         if record["direction"] != direction:
                             continue
@@ -2551,7 +2553,7 @@ class ExportMessagesTask(BaseExportTask):
 
                     elif label:
                         record_labels = [l["uuid"] for l in record["labels"]]
-                        if label and record_labels and label.uuid not in record_labels:
+                        if label and label.uuid not in record_labels:
                             continue
 
                     if record["visibility"] != visibility:
