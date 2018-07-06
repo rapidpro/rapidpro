@@ -862,7 +862,7 @@ class MsgTest(TembaTest):
             created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC),
         )
         msg2 = self.create_msg(
-            contact=self.joe,
+            contact=self.frank,
             text="hello 2",
             direction="I",
             status=HANDLED,
@@ -950,7 +950,7 @@ class MsgTest(TembaTest):
             hash=uuid4().hex,
             url="http://test-bucket.aws.com/archive1.jsonl.gz",
             record_count=6,
-            start_date=timezone.now().date(),
+            start_date=msg5.created_on.date(),
             period="D",
             build_time=23425,
         )
@@ -1034,8 +1034,8 @@ class MsgTest(TembaTest):
                 [
                     msg2.created_on,
                     msg2.contact.uuid,
-                    "Joe Blow",
-                    "123",
+                    "Frank Blow",
+                    "321",
                     "tel",
                     "IN",
                     "hello 2",
@@ -1102,6 +1102,99 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export(
+                "?l=I",
+                {
+                    "export_all": 0,
+                    "start_date": msg5.created_on.strftime("%B %d, %Y"),
+                    "end_date": msg7.created_on.strftime("%B %d, %Y"),
+                },
+            )
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg5.created_on,
+                    msg5.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "IN",
+                    "Media message",
+                    "http://rapidpro.io/audio/sound.mp3",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export("?l=I", {"export_all": 0, "groups": [self.just_joe.id]})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg1.created_on,
+                    msg1.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "IN",
+                    "hello 1",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "label1",
+                ],
+                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "IN", "hello 4", "", "handled", "", ""],
+                [
+                    msg5.created_on,
+                    msg5.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "IN",
+                    "Media message",
+                    "http://rapidpro.io/audio/sound.mp3",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
             workbook = request_export("?l=S", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -1138,6 +1231,42 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
+            workbook = request_export("?l=X", {"export_all": 0})
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Name",
+                    "URN",
+                    "URN Type",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg9.created_on,
+                    msg9.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "OUT",
+                    "Hey out 9",
+                    "",
+                    "failed",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
             workbook = request_export("?l=W", {"export_all": 0})
 
         self.assertExcelSheet(
@@ -1159,8 +1288,8 @@ class MsgTest(TembaTest):
                 [
                     msg2.created_on,
                     msg2.contact.uuid,
-                    "Joe Blow",
-                    "123",
+                    "Frank Blow",
+                    "321",
                     "tel",
                     "IN",
                     "hello 2",
