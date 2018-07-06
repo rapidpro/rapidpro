@@ -79,7 +79,7 @@ class JioChatTypeTest(TembaTest):
         self.assertFalse(ChannelLog.objects.all())
         refresh_jiochat_access_tokens()
 
-        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 1)
         self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         self.assertEqual(mock_post.call_count, 1)
@@ -93,9 +93,9 @@ class JioChatTypeTest(TembaTest):
 
         refresh_jiochat_access_tokens()
 
-        self.assertEqual(ChannelLog.objects.all().count(), 2)
-        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
-        self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(channel_id=channel.pk).count(), 2)
+        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=True).count(), 1)
+        self.assertTrue(ChannelLog.objects.filter(channel_id=channel.pk, is_error=False).count(), 1)
         self.assertEqual(mock_post.call_count, 1)
 
         self.assertEqual(channel_client.get_access_token(), b"ABC1234")
@@ -111,21 +111,3 @@ class JioChatTypeTest(TembaTest):
 
         mock_post.reset_mock()
         mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1235" }')
-
-        Channel.refresh_all_jiochat_access_token(channel.id)
-
-        self.assertEqual(ChannelLog.objects.all().count(), 3)
-        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
-        self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
-        self.assertEqual(mock_post.call_count, 1)
-
-        self.assertEqual(channel_client.get_access_token(), b"ABC1235")
-        self.assertEqual(
-            mock_post.call_args_list[0][1]["data"],
-            {"client_secret": u"app-secret", "grant_type": "client_credentials", "client_id": u"app-id"},
-        )
-        self.login(self.admin)
-        response = self.client.get(
-            reverse("channels.channellog_list") + "?channel=%d&others=1" % channel.id, follow=True
-        )
-        self.assertEqual(len(response.context["object_list"]), 3)

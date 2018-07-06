@@ -27,7 +27,6 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, QuerySet, Sum
@@ -57,6 +56,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import analytics, chunk_list, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
 
 from .models import (
@@ -690,7 +690,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
             flow = self.get_object()
-            return default_storage.save("recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file)
+            return public_file_storage.save(
+                "recordings/%d/%d/steps/%s.wav" % (flow.org.pk, flow.id, action_uuid), file
+            )
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
@@ -703,7 +705,7 @@ class FlowCRUDL(SmartCRUDL):
         def save_media_upload(self, file, actionset_id, name_uuid):
             flow = self.get_object()
             extension = file.name.split(".")[-1]
-            return default_storage.save(
+            return public_file_storage.save(
                 "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
             )
 
@@ -1069,7 +1071,7 @@ class FlowCRUDL(SmartCRUDL):
                 initial=True,
                 help_text=_("Only export results for contacts which responded"),
             )
-            include_messages = forms.BooleanField(
+            include_msgs = forms.BooleanField(
                 required=False,
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
@@ -1078,23 +1080,42 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
-                self.fields["contact_fields"].queryset = ContactField.objects.filter(
+                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.objects.filter(
                     org=self.user.get_org(), is_active=True
                 )
 
-                self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+                self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
                     org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
                 ).order_by(Lower("name"))
 
-                self.fields["flows"].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
+                self.fields[ExportFlowResultsTask.FLOWS].queryset = Flow.objects.filter(
+                    org=self.user.get_org(), is_active=True
+                )
 
             def clean(self):
                 cleaned_data = super().clean()
 
                 if (
-                    "contact_fields" in cleaned_data and len(cleaned_data["contact_fields"]) > 10
+                    ExportFlowResultsTask.CONTACT_FIELDS in cleaned_data
+                    and len(cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS])
+                    > ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS
                 ):  # pragma: needs cover
-                    raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
+                    raise forms.ValidationError(
+                        _(
+                            f"You can only include up to {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS} contact fields in your export"
+                        )
+                    )
+
+                if (
+                    ExportFlowResultsTask.GROUP_MEMBERSHIPS in cleaned_data
+                    and len(cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS])
+                    > ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS
+                ):  # pragma: needs cover
+                    raise forms.ValidationError(
+                        _(
+                            f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
+                        )
+                    )
 
                 return cleaned_data
 
@@ -1138,12 +1159,12 @@ class FlowCRUDL(SmartCRUDL):
                 export = ExportFlowResultsTask.create(
                     org,
                     user,
-                    form.cleaned_data["flows"],
-                    contact_fields=form.cleaned_data["contact_fields"],
-                    include_msgs=form.cleaned_data["include_messages"],
-                    responded_only=form.cleaned_data["responded_only"],
-                    extra_urns=form.cleaned_data["extra_urns"],
-                    group_memberships=form.cleaned_data["group_memberships"],
+                    form.cleaned_data[ExportFlowResultsTask.FLOWS],
+                    contact_fields=form.cleaned_data[ExportFlowResultsTask.CONTACT_FIELDS],
+                    include_msgs=form.cleaned_data[ExportFlowResultsTask.INCLUDE_MSGS],
+                    responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
+                    extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
+                    group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 

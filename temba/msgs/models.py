@@ -8,6 +8,7 @@ import pytz
 import regex
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import DateStyle, EvaluationContext
+from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -2388,22 +2389,9 @@ class ExportMessagesTask(BaseExportTask):
         return export
 
     def write_export(self):
-        from openpyxl import Workbook
-
-        book = Workbook(write_only=True)
+        book = XLSXBook()
 
         fields = ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"]
-        fields_col_width = [
-            self.WIDTH_MEDIUM,  # Date
-            self.WIDTH_MEDIUM,  # Contact
-            self.WIDTH_SMALL,  # Contact Type
-            self.WIDTH_MEDIUM,  # Name
-            self.WIDTH_MEDIUM,  # Contact UUID
-            self.WIDTH_SMALL,  # Direction
-            self.WIDTH_LARGE,  # Text
-            self.WIDTH_MEDIUM,  # Labels
-            self.WIDTH_SMALL,
-        ]  # Status
 
         if self.system_label:
             messages = SystemLabel.get_queryset(self.org, self.system_label)
@@ -2429,9 +2417,8 @@ class ExportMessagesTask(BaseExportTask):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.add_sheet(str(_("Messages %d" % messages_sheet_number)))
 
-        self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
         self.append_row(current_messages_sheet, fields)
 
         row = 2
@@ -2448,10 +2435,9 @@ class ExportMessagesTask(BaseExportTask):
 
             if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
-                current_messages_sheet = book.create_sheet(str(_("Messages %d" % messages_sheet_number)))
+                current_messages_sheet = book.add_sheet(str(_("Messages %d" % messages_sheet_number)))
 
                 self.append_row(current_messages_sheet, fields)
-                self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
                 row = 2
 
             # only show URN path if org isn't anon and there is a URN
@@ -2493,8 +2479,8 @@ class ExportMessagesTask(BaseExportTask):
                     )
                 )
 
-        temp = NamedTemporaryFile(delete=True)
-        book.save(temp)
+        temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
+        book.finalize(to_file=temp)
         temp.flush()
         return temp, "xlsx"
 

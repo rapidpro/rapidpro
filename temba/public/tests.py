@@ -92,6 +92,26 @@ class PublicTest(SmartminTest):
         self.assertEqual(response.request["PATH_INFO"], status_url)
         self.assertContains(response, "Cancelled")
 
+        response = self.client.post(status_url, {}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Invalid")
+
+        response = self.client.post(status_url, dict(text="somethinginvalid"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Invalid")
+
+        response = self.client.post(status_url, dict(text="CU001"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Shipped")
+
+        response = self.client.post(status_url, dict(text="CU002"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Pending")
+
+        response = self.client.post(status_url, dict(text="CU003"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Cancelled")
+
     def test_templatetags(self):
         from .templatetags.public import gear_link_classes
 

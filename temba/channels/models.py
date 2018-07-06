@@ -107,6 +107,10 @@ class ChannelType(metaclass=ABCMeta):
 
     ivr_protocol = None
 
+    # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
+    #  during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
+    async_activation = True
+
     def is_available_to(self, user):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
@@ -551,7 +555,16 @@ class Channel(TembaModel):
             org.normalize_contact_tels()
 
         if settings.IS_PROD:
-            on_transaction_commit(lambda: channel_type.activate(channel))
+            if channel_type.async_activation:
+                on_transaction_commit(lambda: channel_type.activate(channel))
+            else:
+                try:
+                    channel_type.activate(channel)
+
+                except Exception as e:
+                    # release our channel, raise error upwards
+                    channel.release()
+                    raise e
 
         return channel
 
@@ -668,19 +681,6 @@ class Channel(TembaModel):
             role=Channel.ROLE_CALL,
             parent=channel,
         )
-
-    @classmethod
-    def refresh_all_jiochat_access_token(cls, channel_id=None):
-        from temba.utils.jiochat import JiochatClient
-
-        jiochat_channels = Channel.objects.filter(channel_type="JC", is_active=True)
-        if channel_id:
-            jiochat_channels = jiochat_channels.filter(id=channel_id)
-
-        for channel in jiochat_channels:
-            client = JiochatClient.from_channel(channel)
-            if client is not None:
-                client.refresh_access_token(channel.id)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
