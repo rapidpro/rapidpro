@@ -34,7 +34,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.locks import NonBlockingLock
 from temba.utils.models import RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
-from temba.utils.text import clean_string, truncate
+from temba.utils.text import truncate
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
 
@@ -3143,7 +3143,7 @@ class ExportContactsTask(BaseExportTask):
                     elif field["key"] == Contact.LANGUAGE:
                         field_value = contact.language
                     elif field["key"] == Contact.CREATED_ON:
-                        field_value = self.org.format_datetime(contact.created_on)
+                        field_value = contact.created_on
                     elif field["key"] == Contact.ID:
                         field_value = str(contact.id)
                     elif field["urn_scheme"] is not None:
@@ -3165,7 +3165,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = ""
 
                     if field_value:
-                        field_value = str(clean_string(field_value))
+                        field_value = str(self.prepare_value(field_value))
 
                     values.append(field_value)
 
