@@ -29,7 +29,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Max, Min, QuerySet, Sum
+from django.db.models import Count, Max, Min, Prefetch, QuerySet, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -39,6 +39,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
+from temba.api.models import Resthook, ResthookSubscriber
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
@@ -1840,6 +1841,12 @@ class FlowCRUDL(SmartCRUDL):
             "label": Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
             "language": Resource(Language.objects.filter(is_active=True), server.serialize.serialize_language),
             "location_hierarchy": BoundaryResource(server.serialize_location_hierarchy),
+            "resthook": Resource(
+                Resthook.objects.filter(is_active=True).prefetch_related(
+                    Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
+                ),
+                server.serialize_resthook,
+            ),
         }
 
         simulator_extras = {"channel": [Channel.SIMULATOR_CHANNEL]}

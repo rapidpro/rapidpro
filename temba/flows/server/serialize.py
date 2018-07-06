@@ -155,3 +155,7 @@ def serialize_message(msg):
         serialized["attachments"] = msg.attachments
 
     return serialized
+
+
+def serialize_resthook(resthook):
+    return {"slug": resthook.slug, "subscribers": [s.target_url for s in resthook.subscribers.all()]}

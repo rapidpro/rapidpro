@@ -5,6 +5,7 @@ from enum import Enum
 import requests
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.utils import timezone
 
 from .serialize import (
@@ -17,6 +18,7 @@ from .serialize import (
     serialize_label,
     serialize_location_hierarchy,
     serialize_message,
+    serialize_resthook,
 )
 
 
@@ -59,7 +61,9 @@ class RequestBuilder(object):
         for f in self.org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
 
-        request = request.include_fields().include_groups().include_labels().include_channels(simulator)
+        request = (
+            request.include_fields().include_groups().include_labels().include_channels(simulator).include_resthooks()
+        )
         if self.org.country_id:
             request = request.include_country()
 
@@ -137,6 +141,22 @@ class RequestBuilder(object):
         )
         return self
 
+    def include_resthooks(self):
+        from temba.api.models import Resthook, ResthookSubscriber
+
+        resthooks = Resthook.objects.filter(org=self.org, is_active=True).prefetch_related(
+            Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
+        )
+
+        self.request["assets"].append(
+            {
+                "type": "resthook_set",
+                "url": "%s/resthook/" % self.base_assets_url,
+                "content": [serialize_resthook(r) for r in resthooks],
+            }
+        )
+        return self
+
     def add_environment_changed(self):
         """
         Notify the engine that the environment has changed
@@ -195,6 +215,7 @@ class RequestBuilder(object):
             "field_set": "%s/field/" % self.base_assets_url,
             "group_set": "%s/group/" % self.base_assets_url,
             "label_set": "%s/label/" % self.base_assets_url,
+            "resthook_set": "%s/resthook/" % self.base_assets_url,
         }
 
         if self.org.country_id:
@@ -282,7 +303,7 @@ class FlowServerClient(object):
 
     def __init__(self, base_url, debug=False):
         self.base_url = base_url
-        self.debug = debug
+        self.debug = True
 
     def request_builder(self, org, asset_timestamp):
         assets_host = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
