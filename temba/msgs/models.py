@@ -2476,7 +2476,7 @@ class ExportMessagesTask(BaseExportTask):
 
         contact_uuids = set()
         for group in self.groups.all():
-            contact_uuids.union(set(group.contacts.values_list("uuid", flat=True)))
+            contact_uuids = contact_uuids.union(set(group.contacts.only("uuid").values_list("uuid", flat=True)))
 
         tz = self.org.timezone
 

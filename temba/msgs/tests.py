@@ -1145,7 +1145,7 @@ class MsgTest(TembaTest):
         )
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
-            workbook = request_export("?l=I", {"export_all": 0, "groups": [self.just_joe.id]})
+            workbook = request_export("?l=I", {"export_all": 1, "groups": [self.just_joe.id]})
 
         self.assertExcelSheet(
             workbook.worksheets[0],
@@ -1187,6 +1187,45 @@ class MsgTest(TembaTest):
                     "Media message",
                     "http://rapidpro.io/audio/sound.mp3",
                     "handled",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg6.created_on,
+                    msg6.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "OUT",
+                    "Hey out 6",
+                    "",
+                    "sent",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg8.created_on,
+                    msg8.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "OUT",
+                    "Hey out 8",
+                    "",
+                    "errored",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg9.created_on,
+                    msg9.contact.uuid,
+                    "Joe Blow",
+                    "123",
+                    "tel",
+                    "OUT",
+                    "Hey out 9",
+                    "",
+                    "failed",
                     "Test Channel",
                     "",
                 ],
