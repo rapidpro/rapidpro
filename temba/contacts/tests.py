@@ -6133,9 +6133,6 @@ class ContactFieldTest(TembaTest):
             workbook = load_workbook(filename=filename)
             return workbook.worksheets
 
-        def prepare_datetime(value):
-            return str(value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None))
-
         # no group specified, so will default to 'All Contacts'
         with self.assertNumQueries(48):
             export = request_export()
@@ -6159,7 +6156,7 @@ class ContactFieldTest(TembaTest):
                         contact2.uuid,
                         "Adam Sumner",
                         "eng",
-                        prepare_datetime(contact2.created_on),
+                        contact2.created_on,
                         "adam@sumner.com",
                         "+12067799191",
                         "1234",
@@ -6172,7 +6169,7 @@ class ContactFieldTest(TembaTest):
                         contact.uuid,
                         "Ben Haggerty",
                         "",
-                        prepare_datetime(contact.created_on),
+                        contact.created_on,
                         "",
                         "+12067799294",
                         "",
@@ -6182,6 +6179,7 @@ class ContactFieldTest(TembaTest):
                         "",
                     ],
                 ],
+                tz=self.org.timezone,
             )
 
         # change the order of the fields
@@ -6210,7 +6208,7 @@ class ContactFieldTest(TembaTest):
                         contact2.uuid,
                         "Adam Sumner",
                         "eng",
-                        prepare_datetime(contact2.created_on),
+                        contact2.created_on,
                         "adam@sumner.com",
                         "+12067799191",
                         "1234",
@@ -6224,7 +6222,7 @@ class ContactFieldTest(TembaTest):
                         contact.uuid,
                         "Ben Haggerty",
                         "",
-                        prepare_datetime(contact.created_on),
+                        contact.created_on,
                         "",
                         "+12067799294",
                         "",
@@ -6235,6 +6233,7 @@ class ContactFieldTest(TembaTest):
                         True,
                     ],
                 ],
+                tz=self.org.timezone,
             )
 
         # more contacts do not increase the queries
@@ -6266,7 +6265,7 @@ class ContactFieldTest(TembaTest):
                         contact2.uuid,
                         "Adam Sumner",
                         "eng",
-                        prepare_datetime(contact2.created_on),
+                        contact2.created_on,
                         "adam@sumner.com",
                         "+12067799191",
                         "",
@@ -6281,7 +6280,7 @@ class ContactFieldTest(TembaTest):
                         contact.uuid,
                         "Ben Haggerty",
                         "",
-                        prepare_datetime(contact.created_on),
+                        contact.created_on,
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -6296,7 +6295,7 @@ class ContactFieldTest(TembaTest):
                         contact3.uuid,
                         "Luol Deng",
                         "",
-                        prepare_datetime(contact3.created_on),
+                        contact3.created_on,
                         "",
                         "+12078776655",
                         "",
@@ -6311,7 +6310,7 @@ class ContactFieldTest(TembaTest):
                         contact4.uuid,
                         "Stephen",
                         "",
-                        prepare_datetime(contact4.created_on),
+                        contact4.created_on,
                         "",
                         "+12078778899",
                         "",
@@ -6323,6 +6322,7 @@ class ContactFieldTest(TembaTest):
                         False,
                     ],
                 ],
+                tz=self.org.timezone,
             )
 
         # export a specified group of contacts (only Ben and Adam are in the group)
@@ -6348,7 +6348,7 @@ class ContactFieldTest(TembaTest):
                         contact2.uuid,
                         "Adam Sumner",
                         "eng",
-                        prepare_datetime(contact2.created_on),
+                        contact2.created_on,
                         "adam@sumner.com",
                         "+12067799191",
                         "",
@@ -6362,7 +6362,7 @@ class ContactFieldTest(TembaTest):
                         contact.uuid,
                         "Ben Haggerty",
                         "",
-                        prepare_datetime(contact.created_on),
+                        contact.created_on,
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -6373,6 +6373,7 @@ class ContactFieldTest(TembaTest):
                         "One",
                     ],
                 ],
+                tz=self.org.timezone,
             )
 
         # export a search
@@ -6403,7 +6404,7 @@ class ContactFieldTest(TembaTest):
                             contact2.uuid,
                             "Adam Sumner",
                             "eng",
-                            prepare_datetime(contact2.created_on),
+                            contact2.created_on,
                             "adam@sumner.com",
                             "+12067799191",
                             "",
@@ -6417,7 +6418,7 @@ class ContactFieldTest(TembaTest):
                             contact3.uuid,
                             "Luol Deng",
                             "",
-                            prepare_datetime(contact3.created_on),
+                            contact3.created_on,
                             "",
                             "+12078776655",
                             "",
@@ -6428,6 +6429,7 @@ class ContactFieldTest(TembaTest):
                             "",
                         ],
                     ],
+                    tz=self.org.timezone,
                 )
 
         # export a search within a specified group of contacts
@@ -6455,7 +6457,7 @@ class ContactFieldTest(TembaTest):
                             contact.uuid,
                             "Ben Haggerty",
                             "",
-                            prepare_datetime(contact.created_on),
+                            contact.created_on,
                             "",
                             "+12067799294",
                             "+12062233445",
@@ -6466,6 +6468,7 @@ class ContactFieldTest(TembaTest):
                             "One",
                         ],
                     ],
+                    tz=self.org.timezone,
                 )
 
         # now try with an anonymous org
@@ -6483,47 +6486,21 @@ class ContactFieldTest(TembaTest):
                         "Field:Second",
                         "Field:First",
                     ],
-                    [
-                        str(contact2.id),
-                        contact2.uuid,
-                        "Adam Sumner",
-                        "eng",
-                        prepare_datetime(contact2.created_on),
-                        "",
-                        "",
-                        "",
-                    ],
+                    [str(contact2.id), contact2.uuid, "Adam Sumner", "eng", contact2.created_on, "", "", ""],
                     [
                         str(contact.id),
                         contact.uuid,
                         "Ben Haggerty",
                         "",
-                        prepare_datetime(contact.created_on),
+                        contact.created_on,
                         "20-12-2015 08:30",
                         "",
                         "One",
                     ],
-                    [
-                        str(contact3.id),
-                        contact3.uuid,
-                        "Luol Deng",
-                        "",
-                        prepare_datetime(contact3.created_on),
-                        "",
-                        "",
-                        "",
-                    ],
-                    [
-                        str(contact4.id),
-                        contact4.uuid,
-                        "Stephen",
-                        "",
-                        prepare_datetime(contact4.created_on),
-                        "",
-                        "",
-                        "",
-                    ],
+                    [str(contact3.id), contact3.uuid, "Luol Deng", "", contact3.created_on, "", "", ""],
+                    [str(contact4.id), contact4.uuid, "Stephen", "", contact4.created_on, "", "", ""],
                 ],
+                tz=self.org.timezone,
             )
 
     def test_prepare_sort_field_struct(self):

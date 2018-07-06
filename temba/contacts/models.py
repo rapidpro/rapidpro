@@ -3171,7 +3171,7 @@ class ExportContactsTask(BaseExportTask):
                         field_value = ""
 
                     if field_value:
-                        field_value = str(self.prepare_value(field_value))
+                        field_value = self.prepare_value(field_value)
 
                     values.append(field_value)
 
