@@ -1,3 +1,10 @@
+v3.0.447
+----------
+ * Configure Celery to discover Wechat and Whatsapp tasks
+ * Add Rwanda and Nigeria to AT claim form options
+ * Extend timeout for archives links to 24h
+ * Add created_on to the contact export
+
 v3.0.446
 ----------
  * Use constants for max contact fields and max group membership columns
