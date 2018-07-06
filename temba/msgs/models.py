@@ -770,6 +770,11 @@ class Msg(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    STATUSES_FOR_ARCHIVES = extract_constants(STATUS_CONFIG)
+    VISIBILITIES_FOR_ARCHIVES = extract_constants(VISIBILITY_CONFIG)
+    DIRECTIONS_FOR_ARCHIVES = {INCOMING: "in", OUTGOING: "out"}
+    MSG_TYPES_FOR_ARCHIVES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
+
     uuid = models.UUIDField(null=True, default=uuid4, help_text=_("The UUID for this message"))
 
     org = models.ForeignKey(
@@ -1197,20 +1202,15 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_archive_json(self):
-        STATUSES = extract_constants(STATUS_CONFIG)
-        VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
-        DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
-        MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
-
         return {
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "direction": DIRECTIONS.get(self.direction),
-            "msg_type": MSG_TYPES.get(self.msg_type),
-            "status": STATUSES.get(self.status),
-            "visibility": VISIBILITIES.get(self.visibility),
+            "direction": Msg.DIRECTIONS_FOR_ARCHIVES.get(self.direction),
+            "msg_type": Msg.MSG_TYPES_FOR_ARCHIVES.get(self.msg_type),
+            "status": Msg.STATUSES_FOR_ARCHIVES.get(self.status),
+            "visibility": Msg.VISIBILITIES_FOR_ARCHIVES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
