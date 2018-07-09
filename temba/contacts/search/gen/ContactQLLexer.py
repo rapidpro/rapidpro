@@ -1,9 +1,9 @@
 # Generated from ContactQL.g4 by ANTLR 4.7
 # encoding: utf-8
-from __future__ import absolute_import, division, print_function, unicode_literals
-from antlr4 import *
-from io import StringIO
 import sys
+from io import StringIO
+
+from antlr4 import *
 
 
 def serializedATN():
@@ -22,7 +22,7 @@ def serializedATN():
         buf.write(u"\3\t\4\13\5\r\6\17\7\21\b\23\t\25\n\27\13\31\2\33\2\35")
         buf.write(u"\2\37\2!\2#\2%\2\3\2\24\4\2JJjj\4\2CCcc\4\2UUuu\4\2K")
         buf.write(u"Kkk\4\2PPpp\4\2FFff\4\2QQqq\4\2TTtt\4\2>>@@\5\2--/\61")
-        buf.write(u"aa\3\2$$\5\2\13\f\17\17\"\"T\2C\\\u00c2\u00d8\u00da\u00e0")
+        buf.write(u'aa\3\2$$\5\2\13\f\17\17""T\2C\\\u00c2\u00d8\u00da\u00e0')
         buf.write(u"\u0102\u0138\u013b\u0149\u014c\u017f\u0183\u0184\u0186")
         buf.write(u"\u018d\u0190\u0193\u0195\u0196\u0198\u019a\u019e\u019f")
         buf.write(u"\u01a1\u01a2\u01a4\u01ab\u01ae\u01b5\u01b7\u01be\u01c6")
@@ -119,7 +119,7 @@ def serializedATN():
         buf.write(u"\ufb3a\ufb3e\ufb40\ufbb3\ufbd5\ufd3f\ufd52\ufd91\ufd94")
         buf.write(u"\ufdc9\ufdf2\ufdfd\ufe72\ufe76\ufe78\ufefe\uff68\uff71")
         buf.write(u"\uff73\uff9f\uffa2\uffc0\uffc4\uffc9\uffcc\uffd1\uffd4")
-        buf.write(u"\uffd9\uffdc\uffde\'\2\62;\u0662\u066b\u06f2\u06fb\u07c2")
+        buf.write(u"\uffd9\uffdc\uffde'\2\62;\u0662\u066b\u06f2\u06fb\u07c2")
         buf.write(u"\u07cb\u0968\u0971\u09e8\u09f1\u0a68\u0a71\u0ae8\u0af1")
         buf.write(u"\u0b68\u0b71\u0be8\u0bf1\u0c68\u0c71\u0ce8\u0cf1\u0d68")
         buf.write(u"\u0d71\u0de8\u0df1\u0e52\u0e5b\u0ed2\u0edb\u0f22\u0f2b")
@@ -129,11 +129,11 @@ def serializedATN():
         buf.write(u"\ua8db\ua902\ua90b\ua9d2\ua9db\ua9f2\ua9fb\uaa52\uaa5b")
         buf.write(u"\uabf2\uabfb\uff12\uff1b\2{\2\7\3\2\2\2\2\t\3\2\2\2\2")
         buf.write(u"\13\3\2\2\2\2\r\3\2\2\2\2\17\3\2\2\2\2\21\3\2\2\2\2\23")
-        buf.write(u"\3\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\3\'\3\2\2\2\5+\3\2")
+        buf.write(u"\3\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\3'\3\2\2\2\5+\3\2")
         buf.write(u"\2\2\7.\3\2\2\2\t\60\3\2\2\2\13\62\3\2\2\2\r\66\3\2\2")
         buf.write(u"\2\17D\3\2\2\2\21I\3\2\2\2\23M\3\2\2\2\25Y\3\2\2\2\27")
         buf.write(u"_\3\2\2\2\31f\3\2\2\2\33h\3\2\2\2\35j\3\2\2\2\37l\3\2")
-        buf.write(u"\2\2!n\3\2\2\2#p\3\2\2\2%r\3\2\2\2\'(\t\2\2\2()\t\3\2")
+        buf.write(u"\2\2!n\3\2\2\2#p\3\2\2\2%r\3\2\2\2'(\t\2\2\2()\t\3\2")
         buf.write(u"\2)*\t\4\2\2*\4\3\2\2\2+,\t\5\2\2,-\t\4\2\2-\6\3\2\2")
         buf.write(u"\2./\7*\2\2/\b\3\2\2\2\60\61\7+\2\2\61\n\3\2\2\2\62\63")
         buf.write(u"\t\3\2\2\63\64\t\6\2\2\64\65\t\7\2\2\65\f\3\2\2\2\66")
@@ -151,7 +151,7 @@ def serializedATN():
         buf.write(u"\5\33\16\2bg\5\35\17\2cg\5\37\20\2dg\5!\21\2eg\5#\22")
         buf.write(u"\2fa\3\2\2\2fb\3\2\2\2fc\3\2\2\2fd\3\2\2\2fe\3\2\2\2")
         buf.write(u"g\32\3\2\2\2hi\t\16\2\2i\34\3\2\2\2jk\t\17\2\2k\36\3")
-        buf.write(u"\2\2\2lm\t\20\2\2m \3\2\2\2no\t\21\2\2o\"\3\2\2\2pq\t")
+        buf.write(u'\2\2\2lm\t\20\2\2m \3\2\2\2no\t\21\2\2o"\3\2\2\2pq\t')
         buf.write(u"\22\2\2q$\3\2\2\2rs\t\23\2\2s&\3\2\2\2\n\2DIKQS[f\3\b")
         buf.write(u"\2\2")
         return buf.getvalue()
@@ -161,7 +161,7 @@ class ContactQLLexer(Lexer):
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
+    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
 
     LPAREN = 1
     RPAREN = 2
@@ -173,21 +173,45 @@ class ContactQLLexer(Lexer):
     WS = 8
     ERROR = 9
 
-    channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN" ]
+    channelNames = [u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN"]
 
-    modeNames = [ u"DEFAULT_MODE" ]
+    modeNames = [u"DEFAULT_MODE"]
 
-    literalNames = [ u"<INVALID>",
-            u"'('", u"')'" ]
+    literalNames = [u"<INVALID>", u"'('", u"')'"]
 
-    symbolicNames = [ u"<INVALID>",
-            u"LPAREN", u"RPAREN", u"AND", u"OR", u"COMPARATOR", u"TEXT", 
-            u"STRING", u"WS", u"ERROR" ]
+    symbolicNames = [
+        u"<INVALID>",
+        u"LPAREN",
+        u"RPAREN",
+        u"AND",
+        u"OR",
+        u"COMPARATOR",
+        u"TEXT",
+        u"STRING",
+        u"WS",
+        u"ERROR",
+    ]
 
-    ruleNames = [ u"HAS", u"IS", u"LPAREN", u"RPAREN", u"AND", u"OR", u"COMPARATOR", 
-                  u"TEXT", u"STRING", u"WS", u"ERROR", u"UnicodeLetter", 
-                  u"UnicodeClass_LU", u"UnicodeClass_LL", u"UnicodeClass_LT", 
-                  u"UnicodeClass_LM", u"UnicodeClass_LO", u"UnicodeDigit" ]
+    ruleNames = [
+        u"HAS",
+        u"IS",
+        u"LPAREN",
+        u"RPAREN",
+        u"AND",
+        u"OR",
+        u"COMPARATOR",
+        u"TEXT",
+        u"STRING",
+        u"WS",
+        u"ERROR",
+        u"UnicodeLetter",
+        u"UnicodeClass_LU",
+        u"UnicodeClass_LL",
+        u"UnicodeClass_LT",
+        u"UnicodeClass_LM",
+        u"UnicodeClass_LO",
+        u"UnicodeDigit",
+    ]
 
     grammarFileName = u"ContactQL.g4"
 
@@ -197,5 +221,3 @@ class ContactQLLexer(Lexer):
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None
-
-

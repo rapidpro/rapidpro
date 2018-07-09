@@ -1,42 +1,43 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import inspect
 import json
 import os
-import pytz
-import regex
-import redis
 import shutil
 import string
-import six
 import time
-
 from datetime import datetime, timedelta
+from functools import wraps
+from unittest import skipIf
+from uuid import uuid4
+
+import pytz
+import redis
+import regex
+from future.moves.html.parser import HTMLParser
+from mock import patch
+from selenium.webdriver.firefox.webdriver import WebDriver
+from smartmin.tests import SmartminTest
+
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
-from future.moves.html.parser import HTMLParser
-from selenium.webdriver.firefox.webdriver import WebDriver
-from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, ContactField, URN
-from temba.orgs.models import Org
-from temba.channels.models import Channel
-from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep, FlowRevision, clear_flow_users
-from temba.msgs.models import Msg, INCOMING
-from temba.utils import dict_to_struct, get_anonymous_user
-from temba.values.models import Value
-from unittest import skipIf
-from uuid import uuid4
-from .http import MockServer
 
+from temba.channels.models import Channel
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, clear_flow_users
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import INCOMING, Msg
+from temba.orgs.models import Org
+from temba.utils import dict_to_struct, get_anonymous_user
+from temba.values.constants import Value
+
+from .http import MockServer
 
 mock_server = MockServer()
 
@@ -45,19 +46,20 @@ class TembaTestRunner(DiscoverRunner):
     """
     Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
     """
+
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
-        super(TembaTestRunner, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         mock_server.start()
 
     def build_suite(self, *args, **kwargs):
-        suite = super(TembaTestRunner, self).build_suite(*args, **kwargs)
-        excluded = getattr(settings, 'TEST_EXCLUDE', [])
-        if not getattr(settings, 'RUN_ALL_TESTS', False):
+        suite = super().build_suite(*args, **kwargs)
+        excluded = getattr(settings, "TEST_EXCLUDE", [])
+        if not getattr(settings, "RUN_ALL_TESTS", False):
             tests = []
             for case in suite:
-                pkg = case.__class__.__module__.split('.')[0]
+                pkg = case.__class__.__module__.split(".")[0]
                 if pkg not in excluded:
                     tests.append(case)
             suite._tests = tests
@@ -65,7 +67,7 @@ class TembaTestRunner(DiscoverRunner):
 
     def run_suite(self, suite, **kwargs):
 
-        return super(TembaTestRunner, self).run_suite(suite, **kwargs)
+        return super().run_suite(suite, **kwargs)
 
 
 def add_testing_flag_to_context(*args):
@@ -93,165 +95,101 @@ class AddFlowServerTestsMeta(type):
     example a test method called test_foo will become two test methods - the original test_foo which runs in the old
     engine, and a new one called test_foo_flowserver with is run using the flowserver.
     """
+
     def __new__(mcs, name, bases, dct):
-        if settings.FLOW_SERVER_URL:
-            new_tests = {}
-            for key, val in six.iteritems(dct):
-                if key.startswith('test_') and getattr(val, '_also_in_flowserver', False):
-                    new_func = override_settings(FLOW_SERVER_AUTH_TOKEN='1234', FLOW_SERVER_FORCE=True)(val)
-                    new_tests[key + '_flowserver'] = new_func
-            dct.update(new_tests)
+        new_tests = {}
+        for key, test_func in dct.items():
+            if key.startswith("test_") and getattr(test_func, "_also_in_flowserver", False):
+                test_without, test_with = mcs._split_test(test_func)
 
-        return super(AddFlowServerTestsMeta, mcs).__new__(mcs, name, bases, dct)
+                new_tests[key] = test_without
+                if settings.FLOW_SERVER_URL:
+                    new_tests[key + "_flowserver"] = test_with
+
+        dct.update(new_tests)
+
+        return super().__new__(mcs, name, bases, dct)
+
+    @staticmethod
+    def _split_test(test_func):
+        """
+        Takes a given test function and returns two test functions - one that will run without the flowserver, and one
+        that will run with the flowserver
+        """
+        old_func = test_func
+        new_func = override_settings(FLOW_SERVER_AUTH_TOKEN="1234", FLOW_SERVER_FORCE=True)(test_func)
+
+        @wraps(old_func)
+        def old_wrapper(*args, **kwargs):
+            kwargs["in_flowserver"] = False
+            return old_func(*args, **kwargs)
+
+        @wraps(new_func)
+        def new_wrapper(*args, **kwargs):
+            kwargs["in_flowserver"] = True
+            return new_func(*args, **kwargs)
+
+        return old_wrapper, new_wrapper
 
 
-class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
-    def setUp(self):
-        self.maxDiff = 4096
-        self.mock_server = mock_server
+class ESMockWithScroll:
 
-        # if we are super verbose, turn on debug for sql queries
-        if self.get_verbosity() > 2:
-            settings.DEBUG = True
+    def __init__(self, data=None):
+        self.mock_es = patch("temba.utils.es.ES")
 
-        # make sure we start off without any service users
-        Group.objects.get(name='Service Users').user_set.clear()
+        self.data = data if data is not None else []
 
-        self.clear_cache()
+    def __enter__(self):
+        patched_object = self.mock_es.start()
 
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+        patched_object.search.return_value = {
+            "_shards": {"failed": 0, "successful": 10, "total": 10},
+            "timed_out": False,
+            "took": 1,
+            "_scroll_id": "1",
+            "hits": {"hits": self.data},
+        }
+        patched_object.scroll.return_value = {
+            "_shards": {"failed": 0, "successful": 10, "total": 10},
+            "timed_out": False,
+            "took": 1,
+            "_scroll_id": "1",
+            "hits": {"hits": []},
+        }
 
-        # create different user types
-        self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User")
-        self.editor = self.create_user("Editor")
-        self.admin = self.create_user("Administrator")
-        self.surveyor = self.create_user("Surveyor")
+        return patched_object()
 
-        # setup admin boundaries for Rwanda
-        self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
-        self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
-        self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
-        self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.objects.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
-        self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.mock_es.stop()
 
-        self.country.update_path()
 
-        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
-                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
-
-        self.org.initialize(topup_size=1000)
-
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
-
-        self.editor.set_org(self.org)
-        self.org.editors.add(self.editor)
-
-        self.admin.set_org(self.org)
-        self.org.administrators.add(self.admin)
-
-        self.surveyor.set_org(self.org)
-        self.org.surveyors.add(self.surveyor)
-
-        self.superuser.set_org(self.org)
-
-        # welcome topup with 1000 credits
-        self.welcome_topup = self.org.topups.all()[0]
-
-        # a single Android channel
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
-                                      device="Nexus 5X", secret="12345", gcm_id="123")
-
-        # don't cache anon user between tests
-        from temba import utils
-        utils._anon_user = None
-        clear_flow_users()
-
-        # reset our simulation to False
-        Contact.set_simulation(False)
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_msg(contact=recipient, direction='I', text="Test %d" % m)
-
-    def get_verbosity(self):
-        for s in reversed(inspect.stack()):
-            options = s[0].f_locals.get('options')
-            if isinstance(options, dict):
-                return int(options['verbosity'])
-        return 1
-
-    def explain(self, query):
-        cursor = connection.cursor()
-        cursor.execute('explain %s' % query)
-        plan = cursor.fetchall()
-        indexes = []
-        for match in regex.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), regex.DOTALL):
-            index = match.group(1).strip()
-            table = match.group(2).strip()
-            indexes.append((table, index))
-
-        indexes = sorted(indexes, key=lambda i: i[0])
-        return indexes
-
-    def tearDown(self):
-        if self.get_verbosity() > 2:
-            details = []
-            for query in connection.queries:
-                query = query['sql']
-                if 'SAVEPOINT' not in query:
-                    indexes = self.explain(query)
-                    details.append(dict(query=query, indexes=indexes))
-
-            for stat in details:
-                print("")
-                print(stat['query'])
-                for table, index in stat['indexes']:
-                    print('  Index Used: %s.%s' % (table, index))
-
-                if not len(stat['indexes']):
-                    print('  No Index Used')
-
-            settings.DEBUG = False
-
-        from temba.flows.models import clear_flow_users
-        clear_flow_users()
-
-        # clear any unused mock requests
-        self.mock_server.mocked_requests = []
+class TembaTestMixin(object):
 
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and actually hard-code redis to 'localhost' and '10'
         Redis 10 is our testing redis db
         """
-        r = redis.StrictRedis(host='localhost', db=10)
+        r = redis.StrictRedis(host="localhost", db=10)
         r.flushdb()
 
     def clear_storage(self):
         """
         If a test has written files to storage, it should remove them by calling this
         """
-        shutil.rmtree('%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
+        shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
+    def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
         self.org.import_app(json.loads(data), self.admin, site=site)
 
     def get_import_json(self, filename, substitutions=None):
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
+        handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
         data = handle.read()
         handle.close()
 
         if substitutions:
-            for k, v in six.iteritems(substitutions):
+            for k, v in substitutions.items():
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
@@ -267,27 +205,27 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         Given an action json_dict, replaces the existing action by uuid
         """
         flowdef = flow.as_json()
-        for i, actionset in enumerate(flowdef['action_sets']):
-            for j, prev_action in enumerate(actionset['actions']):
-                if action_json['uuid'] == prev_action['uuid']:
-                    flowdef['action_sets'][i]['actions'][j] = action_json
+        for i, actionset in enumerate(flowdef["action_sets"]):
+            for j, prev_action in enumerate(actionset["actions"]):
+                if action_json["uuid"] == prev_action["uuid"]:
+                    flowdef["action_sets"][i]["actions"][j] = action_json
                     flow.update(flowdef, self.admin)
                     return
-        self.fail("Couldn't find action with uuid %s" % action_json['uuid'])
+        self.fail("Couldn't find action with uuid %s" % action_json["uuid"])
 
     def get_action_json(self, flow, uuid):
         """
         Gets the action json dict from the given flow
         """
         flowdef = flow.as_json()
-        for actionset in flowdef['action_sets']:
-            for action in actionset['actions']:
-                if action['uuid'] == uuid:
+        for actionset in flowdef["action_sets"]:
+            for action in actionset["actions"]:
+                if action["uuid"] == uuid:
                     return action
         self.fail("Couldn't find action with uuid %s" % uuid)
 
     def get_flow(self, filename, substitutions=None):
-        last_flow = Flow.objects.all().order_by('-pk').first()
+        last_flow = Flow.objects.all().order_by("-pk").first()
         self.import_file(filename, substitutions=substitutions)
 
         if last_flow:
@@ -295,18 +233,23 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
             flow.org = self.org
             return flow
 
-        flow = Flow.objects.all().order_by('-created_on').first()
+        flow = Flow.objects.all().order_by("-created_on").first()
         flow.org = self.org
         return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        return json.loads(data)['flows'][0]
+        return json.loads(data)["flows"][0]
 
     def create_secondary_org(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
-                                       created_by=self.admin2, modified_by=self.admin2)
+        self.org2 = Org.objects.create(
+            name="Trileet Inc.",
+            timezone="Africa/Kigali",
+            brand="rapidpro.io",
+            created_by=self.admin2,
+            modified_by=self.admin2,
+        )
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 
@@ -329,14 +272,14 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
-        kwargs['name'] = name
-        kwargs['urns'] = urns
-        kwargs['is_test'] = is_test
+        kwargs["name"] = name
+        kwargs["urns"] = urns
+        kwargs["is_test"] = is_test
 
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'user' not in kwargs:
-            kwargs['user'] = self.user
+        if "org" not in kwargs:
+            kwargs["org"] = self.org
+        if "user" not in kwargs:
+            kwargs["user"] = self.user
 
         return Contact.get_or_create_by_urns(**kwargs)
 
@@ -353,58 +296,32 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
             return group
 
     def create_field(self, key, label, value_type=Value.TYPE_TEXT):
-        return ContactField.objects.create(org=self.org, key=key, label=label, value_type=value_type,
-                                           created_by=self.admin, modified_by=self.admin)
-
-    def add_message(self, payload, text):
-        """
-        Add a message to the payload for the flow server using the default contact
-        """
-        payload['events'] = [{
-            'type': 'msg_received',
-            'msg': {
-                'text': text,
-                'uuid': six.text_type(uuid4()),
-                'urn': 'tel:+12065551212',
-                'created_on': timezone.now().isoformat(),
-            },
-            'created_on': timezone.now().isoformat(),
-            'contact': payload['session']['contact']
-        }]
-
-    def get_replies(self, response):
-        """
-        Gets any replies in a response from the flow server as a list of strings
-        """
-        replies = []
-        for log in response['log']:
-            if 'event' in log:
-                if log['event']['type'] == 'broadcast_created':
-                    replies.append(log['event']['text'])
-        return replies
+        return ContactField.objects.create(
+            org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
+        )
 
     def create_msg(self, **kwargs):
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'channel' not in kwargs:
-            kwargs['channel'] = self.channel
-        if 'contact_urn' not in kwargs:
-            kwargs['contact_urn'] = kwargs['contact'].get_urn()
-        if 'created_on' not in kwargs:
-            kwargs['created_on'] = timezone.now()
+        if "org" not in kwargs:
+            kwargs["org"] = self.org
+        if "channel" not in kwargs:
+            kwargs["channel"] = self.channel
+        if "contact_urn" not in kwargs:
+            kwargs["contact_urn"] = kwargs["contact"].get_urn()
+        if "created_on" not in kwargs:
+            kwargs["created_on"] = timezone.now()
 
-        if not kwargs['contact'].is_test:
-            (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
+        if not kwargs["contact"].is_test:
+            (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
 
         return Msg.objects.create(**kwargs)
 
     def create_flow(self, definition=None, **kwargs):
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'user' not in kwargs:
-            kwargs['user'] = self.user
-        if 'name' not in kwargs:
-            kwargs['name'] = "Color Flow"
+        if "org" not in kwargs:
+            kwargs["org"] = self.org
+        if "user" not in kwargs:
+            kwargs["user"] = self.user
+        if "name" not in kwargs:
+            kwargs["name"] = "Color Flow"
 
         flow = Flow.create(**kwargs)
         if not definition:
@@ -421,20 +338,15 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
                         "x": 0,
                         "y": 0,
                         "actions": [
-                            {
-                                "msg": {"eng": "Hey everybody!"},
-                                "media": {},
-                                "send_all": False,
-                                "type": "reply"
-                            }
+                            {"msg": {"eng": "Hey everybody!"}, "media": {}, "send_all": False, "type": "reply"}
                         ],
-                        "destination": None
+                        "destination": None,
                     }
                 ],
                 "rule_sets": [],
             }
 
-        flow.version_number = definition['version']
+        flow.version_number = definition["version"]
         flow.save()
 
         json_flow = FlowRevision.migrate_definition(definition, flow)
@@ -445,14 +357,14 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()
 
-        for actionset in flow_json.get('action_sets'):
-            if actionset.get('uuid') == source:
-                actionset['destination'] = destination
+        for actionset in flow_json.get("action_sets"):
+            if actionset.get("uuid") == source:
+                actionset["destination"] = destination
 
-        for ruleset in flow_json.get('rule_sets'):
-            for rule in ruleset.get('rules'):
-                if rule.get('uuid') == source:
-                    rule['destination'] = destination
+        for ruleset in flow_json.get("rule_sets"):
+            for rule in ruleset.get("rules"):
+                if rule.get("uuid") == source:
+                    rule["destination"] = destination
 
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
@@ -460,10 +372,10 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = FlowStep.TYPE_ACTION_SET
+        destination_type = Flow.NODE_TYPE_ACTIONSET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = FlowStep.TYPE_RULE_SET
+            destination_type = Flow.NODE_TYPE_RULESET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
@@ -485,7 +397,7 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
 
-    def mockRequest(self, method, path_pattern, content, content_type='text/plain', status=200):
+    def mockRequest(self, method, path_pattern, content, content_type="text/plain", status=200):
         return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
 
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
@@ -504,12 +416,15 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
             self.assertEqual(mock_request.data, data)
 
         # check any provided header values
-        for key, val in six.iteritems(headers):
-            self.assertEqual(mock_request.headers.get(key.replace('_', '-')), val)
+        for key, val in headers.items():
+            self.assertEqual(mock_request.headers.get(key.replace("_", "-")), val)
 
     def assertAllRequestsMade(self):
         if self.mock_server.mocked_requests:
-            self.fail("test has %d unused mock requests: %s" % (len(mock_server.mocked_requests), mock_server.mocked_requests))
+            self.fail(
+                "test has %d unused mock requests: %s"
+                % (len(mock_server.mocked_requests), mock_server.mocked_requests)
+            )
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
@@ -530,7 +445,7 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
             actual = cell.value
 
             if actual is None:
-                actual = ''
+                actual = ""
 
             if isinstance(actual, datetime):
                 actual = actual
@@ -555,12 +470,156 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
 
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_msg(contact=recipient, direction="I", text="Test %d" % m)
+
+    def get_verbosity(self):
+        for s in reversed(inspect.stack()):
+            options = s[0].f_locals.get("options")
+            if isinstance(options, dict):
+                return int(options["verbosity"])
+        return 1
+
+    def explain(self, query):
+        cursor = connection.cursor()
+        cursor.execute("explain %s" % query)
+        plan = cursor.fetchall()
+        indexes = []
+        for match in regex.finditer("Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
+            index = match.group(1).strip()
+            table = match.group(2).strip()
+            indexes.append((table, index))
+
+        indexes = sorted(indexes, key=lambda i: i[0])
+        return indexes
+
+
+class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
+
+    def setUp(self):
+        self.maxDiff = 4096
+        self.mock_server = mock_server
+
+        # if we are super verbose, turn on debug for sql queries
+        if self.get_verbosity() > 2:
+            settings.DEBUG = True
+
+        # make sure we start off without any service users
+        Group.objects.get(name="Service Users").user_set.clear()
+
+        self.clear_cache()
+
+        self.create_anonymous_user()
+
+        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
+
+        # create different user types
+        self.non_org_user = self.create_user("NonOrg")
+        self.user = self.create_user("User")
+        self.editor = self.create_user("Editor")
+        self.admin = self.create_user("Administrator")
+        self.surveyor = self.create_user("Surveyor")
+        self.customer_support = self.create_user("support", ("Customer Support",))
+
+        # setup admin boundaries for Rwanda
+        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
+        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id="1711131", name="Gatsibo", level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id="171114281", name="Bukure", level=3, parent=self.district4)
+
+        self.country.update_path()
+
+        self.org = Org.objects.create(
+            name="Temba",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        self.org.initialize(topup_size=1000)
+
+        # add users to the org
+        self.user.set_org(self.org)
+        self.org.viewers.add(self.user)
+
+        self.editor.set_org(self.org)
+        self.org.editors.add(self.editor)
+
+        self.admin.set_org(self.org)
+        self.org.administrators.add(self.admin)
+
+        self.surveyor.set_org(self.org)
+        self.org.surveyors.add(self.surveyor)
+
+        self.superuser.set_org(self.org)
+
+        # welcome topup with 1000 credits
+        self.welcome_topup = self.org.topups.all()[0]
+
+        # a single Android channel
+        self.channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            name="Test Channel",
+            address="+250785551212",
+            device="Nexus 5X",
+            secret="12345",
+            gcm_id="123",
+        )
+
+        # don't cache anon user between tests
+        from temba import utils
+
+        utils._anon_user = None
+        clear_flow_users()
+
+        # reset our simulation to False
+        Contact.set_simulation(False)
+
+    def tearDown(self):
+        if self.get_verbosity() > 2:
+            details = []
+            for query in connection.queries:
+                query = query["sql"]
+                if "SAVEPOINT" not in query:
+                    indexes = self.explain(query)
+                    details.append(dict(query=query, indexes=indexes))
+
+            for stat in details:
+                print("")
+                print(stat["query"])
+                for table, index in stat["indexes"]:
+                    print("  Index Used: %s.%s" % (table, index))
+
+                if not len(stat["indexes"]):
+                    print("  No Index Used")
+
+            settings.DEBUG = False
+
+        from temba.flows.models import clear_flow_users
+
+        clear_flow_users()
+
+        # clear any unused mock requests
+        self.mock_server.mocked_requests = []
+
 
 class FlowFileTest(TembaTest):
 
     def setUp(self):
-        super(FlowFileTest, self).setUp()
-        self.contact = self.create_contact('Ben Haggerty', number='+12065552020')
+        super().setUp()
+        self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
 
     def assertInUserGroups(self, contact, group_names, only=False):
 
@@ -569,13 +628,17 @@ class FlowFileTest(TembaTest):
             self.assertIn(name, truth)
 
         if only:
-            self.assertEqual(len(group_names), len(truth), 'Contact not found in expected group. expected: %s, was: %s' % (group_names, truth))
+            self.assertEqual(
+                len(group_names),
+                len(truth),
+                "Contact not found in expected group. expected: %s, was: %s" % (group_names, truth),
+            )
             other_groups = contact.user_groups.exclude(name__in=group_names)
             if other_groups:
                 self.fail("Contact found in unexpected group: %s" % other_groups)
 
     def assertLastResponse(self, message):
-        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.objects.filter(contact=self.contact).order_by("-created_on", "-pk").first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEqual(message, response.text)
@@ -589,12 +652,21 @@ class FlowFileTest(TembaTest):
 
         # evaluate the inbound message against our triggers first
         from temba.triggers.models import Trigger
+
         if not Trigger.find_and_handle(incoming):
             Flow.find_and_handle(incoming)
-        return Msg.objects.filter(response_to=incoming).order_by('pk').first()
+        return Msg.objects.filter(response_to=incoming).order_by("pk").first()
 
-    def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
-                     assert_reply=True, assert_handle=True):
+    def send_message(
+        self,
+        flow,
+        message,
+        restart_participants=False,
+        contact=None,
+        initiate_flow=False,
+        assert_reply=True,
+        assert_handle=True,
+    ):
         """
         Starts the flow, sends the message, returns the reply
         """
@@ -604,11 +676,15 @@ class FlowFileTest(TembaTest):
             if contact.is_test:
                 Contact.set_simulation(True)
 
-            incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
+            incoming = self.create_msg(
+                direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message
+            )
 
             # start the flow
             if initiate_flow:
-                flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
+                flow.start(
+                    groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
+                )
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
                 (handled, msgs) = Flow.find_and_handle(incoming)
@@ -622,7 +698,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -634,7 +710,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
                 self.assertFalse(replies)
 
             return None
@@ -644,6 +720,7 @@ class FlowFileTest(TembaTest):
 
 
 class MLStripper(HTMLParser):  # pragma: no cover
+
     def __init__(self):
         self.reset()
         self.fed = []
@@ -652,7 +729,7 @@ class MLStripper(HTMLParser):  # pragma: no cover
         self.fed.append(d)
 
     def get_data(self):
-        return ''.join(self.fed)
+        return "".join(self.fed)
 
 
 class BrowserTest(LiveServerTestCase):  # pragma: no cover
@@ -663,17 +740,18 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
         try:
             import os
-            os.mkdir('screenshots')
+
+            os.mkdir("screenshots")
         except Exception:
             pass
 
-        super(BrowserTest, cls).setUpClass()
+        super().setUpClass()
 
     @classmethod
     def tearDownClass(cls):
         pass
         # cls.driver.quit()
-        # super(BrowserTest, cls).tearDownClass()
+        # super().tearDownClass()
 
     def strip_tags(self, html):
         s = MLStripper()
@@ -683,15 +761,15 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
     def save_screenshot(self):
         time.sleep(1)
         valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-        filename = ''.join(c for c in self.driver.current_url if c in valid_chars)
+        filename = "".join(c for c in self.driver.current_url if c in valid_chars)
         self.driver.get_screenshot_as_file("screenshots/%s.png" % filename)
 
     def fetch_page(self, url=None):
 
         if not url:
-            url = ''
+            url = ""
 
-        if 'http://' not in url:
+        if "http://" not in url:
             url = self.live_server_url + url
 
         self.driver.get(url)
@@ -701,7 +779,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         return self.driver.find_elements_by_css_selector(selector)
 
     def get_element(self, selector):
-        if selector[0] == '#' or selector[0] == '.':
+        if selector[0] == "#" or selector[0] == ".":
             return self.driver.find_element_by_css_selector(selector)
         else:
             return self.driver.find_element_by_name(selector)
@@ -745,49 +823,58 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.fetch_page()
 
         # go directly to our signup
-        self.fetch_page(reverse('orgs.org_signup'))
+        self.fetch_page(reverse("orgs.org_signup"))
 
         # create account
-        self.keys('email', 'code@temba.com')
-        self.keys('password', 'SuperSafe1')
-        self.keys('first_name', 'Joe')
-        self.keys('last_name', 'Blow')
-        self.click('#form-one-submit')
-        self.keys('name', 'Temba')
-        self.click('#form-two-submit')
+        self.keys("email", "code@temba.com")
+        self.keys("password", "SuperSafe1")
+        self.keys("first_name", "Joe")
+        self.keys("last_name", "Blow")
+        self.click("#form-one-submit")
+        self.keys("name", "Temba")
+        self.click("#form-two-submit")
 
         # set up our channel for claiming
-        channel = Channel.create(None, get_anonymous_user(), 'RW', 'A', name="Test Channel", address="0785551212",
-                                 claim_code='AAABBBCCC', secret="12345", gcm_id="123")
+        channel = Channel.create(
+            None,
+            get_anonymous_user(),
+            "RW",
+            "A",
+            name="Test Channel",
+            address="0785551212",
+            claim_code="AAABBBCCC",
+            secret="12345",
+            gcm_id="123",
+        )
 
         # and claim it
-        self.fetch_page(reverse('channels.channel_claim_android'))
-        self.keys('#id_claim_code', 'AAABBBCCC')
-        self.keys('#id_phone_number', '0785551212')
-        self.submit('.claim-form')
+        self.fetch_page(reverse("channels.channel_claim_android"))
+        self.keys("#id_claim_code", "AAABBBCCC")
+        self.keys("#id_phone_number", "0785551212")
+        self.submit(".claim-form")
 
         # get our freshly claimed channel
         channel = Channel.objects.get(pk=channel.pk)
 
         # now go to the contacts page
-        self.click('#menu-right .icon-contact')
-        self.click('#id_import_contacts')
+        self.click("#menu-right .icon-contact")
+        self.click("#id_import_contacts")
 
         # upload some contacts
         directory = os.path.dirname(os.path.realpath(__file__))
-        self.keys('#csv_file', '%s/../media/test_imports/sample_contacts.xls' % directory)
-        self.submit('.smartmin-form')
+        self.keys("#csv_file", "%s/../media/test_imports/sample_contacts.xls" % directory)
+        self.submit(".smartmin-form")
 
         # make sure they are there
-        self.click('#menu-right .icon-contact')
-        self.assertInElements('.value-phone', '+250788382382')
-        self.assertInElements('.value-text', 'Eric Newcomer')
-        self.assertInElements('.value-text', 'Sample Contacts')
+        self.click("#menu-right .icon-contact")
+        self.assertInElements(".value-phone", "+250788382382")
+        self.assertInElements(".value-text", "Eric Newcomer")
+        self.assertInElements(".value-text", "Sample Contacts")
 
 
 class MockResponse(object):
 
-    def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
+    def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
         self.text = force_text(text)
         self.content = force_bytes(text)
         self.body = force_text(text)
@@ -797,10 +884,10 @@ class MockResponse(object):
         self.ok = True
         self.cookies = dict()
         self.streaming = False
-        self.charset = 'utf-8'
+        self.charset = "utf-8"
 
         # mock up a request object on our response as well
-        self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))
+        self.request = dict_to_struct("MockRequest", dict(method=method, url=url, body="request body"))
 
     def add_header(self, key, value):
         self.headers[key] = value
@@ -817,13 +904,50 @@ class AnonymousOrg(object):
     """
     Makes the given org temporarily anonymous
     """
+
     def __init__(self, org):
         self.org = org
 
     def __enter__(self):
         self.org.is_anon = True
-        self.org.save(update_fields=('is_anon',))
+        self.org.save(update_fields=("is_anon",))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.org.is_anon = False
-        self.org.save(update_fields=('is_anon',))
+        self.org.save(update_fields=("is_anon",))
+
+
+class MigrationTest(TembaTest):
+    app = None
+    migrate_from = None
+    migrate_to = None
+
+    def setUp(self):
+        assert (
+            self.migrate_from and self.migrate_to
+        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(
+            type(self).__name__
+        )
+
+        # set up our temba test
+        super().setUp()
+
+        self.migrate_from = [(self.app, self.migrate_from)]
+        self.migrate_to = [(self.app, self.migrate_to)]
+        executor = MigrationExecutor(connection)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+
+        # Reverse to the original migration
+        executor.migrate(self.migrate_from)
+
+        self.setUpBeforeMigration(old_apps)
+
+        # Run the migration to test
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()  # reload.
+        executor.migrate(self.migrate_to)
+
+        self.apps = executor.loader.project_state(self.migrate_to).apps
+
+    def setUpBeforeMigration(self, apps):
+        pass

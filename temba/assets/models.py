@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
-import six
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
-
 
 ASSET_STORES_BY_KEY = {}
 ASSET_STORES_BY_MODEL = {}
@@ -77,19 +72,21 @@ class BaseAssetStore(object):
             raise AssetFileNotFound()
 
         # create a more friendly download filename
-        remainder, extension = path.rsplit('.', 1)
-        filename = '%s_%s.%s' % (self.key, pk, extension)
+        remainder, extension = path.rsplit(".", 1)
+        filename = "%s_%s.%s" % (self.key, pk, extension)
 
         # if our storage backend is S3
-        if settings.DEFAULT_FILE_STORAGE == 'storages.backends.s3boto.S3BotoStorage':  # pragma: needs cover
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto.S3BotoStorage":  # pragma: needs cover
             # generate our URL manually so that we can force the download name for the user
-            url = default_storage.connection.generate_url(default_storage.querystring_expire,
-                                                          method='GET', bucket=default_storage.bucket.name,
-                                                          key=default_storage._encode_name(path),
-                                                          query_auth=default_storage.querystring_auth,
-                                                          force_http=not default_storage.secure_urls,
-                                                          response_headers={'response-content-disposition':
-                                                                            'attachment;filename=%s' % filename})
+            url = default_storage.connection.generate_url(
+                default_storage.querystring_expire,
+                method="GET",
+                bucket=default_storage.bucket.name,
+                key=default_storage._encode_name(path),
+                query_auth=default_storage.querystring_auth,
+                force_http=not default_storage.secure_urls,
+                response_headers={"response-content-disposition": "attachment;filename=%s" % filename},
+            )
 
         # otherwise, let the backend generate the URL
         else:
@@ -125,15 +122,15 @@ class BaseAssetStore(object):
         """
         Derives the storage path of an asset, e.g. 'orgs/1/recordings/asdf-asdf-asdf-asdf-asdf-asdf.wav'
         """
-        base_name = six.text_type(uuid)
-        directory = os.path.join(settings.STORAGE_ROOT_DIR, six.text_type(org.pk), self.directory)
+        base_name = str(uuid)
+        directory = os.path.join(settings.STORAGE_ROOT_DIR, str(org.pk), self.directory)
 
         if extension:
-            return '%s/%s.%s' % (directory, base_name, extension)
+            return "%s/%s.%s" % (directory, base_name, extension)
 
         # no explicit extension so look for one with an existing file
         for ext in extension or self.extensions:
-            path = '%s/%s.%s' % (directory, base_name, ext)
+            path = "%s/%s.%s" % (directory, base_name, ext)
             if default_storage.exists(path):
                 return path
 
@@ -143,5 +140,5 @@ class BaseAssetStore(object):
         return True
 
     def get_asset_url(self, pk, direct=False):
-        view_name = 'assets.stream' if direct else 'assets.download'
+        view_name = "assets.stream" if direct else "assets.download"
         return reverse(view_name, kwargs=dict(type=self.key, pk=pk))

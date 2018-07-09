@@ -1,0 +1,25 @@
+{% extends "smartmin/base.html" %}
+
+-load compress temba i18n
+
+-block page-container
+  #flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/{{fingerprint}}", engine:"/flow/simulate/{{object.id}}/"}
+
+-block extra-script
+  {{ block.super }}
+
+  -compress js
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}js/flow-editor/dist/flow-editor.js"}
+
+-block extra-style
+  -compress css
+    %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor.min.css"}
+  
+  :css
+    #flow-editor {
+      height: 10000px;
+      width: 100%;
+      position: relative;
+      margin-top: -29px;
+    }
+

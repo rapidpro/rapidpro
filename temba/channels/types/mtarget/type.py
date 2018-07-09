@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME
+
 from ...models import ChannelType
 from .views import ClaimView
 
@@ -12,14 +11,16 @@ class MtargetType(ChannelType):
     """
     An Mtarget channel type (https://www.mtarget.fr/)
     """
-    code = 'MT'
+    code = "MT"
     category = ChannelType.Category.PHONE
 
-    name = "Mtarget"
-    icon = 'icon-mtarget'
+    courier_url = r"^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
-    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Kinshasa", "Europe/Paris"]
-    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Kinshasa", "Europe/Paris"]
+    name = "Mtarget"
+    icon = "icon-mtarget"
+
+    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
+    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
 
     schemes = [TEL_SCHEME]
     max_length = 765
