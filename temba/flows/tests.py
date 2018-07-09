@@ -7721,10 +7721,10 @@ class FlowsTest(FlowFileTest):
             {
                 "category": "Other",
                 "created_on": matchers.ISODate(),
-                "input": "",
+                "input": "(206) 555-3030",
                 "name": "Member",
                 "node_uuid": matchers.UUID4String(),
-                "value": "",
+                "value": "(206) 555-3030",
             },
         )
 
