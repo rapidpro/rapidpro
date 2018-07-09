@@ -303,7 +303,7 @@ class FlowServerClient(object):
 
     def __init__(self, base_url, debug=False):
         self.base_url = base_url
-        self.debug = True
+        self.debug = debug
 
     def request_builder(self, org, asset_timestamp):
         assets_host = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)

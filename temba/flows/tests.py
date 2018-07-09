@@ -5587,6 +5587,7 @@ class WebhookTest(TembaTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
+    @also_in_flowserver
     @override_settings(SEND_WEBHOOKS=True)
     def test_resthook(self, in_flowserver):
         self.contact = self.create_contact("Macklemore", "+12067799294")
@@ -5635,6 +5636,10 @@ class WebhookTest(TembaTest):
         self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
         self.mockRequest("POST", "/bar", "Unsubscribe", status=410)  # considered a success
         self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
+
+        # TODO remove this after fixing https://github.com/nyaruka/goflow/issues/332
+        if in_flowserver:
+            self.mockRequest("POST", "/bar", '{ "code": "XXCXCVXVVXV" }')
 
         # start over
         webhook_flow.start([], [self.contact], restart_participants=True)
