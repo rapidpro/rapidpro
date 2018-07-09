@@ -36,7 +36,6 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
         return self._handle_request("GET")
 
     def do_POST(self):
-        print(self.headers)
         ctype, pdict = parse_header(self.headers["content-type"])
         if ctype == "multipart/form-data":
             data = parse_multipart(self.rfile, pdict)

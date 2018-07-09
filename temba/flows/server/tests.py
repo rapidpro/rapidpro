@@ -146,7 +146,6 @@ class TrialTest(TembaTest):
 
         self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
         self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("resthooks")))  # resthooks
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
