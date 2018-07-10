@@ -449,9 +449,6 @@ class TembaTestMixin(object):
             if actual is None:
                 actual = ""
 
-            if isinstance(actual, datetime):
-                actual = actual
-
             actual_values.append(actual)
 
         for index, expected in enumerate(expected_values):
