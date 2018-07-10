@@ -747,7 +747,7 @@ class Msg(models.Model):
 
     DIRECTION_CHOICES = ((INCOMING, _("Incoming")), (OUTGOING, _("Outgoing")))
 
-    MSG_TYPES = (
+    MSG_TYPES_CHOICES = (
         (INBOX, _("Inbox Message")),
         (FLOW, _("Flow Message")),
         (IVR, _("IVR Message")),
@@ -770,10 +770,10 @@ class Msg(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    STATUSES_FOR_ARCHIVES = extract_constants(STATUS_CONFIG)
-    VISIBILITIES_FOR_ARCHIVES = extract_constants(VISIBILITY_CONFIG)
-    DIRECTIONS_FOR_ARCHIVES = {INCOMING: "in", OUTGOING: "out"}
-    MSG_TYPES_FOR_ARCHIVES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
+    STATUSES = extract_constants(STATUS_CONFIG)
+    VISIBILITIES = extract_constants(VISIBILITY_CONFIG)
+    DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
+    MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
     uuid = models.UUIDField(null=True, default=uuid4, help_text=_("The UUID for this message"))
 
@@ -890,7 +890,7 @@ class Msg(models.Model):
 
     msg_type = models.CharField(
         max_length=1,
-        choices=MSG_TYPES,
+        choices=MSG_TYPES_CHOICES,
         null=True,
         verbose_name=_("Message Type"),
         help_text=_("The type of this message"),
@@ -1207,10 +1207,10 @@ class Msg(models.Model):
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "direction": Msg.DIRECTIONS_FOR_ARCHIVES.get(self.direction),
-            "msg_type": Msg.MSG_TYPES_FOR_ARCHIVES.get(self.msg_type),
-            "status": Msg.STATUSES_FOR_ARCHIVES.get(self.status),
-            "visibility": Msg.VISIBILITIES_FOR_ARCHIVES.get(self.visibility),
+            "direction": Msg.DIRECTIONS.get(self.direction),
+            "msg_type": Msg.MSG_TYPES.get(self.msg_type),
+            "status": Msg.STATUSES.get(self.status),
+            "visibility": Msg.VISIBILITIES.get(self.visibility),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": l.uuid, "name": l.name} for l in self.labels.all()],
