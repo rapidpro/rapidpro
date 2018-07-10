@@ -777,6 +777,8 @@ class FlowRunReadSerializer(ReadSerializer):
                 "category": result[FlowRun.RESULT_CATEGORY],
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
+                "input": result.get(FlowRun.RESULT_INPUT),
+                "name": result.get(FlowRun.RESULT_NAME),
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}

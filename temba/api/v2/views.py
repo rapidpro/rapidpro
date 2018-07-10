@@ -2998,13 +2998,17 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                         "value": "blue",
                         "category": "Blue",
                         "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
-                        "time": "2015-11-11T13:03:51.635662Z"
+                        "time": "2015-11-11T13:03:51.635662Z",
+                        "name": "color",
+                        "input": "it is blue",
                     },
                     "reason": {
                         "value": "Because it's the color of sky",
                         "category": "All Responses",
                         "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
-                        "time": "2015-11-11T13:05:57.576056Z"
+                        "time": "2015-11-11T13:05:57.576056Z",
+                        "name": "reason",
+                        "input" "Because it's the color of sky",
                     }
                 },
                 "created_on": "2015-11-11T13:05:57.457742Z",
