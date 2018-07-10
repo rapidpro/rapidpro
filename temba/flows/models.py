@@ -5464,7 +5464,9 @@ class ExportFlowResultsTask(BaseExportTask):
             runs_exported += len(batch)
             if runs_exported % 10000 == 0:  # pragma: no cover
                 mins = (time.time() - start) / 60
-                print(f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins")
+                logger.info(
+                    f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins"
+                )
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
@@ -5472,7 +5474,7 @@ class ExportFlowResultsTask(BaseExportTask):
         return temp, "xlsx"
 
     def _get_run_batches(self, flows, responded_only):
-        print(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
+        logger.info(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")
 
         # firstly get runs from archives
         from temba.archives.models import Archive
@@ -5518,7 +5520,9 @@ class ExportFlowResultsTask(BaseExportTask):
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
 
-        print(f"Results export #{self.id} for org #{self.org.id}: found {len(run_ids)} runs in database to export")
+        logger.info(
+            f"Results export #{self.id} for org #{self.org.id}: found {len(run_ids)} runs in database to export"
+        )
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (

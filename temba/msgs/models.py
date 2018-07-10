@@ -2494,7 +2494,9 @@ class ExportMessagesTask(BaseExportTask):
             msgs_exported += len(batch)
             if msgs_exported % 10000 == 0:  # pragma: needs cover
                 mins = (time.time() - start) / 60
-                print(f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins")
+                logger.info(
+                    f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins"
+                )
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)
@@ -2502,7 +2504,7 @@ class ExportMessagesTask(BaseExportTask):
         return temp, "xlsx"
 
     def _get_msg_batches(self, system_label, label, start_date, end_date, group_contacts):
-        print(f"Msgs export #{self.id} for org #{self.org.id}: fetching msgs from archives to export...")
+        logger.info(f"Msgs export #{self.id} for org #{self.org.id}: fetching msgs from archives to export...")
 
         # firstly get runs from archives
         from temba.archives.models import Archive
@@ -2584,7 +2586,7 @@ class ExportMessagesTask(BaseExportTask):
 
         all_message_ids = array(str("l"), messages.values_list("id", flat=True))
 
-        print(
+        logger.info(
             f"Msgs export #{self.id} for org #{self.org.id}: found {len(all_message_ids)} msgs in database to export"
         )
 

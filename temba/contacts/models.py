@@ -3190,7 +3190,7 @@ class ExportContactsTask(BaseExportTask):
                     elapsed = time.time() - start
                     predicted = elapsed // (current_contact / len(contact_ids))
 
-                    print(
+                    logger.info(
                         "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
                         % (
                             self.org.name,
