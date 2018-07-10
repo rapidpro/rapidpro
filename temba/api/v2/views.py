@@ -796,6 +796,11 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+        
+        # filter by NAME (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name=name)
 
         queryset = queryset.prefetch_related(
             Prefetch('group', queryset=ContactGroup.user_groups.only('uuid', 'name')),
@@ -812,6 +817,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             'slug': 'campaign-list',
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A campaign NAME to filter by"}
             ]
         }
 
@@ -1817,6 +1823,11 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
+        # filter by NAME (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name=name)
+
         queryset = queryset.prefetch_related('labels')
 
         return self.filter_before_after(queryset, 'modified_on')
@@ -1830,6 +1841,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'flow-list',
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"},
+                {'name': "name", 'required': False, 'help': "A flow NAME filter by. ex: name_flow"},
                 {'name': 'before', 'required': False, 'help': "Only return flows modified before this date, ex: 2017-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000"}
             ]
