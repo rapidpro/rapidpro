@@ -233,3 +233,13 @@ def get_anonymous_user():
 
         _anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
     return _anon_user
+
+
+def extract_constants(config, reverse=False):
+    """
+    Extracts a mapping between db and API codes from a constant config in a model
+    """
+    if reverse:
+        return {t[2]: t[0] for t in config}
+    else:
+        return {t[0]: t[2] for t in config}

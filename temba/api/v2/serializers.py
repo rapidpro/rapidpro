@@ -10,21 +10,9 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import (
-    FLOW,
-    INBOX,
-    INCOMING,
-    IVR,
-    OUTGOING,
-    PENDING,
-    QUEUED,
-    STATUS_CONFIG,
-    Broadcast,
-    Label,
-    Msg,
-)
+from temba.msgs.models import PENDING, QUEUED, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
-from temba.utils import on_transaction_commit
+from temba.utils import extract_constants, on_transaction_commit
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 
@@ -37,16 +25,6 @@ def format_datetime(value):
     Datetime fields are formatted with microsecond accuracy for v2
     """
     return datetime_to_json_date(value, micros=True) if value else None
-
-
-def extract_constants(config, reverse=False):
-    """
-    Extracts a mapping between db and API codes from a constant config in a model
-    """
-    if reverse:
-        return {t[2]: t[0] for t in config}
-    else:
-        return {t[0]: t[2] for t in config}
 
 
 class ReadSerializer(serializers.ModelSerializer):
@@ -777,6 +755,8 @@ class FlowRunReadSerializer(ReadSerializer):
                 "category": result[FlowRun.RESULT_CATEGORY],
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
+                "input": result.get(FlowRun.RESULT_INPUT),
+                "name": result.get(FlowRun.RESULT_NAME),
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}
@@ -926,10 +906,6 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    STATUSES = extract_constants(STATUS_CONFIG)
-    VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
-    DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
-    MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
     broadcast = serializers.SerializerMethodField()
     contact = fields.ContactField()
@@ -948,14 +924,14 @@ class MsgReadSerializer(ReadSerializer):
         return obj.broadcast_id
 
     def get_direction(self, obj):
-        return self.DIRECTIONS.get(obj.direction)
+        return Msg.DIRECTIONS.get(obj.direction)
 
     def get_type(self, obj):
-        return self.MSG_TYPES.get(obj.msg_type)
+        return Msg.MSG_TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
         # PENDING and QUEUED are same as far as users are concerned
-        return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
+        return Msg.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]
@@ -967,7 +943,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
-        return self.VISIBILITIES.get(obj.visibility)
+        return Msg.VISIBILITIES.get(obj.visibility)
 
     class Meta:
         model = Msg
