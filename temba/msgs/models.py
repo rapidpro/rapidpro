@@ -2624,7 +2624,7 @@ class ExportMessagesTask(BaseExportTask):
             self.append_row(
                 book.current_msgs_sheet,
                 [
-                    msg["created_on"],
+                    iso8601.parse_date(msg["created_on"]),
                     msg["contact"]["uuid"],
                     msg["contact"].get("name", ""),
                     urn_path,

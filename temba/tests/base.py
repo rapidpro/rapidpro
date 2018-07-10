@@ -36,7 +36,6 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, get_anonymous_user
-from temba.utils.dates import str_to_datetime
 from temba.values.constants import Value
 
 from .http import MockServer
@@ -450,17 +449,12 @@ class TembaTestMixin(object):
             if actual is None:
                 actual = ""
 
-            if isinstance(actual, datetime):
-                actual = actual
-
             actual_values.append(actual)
 
         for index, expected in enumerate(expected_values):
             actual = actual_values[index]
 
             if isinstance(expected, datetime):
-                if not isinstance(actual, datetime):
-                    actual = str_to_datetime(actual, tz).astimezone(tz).replace(microsecond=0, tzinfo=None)
                 close_enough = abs(expected - actual) < timedelta(seconds=1)
                 self.assertTrue(close_enough, "Datetime value %s doesn't match %s" % (expected, actual))
             else:
