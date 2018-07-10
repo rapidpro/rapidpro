@@ -1106,8 +1106,8 @@ class MsgTest(TembaTest):
                 "?l=I",
                 {
                     "export_all": 0,
-                    "start_date": msg5.created_on.strftime("%B %d, %Y"),
-                    "end_date": msg7.created_on.strftime("%B %d, %Y"),
+                    "start_date": msg5.created_on.astimezone(self.org.timezone).strftime("%B %d, %Y"),
+                    "end_date": msg7.created_on.astimezone(self.org.timezone).strftime("%B %d, %Y"),
                 },
             )
 
