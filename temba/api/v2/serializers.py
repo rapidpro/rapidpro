@@ -777,7 +777,7 @@ class FlowRunReadSerializer(ReadSerializer):
                 "category": result[FlowRun.RESULT_CATEGORY],
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
-                "input": result[FlowRun.RESULT_INPUT],
+                "input": result.get(FlowRun.RESULT_INPUT),
                 "name": result[FlowRun.RESULT_NAME],
             }
 
