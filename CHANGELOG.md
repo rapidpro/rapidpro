@@ -1,3 +1,11 @@
+v3.0.448
+----------
+ * Support audio attachments in all the audio formats that we can play
+ * Add name and input to runs API v2 endpoint
+ * Update InGroup test to match latest goflow
+ * Expose resthooks over the assets endpoint and update logic to match new engine
+ * Support messages export from archives
+
 v3.0.447
 ----------
  * Configure Celery to discover Wechat and Whatsapp tasks
