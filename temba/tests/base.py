@@ -427,6 +427,11 @@ class TembaTestMixin(object):
                 "test has %d unused mock requests: %s"
                 % (len(mock_server.mocked_requests), mock_server.mocked_requests)
             )
+        if self.mock_server.unexpected_requests:
+            self.fail(
+                "test made %d expected requests: %s"
+                % (len(mock_server.unexpected_requests), mock_server.unexpected_requests)
+            )
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """

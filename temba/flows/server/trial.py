@@ -47,7 +47,7 @@ def is_flow_suitable(flow):
         return False
 
     for rule_set in flow.rule_sets.all():
-        if rule_set.ruleset_type in (RuleSet.TYPE_AIRTIME, RuleSet.TYPE_RESTHOOK):
+        if rule_set.ruleset_type == RuleSet.TYPE_AIRTIME:
             return False
 
     return True

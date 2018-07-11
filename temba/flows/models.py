@@ -3509,6 +3509,42 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("No such flow with UUID %s" % flow_ref["uuid"])
 
+    def apply_resthook_called(self, event, msg_in):
+        """
+        A resthook was called
+        """
+        from temba.api.models import Resthook, WebHookEvent, WebHookResult
+
+        user = get_flow_user(self.org)
+        resthook = Resthook.get_or_create(self.org, slug=event["resthook"], user=user)
+        payload = json.loads(event["payload"])
+        calls = event.get("calls", [])
+
+        if not calls:
+            calls.append({"status": "success", "status_code": 200, "url": None})
+
+        for call in calls:
+            url, status, status_code = call["url"], call["status"], call["status_code"]
+
+            if status_code == 410:
+                resthook.remove_subscriber(call["url"], user)
+
+            webhook = WebHookEvent.objects.create(
+                org=self.org,
+                resthook=resthook,
+                status=WebHookEvent.STATUS_FAILED if status != "success" else WebHookEvent.STATUS_COMPLETE,
+                run=self,
+                event=WebHookEvent.TYPE_FLOW,
+                action="POST",
+                data=payload,
+                created_by=user,
+                modified_by=user,
+            )
+            if url:
+                WebHookResult.record_result(
+                    webhook, {"url": url, "message": status, "data": event["payload"], "status_code": status_code}
+                )
+
     def apply_error(self, event, msg_in):
         """
         The flowserver recorded a non-fatal error event
@@ -4588,7 +4624,10 @@ class RuleSet(models.Model):
                         return rule, value, None
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            urls = []
             header = {}
+            action = "POST"
+            resthook = None
             requests_made = []
 
             # figure out which URLs will be called
@@ -4614,11 +4653,8 @@ class RuleSet(models.Model):
                 if not urls:
                     urls = [None]
 
-                action = "POST"
-
-            # by default we are a failure (there are no resthooks for example)
-            status_code = None
-            body = ""
+            # track our last successful and failed webhook calls
+            last_success, last_failure = None, None
 
             for url in urls:
                 from temba.api.models import WebHookEvent
@@ -4628,38 +4664,29 @@ class RuleSet(models.Model):
                     run, value, self.uuid, msg, action, resthook=resthook, headers=header
                 )
 
-                # we haven't recorded any status yet, do so
-                if not status_code:
-                    status_code = result.status_code
-                    body = result.body
-
                 # our subscriber is no longer interested, remove this URL as a subscriber
-                if result.status_code == 410:
+                if resthook and url and result.status_code == 410:
                     resthook.remove_subscriber(url, run.flow.created_by)
+                    result.status_code = 200
 
-                # if this is a success and we haven't ever succeeded, set our code and body
-                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):  # pragma: needs cover
-                    status_code = result.status_code
-                    body = result.body
-
-                # this was an empty URL, treat it as success regardless
                 if url is None:
-                    status_code = 200
-                    body = _("No subscribers to this event")
+                    continue
+                elif 200 <= result.status_code < 300 or result.status_code == 410:
+                    last_success = {"status_code": result.status_code, "body": result.body}
                 else:
-                    requests_made.append("%s %s" % (action, value))
+                    last_failure = {"status_code": result.status_code, "body": result.body}
 
+                requests_made.append("%s %s" % (action, value))
+
+            # if we have a failed call, use that, if not the last call, if no calls then mock a successful one
+            use_call = last_failure or last_success or {"status_code": 200, "body": _("No subscribers to this event")}
             result_input = "\n".join(requests_made)
-
-            # default to a status code of 418 if we made no calls
-            if not status_code:  # pragma: needs cover
-                status_code = 418
 
             # find our matching rule, we pass in the status from our calls
             for rule in self.get_rules():
-                (result, value) = rule.matches(run, msg, context, str(status_code))
+                (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
                 if result > 0:
-                    return rule, body, result_input
+                    return rule, use_call["body"], result_input
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -4709,7 +4736,7 @@ class RuleSet(models.Model):
 
             elif self.ruleset_type == RuleSet.TYPE_GROUP:
                 # this won't actually be used by the rules, but will end up in the results
-                operand = run.contact.name or ""
+                operand = run.contact.get_display() or ""
 
             try:
                 rules = self.get_rules()

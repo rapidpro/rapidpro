@@ -5587,9 +5587,9 @@ class WebhookTest(TembaTest):
         # check all our mocked requests were made
         self.assertAllRequestsMade()
 
-    # @also_in_flowserver  see https://github.com/nyaruka/goflow/issues/268
+    @also_in_flowserver
     @override_settings(SEND_WEBHOOKS=True)
-    def test_resthook(self):
+    def test_resthook(self, in_flowserver):
         self.contact = self.create_contact("Macklemore", "+12067799294")
         webhook_flow = self.get_flow("resthooks")
 
@@ -5617,24 +5617,36 @@ class WebhookTest(TembaTest):
         Msg.objects.filter(contact=self.contact).delete()
 
         self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
-        self.mockRequest("POST", "/bar", "Failure", status=400)
-        self.mockRequest("POST", "/foo", "Unsubscribe", status=410)
-        self.mockRequest("POST", "/bar", "Failure", status=400)
+        self.mockRequest("POST", "/bar", '{ "code": "ERYEHYREYRE" }')
+        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
+        self.mockRequest("POST", "/bar", "Failure 2", status=400)
 
-        # start over, have our first webhook fail, check that routing still works with failure
+        # start over
         webhook_flow.start([], [self.contact], restart_participants=True)
 
         msgs = list(self.contact.msgs.order_by("id"))
 
-        # first should be a success because we had at least one success
+        # first should be a success because both URLs returned successes
         self.assertEqual(msgs[0].text, "That was a success.")
 
-        # second, both failed so should be a failure
+        # second, one failed so should be a failure
         self.assertEqual(msgs[1].text, "The second failed.")
 
+        # if a URL returns 410 we need to remove it
+        self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
+        self.mockRequest("POST", "/bar", "Unsubscribe", status=410)  # considered a success
+        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
+
+        # TODO remove this after fixing https://github.com/nyaruka/goflow/issues/332
+        if in_flowserver:
+            self.mockRequest("POST", "/bar", '{ "code": "XXCXCVXVVXV" }')
+
+        # start over
+        webhook_flow.start([], [self.contact], restart_participants=True)
+
         # we should also have unsubscribed from one of our endpoints
-        self.assertTrue(resthook.subscribers.filter(is_active=False, target_url="http://localhost:49999/foo"))
-        self.assertTrue(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/bar"))
+        self.assertTrue(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/foo"))
+        self.assertFalse(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/bar"))
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
@@ -7709,10 +7721,10 @@ class FlowsTest(FlowFileTest):
             {
                 "category": "Other",
                 "created_on": matchers.ISODate(),
-                "input": "",
+                "input": "(206) 555-3030",
                 "name": "Member",
                 "node_uuid": matchers.UUID4String(),
-                "value": "",
+                "value": "(206) 555-3030",
             },
         )
 
@@ -11248,4 +11260,25 @@ class AssetServerTest(TembaTest):
                     },
                 ],
             },
+        )
+
+    def test_resthooks(self):
+        self.login(self.admin)
+
+        response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
+        self.assertEqual(response.json(), [])
+
+        hook = Resthook.get_or_create(self.org, "new-registration", self.admin)
+        hook.add_subscriber("http://localhost/call_me_maybe", self.admin)
+        hook.add_subscriber("http://localhost/please", self.admin)
+
+        response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
+        self.assertEqual(
+            response.json(),
+            [
+                {
+                    "slug": "new-registration",
+                    "subscribers": ["http://localhost/call_me_maybe", "http://localhost/please"],
+                }
+            ],
         )
