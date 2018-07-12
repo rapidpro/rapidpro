@@ -1,3 +1,9 @@
+v3.0.449
+----------
+ * Improve error message when saving surveyor run fails
+ * Allow surveyor submissions to match rules on old revisions
+ * Fix bug in msg export from archives
+
 v3.0.448
 ----------
  * Support audio attachments in all the audio formats that we can play
