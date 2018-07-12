@@ -83,6 +83,79 @@ class MsgTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+    def test_msg_as_archive_json(self):
+        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
+        self.assertEqual(
+            msg1.as_archive_json(),
+            {
+                "id": msg1.id,
+                "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "urn": "tel:123",
+                "direction": "in",
+                "type": "inbox",
+                "status": "handled",
+                "visibility": "visible",
+                "text": "i'm having a problem",
+                "attachments": [],
+                "labels": [],
+                "created_on": msg1.created_on.isoformat(),
+                "sent_on": msg1.sent_on.isoformat(),
+            },
+        )
+
+        # label first message
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
+        label.toggle_label([msg1], add=True)
+
+        self.assertEqual(
+            msg1.as_archive_json(),
+            {
+                "id": msg1.id,
+                "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "urn": "tel:123",
+                "direction": "in",
+                "type": "inbox",
+                "status": "handled",
+                "visibility": "visible",
+                "text": "i'm having a problem",
+                "attachments": [],
+                "labels": [{"uuid": str(label.uuid), "name": "la\x02bel1"}],
+                "created_on": msg1.created_on.isoformat(),
+                "sent_on": msg1.sent_on.isoformat(),
+            },
+        )
+
+        msg2 = self.create_msg(
+            contact=self.joe,
+            text="Media message",
+            direction="I",
+            status=HANDLED,
+            msg_type="I",
+            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
+        )
+
+        self.assertEqual(
+            msg2.as_archive_json(),
+            {
+                "id": msg2.id,
+                "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "urn": "tel:123",
+                "direction": "in",
+                "type": "inbox",
+                "status": "handled",
+                "visibility": "visible",
+                "text": "Media message",
+                "attachments": [{"url": "http://rapidpro.io/audio/sound.mp3", "content_type": "audio"}],
+                "labels": [],
+                "created_on": msg2.created_on.isoformat(),
+                "sent_on": None,
+            },
+        )
+
     def test_deletes(self):
 
         # create some incoming messages
