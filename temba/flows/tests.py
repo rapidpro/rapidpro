@@ -1568,6 +1568,108 @@ class FlowTest(TembaTest):
             tz,
         )
 
+    def test_run_as_archive_json(self):
+        contact1_run = self.flow.start([], [self.contact])[0]
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
+        Flow.find_and_handle(contact1_in1)
+
+        # we now have 4 runs in this order of modified_on
+        contact1_run.refresh_from_db()
+
+        self.assertEqual(
+            set(contact1_run.as_archive_json().keys()),
+            set(
+                [
+                    "id",
+                    "flow",
+                    "contact",
+                    "responded",
+                    "path",
+                    "values",
+                    "events",
+                    "created_on",
+                    "modified_on",
+                    "exited_on",
+                    "exit_type",
+                    "submitted_by",
+                ]
+            ),
+        )
+
+        self.assertEqual(contact1_run.as_archive_json()["id"], contact1_run.id)
+        self.assertEqual(contact1_run.as_archive_json()["flow"], {"uuid": str(self.flow.uuid), "name": "Color Flow"})
+        self.assertEqual(contact1_run.as_archive_json()["contact"], {"uuid": str(self.contact.uuid), "name": "Eric"})
+        self.assertTrue(contact1_run.as_archive_json()["responded"])
+
+        self.assertEqual(
+            contact1_run.as_archive_json()["path"],
+            [
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+            ],
+        )
+
+        self.assertEqual(
+            contact1_run.as_archive_json()["values"],
+            {
+                "color": {
+                    "category": "Other",
+                    "input": "green",
+                    "name": "color",
+                    "node": matchers.UUID4String(),
+                    "time": matchers.ISODate(),
+                    "value": "green",
+                }
+            },
+        )
+
+        self.assertEqual(
+            contact1_run.as_archive_json()["events"],
+            [
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "What is your favorite color?",
+                        "urn": "tel:+250788382382",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_created",
+                },
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "green",
+                        "urn": "tel:+250788382382",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_received",
+                },
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "That is a funny color. Try again.",
+                        "urn": "tel:+250788382382",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_created",
+                },
+            ],
+        )
+
+        self.assertEqual(contact1_run.as_archive_json()["created_on"], contact1_run.created_on.isoformat())
+        self.assertEqual(contact1_run.as_archive_json()["modified_on"], contact1_run.modified_on.isoformat())
+        self.assertIsNone(contact1_run.as_archive_json()["exit_type"])
+        self.assertIsNone(contact1_run.as_archive_json()["exited_on"])
+        self.assertIsNone(contact1_run.as_archive_json()["submitted_by"])
+
     def test_export_results_from_archives(self):
         contact1_run, contact2_run = self.flow.start([], [self.contact, self.contact2])
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")

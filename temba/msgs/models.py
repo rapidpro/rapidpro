@@ -1208,7 +1208,7 @@ class Msg(models.Model):
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
             "direction": Msg.DIRECTIONS.get(self.direction),
-            "msg_type": Msg.MSG_TYPES.get(self.msg_type),
+            "type": Msg.MSG_TYPES.get(self.msg_type),
             "status": Msg.STATUSES.get(self.status),
             "visibility": Msg.VISIBILITIES.get(self.visibility),
             "text": self.text,
@@ -2547,7 +2547,7 @@ class ExportMessagesTask(BaseExportTask):
                         if record["direction"] != direction:
                             continue
 
-                        if msg_type and record["msg_type"] != msg_type:
+                        if msg_type and record["type"] != msg_type:
                             continue
 
                         if statuses and record["status"] not in statuses:
