@@ -3684,25 +3684,25 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         )
                         self.add_messages([incoming])
 
-                    ruleset = self.flow.rule_sets.filter(uuid=str(node.uuid)).first()
-                    if ruleset:
-                        # look for an exact rule match by UUID
-                        rule = None
-                        for r in ruleset.get_rules():
-                            if r.uuid == exit_uuid:
-                                rule = r
-                                break
+                    ruleset_obj = node.as_ruleset_obj()
 
+                    # look for an exact rule match by UUID
+                    rule = None
+                    for r in ruleset_obj.get_rules():
+                        if r.uuid == exit_uuid:
+                            rule = r
+                            break
+
+                    if not rule:
+                        # the user updated the rules try to match the new rules
+                        msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
+                        rule, value, rule_input = ruleset_obj.find_matching_rule(self, msg)
                         if not rule:
-                            # the user updated the rules try to match the new rules
-                            msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                            rule, value, rule_input = ruleset.find_matching_rule(self, msg)
-                            if not rule:
-                                raise ValueError("No such rule with UUID %s" % exit_uuid)
+                            raise ValueError("No such rule with UUID %s" % exit_uuid)
 
-                            rule_value = value
+                        rule_value = value
 
-                        ruleset.save_run_value(self, rule, rule_value, rule_input)
+                    ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
                 else:
                     self.path.append(
                         {
@@ -3731,8 +3731,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
                     self.add_messages(msgs)
 
-        self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
-        self.save(update_fields=("path", "current_node_uuid"))
+        try:
+            self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
+            self.save(update_fields=("path", "current_node_uuid"))
+        except Exception:  # pragma: no cover
+            logger.exception(
+                "unable save path for surveyor run",
+                extra={"flow": {"uuid": str(self.flow.uuid), "name": str(self.flow.name)}, "path": self.path},
+            )
 
     @classmethod
     def create(
