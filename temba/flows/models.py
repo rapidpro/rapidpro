@@ -3684,25 +3684,25 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         )
                         self.add_messages([incoming])
 
-                    ruleset = self.flow.rule_sets.filter(uuid=str(node.uuid)).first()
-                    if ruleset:
-                        # look for an exact rule match by UUID
-                        rule = None
-                        for r in ruleset.get_rules():
-                            if r.uuid == exit_uuid:
-                                rule = r
-                                break
+                    ruleset_obj = node.as_ruleset_obj()
 
+                    # look for an exact rule match by UUID
+                    rule = None
+                    for r in ruleset_obj.get_rules():
+                        if r.uuid == exit_uuid:
+                            rule = r
+                            break
+
+                    if not rule:
+                        # the user updated the rules try to match the new rules
+                        msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
+                        rule, value, rule_input = ruleset_obj.find_matching_rule(self, msg)
                         if not rule:
-                            # the user updated the rules try to match the new rules
-                            msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                            rule, value, rule_input = ruleset.find_matching_rule(self, msg)
-                            if not rule:
-                                raise ValueError("No such rule with UUID %s" % exit_uuid)
+                            raise ValueError("No such rule with UUID %s" % exit_uuid)
 
-                            rule_value = value
+                        rule_value = value
 
-                        ruleset.save_run_value(self, rule, rule_value, rule_input)
+                    ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
                 else:
                     self.path.append(
                         {
