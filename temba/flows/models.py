@@ -3731,8 +3731,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
                     self.add_messages(msgs)
 
-        self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
-        self.save(update_fields=("path", "current_node_uuid"))
+        try:
+            self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
+            self.save(update_fields=("path", "current_node_uuid"))
+        except Exception:  # pragma: no cover
+            logger.exception(
+                "unable save path for surveyor run",
+                extra={"flow": {"uuid": str(self.flow.uuid), "name": str(self.flow.name)}, "path": self.path},
+            )
 
     @classmethod
     def create(
