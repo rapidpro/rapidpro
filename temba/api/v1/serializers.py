@@ -739,7 +739,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         def is_pause(self):
             return self.node_json["ruleset_type"] in RuleSet.TYPE_WAIT
 
-        def __str__(self):
+        def __str__(self):  # pragma: no cover
             return f"{self.uuid}:{'R' if self.is_ruleset() else 'A'}"
 
 
