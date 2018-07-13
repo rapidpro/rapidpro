@@ -36,7 +36,6 @@ elasticsearch_dsl
 
 ########################## file types ##########################
 geojson
-lxml
 markdown
 pisa
 pyexcel-xls

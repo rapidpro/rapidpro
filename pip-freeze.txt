@@ -69,7 +69,6 @@ kombu==4.0.2              # via celery
 librato-bg==1.0.6
 librato-metrics==0.8.5    # via librato-bg
 lml==0.0.1                # via pyexcel, pyexcel-io
-lxml==3.8.0
 markdown==2.6.8
 mccabe==0.6.1             # via flake8
 microsofttranslator==0.8  # via django-rosetta
