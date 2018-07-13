@@ -55,6 +55,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("What HTTP method to use when calling the URL"),
         )
 
+        encoding = forms.ChoiceField(
+            Channel.ENCODING_CHOICES,
+            label=_("Encoding"),
+            help_text=_("What encoding to use for outgoing messages, used only for HTTP GET"),
+        )
+
         content_type = forms.ChoiceField(
             choices=Channel.CONTENT_TYPE_CHOICES, help_text=_("The content type used when sending the request")
         )
@@ -91,6 +97,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         method = forms.ChoiceField(
             choices=(("POST", "HTTP POST"), ("GET", "HTTP GET"), ("PUT", "HTTP PUT")),
             help_text=_("What HTTP method to use when calling the URL"),
+        )
+
+        encoding = forms.ChoiceField(
+            Channel.ENCODING_CHOICES,
+            label=_("Encoding"),
+            help_text=_("What encoding to use for outgoing messages, used only for HTTP GET"),
         )
 
     title = "Connect External Service"
@@ -141,6 +153,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_SEND_METHOD: data["method"],
             Channel.CONFIG_CONTENT_TYPE: data["content_type"],
             Channel.CONFIG_MAX_LENGTH: data["max_length"],
+            Channel.CONFIG_ENCODING: data.get("encoding", Channel.ENCODING_DEFAULT),
         }
 
         if "body" in data:

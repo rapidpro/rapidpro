@@ -31,6 +31,7 @@ class ExternalTypeTest(TembaTest):
         post_data["scheme"] = "tel"
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
+        post_data["encoding"] = Channel.ENCODING_SMART
 
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
@@ -43,6 +44,7 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
         self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, "EX")
+        self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
