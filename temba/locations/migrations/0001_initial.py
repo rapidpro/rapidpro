@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL)]
+    dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL), ("utils", "0001_initial")]
 
     operations = [
         migrations.CreateModel(

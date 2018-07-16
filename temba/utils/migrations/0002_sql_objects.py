@@ -26,10 +26,11 @@ class Migration(migrations.Migration):
         ("schedules", "0001_initial"),
         ("triggers", "0001_initial"),
         ("ussd", "0001_initial"),
+        ("utils", "0001_initial"),
     ]
 
     operations = [
-        InstallSQL("current_indexes.sql"),
-        InstallSQL("current_functions.sql"),
-        InstallSQL("current_triggers.sql"),
+        InstallSQL("current_indexes"),
+        InstallSQL("current_functions"),
+        InstallSQL("current_triggers"),
     ]
