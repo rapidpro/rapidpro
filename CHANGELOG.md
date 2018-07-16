@@ -1,6 +1,5 @@
 v3.0.999
 ----------
-'# Enter any comments for inclusion in the CHANGELOG on this revision below, you can use markdown
  * Fix chatbase font icon name
  * Add encoding config to EX channel type
  * Show archive link and information on org page
