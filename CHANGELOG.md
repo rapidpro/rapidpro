@@ -1,3 +1,7 @@
+v3.0.1000
+----------
+ * fix display of archives formax on home page
+
 v3.0.999
 ----------
  * Fix chatbase font icon name
