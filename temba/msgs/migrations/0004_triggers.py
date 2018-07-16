@@ -33,6 +33,6 @@ CREATE TRIGGER temba_when_msgs_update_then_update_topupcredits
 
 class Migration(migrations.Migration):
 
-    dependencies = [("msgs", "0003_procs")]
+    dependencies = [("msgs", "0003_procs"), ("orgs", "0003_procs")]
 
     operations = [migrations.RunSQL(SQL)]

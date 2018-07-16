@@ -5,10 +5,6 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 SQL = """
--- indexes for fast fetching of unsquashed rows
-CREATE INDEX orgs_debit_unsquashed_purged
-ON orgs_debit(topup_id) WHERE NOT is_squashed AND debit_type = 'P';
-
 CREATE INDEX orgs_topupcredits_unsquashed
 ON orgs_topupcredits(topup_id) WHERE NOT is_squashed;
 """

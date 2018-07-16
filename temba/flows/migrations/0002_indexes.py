@@ -7,8 +7,6 @@ from django.db import migrations
 SQL = """
 CREATE INDEX flows_flowpathcount_unsquashed ON flows_flowpathcount(flow_id, from_uuid, to_uuid, period) WHERE NOT is_squashed;
 
-CREATE INDEX flows_flowpathrecentstep_from_to_left ON flows_flowpathrecentstep (from_uuid, to_uuid, left_on DESC);
-
 CREATE INDEX flows_flowrun_contact_flow_created_on_id_idx ON flows_flowrun(contact_id, flow_id, created_on desc, id desc) WHERE is_active = TRUE;
 
 CREATE INDEX flows_flowrun_expires_on ON flows_flowrun(expires_on) WHERE is_active = TRUE;

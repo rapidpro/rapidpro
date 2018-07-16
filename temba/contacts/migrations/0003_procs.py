@@ -35,14 +35,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION
-  extract_jsonb_keys(_jsonb JSONB)
-RETURNS TEXT[] AS $$
-BEGIN
-  RETURN ARRAY(SELECT * FROM JSONB_OBJECT_KEYS(_jsonb));
-END;
-$$ IMMUTABLE LANGUAGE plpgsql;
-
 ----------------------------------------------------------------------
 -- Utility function to lookup whether a contact is a simulator contact
 ----------------------------------------------------------------------

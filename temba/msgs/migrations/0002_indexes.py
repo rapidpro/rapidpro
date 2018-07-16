@@ -47,7 +47,7 @@ WHERE direction = 'I';
 
 -- index for fast fetching of unsquashed rows
 CREATE INDEX msgs_systemlabel_unsquashed
-ON msgs_systemlabel(org_id, label_type) WHERE NOT is_squashed;
+ON msgs_systemlabelcount(org_id, label_type) WHERE NOT is_squashed;
 """
 
 
