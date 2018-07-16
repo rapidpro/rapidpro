@@ -1301,7 +1301,7 @@ class Flow(TembaModel):
         return changed
 
     @classmethod
-    def get_versions_before(cls, version_number):
+    def get_versions_before(cls, version_number):  # pragma: no cover
         versions = []
         version_str = str(version_number)
         for ver in Flow.VERSIONS:
