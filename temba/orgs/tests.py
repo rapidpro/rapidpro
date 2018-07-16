@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import (
@@ -34,12 +35,13 @@ from temba.contacts.models import (
     ContactGroup,
     ContactURN,
 )
-from temba.flows.models import ActionSet, AddToGroupAction, Flow
+from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
 from temba.tests import MockResponse, TembaTest
+from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, languages
@@ -67,7 +69,6 @@ from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
-
     def test_group_perms_wrapper(self):
         administrators = Group.objects.get(name="Administrators")
         editors = Group.objects.get(name="Editors")
@@ -86,8 +87,267 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(viewers_wrapper["msgs"]["msg_inbox"])
 
 
-class OrgTest(TembaTest):
+class UserTest(TembaTest):
+    def test_ui_permissions(self):
+        # non-logged in users can't go here
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertRedirect(response, "/users/login/")
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
+        self.assertRedirect(response, "/users/login/")
 
+        # either can admins
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertRedirect(response, "/users/login/")
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
+        self.assertRedirect(response, "/users/login/")
+
+        self.editor.refresh_from_db()
+        self.assertTrue(self.editor.is_active)
+
+    def test_ui_management(self):
+
+        # only customer support gets in on this sweet action
+        self.login(self.customer_support)
+
+        # one of our users should belong to a bunch of orgs
+        for i in range(5):
+            org = Org.objects.create(
+                name=f"Org {i}",
+                timezone=pytz.timezone("Africa/Kigali"),
+                country=self.country,
+                brand=settings.DEFAULT_BRAND,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+            org.administrators.add(self.admin)
+
+        response = self.client.get(reverse("orgs.user_list"))
+        self.assertEqual(200, response.status_code)
+
+        # our user with lots of orgs should get ellipsized
+        self.assertContains(response, ", ...")
+
+        response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), dict(delete=True))
+        self.assertEqual(302, response.status_code)
+
+        self.editor.refresh_from_db()
+        self.assertFalse(self.editor.is_active)
+
+    def test_release_cross_brand(self):
+        # create a second org
+        branded_org = Org.objects.create(
+            name="Other Brand Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand="some-other-brand.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        branded_org.administrators.add(self.admin)
+
+        # now release our user on our primary brand
+        self.admin.release(settings.DEFAULT_BRAND)
+
+        # our admin should still be good
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+        self.assertEqual("Administrator@nyaruka.com", self.admin.email)
+
+        # but she should be removed from org
+        self.assertFalse(self.admin.get_user_orgs(settings.DEFAULT_BRAND).exists())
+
+        # now lets release her from the branded org
+        self.admin.release("some-other-brand.com")
+
+        # now she gets deactivated and ambiguated and belongs to no orgs
+        self.assertFalse(self.admin.is_active)
+        self.assertNotEqual("Administrator@nyaruka.com", self.admin.email)
+        self.assertFalse(self.admin.get_user_orgs().exists())
+
+    def test_release(self):
+
+        # admin doesn't "own" any orgs
+        self.assertEqual(0, len(self.admin.get_owned_orgs()))
+
+        # release all but our admin
+        self.surveyor.release(self.org.brand)
+        self.editor.release(self.org.brand)
+        self.user.release(self.org.brand)
+
+        # still a user left, our org remains active
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_active)
+
+        # now that we are the last user, we own it now
+        self.assertEqual(1, len(self.admin.get_owned_orgs()))
+        self.admin.release(self.org.brand)
+
+        # and we take our org with us
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
+
+class OrgDeleteTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        # create a second org
+        self.child_org = Org.objects.create(
+            name="Child Org",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        # and give it its own channel
+        self.child_channel = Channel.create(
+            self.child_org,
+            self.user,
+            "RW",
+            "A",
+            name="Test Channel",
+            address="+250785551212",
+            device="Nexus 5X",
+            secret="54321",
+            gcm_id="123",
+        )
+
+        # our user is a member of two orgs
+        self.parent_org = self.org
+        self.child_org.administrators.add(self.user)
+        self.child_org.initialize(topup_size=0)
+        self.child_org.parent = self.parent_org
+        self.child_org.save()
+
+        # now allocate some credits to our child org
+        self.org.allocate_credits(self.admin, self.child_org, 300)
+
+        # bring in some flows
+        favorites = self.get_flow("favorites")
+        parent_contact = self.create_contact("Parent Contact", "+2345123")
+        FlowRun.create(favorites, parent_contact)
+
+        # and our child org too
+        self.org = self.child_org
+        color = self.get_flow("color")
+        child_contact = self.create_contact("Child Contact", "+3456123")
+        FlowRun.create(color, child_contact)
+
+        # triggers for our flows
+        parent_trigger = Trigger.create(
+            self.parent_org,
+            flow=favorites,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            user=self.user,
+            channel=self.channel,
+            keyword="favorites",
+        )
+        parent_trigger.groups.add(self.parent_org.all_groups.all().first())
+
+        child_trigger = Trigger.create(
+            self.child_org,
+            flow=color,
+            trigger_type=Trigger.TYPE_KEYWORD,
+            user=self.user,
+            channel=self.child_channel,
+            keyword="color",
+        )
+        child_trigger.groups.add(self.child_org.all_groups.all().first())
+
+        # use a credit on each
+        self.create_msg(org=self.parent_org, channel=self.channel, contact=parent_contact, text="Hola hija!")
+        self.create_msg(org=self.child_org, channel=self.child_channel, contact=child_contact, text="Hola mama!")
+
+        # create some archives
+        self.mock_s3 = MockS3Client()
+
+        def create_archive(org, period, rollup=None):
+            file = f"archive{Archive.objects.all().count()}.jsonl.gz"
+            archive = Archive.objects.create(
+                org=org,
+                url=f"http://test-bucket.aws.com/{file}",
+                start_date=timezone.now(),
+                build_time=100,
+                archive_type=Archive.TYPE_MSG,
+                period=period,
+                rollup=rollup,
+            )
+            self.mock_s3.put_jsonl("test-bucket", file, [])
+            return archive
+
+        # parent archives
+        daily = create_archive(self.parent_org, Archive.PERIOD_DAILY)
+        create_archive(self.parent_org, Archive.PERIOD_MONTHLY, daily)
+
+        # child archives
+        daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
+        create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
+
+    def release_org(self, org, child_org=None, immediately=False):
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            # save off the ids of our current users
+            org_user_ids = list(org.get_org_users().values_list("id", flat=True))
+
+            # we should be starting with some mock s3 objects
+            self.assertEqual(4, len(self.mock_s3.objects))
+
+            # release our primary org
+            org.release(immediately=immediately)
+
+            # all our users not in the other org should be inactive
+            self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
+            self.assertEqual(1, User.objects.filter(id__in=org_user_ids, is_active=True).count())
+
+            # our child org lost it's parent, but maintains an active lifestyle
+            if child_org:
+                child_org.refresh_from_db()
+                self.assertIsNone(child_org.parent)
+
+            if immediately:
+                # oh noes, we deleted our archive files!
+                self.assertEqual(2, len(self.mock_s3.objects))
+
+                # our channels and org are gone too
+                self.assertFalse(Channel.objects.filter(org=org).exists())
+                self.assertFalse(Org.objects.filter(id=org.id).exists())
+            else:
+
+                org.refresh_from_db()
+                self.assertFalse(org.is_active)
+
+                # our channel should have been made inactive
+                self.assertFalse(Channel.objects.filter(org=org, is_active=True).exists())
+                self.assertTrue(Channel.objects.filter(org=org, is_active=False).exists())
+
+    def test_release_parent(self):
+        self.release_org(self.parent_org, self.child_org)
+
+    def test_release_child(self):
+        self.release_org(self.child_org)
+
+    def test_release_parent_immediately(self):
+        self.release_org(self.parent_org, self.child_org, immediately=True)
+
+    def test_release_child_immediately(self):
+
+        # 300 credits were given to our child org and each used one
+        self.assertEqual(699, self.parent_org.get_credits_remaining())
+        self.assertEqual(299, self.child_org.get_credits_remaining())
+
+        # release our child org
+        self.release_org(self.child_org, immediately=True)
+
+        # our unused credits are returned to the parent
+        self.parent_org.clear_credit_cache()
+        self.assertEqual(998, self.parent_org.get_credits_remaining())
+
+
+class OrgTest(TembaTest):
     def test_get_org_users(self):
         org_users = self.org.get_org_users()
         self.assertTrue(self.user in org_users)
@@ -251,15 +511,15 @@ class OrgTest(TembaTest):
         # check our credits
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "999")
+        self.assertContains(response, "<span class='attn'>999</span>")
 
         # view our topups
         response = self.client.get(reverse("orgs.topup_list"))
 
-        # should say we have a 1,000 credits too
-        self.assertContains(response, "999")
-
         # and that we have 999 credits left on our topup
+        self.assertContains(response, "999\n")
+
+        # should say we have a 1,000 credits too
         self.assertContains(response, "1 of 1,000 Credits Used")
 
         # our receipt should show that the topup was free
@@ -495,6 +755,13 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_suspended())
 
+        # deactivate
+        post_data["status"] = "delete"
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+        response = self.client.get(update_url)
+
     def test_accounts(self):
         url = reverse("orgs.org_accounts")
         self.login(self.admin)
@@ -721,7 +988,6 @@ class OrgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
-
         def create_invite(group):
             return Invitation.objects.create(
                 org=self.org,
@@ -1060,6 +1326,19 @@ class OrgTest(TembaTest):
         # our first 10 messages plus our 5 pending a topup
         self.assertEqual(15, self.org.get_credits_used())
 
+    def test_low_credits_threshold(self):
+        contact = self.create_contact("Usain Bolt", "+250788123123")
+
+        # add some more unexpire topup credits
+        TopUp.create(self.admin, price=0, credits=1000)
+        TopUp.create(self.admin, price=0, credits=1000)
+        TopUp.create(self.admin, price=0, credits=1000)
+
+        # send some messages with a valid topup
+        self.create_inbound_msgs(contact, 2200)
+
+        self.assertEqual(300, self.org.get_low_credits_threshold())
+
     def test_topups(self):
 
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100000, multi_org=1000000)
@@ -1070,7 +1349,7 @@ class OrgTest(TembaTest):
 
         self.create_inbound_msgs(contact, 10)
 
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             self.assertEqual(150, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(0):
@@ -1210,7 +1489,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(2):
             self.assertTrue(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(2):
@@ -1227,7 +1506,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
@@ -1242,7 +1521,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
@@ -1257,7 +1536,7 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(1):
             self.assertFalse(self.org.is_nearing_expiration())
 
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         with self.assertNumQueries(1):
@@ -2271,7 +2550,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest):
-
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -2667,7 +2945,6 @@ class OrgCRUDLTest(TembaTest):
 
 
 class LanguageTest(TembaTest):
-
     def test_languages(self):
         url = reverse("orgs.org_languages")
 
@@ -2905,7 +3182,6 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
-
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
@@ -2992,7 +3268,7 @@ class BulkExportTest(TembaTest):
         exported = response.json()
 
         # try to import the flow
-        flow.delete()
+        flow.release()
         response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
@@ -3106,8 +3382,37 @@ class BulkExportTest(TembaTest):
         self.assertEqual(action_msg["swa"], "hello")
         self.assertEqual(action_msg["eng"], "Hey")
 
-    def test_export_import(self):
+    def test_reimport(self):
+        self.import_file("survey_campaign")
 
+        campaign = Campaign.objects.filter(is_active=True).last()
+        event = campaign.events.filter(is_active=True).last()
+
+        # create a contact and place her into our campaign
+        sally = self.create_contact("Sally", "+12345")
+        campaign.group.contacts.add(sally)
+        sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
+
+        # shoud have one event fire
+        self.assertEqual(1, event.event_fires.all().count())
+        original_fire = event.event_fires.all().first()
+
+        # importing it again shouldn't result in failures
+        self.import_file("survey_campaign")
+
+        # get our latest campaign and event
+        new_campaign = Campaign.objects.filter(is_active=True).last()
+        new_event = campaign.events.filter(is_active=True).last()
+
+        # same campaign, but new event
+        self.assertEqual(campaign.id, new_campaign.id)
+        self.assertNotEqual(event.id, new_event.id)
+
+        # should still have one fire, but it's been recreated
+        self.assertEqual(1, new_event.event_fires.all().count())
+        self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
+
+    def test_export_import(self):
         def assert_object_counts():
             self.assertEqual(
                 8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type="F").count()
@@ -3284,11 +3589,11 @@ class BulkExportTest(TembaTest):
         self.assertContains(response, "Register Patient")
 
         # delete our flow, and reimport
-        confirm_appointment.delete()
+        confirm_appointment.release()
         self.org.import_app(exported, self.admin, site="https://app.rapidpro.io")
 
         # make sure we have the previously exported expiration
-        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
+        confirm_appointment = Flow.objects.get(name="Confirm Appointment", is_active=True)
         self.assertEqual(60, confirm_appointment.expires_after_minutes)
 
         # now delete a flow
@@ -3306,7 +3611,6 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
-
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
         self.create_msg(contact=self.joe)
@@ -3445,7 +3749,6 @@ class CreditAlertTest(TembaTest):
 
 
 class EmailContextProcessorsTest(SmartminTest):
-
     def setUp(self):
         super().setUp()
         self.admin = self.create_user("Administrator")
@@ -3475,7 +3778,6 @@ class EmailContextProcessorsTest(SmartminTest):
 
 
 class StripeCreditsTest(TembaTest):
-
     @patch("stripe.Customer.create")
     @patch("stripe.Charge.create")
     @override_settings(SEND_EMAILS=True)
@@ -3581,7 +3883,6 @@ class StripeCreditsTest(TembaTest):
         self.org.save()
 
         class MockCard(object):
-
             def __init__(self):
                 self.id = "stripe-card-1"
 
@@ -3589,7 +3890,6 @@ class StripeCreditsTest(TembaTest):
                 pass
 
         class MockCards(object):
-
             def __init__(self):
                 self.throw = False
 
@@ -3603,7 +3903,6 @@ class StripeCreditsTest(TembaTest):
                     return MockCard()
 
         class MockCustomer(object):
-
             def __init__(self, id, email):
                 self.id = id
                 self.email = email
@@ -3661,7 +3960,6 @@ class StripeCreditsTest(TembaTest):
 
 
 class ParsingTest(TembaTest):
-
     def test_parse_location_path(self):
 
         self.country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)

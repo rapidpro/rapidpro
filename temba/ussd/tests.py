@@ -20,7 +20,6 @@ from .models import USSDSession
 
 
 class USSDSessionTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -450,7 +449,6 @@ class USSDSessionTest(TembaTest):
 
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
-
     def setUp(self):
         super().setUp()
 

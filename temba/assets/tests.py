@@ -7,7 +7,6 @@ from temba.tests import TembaTest
 
 
 class AssetTest(TembaTest):
-
     def tearDown(self):
         self.clear_storage()
 

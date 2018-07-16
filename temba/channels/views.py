@@ -756,7 +756,6 @@ class ClaimViewMixin(OrgPermsMixin):
     channel_type = None
 
     class Form(forms.Form):
-
         def __init__(self, **kwargs):
             self.request = kwargs.pop("request")
             self.channel_type = kwargs.pop("channel_type")
@@ -790,6 +789,20 @@ class ClaimViewMixin(OrgPermsMixin):
 
 
 class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
+    form_blurb = _("You can connect your number by entering your credentials here.")
+    username_label = _("Username")
+    username_help = _("The username provided by the provider to use their API")
+    password_label = _("Password")
+    password_help = _("The password provided by the provider to use their API")
+
+    def __init__(self, **kwargs):
+        self.form_blurb = kwargs.pop("form_blurb", self.form_blurb)
+        self.username_label = kwargs.pop("username_label", self.username_label)
+        self.username_help = kwargs.pop("username_help", self.username_help)
+        self.password_label = kwargs.pop("password_label", self.password_label)
+        self.password_help = kwargs.pop("password_help", self.password_help)
+
+        super().__init__(**kwargs)
 
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
@@ -829,6 +842,24 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
     form_class = Form
 
+    def lookup_field_label(self, context, field, default=None):
+        if field == "password":
+            return self.password_label
+
+        elif field == "username":
+            return self.username_label
+
+        return super().lookup_field_label(context, field, default=default)
+
+    def lookup_field_help(self, field, default=None):
+        if field == "password":
+            return self.password_help
+
+        elif field == "username":
+            return self.username_help
+
+        return super().lookup_field_help(field, default=default)
+
     def get_submitted_country(self, data):
         return data["country"]
 
@@ -837,6 +868,11 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         Subclasses can override this method to add in other channel config variables
         """
         return {}
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_blurb"] = self.form_blurb
+        return context
 
     def form_valid(self, form):
         org = self.request.user.get_org()
@@ -862,13 +898,11 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
 
 class AuthenticatedExternalCallbackClaimView(AuthenticatedExternalClaimView):
-
     def get_channel_config(self, org, data):
         return {Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
 
 
 class BaseClaimNumberMixin(ClaimViewMixin):
-
     def pre_process(self, *args, **kwargs):  # pragma: needs cover
         return None
 
@@ -1080,7 +1114,6 @@ class ClaimAndroidForm(forms.Form):
 
 
 class UpdateChannelForm(forms.ModelForm):
-
     def __init__(self, *args, **kwargs):
         self.object = kwargs["object"]
         del kwargs["object"]
@@ -1101,20 +1134,17 @@ class UpdateChannelForm(forms.ModelForm):
 
 
 class UpdateNexmoForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         readonly = ("country",)
 
 
 class UpdateAndroidForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         readonly = []
         helps = {"address": _("Phone number of this device")}
 
 
 class UpdateTwitterForm(UpdateChannelForm):
-
     class Meta(UpdateChannelForm.Meta):
         fields = "name", "address", "alert_email"
         readonly = ("address",)
@@ -1386,7 +1416,6 @@ class ChannelCRUDL(SmartCRUDL):
             return context
 
     class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
-
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -1445,26 +1474,18 @@ class ChannelCRUDL(SmartCRUDL):
                         ),
                     )
                 else:
-                    messages.info(request, _("Your phone number has been removed."))
+                    messages.info(request, _("Your channel has been removed."))
 
                 return HttpResponseRedirect(self.get_success_url())
 
             except TwilioRestException as e:
-                if e.code == 20003:
-                    messages.error(
-                        request,
-                        _(
-                            "We can no longer authenticate with your Twilio Account. To delete this channel please update your Twilio connection settings."
-                        ),
-                    )
-                else:
-                    messages.error(
-                        request,
-                        _(
-                            "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
-                            % e.code
-                        ),
-                    )
+                messages.error(
+                    request,
+                    _(
+                        "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+                        % e.code
+                    ),
+                )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
             except Exception as e:  # pragma: no cover
@@ -1530,7 +1551,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1564,7 +1584,6 @@ class ChannelCRUDL(SmartCRUDL):
         pass
 
     class CreateBulkSender(OrgPermsMixin, SmartFormView):
-
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
@@ -1609,7 +1628,6 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse("orgs.org_home")
 
     class CreateCaller(OrgPermsMixin, SmartFormView):
-
         class CallerForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
@@ -1763,7 +1781,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj.address if obj.address else _("Unknown")
 
     class SearchNumbers(OrgPermsMixin, SmartFormView):
-
         class SearchNumbersForm(forms.Form):
             area_code = forms.CharField(
                 max_length=3,
@@ -1834,7 +1851,6 @@ class ChannelCRUDL(SmartCRUDL):
             return JsonResponse(numbers, safe=False)
 
     class SearchNexmo(SearchNumbers):
-
         class SearchNexmoForm(forms.Form):
             area_code = forms.CharField(
                 max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
@@ -1865,7 +1881,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(dict(error=str(e)))
 
     class SearchPlivo(SearchNumbers):
-
         class SearchPlivoForm(forms.Form):
             area_code = forms.CharField(
                 max_length=3,

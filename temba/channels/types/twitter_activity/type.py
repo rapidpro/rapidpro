@@ -1,5 +1,6 @@
 import logging
 
+from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
@@ -15,19 +16,21 @@ logger = logging.getLogger(__name__)
 
 class TwitterActivityType(ChannelType):
     """
-    A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
+    A Twitter channel which uses Twitter's Account Activity API to send and receive direct messages.
     """
+
     code = "TWT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^twt/(?P<uuid>[a-z0-9\-]+)/receive$"
 
-    name = "Twitter Activity API"
+    name = "Twitter"
     icon = "icon-twitter"
 
     claim_blurb = _(
-        """If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
-    Activity API</a> which is currently in beta, you can add a Twitter channel for that here."""
+        """Send and receive messages on Twitter using their
+        <a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">
+        Twitter Activity API.</a> You will have to apply for Twitter API access and create a Twitter application."""
     )
     claim_view = ClaimView
 
@@ -36,9 +39,7 @@ class TwitterActivityType(ChannelType):
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
-
-    def is_available_to(self, user):
-        return user.is_beta()
+    async_activation = False
 
     def activate(self, channel):
         config = channel.config
@@ -48,14 +49,23 @@ class TwitterActivityType(ChannelType):
 
         callback_url = "https://%s%s" % (channel.callback_domain, reverse("courier.twt", args=[channel.uuid]))
         try:
-            client.register_webhook(config["env_name"], callback_url)
+            # check for existing hooks, if there is just one, remove it
+            hooks = client.get_webhooks(config["env_name"])
+            if len(hooks) == 1:
+                client.delete_webhook(config["env_name"], hooks[0]["id"])
+
+            resp = client.register_webhook(config["env_name"], callback_url)
+            channel.config["webhook_id"] = resp["id"]
+            channel.save(update_fields=["config"])
             client.subscribe_to_webhook(config["env_name"])
         except Exception as e:  # pragma: no cover
             logger.exception(str(e))
+            raise ValidationError(e)
 
     def deactivate(self, channel):
         config = channel.config
-        client = TembaTwython(
-            config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
-        )
-        client.delete_webhook(config["env_name"])
+        if "webhook_id" in config:
+            client = TembaTwython(
+                config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
+            )
+            client.delete_webhook(config["env_name"], config["webhook_id"])

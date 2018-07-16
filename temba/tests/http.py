@@ -13,11 +13,12 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
     def _handle_request(self, method, data=None):
 
         if not self.server.mocked_requests:
-            raise ValueError("unexpected request %s %s with no mock configured" % (method, self.path))
+            self.server.unexpected_requests.append(f"{method} {self.path}")
+            raise ValueError(f"Unexpected request {method} {self.path} with no mock configured")
 
         mock = self.server.mocked_requests[0]
         if mock.method != method or mock.path != self.path:
-            raise ValueError("expected request %s %s but received %s %s" % (mock.method, mock.path, method, self.path))
+            raise ValueError(f"Expected request {mock.method} {mock.path} but received {method} {self.path}")
 
         # add some stuff to the mock from the request that the caller might want to check
         mock.requested = True
@@ -57,7 +58,6 @@ class MockServer(HTTPServer):
     """
 
     class Request(object):
-
         def __init__(self, method, path, content, content_type, status):
             self.method = method
             self.path = path
@@ -77,6 +77,7 @@ class MockServer(HTTPServer):
 
         self.base_url = "http://localhost:49999"
         self.mocked_requests = []
+        self.unexpected_requests = []
 
     def start(self):
         """

@@ -9,7 +9,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         app_id = forms.CharField(min_length=32, required=True, help_text=_("The Jiochat App ID"))
         app_secret = forms.CharField(min_length=32, required=True, help_text=_("The Jiochat App secret"))

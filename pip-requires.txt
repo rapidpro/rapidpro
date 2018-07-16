@@ -36,14 +36,13 @@ elasticsearch_dsl
 
 ########################## file types ##########################
 geojson
-lxml
 markdown
-openpyxl
 pisa
 pyexcel-xls
 pyexcel-xlsx
 python-magic
 xlutils
+xlsxlite
 
 ########################## misc ##########################
 antlr4-python3-runtime
@@ -77,5 +76,6 @@ flake8-deprecated
 flake8-print
 isort
 mock
+openpyxl
 responses
 selenium

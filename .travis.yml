@@ -16,16 +16,18 @@ addons:
 services:
   - redis-server
 
+env:
+  - ES_VERSION=6.3.1 ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
+
 cache:
   directories:
     - "$HOME/.cache/pip"
 
-before_install:
-  - wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.deb && sudo dpkg -i --force-confnew elasticsearch-6.2.3.deb
-  - sudo service elasticsearch start
-  - sleep 10
-
 install:
+  - wget ${ES_DOWNLOAD_URL}
+  - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
+  - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
+
   # install all Python dependencies
   - travis_retry pip install --upgrade pip
   - pip --version
@@ -40,6 +42,8 @@ install:
   - npm run build
 
 before_script:
+  - wget -q --waitretry=1 --retry-connrefused -T 10 -O - http://127.0.0.1:9200
+
   # setup test database
   - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
   - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
@@ -52,7 +56,7 @@ before_script:
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
   # setup a goflow server instance
-  - GOFLOW_VERSION=0.10.7
+  - GOFLOW_VERSION=0.10.20
   - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
   - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
 
@@ -66,8 +70,8 @@ script:
   - set -e
 
   # test that everything is well formatted
-  - black --line-length=119 temba --check --quiet
-  
+  - black --line-length=119 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
+
   # test PEP8 compliance on both Python 2 and 3
   - flake8
 

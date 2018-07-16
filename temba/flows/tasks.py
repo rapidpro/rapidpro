@@ -8,7 +8,8 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, TIMEOUT_EVENT, Broadcast, Msg
+from temba.flows.models import FLOW_BATCH
+from temba.msgs.models import BROADCAST_BATCH, HANDLE_EVENT_TASK, HANDLER_QUEUE, TIMEOUT_EVENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
@@ -124,36 +125,50 @@ def start_msg_flow_batch_task():
     start = time.time()
 
     try:
-        # instantiate all the objects we need that were serialized as JSON
-        flow = Flow.objects.filter(pk=task_obj["flow"], is_active=True, is_archived=False).first()
-        if not flow:  # pragma: needs cover
-            return
+        task_type = task_obj.get("task_type", FLOW_BATCH)
 
-        broadcasts = [] if not task_obj["broadcasts"] else Broadcast.objects.filter(pk__in=task_obj["broadcasts"])
-        started_flows = [] if not task_obj["started_flows"] else task_obj["started_flows"]
-        start_msg = None if not task_obj["start_msg"] else Msg.objects.filter(id=task_obj["start_msg"]).first()
-        extra = task_obj["extra"]
-        flow_start = (
-            None if not task_obj["flow_start"] else FlowStart.objects.filter(pk=task_obj["flow_start"]).first()
-        )
-        contacts = task_obj["contacts"]
+        if task_type == FLOW_BATCH:
+            # instantiate all the objects we need that were serialized as JSON
+            flow = Flow.objects.filter(pk=task_obj["flow"], is_active=True, is_archived=False).first()
+            if not flow:  # pragma: needs cover
+                return
 
-        # and go do our work
-        flow.start_msg_flow_batch(
-            contacts,
-            broadcasts=broadcasts,
-            started_flows=started_flows,
-            start_msg=start_msg,
-            extra=extra,
-            flow_start=flow_start,
-        )
+            broadcasts = [] if not task_obj["broadcasts"] else Broadcast.objects.filter(pk__in=task_obj["broadcasts"])
+            started_flows = [] if not task_obj["started_flows"] else task_obj["started_flows"]
+            start_msg = None if not task_obj["start_msg"] else Msg.objects.filter(id=task_obj["start_msg"]).first()
+            extra = task_obj["extra"]
+            flow_start = (
+                None if not task_obj["flow_start"] else FlowStart.objects.filter(pk=task_obj["flow_start"]).first()
+            )
+            contacts = task_obj["contacts"]
+
+            # and go do our work
+            flow.start_msg_flow_batch(
+                contacts,
+                broadcasts=broadcasts,
+                started_flows=started_flows,
+                start_msg=start_msg,
+                extra=extra,
+                flow_start=flow_start,
+            )
+
+            print(
+                "Started batch of %d contacts in flow %d [%d] in %0.3fs"
+                % (len(contacts), flow.id, flow.org_id, time.time() - start)
+            )
+
+        elif task_type == BROADCAST_BATCH:
+            broadcast = Broadcast.objects.filter(org_id=org_id, id=task_obj["broadcast"]).first()
+            if broadcast:
+                broadcast.send_batch(**task_obj["kwargs"])
+
+            print(
+                "Sent batch of %d messages in broadcast [%d] in %0.3fs"
+                % (len(task_obj["kwargs"]["urn_ids"]), broadcast.id, time.time() - start)
+            )
+
     finally:
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
-
-    print(
-        "Started batch of %d contacts in flow %d [%d] in %0.3fs"
-        % (len(contacts), flow.id, flow.org_id, time.time() - start)
-    )
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts")
@@ -170,7 +185,7 @@ def squash_flowruncounts():
     FlowStartCount.squash()
 
 
-@task(track_started=True, name="deactivate_flow_runs_task")
-def deactivate_flow_runs_task(flow_id):
+@task(track_started=True, name="release_flow_runs_task")
+def release_flow_runs_task(flow_id):
     flow = Flow.objects.get(id=flow_id)
-    flow.deactivate_runs()
+    flow.release_runs()

@@ -9,7 +9,6 @@ from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalClaimView, 
 
 
 class ClaimView(AuthenticatedExternalClaimView):
-
     class ClickatellForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")

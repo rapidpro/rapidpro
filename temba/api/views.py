@@ -17,6 +17,7 @@ class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
     """
     Simple view that refreshes the API token for the user/org when POSTed to
     """
+
     permission = "api.apitoken_refresh"
 
     def post(self, request, *args, **kwargs):
@@ -25,7 +26,6 @@ class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
 
 
 class WebHookEventMixin(OrgPermsMixin):  # pragma: needs cover
-
     def get_status(self, obj):
         return obj.get_status_display()
 

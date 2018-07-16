@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class QueryTracker(object):  # pragma: no cover
-
     def print_stack(self, stack):
         for idx in range(0, self.stack_count):
             if idx < len(stack):
@@ -35,7 +34,6 @@ class QueryTracker(object):  # pragma: no cover
         query_contains = self.query_contains
 
         class CursorTrackerWrapper(CursorWrapper):  # pragma: no cover
-
             def valid_stack(self, item):
                 file_name = item[0]
 

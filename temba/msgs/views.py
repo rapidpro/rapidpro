@@ -23,6 +23,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
@@ -32,7 +33,7 @@ from temba.utils import analytics, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
-from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -109,6 +110,7 @@ class InboxView(OrgPermsMixin, SmartListView):
     """
     Base class for inbox views with message folders and labels listed by the side
     """
+
     refresh = 10000
     add_button = True
     system_label = None
@@ -178,11 +180,11 @@ class InboxView(OrgPermsMixin, SmartListView):
         context["labels"] = Label.get_hierarchy(org)
         context["has_messages"] = any(counts.values())
         context["send_form"] = SendMessageForm(self.request.user)
-        context["org_is_purged"] = org.is_purgeable
         context["actions"] = self.actions
         context["current_label"] = label
         context["export_url"] = self.derive_export_url()
         context["show_channel_logs"] = self.show_channel_logs
+        context["start_date"] = org.get_delete_date(archive_type=Archive.TYPE_MSG)
 
         # if refresh was passed in, increase it by our normal refresh time
         previous_refresh = self.request.GET.get("refresh")
@@ -280,7 +282,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # set our new message
             broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
-            broadcast.update_recipients(list(omnibox["groups"]) + list(omnibox["contacts"]) + list(omnibox["urns"]))
+            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
 
             broadcast.save()
             return broadcast
@@ -358,7 +360,6 @@ class BroadcastCRUDL(SmartCRUDL):
             groups = list(omnibox["groups"])
             contacts = list(omnibox["contacts"])
             urns = list(omnibox["urns"])
-            recipients = list()
 
             if step_uuid:
                 from .tasks import send_to_flow_node
@@ -371,21 +372,19 @@ class BroadcastCRUDL(SmartCRUDL):
                 else:
                     return HttpResponseRedirect(self.get_success_url())
 
+            # if simulating only use the test contact
             if simulation:
-                # when simulating make sure we only use test contacts
+                groups = []
+                urns = []
                 for contact in contacts:
                     if contact.is_test:
-                        recipients.append(contact)
-            else:
-                for group in groups:
-                    recipients.append(group)
-                for contact in contacts:
-                    recipients.append(contact)
-                for urn in urns:
-                    recipients.append(urn)
+                        contacts = [contact]
+                        break
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(org, user, text, recipients, schedule=schedule)
+            broadcast = Broadcast.create(
+                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
+            )
 
             if not has_schedule:
                 self.post_save(broadcast)
@@ -437,7 +436,6 @@ class MsgActionForm(BaseActionForm):
 
 
 class MsgActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -684,11 +682,20 @@ class MsgCRUDL(SmartCRUDL):
 
     class Outbox(MsgActionMixin, InboxView):
         title = _("Outbox Messages")
-        template_name = "msgs/message_box.haml"
+        template_name = "msgs/msg_outbox.haml"
         system_label = SystemLabel.TYPE_OUTBOX
         actions = ()
         allow_export = True
         show_channel_logs = True
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # stuff in any pending broadcasts
+            context["pending_broadcasts"] = Broadcast.objects.filter(
+                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING]
+            ).order_by("-created_on")
+            return context
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -762,7 +769,6 @@ class MsgCRUDL(SmartCRUDL):
 
 
 class BaseLabelForm(forms.ModelForm):
-
     def clean_name(self):
         name = self.cleaned_data["name"]
 

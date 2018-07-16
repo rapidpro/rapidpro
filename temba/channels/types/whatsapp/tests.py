@@ -12,7 +12,6 @@ from .type import WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

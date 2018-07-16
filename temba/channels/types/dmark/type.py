@@ -10,6 +10,7 @@ class DMarkType(ChannelType):
     """
     A DMark Channel Type http://smsapi1.dmarkmobile.com/
     """
+
     code = "DK"
     category = ChannelType.Category.PHONE
 

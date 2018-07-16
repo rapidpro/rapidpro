@@ -4,11 +4,8 @@ from .urns import parse_urn
 
 
 class URNTest(TembaTest):
-
     def test_parse_urn(self):
-
         class Test(object):
-
             def __init__(self, input, scheme="", path="", query="", fragment="", has_error=False):
                 self.input = input
                 self.scheme = scheme

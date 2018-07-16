@@ -21,6 +21,7 @@ class Trigger(SmartModel):
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
     for missed calls, inboud sms messages starting with a keyword, or on a repeating schedule.
     """
+
     TYPE_CATCH_ALL = "C"
     TYPE_FOLLOW = "F"
     TYPE_KEYWORD = "K"
@@ -53,7 +54,9 @@ class Trigger(SmartModel):
         (MATCH_ONLY_WORD, _("Message contains only the keyword")),
     )
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to")
+    )
 
     keyword = models.CharField(
         verbose_name=_("Keyword"),
@@ -72,7 +75,11 @@ class Trigger(SmartModel):
     )
 
     flow = models.ForeignKey(
-        Flow, verbose_name=_("Flow"), help_text=_("Which flow will be started"), related_name="triggers"
+        Flow,
+        on_delete=models.PROTECT,
+        verbose_name=_("Flow"),
+        help_text=_("Which flow will be started"),
+        related_name="triggers",
     )
 
     last_triggered = models.DateTimeField(
@@ -97,6 +104,7 @@ class Trigger(SmartModel):
 
     schedule = models.OneToOneField(
         "schedules.Schedule",
+        on_delete=models.PROTECT,
         verbose_name=_("Schedule"),
         null=True,
         blank=True,
@@ -122,7 +130,12 @@ class Trigger(SmartModel):
     )
 
     channel = models.ForeignKey(
-        Channel, verbose_name=_("Channel"), null=True, related_name="triggers", help_text=_("The associated channel")
+        Channel,
+        on_delete=models.PROTECT,
+        verbose_name=_("Channel"),
+        null=True,
+        related_name="triggers",
+        help_text=_("The associated channel"),
     )
 
     @classmethod
@@ -484,10 +497,9 @@ class Trigger(SmartModel):
 
     def release(self):
         """
-        Releases this Trigger, use this instead of delete
+        Releases this Trigger
         """
-        self.is_active = False
-        self.save()
+        self.delete()
 
     def fire(self):
         if self.is_archived or not self.is_active:  # pragma: needs cover

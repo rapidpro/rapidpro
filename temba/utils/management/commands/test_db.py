@@ -36,7 +36,7 @@ from temba.flows.models import FlowRun, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
-from temba.msgs.tasks import squash_labelcounts
+from temba.msgs.tasks import squash_msgcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list
@@ -118,7 +118,7 @@ CONTACT_NAMES = (
     ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
     ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
 )
-CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
+CONTACT_LANGS = (None, "eng", "fra", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
 CONTACT_HAS_TWITTER_PROB = 0.1  # 1/10 contacts have a twitter handle
 CONTACT_IS_STOPPED_PROB = 0.01  # 1/100 contacts are stopped
@@ -280,8 +280,8 @@ class Command(BaseCommand):
         db_config = settings.DATABASES["default"]
         try:
             check_call(
-                "export PGPASSWORD=%s && pg_restore -h %s -U%s -w -d %s %s"
-                % (db_config["PASSWORD"], db_config["HOST"], db_config["USER"], db_config["NAME"], path),
+                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
+                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
                 shell=True,
             )
         except CalledProcessError:  # pragma: no cover
@@ -387,7 +387,7 @@ class Command(BaseCommand):
             archive_size = record_count * 20
             archive_hash = uuid.uuid4().hex
 
-            if period == Archive.DAY:
+            if period == Archive.PERIOD_DAILY:
                 archive_url = f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/" f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
             else:
 
@@ -407,21 +407,21 @@ class Command(BaseCommand):
 
         for org in orgs:
             for type in Archive.TYPE_CHOICES:
-                end = timezone.now()
+                end = timezone.now() - timedelta(days=90)
 
                 # daily archives up until now
                 for idx in range(0, end.day - 2):
                     end = end - timedelta(days=1)
                     start = end - timedelta(days=1)
-                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.DAY)
+                    create_archive(MAX_RECORDS_PER_DAY, start, Archive.PERIOD_DAILY)
 
                 # month archives before that
-                end = timezone.now()
+                end = timezone.now() - timedelta(days=90)
                 for idx in range(0, ARCHIVES):
                     # last day of the previous month
                     end = end.replace(day=1) - timedelta(days=1)
                     start = end.replace(day=1)
-                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.MONTH)
+                    create_archive(MAX_RECORDS_PER_DAY * 30, start, Archive.PERIOD_MONTHLY)
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -708,7 +708,7 @@ class Command(BaseCommand):
         squash_flowpathcounts()
         squash_flowruncounts()
         squash_topupcredits()
-        squash_labelcounts()
+        squash_msgcounts()
 
     def start_flow_activity(self, org):
         assert not org.cache["activity"]

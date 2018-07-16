@@ -72,7 +72,6 @@ from .voicexml import VoiceXMLException
 
 
 class InitTest(TembaTest):
-
     def test_decode_base64(self):
 
         self.assertEqual("This test\nhas a newline", decode_base64("This test\nhas a newline"))
@@ -213,7 +212,6 @@ class InitTest(TembaTest):
 
 
 class DatesTest(TembaTest):
-
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
         self.assertEqual(datetime_to_ms(d1), 1388631845000)  # from http://unixtimestamp.50x.eu
@@ -403,7 +401,6 @@ class DatesTest(TembaTest):
 
 
 class TimezonesTest(TembaTest):
-
     def test_field(self):
         field = TimeZoneFormField(help_text="Test field")
 
@@ -421,7 +418,6 @@ class TimezonesTest(TembaTest):
 
 
 class TemplateTagTest(TembaTest):
-
     def test_icon(self):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
@@ -496,7 +492,6 @@ class TemplateTagTest(TembaTest):
 
 
 class CacheTest(TembaTest):
-
     def test_get_cacheable_result(self):
         self.create_contact("Bob", number="1234")
 
@@ -521,7 +516,6 @@ class CacheTest(TembaTest):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from cache
 
     def test_get_cacheable_attr(self):
-
         def calculate():
             return "CALCULATED"
 
@@ -577,7 +571,6 @@ class CacheTest(TembaTest):
 
 
 class EmailTest(TembaTest):
-
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
         send_simple_email(["recipient@bar.com"], "Test Subject", "Test Body")
@@ -682,7 +675,6 @@ class EmailTest(TembaTest):
 
 
 class JsonTest(TembaTest):
-
     def test_encode_decode(self):
         # create a time that has a set millisecond
         now = timezone.now().replace(microsecond=1000)
@@ -711,7 +703,6 @@ class JsonTest(TembaTest):
 
 
 class QueueTest(TembaTest):
-
     def test_queueing(self):
         r = get_redis_connection()
 
@@ -873,7 +864,6 @@ class QueueTest(TembaTest):
 
 
 class ExpressionsTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1160,7 +1150,6 @@ class ExpressionsTest(TembaTest):
 
 
 class GSM7Test(TembaTest):
-
     def test_is_gsm7(self):
         self.assertTrue(is_gsm7("Hello World! {} <>"))
         self.assertFalse(is_gsm7("No capital accented È!"))
@@ -1205,7 +1194,6 @@ class GSM7Test(TembaTest):
 
 
 class ModelsTest(TembaTest):
-
     def test_require_update_fields(self):
         contact = self.create_contact("Bob", twitter="bobby")
         flow = self.get_flow("color")
@@ -1238,7 +1226,6 @@ class ModelsTest(TembaTest):
 
 
 class ExportTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -1251,6 +1238,8 @@ class ExportTest(TembaTest):
         self.assertEqual(self.task.prepare_value(None), "")
         self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
         self.assertEqual(self.task.prepare_value(123), "123")
+        self.assertEqual(self.task.prepare_value(True), True)
+        self.assertEqual(self.task.prepare_value(False), False)
 
         dt = pytz.timezone("Africa/Nairobi").localize(datetime.datetime(2017, 2, 7, 15, 41, 23, 123456))
         self.assertEqual(self.task.prepare_value(dt), datetime.datetime(2017, 2, 7, 14, 41, 23, 0))
@@ -1270,7 +1259,8 @@ class ExportTest(TembaTest):
         with patch.object(task2, "write_export") as mock_write_export:
             mock_write_export.side_effect = ValueError("Problem!")
 
-            task2.perform()
+            with self.assertRaises(Exception):
+                task2.perform()
 
             self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
 
@@ -1287,7 +1277,7 @@ class ExportTest(TembaTest):
         for i in range(16):
             extra_cols.append("Extra Column %d" % i)
 
-        exporter = TableExporter(self.task, "test", "other test", cols, extra_cols)
+        exporter = TableExporter(self.task, "test", cols + extra_cols)
 
         values = []
         for i in range(32):
@@ -1299,53 +1289,36 @@ class ExportTest(TembaTest):
 
         # write out 1050000 rows, that'll make two sheets
         for i in range(test_max_rows + 200):
-            exporter.write_row(values, extra_values)
+            exporter.write_row(values + extra_values)
 
         temp_file, file_ext = exporter.save_file()
         workbook = load_workbook(filename=temp_file.name)
 
-        self.assertEqual(4, len(workbook.worksheets))
+        self.assertEqual(2, len(workbook.worksheets))
 
         # check our sheet 1 values
         sheet1 = workbook.worksheets[0]
 
         rows = tuple(sheet1.rows)
 
-        self.assertEqual(cols, [cell.value for cell in rows[0]])
-        self.assertEqual(values, [cell.value for cell in rows[1]])
+        self.assertEqual(cols + extra_cols, [cell.value for cell in rows[0]])
+        self.assertEqual(values + extra_values, [cell.value for cell in rows[1]])
 
         self.assertEqual(test_max_rows, len(list(sheet1.rows)))
-        self.assertEqual(32, len(list(sheet1.columns)))
+        self.assertEqual(32 + 16, len(list(sheet1.columns)))
 
         sheet2 = workbook.worksheets[1]
         rows = tuple(sheet2.rows)
-        self.assertEqual(extra_cols, [cell.value for cell in rows[0]])
-        self.assertEqual(extra_values, [cell.value for cell in rows[1]])
+        self.assertEqual(cols + extra_cols, [cell.value for cell in rows[0]])
+        self.assertEqual(values + extra_values, [cell.value for cell in rows[1]])
 
-        self.assertEqual(test_max_rows, len(list(sheet2.rows)))
-        self.assertEqual(16, len(list(sheet2.columns)))
-
-        sheet3 = workbook.worksheets[2]
-        rows = tuple(sheet3.rows)
-        self.assertEqual(cols, [cell.value for cell in rows[0]])
-        self.assertEqual(values, [cell.value for cell in rows[1]])
-
-        self.assertEqual(200 + 2, len(list(sheet3.rows)))
-        self.assertEqual(32, len(list(sheet3.columns)))
-
-        sheet4 = workbook.worksheets[3]
-        rows = tuple(sheet4.rows)
-        self.assertEqual(extra_cols, [cell.value for cell in rows[0]])
-        self.assertEqual(extra_values, [cell.value for cell in rows[1]])
-
-        self.assertEqual(200 + 2, len(list(sheet4.rows)))
-        self.assertEqual(16, len(list(sheet4.columns)))
+        self.assertEqual(200 + 2, len(list(sheet2.rows)))
+        self.assertEqual(32 + 16, len(list(sheet2.columns)))
 
         os.unlink(temp_file.name)
 
 
 class CurrencyTest(TembaTest):
-
     def test_currencies(self):
 
         self.assertEqual(currency_for_country("US").alpha_3, "USD")
@@ -1363,7 +1336,6 @@ class CurrencyTest(TembaTest):
 
 
 class VoiceXMLTest(TembaTest):
-
     def test_context_managers(self):
         response = voicexml.VXMLResponse()
         self.assertEqual(response, response.__enter__())
@@ -1530,7 +1502,6 @@ class VoiceXMLTest(TembaTest):
 
 
 class NCCOTest(TembaTest):
-
     def test_context_managers(self):
         response = NCCOResponse()
         self.assertEqual(response, response.__enter__())
@@ -1772,7 +1743,6 @@ class NCCOTest(TembaTest):
 
 
 class MiddlewareTest(TembaTest):
-
     def test_org_header(self):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
@@ -1821,7 +1791,6 @@ class MiddlewareTest(TembaTest):
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
-
     def test_command(self):
         self.create_anonymous_user()
 
@@ -1875,9 +1844,7 @@ class JsonModelTestNull(models.Model):
 
 
 class TestJSONAsTextField(TestCase):
-
     def test_invalid_default(self):
-
         class InvalidJsonModel(models.Model):
             field = JSONAsTextField(default={})
 
@@ -1978,7 +1945,6 @@ class TestJSONAsTextField(TestCase):
 
 
 class MatchersTest(TembaTest):
-
     def test_string(self):
         self.assertEqual("abc", matchers.String())
         self.assertEqual("", matchers.String())
@@ -2005,9 +1971,14 @@ class MatchersTest(TembaTest):
         self.assertNotEqual(None, matchers.UUID4String())
         self.assertNotEqual("abc", matchers.UUID4String())
 
+    def test_dict(self):
+        self.assertEqual({}, matchers.Dict())
+        self.assertEqual({"a": "b"}, matchers.Dict())
+        self.assertNotEqual(None, matchers.Dict())
+        self.assertNotEqual([], matchers.Dict())
+
 
 class NonBlockingLockTest(TestCase):
-
     def test_nonblockinglock(self):
         with NonBlockingLock(redis=get_redis_connection(), name="test_nonblockinglock", timeout=5) as lock:
             # we are able to get the initial lock

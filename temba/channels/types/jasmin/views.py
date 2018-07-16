@@ -8,7 +8,6 @@ from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalCallbackCla
 
 
 class ClaimView(AuthenticatedExternalCallbackClaimView):
-
     class JasminForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")

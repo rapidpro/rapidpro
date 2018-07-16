@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytz
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -16,10 +17,10 @@ from temba.tests import ESMockWithScroll, TembaTest
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
+from .tasks import trim_event_fires_task
 
 
 class CampaignTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -112,6 +113,29 @@ class CampaignTest(TembaTest):
         self.assertNotEqual(flow.version_number, 3)
         self.assertEqual(flow.version_number, get_current_export_version())
 
+    def test_trim_event_fires(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        # create a reminder for our first planting event
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
+
+        # manually create two event fires
+        EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
+        e2 = EventFire.objects.create(
+            event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now()
+        )
+
+        # trim our events
+        trim_event_fires_task()
+
+        # should now have only one event, e2
+        e = EventFire.objects.get()
+        self.assertEqual(e.id, e2.id)
+
     def test_events_batch_fire(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -142,6 +166,15 @@ class CampaignTest(TembaTest):
         EventFire.batch_fire(list(EventFire.objects.all()), self.reminder_flow)
         self.assertEqual(1, FlowStart.objects.all().count())
         self.assertEqual(0, EventFire.objects.filter(fired=None).count())
+
+        # fires should delete when we release a contact
+        self.assertEqual(1, EventFire.objects.filter(contact=self.farmer1).count())
+        self.farmer1.release(self.admin)
+        self.assertEqual(0, EventFire.objects.filter(contact=self.farmer1).count())
+
+        # but our campaign and group remains intact
+        Campaign.objects.get(id=campaign.id)
+        ContactGroup.user_groups.get(id=self.farmers.id)
 
     def test_message_event(self):
         # update the planting date for our contacts
@@ -288,11 +321,9 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.get(id=event.id).is_active)
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).exists())
 
         # our single message flow should be released and take its dependencies with it
-        event.flow.refresh_from_db()
-        self.assertFalse(event.flow.is_active)
         self.assertEqual(0, event.flow.field_dependencies.all().count())
 
     def test_views(self):
@@ -537,7 +568,9 @@ class CampaignTest(TembaTest):
             "Planting Reminder and Reminder Flow are used inside a campaign. To archive them, first remove them from your campaigns.",
             response.get("Temba-Toast"),
         )
-        CampaignEvent.objects.filter(flow=self.reminder2_flow.pk).delete()
+
+        for e in CampaignEvent.objects.filter(flow=self.reminder2_flow.pk):
+            e.release()
 
         # archive the campaign
         post_data = dict(action="archive", objects=campaign.pk)
@@ -613,7 +646,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(event, fire.event)
         self.assertEqual(str(fire), "%s - %s" % (fire.event, fire.contact))
 
-        event = CampaignEvent.objects.get()
+        event = CampaignEvent.objects.filter(is_active=True).first()
 
         # get the detail page of the event
         response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
@@ -621,9 +654,9 @@ class CampaignTest(TembaTest):
         self.assertEqual(response.context["scheduled_event_fires_count"], 0)
         self.assertEqual(len(response.context["scheduled_event_fires"]), 2)
 
-        # delete an event
+        # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.all()[0].is_active)
+        self.assertFalse(CampaignEvent.objects.all().exists())
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
         self.assertNotContains(response, "Color Flow")
 
@@ -661,7 +694,7 @@ class CampaignTest(TembaTest):
 
         # now import the group again
         filename = "farmers.csv"
-        extra_fields = [dict(key="planting_date", header="planting_date", label="Planting Date", type="D")]
+        extra_fields = [dict(key="planting_date", header="field: planting_date", label="Planting Date", type="D")]
         import_params = dict(
             org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=extra_fields, original_filename=filename
         )

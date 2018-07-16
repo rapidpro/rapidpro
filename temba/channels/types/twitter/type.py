@@ -17,6 +17,7 @@ class TwitterType(ChannelType):
     A Twitter channel which uses Mage to stream DMs for a handle which has given access to a Twitter app configured for
     this deployment.
     """
+
     code = "TT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
@@ -38,6 +39,9 @@ class TwitterType(ChannelType):
         "messages to this user right now",  # handle is suspended
         "users who are not following you",
     )  # handle no longer follows us
+
+    def is_available_to(self, user):
+        return user.is_beta()
 
     def activate(self, channel):
         # tell Mage to activate this channel

@@ -13,7 +13,6 @@ from ...models import Channel
 
 
 class FacebookTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

@@ -61,6 +61,7 @@ def serialize_contact(contact):
 
     return {
         "uuid": contact.uuid,
+        "id": contact.id,
         "name": contact.name,
         "language": contact.language,
         "timezone": "UTC",
@@ -78,6 +79,7 @@ def serialize_environment(org):
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
         "languages": languages,
+        "redaction_policy": "urns" if org.is_anon else "none",
     }
 
 
@@ -95,6 +97,10 @@ def serialize_group_ref(group):
 
 def serialize_label(label):
     return {"uuid": str(label.uuid), "name": label.name}
+
+
+def serialize_language(language):
+    return {"iso": language.iso_code, "name": language.name}
 
 
 def serialize_location_hierarchy(country, aliases_from_org=None):
@@ -149,3 +155,7 @@ def serialize_message(msg):
         serialized["attachments"] = msg.attachments
 
     return serialized
+
+
+def serialize_resthook(resthook):
+    return {"slug": resthook.slug, "subscribers": [s.target_url for s in resthook.subscribers.all()]}

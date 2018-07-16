@@ -1,7 +1,6 @@
 
 from mock import patch
 
-from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import reverse
 
@@ -14,7 +13,6 @@ from .tasks import resolve_twitter_ids
 
 
 class TwitterActivityTypeTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -32,31 +30,37 @@ class TwitterActivityTypeTest(TembaTest):
                 "access_token": "at1",
                 "access_token_secret": "ats1",
                 "handle_id": "h123456",
+                "webhook_id": "1234567",
                 "env_name": "beta",
             },
         )
 
     @override_settings(IS_PROD=True)
+    @patch("temba.utils.twitter.TembaTwython.get_webhooks")
+    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
     @patch("temba.utils.twitter.TembaTwython.subscribe_to_webhook")
     @patch("temba.utils.twitter.TembaTwython.register_webhook")
     @patch("twython.Twython.verify_credentials")
-    def test_claim(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
+    def test_claim(
+        self,
+        mock_verify_credentials,
+        mock_register_webhook,
+        mock_subscribe_to_webhook,
+        mock_delete_webhook,
+        mock_get_webhooks,
+    ):
+        mock_get_webhooks.return_value = [{"id": "webhook_id"}]
+        mock_delete_webhook.return_value = {"ok", True}
+
         url = reverse("channels.types.twitter_activity.claim")
-
         self.login(self.admin)
-
-        # check that channel is only available to beta users
-        response = self.client.get(reverse("channels.channel_claim"))
-        self.assertNotContains(response, "/channels/types/twitter_activity/claim")
-
-        Group.objects.get(name="Beta").user_set.add(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, "/channels/types/twitter_activity/claim")
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Connect Twitter Activity API")
+        self.assertContains(response, "Connect Twitter")
 
         self.assertEqual(
             list(response.context["form"].fields.keys()),
@@ -80,18 +84,26 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", None, "The provided Twitter credentials do not appear to be valid.")
 
-        # try submitting for handle which already has a channel
+        # error registering webhook
+        mock_verify_credentials.return_value = {"id": "87654", "screen_name": "jimmy"}
         mock_verify_credentials.side_effect = None
-        mock_verify_credentials.return_value = {"id": "345678", "screen_name": "beta_bob"}
+        mock_register_webhook.side_effect = TwythonError("Exceeded number of webhooks")
 
         response = self.client.post(
-            url, {"api_key": "ak", "api_secret": "as", "access_token": "at", "access_token_secret": "ats"}
+            url,
+            {
+                "api_key": "ak",
+                "api_secret": "as",
+                "access_token": "at",
+                "access_token_secret": "ats",
+                "env_name": "production",
+            },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "A Twitter channel already exists for that handle.")
+        self.assertFormError(response, "form", None, "Exceeded number of webhooks")
 
         # try a valid submission
-        mock_verify_credentials.return_value = {"id": "87654", "screen_name": "jimmy"}
+        mock_register_webhook.side_effect = None
         mock_register_webhook.return_value = {"id": "1234567"}
 
         response = self.client.post(
@@ -106,7 +118,7 @@ class TwitterActivityTypeTest(TembaTest):
         )
         self.assertEqual(response.status_code, 302)
 
-        channel = Channel.objects.get(address="jimmy")
+        channel = Channel.objects.get(address="jimmy", is_active=True)
         self.assertEqual(
             channel.config,
             {
@@ -116,20 +128,21 @@ class TwitterActivityTypeTest(TembaTest):
                 "access_token": "at",
                 "env_name": "beta",
                 "access_token_secret": "ats",
+                "webhook_id": "1234567",
                 "callback_domain": channel.callback_domain,
             },
         )
 
-        mock_register_webhook.assert_called_once_with(
+        mock_register_webhook.assert_called_with(
             "beta", "https://%s/c/twt/%s/receive" % (channel.callback_domain, channel.uuid)
         )
-        mock_subscribe_to_webhook.assert_called_once_with("beta")
+        mock_subscribe_to_webhook.assert_called_with("beta")
 
     @override_settings(IS_PROD=True)
     @patch("temba.utils.twitter.TembaTwython.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release()
-        mock_delete_webhook.assert_called_once_with("beta")
+        mock_delete_webhook.assert_called_once_with("beta", "1234567")
 
     @patch("twython.Twython.lookup_user")
     def test_resolve(self, mock_lookup_user):

@@ -4,7 +4,6 @@ from .models import get_stripe_credentials
 
 
 class GroupPermWrapper(object):
-
     def __init__(self, group):
         self.group = group
         self.empty = defaultdict(lambda: False)
@@ -41,6 +40,14 @@ class GroupPermWrapper(object):
                 return perm_name in self.apps[module_name]
             else:
                 return False
+
+
+def user_orgs_for_brand(request):
+    if hasattr(request, "user"):
+        if not request.user.is_anonymous():
+            user_orgs = request.user.get_user_orgs(request.branding.get("brand"))
+            return dict(user_orgs=user_orgs)
+    return {}
 
 
 def user_group_perms_processor(request):

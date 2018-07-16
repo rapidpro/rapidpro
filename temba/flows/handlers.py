@@ -5,7 +5,6 @@ from .models import Flow
 
 
 class FlowHandler(MessageHandler):
-
     def __init__(self):
         super().__init__("rules")
 

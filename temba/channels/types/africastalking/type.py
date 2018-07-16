@@ -10,6 +10,7 @@ class AfricasTalkingType(ChannelType):
     """
     An Africa's Talking channel (https://africastalking.com/)
     """
+
     code = "AT"
     category = ChannelType.Category.PHONE
 
@@ -19,7 +20,7 @@ class AfricasTalkingType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _(
-        """If you are based in Kenya, Uganda or Malawi you can purchase a short
+        """If you are based in Kenya, Malawi, Nigeria, Rwanda or Uganda you can purchase a short
     code from <a href="http://africastalking.com">Africa's Talking</a> and connect it
     in a few simple steps."""
     )
@@ -61,7 +62,13 @@ class AfricasTalkingType(ChannelType):
 
     def is_available_to(self, user):
         org = user.get_org()
-        return org.timezone and str(org.timezone) in ["Africa/Nairobi", "Africa/Kampala", "Africa/Lilongwe"]
+        return org.timezone and str(org.timezone) in [
+            "Africa/Nairobi",
+            "Africa/Kampala",
+            "Africa/Lilongwe",
+            "Africa/Kigali",
+            "Africa/Lagos",
+        ]
 
     def is_recommended_to(self, user):
         return self.is_available_to(user)

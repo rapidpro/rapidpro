@@ -14,7 +14,6 @@ from .models import AdminBoundary
 
 
 class LocationTest(TembaTest):
-
     def test_boundaries(self):
         self.login(self.admin)
 
@@ -191,7 +190,6 @@ class LocationTest(TembaTest):
 
 
 class DownloadGeoJsonTest(TembaTest):
-
     def setUp(self):
         responses.add(
             responses.GET,

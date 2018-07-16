@@ -8,7 +8,6 @@ UUID4_REGEX = regex.compile(
 
 
 class MatcherMixin(object):
-
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -17,7 +16,6 @@ class MatcherMixin(object):
 
 
 class String(MatcherMixin, str):
-
     def __new__(cls, pattern=None):
         s = str.__new__(cls, "xxx")
         s.pattern = pattern
@@ -47,3 +45,12 @@ class UUID4String(String):
 
     def __new__(cls):
         return super().__new__(cls, pattern=UUID4_REGEX)
+
+
+class Dict(MatcherMixin, dict):
+    """
+    Matches any dict
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, dict)

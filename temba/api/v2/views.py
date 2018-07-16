@@ -20,6 +20,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
@@ -32,6 +33,7 @@ from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 from .serializers import (
     AdminBoundaryReadSerializer,
+    ArchiveReadSerializer,
     BroadcastReadSerializer,
     BroadcastWriteSerializer,
     CampaignEventReadSerializer,
@@ -67,6 +69,7 @@ class RootView(views.APIView):
     We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
+     * [/api/v2/archives](/api/v2/archives) - to list archives
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
@@ -161,6 +164,7 @@ class RootView(views.APIView):
     There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
     Python users of the API.
     """
+
     permission_classes = (SSLPermission, IsAuthenticated)
 
     def get(self, request, *args, **kwargs):
@@ -195,11 +199,13 @@ class ExplorerView(SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
+
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["endpoints"] = [
+            ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_write_explorer(),
@@ -297,6 +303,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
+
     permission_classes = (SSLPermission, APIPermission)
     throttle_scope = "v2"
     model = None
@@ -379,6 +386,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
+
     exclusive_params = ()
 
     def get(self, request, *args, **kwargs):
@@ -441,6 +449,7 @@ class WriteAPIMixin(object):
     the REST framework default way as we use POST requests for both create and update operations, and use separate
     serializers for reading and writing.
     """
+
     write_serializer_class = None
 
     def post_save(self, instance):
@@ -520,6 +529,91 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
 # ============================================================
 # Endpoints (A-Z)
 # ============================================================
+
+
+class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the data archives associated with your account.
+
+    ## Listing Archives
+
+    A `GET` returns the archives for your organization with the following fields.
+
+      * **archive_type** - the type of the archive: *message*, *run* (string) (filterable as `archive_type`)
+      * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`)
+      * **period** - *daily* for daily archives, *monthly* for monthly archives (string) (filterable as `period`)
+      * **record_count** - number of records in the archive (int)
+      * **size** - size of the gziped archive content (int)
+      * **hash** - MD5 hash of the gziped archive (string)
+      * **download_url** - temporary download URL of the archive (string)
+
+    Example:
+
+        GET /api/v2/archives.json?archive_type=message&before=2017-05-15&period=daily
+
+    Response is a list of the archives on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "count": 248,
+            "results": [
+            {
+                "archive_type":"message",
+                "start_date":"2017-02-20",
+                "period":"daily",
+                "record_count":1432,
+                "size":2304,
+                "hash":"feca9988b7772c003204a28bd741d0d0",
+                "download_url":"<redacted>"
+            },
+            ...
+        }
+
+    """
+
+    permission = "archives.archive_api"
+    model = Archive
+    serializer_class = ArchiveReadSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        return queryset.order_by("-start_date").exclude(period=Archive.PERIOD_DAILY, rollup_id__isnull=False)
+
+    def filter_queryset(self, queryset):
+        # filter by `archive_type`
+        archive_type = self.request.query_params.get("archive_type")
+        if archive_type:
+            queryset = queryset.filter(archive_type=archive_type)
+
+        # filter by `period`
+        period = self.request.query_params.get("period")
+
+        if period == "daily":
+            queryset = queryset.filter(period="D")
+        elif period == "monthly":
+            queryset = queryset.filter(period="M")
+
+        # setup filter by before/after on start_date
+        return self.filter_before_after(queryset, "start_date")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Archives",
+            "url": reverse("api.v2.archives"),
+            "slug": "archive-list",
+            "params": [
+                {
+                    "name": "archive_type",
+                    "required": False,
+                    "help": "An archive_type to filter by, like: run, message",
+                },
+                {"name": "period", "required": False, "help": "A period to filter by: daily, monthly"},
+            ],
+        }
 
 
 class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
@@ -676,6 +770,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "created_on": "2013-03-02T17:28:12.123456Z"
         }
     """
+
     permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
@@ -816,6 +911,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "campaigns.campaign_api"
     model = Campaign
     serializer_class = CampaignReadSerializer
@@ -971,6 +1067,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
 
     """
+
     permission = "campaigns.campaignevent_api"
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
@@ -1125,6 +1222,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "channels.channel_api"
     model = Channel
     serializer_class = ChannelReadSerializer
@@ -1202,6 +1300,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
+
     permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
@@ -1386,6 +1485,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
+
     permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
@@ -1555,6 +1655,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
+
     permission = "contacts.contact_api"
     serializer_class = ContactBulkActionSerializer
 
@@ -1661,6 +1762,7 @@ class DefinitionsEndpoint(BaseAPIView):
           }]
         }
     """
+
     permission = "orgs.org_api"
 
     class Depends(Enum):
@@ -1801,6 +1903,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "value_type": "text"
         }
     """
+
     permission = "contacts.contactfield_api"
     model = ContactField
     serializer_class = ContactFieldReadSerializer
@@ -1891,6 +1994,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             ]
         }
     """
+
     permission = "flows.flow_api"
     model = Flow
     serializer_class = FlowReadSerializer
@@ -2021,6 +2125,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
+
     permission = "contacts.contactgroup_api"
     model = ContactGroup
     model_manager = "user_groups"
@@ -2165,6 +2270,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
+
     permission = "contacts.label_api"
     model = Label
     model_manager = "label_objects"
@@ -2236,6 +2342,7 @@ class MediaEndpoint(BaseAPIView):
 
     By making a `POST` request to the endpoint you can add a new media files
     """
+
     parser_classes = (MultiPartParser, FormParser)
     permission = "msgs.msg_api"
 
@@ -2479,6 +2586,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     You will receive an empty response with status code 204 if successful.
     """
+
     permission = "msgs.msg_api"
     serializer_class = MsgBulkActionSerializer
 
@@ -2524,6 +2632,7 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
+
     permission = "orgs.org_api"
 
     def get(self, request, *args, **kwargs):
@@ -2577,6 +2686,7 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
@@ -2670,6 +2780,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
     You will receive either a 204 response if a subscriber was deleted, or a 404 response if no matching subscriber was found.
 
     """
+
     permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
@@ -2811,6 +2922,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
@@ -2886,13 +2998,17 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                         "value": "blue",
                         "category": "Blue",
                         "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
-                        "time": "2015-11-11T13:03:51.635662Z"
+                        "time": "2015-11-11T13:03:51.635662Z",
+                        "name": "color",
+                        "input": "it is blue",
                     },
                     "reason": {
                         "value": "Because it's the color of sky",
                         "category": "All Responses",
                         "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
-                        "time": "2015-11-11T13:05:57.576056Z"
+                        "time": "2015-11-11T13:05:57.576056Z",
+                        "name": "reason",
+                        "input" "Because it's the color of sky",
                     }
                 },
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -2903,6 +3019,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+
     permission = "flows.flow_api"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
@@ -3091,6 +3208,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
     """
+
     permission = "api.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer

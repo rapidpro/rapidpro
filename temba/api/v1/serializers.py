@@ -76,7 +76,6 @@ class StringArrayField(serializers.ListField):
 
 
 class StringDictField(serializers.DictField):
-
     def __init__(self, **kwargs):
         super().__init__(child=serializers.CharField(), **kwargs)
 
@@ -115,13 +114,11 @@ class PhoneArrayField(serializers.ListField):
 
 
 class ChannelField(serializers.PrimaryKeyRelatedField):
-
     def __init__(self, **kwargs):
         super().__init__(queryset=Channel.objects.filter(is_active=True), **kwargs)
 
 
 class UUIDField(serializers.CharField):
-
     def __init__(self, **kwargs):
         super().__init__(max_length=36, **kwargs)
 
@@ -135,6 +132,7 @@ class ReadSerializer(serializers.ModelSerializer):
     """
     We deviate slightly from regular REST framework usage with distinct serializers for reading and writing
     """
+
     pass
 
 
@@ -622,43 +620,29 @@ class FlowRunWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-
-        class VersionNode:
-
-            def __init__(self, node, is_ruleset):
-                self.node = node
-                self.uuid = node["uuid"]
-                self.ruleset = is_ruleset
-
-            def is_ruleset(self):
-                return self.ruleset
-
-            def is_pause(self):
-                return self.node["ruleset_type"] in RuleSet.TYPE_WAIT
-
         steps = data.get("steps")
         revision = data.get("revision", data.get("version"))
 
         if not revision:  # pragma: needs cover
             raise serializers.ValidationError("Missing 'revision' field")
 
+        # load the specific revision of the flow
         flow_revision = self.flow_obj.revisions.filter(revision=revision).first()
-
         if not flow_revision:
             raise serializers.ValidationError("Invalid revision: %s" % revision)
 
-        definition = flow_revision.definition
-
         # make sure we are operating off a current spec
+        definition = flow_revision.definition
         definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
 
+        # look for a matching node for each step in our path
         for step in steps:
             node_obj = None
-            key = "rule_sets" if "rule" in step else "action_sets"
+            node_set = "rule_sets" if "rule" in step else "action_sets"
 
-            for json_node in definition[key]:
-                if json_node["uuid"] == step["node"]:
-                    node_obj = VersionNode(json_node, "rule" in step)
+            for node_json in definition[node_set]:
+                if node_json["uuid"] == step["node"]:
+                    node_obj = FlowRunWriteSerializer.RevisionNode(self.flow_obj, node_json)
                     break
 
             if not node_obj:
@@ -712,11 +696,51 @@ class FlowRunWriteSerializer(WriteSerializer):
         if completed:
             completed_on = steps[len(steps) - 1]["arrived_on"] if steps else None
 
-            run.set_completed(completed_on=completed_on)
+            run.set_completed(exit_uuid=None, completed_on=completed_on)
         else:
             run.save(update_fields=("modified_on",))
 
         return run
+
+    class RevisionNode:
+        """
+        Wrapper for a node in a particular revision of this flow
+        """
+
+        def __init__(self, flow, node_json):
+            self.node_json = node_json
+            self.flow = flow
+
+        @property
+        def uuid(self):
+            return self.node_json["uuid"]
+
+        def is_ruleset(self):
+            return "rules" in self.node_json
+
+        def as_ruleset_obj(self):
+            # look for it in the current flow
+            ruleset = self.flow.rule_sets.filter(uuid=self.uuid).first()
+            if ruleset:
+                return ruleset
+
+            # if it no longer exists in the flow, create it in memory
+            return RuleSet(
+                uuid=self.uuid,
+                flow=self.flow,
+                label=self.node_json.get("label"),
+                operand=self.node_json.get("operand"),
+                ruleset_type=self.node_json["ruleset_type"],
+                rules=self.node_json["rules"],
+                config=self.node_json.get("config"),
+                value_type=self.node_json.get("value_type"),
+            )
+
+        def is_pause(self):
+            return self.node_json["ruleset_type"] in RuleSet.TYPE_WAIT
+
+        def __str__(self):  # pragma: no cover
+            return f"{self.uuid}:{'R' if self.is_ruleset() else 'A'}"
 
 
 class BoundarySerializer(ReadSerializer):
@@ -845,7 +869,7 @@ class MsgCreateSerializer(WriteSerializer):
 
         # create the broadcast
         broadcast = Broadcast.create(
-            self.org, self.user, self.validated_data["text"], recipients=contacts, channel=channel
+            self.org, self.user, self.validated_data["text"], contacts=contacts, channel=channel
         )
 
         # send it
