@@ -5,9 +5,9 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 SQL = """
-CREATE INDEX CONCURRENTLY locations_adminboundary_name on locations_adminboundary(upper("name"));
+CREATE INDEX locations_adminboundary_name on locations_adminboundary(upper("name"));
 
-CREATE INDEX CONCURRENTLY locations_boundaryalias_name on locations_boundaryalias(upper("name"));
+CREATE INDEX locations_boundaryalias_name on locations_boundaryalias(upper("name"));
 """
 
 

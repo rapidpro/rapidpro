@@ -9,7 +9,7 @@ CREATE INDEX flows_flowpathcount_unsquashed ON flows_flowpathcount(flow_id, from
 
 CREATE INDEX flows_flowpathrecentstep_from_to_left ON flows_flowpathrecentstep (from_uuid, to_uuid, left_on DESC);
 
-CREATE INDEX CONCURRENTLY flows_flowrun_contact_flow_created_on_id_idx ON flows_flowrun(contact_id, flow_id, created_on desc, id desc) WHERE is_active = TRUE;
+CREATE INDEX flows_flowrun_contact_flow_created_on_id_idx ON flows_flowrun(contact_id, flow_id, created_on desc, id desc) WHERE is_active = TRUE;
 
 CREATE INDEX flows_flowrun_expires_on ON flows_flowrun(expires_on) WHERE is_active = TRUE;
 
@@ -19,7 +19,7 @@ CREATE INDEX flows_flowrun_flow_modified_id_where_responded ON flows_flowrun (fl
 
 CREATE INDEX flows_flowrun_null_expired_on ON flows_flowrun (exited_on) WHERE exited_on IS NULL;
 
-CREATE INDEX CONCURRENTLY flows_flowrun_org_current_node_uuid_active_only
+CREATE INDEX flows_flowrun_org_current_node_uuid_active_only
 ON flows_flowrun(org_id, current_node_uuid)
 WHERE is_active = TRUE;
 
