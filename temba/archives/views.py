@@ -18,9 +18,8 @@ class ArchiveCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Archive")
-        fields = ("archive_type", "url", "start_date", "period", "record_count", "size")
+        fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")
-        search_fields = ("archive_type",)
         paginate_by = 250
 
         def get_queryset(self, **kwargs):
