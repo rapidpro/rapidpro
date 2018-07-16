@@ -2297,6 +2297,10 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
+            # only pro orgs get multiple users
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
+                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
+
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
@@ -2354,9 +2358,8 @@ class OrgCRUDL(SmartCRUDL):
                     "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", dependents="resthooks"
                 )
 
-            # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
+            # show archives
+            formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

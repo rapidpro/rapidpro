@@ -147,3 +147,17 @@ class ArchiveViewTest(TembaTest):
             f"response-content-encoding=none",
             url,
         )
+
+    def test_home_archives(self):
+        self.login(self.admin)
+        url = reverse("orgs.org_home")
+
+        response = self.client.get(url)
+        self.assertContains(response, "archives yet")
+        self.assertContains(response, reverse("archives.archive_message"))
+
+        self.create_archive(1)
+
+        response = self.client.get(url)
+        self.assertContains(response, "123,456,789 records")
+        self.assertContains(response, reverse("archives.archive_message"))

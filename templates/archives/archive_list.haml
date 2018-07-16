@@ -2,6 +2,8 @@
 - load smartmin sms temba compress i18n humanize
 
 
+
+
 - block page-title
   - trans "Archives"
 
@@ -9,6 +11,21 @@
   .title-icon
     %span.glyph.icon-box
 
+- block summary
+  -if archive_count
+    {% blocktrans with counter=archive_count|intcomma count num=archive_count  %}
+    You have {{ counter }} archive
+    {% plural %}
+    You have {{ counter }} archives
+    {% endblocktrans %}
+
+    {% blocktrans with counter=record_count|intcomma count num=record_count %}
+    containing {{ counter }} record.
+    {% plural %}
+    containing {{ counter }} records.
+    {% endblocktrans %}
+  -else
+    -trans "You do not have any message or run archives yet."
 
 - block page-top
   {% render as page_top %}
@@ -16,15 +33,16 @@
   {% endrender %}
   {{page_top}}
 
-- block search-form
-  - for type in archive_types
-    - if type.0 == selected
-      {{ type.1 }}
-    - else
-      %a{href:'/archive/{{type.0}}/'}<
-        {{type.1}}
-    - if not forloop.last
-      |
+-block top-form
+  - block search-form
+    - for type in archive_types
+      - if type.0 == selected
+        {{ type.1 }}
+      - else
+        %a{href:'/archive/{{type.0}}/'}<
+          {{type.1}}
+      - if not forloop.last
+        |
 
 - block content
   -if object_list

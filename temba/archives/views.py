@@ -2,6 +2,7 @@ from gettext import gettext as _
 
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
+from django.db.models import Sum
 from django.http import HttpResponseRedirect
 
 from temba.orgs.views import OrgPermsMixin
@@ -40,8 +41,19 @@ class ArchiveCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["archive_types"] = Archive.TYPE_CHOICES
-            context["selected"] = self.get_archive_type()
+
+            if "HTTP_X_FORMAX" in self.request.META:  # no additional data needed if request is only for formax
+                context["archive_count"] = Archive.objects.filter(org=self.org, rollup=None).count()
+                context["record_count"] = (
+                    Archive.objects.filter(org=self.org, rollup=None)
+                    .aggregate(Sum("record_count"))
+                    .get("record_count__sum", 0)
+                )
+
+            else:
+                context["archive_types"] = Archive.TYPE_CHOICES
+                context["selected"] = self.get_archive_type()
+
             return context
 
     class Run(List):
