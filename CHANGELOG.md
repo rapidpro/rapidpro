@@ -1,3 +1,7 @@
+v4.0.0
+----------
+ * Squash all migrations
+
 v3.0.1000
 ----------
  * fix display of archives formax on home page
