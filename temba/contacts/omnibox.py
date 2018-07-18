@@ -6,7 +6,9 @@ from django.db.models import Q
 from django.db.models.functions import Upper
 
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.search import contact_es_search
 from temba.msgs.models import Label
+from temba.utils.models import ProxyQuerySet, mapEStoDB
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -89,7 +91,7 @@ def omnibox_mixed_search(org, search, types):
         results += list(groups.order_by(Upper("name"))[:per_type_limit])
 
     if SEARCH_CONTACTS in search_types:
-        contacts = Contact.objects.filter(org=org, is_active=True, is_blocked=False, is_stopped=False, is_test=False)
+        sort_struct = {"field_type": "attribute", "sort_direction": "asc", "field_name": "name.keyword"}
 
         try:
             search_id = int(search)
@@ -97,11 +99,20 @@ def omnibox_mixed_search(org, search, types):
             search_id = None
 
         if org.is_anon and search_id is not None:
-            contacts = contacts.filter(id=search_id)
+            search_text = f"id = {search_id}"
         elif search:
-            contacts = term_search(contacts, ("name__icontains",), search_terms)
+            search_text = f"name ~ {search}"
+        else:
+            search_text = None
 
-        results += list(contacts.order_by(Upper("name"))[:per_type_limit])
+        from temba.utils.es import ES
+
+        search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
+
+        es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
+        es_results = ProxyQuerySet([obj for obj in mapEStoDB(Contact, es_search)])
+
+        results += list(es_results)
 
     if SEARCH_URNS in search_types:
         # only include URNs that are send-able
