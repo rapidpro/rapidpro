@@ -56,7 +56,7 @@ def refresh_whatsapp_contacts(channel_id):
             )
 
             # if we had an error, break out
-            if resp.status_code != 200 or resp.json().get("error", True):
+            if resp.status_code != 200:
                 raise Exception("Received error refreshing contacts for %d", channel.id)
 
             refreshed += len(urn_batch)
