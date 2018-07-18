@@ -351,6 +351,26 @@ class URN(object):
         return cls.from_parts(WECHAT_SCHEME, path)
 
 
+class UserContactFieldsManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(field_type=ContactField.FIELD_TYPE_USER)
+
+    def create(self, **kwargs):
+        kwargs["field_type"] = ContactField.FIELD_TYPE_USER
+
+        return super().create(**kwargs)
+
+
+class SystemContactFieldsManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(field_type=ContactField.FIELD_TYPE_SYSTEM)
+
+    def create(self, **kwargs):
+        kwargs["field_type"] = ContactField.FIELD_TYPE_SYSTEM
+
+        return super().create(**kwargs)
+
+
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
@@ -368,6 +388,11 @@ class ContactField(SmartModel):
     DISTRICT_KEY = "district"
     WARD_KEY = "ward"
 
+    FIELD_TYPE_SYSTEM = "S"
+    FIELD_TYPE_USER = "U"
+
+    FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
+
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
@@ -382,6 +407,13 @@ class ContactField(SmartModel):
     show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
 
     priority = models.PositiveIntegerField(default=0)
+
+    field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
+
+    # Model managers
+    all_fields = models.Manager()  # this is the default manager
+    user_fields = UserContactFieldsManager()
+    system_fields = SystemContactFieldsManager()
 
     @classmethod
     def make_key(cls, label):
@@ -406,7 +438,7 @@ class ContactField(SmartModel):
 
     @classmethod
     def hide_field(cls, org, user, key):
-        existing = ContactField.objects.filter(org=org, key=key).first()
+        existing = ContactField.user_fields.filter(org=org, key=key).first()
         if existing:
             from temba.flows.models import Flow
 
@@ -432,7 +464,7 @@ class ContactField(SmartModel):
             label = label.strip()
 
         with org.lock_on(OrgLock.field, key):
-            field = ContactField.objects.filter(org=org, key__iexact=key).first()
+            field = ContactField.user_fields.filter(org=org, key__iexact=key).first()
 
             if not field:
                 # try to lookup the existing field by label
@@ -501,7 +533,7 @@ class ContactField(SmartModel):
                 if not ContactField.is_valid_key(key):
                     raise ValueError("Field key %s has invalid characters or is a reserved field name" % key)
 
-                field = ContactField.objects.create(
+                field = ContactField.user_fields.create(
                     org=org,
                     key=key,
                     label=label,
@@ -516,13 +548,13 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_by_label(cls, org, label):
-        return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
+        return cls.user_fields.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
     def get_by_key(cls, org, key):
         field = org.cached_contact_fields.get(key)
         if field is None:
-            field = ContactField.objects.filter(org=org, is_active=True, key=key).first()
+            field = ContactField.user_fields.filter(org=org, is_active=True, key=key).first()
             if field:
                 org.cached_contact_fields[key] = field
 
@@ -530,7 +562,12 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_location_field(cls, org, type):
-        return cls.objects.filter(is_active=True, org=org, value_type=type).first()
+        return cls.user_fields.filter(is_active=True, org=org, value_type=type).first()
+
+    def release(self, user):
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_on", "modified_by"))
 
     def __str__(self):
         return "%s" % self.label
@@ -600,6 +637,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         GROUPS,
         UUID,
         CONTACT_UUID,
+        CREATED_ON,
         "created_by",
         "modified_by",
         "org",
@@ -3077,7 +3115,9 @@ class ExportContactsTask(BaseExportTask):
                         fields.append(field_dict)
 
         contact_fields_list = (
-            ContactField.objects.filter(org=self.org, is_active=True).select_related("org").order_by("-priority", "pk")
+            ContactField.user_fields.filter(org=self.org, is_active=True)
+            .select_related("org")
+            .order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(

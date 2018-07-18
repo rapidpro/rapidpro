@@ -4175,7 +4175,7 @@ class ActionPackedTest(FlowFileTest):
         self.start_flow()
 
         # updating Phone Number should not create a contact field
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="tel_e164").first())
+        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="tel_e164").first())
 
         # instead it should update the tel urn for our contact
         self.contact = Contact.objects.get(id=self.contact.pk)
@@ -4782,7 +4782,7 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(self.org, dict(type="save", label="Superhero Name", value="@step"))
         run = FlowRun.create(self.flow, self.contact)
 
-        field = ContactField.objects.get(org=self.org, key="superhero_name")
+        field = ContactField.user_fields.get(org=self.org, key="superhero_name")
         self.assertEqual("Superhero Name", field.label)
 
         self.execute_action(test, run, sms)
@@ -4882,7 +4882,7 @@ class ActionTest(TembaTest):
         self.execute_action(test, run, sms)
 
         # updating Phone Number should not create a contact field
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="tel_e164").first())
+        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="tel_e164").first())
 
         # instead it should update the tel urn for our contact
         contact = Contact.objects.get(id=self.contact.pk)
@@ -4924,9 +4924,9 @@ class ActionTest(TembaTest):
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEqual(test_contact_urn, test_contact.urns.all().first())
 
-        self.assertFalse(ContactField.objects.filter(org=self.org, label="Ecole"))
+        self.assertFalse(ContactField.user_fields.filter(org=self.org, label="Ecole"))
         SaveToContactAction.from_json(self.org, dict(type="save", label="[_NEW_]Ecole", value="@step"))
-        field = ContactField.objects.get(org=self.org, key="ecole")
+        field = ContactField.user_fields.get(org=self.org, key="ecole")
         self.assertEqual("Ecole", field.label)
 
         # try saving some empty data into mailto
@@ -8064,7 +8064,7 @@ class FlowsTest(FlowFileTest):
             flow = field_spec.get("flow", parent)
 
             # make sure our field exists after import
-            field = ContactField.objects.filter(key=key, label=label).first()
+            field = ContactField.user_fields.filter(key=key, label=label).first()
             self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, label))
 
             # and our flow is dependent on us

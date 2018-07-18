@@ -1694,7 +1694,7 @@ class APITest(TembaTest):
         self.assertEqual(201, response.status_code)
 
         # should be one field now
-        field = ContactField.objects.get()
+        field = ContactField.user_fields.get()
         self.assertEqual("Real Age", field.label)
         self.assertEqual("T", field.value_type)
         self.assertEqual("real_age", field.key)
@@ -1703,7 +1703,7 @@ class APITest(TembaTest):
         # update that field to change value type
         response = self.postJSON(url, dict(key="real_age", label="Actual Age", value_type="N"))
         self.assertEqual(201, response.status_code)
-        field = ContactField.objects.get()
+        field = ContactField.user_fields.get()
         self.assertEqual("Actual Age", field.label)
         self.assertEqual("N", field.value_type)
         self.assertEqual("real_age", field.key)
@@ -1739,7 +1739,7 @@ class APITest(TembaTest):
         # create with key specified
         response = self.postJSON(url, dict(key="real_age_2", label="Actual Age 2", value_type="N"))
         self.assertEqual(201, response.status_code)
-        field = ContactField.objects.get(key="real_age_2")
+        field = ContactField.user_fields.get(key="real_age_2")
         self.assertEqual(field.label, "Actual Age 2")
         self.assertEqual(field.value_type, "N")
 
@@ -1748,7 +1748,7 @@ class APITest(TembaTest):
         self.assertEqual(400, response.status_code)
         self.assertResponseError(response, "key", "Field is invalid or a reserved name")
 
-        ContactField.objects.all().delete()
+        ContactField.user_fields.all().delete()
 
         for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
             ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)

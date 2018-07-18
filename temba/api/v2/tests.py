@@ -1978,7 +1978,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
         self.assertEqual(response.status_code, 201)
 
-        age = ContactField.objects.get(org=self.org, label="Age", value_type="N", is_active=True)
+        age = ContactField.user_fields.get(org=self.org, label="Age", value_type="N", is_active=True)
 
         # update a field by its key
         response = self.postJSON(url, "key=age", {"label": "Real Age", "value_type": "datetime"})
@@ -1992,7 +1992,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
         self.assert404(response)
 
-        ContactField.objects.all().delete()
+        ContactField.user_fields.all().delete()
 
         for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
             ContactField.get_or_create(self.org, self.admin, "field%d" % i, "Field%d" % i)
