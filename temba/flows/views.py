@@ -1007,7 +1007,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
                 )
             if len(links) > 1:
-                links.append(dict(divider=True)),
+                links.append(dict(divider=True))
 
             if self.has_org_perm("flows.flow_update"):
                 links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
@@ -1024,6 +1024,18 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                if len(links) > 1:
+                    links.append(dict(divider=True))
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
+                    )
+                )
 
             return links
 
