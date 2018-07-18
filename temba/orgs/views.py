@@ -1456,16 +1456,17 @@ class OrgCRUDL(SmartCRUDL):
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+            redirect_url = forms.CharField(required=False)
 
         form_class = ServiceForm
-        success_url = "@msgs.msg_inbox"
-        fields = ("organization",)
+        fields = ("organization", "redirect_url")
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
             org = form.cleaned_data["organization"]
             self.request.session["org_id"] = org.pk
-            return HttpResponseRedirect(self.get_success_url())
+            success_url = form.cleaned_data["redirect_url"] or reverse("msgs.msg_inbox")
+            return HttpResponseRedirect(success_url)
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
         def form_invalid(self, form):
