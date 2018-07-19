@@ -2909,6 +2909,10 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.post(service_url, dict(organization=self.org.id))
         self.assertRedirect(response, "/msg/inbox/")
 
+        # specify redirect_url
+        response = self.client.post(service_url, dict(organization=self.org.id, redirect_url="/flow/"))
+        self.assertRedirect(response, "/flow/")
+
         # create a new contact
         response = self.client.post(
             reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="0788123123")

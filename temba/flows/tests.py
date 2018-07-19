@@ -14,6 +14,7 @@ from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -503,6 +504,24 @@ class FlowTest(TembaTest):
         self.login(self.superuser)
         response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
         self.assertFalse(response.context["mutable"])
+
+        # create a customer service user
+        self.csrep = self.create_user("csrep")
+        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
+        self.csrep.is_staff = True
+        self.csrep.save()
+
+        self.org.administrators.add(self.csrep)
+
+        self.login(self.csrep)
+        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+        gear_links = response.context["view"].get_gear_links()
+        self.assertEqual(gear_links[-1]["title"], "Service")
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={self.flow.org_id}&redirect_url=/flow/editor/{self.flow.uuid}/",
+        )
+        self.assertTrue(gear_links[-2]["divider"])
 
     def test_states(self):
         # set our flow

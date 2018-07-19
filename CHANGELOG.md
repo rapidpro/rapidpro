@@ -1,3 +1,16 @@
+v4.0.1
+----------
+ * remove group settings call for WhatsApp which is no longer supported
+ * easier way to service flows for CS reps
+
+v4.0.0
+----------
+ * Squash all migrations
+
+v3.0.1000
+----------
+ * fix display of archives formax on home page
+
 v3.0.999
 ----------
  * Fix chatbase font icon name

@@ -57,15 +57,6 @@ class WhatsAppType(ChannelType):
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %s", resp.content))
 
-        # then make sure group chats are disabled
-        payload = {"allow_unsolicited_add": False}
-        resp = requests.patch(
-            channel.config[Channel.CONFIG_BASE_URL] + "/v1/settings/groups", json=payload, headers=headers
-        )
-
-        if resp.status_code != 200:
-            raise ValidationError(_("Unable to configure channel: %s", resp.content))
-
         # update our quotas so we can send at 15/s
         payload = {
             "messaging_api_rate_limit": ["15", "54600", "1000000"],
