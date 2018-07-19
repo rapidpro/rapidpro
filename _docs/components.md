@@ -34,27 +34,19 @@ take care of sending messages to said services.
 Refer to the courier README for more information on configuration Courier for use with
 RapidPro. See the [Courier](/rapidpro/docs/courier) page for more information on running Courier with RapidPro.
 
-## Message Mage Web Service (deprecated)
+## RP-Indexer
 
-**Note that mage has been deprecated and is being replaced by Courier, see above.**
+[RP-Indexer](https://github.com/nyaruka/rp-indexer) is a simple golang service which indexes
+contacts to enable contact seaches in RapidPro. It requires an ElasticSearch instance
+to index against it. See the repo for more information on running this service against your
+RapidPro instance.
 
-[Message Mage](https://github.com/rapidpro/mage) is aimed to be a highly performant
-web service for handling of incoming messages, delivery receipts and such. Though
-Django is reasonably fast at serving requests, we often receive 6x as many callbacks
-as outgoing calls when sending messages, which means we may receive 600,000
-http callbacks when starting a poll for 100,000 people. Mage is meant to provide
-a minimal and performant web service to handle those incoming requests.
+## RP-Archiver
 
-Importantly, Mage does not and **should not** contain any flow logic within it.
-As flows are executed in Celery tasks in Python processes, we do not want to
-duplicate any of that logic.
-
-Mage is also responsible for maintaining long running connections for some of our
-channels like Twitter. It maintains a connection to Twitter for each handle
-to trap and handle new direct messages in real time.
-
-If you do not plan to support Twitter channels, Mage can be left out of
-hosting installations without any effect given low enough volume.
+[RP-Archiver](https://github.com/nyaruka/rp-archiver) is a simple golang service which
+creates flat file archives of messages and runs that are older than 90 days and optionally
+deletes these records from the database. See the repo for more information on running this
+service against your RapidPro instance.
 
 # Celery Queues
 
