@@ -1,3 +1,8 @@
+v4.0.1
+----------
+ * remove group settings call for WhatsApp which is no longer supported
+ * easier way to service flows for CS reps
+
 v4.0.0
 ----------
  * Squash all migrations
