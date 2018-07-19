@@ -17,6 +17,7 @@ For a highly available installation, you will require:
  * n+1 web servers front ends running the Message Mage frontend
  * A PostgreSQL server with a hot standby
  * A Redis server with a hot standby
+ * An ElasticSearch instance with a hot standby
  * n+1 Celery instances for each of the RapidPro queues. (celery, msgs, flows, handler)
 
 <img src="{{site.baseurl}}/images/hosting.png" widht="100%">
@@ -39,6 +40,7 @@ capable of handling millions of messages per week.
 
  * Web and Celery Servers - 3 servers - 4 Xeon CPUs, 16 gigs of RAM
  * Redis Servers - 2 servers - 2 Xeon CPUs, 8 gigs of RAM
+ * ElasticSearch Servers - 2 servers - 16 gigr of RAM each, sufficient space for indexes
  * DB Servers - 8 Xeon CPUs, 30 gigs of RAM
 
 The configuration of gunicorn and celery workers is highly dependent on the kind
