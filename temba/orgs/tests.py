@@ -2382,6 +2382,18 @@ class OrgTest(TembaTest):
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 1)
+
+        # sub_org is deleted
+        sub_org.release()
+
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 0)
+
     def test_sub_org_ui(self):
 
         self.login(self.admin)
