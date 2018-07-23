@@ -163,6 +163,34 @@ class ESMockWithScroll:
         self.mock_es.stop()
 
 
+class ESMockWithScrollMultiple(ESMockWithScroll):
+    def __enter__(self):
+        patched_object = self.mock_es.start()
+
+        patched_object.search.side_effect = [
+            {
+                "_shards": {"failed": 0, "successful": 10, "total": 10},
+                "timed_out": False,
+                "took": 1,
+                "_scroll_id": "1",
+                "hits": {"hits": return_value},
+            }
+            for return_value in self.data
+        ]
+        patched_object.scroll.side_effect = [
+            {
+                "_shards": {"failed": 0, "successful": 10, "total": 10},
+                "timed_out": False,
+                "took": 1,
+                "_scroll_id": "1",
+                "hits": {"hits": []},
+            }
+            for _ in range(len(self.data))
+        ]
+
+        return patched_object()
+
+
 class TembaTestMixin(object):
     def clear_cache(self):
         """

@@ -101,7 +101,13 @@ def omnibox_mixed_search(org, search, types):
         if org.is_anon and search_id is not None:
             search_text = f"id = {search_id}"
         elif search:
-            search_text = f"name ~ {search}"
+            # we use trigrams on Elasticsearch, minimum required length for a term is 3
+            filtered_search_terms = (
+                search_term for search_term in search_terms if search_term != "" and len(search_term) >= 3
+            )
+
+            search_text = " AND ".join(f"name ~ {search_term}" for search_term in filtered_search_terms)
+
         else:
             search_text = None
 
@@ -118,14 +124,57 @@ def omnibox_mixed_search(org, search, types):
         # only include URNs that are send-able
         from temba.channels.models import Channel
 
-        allowed_schemes = org.get_schemes(Channel.ROLE_SEND) if not org.is_anon else []
+        allowed_schemes = org.get_schemes(Channel.ROLE_SEND)
 
-        urns = ContactURN.objects.filter(org=org, scheme__in=allowed_schemes).exclude(contact=None)
+        from temba.utils.es import ES, ModelESSearch
 
         if search:
-            urns = term_search(urns, ("path__icontains",), search_terms)
+            # we use trigrams on Elasticsearch, minimum required length for a term is 3
+            filtered_search_terms = (
+                search_term for search_term in search_terms if search_term != "" and len(search_term) >= 3
+            )
 
-        results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
+            must_condition = [{"match_phrase": {"urns.path": search_term}} for search_term in filtered_search_terms]
+        else:
+            must_condition = []
+
+        es_query = {
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"org_id": org.id}},
+                        {"term": {"groups": str(org.cached_all_contacts_group.uuid)}},
+                    ],
+                    "must": [
+                        {
+                            "nested": {
+                                "path": "urns",
+                                "query": {
+                                    "bool": {
+                                        "must": must_condition,
+                                        "should": [{"term": {"urns.scheme": scheme}} for scheme in allowed_schemes],
+                                    }
+                                },
+                            }
+                        }
+                    ],
+                }
+            },
+            "sort": [{"name.keyword": {"order": "asc"}}],
+        }
+
+        if not org.is_anon:
+            search_object = ModelESSearch(model=Contact, index="contacts").from_dict(es_query).params(routing=org.id)
+
+            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
+            es_results = mapEStoDB(Contact, es_search, only_ids=True)
+
+            # get ContactURNs for filtered Contacts
+            urns = ContactURN.objects.filter(contact_id__in=list(es_results))
+
+            # we got max `per_type_limit` contacts, but each contact can have multiple URNs and we need to limit the
+            # results to the per type limit
+            results += list(urns.prefetch_related("contact").order_by(Upper("path"))[:per_type_limit])
 
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 

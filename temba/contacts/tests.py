@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
@@ -2769,7 +2769,7 @@ class ContactTest(TembaTest):
             response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
             return response.json()["results"]
 
-        mock_es_data = [
+        mock_es_data_contact = [
             {
                 "_type": "_doc",
                 "_index": "dummy_index",
@@ -2791,25 +2791,44 @@ class ContactTest(TembaTest):
                 "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
             },
         ]
-        with ESMockWithScroll(data=mock_es_data):
-            self.assertEqual(
-                omnibox_request(""),
-                [
-                    # all 3 groups A-Z
-                    dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                    dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                    dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                    # all 4 contacts A-Z
-                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
-                    # 3 sendable URNs with names as extra
-                    dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
-                    dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
-                    dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-                ],
-            )
+        mock_es_data_urn = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
+            },
+        ]
+        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+
+            actual_result = omnibox_request("")
+            expected_result = [
+                # all 3 groups A-Z
+                dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+                dict(id="g-%s" % men.uuid, text="Men", extra=0),
+                dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
+                # all 4 contacts A-Z
+                dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
+                dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
+                dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
+                # 3 sendable URNs with names as extra
+                dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
+                dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
+                dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
+                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+            ]
+
+            self.assertEqual(actual_result, expected_result)
 
         # apply type filters...
 
@@ -2866,20 +2885,26 @@ class ContactTest(TembaTest):
                     dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
                     dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
             )
 
         # search for Frank by phone
-        mock_es_data = []
-        with ESMockWithScroll(data=mock_es_data):
+        mock_es_data = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
             self.assertEqual(
                 omnibox_request("search=222"),
                 [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
             )
 
         # search for Joe by twitter - won't return anything because there is no twitter channel
-        mock_es_data = []
-        with ESMockWithScroll(data=mock_es_data):
+        with ESMockWithScrollMultiple(data=[[], []]):
             self.assertEqual(omnibox_request("search=blow80"), [])
 
         # create twitter channel
@@ -2889,14 +2914,6 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
 
         # search for again for Joe by twitter
-        mock_es_data = []
-        with ESMockWithScroll(data=mock_es_data):
-            self.assertEqual(
-                omnibox_request("search=blow80"),
-                [dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter")],
-            )
-
-        # search for Joe again - match on last name and twitter handle
         mock_es_data = [
             {
                 "_type": "_doc",
@@ -2904,11 +2921,36 @@ class ContactTest(TembaTest):
                 "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
             }
         ]
-        with ESMockWithScroll(data=mock_es_data):
+        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
+            self.assertEqual(
+                omnibox_request("search=blow80"),
+                [
+                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                ],
+            )
+
+        # search for Joe again - match on last name and twitter handle
+        mock_es_data_contact = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        mock_es_data_urn = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
             self.assertEqual(
                 omnibox_request("search=BLOW"),
                 [
                     dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
             )
@@ -2921,7 +2963,7 @@ class ContactTest(TembaTest):
                 "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
             }
         ]
-        with ESMockWithScroll(data=mock_es_data):
+        with ESMockWithScrollMultiple(data=[mock_es_data, []]):
             self.assertEqual(
                 omnibox_request("search=Joe+o&types=c"), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")]
             )
@@ -2987,7 +3029,7 @@ class ContactTest(TembaTest):
                     "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
                 },
             ]
-            with ESMockWithScroll(data=mock_es_data):
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
                 self.assertEqual(
                     omnibox_request(""),
                     [
@@ -3011,15 +3053,14 @@ class ContactTest(TembaTest):
                     "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
                 }
             ]
-            with ESMockWithScroll(data=mock_es_data):
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
                 self.assertEqual(
                     omnibox_request("search=%d" % self.frank.pk),
                     [dict(id="c-%s" % self.frank.uuid, text="Frank Smith")],
                 )
 
             # but not by frank number
-            mock_es_data = []
-            with ESMockWithScroll(data=mock_es_data):
+            with ESMockWithScrollMultiple(data=[[], []]):
                 self.assertEqual(omnibox_request("search=222"), [])
 
         # exclude blocked and stopped contacts
