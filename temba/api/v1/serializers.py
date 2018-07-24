@@ -10,10 +10,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.flows.models import Flow, FlowRevision, FlowRun, RuleSet
+from temba.flows.models import Flow, FlowRun, RuleSet
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import get_current_export_version
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 
@@ -592,6 +591,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         super().__init__(*args, **kwargs)
         self.contact_obj = None
         self.flow_obj = None
+        self.revision_nodes = {}
         self.submitted_by_obj = None
 
     def validate_submitted_by(self, value):
@@ -631,44 +631,34 @@ class FlowRunWriteSerializer(WriteSerializer):
         if not flow_revision:
             raise serializers.ValidationError("Invalid revision: %s" % revision)
 
-        # make sure we are operating off a current spec
+        # get the set of valid node UUIDs for this revision of the flow
         definition = flow_revision.definition
-        definition = FlowRevision.migrate_definition(definition, self.flow_obj, get_current_export_version())
+        node_uuids = {n["uuid"] for n in definition["rule_sets"] + definition["action_sets"]}
 
-        # look for a matching node for each step in our path
         for step in steps:
-            node_obj = None
-            node_set = "rule_sets" if "rule" in step else "action_sets"
-
-            for node_json in definition[node_set]:
-                if node_json["uuid"] == step["node"]:
-                    node_obj = FlowRunWriteSerializer.RevisionNode(self.flow_obj, node_json)
-                    break
-
-            if not node_obj:
+            # look for a matching node for each step in our path
+            if step["node"] not in node_uuids:
                 raise serializers.ValidationError(
-                    "No such node with UUID %s in flow '%s'" % (step["node"], self.flow_obj.name)
+                    "No such node with UUID %s in flow '%s' (rev %d)" % (step["node"], self.flow_obj.name, revision)
                 )
-            else:
-                rule = step.get("rule", None)
-                if rule:
-                    media = rule.get("media", None)
-                    if media:
-                        (media_type, media_path) = media.split(":", 1)
-                        if media_type != "geo":
-                            media_type_parts = media_type.split("/")
 
-                            error = None
-                            if len(media_type_parts) != 2:
-                                error = (media_type, media)
+            rule = step.get("rule", None)
+            if rule:
+                media = rule.get("media", None)
+                if media:
+                    (media_type, media_path) = media.split(":", 1)
+                    if media_type != "geo":
+                        media_type_parts = media_type.split("/")
 
-                            if media_type_parts[0] not in Msg.MEDIA_TYPES:
-                                error = (media_type_parts[0], media)
+                        error = None
+                        if len(media_type_parts) != 2:
+                            error = (media_type, media)
 
-                            if error:
-                                raise serializers.ValidationError("Invalid media type '%s': %s" % error)
+                        if media_type_parts[0] not in Msg.MEDIA_TYPES:
+                            error = (media_type_parts[0], media)
 
-                step["node"] = node_obj
+                        if error:
+                            raise serializers.ValidationError("Invalid media type '%s': %s" % error)
 
         return data
 
@@ -676,6 +666,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         started = self.validated_data["started"]
         steps = self.validated_data.get("steps", [])
         completed = self.validated_data.get("completed", False)
+        revision = self.validated_data.get("revision", self.validated_data.get("version"))
 
         # look for previous run with this contact and flow
         run = (
@@ -691,7 +682,7 @@ class FlowRunWriteSerializer(WriteSerializer):
                 self.flow_obj, self.contact_obj, created_on=started, submitted_by=self.submitted_by_obj
             )
 
-        run.update_from_surveyor(steps)
+        run.update_from_surveyor(revision, steps)
 
         if completed:
             completed_on = steps[len(steps) - 1]["arrived_on"] if steps else None
@@ -701,46 +692,6 @@ class FlowRunWriteSerializer(WriteSerializer):
             run.save(update_fields=("modified_on",))
 
         return run
-
-    class RevisionNode:
-        """
-        Wrapper for a node in a particular revision of this flow
-        """
-
-        def __init__(self, flow, node_json):
-            self.node_json = node_json
-            self.flow = flow
-
-        @property
-        def uuid(self):
-            return self.node_json["uuid"]
-
-        def is_ruleset(self):
-            return "rules" in self.node_json
-
-        def as_ruleset_obj(self):
-            # look for it in the current flow
-            ruleset = self.flow.rule_sets.filter(uuid=self.uuid).first()
-            if ruleset:
-                return ruleset
-
-            # if it no longer exists in the flow, create it in memory
-            return RuleSet(
-                uuid=self.uuid,
-                flow=self.flow,
-                label=self.node_json.get("label"),
-                operand=self.node_json.get("operand"),
-                ruleset_type=self.node_json["ruleset_type"],
-                rules=self.node_json["rules"],
-                config=self.node_json.get("config"),
-                value_type=self.node_json.get("value_type"),
-            )
-
-        def is_pause(self):
-            return self.node_json["ruleset_type"] in RuleSet.TYPE_WAIT
-
-        def __str__(self):  # pragma: no cover
-            return f"{self.uuid}:{'R' if self.is_ruleset() else 'A'}"
 
 
 class BoundarySerializer(ReadSerializer):

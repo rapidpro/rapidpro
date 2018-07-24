@@ -3609,7 +3609,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return attachments
 
-    def update_from_surveyor(self, step_dicts):
+    def update_from_surveyor(self, revision, step_dicts):
         """
         Updates this run with the given Surveyor step JSON. For example an actionset might generate a step like:
             {
@@ -3632,20 +3632,30 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 "errors": []
             }
         """
+
+        # load the specific revision of the flow and migrate to latest spec
+        flow_rev = self.flow.revisions.filter(revision=revision).first()
+        definition = FlowRevision.migrate_definition(flow_rev.definition, self.flow, get_current_export_version())
+
+        rev_action_sets = {a["uuid"]: a for a in definition.get("action_sets", [])}
+        rev_rule_sets = {r["uuid"]: r for r in definition.get("rule_sets", [])}
+
         msgs = []
 
         for step_dict in step_dicts:
-            node = step_dict["node"]
+            node_uuid = step_dict["node"]
             arrived_on = iso8601.parse_date(step_dict["arrived_on"])
 
             prev_step = self.path[-1] if self.path else None
             if prev_step:
                 # was the previous step an actionset that we need to complete with an exit UUID ?
-                prev_action_set = self.flow.action_sets.filter(uuid=prev_step[FlowRun.PATH_NODE_UUID]).first()
-                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
-                    prev_step[FlowRun.PATH_EXIT_UUID] = str(prev_action_set.exit_uuid)
+                prev_action_set = rev_action_sets.get(prev_step[FlowRun.PATH_NODE_UUID])
 
-            if node.is_ruleset():
+                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
+                    prev_step[FlowRun.PATH_EXIT_UUID] = prev_action_set["exit_uuid"]
+
+            if node_uuid in rev_rule_sets:
+                node_json = rev_rule_sets[node_uuid]
                 rule_dict = step_dict.get("rule")
                 if rule_dict:
                     exit_uuid = step_dict["rule"]["uuid"]
@@ -3663,14 +3673,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     self.path.append(
                         {
                             FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node.uuid,
+                            FlowRun.PATH_NODE_UUID: node_uuid,
                             FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                             FlowRun.PATH_EXIT_UUID: exit_uuid,
                         }
                     )
 
                     # if a msg was sent to this ruleset, create it
-                    if node.is_pause():
+                    if node_json["ruleset_type"] in RuleSet.TYPE_WAIT:
                         incoming = Msg.create_incoming(
                             org=self.org,
                             contact=self.contact,
@@ -3684,30 +3694,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         )
                         self.add_messages([incoming])
 
-                    ruleset_obj = node.as_ruleset_obj()
-
                     # look for an exact rule match by UUID
+                    ruleset_rules = Rule.from_json_array(self.flow.org, node_json["rules"])
                     rule = None
-                    for r in ruleset_obj.get_rules():
+                    for r in ruleset_rules:
                         if r.uuid == exit_uuid:
                             rule = r
                             break
 
-                    if not rule:
-                        # the user updated the rules try to match the new rules
-                        msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                        rule, value, rule_input = ruleset_obj.find_matching_rule(self, msg)
-                        if not rule:
-                            raise ValueError("No such rule with UUID %s" % exit_uuid)
-
-                        rule_value = value
-
-                    ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
+                    if rule:
+                        ruleset_obj = RuleSet(uuid=node_uuid, label=node_json.get("label"))
+                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
                 else:
                     self.path.append(
                         {
                             FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node.uuid,
+                            FlowRun.PATH_NODE_UUID: node_uuid,
                             FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                         }
                     )
@@ -3717,7 +3719,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.path.append(
                     {
                         FlowRun.PATH_STEP_UUID: str(uuid4()),
-                        FlowRun.PATH_NODE_UUID: node.uuid,
+                        FlowRun.PATH_NODE_UUID: node_uuid,
                         FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                     }
                 )
@@ -3728,7 +3730,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
                 for action in actions:
                     context = self.flow.build_expressions_context(self.contact, last_incoming)
-                    msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
+                    msgs += action.execute(self, context, node_uuid, msg=last_incoming, offline_on=arrived_on)
                     self.add_messages(msgs)
 
         try:
@@ -4784,9 +4786,6 @@ class RuleSet(models.Model):
 
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, self.rules)
-
-    def get_rule_uuids(self):  # pragma: needs cover
-        return [rule["uuid"] for rule in self.rules]
 
     def set_rules(self, rules):
         rules_dict = []
