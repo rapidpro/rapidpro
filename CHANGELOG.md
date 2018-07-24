@@ -1,3 +1,9 @@
+v4.0.3
+----------
+ * Handle cases when surveyor submits run with deleted action set
+ * Document modified_on on our API endpoint
+ * Use ElasticSearch for the omnibox widget
+
 v4.0.2
 ----------
  * fix count of suborgs after org deletion
