@@ -591,7 +591,6 @@ class FlowRunWriteSerializer(WriteSerializer):
         super().__init__(*args, **kwargs)
         self.contact_obj = None
         self.flow_obj = None
-        self.revision_nodes = {}
         self.submitted_by_obj = None
 
     def validate_submitted_by(self, value):
@@ -639,7 +638,7 @@ class FlowRunWriteSerializer(WriteSerializer):
             # look for a matching node for each step in our path
             if step["node"] not in node_uuids:
                 raise serializers.ValidationError(
-                    "No such node with UUID %s in flow '%s' (rev %d)" % (step["node"], self.flow_obj.name, revision)
+                    f"No such node with UUID {step['node']} in flow '{self.flow_obj.name}' (rev {revision})"
                 )
 
             rule = step.get("rule", None)
