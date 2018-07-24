@@ -1,3 +1,7 @@
+v4.0.2
+----------
+ * fix count of suborgs after org deletion
+
 v4.0.1
 ----------
  * remove group settings call for WhatsApp which is no longer supported
