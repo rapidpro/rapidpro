@@ -3601,7 +3601,7 @@ class CeleryTaskTest(TembaTest):
         SystemLabelCount.objects.all().delete()
         ContactGroupCount.objects.all().delete()
         ContactGroup.all_groups.all().delete()
-        ContactField.user_fields.all().delete()
+        ContactField.all_fields.all().delete()
         Org.objects.all().delete()
 
         for boundary in AdminBoundary.objects.all():

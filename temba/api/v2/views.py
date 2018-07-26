@@ -1099,7 +1099,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         queryset = queryset.prefetch_related(
             Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
-            Prefetch("relative_to", queryset=ContactField.user_fields.only("key", "label")),
+            Prefetch("relative_to", queryset=ContactField.all_fields.only("key", "label")),
         )
 
         return queryset

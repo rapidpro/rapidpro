@@ -5492,6 +5492,8 @@ class ContactTest(TembaTest):
         state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
+        joe.language = "eng"
+        joe.save(update_fields=("language",))
 
         # none value instances
         self.assertEqual(joe.get_field_serialized(weight_field), None)
@@ -5523,6 +5525,27 @@ class ContactTest(TembaTest):
 
         self.assertEqual(joe.get_field_serialized(color_field), "green")
         self.assertEqual(joe.get_field_display(color_field), "green")
+
+        field_created_on = self.org.contactfields.get(key="created_on")
+        field_language = self.org.contactfields.get(key="language")
+        field_name = self.org.contactfields.get(key="name")
+
+        self.assertEqual(joe.get_field_serialized(field_created_on), joe.created_on)
+        self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
+
+        self.assertEqual(joe.get_field_serialized(field_language), joe.language)
+        self.assertEqual(joe.get_field_display(field_language), "eng")
+
+        self.assertEqual(joe.get_field_serialized(field_name), joe.name)
+        self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
+
+        # create a system field that is not supported
+        field_iban = ContactField.system_fields.create(
+            org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
+        )
+
+        self.assertRaises(ValueError, joe.get_field_serialized, field_iban)
+        self.assertRaises(ValueError, joe.get_field_display, field_iban)
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(

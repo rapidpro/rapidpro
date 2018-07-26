@@ -208,7 +208,7 @@ class ContactFieldField(TembaModelField):
         return {"key": obj.key, "label": obj.label}
 
     def get_queryset(self):
-        manager = getattr(self.model, "user_fields")
+        manager = getattr(self.model, "all_fields")
         return manager.filter(org=self.context["org"], is_active=True)
 
 

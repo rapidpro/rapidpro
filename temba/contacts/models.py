@@ -816,7 +816,21 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        return self.fields.get(str(field.uuid)) if self.fields else None
+        if field.field_type == ContactField.FIELD_TYPE_USER:
+            return self.fields.get(str(field.uuid)) if self.fields else None
+
+        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
+            if field.key == "created_on":
+                return {ContactField.DATETIME_KEY: self.created_on}
+            elif field.key == "language":
+                return {ContactField.TEXT_KEY: self.language}
+            elif field.key == "name":
+                return {ContactField.TEXT_KEY: self.name}
+            else:
+                raise ValueError(f"System contact field '{field.key}' is not supported")
+
+        else:  # pragma: no cover
+            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
 
     def get_field_serialized(self, field):
         """
@@ -847,18 +861,32 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
         for this contact or None.
         """
-        string_value = self.get_field_serialized(field)
-        if string_value is None:
-            return None
+        if field.field_type == ContactField.FIELD_TYPE_USER:
+            string_value = self.get_field_serialized(field)
+            if string_value is None:
+                return None
 
-        if field.value_type == Value.TYPE_TEXT:
-            return string_value
-        elif field.value_type == Value.TYPE_DATETIME:
-            return iso8601.parse_date(string_value)
-        elif field.value_type == Value.TYPE_NUMBER:
-            return Decimal(string_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
-            return AdminBoundary.get_by_path(self.org, string_value)
+            if field.value_type == Value.TYPE_TEXT:
+                return string_value
+            elif field.value_type == Value.TYPE_DATETIME:
+                return iso8601.parse_date(string_value)
+            elif field.value_type == Value.TYPE_NUMBER:
+                return Decimal(string_value)
+            elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+                return AdminBoundary.get_by_path(self.org, string_value)
+
+        elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
+            if field.key == "created_on":
+                return self.created_on
+            elif field.key == "language":
+                return self.language
+            elif field.key == "name":
+                return self.name
+            else:
+                raise ValueError(f"System contact field '{field.key}' is not supported")
+
+        else:  # pragma: no cover
+            raise ValueError(f"Unhandled ContactField type '{field.field_type}'.")
 
     def get_field_display(self, field):
         """
