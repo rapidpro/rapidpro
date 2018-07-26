@@ -7426,6 +7426,44 @@ class FlowsTest(FlowFileTest):
             },
         )
 
+    def test_activity_for_pruned_paths(self):
+        flow = self.get_flow("color")
+        color_question = ActionSet.objects.get(x=1, y=1, flow=flow)
+        blue_action = ActionSet.objects.get(x=3, y=3, flow=flow)
+        other_action = ActionSet.objects.get(x=4, y=4, flow=flow)
+        color_ruleset = RuleSet.objects.get(label="color", flow=flow)
+
+        rules = color_ruleset.get_rules()
+        blue_rule = rules[1]
+        other_rule = rules[2]
+
+        run, = flow.start([], [self.contact])
+
+        now = datetime.datetime(2014, 1, 2, 3, 4, 5, 6, timezone.utc)
+
+        for m in range(50):
+            # send messages as if they're 1 hour apart so we don't trigger check for duplicate replies
+            with patch.object(timezone, "now", return_value=now + timedelta(hours=m)):
+                self.send_message(flow, f"azure{m}")
+
+        self.send_message(flow, f"blue")
+
+        run.refresh_from_db()
+        # self.assertEqual(len(run.path), 100)  # path has been pruned to 100
+
+        (active, visited) = flow.get_activity()
+
+        self.assertEqual(active, {})  # run is complete
+        self.assertEqual(
+            visited,
+            {
+                "%s:%s" % (color_question.exit_uuid, color_ruleset.uuid): 1,
+                "%s:%s" % (other_rule.uuid, other_action.uuid): 50,
+                "%s:%s" % (other_action.exit_uuid, color_ruleset.uuid): 50,
+                "%s:%s" % (blue_rule.uuid, blue_action.uuid): 1,
+            },
+        )
+
     def test_prune_recentruns(self):
         flow = self.get_flow("favorites")
 
