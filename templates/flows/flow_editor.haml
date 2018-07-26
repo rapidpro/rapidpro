@@ -161,6 +161,7 @@
 
 -block page-top
 
+
 -block page-container
 
   -include "msgs/msg_send_modal.html"
@@ -221,6 +222,12 @@
         -elif flow.flow_type == 'S'
           .icon-mobile
         {{ flow.name }}
+
+      -if messages
+        #messages
+          -for msg in messages
+            %div{class:"alert alert-{{ message.tags }}"}
+              {{ msg }}
 
       #pending{ng-show:'is_starting'}
         %div{class:"alert alert-info"}

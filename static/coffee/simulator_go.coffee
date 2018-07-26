@@ -12,7 +12,7 @@ getStartRequest = ->
     contact: {
       uuid: uuid(),
       name: contactName,
-      urns: []
+      urns: ["tel:+12065551212"]
     }
     flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name}
     triggered_on: new Date()
@@ -36,7 +36,6 @@ window.simStart = ->
     window.updateResults(results)
 
 window.sendUpdate = (postData) ->
-
   request = getRequest()
   request['session'] = window.session
   request['events'] = [{
@@ -63,18 +62,21 @@ window.showModal = (title, body) ->
 
 window.updateResults = (data) ->
 
-  if data.log
-    for log in data.log
-      event = log.event
-      if event.type == "broadcast_created" or event.type == "msg_created"
+  if data.events
+    for event in data.events
+      if event.type == "broadcast_created"
         window.addMessage(event.text, "MT")
+      else if event.type == "msg_created"
+        window.addMessage(event.msg.text, "MT")
       else if event.type == "flow_triggered"
         window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
       else if event.type == "run_result_changed"
         slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
         window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
-      else if event.type == "contact_property_changed"
-        window.addMessage("Updated " + event.property + " to \"" + event.value + "\"", "log")
+      else if event.type == "contact_language_changed"
+        window.addMessage("Updated language to \"" + event.language + "\"", "log")
+      else if event.type == "contact_name_changed"
+        window.addMessage("Updated name to \"" + event.name + "\"", "log")
       else if event.type == "contact_field_changed"
         window.addMessage("Updated " + event.field.label + " to \"" + event.value + "\"", "log")
       else if event.type == "contact_group_added"

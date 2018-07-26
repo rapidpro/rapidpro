@@ -140,7 +140,7 @@
 
 
     %span{ng-if:'config.type == "send"'}
-      %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
+      %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"cg", "completions":true}', groups:"action.groups", type:"hidden"}
       -include 'partials/invalid_fields.haml'
       %span{msg:"action.msg", data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}

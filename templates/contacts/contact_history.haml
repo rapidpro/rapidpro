@@ -113,3 +113,13 @@
        ic-target:"table.activity tbody.previous", 
        ic-indicator:"#indicator" }
 
+-if not has_older and not recent_only and start_date
+  -if start_date
+    %tr.archive-note
+      %td(colspan=3)><
+        -blocktrans with start=start_date
+          Any messages prior to {{start}} can be found in your
+        %a(href="{% url 'archives.archive_message'%}")><
+          -trans "archive"
+        \.
+

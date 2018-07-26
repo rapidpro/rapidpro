@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
+from twilio.util import RequestValidator
 
 from temba.ivr.clients import TwilioClient
-from twilio.util import RequestValidator
 
 
 class MockRequestValidator(RequestValidator):
-
     def __init__(self, token):
         pass
 
@@ -15,7 +12,6 @@ class MockRequestValidator(RequestValidator):
 
 
 class MockTwilioClient(TwilioClient):
-
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base
@@ -24,7 +20,7 @@ class MockTwilioClient(TwilioClient):
         self.accounts = MockTwilioClient.MockAccounts()
         self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
         self.sms = MockTwilioClient.MockSMS()
-        self.auth = ['', 'FakeRequestToken']
+        self.auth = ["", "FakeRequestToken"]
 
     def validate(self, request):
         return True
@@ -55,23 +51,23 @@ class MockTwilioClient(TwilioClient):
             self.from_ = from_
             self.url = url
             self.status_callback = status_callback
-            self.sid = 'CallSid'
+            self.sid = "CallSid"
 
     class MockApplication(object):
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
-            self.sid = 'TwilioTestSid'
+            self.sid = "TwilioTestSid"
 
     class MockPhoneNumber(object):
         def __init__(self, phone_number):
             self.phone_number = phone_number
-            self.sid = 'PhoneNumberSid'
+            self.sid = "PhoneNumberSid"
 
     class MockAccount(object):
-        def __init__(self, account_type, auth_token='AccountToken'):
+        def __init__(self, account_type, auth_token="AccountToken"):
             self.type = account_type
             self.auth_token = auth_token
-            self.sid = 'AccountSid'
+            self.sid = "AccountSid"
 
     class MockAccounts(object):
         def __init__(self, *args):
@@ -98,7 +94,7 @@ class MockTwilioClient(TwilioClient):
             pass
 
         def create(self, **kwargs):
-            return MockTwilioClient.MockApplication('temba.io/1234')
+            return MockTwilioClient.MockApplication("temba.io/1234")
 
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]

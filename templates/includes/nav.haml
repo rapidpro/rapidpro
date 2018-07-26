@@ -42,7 +42,7 @@
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
       %li.nav-groups
-        %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+        %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
           .title
             -trans "users"
 
