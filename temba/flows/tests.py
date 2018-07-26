@@ -7449,7 +7449,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, f"blue")
 
         run.refresh_from_db()
-        # self.assertEqual(len(run.path), 100)  # path has been pruned to 100
+        self.assertEqual(len(run.path), 100)  # path has been pruned to 100
 
         (active, visited) = flow.get_activity()
 

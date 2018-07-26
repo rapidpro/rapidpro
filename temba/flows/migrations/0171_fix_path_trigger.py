@@ -11,13 +11,11 @@ SQL = """
 CREATE OR REPLACE FUNCTION temba_flowrun_path_change() RETURNS TRIGGER AS $$
 DECLARE
   p INT;
-  s JSONB;
   _old_path_json JSONB;
   _new_path_json JSONB;
   _old_path_len INT;
   _new_path_len INT;
   _old_last_step_uuid TEXT;
-  _new_last_step_uuid TEXT;
 BEGIN
     -- restrict changes
     IF NEW.is_active AND NOT OLD.is_active THEN RAISE EXCEPTION 'Cannot re-activate an inactive flow run'; END IF;
@@ -45,10 +43,9 @@ BEGIN
     -- if we have an old path, find its last step in the new path, and that will be our starting point
     IF _old_path_len > 1 THEN
         _old_last_step_uuid := _old_path_json->(_old_path_len-1)->>'uuid';
-        _new_last_step_uuid := _new_path_json->(_new_path_len-1)->>'uuid';
 
         -- old and new paths end with same step so path activity doesn't change
-        IF _old_last_step_uuid = _new_last_step_uuid THEN
+        IF _old_last_step_uuid = _new_path_json->(_new_path_len-1)->>'uuid' THEN
             RETURN NULL;
         END IF;
 
