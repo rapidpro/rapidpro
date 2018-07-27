@@ -6,14 +6,16 @@ from django.db import transaction
 from temba.flows.models import Flow, FlowNodeCount
 
 
-def recalc_node_counts(flow):  # pragma: no cover
+def recalc_node_counts(flow):
     node_counts = defaultdict(int)
 
-    all_runs = flow.runs.filter(is_active=True, current_node_uuid=True).only("id", "current_node_uuid").order_by("id")
+    all_runs = (
+        flow.runs.filter(is_active=True).exclude(current_node_uuid=None).only("id", "current_node_uuid").order_by("id")
+    )
     max_id = 0
 
     while True:
-        batch = all_runs.filter(id__gt=max_id)[:1000]
+        batch = list(all_runs.filter(id__gt=max_id)[:1000])
         if not batch:
             break
         max_id = batch[-1].id
@@ -30,7 +32,7 @@ def recalc_node_counts(flow):  # pragma: no cover
         FlowNodeCount.objects.bulk_create(records)
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Re-calculates node counts for a flow"
 
     def add_arguments(self, parser):
@@ -41,4 +43,4 @@ class Command(BaseCommand):  # pragma: no cover
 
         print(f"Re-calculating flow node counts for '{flow.name}' (#{flow.id})...")
 
-        recalc_node_counts(flow_id)
+        recalc_node_counts(flow)
