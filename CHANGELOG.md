@@ -1,3 +1,9 @@
+v4.1.0
+----------
+ * Management commnd to recalculate node counts
+ * Fix run path triggers when paths are trimmed
+ * Allow file overwrite for public S3 uploads
+
 v4.0.3
 ----------
  * Handle cases when surveyor submits run with deleted action set
