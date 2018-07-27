@@ -1,6 +1,6 @@
 
 $(document).ready(function() {
-  prepareOmnibox();
+  prepareOmnibox("cu");
 });
 
 function omnibox(ele, types, options) {
@@ -28,8 +28,6 @@ function omnibox(ele, types, options) {
     var placeholder = null;
     if (types == 'g'){
         placeholder = gettext("Enter one or more contact groups");
-    } else if (types == 'c') {
-        placeholder = gettext("Recipients, enter contacts");
     } else if (types == 'cu'){
         placeholder = gettext("Recipients, enter contacts or phone numbers");
     }
@@ -102,16 +100,19 @@ function omnibox(ele, types, options) {
 }
 
 function prepareOmnibox(types) {
+    if (types === undefined) {
+        types = 'cg';
+    }
     omnibox($(".omni_widget"), types);
 }
 
 function initializeOmnibox(initial) {
     var options = {
-        placeholder: gettext("Recipients, enter contacts or groups"),
+        placeholder: gettext("Recipients, enter contacts or phone numbers"),
         minimumInputLength: 0,
         multiple: true,
         ajax: {
-            url: "/contact/omnibox/",
+            url: "/contact/omnibox/?types=cu",
             dataType: 'json',
             data: function (term, page) {
                 return {

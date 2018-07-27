@@ -1,3 +1,4 @@
+from __future__ import absolute_import, unicode_literals
 
 # -----------------------------------------------------------------------------------
 # Sample RapidPro settings file, this should allow you to deploy RapidPro locally on
@@ -9,8 +10,8 @@
 #     - a redis instance listening on localhost
 # -----------------------------------------------------------------------------------
 
-import copy
 import warnings
+import copy
 
 from .settings_common import *  # noqa
 
@@ -27,7 +28,9 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -75,11 +78,10 @@ BROKER_BACKEND = 'redis'
 # This setting throws an exception if a naive datetime is used anywhere. (they should
 # always contain a timezone)
 # -----------------------------------------------------------------------------------
-warnings.filterwarnings(
-    "error", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
-)
+warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
+                        RuntimeWarning, r'django\.db\.models\.fields')
 
 # -----------------------------------------------------------------------------------
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
-STATIC_URL = "/sitestatic/"
+STATIC_URL = '/sitestatic/'

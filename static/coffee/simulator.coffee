@@ -63,20 +63,12 @@ processForm = (postData) ->
     else
       window.sendUpdate(postData)
 
-window.sendSimulationMessage = (new_message) ->
-  sendMessage(new_message)
-
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
 
     # handle commands
     if newMessage == "/v1" or newMessage == "/v2"
       window.legacy = newMessage == "/v1"
-
-      if newMessage == "/v2"
-        # document.location.href =
-        document.location.href = document.location.href.replace(/\/editor\//g, '/editor_next/');
-        return
 
       # style our content slightly differently to let us know we are on the new engine
       resetForm()
@@ -87,6 +79,8 @@ sendMessage = (newMessage) ->
 
         if window.legacy
           $('.simulator-content').removeClass('v2')
+        else
+          $('.simulator-content').addClass('v2')
 
       , 500)
       return false

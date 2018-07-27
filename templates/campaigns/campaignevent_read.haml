@@ -102,7 +102,7 @@
                 %a.href{ href: "{% url 'contacts.contact_read' fire.contact.uuid %}" }= fire.contact.name
 
               .relative-to
-                {{object.relative_to}}
+                {{object.relative_to}} of {{fire.get_relative_to_value}}
 
             %td.event_date
               {{fire.fired|naturaltime}}

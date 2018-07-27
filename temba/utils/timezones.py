@@ -1,26 +1,31 @@
-from datetime import datetime
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import pytz
+import six
+
+from datetime import datetime
 from timezone_field import TimeZoneFormField as BaseTimeZoneFormField
+
 
 # these are not mapped by pytz.country_timezones
 INITIAL_TIMEZONE_COUNTRY = {
-    "US/Hawaii": "US",
-    "US/Alaska": "US",
-    "Canada/Pacific": "CA",
-    "US/Pacific": "US",
-    "Canada/Mountain": "CA",
-    "US/Arizona": "US",
-    "US/Mountain": "US",
-    "Canada/Central": "CA",
-    "US/Central": "US",
-    "America/Montreal": "CA",
-    "Canada/Eastern": "CA",
-    "US/Eastern": "US",
-    "Canada/Atlantic": "CA",
-    "Canada/Newfoundland": "CA",
-    "GMT": "",
-    "UTC": "",
+    'US/Hawaii': 'US',
+    'US/Alaska': 'US',
+    'Canada/Pacific': 'CA',
+    'US/Pacific': 'US',
+    'Canada/Mountain': 'CA',
+    'US/Arizona': 'US',
+    'US/Mountain': 'US',
+    'Canada/Central': 'CA',
+    'US/Central': 'US',
+    'America/Montreal': 'CA',
+    'Canada/Eastern': 'CA',
+    'US/Eastern': 'US',
+    'Canada/Atlantic': 'CA',
+    'Canada/Newfoundland': 'CA',
+    'GMT': '',
+    'UTC': ''
 }
 
 PRETTY_TIMEZONE_CHOICES = []
@@ -38,9 +43,9 @@ for i in range(len(PRETTY_TIMEZONE_CHOICES)):
 
 class TimeZoneFormField(BaseTimeZoneFormField):
     def __init__(self, *args, **kwargs):
-        kwargs["choices"] = PRETTY_TIMEZONE_CHOICES
+        kwargs['choices'] = PRETTY_TIMEZONE_CHOICES
 
-        super().__init__(*args, **kwargs)
+        super(TimeZoneFormField, self).__init__(*args, **kwargs)
 
 
 def timezone_to_country_code(tz):
@@ -52,4 +57,4 @@ def timezone_to_country_code(tz):
         for zone in timezones:
             timezone_country[zone] = countrycode
 
-    return timezone_country.get(str(tz), "")
+    return timezone_country.get(six.text_type(tz), '')

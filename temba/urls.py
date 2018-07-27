@@ -1,25 +1,22 @@
-
-import importlib
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import debug_toolbar
-
-from django.conf import settings
-from django.conf.urls import include, url
-from django.conf.urls.static import static
-from django.contrib.auth.models import AnonymousUser, User
-from django.views.i18n import javascript_catalog
+import importlib
 
 from celery.signals import worker_process_init
-
+from django.conf.urls import include, url
+from django.contrib.auth.models import User, AnonymousUser
+from django.conf import settings
 from temba.channels.views import register, sync
-from temba.utils.analytics import init_analytics
+from django.views.i18n import javascript_catalog
+from django.conf.urls.static import static
 
 # javascript translation packages
 js_info_dict = {
     'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
 urlpatterns = [
-    url(r'^', include('temba.archives.urls')),
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
     url(r'^', include('temba.contacts.urls')),
@@ -52,6 +49,28 @@ urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 for app in settings.APP_URLS:  # pragma: needs cover
     importlib.import_module(app)
 
+
+# provide a utility method to initialize our analytics
+def init_analytics():
+    import analytics
+
+    analytics.send = False #settings.IS_PROD
+    analytics.debug = True #not settings.IS_PROD
+
+    analytics_key = getattr(settings, 'SEGMENT_IO_KEY', '')
+
+    if settings.IS_PROD and not analytics_key and False:
+        raise ValueError('SEGMENT.IO analytics key is required for production')  # pragma: no cover
+
+    analytics.write_key = analytics_key
+
+    from temba.utils.analytics import init_librato
+    librato_user = getattr(settings, 'LIBRATO_USER', None)
+    librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
+    if librato_user and librato_token:  # pragma: needs cover
+        init_librato(librato_user, librato_token)
+
+
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
 
@@ -70,8 +89,17 @@ def track_user(self):  # pragma: no cover
     if not settings.IS_PROD:
         return False
 
-    # nothing to report if they haven't logged in
+    # always track them if they haven't logged in
     if not self.is_authenticated() or self.is_anonymous():
+        return True
+
+    # never track nyaruka email accounts
+    if 'nyaruka' in self.email:
+        return False
+
+    # never track nyaruka org
+    org = self.get_org()
+    if org and org.name and 'nyaruka' in org.name.lower():
         return False
 
     return True
@@ -91,5 +119,5 @@ def handler500(request):
     from django.template import loader
     from django.http import HttpResponseServerError
 
-    t = loader.get_template("500.html")
-    return HttpResponseServerError(t.render({"request": request}))  # pragma: needs cover
+    t = loader.get_template('500.html')
+    return HttpResponseServerError(t.render({'request': request}))  # pragma: needs cover

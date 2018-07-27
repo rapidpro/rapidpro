@@ -634,10 +634,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
             if statusCode == 400
               $rootScope.saving = false
-              try
-                if UserVoice
-                  UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
-              catch e
+              if UserVoice
+                UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
 
               resolveObj =
                 type: -> "error"
