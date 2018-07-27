@@ -1,7 +1,6 @@
 
 import json
 import logging
-import time
 import traceback
 from datetime import datetime, timedelta
 from functools import cmp_to_key
@@ -1464,15 +1463,12 @@ class FlowCRUDL(SmartCRUDL):
                 # handle via the new engine
                 client = get_client()
 
-                # simulating never caches
-                asset_timestamp = int(time.time() * 1000000)
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(flow.org, asset_timestamp)
+                flow_request = client.request_builder(flow.org)
                 flow_request.request["asset_server"] = json_dict.get("asset_server")
                 flow_request.request["assets"] = json_dict.get("assets")
-                # asset_server(simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:

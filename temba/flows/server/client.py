@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db.models import Prefetch
 from django.utils import timezone
 
+from .assets import get_asset_server
 from .serialize import (
     serialize_channel,
     serialize_contact,
@@ -49,7 +50,7 @@ class Events(Enum):
     webhook_called = 24
 
 
-class RequestBuilder(object):
+class RequestBuilder:
     def __init__(self, client, org, base_assets_url):
         self.client = client
         self.org = org
@@ -209,14 +210,7 @@ class RequestBuilder(object):
         return self
 
     def asset_server(self, simulator=False):
-        type_urls = {
-            "flow": "%s/flow/{uuid}/" % self.base_assets_url,
-            "channel_set": "%s/channel/?simulator=%d" % (self.base_assets_url, 1 if simulator else 0),
-            "field_set": "%s/field/" % self.base_assets_url,
-            "group_set": "%s/group/" % self.base_assets_url,
-            "label_set": "%s/label/" % self.base_assets_url,
-            "resthook_set": "%s/resthook/" % self.base_assets_url,
-        }
+        type_urls = get_asset_server(self.org, simulator)
 
         if self.org.country_id:
             type_urls["location_hierarchy"] = "%s/location_hierarchy/" % self.base_assets_url
@@ -271,7 +265,7 @@ class RequestBuilder(object):
         return self.client.resume(self.request)
 
 
-class Output(object):
+class Output:
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json["session"], output_json.get("events", []))
@@ -294,7 +288,7 @@ class FlowServerException(Exception):
         return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
-class FlowServerClient(object):
+class FlowServerClient:
     """
     Basic client for GoFlow's flow server
     """
@@ -305,9 +299,9 @@ class FlowServerClient(object):
         self.base_url = base_url
         self.debug = debug
 
-    def request_builder(self, org, asset_timestamp):
+    def request_builder(self, org):
         assets_host = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
-        base_assets_url = "%s/flow/assets/%d/%d" % (assets_host, org.id, asset_timestamp)
+        base_assets_url = "%s/flow/assets/%d" % (assets_host, org.id)
 
         return RequestBuilder(self, org, base_assets_url)
 

@@ -6,7 +6,6 @@ and events with what the current engine produces.
 
 import json
 import logging
-import time
 
 from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
@@ -141,9 +140,8 @@ def resume(trial, msg_in=None, expired_child_run=None):
     client = get_client()
 
     # build request to flow server
-    asset_timestamp = int(time.time() * 1000000)
     request = (
-        client.request_builder(org, asset_timestamp)
+        client.request_builder(org)
         .asset_server()
         .set_config("disable_webhooks", True)
         .set_config("webhook_mocks", webhook_mocks)

@@ -5810,7 +5810,7 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        builder = client.request_builder(self.org, int(time.time() * 1000000))
+        builder = client.request_builder(self.org)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
 
@@ -5827,7 +5827,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        builder = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact)
+        builder = client.request_builder(self.org).add_contact_changed(self.contact)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
         payload["session"] = response.json()["session"]

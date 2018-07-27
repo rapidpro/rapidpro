@@ -14,7 +14,25 @@ from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
+from .assets import get_asset_server
 from .client import FlowServerException, get_client, serialize_channel, serialize_field, serialize_label
+
+
+class AssetsTest(TembaTest):
+    def test_get_asset_server(self):
+        self.assertEqual(
+            get_asset_server(self.org),
+            {
+                "channel_set": matchers.String(
+                    pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/\?simulator=0"
+                ),
+                "field_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/flow/{{uuid}}/"),
+                "group_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/group/"),
+                "label_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
+                "resthook_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
+            },
+        )
 
 
 class SerializationTest(TembaTest):
@@ -65,7 +83,7 @@ class ClientTest(TembaTest):
             self.contact.set_field(self.admin, "age", 36)
 
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_contact_changed(self.contact).request["events"],
+                self.client.request_builder(self.org).add_contact_changed(self.contact).request["events"],
                 [
                     {
                         "type": "contact_changed",
@@ -90,7 +108,7 @@ class ClientTest(TembaTest):
     def test_add_environment_changed(self):
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_environment_changed().request["events"],
+                self.client.request_builder(self.org).add_environment_changed().request["events"],
                 [
                     {
                         "type": "environment_changed",
@@ -114,7 +132,7 @@ class ClientTest(TembaTest):
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
 
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_run_expired(run).request["events"],
+                self.client.request_builder(self.org).add_run_expired(run).request["events"],
                 [{"type": "run_expired", "created_on": run.exited_on.isoformat(), "run_uuid": str(run.uuid)}],
             )
 
@@ -126,7 +144,7 @@ class ClientTest(TembaTest):
         contact = self.create_contact("Joe", number="+29638356667")
 
         with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(self.org, 1234).start_manual(contact, flow)
+            self.client.request_builder(self.org).start_manual(contact, flow)
 
         self.assertEqual(
             e.exception.as_json(),
