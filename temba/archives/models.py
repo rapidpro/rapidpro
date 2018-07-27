@@ -84,6 +84,21 @@ class Archive(models.Model):
         )
         return session.client("s3")
 
+    @classmethod
+    def release_org_archives(cls, org):
+        """
+        Deletes all the archives for an org, also iterating any remaining files in S3 and removing that path
+        as well.
+        """
+        # release all of our archives in turn
+        for archive in Archive.objects.filter(org=org):
+            archive.release()
+
+        # find any remaining S3 files
+        s3 = cls.s3_client()
+        archive_files = s3.list_objects_v2(bucket=settings.ARCHIVE_BUCKET, prefix=f"{org.id}/")["Contents"]
+        s3.delete_objects(bucket=settings.ARCHIVE_BUCKET, delete=archive_files)
+
     def filename(self):
         url_parts = urlparse(self.url)
         return url_parts.path.split("/")[-1]
