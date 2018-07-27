@@ -605,7 +605,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         if value:
             self.flow_obj = Flow.objects.filter(org=self.org, uuid=value).first()
             if not self.flow_obj:  # pragma: needs cover
-                raise serializers.ValidationError(_("Unable to find contact with uuid: %s") % value)
+                raise serializers.ValidationError(_("Unable to find flow with uuid: %s") % value)
 
             if self.flow_obj.is_archived:  # pragma: needs cover
                 raise serializers.ValidationError("You cannot start an archived flow.")
