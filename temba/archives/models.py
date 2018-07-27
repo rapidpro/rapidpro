@@ -94,10 +94,11 @@ class Archive(models.Model):
         for archive in Archive.objects.filter(org=org):
             archive.release()
 
-        # find any remaining S3 files
+        # find any remaining S3 files and remove them for this org
         s3 = cls.s3_client()
-        archive_files = s3.list_objects_v2(bucket=settings.ARCHIVE_BUCKET, prefix=f"{org.id}/")["Contents"]
-        s3.delete_objects(bucket=settings.ARCHIVE_BUCKET, delete=archive_files)
+        archive_files = s3.list_objects_v2(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/")["Contents"]
+        for archive_file in archive_files:
+            s3.delete_object(Bucket=settings.ARCHIVE_BUCKET, Key=archive_file["Key"])
 
     def filename(self):
         url_parts = urlparse(self.url)

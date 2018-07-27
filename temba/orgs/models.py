@@ -2203,8 +2203,8 @@ class Org(SmartModel):
 
             flow.delete()
 
-        for archive in self.archives.all():
-            archive.release()
+        # release all archives objects and files for this org
+        Archive.release_org_archives(self)
 
         # return any unused credits to our parent
         if self.parent:
