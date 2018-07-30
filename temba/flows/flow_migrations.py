@@ -193,7 +193,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
     ]
 
     # get all contact fields that are date or location for this org
-    fields = ContactField.objects.filter(org=org, is_active=True, value_type__in=["D", "S", "I", "W"]).only(
+    fields = ContactField.user_fields.filter(org=org, is_active=True, value_type__in=["D", "S", "I", "W"]).only(
         "id", "value_type", "key"
     )
 

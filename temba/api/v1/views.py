@@ -337,7 +337,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         So that we only fetch active contact fields once for all contacts
         """
         context = super(BaseAPIView, self).get_serializer_context()
-        context["contact_fields"] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
 
@@ -432,7 +432,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = ContactFieldWriteSerializer
 
     def get_queryset(self):
-        queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
+        queryset = self.model.user_fields.filter(org=self.request.user.get_org(), is_active=True)
 
         key = self.request.query_params.get("key", None)
         if key:  # pragma: needs cover

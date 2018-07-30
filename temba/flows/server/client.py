@@ -92,7 +92,7 @@ class RequestBuilder(object):
             {
                 "type": "field_set",
                 "url": "%s/field/" % self.base_assets_url,
-                "content": [serialize_field(f) for f in ContactField.objects.filter(org=self.org, is_active=True)],
+                "content": [serialize_field(f) for f in ContactField.user_fields.filter(org=self.org, is_active=True)],
             }
         )
         return self

@@ -3592,6 +3592,7 @@ class CeleryTaskTest(TembaTest):
 
         self.releaseMessages()
         self.releaseContacts(delete=True)
+        self.releaseContactFields(delete=True)
         self.releaseChannels(delete=True)
 
         TopUpCredits.objects.all().delete()
@@ -3600,6 +3601,7 @@ class CeleryTaskTest(TembaTest):
         SystemLabelCount.objects.all().delete()
         ContactGroupCount.objects.all().delete()
         ContactGroup.all_groups.all().delete()
+        ContactField.all_fields.all().delete()
         Org.objects.all().delete()
 
         for boundary in AdminBoundary.objects.all():

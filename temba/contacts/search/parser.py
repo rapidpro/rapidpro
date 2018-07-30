@@ -79,7 +79,7 @@ class ContactQuery(object):
 
         prop_map = {p: None for p in all_props}
 
-        for field in ContactField.objects.filter(org=org, key__in=attr_props, is_active=True):
+        for field in ContactField.user_fields.filter(org=org, key__in=attr_props, is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
 
         for attr in searchable_attrs:

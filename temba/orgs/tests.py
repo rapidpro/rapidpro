@@ -3445,7 +3445,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
             self.assertEqual(
-                1, ContactField.objects.filter(org=self.org, value_type="D", label="Next Appointment").count()
+                1, ContactField.user_fields.filter(org=self.org, value_type="D", label="Next Appointment").count()
             )
 
         # import all our bits
