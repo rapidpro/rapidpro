@@ -1828,7 +1828,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.serializer = serializer
 
             def get_root(self, org):
-                return org.country
+                return [org]
 
         class EnvironmentResource(object):
             def __init__(self, serializer):

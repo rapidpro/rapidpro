@@ -15,7 +15,8 @@ from temba.values.constants import Value
 
 from . import trial
 from .assets import get_asset_urls
-from .client import FlowServerException, get_client, serialize_channel, serialize_field, serialize_label
+from .client import FlowServerException, get_client
+from .serialize import serialize_channel, serialize_field, serialize_label
 
 
 class AssetsTest(TembaTest):
@@ -23,15 +24,13 @@ class AssetsTest(TembaTest):
         self.assertEqual(
             get_asset_urls(self.org),
             {
-                "channel_set": matchers.String(
-                    pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/\?simulator=0"
-                ),
-                "field_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/field/"),
-                "flow": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/flow/{{uuid}}/"),
-                "group_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/group/"),
-                "label_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
-                "location_hierarchy": f"http://localhost:8000/{self.org.id}/location_hierarchy/",
-                "resthook_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
+                "channel": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/"),
+                "field": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/flow/"),
+                "group": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/group/"),
+                "label": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
+                "location_hierarchy": f"http://localhost:8000/{self.org.id}/1/location_hierarchy/",
+                "resthook": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
             },
         )
 

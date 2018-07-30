@@ -11405,20 +11405,22 @@ class AssetServerTest(TembaTest):
         resp_json = response.json()
         self.assertEqual(
             resp_json,
-            {
-                "name": "Rwanda",
-                "children": [
-                    {"name": "Kigali City", "children": [{"name": "Nyarugenge"}]},
-                    {
-                        "name": "Eastern Province",
-                        "children": [
-                            {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
-                            {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
-                            {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
-                        ],
-                    },
-                ],
-            },
+            [
+                {
+                    "name": "Rwanda",
+                    "children": [
+                        {"name": "Kigali City", "children": [{"name": "Nyarugenge"}]},
+                        {
+                            "name": "Eastern Province",
+                            "children": [
+                                {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
+                                {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
+                                {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
+                            ],
+                        },
+                    ],
+                }
+            ],
         )
 
     def test_resthooks(self):

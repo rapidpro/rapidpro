@@ -7,8 +7,18 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
-from .assets import get_asset_urls
-from .serialize import serialize_contact, serialize_environment, serialize_location_hierarchy, serialize_message
+from .assets import (
+    ChannelType,
+    FieldType,
+    FlowType,
+    GroupType,
+    LabelType,
+    LocationHierarchyType,
+    ResthookType,
+    get_asset_type,
+    get_asset_urls,
+)
+from .serialize import serialize_contact, serialize_environment, serialize_message
 
 
 class Events(Enum):
@@ -59,57 +69,31 @@ class RequestBuilder:
         return request
 
     def include_channels(self, simulator):
-        from temba.channels.models import Channel
-        from .assets import ChannelSetType
-
-        serialized = ChannelSetType().serialize_active(self.org, simulator)
-
-        if simulator:
-            serialized["content"].append(Channel.SIMULATOR_CHANNEL)
-
-        self.request["assets"].append(serialized)
+        self.request["assets"].append(get_asset_type(ChannelType.name).serialize_set(self.org, simulator))
         return self
 
     def include_fields(self):
-        from .assets import FieldSetType
-
-        self.request["assets"].append(FieldSetType().serialize_active(self.org))
+        self.request["assets"].append(get_asset_type(FieldType.name).serialize_set(self.org))
         return self
 
     def include_flow(self, flow):
-        from .assets import FlowType
-
-        self.request["assets"].append(FlowType().serialize_item(flow.org, str(flow.uuid)))
+        self.request["assets"].append(get_asset_type(FlowType.name).serialize_item(flow.org, str(flow.uuid)))
         return self
 
     def include_groups(self):
-        from .assets import GroupSetType
-
-        self.request["assets"].append(GroupSetType().serialize_active(self.org))
+        self.request["assets"].append(get_asset_type(GroupType.name).serialize_set(self.org))
         return self
 
     def include_labels(self):
-        from .assets import LabelSetType
-
-        self.request["assets"].append(LabelSetType().serialize_active(self.org))
+        self.request["assets"].append(get_asset_type(LabelType.name).serialize_set(self.org))
         return self
 
     def include_country(self):
-        from .assets import LocationHierarchyType
-
-        self.request["assets"].append(
-            {
-                "type": "location_hierarchy",
-                "url": LocationHierarchyType().get_url(self.org, simulator=False),
-                "content": serialize_location_hierarchy(self.org.country, self.org),
-            }
-        )
+        self.request["assets"].append(get_asset_type(LocationHierarchyType.name).serialize_set(self.org))
         return self
 
     def include_resthooks(self):
-        from .assets import ResthookSetType
-
-        self.request["assets"].append(ResthookSetType().serialize_active(self.org))
+        self.request["assets"].append(get_asset_type(ResthookType.name).serialize_set(self.org))
         return self
 
     def add_environment_changed(self):
