@@ -5,22 +5,10 @@ from enum import Enum
 import requests
 
 from django.conf import settings
-from django.db.models import Prefetch
 from django.utils import timezone
 
-from .assets import get_asset_server
-from .serialize import (
-    serialize_channel,
-    serialize_contact,
-    serialize_environment,
-    serialize_field,
-    serialize_flow,
-    serialize_group,
-    serialize_label,
-    serialize_location_hierarchy,
-    serialize_message,
-    serialize_resthook,
-)
+from .assets import get_asset_urls
+from .serialize import serialize_contact, serialize_environment, serialize_location_hierarchy, serialize_message
 
 
 class Events(Enum):
@@ -72,90 +60,56 @@ class RequestBuilder:
 
     def include_channels(self, simulator):
         from temba.channels.models import Channel
+        from .assets import ChannelSetType
 
-        channels = [serialize_channel(c) for c in self.org.channels.filter(is_active=True)]
+        serialized = ChannelSetType().serialize_active(self.org, simulator)
+
         if simulator:
-            channels.append(Channel.SIMULATOR_CHANNEL)
+            serialized["content"].append(Channel.SIMULATOR_CHANNEL)
 
-        self.request["assets"].append(
-            {
-                "type": "channel_set",
-                "url": "%s/channel/?simulator=%d" % (self.base_assets_url, 1 if simulator else 0),
-                "content": channels,
-            }
-        )
+        self.request["assets"].append(serialized)
         return self
 
     def include_fields(self):
-        from temba.contacts.models import ContactField
+        from .assets import FieldSetType
 
-        self.request["assets"].append(
-            {
-                "type": "field_set",
-                "url": "%s/field/" % self.base_assets_url,
-                "content": [serialize_field(f) for f in ContactField.objects.filter(org=self.org, is_active=True)],
-            }
-        )
+        self.request["assets"].append(FieldSetType().serialize_active(self.org))
         return self
 
     def include_flow(self, flow):
-        self.request["assets"].append(
-            {
-                "type": "flow",
-                "url": "%s/flow/%s/" % (self.base_assets_url, str(flow.uuid)),
-                "content": serialize_flow(flow),
-            }
-        )
+        from .assets import FlowType
+
+        self.request["assets"].append(FlowType().serialize_item(flow.org, str(flow.uuid)))
         return self
 
     def include_groups(self):
-        from temba.contacts.models import ContactGroup
+        from .assets import GroupSetType
 
-        self.request["assets"].append(
-            {
-                "type": "group_set",
-                "url": "%s/group/" % self.base_assets_url,
-                "content": [serialize_group(g) for g in ContactGroup.get_user_groups(self.org)],
-            }
-        )
+        self.request["assets"].append(GroupSetType().serialize_active(self.org))
         return self
 
     def include_labels(self):
-        from temba.msgs.models import Label
+        from .assets import LabelSetType
 
-        self.request["assets"].append(
-            {
-                "type": "label_set",
-                "url": "%s/label/" % self.base_assets_url,
-                "content": [serialize_label(l) for l in Label.label_objects.filter(org=self.org, is_active=True)],
-            }
-        )
+        self.request["assets"].append(LabelSetType().serialize_active(self.org))
         return self
 
     def include_country(self):
+        from .assets import LocationHierarchyType
+
         self.request["assets"].append(
             {
                 "type": "location_hierarchy",
-                "url": "%s/location_hierarchy/" % self.base_assets_url,
+                "url": LocationHierarchyType().get_url(self.org, simulator=False),
                 "content": serialize_location_hierarchy(self.org.country, self.org),
             }
         )
         return self
 
     def include_resthooks(self):
-        from temba.api.models import Resthook, ResthookSubscriber
+        from .assets import ResthookSetType
 
-        resthooks = Resthook.objects.filter(org=self.org, is_active=True).prefetch_related(
-            Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
-        )
-
-        self.request["assets"].append(
-            {
-                "type": "resthook_set",
-                "url": "%s/resthook/" % self.base_assets_url,
-                "content": [serialize_resthook(r) for r in resthooks],
-            }
-        )
+        self.request["assets"].append(ResthookSetType().serialize_active(self.org))
         return self
 
     def add_environment_changed(self):
@@ -210,12 +164,7 @@ class RequestBuilder:
         return self
 
     def asset_server(self, simulator=False):
-        type_urls = get_asset_server(self.org, simulator)
-
-        if self.org.country_id:
-            type_urls["location_hierarchy"] = "%s/location_hierarchy/" % self.base_assets_url
-
-        self.request["asset_server"] = {"type_urls": type_urls}
+        self.request["asset_server"] = {"type_urls": get_asset_urls(self.org, simulator)}
         return self
 
     def set_config(self, name, value):

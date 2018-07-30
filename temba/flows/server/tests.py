@@ -14,14 +14,14 @@ from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
-from .assets import get_asset_server
+from .assets import get_asset_urls
 from .client import FlowServerException, get_client, serialize_channel, serialize_field, serialize_label
 
 
 class AssetsTest(TembaTest):
-    def test_get_asset_server(self):
+    def test_get_asset_urls(self):
         self.assertEqual(
-            get_asset_server(self.org),
+            get_asset_urls(self.org),
             {
                 "channel_set": matchers.String(
                     pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/\?simulator=0"
@@ -30,6 +30,7 @@ class AssetsTest(TembaTest):
                 "flow": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/flow/{{uuid}}/"),
                 "group_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/group/"),
                 "label_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
+                "location_hierarchy": f"http://localhost:8000/{self.org.id}/location_hierarchy/",
                 "resthook_set": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
             },
         )

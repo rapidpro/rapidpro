@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.db.models import Prefetch
 
+from temba.api.models import ResthookSubscriber
 from temba.utils.dates import datetime_to_ms
 
 ASSET_HOST = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
@@ -7,20 +9,55 @@ ASSET_HOST = "http://localhost:8000" if settings.TESTING else ("https://%s" % se
 
 class AssetType:
     name = None
-    queryset = None
+    serializer = None
+
+    def is_supported(self, org):
+        return True
+
+    def get_url(self, org, simulator):
+        pass
+
+
+class SetType(AssetType):
+    """
+    An asset type which is a set of things, e.g. group_set, label_set
+    """
 
     def get_all(self, org):
         pass
 
-    def get_url(self, org, simulator):
-        pass
+    def get_active(self, org):
+        return self.get_all(org).filter(is_active=True)
+
+    def serialize_active(self, org, simulator=False):
+        return {
+            "type": self.name,
+            "url": self.get_url(org, simulator),
+            "content": [self.serializer(o) for o in self.get_active(org)],
+        }
 
     def _get_timestamp(self, org):
         last_modified = self.get_all(org).order_by("modified_on").last()
         return datetime_to_ms(last_modified.modified_on) if last_modified else 0
 
 
-class ChannelSetAssetType(AssetType):
+class SetItemType(SetType):
+    """
+    An asset type which is a single item from a set of things, e.g. flow
+    """
+
+    def get_item(self, org, uuid):
+        return self.get_active(org).filter(uuid=uuid)
+
+    def serialize_item(self, org, uuid):
+        return {
+            "type": self.name,
+            "url": self.get_url(org, simulator=False),
+            "content": self.serializer(self.get_item(org, uuid)),
+        }
+
+
+class ChannelSetType(SetType):
     name = "channel_set"
 
     def get_all(self, org):
@@ -30,7 +67,7 @@ class ChannelSetAssetType(AssetType):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/channel/?simulator={1 if simulator else 0}"
 
 
-class FieldSetAssetType(AssetType):
+class FieldSetType(SetType):
     name = "field_set"
 
     def get_all(self, org):
@@ -40,7 +77,7 @@ class FieldSetAssetType(AssetType):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/field/"
 
 
-class FlowAssetType(AssetType):
+class FlowType(SetItemType):
     name = "flow"
 
     def get_all(self, org):
@@ -50,7 +87,7 @@ class FlowAssetType(AssetType):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/flow/{{uuid}}/"
 
 
-class GroupSetAssetType(AssetType):
+class GroupSetType(SetType):
     name = "group_set"
 
     def get_all(self, org):
@@ -60,7 +97,7 @@ class GroupSetAssetType(AssetType):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/group/"
 
 
-class LabelSetAssetType(AssetType):
+class LabelSetType(SetType):
     name = "label_set"
 
     def get_all(self, org):
@@ -70,11 +107,23 @@ class LabelSetAssetType(AssetType):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/label/"
 
 
-class ResthookSetAssetType(AssetType):
+class LocationHierarchyType(AssetType):
+    name = "location_hierarchy"
+
+    def is_supported(self, org):
+        return bool(org.country_id)
+
+    def get_url(self, org, simulator):
+        return f"{ASSET_HOST}/{org.id}/location_hierarchy/"
+
+
+class ResthookSetType(SetType):
     name = "resthook_set"
 
     def get_all(self, org):
-        return org.resthooks.all()
+        return org.resthooks.prefetch_related(
+            Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
+        )
 
     def get_url(self, org, simulator):
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/resthook/"
@@ -83,5 +132,5 @@ class ResthookSetAssetType(AssetType):
 ASSET_TYPES = [cls() for cls in AssetType.__subclasses__()]
 
 
-def get_asset_server(org, simulator=False):
-    return {at.name: at.get_url(org, simulator) for at in ASSET_TYPES}
+def get_asset_urls(org, simulator=False):
+    return {at.name: at.get_url(org, simulator) for at in ASSET_TYPES if at.is_supported(org)}
