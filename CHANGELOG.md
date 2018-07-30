@@ -1,3 +1,7 @@
+v4.2.0
+----------
+ * Enable users to choose 'system fields' like created_on for campaign events
+
 v4.1.0
 ----------
  * Management commnd to recalculate node counts
