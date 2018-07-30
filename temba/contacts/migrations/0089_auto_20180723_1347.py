@@ -1,9 +1,11 @@
+import itertools
+
 from django.db import migrations
 
 from temba.values.constants import Value
 
 
-def add_system_contact_fields(apps, schema_editor):
+def contact_field_generator(apps):
     Org = apps.get_model("orgs.Org")
     ContactField = apps.get_model("contacts.ContactField")
 
@@ -18,7 +20,7 @@ def add_system_contact_fields(apps, schema_editor):
             modified_by=org.modified_by,
             field_type="S",
         )
-        created_on.save()
+        yield created_on
 
         contact_name = ContactField(
             org_id=org.id,
@@ -30,7 +32,7 @@ def add_system_contact_fields(apps, schema_editor):
             modified_by=org.modified_by,
             field_type="S",
         )
-        contact_name.save()
+        yield contact_name
 
         language = ContactField(
             org_id=org.id,
@@ -42,7 +44,22 @@ def add_system_contact_fields(apps, schema_editor):
             modified_by=org.modified_by,
             field_type="S",
         )
-        language.save()
+        yield language
+
+
+def add_system_contact_fields(apps, schema_editor):
+    ContactField = apps.get_model("contacts.ContactField")
+    all_contact_fields = contact_field_generator(apps)
+
+    # https://docs.djangoproject.com/en/2.0/ref/models/querysets/#bulk-create
+    batch_size = 1000
+    while True:
+        batch = list(itertools.islice(all_contact_fields, batch_size))
+
+        if len(batch) == 0:
+            break
+
+        ContactField.all_fields.bulk_create(batch, batch_size)
 
 
 class Migration(migrations.Migration):
