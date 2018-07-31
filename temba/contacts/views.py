@@ -1670,6 +1670,8 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "managefields", "json")
 
     class List(OrgPermsMixin, SmartListView):
+        queryset = ContactField.user_fields
+
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=self.request.user.get_org(), is_active=True)
