@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.db.models.functions import Upper
 
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.search import contact_es_search
+from temba.contacts.search import SearchException, contact_es_search
 from temba.msgs.models import Label
 from temba.utils.models import ProxyQuerySet, mapEStoDB
 
@@ -113,12 +113,16 @@ def omnibox_mixed_search(org, search, types):
 
         from temba.utils.es import ES
 
-        search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
+        try:
+            search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
+            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
+            es_results = ProxyQuerySet([obj for obj in mapEStoDB(Contact, es_search)])
 
-        es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
-        es_results = ProxyQuerySet([obj for obj in mapEStoDB(Contact, es_search)])
+            results += list(es_results)
 
-        results += list(es_results)
+        except SearchException:
+            # ignore SearchException
+            pass
 
     if SEARCH_URNS in search_types:
         # only include URNs that are send-able

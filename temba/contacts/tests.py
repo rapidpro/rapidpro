@@ -2769,6 +2769,14 @@ class ContactTest(TembaTest):
             response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
             return response.json()["results"]
 
+        # search with search string that will raise a SearchException, which we ignore
+        with ESMockWithScrollMultiple(data=[[], []]):
+
+            actual_result = omnibox_request("search=-123`213")
+            expected_result = []
+
+            self.assertEqual(actual_result, expected_result)
+
         mock_es_data_contact = [
             {
                 "_type": "_doc",
