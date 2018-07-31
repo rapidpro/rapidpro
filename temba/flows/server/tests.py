@@ -14,7 +14,7 @@ from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
-from .assets import get_asset_urls
+from .assets import ChannelType, get_asset_type, get_asset_urls
 from .client import FlowServerException, get_client
 from .serialize import serialize_channel, serialize_field, serialize_label
 
@@ -31,6 +31,47 @@ class AssetsTest(TembaTest):
                 "label": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
                 "location_hierarchy": f"http://localhost:8000/{self.org.id}/1/location_hierarchy/",
                 "resthook": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
+            },
+        )
+
+    def test_bundling(self):
+        self.assertEqual(
+            get_asset_type(ChannelType).bundle_set(self.org, simulator=True),
+            {
+                "type": "channel",
+                "url": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/"),
+                "content": [
+                    {
+                        "address": "+250785551212",
+                        "name": "Test Channel",
+                        "roles": ["send", "receive"],
+                        "schemes": ["tel"],
+                        "uuid": str(self.channel.uuid),
+                    },
+                    {
+                        "address": "+18005551212",
+                        "name": "Simulator Channel",
+                        "roles": ["send"],
+                        "schemes": ["tel"],
+                        "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
+                    },
+                ],
+            },
+        )
+        self.assertEqual(
+            get_asset_type(ChannelType).bundle_item(self.org, uuid=self.channel.uuid),
+            {
+                "type": "channel",
+                "url": matchers.String(
+                    pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
+                ),
+                "content": {
+                    "address": "+250785551212",
+                    "name": "Test Channel",
+                    "roles": ["send", "receive"],
+                    "schemes": ["tel"],
+                    "uuid": str(self.channel.uuid),
+                },
             },
         )
 

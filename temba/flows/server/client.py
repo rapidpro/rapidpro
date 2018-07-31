@@ -69,31 +69,31 @@ class RequestBuilder:
         return request
 
     def include_channels(self, simulator):
-        self.request["assets"].append(get_asset_type(ChannelType.name).serialize_set(self.org, simulator))
+        self.request["assets"].append(get_asset_type(ChannelType).bundle_set(self.org, simulator))
         return self
 
     def include_fields(self):
-        self.request["assets"].append(get_asset_type(FieldType.name).serialize_set(self.org))
+        self.request["assets"].append(get_asset_type(FieldType).bundle_set(self.org))
         return self
 
     def include_flow(self, flow):
-        self.request["assets"].append(get_asset_type(FlowType.name).serialize_item(flow.org, str(flow.uuid)))
+        self.request["assets"].append(get_asset_type(FlowType).bundle_item(flow.org, str(flow.uuid)))
         return self
 
     def include_groups(self):
-        self.request["assets"].append(get_asset_type(GroupType.name).serialize_set(self.org))
+        self.request["assets"].append(get_asset_type(GroupType).bundle_set(self.org))
         return self
 
     def include_labels(self):
-        self.request["assets"].append(get_asset_type(LabelType.name).serialize_set(self.org))
+        self.request["assets"].append(get_asset_type(LabelType).bundle_set(self.org))
         return self
 
     def include_country(self):
-        self.request["assets"].append(get_asset_type(LocationHierarchyType.name).serialize_set(self.org))
+        self.request["assets"].append(get_asset_type(LocationHierarchyType).bundle_set(self.org))
         return self
 
     def include_resthooks(self):
-        self.request["assets"].append(get_asset_type(ResthookType.name).serialize_set(self.org))
+        self.request["assets"].append(get_asset_type(ResthookType).bundle_set(self.org))
         return self
 
     def add_environment_changed(self):

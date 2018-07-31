@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db.models import Prefetch
 
+from temba.utils.cache import get_cacheable
 from temba.utils.dates import datetime_to_ms
 
 from .serialize import (
@@ -14,38 +15,66 @@ from .serialize import (
 )
 
 ASSET_HOST = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
+ASSET_TIMESTAMP_CACHE_TTL = 30
 
 
 class AssetType:
+    """
+    Base class of asset types
+    """
+
     name = None
     serializer = None
 
     def is_supported(self, org):
+        """
+        Whether this type is supported for the given org (e.g. not all orgs have location support)
+        """
         return True
 
     def get_set_url(self, org, simulator=False):
+        """
+        Gets the URL of a single item of this type
+        """
         return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/{self.name}/"
 
     def get_item_url(self, org, uuid):
+        """
+        Gets the URL of a single item of this type
+        """
         return f"{self.get_set_url(org)}{uuid}/"
 
     def get_all(self, org):
-        pass
+        """
+        Gets the query set of all items of this type for the given org
+        """
 
     def get_set(self, org):
-        return self.get_all(org).filter(is_active=True)
+        """
+        Gets the active set of this type
+        """
+        return self.get_all(org).filter(is_active=True).order_by("id")
 
     def get_item(self, org, uuid):
+        """
+        Gets a single item of this type
+        """
         return self.get_set(org).get(uuid=uuid)
 
-    def serialize_set(self, org, simulator=False):
+    def bundle_set(self, org, simulator=False):
+        """
+        Serializes and bundles the active set of this type as an asset for inclusion in a flow server request
+        """
         return {
             "type": self.name,
             "url": self.get_set_url(org, simulator),
             "content": [type(self).serializer(o) for o in self.get_set(org)],
         }
 
-    def serialize_item(self, org, uuid):
+    def bundle_item(self, org, uuid):
+        """
+        Serializes and bundles a single item of this type as an asset for inclusion in a flow server request
+        """
         return {
             "type": self.name,
             "url": self.get_item_url(org, uuid),
@@ -53,8 +82,16 @@ class AssetType:
         }
 
     def _get_timestamp(self, org):
-        last_modified = self.get_all(org).order_by("modified_on").last()
-        return datetime_to_ms(last_modified.modified_on) if last_modified else 0
+        """
+        Gets the cached timestamp to use for this type of asset in the given org
+        """
+
+        def recalculate():
+            last_modified = self.get_all(org).order_by("modified_on").last()
+            timestamp = datetime_to_ms(last_modified.modified_on) if last_modified else 0
+            return timestamp, ASSET_TIMESTAMP_CACHE_TTL
+
+        return get_cacheable(f"assets_timestamp:{org.id}:{self.name}", recalculate)
 
 
 class ChannelType(AssetType):
@@ -62,7 +99,7 @@ class ChannelType(AssetType):
     serializer = serialize_channel
 
     def get_all(self, org):
-        return org.channels.order_by("id")
+        return org.channels.all()
 
     def get_set_url(self, org, simulator=False):
         url = super().get_set_url(org)
@@ -70,10 +107,10 @@ class ChannelType(AssetType):
             url += "?simulator=1"
         return url
 
-    def serialize_set(self, org, simulator=False):
+    def bundle_set(self, org, simulator=False):
         from temba.channels.models import Channel
 
-        serialized = super().serialize_set(org, simulator)
+        serialized = super().bundle_set(org, simulator)
         if simulator:
             serialized["content"].append(Channel.SIMULATOR_CHANNEL)
 
@@ -85,7 +122,7 @@ class FieldType(AssetType):
     serializer = serialize_field
 
     def get_all(self, org):
-        return org.contactfields(manager="user_fields").order_by("id")
+        return org.contactfields(manager="user_fields").all()
 
 
 class FlowType(AssetType):
@@ -93,7 +130,7 @@ class FlowType(AssetType):
     serializer = serialize_flow
 
     def get_all(self, org):
-        return org.flows.order_by("id")
+        return org.flows.all()
 
 
 class GroupType(AssetType):
@@ -101,7 +138,7 @@ class GroupType(AssetType):
     serializer = serialize_group
 
     def get_all(self, org):
-        return org.all_groups(manager="user_groups").order_by("id")
+        return org.all_groups(manager="user_groups").all()
 
 
 class LabelType(AssetType):
@@ -109,7 +146,7 @@ class LabelType(AssetType):
     serializer = serialize_label
 
     def get_all(self, org):
-        return org.label_set(manager="label_objects").order_by("id")
+        return org.label_set(manager="label_objects").all()
 
 
 class LocationHierarchyType(AssetType):
@@ -135,15 +172,15 @@ class ResthookType(AssetType):
 
         return org.resthooks.prefetch_related(
             Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
-        ).order_by("id")
+        )
 
 
 ASSET_TYPES = [cls() for cls in AssetType.__subclasses__()]
-ASSET_TYPES_BY_NAME = {at.name: at for at in ASSET_TYPES}
+ASSET_TYPES_BY_TYPE = {type(at): at for at in ASSET_TYPES}
 
 
-def get_asset_type(name):
-    return ASSET_TYPES_BY_NAME[name]
+def get_asset_type(t):
+    return ASSET_TYPES_BY_TYPE[t]
 
 
 def get_asset_urls(org, simulator=False):
