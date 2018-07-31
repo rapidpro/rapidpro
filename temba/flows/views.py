@@ -25,7 +25,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
@@ -1850,9 +1850,9 @@ class FlowCRUDL(SmartCRUDL):
 
             asset_type = get_asset_type(asset_type_name)
             if uuid:
-                result = asset_type.serialize_item(org, uuid)
-
-                if result is None:
+                try:
+                    result = asset_type.serialize_item(org, uuid)
+                except ObjectDoesNotExist:
                     return JsonResponse({"error": f"no such {asset_type} with UUID '{uuid}'"}, status=400)
 
                 return JsonResponse(result)
