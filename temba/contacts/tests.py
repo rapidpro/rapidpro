@@ -7092,6 +7092,22 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[16]["key"], "first")
 
 
+class ContactFieldCRUDLTest(TembaTest):
+    def test_list(self):
+        self.login(self.admin)
+        self.create_secondary_org()
+
+        gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
+        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
+
+        # for a different org
+        ContactField.get_or_create(self.org2, self.admin2, "age", "Age", value_type=Value.TYPE_NUMBER)
+
+        url = reverse("contacts.contactfield_list")
+        response = self.client.get(f"{url}")
+        self.assertEqual(list(response.context["object_list"]), [age, gender])
+
+
 class URNTest(TembaTest):
     def test_line_urn(self):
         self.assertEqual("line:asdf", URN.from_line("asdf"))
