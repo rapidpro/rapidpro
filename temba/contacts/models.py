@@ -1995,13 +1995,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         contact_map = dict()
         for contact in contacts:
             contact_map[contact.id] = contact
-            setattr(contact, "__urns", list())  # initialize URN list cache (setattr avoids name mangling or __urns)
+            # initialize URN list cache
+            setattr(contact, "_urns_cache", list())
 
         # cache all URN values (a priority ordered list on each contact)
         urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
         for urn in urns:
             contact = contact_map[urn.contact_id]
-            getattr(contact, "__urns").append(urn)
+            getattr(contact, "_urns_cache").append(urn)
 
         # set the cache initialize as correct
         for contact in contacts:
@@ -2101,14 +2102,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return self.urns.filter(scheme=scheme).order_by("-priority", "pk")
 
     def clear_urn_cache(self):
-        if hasattr(self, "__urns"):
-            delattr(self, "__urns")
+        if hasattr(self, "_urns_cache"):
+            delattr(self, "_urns_cache")
 
     def get_urns(self):
         """
         Gets all URNs ordered by priority
         """
-        cache_attr = "__urns"
+        cache_attr = "_urns_cache"
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
@@ -2200,8 +2201,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
         # clear URN cache
-        if hasattr(self, "__urns"):
-            delattr(self, "__urns")
+        self.clear_urn_cache()
 
     def update_static_groups(self, user, groups):
         """
