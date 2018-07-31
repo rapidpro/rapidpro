@@ -459,6 +459,8 @@ class ContactField(SmartModel):
     def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
+
+        This method only applies to ContactField.user_fields
         """
         if label:
             label = label.strip()

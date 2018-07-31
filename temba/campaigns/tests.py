@@ -272,6 +272,10 @@ class CampaignTest(TembaTest):
         self.assertEqual("hola", response.context["form"].fields["spa"].initial)
         self.assertEqual("", response.context["form"].fields["ace"].initial)
 
+        # 'Created On' system field must be selectable in the form
+        contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
+        self.assertEqual(contact_fields, ["created_on", "planting_date"])
+
         # promote spanish to our primary language
         self.org.primary_language = spa
         self.org.save()
@@ -409,9 +413,13 @@ class CampaignTest(TembaTest):
 
         # see if we can create a new event, should see both sms and voice flows
         response = self.client.get(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, self.reminder_flow.name)
         self.assertContains(response, self.voice_flow.name)
-        self.assertEqual(200, response.status_code)
+
+        # 'Created On' system field must be selectable in the form
+        contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
+        self.assertEqual(contact_fields, ["created_on", "planting_date"])
 
         post_data = dict(
             relative_to=self.planting_date.pk,
