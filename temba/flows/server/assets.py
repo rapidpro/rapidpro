@@ -61,6 +61,12 @@ class AssetType:
         """
         return self.get_set(org).get(uuid=uuid)
 
+    def serialize_set(self, org, simulator=False):
+        """
+        Serializes the active set of this type
+        """
+        return [type(self).serializer(o) for o in self.get_set(org)]
+
     def bundle_set(self, org, simulator=False):
         """
         Serializes and bundles the active set of this type as an asset for inclusion in a flow server request
@@ -68,18 +74,20 @@ class AssetType:
         return {
             "type": self.name,
             "url": self.get_set_url(org, simulator),
-            "content": [type(self).serializer(o) for o in self.get_set(org)],
+            "content": self.serialize_set(org, simulator),
         }
+
+    def serialize_item(self, org, uuid):
+        """
+        Serializes a single item of this type
+        """
+        return type(self).serializer(self.get_item(org, uuid))
 
     def bundle_item(self, org, uuid):
         """
         Serializes and bundles a single item of this type as an asset for inclusion in a flow server request
         """
-        return {
-            "type": self.name,
-            "url": self.get_item_url(org, uuid),
-            "content": type(self).serializer(self.get_item(org, uuid)),
-        }
+        return {"type": self.name, "url": self.get_item_url(org, uuid), "content": self.serialize_item(org, uuid)}
 
     def _get_timestamp(self, org):
         """
@@ -107,12 +115,12 @@ class ChannelType(AssetType):
             url += "?simulator=1"
         return url
 
-    def bundle_set(self, org, simulator=False):
+    def serialize_set(self, org, simulator=False):
         from temba.channels.models import Channel
 
-        serialized = super().bundle_set(org, simulator)
+        serialized = super().serialize_set(org, simulator)
         if simulator:
-            serialized["content"].append(Channel.SIMULATOR_CHANNEL)
+            serialized.append(Channel.SIMULATOR_CHANNEL)
 
         return serialized
 
@@ -176,11 +184,11 @@ class ResthookType(AssetType):
 
 
 ASSET_TYPES = [cls() for cls in AssetType.__subclasses__()]
-ASSET_TYPES_BY_TYPE = {type(at): at for at in ASSET_TYPES}
+ASSET_TYPES_BY_NAME = {at.name: at for at in ASSET_TYPES}
 
 
 def get_asset_type(t):
-    return ASSET_TYPES_BY_TYPE[t]
+    return ASSET_TYPES_BY_NAME[t.name if isinstance(t, AssetType) else t]
 
 
 def get_asset_urls(org, simulator=False):
