@@ -11403,6 +11403,8 @@ class AssetServerTest(TembaTest):
     def test_location_hierarchy(self):
         self.login(self.admin)
 
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+
         response = self.client.get("/flow/assets/%d/1234/location_hierarchy/" % self.org.id)
         resp_json = response.json()
         self.assertEqual(
@@ -11411,7 +11413,7 @@ class AssetServerTest(TembaTest):
                 {
                     "name": "Rwanda",
                     "children": [
-                        {"name": "Kigali City", "children": [{"name": "Nyarugenge"}]},
+                        {"name": "Kigali City", "aliases": ["Kigari"], "children": [{"name": "Nyarugenge"}]},
                         {
                             "name": "Eastern Province",
                             "children": [
