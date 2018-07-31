@@ -1,3 +1,8 @@
+v4.2.1
+----------
+ * Ignore search exceptions in omnibox
+ * Actually enable users to use system contact fields in campaign events
+
 v4.2.0
 ----------
  * Enable users to choose 'system fields' like created_on for campaign events
