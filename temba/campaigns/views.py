@@ -286,7 +286,7 @@ class CampaignEventForm(forms.ModelForm):
         org = self.user.get_org()
 
         relative_to = self.fields["relative_to"]
-        relative_to.queryset = ContactField.user_fields.filter(
+        relative_to.queryset = ContactField.all_fields.filter(
             org=org, is_active=True, value_type=Value.TYPE_DATETIME
         ).order_by("label")
 
