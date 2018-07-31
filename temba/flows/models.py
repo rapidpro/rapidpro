@@ -3010,7 +3010,7 @@ class Flow(TembaModel):
                         groups.add(rule.test.group)
 
         if len(fields):
-            existing = ContactField.objects.filter(org=self.org, key__in=fields).values_list("key")
+            existing = ContactField.user_fields.filter(org=self.org, key__in=fields).values_list("key")
 
             # create any field that doesn't already exist
             for field in fields:
@@ -3019,7 +3019,7 @@ class Flow(TembaModel):
                     label = " ".join([word.capitalize() for word in field.split("_")])
                     ContactField.get_or_create(self.org, self.modified_by, field, label)
 
-        fields = ContactField.objects.filter(org=self.org, key__in=fields)
+        fields = ContactField.user_fields.filter(org=self.org, key__in=fields)
 
         self.group_dependencies.clear()
         self.group_dependencies.add(*groups)
@@ -3427,7 +3427,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Properties of this contact being updated
         """
         user = get_flow_user(self.org)
-        field = ContactField.objects.get(org=self.org, key=event["field"]["key"])
+        field = ContactField.user_fields.get(org=self.org, key=event["field"]["key"])
         value = event["value"]
 
         self.contact.set_field(user, field.key, value)
@@ -7079,7 +7079,7 @@ class SaveToContactAction(Action):
         elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
             label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
-            contact_field = ContactField.objects.filter(org=org, key=field).first()
+            contact_field = ContactField.user_fields.filter(org=org, key=field).first()
             if contact_field:
                 label = contact_field.label
             else:

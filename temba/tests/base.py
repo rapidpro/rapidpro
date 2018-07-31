@@ -326,7 +326,7 @@ class TembaTestMixin(object):
             return group
 
     def create_field(self, key, label, value_type=Value.TYPE_TEXT):
-        return ContactField.objects.create(
+        return ContactField.user_fields.create(
             org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
         )
 
@@ -671,6 +671,9 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
 
     def releaseContacts(self, delete=False):
         self.release(Contact.objects.all(), delete=delete, user=self.admin)
+
+    def releaseContactFields(self, delete=False):
+        self.release(ContactField.all_fields.all(), delete=delete, user=self.admin)
 
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)

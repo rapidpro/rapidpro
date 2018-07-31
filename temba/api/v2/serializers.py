@@ -548,7 +548,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     label = serializers.CharField(
         required=True,
         max_length=ContactField.MAX_LABEL_LEN,
-        validators=[UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)],
+        validators=[UniqueForOrgValidator(ContactField.user_fields.filter(is_active=True), ignore_case=True)],
     )
     value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
 
@@ -567,7 +567,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
-        fields_count = ContactField.objects.filter(org=self.context["org"]).count()
+        fields_count = ContactField.user_fields.filter(org=self.context["org"]).count()
         if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
             raise serializers.ValidationError(
                 "This org has %s contact fields and the limit is %s. "

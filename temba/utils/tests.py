@@ -1805,7 +1805,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         self.assertEqual(
             User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12
         )
-        assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
+        assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
         assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])

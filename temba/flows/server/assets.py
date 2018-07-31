@@ -85,7 +85,7 @@ class FieldType(AssetType):
     serializer = serialize_field
 
     def get_all(self, org):
-        return org.contactfields.order_by("id")
+        return org.contactfields(manager="user_fields").order_by("id")
 
 
 class FlowType(AssetType):

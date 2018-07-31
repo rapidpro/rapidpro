@@ -904,7 +904,7 @@ class FlowCRUDL(SmartCRUDL):
 
             contact_variables += [
                 dict(name="contact.%s" % field.key, display=field.label)
-                for field in ContactField.objects.filter(org=org, is_active=True)
+                for field in ContactField.user_fields.filter(org=org, is_active=True)
             ]
 
             date_variables = [
@@ -1065,7 +1065,7 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             contact_fields = forms.ModelMultipleChoiceField(
-                ContactField.objects.filter(id__lt=0),
+                ContactField.user_fields.filter(id__lt=0),
                 required=False,
                 help_text=_("Which contact fields, if any, to include " "in the export"),
             )
@@ -1092,7 +1092,7 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
-                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.objects.filter(
+                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.filter(
                     org=self.user.get_org(), is_active=True
                 )
 
@@ -1840,7 +1840,7 @@ class FlowCRUDL(SmartCRUDL):
         resources = {
             "channel": Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
             "environment": EnvironmentResource(server.serialize_environment),
-            "field": Resource(ContactField.objects.filter(is_active=True), server.serialize_field),
+            "field": Resource(ContactField.user_fields.filter(is_active=True), server.serialize_field),
             "flow": Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
             "group": Resource(
                 ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY),
