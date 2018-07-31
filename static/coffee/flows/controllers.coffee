@@ -208,7 +208,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         showDialog('Invalid Attachment', 'Attachments must be either video, audio, or an image.')
         return
 
-      if media_type == 'audio' and media_encoding not in ['mp3', 'm4a', 'wav', 'ogg', 'oga']
+      if media_type == 'audio' and media_encoding not in ['mp3', 'm4a', 'x-m4a', 'wav', 'ogg', 'oga']
         showDialog('Invalid Format', 'Audio attachments must be encoded as mp3, m4a, wav, ogg or oga files.')
         return
 
