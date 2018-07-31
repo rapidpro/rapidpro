@@ -188,7 +188,7 @@ ASSET_TYPES_BY_NAME = {at.name: at for at in ASSET_TYPES}
 
 
 def get_asset_type(t):
-    return ASSET_TYPES_BY_NAME[t.name if isinstance(t, AssetType) else t]
+    return ASSET_TYPES_BY_NAME[t if isinstance(t, str) else t.name]
 
 
 def get_asset_urls(org, simulator=False):
