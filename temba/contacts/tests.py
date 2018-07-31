@@ -7103,8 +7103,7 @@ class ContactFieldCRUDLTest(TembaTest):
         # for a different org
         ContactField.get_or_create(self.org2, self.admin2, "age", "Age", value_type=Value.TYPE_NUMBER)
 
-        url = reverse("contacts.contactfield_list")
-        response = self.client.get(f"{url}")
+        response = self.client.get(reverse("contacts.contactfield_list"))
         self.assertEqual(list(response.context["object_list"]), [age, gender])
 
 
