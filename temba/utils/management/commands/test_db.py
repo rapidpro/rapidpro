@@ -457,7 +457,7 @@ class Command(BaseCommand):
             user = org.cache["users"][0]
             for g in GROUPS:
                 if g["query"]:
-                    group = ContactGroup.create_dynamic(org, user, g["name"], g["query"])
+                    group = ContactGroup.create_dynamic(org, user, g["name"], g["query"], evaluate=False)
                 else:
                     group = ContactGroup.create_static(org, user, g["name"])
                 group.member = g["member"]

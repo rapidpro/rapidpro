@@ -2726,7 +2726,7 @@ class ContactGroup(TembaModel):
         return cls._create(org, user, name, task=task)
 
     @classmethod
-    def create_dynamic(cls, org, user, name, query):
+    def create_dynamic(cls, org, user, name, query, evaluate=True):
         """
         Creates a dynamic group with the given query, e.g. gender=M
         """
@@ -2734,7 +2734,7 @@ class ContactGroup(TembaModel):
             raise ValueError("Query cannot be empty for a dynamic group")
 
         group = cls._create(org, user, name, query=query)
-        group.update_query(query=query)
+        group.update_query(query=query, reevaluate=evaluate)
         return group
 
     @classmethod
@@ -2835,7 +2835,7 @@ class ContactGroup(TembaModel):
 
         return changed
 
-    def update_query(self, query):
+    def update_query(self, query, reevaluate=True):
         """
         Updates the query for a dynamic group
         """
@@ -2863,7 +2863,8 @@ class ContactGroup(TembaModel):
             self.query_fields.add(field)
 
         # start background task to re-evaluate who belongs in this group
-        on_transaction_commit(lambda: reevaluate_dynamic_group.delay(self.id))
+        if reevaluate:
+            on_transaction_commit(lambda: reevaluate_dynamic_group.delay(self.id))
 
     def reevaluate(self):
         """
