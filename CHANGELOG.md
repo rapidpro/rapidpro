@@ -1,3 +1,9 @@
+v4.2.2
+----------
+ * Show only user fields when updating field values for a contact
+ * Fix MIME type for M4A files
+ * Allow test_db command to work without having ES installed
+
 v4.2.1
 ----------
  * Ignore search exceptions in omnibox
