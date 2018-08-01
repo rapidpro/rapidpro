@@ -14,7 +14,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .client import Events, FlowServerException, get_client
-from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
+from .serialize import serialize_contact, serialize_environment, serialize_ref
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +279,7 @@ def serialize_input(msg):
     serialized = {"created_on": msg.created_on.isoformat(), "text": msg.text, "type": "msg", "uuid": str(msg.uuid)}
 
     if msg.channel_id:
-        serialized["channel"] = serialize_channel_ref(msg.channel)
+        serialized["channel"] = serialize_ref(msg.channel)
     if msg.contact_urn_id:
         serialized["urn"] = msg.contact_urn.urn
     if msg.attachments:
