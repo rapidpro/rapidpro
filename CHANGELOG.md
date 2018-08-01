@@ -1,3 +1,8 @@
+v4.2.4
+----------
+ * Update to latest goflow and enable asset caching
+ * Actually fix uploading mp4 files
+
 v4.2.2
 ----------
  * Show only user fields when updating field values for a contact
