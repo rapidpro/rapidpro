@@ -18,19 +18,21 @@ from .assets import ChannelType, get_asset_type, get_asset_urls
 from .client import FlowServerException, get_client
 from .serialize import serialize_channel, serialize_field, serialize_label
 
+TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
+
 
 class AssetsTest(TembaTest):
     def test_get_asset_urls(self):
         self.assertEqual(
             get_asset_urls(self.org),
             {
-                "channel": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/"),
-                "field": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/field/"),
-                "flow": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/flow/"),
-                "group": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/group/"),
-                "label": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/label/"),
-                "location_hierarchy": f"http://localhost:8000/{self.org.id}/1/location_hierarchy/",
-                "resthook": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/resthook/"),
+                "channel": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "field": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
+                "group": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
+                "label": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
+                "location_hierarchy": f"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
+                "resthook": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
             },
         )
 
@@ -39,7 +41,7 @@ class AssetsTest(TembaTest):
             get_asset_type(ChannelType).bundle_set(self.org, simulator=True),
             {
                 "type": "channel",
-                "url": matchers.String(pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/"),
+                "url": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
                 "content": [
                     {
                         "address": "+250785551212",
@@ -63,7 +65,7 @@ class AssetsTest(TembaTest):
             {
                 "type": "channel",
                 "url": matchers.String(
-                    pattern=f"http://localhost:8000/{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
+                    pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
                 ),
                 "content": {
                     "address": "+250785551212",

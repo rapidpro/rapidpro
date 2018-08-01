@@ -15,6 +15,7 @@ from .serialize import (
 )
 
 ASSET_HOST = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
+ASSET_BASE = f"{ASSET_HOST}/flow/assets"
 ASSET_TIMESTAMP_CACHE_TTL = 30
 
 
@@ -36,7 +37,7 @@ class AssetType:
         """
         Gets the URL of a single item of this type
         """
-        return f"{ASSET_HOST}/{org.id}/{self._get_timestamp(org)}/{self.name}/"
+        return f"{ASSET_BASE}/{org.id}/{self._get_timestamp(org)}/{self.name}/"
 
     def get_item_url(self, org, uuid):
         """
