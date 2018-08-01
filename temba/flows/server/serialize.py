@@ -20,7 +20,7 @@ def serialize_flow(flow):
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
-    return get_client().migrate({"flows": [flow_def]})[0]
+    return get_client().migrate({"flow": flow_def})
 
 
 def serialize_channel(channel):
@@ -103,7 +103,7 @@ def serialize_language(language):
     return {"iso": language.iso_code, "name": language.name}
 
 
-def serialize_location_hierarchy(country, aliases_from_org=None):
+def serialize_location_hierarchy(org):
     """
     Serializes a country as a location hierarchy, e.g.
     {
@@ -119,20 +119,18 @@ def serialize_location_hierarchy(country, aliases_from_org=None):
         ]
     }
     """
-    queryset = country.get_descendants(include_self=True)
+    from temba.locations.models import BoundaryAlias
 
-    if aliases_from_org:
-        from temba.locations.models import BoundaryAlias
-
-        queryset = queryset.prefetch_related(
-            Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=aliases_from_org))
-        )
+    queryset = org.country.get_descendants(include_self=True).prefetch_related(
+        Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org))
+    )
 
     def _serialize_node(node):
         rendered = {"name": node.name}
 
-        if aliases_from_org:
-            rendered["aliases"] = [a.name for a in node.aliases.all()]
+        aliases = [a.name for a in node.aliases.all()]
+        if aliases:
+            rendered["aliases"] = aliases
 
         children = node.get_children()
         if children:

@@ -5810,7 +5810,7 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        builder = client.request_builder(self.org, int(time.time() * 1000000))
+        builder = client.request_builder(self.org)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
 
@@ -5827,7 +5827,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        builder = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact)
+        builder = client.request_builder(self.org).add_contact_changed(self.contact)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
         payload["session"] = response.json()["session"]
@@ -11403,24 +11403,28 @@ class AssetServerTest(TembaTest):
     def test_location_hierarchy(self):
         self.login(self.admin)
 
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+
         response = self.client.get("/flow/assets/%d/1234/location_hierarchy/" % self.org.id)
         resp_json = response.json()
         self.assertEqual(
             resp_json,
-            {
-                "name": "Rwanda",
-                "children": [
-                    {"name": "Kigali City", "children": [{"name": "Nyarugenge"}]},
-                    {
-                        "name": "Eastern Province",
-                        "children": [
-                            {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
-                            {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
-                            {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
-                        ],
-                    },
-                ],
-            },
+            [
+                {
+                    "name": "Rwanda",
+                    "children": [
+                        {"name": "Kigali City", "aliases": ["Kigari"], "children": [{"name": "Nyarugenge"}]},
+                        {
+                            "name": "Eastern Province",
+                            "children": [
+                                {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
+                                {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
+                                {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
+                            ],
+                        },
+                    ],
+                }
+            ],
         )
 
     def test_resthooks(self):

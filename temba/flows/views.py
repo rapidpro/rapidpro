@@ -1,7 +1,6 @@
 
 import json
 import logging
-import time
 import traceback
 from datetime import datetime, timedelta
 from functools import cmp_to_key
@@ -26,10 +25,9 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Max, Min, Prefetch, QuerySet, Sum
+from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -39,18 +37,18 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
-from temba.api.models import Resthook, ResthookSubscriber
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
-from temba.flows import server
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount
 from temba.flows.server import get_client
+from temba.flows.server.assets import get_asset_type
+from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
-from temba.msgs.models import PENDING, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.msgs.models import PENDING, Msg
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -1464,15 +1462,12 @@ class FlowCRUDL(SmartCRUDL):
                 # handle via the new engine
                 client = get_client()
 
-                # simulating never caches
-                asset_timestamp = int(time.time() * 1000000)
                 flow = self.get_object(self.get_queryset())
 
                 # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(flow.org, asset_timestamp)
+                flow_request = client.request_builder(flow.org)
                 flow_request.request["asset_server"] = json_dict.get("asset_server")
                 flow_request.request["assets"] = json_dict.get("assets")
-                # asset_server(simulator=True)
 
                 # when testing, we need to include all of our assets
                 if settings.TESTING:
@@ -1813,55 +1808,7 @@ class FlowCRUDL(SmartCRUDL):
         /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779  -> the channel with that UUID in org #123
         /flow_assets/123/xyz/group                                         -> all groups for org #123
         /flow_assets/123/xyz/location_hierarchy                            -> country>states>districts>wards for org #123
-        /flow_assets/123/xyz/environment                                   -> timezone, date_format, languages, etc
         """
-
-        class Resource(object):
-            def __init__(self, queryset, serializer):
-                self.queryset = queryset
-                self.serializer = serializer
-
-            def get_root(self, org):
-                return self.queryset.filter(org=org).order_by("id")
-
-            def get_item(self, org, uuid):
-                return self.get_root(org).filter(uuid=uuid).first()
-
-        class BoundaryResource(object):
-            def __init__(self, serializer):
-                self.serializer = serializer
-
-            def get_root(self, org):
-                return org.country
-
-        class EnvironmentResource(object):
-            def __init__(self, serializer):
-                self.serializer = serializer
-
-            def get_root(self, org):
-                return org
-
-        resources = {
-            "channel": Resource(Channel.objects.filter(is_active=True), server.serialize_channel),
-            "environment": EnvironmentResource(server.serialize_environment),
-            "field": Resource(ContactField.user_fields.filter(is_active=True), server.serialize_field),
-            "flow": Resource(Flow.objects.filter(is_active=True, is_archived=False), server.serialize_flow),
-            "group": Resource(
-                ContactGroup.user_groups.filter(is_active=True, status=ContactGroup.STATUS_READY),
-                server.serialize_group,
-            ),
-            "label": Resource(Label.label_objects.filter(is_active=True), server.serialize_label),
-            "language": Resource(Language.objects.filter(is_active=True), server.serialize.serialize_language),
-            "location_hierarchy": BoundaryResource(server.serialize_location_hierarchy),
-            "resthook": Resource(
-                Resthook.objects.filter(is_active=True).prefetch_related(
-                    Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
-                ),
-                server.serialize_resthook,
-            ),
-        }
-
-        simulator_extras = {"channel": [Channel.SIMULATOR_CHANNEL]}
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1890,42 +1837,28 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, *args, **kwargs):
             org = self.derive_org()
+            asset_type_name = kwargs["type"]
             uuid = kwargs.get("uuid")
             simulator = str_to_bool(self.request.GET.get("simulator", "false"))
 
-            resource_type = kwargs["type"]
-            resource = self.resources[resource_type]
+            # TODO rethink how environment and languages are provided to the editor
+            if asset_type_name == "environment":
+                return JsonResponse(serialize_environment(org))
+            elif asset_type_name == "language":
+                languages = org.languages.filter(is_active=True).order_by("id")
+                return JsonResponse([serialize_language(l) for l in languages], safe=False)
+
+            asset_type = get_asset_type(asset_type_name)
             if uuid:
-                result = resource.get_item(org, uuid)
+                try:
+                    result = asset_type.serialize_item(org, uuid)
+                except ObjectDoesNotExist:
+                    return JsonResponse({"error": f"no such {asset_type} with UUID '{uuid}'"}, status=400)
 
-                if result is None:
-                    return JsonResponse({"error": f"no such {resource_type} with UUID '{uuid}'"}, status=400)
+                return JsonResponse(result)
             else:
-                result = resource.get_root(org)
-
-            if isinstance(result, (list, QuerySet)):
-                page_size = self.request.GET.get("page_size")
-                page_num = self.request.GET.get("page")
-
-                if page_size is None:
-                    # the flow engine doesn't want results paged, so just return the entire set
-                    serialized_items = [resource.serializer(o) for o in result]
-
-                    # add potential extra resources for the simulator
-                    if simulator:
-                        serialized_items += self.simulator_extras.get(resource_type, [])
-
-                    return JsonResponse(serialized_items, safe=False)
-                else:  # pragma: no cover
-                    # TODO make this meet the needs of the new editor
-                    paginator = Paginator(result, page_size)
-                    page = paginator.page(page_num)
-
-                    return JsonResponse(
-                        {"results": [resource.serializer(o) for o in page.object_list], "has_next": page.has_next()}
-                    )
-            else:
-                return JsonResponse(resource.serializer(result))
+                result = asset_type.serialize_set(org, simulator=simulator)
+                return JsonResponse(result, safe=False)
 
 
 # this is just for adhoc testing of the preprocess url
