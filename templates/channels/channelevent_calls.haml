@@ -11,7 +11,7 @@
 -block search-details
   .search-details
     -if search
-      -blocktrans count results_count=paginator.count
+      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
         Found {{ results_count }} call in last 90 days for <i>{{search}}</i>.
         -plural
           Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
