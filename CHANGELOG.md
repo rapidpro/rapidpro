@@ -1,3 +1,10 @@
+v4.3.0
+----------
+ * Wrap asset responses in a results object
+ * Use trigger type of campaign when starting campign event flows in flowserver
+ * Fix count for blocktrans to not use string from intcomma
+ * Use audio/mp4 content type for m4a files
+
 v4.2.4
 ----------
  * Update to latest goflow and enable asset caching
