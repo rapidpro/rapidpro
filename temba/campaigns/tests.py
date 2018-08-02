@@ -114,7 +114,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(flow.version_number, get_current_export_version())
 
     @also_in_flowserver
-    def test_session_trigger(self, in_flowserver):
+    def test_message_event(self, in_flowserver):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         event = CampaignEvent.create_message_event(
@@ -155,6 +155,13 @@ class CampaignTest(TembaTest):
                 {"uuid": str(event.uuid), "campaign": {"uuid": str(campaign.uuid), "name": "Planting Reminders"}},
             )
 
+        # deleting a message campaign event should clean up the flow/runs/starts created by it
+        event.release()
+
+        self.assertEqual(FlowRun.objects.count(), 0)
+        self.assertEqual(FlowStart.objects.count(), 0)
+        self.assertEqual(Flow.objects.filter(flow_type=Flow.MESSAGE, is_active=True).count(), 0)
+
     def test_trim_event_fires(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -182,7 +189,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create a reminder for our first planting event
-        CampaignEvent.create_flow_event(
+        event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
         )
 
@@ -218,7 +225,13 @@ class CampaignTest(TembaTest):
         Campaign.objects.get(id=campaign.id)
         ContactGroup.user_groups.get(id=self.farmers.id)
 
-    def test_message_event(self):
+        # deleting this event shouldn't delete the runs or starts
+        event.release()
+
+        self.assertEqual(FlowRun.objects.count(), 1)
+        self.assertEqual(FlowStart.objects.all().count(), 1)
+
+    def test_message_event_editing(self):
         # update the planting date for our contacts
         self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
 
@@ -1048,6 +1061,11 @@ class CampaignTest(TembaTest):
         # should have one flow run now
         run = FlowRun.objects.get()
         self.assertEqual(event.contact, run.contact)
+
+        # deleting this event shouldn't delete the runs
+        event.release()
+
+        self.assertEqual(FlowRun.objects.count(), 1)
 
     def test_translations(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
