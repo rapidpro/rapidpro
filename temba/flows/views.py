@@ -1846,7 +1846,7 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(serialize_environment(org))
             elif asset_type_name == "language":
                 languages = org.languages.filter(is_active=True).order_by("id")
-                return JsonResponse([serialize_language(l) for l in languages], safe=False)
+                return JsonResponse({"results": [serialize_language(l) for l in languages]})
 
             asset_type = get_asset_type(asset_type_name)
             if uuid:
@@ -1857,8 +1857,8 @@ class FlowCRUDL(SmartCRUDL):
 
                 return JsonResponse(result)
             else:
-                result = asset_type.serialize_set(org, simulator=simulator)
-                return JsonResponse(result, safe=False)
+                results = asset_type.serialize_set(org, simulator=simulator)
+                return JsonResponse({"results": results})
 
 
 # this is just for adhoc testing of the preprocess url
