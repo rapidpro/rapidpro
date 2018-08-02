@@ -356,9 +356,7 @@ class CampaignTest(TembaTest):
         # and still get the same settings, (it should use the base of the flow instead of just base here)
         response = self.client.get(url)
         self.assertIn("base", response.context["form"].fields)
-        self.assertEqual(
-            "This is my spanish @(format_date(contact.planting_date))", response.context["form"].fields["spa"].initial
-        )
+        self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
         self.assertEqual("", response.context["form"].fields["ace"].initial)
 
         # our single message flow should have a dependency on planting_date
