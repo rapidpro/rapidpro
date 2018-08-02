@@ -202,29 +202,35 @@ class FlowTest(TembaTest):
     def test_upload_media_action(self, mock_uuid):
         upload_media_action_url = reverse("flows.flow_upload_media_action", args=[self.flow.pk])
 
-        def assert_media_upload(filename, action_uuid, expected_path):
+        def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action=None, actionset="some-uuid", HTTP_X_FORWARDED_HTTPS="https")
+                post_data = dict(file=data, action=None, HTTP_X_FORWARDED_HTTPS="https")
                 response = self.client.post(upload_media_action_url, post_data)
 
                 self.assertEqual(response.status_code, 200)
-                path = response.json().get("path", None)
-                self.assertEqual(path, expected_path)
+                actual_type = response.json()["type"]
+                actual_url = response.json()["url"]
+                self.assertEqual(actual_type, expected_type)
+                self.assertEqual(actual_url, expected_path)
 
         self.login(self.admin)
 
-        mock_uuid.side_effect = ["11111-111-11", "22222-222-22"]
+        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33"]
 
         assert_media_upload(
             "%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT,
-            "action-uuid-1",
+            "image/jpeg",
             "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "11111-111-11", ".jpg"),
         )
-
         assert_media_upload(
             "%s/test_media/snow.mp4" % settings.MEDIA_ROOT,
-            "action-uuid-2",
+            "video/mp4",
             "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "22222-222-22", ".mp4"),
+        )
+        assert_media_upload(
+            "%s/test_media/snow.m4a" % settings.MEDIA_ROOT,
+            "audio/mp4",
+            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
         )
 
     def test_revision_history(self):

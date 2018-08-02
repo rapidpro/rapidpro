@@ -695,9 +695,9 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
-            return JsonResponse(**self.save_media_upload(self.request.FILES["file"]))
+            return JsonResponse(self.save_media_upload(self.request.FILES["file"]))
 
-        def save_media_upload(self, file, name_uuid):
+        def save_media_upload(self, file):
             flow = self.get_object()
             name_uuid = str(uuid4())
             extension = file.name.split(".")[-1]
