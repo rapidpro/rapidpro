@@ -64,7 +64,6 @@ def serialize_contact(contact):
         "id": contact.id,
         "name": contact.name,
         "language": contact.language,
-        "timezone": "UTC",
         "urns": urn_values,
         "groups": [serialize_group_ref(group) for group in contact.user_groups.filter(is_active=True)],
         "fields": field_values,

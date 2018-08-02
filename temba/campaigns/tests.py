@@ -13,7 +13,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart, RuleSet
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org, get_current_export_version
-from temba.tests import ESMockWithScroll, TembaTest
+from temba.tests import ESMockWithScroll, TembaTest, also_in_flowserver
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
@@ -112,6 +112,48 @@ class CampaignTest(TembaTest):
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
         self.assertEqual(flow.version_number, get_current_export_version())
+
+    @also_in_flowserver
+    def test_session_trigger(self, in_flowserver):
+        # create a campaign with a message event 1 day after planting date
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        event = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+        )
+
+        # update the planting date for our contact
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
+
+        fire = EventFire.objects.get()
+
+        # change our fire date to sometime in the past so it gets triggered
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save(update_fields=("scheduled",))
+
+        # schedule our events to fire
+        check_campaigns_task()
+
+        run = FlowRun.objects.get()
+        msg = run.get_messages().get()
+
+        self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
+
+        if in_flowserver:
+            session_json = run.session.output
+            self.assertEqual(session_json["trigger"]["type"], "campaign")
+            self.assertEqual(
+                session_json["trigger"]["event"],
+                {"uuid": str(event.uuid), "campaign": {"uuid": str(campaign.uuid), "name": "Planting Reminders"}},
+            )
 
     def test_trim_event_fires(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)

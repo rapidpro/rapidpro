@@ -189,7 +189,7 @@ class RequestBuilder:
 
         return self.client.start(self.request)
 
-    def start_by_campaign(self, contact, flow, campaign):
+    def start_by_campaign(self, contact, flow, event):
         """
         New session was triggered by a campaign event
         """
@@ -198,8 +198,8 @@ class RequestBuilder:
             "environment": serialize_environment(self.org),
             "contact": serialize_contact(contact),
             "flow": {"uuid": str(flow.uuid), "name": flow.name},
+            "event": {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)},
             "triggered_on": timezone.now().isoformat(),
-            "campaign": serialize_ref(campaign),
         }
 
         return self.client.start(self.request)
