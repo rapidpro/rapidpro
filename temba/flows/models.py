@@ -5813,7 +5813,11 @@ class FlowStart(SmartModel):
     include_active = models.BooleanField(default=True, help_text=_("Include contacts currently active in flows"))
 
     campaign_event = models.ForeignKey(
-        "campaigns.CampaignEvent", null=True, help_text=_("The campaign event which created this flow start")
+        "campaigns.CampaignEvent",
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="flow_starts",
+        help_text=_("The campaign event which created this flow start"),
     )
 
     contact_count = models.IntegerField(default=0, help_text=_("How many unique contacts were started down the flow"))

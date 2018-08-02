@@ -462,6 +462,9 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
+        # detach any associated flow starts
+        self.flow_starts.update(campaign_event=None)
+
         # if our flow is a single message flow, release that too
         if self.flow.flow_type == Flow.MESSAGE:
             self.flow.release()
