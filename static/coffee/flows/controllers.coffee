@@ -267,7 +267,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ['reply', 'send']
         if not action.media
           action.media = {}
-        action.media[Flow.language.iso_code] = file.type + ':' + data['path']
+        action.media[Flow.language.iso_code] = data['type'] + ':' + data['path']
 
       # make sure our translation state is updated
       action.uploading = false

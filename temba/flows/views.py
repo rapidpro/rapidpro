@@ -695,18 +695,21 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
-            generated_uuid = str(uuid4())
-            path = self.save_media_upload(
-                self.request.FILES["file"], self.request.POST.get("actionset"), generated_uuid
-            )
-            return JsonResponse(dict(path=path))
+            return JsonResponse(**self.save_media_upload(self.request.FILES["file"]))
 
-        def save_media_upload(self, file, actionset_id, name_uuid):
+        def save_media_upload(self, file, name_uuid):
             flow = self.get_object()
+            name_uuid = str(uuid4())
             extension = file.name.split(".")[-1]
-            return public_file_storage.save(
+
+            # browsers typically send m4a files as audio/x-m4a but Twilio only accepts audio/mp4
+            if extension == "m4a":
+                file.content_type = "audio/mp4"
+
+            url = public_file_storage.save(
                 "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
             )
+            return {"type": file.content_type, "url": url}
 
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")
