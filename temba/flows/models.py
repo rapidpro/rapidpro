@@ -2064,15 +2064,7 @@ class Flow(TembaModel):
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-
-            # TODO
-            # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            # if self.flow_type == Flow.MESSAGE and len(all_contact_ids) == 1:
-            #    trial_start = trial.start_message_flow(self, all_contact_ids[0], campaign_event)
-            # else:
-            #    trial_start = None
-
-            runs = self.start_msg_flow_batch(
+            return self.start_msg_flow_batch(
                 all_contact_ids,
                 broadcasts=broadcasts,
                 started_flows=started_flows,
@@ -2082,11 +2074,6 @@ class Flow(TembaModel):
                 parent_run=parent_run,
                 parent_context=parent_context,
             )
-
-            # if trial_start and len(runs) == 1:
-            #    trial.end_message_flow(trial_start)
-
-            return runs
 
         # otherwise, create batches instead
         else:
