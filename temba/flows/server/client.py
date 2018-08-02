@@ -18,7 +18,7 @@ from .assets import (
     get_asset_type,
     get_asset_urls,
 )
-from .serialize import serialize_contact, serialize_environment, serialize_message
+from .serialize import serialize_contact, serialize_environment, serialize_message, serialize_ref
 
 
 class Events(Enum):
@@ -185,6 +185,21 @@ class RequestBuilder:
             "flow": {"uuid": str(flow.uuid), "name": flow.name},
             "triggered_on": timezone.now().isoformat(),
             "run": parent_run_summary,
+        }
+
+        return self.client.start(self.request)
+
+    def start_by_campaign(self, contact, flow, event):
+        """
+        New session was triggered by a campaign event
+        """
+        self.request["trigger"] = {
+            "type": "campaign",
+            "environment": serialize_environment(self.org),
+            "contact": serialize_contact(contact),
+            "flow": {"uuid": str(flow.uuid), "name": flow.name},
+            "event": {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)},
+            "triggered_on": timezone.now().isoformat(),
         }
 
         return self.client.start(self.request)

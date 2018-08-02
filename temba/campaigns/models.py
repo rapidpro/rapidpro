@@ -462,9 +462,15 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
-        # if our flow is a single message flow, release that too
+        # if our flow is a single message flow, clean up
         if self.flow.flow_type == Flow.MESSAGE:
+            # delete any associated flow starts
+            self.flow_starts.all().delete()
+
             self.flow.release()
+        else:
+            # detach any associated flow starts
+            self.flow_starts.all().update(campaign_event=None)
 
         self.delete()
 
@@ -521,11 +527,12 @@ class EventFire(Model):
         """
         fired = timezone.now()
         contacts = [f.contact for f in fires]
+        event = fires[0].event
 
         if len(contacts) == 1:
-            flow.start([], contacts, restart_participants=True)
+            flow.start([], contacts, restart_participants=True, campaign_event=event)
         else:
-            start = FlowStart.create(flow, flow.created_by, contacts=contacts)
+            start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
             start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 

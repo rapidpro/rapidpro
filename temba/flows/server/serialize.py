@@ -10,6 +10,10 @@ VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 VALUE_TYPE_NAMES["N"] = "number"
 
 
+def serialize_ref(obj):
+    return {"uuid": str(obj.uuid), "name": obj.name or ""}
+
+
 def serialize_flow(flow):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
@@ -33,10 +37,6 @@ def serialize_channel(channel):
         "schemes": channel.schemes,
         "roles": [Channel.ROLE_CONFIG[r] for r in channel.role],
     }
-
-
-def serialize_channel_ref(channel):
-    return {"uuid": str(channel.uuid), "name": channel.name or ""}
 
 
 def serialize_contact(contact):
@@ -64,7 +64,6 @@ def serialize_contact(contact):
         "id": contact.id,
         "name": contact.name,
         "language": contact.language,
-        "timezone": "UTC",
         "urns": urn_values,
         "groups": [serialize_group_ref(group) for group in contact.user_groups.filter(is_active=True)],
         "fields": field_values,
@@ -148,7 +147,7 @@ def serialize_message(msg):
     if msg.contact_urn_id:
         serialized["urn"] = msg.contact_urn.urn
     if msg.channel_id:
-        serialized["channel"] = serialize_channel_ref(msg.channel)
+        serialized["channel"] = serialize_ref(msg.channel)
     if msg.attachments:
         serialized["attachments"] = msg.attachments
 

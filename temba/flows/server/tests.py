@@ -136,7 +136,6 @@ class ClientTest(TembaTest):
                             "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
-                            "timezone": "UTC",
                             "urns": [
                                 "twitterid:123456785?channel=%s#bobby" % str(twitter.uuid),
                                 "tel:+12345670987?channel=%s" % str(self.channel.uuid),
