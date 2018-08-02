@@ -702,7 +702,7 @@ class FlowCRUDL(SmartCRUDL):
             name_uuid = str(uuid4())
             extension = file.name.split(".")[-1]
 
-            # browsers typically send m4a files as audio/x-m4a but Twilio only accepts audio/mp4
+            # browsers might send m4a files but correct MIME type is audio/mp4
             if extension == "m4a":
                 file.content_type = "audio/mp4"
 
