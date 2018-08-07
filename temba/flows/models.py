@@ -5784,9 +5784,10 @@ class ReplyAction(Action):
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
-                if media_url:
-                    attachments = "%s:http://%s%s%s" % (media_type, settings.TEMBA_HOST, settings.MEDIA_URL, media_url)
-
+                if media_url and len(media_type.split("/")) > 1:
+                    attachments = ["%s:https://%s%s%s" % (media_type, settings.TEMBA_HOST,settings.MEDIA_URL, media_url)]
+                else:
+                    attachments = ["%s:%s" % (media_type, media_url)]
 
             if offline_on:
                 context = None
