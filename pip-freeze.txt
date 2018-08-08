@@ -39,7 +39,7 @@ django-rosetta==0.7.13
 django-select2==5.10.0
 django-storages==1.5.2
 django-timezone-field==2.0
-django==1.11.14
+django==1.11.15
 djangorestframework==3.5.1
 docutils==0.13.1          # via botocore
 elasticsearch-dsl==6.1.0
