@@ -1340,6 +1340,15 @@ class Org(SmartModel):
 
         ContactField.system_fields.create(
             org_id=self.id,
+            label=_("ID"),
+            key="id",
+            value_type=Value.TYPE_NUMBER,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
             label=_("Created On"),
             key="created_on",
             value_type=Value.TYPE_DATETIME,

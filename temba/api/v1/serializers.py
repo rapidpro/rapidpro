@@ -399,7 +399,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # save our contact if it changed
         if changed:
-            self.instance.save(update_fields=changed)
+            self.instance.save(update_fields=changed, handle_update=True)
 
         # update our fields
         if fields is not None:

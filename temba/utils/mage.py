@@ -91,6 +91,6 @@ def handle_new_contact(org, contact):
     Contacts created by mage or courier are only saved to the database. Here we take care of the other stuff
     """
     # possible to have dynamic groups based on name
-    contact.handle_update(attrs=("name",), is_new=True)
+    contact.handle_update(fields=("name",), is_new=True, urns=[str(u) for u in contact.get_urns()])
 
     analytics.gauge("temba.contact_created")

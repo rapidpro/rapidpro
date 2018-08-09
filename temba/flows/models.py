@@ -3420,7 +3420,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Name has been updated
         """
         self.contact.name = event["name"] or None
-        self.contact.save(update_fields=("name", "modified_on"))
+        self.contact.save(update_fields=("name", "modified_on"), handle_update=True)
 
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated name to '%s'") % (event["name"] or ""))
@@ -3430,7 +3430,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Language has been updated
         """
         self.contact.language = event["language"] or None
-        self.contact.save(update_fields=("language", "modified_on"))
+        self.contact.save(update_fields=("language", "modified_on"), handle_update=True)
 
         if self.contact.is_test:  # pragma: no cover
             ActionLog.create(self, _("Updated language to '%s'") % (event["language"] or ""))
@@ -6840,7 +6840,7 @@ class VariableContactAction(Action):
                 # if they don't have a name use the one in our action
                 if name and not contact.name:  # pragma: needs cover
                     contact.name = name
-                    contact.save(update_fields=["name"])
+                    contact.save(update_fields=["name"], handle_update=True)
 
             if contact:
                 contacts.append(contact)
@@ -7007,13 +7007,17 @@ class SetLanguageAction(Action):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+        old_value = run.contact.language
 
         if len(self.lang) != 3:
-            run.contact.language = None
+            new_lang = None
         else:
-            run.contact.language = self.lang
+            new_lang = self.lang
 
-        run.contact.save(update_fields=["language"])
+        if old_value != new_lang:
+            run.contact.language = new_lang
+            run.contact.save(update_fields=["language"], handle_update=True)
+
         self.logger(run)
         return []
 
@@ -7170,14 +7174,14 @@ class SaveToContactAction(Action):
             new_value = value[:128]
             contact.name = new_value
             contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"))
+            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
             self.logger(run, new_value)
 
         elif self.field == "first_name":
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"))
+            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
             self.logger(run, new_value)
 
         elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
