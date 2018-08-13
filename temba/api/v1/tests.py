@@ -37,7 +37,6 @@ from .serializers import (
 
 
 class APITest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -616,7 +615,252 @@ class APITest(TembaTest):
         self.assertTrue(msgs[3].attachments[0].startswith("video/mp4:http"))
         self.assertTrue(msgs[3].attachments[0].endswith(".mp4"))
 
-    def test_api_steps(self):
+    def test_api_steps_with_complete_run(self):
+        url = reverse("api.v1.steps")
+
+        # login as surveyor
+        self.login(self.surveyor)
+
+        flow = self.get_flow("color")
+        color_prompt = ActionSet.objects.get(x=1, y=1)
+        color_ruleset = RuleSet.objects.get(label="color")
+        orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
+
+        data = {
+            "flow": str(flow.uuid),
+            "revision": 1,
+            "contact": self.joe.uuid,
+            "submitted_by": self.surveyor.username,
+            "started": "2015-08-25T11:09:29.088Z",
+            "steps": [
+                {
+                    "node": color_prompt.uuid,
+                    "arrived_on": "2015-08-25T11:09:30.088Z",
+                    "actions": [{"type": "reply", "msg": "What is your favorite color?"}],
+                },
+                {
+                    "node": color_ruleset.uuid,
+                    "arrived_on": "2015-08-25T11:11:30.088Z",
+                    "rule": {
+                        "uuid": orange_rule.uuid,
+                        "value": "orange",
+                        "category": "Orange",
+                        "text": "I like orange",
+                    },
+                },
+                {
+                    "node": color_reply.uuid,
+                    "arrived_on": "2015-08-25T11:13:30.088Z",
+                    "actions": [{"type": "reply", "msg": "I love orange too!"}],
+                },
+            ],
+            "completed": True,
+        }
+
+        with patch.object(timezone, "now", return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.postJSON(url, data)
+
+        run = FlowRun.objects.get()
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(
+            run.path,
+            [
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_prompt.uuid,
+                    "arrived_on": "2015-08-25T11:09:30.088000+00:00",
+                    "exit_uuid": color_prompt.exit_uuid,
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_ruleset.uuid,
+                    "arrived_on": "2015-08-25T11:11:30.088000+00:00",
+                    "exit_uuid": orange_rule.uuid,
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_reply.uuid,
+                    "arrived_on": "2015-08-25T11:13:30.088000+00:00",
+                },
+            ],
+        )
+        self.assertEqual(
+            run.results,
+            {
+                "color": {
+                    "node_uuid": color_ruleset.uuid,
+                    "name": "color",
+                    "category": "Orange",
+                    "value": "orange",
+                    "input": "I like orange",
+                    "created_on": matchers.ISODate(),
+                }
+            },
+        )
+        self.assertEqual(
+            run.events,
+            [
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[0]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "What is your favorite color?"},
+                },
+                {
+                    "type": "msg_received",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[1]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "I like orange"},
+                },
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[2]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "I love orange too!"},
+                },
+            ],
+        )
+
+    def test_api_steps_with_deleted_ruleset(self):
+        url = reverse("api.v1.steps")
+
+        # login as surveyor
+        self.login(self.surveyor)
+
+        flow = self.get_flow("color")
+        color_prompt = ActionSet.objects.get(x=1, y=1)
+        color_ruleset = flow.rule_sets.get(label="color")
+        orange_rule = color_ruleset.get_rules()[0]
+        color_reply = ActionSet.objects.get(x=2, y=2)
+
+        # replace the color ruleset completely
+        flow_json = flow.as_json()
+        flow_json["rule_sets"][0] = {
+            "uuid": "be34f5bb-a450-4b1d-b72a-8b9cc116e881",
+            "rules": [
+                {
+                    "category": {"base": "Orange"},
+                    "test": {"test": {"base": "orange"}, "type": "contains"},
+                    "destination": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
+                    "uuid": "a1a763f5-ba34-4fa5-b822-cbf04e51feff",
+                    "destination_type": "A",
+                },
+                {
+                    "category": {"base": "Other"},
+                    "test": {"type": "true"},
+                    "destination": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
+                    "uuid": "aec3299a-c6ff-4315-8bb3-dac39bc64268",
+                    "destination_type": "A",
+                },
+            ],
+            "ruleset_type": "wait_message",
+            "label": "New color",
+            "response_type": "",
+            "config": {},
+            "x": 3,
+            "y": 3,
+        }
+        flow.update(flow_json)
+
+        data = {
+            "flow": str(flow.uuid),
+            "revision": 1,
+            "contact": self.joe.uuid,
+            "submitted_by": self.surveyor.username,
+            "started": "2015-08-25T11:09:29.088Z",
+            "steps": [
+                {
+                    "node": color_prompt.uuid,
+                    "arrived_on": "2015-08-25T11:09:30.088Z",
+                    "actions": [{"type": "reply", "msg": "What is your favorite color?"}],
+                },
+                {
+                    "node": color_ruleset.uuid,
+                    "arrived_on": "2015-08-25T11:11:30.088Z",
+                    "rule": {
+                        "uuid": orange_rule.uuid,
+                        "value": "orange",
+                        "category": "Orange",
+                        "text": "I like orange",
+                    },
+                },
+                {
+                    "node": color_reply.uuid,
+                    "arrived_on": "2015-08-25T11:13:30.088Z",
+                    "actions": [{"type": "reply", "msg": "I love orange too!"}],
+                },
+            ],
+            "completed": True,
+        }
+
+        with patch.object(timezone, "now", return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.postJSON(url, data)
+
+        run = FlowRun.objects.get()
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertIsNotNone(run.exited_on)
+        self.assertEqual(
+            run.path,
+            [
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_prompt.uuid,
+                    "arrived_on": "2015-08-25T11:09:30.088000+00:00",
+                    "exit_uuid": color_prompt.exit_uuid,
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_ruleset.uuid,
+                    "arrived_on": "2015-08-25T11:11:30.088000+00:00",
+                    "exit_uuid": orange_rule.uuid,
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": color_reply.uuid,
+                    "arrived_on": "2015-08-25T11:13:30.088000+00:00",
+                },
+            ],
+        )
+        self.assertEqual(
+            run.results,
+            {
+                "color": {
+                    "node_uuid": color_ruleset.uuid,
+                    "name": "color",
+                    "category": "Orange",
+                    "value": "orange",
+                    "input": "I like orange",
+                    "created_on": matchers.ISODate(),
+                }
+            },
+        )
+        self.assertEqual(
+            run.events,
+            [
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[0]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "What is your favorite color?"},
+                },
+                {
+                    "type": "msg_received",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[1]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "I like orange"},
+                },
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": run.path[2]["uuid"],
+                    "msg": {"uuid": matchers.UUID4String(), "text": "I love orange too!"},
+                },
+            ],
+        )
+
+    def test_api_steps_with_incremental_updates(self):
         url = reverse("api.v1.steps")
 
         # can't access, get 403
@@ -958,7 +1202,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # remove all our contacts
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
 
         # no contacts yet
         response = self.fetchJSON(url)
@@ -983,7 +1227,7 @@ class APITest(TembaTest):
         self.assertEqual("Snoop Dog", contact.name)
         self.assertEqual(self.org, contact.org)
 
-        Contact.objects.all().delete()
+        self.releaseContacts(delete=True)
 
         # add a contact using urns field, also set language
         response = self.postJSON(url, dict(name="Snoop Dog", urns=["tel:+250788123456", "twitter:snoop"]))
@@ -1331,6 +1575,7 @@ class APITest(TembaTest):
             contact = Contact.objects.get(name="Test Name", urns__path="external-id", urns__scheme="ext")
 
             # remove it
+            contact.release(self.admin)
             contact.delete()
 
         # check fetching deleted contacts
@@ -1385,7 +1630,8 @@ class APITest(TembaTest):
             contacts.append(
                 Contact(org=self.org, name="Minion %d" % (c + 1), created_by=self.admin, modified_by=self.admin)
             )
-        Contact.objects.all().delete()
+
+        self.releaseContacts(delete=True)
         Contact.objects.bulk_create(contacts)
 
         # login as surveyor

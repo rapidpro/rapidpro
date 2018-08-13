@@ -91,6 +91,7 @@ class ChannelType(metaclass=ABCMeta):
 
     claim_blurb = None
     claim_view = None
+    claim_view_kwargs = None
 
     configuration_blurb = None
     configuration_urls = None
@@ -105,6 +106,10 @@ class ChannelType(metaclass=ABCMeta):
     quick_reply_text_size = 20
 
     ivr_protocol = None
+
+    # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
+    #  during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
+    async_activation = True
 
     def is_available_to(self, user):
         """
@@ -158,7 +163,9 @@ class ChannelType(metaclass=ABCMeta):
         """
         Gets the URL/view configuration for this channel types's claim page
         """
-        return url(r"^claim$", self.claim_view.as_view(channel_type=self), name="claim")
+        claim_view_kwargs = self.claim_view_kwargs if self.claim_view_kwargs else {}
+        claim_view_kwargs["channel_type"] = self
+        return url(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
 
     def get_update_form(self):
         if self.update_form is None:
@@ -265,9 +272,7 @@ class Channel(TembaModel):
     CONFIG_SEND_URL = "send_url"
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
-    CONFIG_DEFAULT_SEND_BODY = (
-        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}&channel={{channel}}"
-    )
+    CONFIG_DEFAULT_SEND_BODY = "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}&channel={{channel}}"
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"
@@ -396,6 +401,7 @@ class Channel(TembaModel):
 
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="channels",
         blank=True,
@@ -478,7 +484,11 @@ class Channel(TembaModel):
     )
 
     parent = models.ForeignKey(
-        "self", blank=True, null=True, help_text=_("The channel this channel is working on behalf of")
+        "self",
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        help_text=_("The channel this channel is working on behalf of"),
     )
 
     bod = models.TextField(verbose_name=_("Optional Data"), null=True, help_text=_("Any channel specific state data"))
@@ -545,7 +555,16 @@ class Channel(TembaModel):
             org.normalize_contact_tels()
 
         if settings.IS_PROD:
-            on_transaction_commit(lambda: channel_type.activate(channel))
+            if channel_type.async_activation:
+                on_transaction_commit(lambda: channel_type.activate(channel))
+            else:
+                try:
+                    channel_type.activate(channel)
+
+                except Exception as e:
+                    # release our channel, raise error upwards
+                    channel.release()
+                    raise e
 
         return channel
 
@@ -662,19 +681,6 @@ class Channel(TembaModel):
             role=Channel.ROLE_CALL,
             parent=channel,
         )
-
-    @classmethod
-    def refresh_all_jiochat_access_token(cls, channel_id=None):
-        from temba.utils.jiochat import JiochatClient
-
-        jiochat_channels = Channel.objects.filter(channel_type="JC", is_active=True)
-        if channel_id:
-            jiochat_channels = jiochat_channels.filter(id=channel_id)
-
-        for channel in jiochat_channels:
-            client = JiochatClient.from_channel(channel)
-            if client is not None:
-                client.refresh_access_token(channel.id)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
@@ -1081,7 +1087,7 @@ class Channel(TembaModel):
 
     def release(self, trigger_sync=True):
         """
-        Releases this channel, removing it from the org and making it inactive
+        Releases this channel making it inactive
         """
         channel_type = self.get_type()
 
@@ -1094,6 +1100,7 @@ class Channel(TembaModel):
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
+
             except TwilioRestException as e:
                 raise e
 
@@ -1137,6 +1144,15 @@ class Channel(TembaModel):
         from temba.triggers.models import Trigger
 
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
+
+        # any transfer associated with us go away
+        self.airtime_transfers.all().delete()
+
+        # and any triggers associated with our channel get archived
+        for trigger in Trigger.objects.filter(org=self.org, channel=self).all():
+            trigger.channel = None
+            trigger.save(update_fields=("channel",))
+            trigger.archive(self.modified_by)
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
@@ -1270,7 +1286,7 @@ class Channel(TembaModel):
         """
         We want all messages that are:
             1. Pending, ie, never queued
-            2. Queued over two hours ago (something went awry and we need to re-queue)
+            2. Queued over twelve hours ago (something went awry and we need to re-queue)
             3. Errored and are ready for a retry
         """
         from temba.msgs.models import Msg, PENDING, QUEUED, ERRORED, OUTGOING
@@ -1485,6 +1501,7 @@ class ChannelCount(SquashableModel):
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
+
     SQUASH_OVER = ("channel_id", "count_type", "day")
 
     INCOMING_MSG_TYPE = "IM"  # Incoming message
@@ -1503,7 +1520,12 @@ class ChannelCount(SquashableModel):
         (ERROR_LOG_TYPE, _("Error Log Record")),
     )
 
-    channel = models.ForeignKey(Channel, help_text=_("The channel this is a daily summary count for"))
+    channel = models.ForeignKey(
+        Channel,
+        on_delete=models.PROTECT,
+        related_name="counts",
+        help_text=_("The channel this is a daily summary count for"),
+    )
     count_type = models.CharField(
         choices=COUNT_TYPE_CHOICES, max_length=2, help_text=_("What type of message this row is counting")
     )
@@ -1557,6 +1579,7 @@ class ChannelEvent(models.Model):
     """
     An event other than a message that occurs between a channel and a contact. Can be used to trigger flows etc.
     """
+
     TYPE_UNKNOWN = "unknown"
     TYPE_CALL_OUT = "mt_call"
     TYPE_CALL_OUT_MISSED = "mt_miss"
@@ -1586,21 +1609,28 @@ class ChannelEvent(models.Model):
 
     CALL_TYPES = {TYPE_CALL_OUT, TYPE_CALL_OUT_MISSED, TYPE_CALL_IN, TYPE_CALL_IN_MISSED}
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this event is connected to"))
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this event is connected to")
+    )
     channel = models.ForeignKey(
-        Channel, verbose_name=_("Channel"), help_text=_("The channel on which this event took place")
+        Channel,
+        on_delete=models.PROTECT,
+        verbose_name=_("Channel"),
+        help_text=_("The channel on which this event took place"),
     )
     event_type = models.CharField(
         max_length=16, choices=TYPE_CHOICES, verbose_name=_("Event Type"), help_text=_("The type of event")
     )
     contact = models.ForeignKey(
         "contacts.Contact",
+        on_delete=models.PROTECT,
         verbose_name=_("Contact"),
         related_name="channel_events",
         help_text=_("The contact associated with this event"),
     )
     contact_urn = models.ForeignKey(
         "contacts.ContactURN",
+        on_delete=models.PROTECT,
         null=True,
         verbose_name=_("URN"),
         related_name="channel_events",
@@ -1681,7 +1711,6 @@ class ChannelEvent(models.Model):
 
 
 class SendException(Exception):
-
     def __init__(self, description, event=None, events=None, fatal=False, start=None):
         super().__init__(description)
 
@@ -1695,13 +1724,20 @@ class SendException(Exception):
 
 
 class ChannelLog(models.Model):
-    channel = models.ForeignKey(Channel, related_name="logs", help_text=_("The channel the message was sent on"))
+    channel = models.ForeignKey(
+        Channel, on_delete=models.PROTECT, related_name="logs", help_text=_("The channel the message was sent on")
+    )
     msg = models.ForeignKey(
-        "msgs.Msg", related_name="channel_logs", null=True, help_text=_("The message that was sent")
+        "msgs.Msg",
+        on_delete=models.PROTECT,
+        related_name="channel_logs",
+        null=True,
+        help_text=_("The message that was sent"),
     )
 
     connection = models.ForeignKey(
         "channels.ChannelSession",
+        on_delete=models.PROTECT,
         related_name="channel_logs",
         null=True,
         help_text=_("The channel session for this log"),
@@ -1720,6 +1756,9 @@ class ChannelLog(models.Model):
     )
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log message was logged"))
     request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
+
+    def release(self):
+        self.delete()
 
     @classmethod
     def log_exception(cls, channel, msg, e):
@@ -1822,7 +1861,7 @@ class ChannelLog(models.Model):
         return ChannelLog.objects.filter(id=self.id)
 
     def get_request_formatted(self):
-        if not self.request:
+        if not self.request:  # pragma: no cover
             return "%s %s" % (self.method, self.url)
 
         try:
@@ -1841,7 +1880,10 @@ class ChannelLog(models.Model):
 
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(
-        Channel, verbose_name=_("Channel"), help_text=_("The channel that synced to the server")
+        Channel,
+        on_delete=models.PROTECT,
+        verbose_name=_("Channel"),
+        help_text=_("The channel that synced to the server"),
     )
     power_source = models.CharField(
         verbose_name=_("Power Source"), max_length=64, help_text=_("The power source the device is using")
@@ -1918,6 +1960,11 @@ class SyncEvent(SmartModel):
 
         return sync_event
 
+    def release(self):
+        for alert in self.alert_set.all():
+            alert.release()
+        self.delete()
+
     def get_pending_messages(self):
         return getattr(self, "pending_messages", [])
 
@@ -1927,7 +1974,8 @@ class SyncEvent(SmartModel):
     @classmethod
     def trim(cls):
         month_ago = timezone.now() - timedelta(days=30)
-        cls.objects.filter(created_on__lte=month_ago).delete()
+        for event in cls.objects.filter(created_on__lte=month_ago):
+            event.release()
 
 
 @receiver(pre_save, sender=SyncEvent)
@@ -1954,9 +2002,12 @@ class Alert(SmartModel):
         (TYPE_SMS, _("SMS")),
     )  # channel has many unsent messages
 
-    channel = models.ForeignKey(Channel, verbose_name=_("Channel"), help_text=_("The channel that this alert is for"))
+    channel = models.ForeignKey(
+        Channel, on_delete=models.PROTECT, verbose_name=_("Channel"), help_text=_("The channel that this alert is for")
+    )
     sync_event = models.ForeignKey(
         SyncEvent,
+        on_delete=models.PROTECT,
         verbose_name=_("Sync Event"),
         null=True,
         help_text=_("The sync event that caused this alert to be sent (if any)"),
@@ -2150,6 +2201,9 @@ class Alert(SmartModel):
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
+    def release(self):
+        self.delete()
+
 
 def get_alert_user():
     user = User.objects.filter(username="alert").first()
@@ -2162,21 +2216,27 @@ def get_alert_user():
 
 
 class ChannelSession(SmartModel):
-    PENDING = "P"
-    QUEUED = "Q"
-    RINGING = "R"
-    IN_PROGRESS = "I"
-    COMPLETED = "D"
-    BUSY = "B"
-    FAILED = "F"
-    NO_ANSWER = "N"
-    CANCELED = "C"
+    PENDING = "P"  # initial state for all sessions
+    QUEUED = "Q"  # the session is queued internally
+    WIRED = "W"  # the API provider has confirmed that it successfully received the API request
+
+    # valid for IVR sessions
+    RINGING = "R"  # the call in ringing
+    IN_PROGRESS = "I"  # the call has been answered
+    BUSY = "B"  # the call is busy or rejected by the user
+    FAILED = "F"  # the platform failed to initiate the call (bad phone number)
+    NO_ANSWER = "N"  # the call has timed-out or ringed-out
+    CANCELED = "C"  # the call was terminated by platform
+    COMPLETED = "D"  # the call was completed successfully
+
+    # valid for USSD sessions
     TRIGGERED = "T"
     INTERRUPTED = "X"
     INITIATED = "A"
     ENDING = "E"
 
-    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
+    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
+    RETRY_CALL = (BUSY, NO_ANSWER)
 
     INCOMING = "I"
     OUTGOING = "O"
@@ -2191,6 +2251,7 @@ class ChannelSession(SmartModel):
     STATUS_CHOICES = (
         (PENDING, "Pending"),
         (QUEUED, "Queued"),
+        (WIRED, "Wired"),
         (RINGING, "Ringing"),
         (IN_PROGRESS, "In Progress"),
         (COMPLETED, "Complete"),
@@ -2208,19 +2269,31 @@ class ChannelSession(SmartModel):
     status = models.CharField(
         max_length=1, choices=STATUS_CHOICES, default=PENDING, help_text="The status of this session"
     )
-    channel = models.ForeignKey("Channel", help_text="The channel that created this session")
-    contact = models.ForeignKey("contacts.Contact", related_name="sessions", help_text="Who this session is with")
+    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, help_text="The channel that created this session")
+    contact = models.ForeignKey(
+        "contacts.Contact", on_delete=models.PROTECT, related_name="sessions", help_text="Who this session is with"
+    )
     contact_urn = models.ForeignKey(
-        "contacts.ContactURN", verbose_name=_("Contact URN"), help_text=_("The URN this session is communicating with")
+        "contacts.ContactURN",
+        on_delete=models.PROTECT,
+        verbose_name=_("Contact URN"),
+        help_text=_("The URN this session is communicating with"),
     )
     direction = models.CharField(
         max_length=1, choices=DIRECTION_CHOICES, help_text="The direction of this session, either incoming or outgoing"
     )
     started_on = models.DateTimeField(null=True, blank=True, help_text="When this session was connected and started")
     ended_on = models.DateTimeField(null=True, blank=True, help_text="When this session ended")
-    org = models.ForeignKey(Org, help_text="The organization this session belongs to")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
     session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
+
+    retry_count = models.IntegerField(
+        default=0, verbose_name=_("Retry Count"), help_text=_("The number of times this call has been retried")
+    )
+    next_attempt = models.DateTimeField(
+        verbose_name=_("Next Attempt"), help_text=_("When we should next attempt to make this call"), null=True
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2275,3 +2348,19 @@ class ChannelSession(SmartModel):
             return self.session
         except ObjectDoesNotExist:
             return None
+
+    def release(self):
+        for run in self.runs.all():
+            run.release()
+
+        for log in self.channel_logs.all():
+            log.release()
+
+        session = self.get_session()
+        if session:
+            session.release()
+
+        for msg in self.msgs.all():
+            msg.release()
+
+        self.delete()

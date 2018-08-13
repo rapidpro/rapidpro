@@ -7,7 +7,6 @@ from ...models import Channel
 
 
 class MbloxTypeTest(TembaTest):
-
     def test_claim(self):
         Channel.objects.all().delete()
 

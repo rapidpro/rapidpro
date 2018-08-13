@@ -12,8 +12,9 @@ from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
 
 from django.conf import settings
+from django.utils import timezone
 
-from .client import Events, get_client
+from .client import Events, FlowServerException, get_client
 from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class ResumeTrial(object):
     """
 
     def __init__(self, run):
+        self.started_on = timezone.now()
         self.run = run
         self.session_before = reconstruct_session(run)
         self.session_after = None
@@ -39,23 +41,13 @@ def is_flow_suitable(flow):
     """
     Checks whether the given flow can be trialled in the flowserver
     """
-    from temba.flows.models import WebhookAction, TriggerFlowAction, StartFlowAction, RuleSet, Flow
+    from temba.flows.models import RuleSet, Flow
 
     if flow.flow_type not in (Flow.FLOW, Flow.MESSAGE):
         return False
 
-    for action_set in flow.action_sets.all():
-        for action in action_set.get_actions():
-            if action.TYPE in (WebhookAction.TYPE, TriggerFlowAction.TYPE, StartFlowAction.TYPE):
-                return False
-
     for rule_set in flow.rule_sets.all():
-        if rule_set.ruleset_type in (
-            RuleSet.TYPE_AIRTIME,
-            RuleSet.TYPE_WEBHOOK,
-            RuleSet.TYPE_RESTHOOK,
-            RuleSet.TYPE_SUBFLOW,
-        ):
+        if rule_set.ruleset_type == RuleSet.TYPE_AIRTIME:
             return False
 
     return True
@@ -73,7 +65,7 @@ def maybe_start_resume(run):
         if not r.set(TRIAL_LOCK, "x", TRIAL_PERIOD, nx=True):
             return None
 
-        if not is_flow_suitable(run.flow):
+        if not is_flow_suitable(run.flow):  # pragma: no cover
             r.delete(TRIAL_LOCK)
             return None
 
@@ -94,7 +86,7 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
     Ends a trial resume by performing the resumption in the flowserver and comparing the differences
     """
     try:
-        trial.session_after = resume(trial.run.org, trial.session_before, msg_in, expired_child_run)
+        trial.session_after = resume(trial, msg_in, expired_child_run)
         trial.differences = compare_run(trial.run, trial.session_after)
 
         if trial.differences:
@@ -104,6 +96,9 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             report_success(trial)
             return True
 
+    except FlowServerException as e:
+        logger.error("trial resume in flowserver caused server error", extra=e.as_json())
+        return False
     except Exception as e:
         logger.error(
             "flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True
@@ -115,30 +110,44 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print("Flowserver trial resume for run %s in flow '%s' succeeded" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print("Flowserver trial resume for run %s in flow '%s' failed" % (str(trial.run.uuid), trial.run.flow.name))
+    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' failed")
 
     logger.error(
         "trial resume in flowserver produced different output",
-        extra={"run_id": trial.run.id, "differences": trial.differences},
+        extra={
+            "org": trial.run.org.name,
+            "flow": {"uuid": str(trial.run.flow.uuid), "name": trial.run.flow.name},
+            "run_id": trial.run.id,
+            "differences": trial.differences,
+        },
     )
 
 
-def resume(org, session, msg_in=None, expired_child_run=None):
+def resume(trial, msg_in=None, expired_child_run=None):
     """
     Resumes the given waiting session with either a message or an expired run
     """
+    org = trial.run.org
+    session = trial.session_before
+    webhook_mocks = create_webhook_mocks(trial)
+
     client = get_client()
 
     # build request to flow server
     asset_timestamp = int(time.time() * 1000000)
-    request = client.request_builder(org, asset_timestamp).asset_server().set_config("disable_webhooks", True)
+    request = (
+        client.request_builder(org, asset_timestamp)
+        .asset_server()
+        .set_config("disable_webhooks", True)
+        .set_config("webhook_mocks", webhook_mocks)
+    )
 
     if settings.TESTING:
         request.include_all()
@@ -152,23 +161,54 @@ def resume(org, session, msg_in=None, expired_child_run=None):
     return request.resume(session).session
 
 
+def create_webhook_mocks(trial):
+    """
+    Creates webhook mocks for goflow from the webhook results created since this trial started
+    """
+    from temba.api.models import WebHookResult
+
+    results = (
+        WebHookResult.objects.filter(contact=trial.run.contact, created_on__gte=trial.started_on)
+        .select_related("event")
+        .order_by("created_on")
+    )
+
+    # create a webhook mock for each webhook result created since the trial started
+    return [{"method": r.event.action, "url": r.url, "status": r.status_code, "body": r.body} for r in results]
+
+
+def get_session_runs(run):
+    """
+    Get all the runs that make up the given run's session or its trigger
+    """
+    from temba.flows.models import FlowRun
+
+    session_runs = [run]  # include the run itself
+    trigger_run = None
+
+    # include all of its children
+    session_runs += list(FlowRun.objects.filter(parent=run, contact=run.contact))
+
+    r = run
+    while r.parent:
+        if r.parent.contact == r.contact:
+            session_runs.append(r.parent)
+        else:
+            trigger_run = r.parent
+            break
+        r = r.parent
+
+    session_runs = sorted(session_runs, key=lambda r: r.created_on)
+    return session_runs, trigger_run
+
+
 def reconstruct_session(run):
     """
     Reconstruct session JSON from the given resumable run which is assumed to be WAITING
     """
-    from temba.flows.models import FlowRun
 
     # get all the runs that would be in the same session or part of the trigger
-    trigger_run = None
-    session_runs = [run]
-    session_runs += list(FlowRun.objects.filter(parent=run, contact=run.contact))
-    if run.parent:
-        if run.parent.contact == run.contact:
-            session_runs.append(run.parent)
-        else:
-            trigger_run = run.parent
-
-    session_runs = sorted(session_runs, key=lambda r: r.created_on)
+    session_runs, trigger_run = get_session_runs(run)
     session_root_run = session_runs[0]
 
     trigger = {
@@ -297,20 +337,14 @@ def reduce_path(path):
     """
     Reduces path to just node/exit. Other fields are datetimes or generated step UUIDs which are non-deterministic
     """
-    reduced = [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
-
-    # rapidpro doesn't set exit_uuid on terminal actions
-    if "exit_uuid" in reduced[-1]:
-        del reduced[-1]["exit_uuid"]
-
-    return reduced
+    return [copy_keys(step, {"node_uuid", "exit_uuid"}) for step in path]
 
 
 def reduce_results(results):
     """
-    Excludes input because rapidpro uses last message but flowserver uses operand, and created_on
+    Excludes created_on
     """
-    return {k: copy_keys(v, {"category", "name", "value", "node_uuid"}) for k, v in results.items()}
+    return {k: copy_keys(v, {"category", "name", "value", "node_uuid", "input"}) for k, v in results.items()}
 
 
 def reduce_events(events):
@@ -318,12 +352,22 @@ def reduce_events(events):
     Excludes all but message events
     """
     reduced = []
-    for event in events:
+    for event in events or []:
         if event["type"] not in (Events.msg_created.name, Events.msg_received.name):
             continue
 
         new_event = copy_keys(event, {"type", "msg"})
         new_event["msg"] = copy_keys(event["msg"], {"text", "urn", "channel", "attachments"})
+        new_msg = new_event["msg"]
+
+        # legacy events are re-constructed from real messages which have their text stripped
+        if new_msg["text"]:
+            new_msg["text"] = new_msg["text"].strip()
+
+        # legacy events have absoluute paths for attachments, new have relative
+        if "attachments" in new_msg:
+            abs_prefix = f"https://{settings.AWS_BUCKET_DOMAIN}/"
+            new_msg["attachments"] = [a.replace(abs_prefix, "") for a in new_msg["attachments"]]
 
         reduced.append(new_event)
     return reduced

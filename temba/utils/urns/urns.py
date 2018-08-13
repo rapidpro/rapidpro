@@ -11,7 +11,6 @@ ESCAPES = {
 
 
 class ParsedURN(object):
-
     def __init__(self, scheme, path, query="", fragment=""):
         self.scheme = scheme
         self.path = path

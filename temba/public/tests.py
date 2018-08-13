@@ -8,7 +8,6 @@ from .views import VideoCRUDL
 
 
 class PublicTest(SmartminTest):
-
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
@@ -93,6 +92,26 @@ class PublicTest(SmartminTest):
         self.assertEqual(response.request["PATH_INFO"], status_url)
         self.assertContains(response, "Cancelled")
 
+        response = self.client.post(status_url, {}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Invalid")
+
+        response = self.client.post(status_url, dict(text="somethinginvalid"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Invalid")
+
+        response = self.client.post(status_url, dict(text="CU001"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Shipped")
+
+        response = self.client.post(status_url, dict(text="CU002"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Pending")
+
+        response = self.client.post(status_url, dict(text="CU003"))
+        self.assertEqual(response.request["PATH_INFO"], status_url)
+        self.assertContains(response, "Cancelled")
+
     def test_templatetags(self):
         from .templatetags.public import gear_link_classes
 
@@ -144,7 +163,6 @@ class PublicTest(SmartminTest):
 
 
 class VideoCRUDLTest(_CRUDLTest):
-
     def setUp(self):
         super().setUp()
         self.crudl = VideoCRUDL

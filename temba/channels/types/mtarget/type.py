@@ -11,6 +11,7 @@ class MtargetType(ChannelType):
     """
     An Mtarget channel type (https://www.mtarget.fr/)
     """
+
     code = "MT"
     category = ChannelType.Category.PHONE
 

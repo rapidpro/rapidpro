@@ -13,7 +13,6 @@ from smartmin.views import (
     SmartFormView,
     SmartListView,
     SmartReadView,
-    SmartTemplateView,
     SmartUpdateView,
     smart_url,
 )
@@ -27,12 +26,15 @@ from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Lower, Upper
+from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.archives.models import Archive
+from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, languages, on_transaction_commit
@@ -153,6 +155,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
+
     system_group = None
     add_button = True
     paginate_by = 50
@@ -333,7 +336,6 @@ class ContactActionForm(BaseActionForm):
 
 
 class ContactActionMixin(SmartListView):
-
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -364,7 +366,6 @@ class ContactFieldForm(forms.ModelForm):
 
 
 class ContactForm(forms.ModelForm):
-
     def __init__(self, *args, **kwargs):
         self.user = kwargs["user"]
         self.org = self.user.get_org()
@@ -486,6 +487,24 @@ class UpdateContactForm(ContactForm):
         self.fields["groups"].help_text = _("The groups which this contact belongs to")
 
 
+class ExportForm(Form):
+    group_memberships = forms.ModelMultipleChoiceField(
+        queryset=ContactGroup.user_groups.none(), required=False, label=_("Group Memberships for")
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+        self.fields["group_memberships"].queryset = ContactGroup.user_groups.filter(
+            org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
+        ).order_by(Lower("name"))
+
+        self.fields["group_memberships"].help_text = _(
+            "Include group membership only for these groups. " "(Leave blank to ignore group memberships)."
+        )
+
+
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = (
@@ -509,17 +528,17 @@ class ContactCRUDL(SmartCRUDL):
         "history",
     )
 
-    class Export(OrgPermsMixin, SmartTemplateView):
+    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
-        def render_to_response(self, context, **response_kwargs):
+        form_class = ExportForm
+        submit_button_name = "Export"
+        success_url = "@contacts.contact_list"
+
+        def pre_process(self, request, *args, **kwargs):
             user = self.request.user
             org = user.get_org()
 
-            group_uuid = self.request.GET.get("g")
-            search = self.request.GET.get("s")
-            redirect = self.request.GET.get("redirect")
-
-            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+            group_uuid, search, redirect = self.derive_params()
 
             # is there already an export taking place?
             existing = ExportContactsTask.get_recent_unfinished(org)
@@ -531,42 +550,76 @@ class ContactCRUDL(SmartCRUDL):
                         "for that export to complete before starting another." % existing.created_by.username
                     ),
                 )
+                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
 
-            # otherwise, off we go
-            else:
-                previous_export = (
-                    ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+        def derive_params(self):
+            group_uuid = self.request.GET.get("g")
+            search = self.request.GET.get("s")
+            redirect = self.request.GET.get("redirect")
+
+            return group_uuid, search, redirect
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_invalid(self, form):  # pragma: needs cover
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
+                return HttpResponse(
+                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
                 )
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(
-                    hours=24
-                ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.contact_exported")
+            else:
+                return super().form_invalid(form)
 
-                export = ExportContactsTask.create(org, user, group, search)
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
 
-                # schedule the export job
-                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+            group_uuid, search, redirect = self.derive_params()
+            group_memberships = form.cleaned_data["group_memberships"]
 
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
+            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+
+            previous_export = (
+                ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+            )
+            if previous_export and previous_export.created_on < timezone.now() - timedelta(
+                hours=24
+            ):  # pragma: needs cover
+                analytics.track(self.request.user.username, "temba.contact_exported")
+
+            export = ExportContactsTask.create(org, user, group, search, group_memberships)
+
+            # schedule the export job
+            on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+
+            if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+                messages.info(
+                    self.request,
+                    _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                    % self.request.user.username,
+                )
+
+            else:
+                dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
+                messages.info(
+                    self.request,
+                    _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                )
+            if "HTTP_X_PJAX" not in self.request.META:
+                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
+            else:  # pragma: no cover
+                return self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=self.get_success_url(),
+                        success_script=getattr(self, "success_script", None),
                     )
-
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
-                    )
-
-            return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
+                )
 
     class Customize(OrgPermsMixin, SmartUpdateView):
-
         class CustomizeForm(forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
                 del kwargs["org"]
@@ -648,7 +701,12 @@ class ContactCRUDL(SmartCRUDL):
             """
             org = self.derive_org()
             column_controls = []
-            for header in column_headers:
+            for header_col in column_headers:
+
+                header = header_col
+                if header.startswith("field:"):
+                    header = header.replace("field:", "", 1).strip()
+
                 header_key = slugify_with(header)
 
                 include_field = forms.BooleanField(label=" ", required=False, initial=True)
@@ -683,7 +741,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 column_controls.append(
                     dict(
-                        header=header,
+                        header=header_col,
                         include_field=include_field_name,
                         label_field=label_field_name,
                         type_field=type_field_name,
@@ -769,9 +827,7 @@ class ContactCRUDL(SmartCRUDL):
             return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
 
     class Import(OrgPermsMixin, SmartCSVImportView):
-
         class ImportForm(forms.ModelForm):
-
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
                 del kwargs["org"]
@@ -849,6 +905,15 @@ class ContactCRUDL(SmartCRUDL):
             context["task"] = None
             context["group"] = None
             context["show_form"] = True
+            org = self.derive_org()
+            connected_channels = Channel.objects.filter(is_active=True, org=org)
+            ch_schemes = set()
+            for ch in connected_channels:
+                ch_schemes.union(ch.schemes)
+
+            context["urn_scheme_config"] = [
+                conf for conf in URN_SCHEME_CONFIG if conf[0] == TEL_SCHEME or conf[0] in ch_schemes
+            ]
 
             task_id = self.request.GET.get("task", None)
             if task_id:
@@ -1115,6 +1180,7 @@ class ContactCRUDL(SmartCRUDL):
             context["before"] = datetime_to_ms(after)
             context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context["activity"] = activity
+            context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
             return context
 
     class List(ContactActionMixin, ContactListView):
@@ -1135,7 +1201,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), href=self.derive_export_url()))
+                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -1146,6 +1212,7 @@ class ContactCRUDL(SmartCRUDL):
             context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
+            context["export_url"] = self.derive_export_url()
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -1185,7 +1252,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Edit Group"), js_class="update-contactgroup", href="#"))
 
             if self.has_org_perm("contacts.contact_export"):
-                links.append(dict(title=_("Export"), href=self.derive_export_url()))
+                links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
 
             if self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(dict(title=_("Delete Group"), js_class="delete-contactgroup", href="#"))
@@ -1204,7 +1271,10 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = actions
             context["current_group"] = group
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by("pk")
+            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+                "-priority", "pk"
+            )
+            context["export_url"] = self.derive_export_url()
             return context
 
         @classmethod
@@ -1399,6 +1469,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Block this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact blocked")
@@ -1411,6 +1482,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Unblock this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact unblocked")
@@ -1423,6 +1495,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Unstops this contact
         """
+
         fields = ()
         success_url = "uuid@contacts.contact_read"
         success_message = _("Contact unstopped")
@@ -1435,6 +1508,7 @@ class ContactCRUDL(SmartCRUDL):
         """
         Delete this contact (can't be undone)
         """
+
         fields = ()
         success_url = "@contacts.contact_list"
         success_message = ""
@@ -1550,7 +1624,6 @@ class ContactGroupCRUDL(SmartCRUDL):
 
 
 class ManageFieldsForm(forms.Form):
-
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
         del kwargs["org"]
@@ -1595,7 +1668,6 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "managefields", "json")
 
     class List(OrgPermsMixin, SmartListView):
-
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=self.request.user.get_org(), is_active=True)
@@ -1626,7 +1698,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key="groups", label="Groups"))
 
             for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[3], label=str(config[1])))
+                sorted_results.insert(0, dict(key=config[2], label=str(config[1])))
 
             sorted_results.insert(0, dict(key="name", label="Full name"))
 

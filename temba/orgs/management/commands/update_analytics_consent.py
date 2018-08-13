@@ -1,7 +1,8 @@
 import time
 
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+
 from temba.policies.models import Policy
 from temba.utils import analytics
 

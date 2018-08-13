@@ -4,26 +4,15 @@ import iso8601
 from rest_framework import serializers
 
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
+from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import (
-    FLOW,
-    INBOX,
-    INCOMING,
-    IVR,
-    OUTGOING,
-    PENDING,
-    QUEUED,
-    STATUS_CONFIG,
-    Broadcast,
-    Label,
-    Msg,
-)
+from temba.msgs.models import PENDING, QUEUED, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
-from temba.utils import on_transaction_commit
+from temba.utils import extract_constants, on_transaction_commit
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 
@@ -36,16 +25,6 @@ def format_datetime(value):
     Datetime fields are formatted with microsecond accuracy for v2
     """
     return datetime_to_json_date(value, micros=True) if value else None
-
-
-def extract_constants(config, reverse=False):
-    """
-    Extracts a mapping between db and API codes from a constant config in a model
-    """
-    if reverse:
-        return {t[2]: t[0] for t in config}
-    else:
-        return {t[0]: t[2] for t in config}
 
 
 class ReadSerializer(serializers.ModelSerializer):
@@ -109,6 +88,23 @@ class AdminBoundaryReadSerializer(ReadSerializer):
         fields = ("osm_id", "name", "parent", "level", "aliases", "geometry")
 
 
+class ArchiveReadSerializer(ReadSerializer):
+    period = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+
+    PERIODS = {Archive.PERIOD_DAILY: "daily", Archive.PERIOD_MONTHLY: "monthly"}
+
+    def get_period(self, obj):
+        return self.PERIODS.get(obj.period)
+
+    def get_download_url(self, obj):
+        return obj.get_download_link()
+
+    class Meta:
+        model = Archive
+        fields = ("archive_type", "start_date", "period", "record_count", "size", "hash", "download_url")
+
+
 class BroadcastReadSerializer(ReadSerializer):
     text = fields.TranslatableField()
     urns = serializers.SerializerMethodField()
@@ -143,12 +139,11 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        recipients = self.validated_data.get("contacts", []) + self.validated_data.get("groups", [])
-
+        contact_urns = []
         for urn in self.validated_data.get("urns", []):
             # create contacts for URNs if necessary
-            contact, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            recipients.append(contact_urn)
+            __, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
+            contact_urns.append(contact_urn)
 
         text, base_language = self.validated_data["text"]
 
@@ -158,7 +153,9 @@ class BroadcastWriteSerializer(WriteSerializer):
             self.context["user"],
             text=text,
             base_language=base_language,
-            recipients=recipients,
+            groups=self.validated_data.get("groups", []),
+            contacts=self.validated_data.get("contacts", []),
+            urns=contact_urns,
             channel=self.validated_data.get("channel"),
         )
 
@@ -744,7 +741,6 @@ class FlowRunReadSerializer(ReadSerializer):
         return {"uuid": str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
-
         def convert_step(step):
             arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
             return {"node": step[FlowRun.PATH_NODE_UUID], "time": format_datetime(arrived_on)}
@@ -752,7 +748,6 @@ class FlowRunReadSerializer(ReadSerializer):
         return [convert_step(s) for s in obj.path]
 
     def get_values(self, obj):
-
         def convert_result(result):
             created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
             return {
@@ -760,6 +755,8 @@ class FlowRunReadSerializer(ReadSerializer):
                 "category": result[FlowRun.RESULT_CATEGORY],
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
+                "input": result.get(FlowRun.RESULT_INPUT),
+                "name": result.get(FlowRun.RESULT_NAME),
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}
@@ -909,10 +906,6 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    STATUSES = extract_constants(STATUS_CONFIG)
-    VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
-    DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
-    MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
     broadcast = serializers.SerializerMethodField()
     contact = fields.ContactField()
@@ -931,14 +924,14 @@ class MsgReadSerializer(ReadSerializer):
         return obj.broadcast_id
 
     def get_direction(self, obj):
-        return self.DIRECTIONS.get(obj.direction)
+        return Msg.DIRECTIONS.get(obj.direction)
 
     def get_type(self, obj):
-        return self.MSG_TYPES.get(obj.msg_type)
+        return Msg.MSG_TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
         # PENDING and QUEUED are same as far as users are concerned
-        return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
+        return Msg.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]
@@ -950,7 +943,7 @@ class MsgReadSerializer(ReadSerializer):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
-        return self.VISIBILITIES.get(obj.visibility)
+        return Msg.VISIBILITIES.get(obj.visibility)
 
     class Meta:
         model = Msg

@@ -17,7 +17,6 @@ from temba.utils.http import HttpEvent
 
 
 class TembaTwython(Twython):  # pragma: no cover
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = []
@@ -131,20 +130,15 @@ class TembaTwython(Twython):  # pragma: no cover
         """
         return self.get("https://api.twitter.com/1.1/account_activity/all/%s/webhooks.json" % env_name)
 
-    def delete_webhook(self, env_name):
+    def delete_webhook(self, env_name, webhook_id):
         """
         Deletes the webhook for the current app / user and passed in environment name.
         Docs: https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/api-reference/aaa-standard-all
         """
-        # grab our current webhooks
-        resp = self.get_webhooks(env_name)
-
-        # if we have one, delete it
-        if len(resp) > 0:
-            self.request(
-                "https://api.twitter.com/1.1/account_activity/all/%s/webhooks/%s.json" % (env_name, resp[0]["id"]),
-                method="DELETE",
-            )
+        self.request(
+            "https://api.twitter.com/1.1/account_activity/all/%s/webhooks/%s.json" % (env_name, webhook_id),
+            method="DELETE",
+        )
 
     def register_webhook(self, env_name, url):
         """

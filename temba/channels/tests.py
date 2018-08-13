@@ -70,7 +70,6 @@ from .tasks import check_channels_task, squash_channelcounts
 
 
 class ChannelTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -115,7 +114,7 @@ class ChannelTest(TembaTest):
 
         group.contacts.add(*contacts)
 
-        broadcast = Broadcast.create(org, user, message, [group])
+        broadcast = Broadcast.create(org, user, message, groups=[group])
         broadcast.send()
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
@@ -396,7 +395,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(self.tel_channel, msg.channel)
         self.assertEqual(1, Msg.get_messages(self.org).count())
         self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.get_broadcasts(self.org).count())
+        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
 
         # start off in the pending state
         self.assertEqual("P", msg.status)
@@ -429,7 +428,7 @@ class ChannelTest(TembaTest):
         # should still be considered that user's message, call and broadcast
         self.assertEqual(1, Msg.get_messages(self.org).count())
         self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.get_broadcasts(self.org).count())
+        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
 
         # syncing this channel should result in a release
         post_data = dict(
@@ -1002,7 +1001,7 @@ class ChannelTest(TembaTest):
         )
 
         # one recommended channel (Mtarget in Rwanda)
-        self.assertEqual(len(response.context["recommended_channels"]), 1)
+        self.assertEqual(len(response.context["recommended_channels"]), 2)
 
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "T")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "TMS")
@@ -1469,8 +1468,7 @@ class ChannelTest(TembaTest):
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
-
-        Channel.objects.all().delete()
+        self.releaseChannels(delete=True)
 
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
@@ -1852,8 +1850,13 @@ class ChannelTest(TembaTest):
             0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
         )
 
-        # clear the alerts
-        Alert.objects.all().delete()
+        # make our events old so we can test trimming them
+        SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
+        SyncEvent.trim()
+
+        # should be cleared out
+        self.assertFalse(SyncEvent.objects.exists())
+        self.assertFalse(Alert.objects.exists())
 
         # the case the status is in unknown state
 
@@ -2070,7 +2073,6 @@ class ChannelTest(TembaTest):
 
 
 class ChannelBatchTest(TembaTest):
-
     def test_time_utils(self):
         now = timezone.now()
         now = now.replace(microsecond=now.microsecond // 1000 * 1000)
@@ -2080,7 +2082,6 @@ class ChannelBatchTest(TembaTest):
 
 
 class ChannelEventTest(TembaTest):
-
     def test_create(self):
         now = timezone.now()
         event = ChannelEvent.create(
@@ -2099,7 +2100,6 @@ class ChannelEventTest(TembaTest):
 
 
 class ChannelEventCRUDLTest(TembaTest):
-
     def test_calls(self):
         now = timezone.now()
         ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, dict(duration=600))
@@ -2116,7 +2116,6 @@ class ChannelEventCRUDLTest(TembaTest):
 
 
 class SyncEventTest(SmartminTest):
-
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
@@ -2151,7 +2150,6 @@ class SyncEventTest(SmartminTest):
 
 
 class ChannelAlertTest(TembaTest):
-
     def test_no_alert_email(self):
         # set our last seen to a while ago
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
@@ -2171,7 +2169,6 @@ class ChannelAlertTest(TembaTest):
 
 
 class ChannelClaimTest(TembaTest):
-
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
         # set our last seen to a while ago
@@ -2343,7 +2340,6 @@ class ChannelClaimTest(TembaTest):
 
 
 class ChannelCountTest(TembaTest):
-
     def assertDailyCount(self, channel, assert_count, count_type, day):
         calculated_count = ChannelCount.get_day_count(channel, count_type, day)
         self.assertEqual(assert_count, calculated_count)
@@ -2381,7 +2377,7 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(ChannelCount.objects.all().count(), 1)
 
         # deleting a message doesn't decrement the count
-        msg.delete()
+        msg.release()
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -2403,7 +2399,7 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, self.channel.get_count([ChannelCount.ERROR_LOG_TYPE]))
 
         # deleting a message doesn't decrement the count
-        msg.delete()
+        msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -2411,9 +2407,7 @@ class ChannelCountTest(TembaTest):
         # incoming IVR
         msg = Msg.create_incoming(self.channel, "tel:+250788111222", "Test Message", org=self.org, msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
-
-        # delete it, should be gone now
-        msg.delete()
+        msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
@@ -2421,14 +2415,11 @@ class ChannelCountTest(TembaTest):
         # outgoing ivr
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Voice", channel=self.channel, msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
-
-        # delete it, should be gone now
-        msg.delete()
+        msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
 
 class ChannelLogTest(TembaTest):
-
     def test_channellog_views(self):
         self.contact = self.create_contact("Fred Jones", "+12067799191")
         self.create_secondary_org(100000)
@@ -2519,7 +2510,6 @@ class ChannelLogTest(TembaTest):
 
 
 class MageHandlerTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -2760,7 +2750,6 @@ class MageHandlerTest(TembaTest):
 
 
 class JunebugTestMixin(object):
-
     def mk_event(self, **kwargs):
         default = {"event_type": "submitted", "message_id": "message-id", "timestamp": "2017-01-01 00:00:00+0000"}
         default.update(kwargs)
@@ -2785,7 +2774,6 @@ class JunebugTestMixin(object):
 
 
 class JunebugTest(JunebugTestMixin, TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -3090,7 +3078,6 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
 
 class FacebookWhitelistTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -3138,7 +3125,6 @@ class FacebookWhitelistTest(TembaTest):
 
 
 class CourierTest(TembaTest):
-
     def test_queue_to_courier(self):
         self.channel.channel_type = "T"
         self.channel.save()
@@ -3209,7 +3195,6 @@ class CourierTest(TembaTest):
 
 
 class HandleEventTest(TembaTest):
-
     def test_new_conversation_channel_event(self):
         self.joe = self.create_contact("Joe", "+12065551212")
         flow = self.get_flow("favorites")
@@ -3235,7 +3220,6 @@ class HandleEventTest(TembaTest):
 
 
 class TwitterTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -3504,7 +3488,6 @@ class TwitterTest(TembaTest):
 
 
 class FacebookTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 

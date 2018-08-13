@@ -137,7 +137,6 @@ class MessageConsole(cmd.Cmd):
 
 
 class Command(BaseCommand):  # pragma: no cover
-
     def add_arguments(self, parser):
         parser.add_argument(
             "--org",

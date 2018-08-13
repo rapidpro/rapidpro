@@ -136,7 +136,6 @@ def lessblock(parser, token):
 
 
 class LessBlockNode(template.Node):
-
     def __init__(self, nodelist):
         self.nodelist = nodelist
 

@@ -145,7 +145,6 @@ class Blog(RedirectView):
 
 
 class GenerateCoupon(View):
-
     def post(self, *args, **kwargs):
         # return a generated coupon
         return HttpResponse(json.dumps(dict(coupon=random_string(6))))
@@ -155,9 +154,11 @@ class GenerateCoupon(View):
 
 
 class OrderStatus(View):
-
     def post(self, request, *args, **kwargs):
-        text = request.GET.get("text", "")
+        if request.method == "POST":
+            text = request.POST.get("text", "")
+        else:
+            text = request.GET.get("text", "")
 
         if text.lower() == "cu001":
             response = dict(

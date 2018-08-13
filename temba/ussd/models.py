@@ -9,7 +9,6 @@ from temba.utils import get_anonymous_user
 
 
 class USSDQuerySet(models.QuerySet):
-
     def get(self, *args, **kwargs):
         kwargs.update(dict(session_type=USSDSession.USSD))
         return super().get(*args, **kwargs)

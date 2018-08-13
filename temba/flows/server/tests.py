@@ -10,7 +10,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Label, Msg
-from temba.tests import MockResponse, TembaTest, skip_if_no_flowserver
+from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
@@ -18,7 +18,6 @@ from .client import FlowServerException, get_client, serialize_channel, serializ
 
 
 class SerializationTest(TembaTest):
-
     def test_serialize_field(self):
         gender = self.create_field("gender", "Gender", Value.TYPE_TEXT)
         age = self.create_field("age", "Age", Value.TYPE_NUMBER)
@@ -44,7 +43,6 @@ class SerializationTest(TembaTest):
 
 
 class ClientTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -74,6 +72,7 @@ class ClientTest(TembaTest):
                         "created_on": "2018-01-18T14:24:30+00:00",
                         "contact": {
                             "uuid": str(self.contact.uuid),
+                            "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
                             "timezone": "UTC",
@@ -101,6 +100,7 @@ class ClientTest(TembaTest):
                             "languages": [],
                             "time_format": "tt:mm",
                             "timezone": "Africa/Kigali",
+                            "redaction_policy": "none",
                         },
                     }
                 ],
@@ -128,11 +128,13 @@ class ClientTest(TembaTest):
         with self.assertRaises(FlowServerException) as e:
             self.client.request_builder(self.org, 1234).start_manual(contact, flow)
 
-        self.assertEqual(str(e.exception), "Invalid request: Bad request\nDoh!")
+        self.assertEqual(
+            e.exception.as_json(),
+            {"endpoint": "start", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
+        )
 
 
 class TrialTest(TembaTest):
-
     def setUp(self):
         super().setUp()
 
@@ -140,27 +142,19 @@ class TrialTest(TembaTest):
 
     def test_is_flow_suitable(self):
         self.assertTrue(trial.is_flow_suitable(self.get_flow("favorites")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))
-        self.assertFalse(trial.is_flow_suitable(self.get_flow("action_packed")))
+        self.assertTrue(trial.is_flow_suitable(self.get_flow("action_packed")))
+
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
+        self.assertFalse(trial.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
-        action_packed = self.get_flow("action_packed")
-        favorites = self.get_flow("favorites")
-
-        # trying a flow that can't be resumed won't effect throttling
-        action_packed.start([], [self.contact])
-        Msg.create_incoming(self.channel, "tel:+12065552020", "color")
-
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 0)
-
         # first resume in a suitable flow will be trialled
-        favorites.start([], [self.contact])
+        favorites = self.get_flow("favorites")
+        favorites.start([], [self.contact], interrupt=True)
         Msg.create_incoming(self.channel, "tel:+12065552020", "red")
 
         self.assertEqual(mock_report_success.call_count, 1)
@@ -171,6 +165,42 @@ class TrialTest(TembaTest):
         # second won't because its too soon
         self.assertEqual(mock_report_success.call_count, 1)
         self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="on")
+    @patch("temba.flows.server.trial.report_failure")
+    @patch("temba.flows.server.trial.report_success")
+    def test_finding_session_runs(self, mock_report_success, mock_report_failure):
+        contact2 = self.create_contact("Oprah Winfrey", "+12065552121")
+        self.get_flow("hierarchy")
+
+        hierarchy = Flow.objects.get(name="Hierarchy 1")
+        hierarchy.start([], [self.contact])
+
+        contact1_run1, contact1_run2 = FlowRun.objects.filter(contact=self.contact).order_by("id")
+        contact2_run1, contact2_run2, contact2_run3 = FlowRun.objects.filter(contact=contact2).order_by("id")
+
+        self.assertEqual(contact1_run2.parent, contact1_run1)
+        self.assertEqual(contact2_run1.parent, contact1_run2)
+        self.assertEqual(contact2_run2.parent, contact2_run1)
+        self.assertEqual(contact2_run3.parent, contact2_run2)
+
+        session = trial.reconstruct_session(contact2_run3)
+
+        # check the session runs don't include the runs for the other contact
+        self.assertEqual(
+            [r["uuid"] for r in session["runs"]],
+            [str(contact2_run1.uuid), str(contact2_run2.uuid), str(contact2_run3.uuid)],
+        )
+
+        # but the one that triggered the runs for the second contact, is included on the trigger
+        self.assertEqual(session["trigger"]["type"], "flow_action")
+        self.assertEqual(session["trigger"]["run"]["uuid"], str(contact1_run2.uuid))
+
+        # and that the parent field is set correctly on each session run
+        self.assertNotIn("parent_uuid", session["runs"][0])  # because it's parent isn't in same session
+        self.assertEqual(session["runs"][1]["parent_uuid"], str(contact2_run1.uuid))
+        self.assertEqual(session["runs"][2]["parent_uuid"], str(contact2_run2.uuid))
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
@@ -337,7 +367,16 @@ class TrialTest(TembaTest):
             run.refresh_from_db()
             self.assertEqual(len(run.path), 4)
 
-        # an exception in end_resume also shouldn't prevent normal flow execution
+        # a flow server exception in end_resume also shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.resume") as mock_resume:
+            mock_resume.side_effect = FlowServerException("resume", {}, {"errors": ["Boom!"]})
+
+            run, = favorites.start([], [self.contact], restart_participants=True)
+            Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
+            run.refresh_from_db()
+            self.assertEqual(len(run.path), 4)
+
+        # any other exception in end_resume also shouldn't prevent normal flow execution
         with patch("temba.flows.server.trial.resume") as mock_resume:
             mock_resume.side_effect = ValueError("BOOM")
 
@@ -358,21 +397,37 @@ class TrialTest(TembaTest):
             self.assertEqual(mock_report_failure.call_count, 1)
 
     @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="always")
+    @override_settings(FLOW_SERVER_TRIAL="always", SEND_WEBHOOKS=True)
     @patch("temba.flows.server.trial.report_failure")
     @patch("temba.flows.server.trial.report_success")
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
-        # checks that we got a mocked response back from the webhook call
-        def failure(t):
-            self.assertEqual(t.differences["diffs"], {"results": {"webhook_2": {"value": "MOCKED"}}})
-
-        mock_report_failure.side_effect = failure
-
         flow = self.get_flow("dual_webhook")
+
+        # mock the two webhook calls in this flow
+        self.mockRequest("POST", "/code", '{"code": "ABABUUDDLRS"}', content_type="application/json")
+        self.mockRequest("GET", "/success", "Success")
 
         flow.start([], [self.contact])
         Msg.create_incoming(self.channel, "tel:+12065552020", "Bob")
 
-        # trial fails due to differing webhook result
-        self.assertEqual(mock_report_success.call_count, 0)
-        self.assertEqual(mock_report_failure.call_count, 1)
+        self.assertAllRequestsMade()
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="always")
+    @patch("temba.flows.server.trial.report_failure")
+    @patch("temba.flows.server.trial.report_success")
+    def test_msg_events_with_attachments(self, mock_report_success, mock_report_failure):
+        # test an outgoing message with media
+        flow = self.get_flow("color")
+        flow_json = flow.as_json()
+        flow_json["action_sets"][2]["actions"][0]["media"] = {"base": "image/jpg:files/blue.jpg"}
+        flow.update(flow_json)
+
+        flow.start([], [self.contact])
+        Msg.create_incoming(self.channel, "tel:+12065552020", "blue")
+
+        self.assertEqual(mock_report_success.call_count, 1)
+        self.assertEqual(mock_report_failure.call_count, 0)

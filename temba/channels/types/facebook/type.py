@@ -14,6 +14,7 @@ class FacebookType(ChannelType):
     """
     A Facebook channel
     """
+
     code = "FB"
     category = ChannelType.Category.SOCIAL_MEDIA
 

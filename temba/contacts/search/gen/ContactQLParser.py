@@ -75,7 +75,6 @@ class ContactQLParser(Parser):
         self._predicates = None
 
     class ParseContext(ParserRuleContext):
-
         def __init__(self, parser, parent=None, invokingState=-1):
             super(ContactQLParser.ParseContext, self).__init__(parent, invokingState)
             self.parser = parser
@@ -114,7 +113,6 @@ class ContactQLParser(Parser):
         return localctx
 
     class ExpressionContext(ParserRuleContext):
-
         def __init__(self, parser, parent=None, invokingState=-1):
             super(ContactQLParser.ExpressionContext, self).__init__(parent, invokingState)
             self.parser = parser
@@ -126,7 +124,6 @@ class ContactQLParser(Parser):
             super(ContactQLParser.ExpressionContext, self).copyFrom(ctx)
 
     class ImplicitConditionContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ImplicitConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -141,7 +138,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class ConditionContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -162,7 +158,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class CombinationAndContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationAndContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -183,7 +178,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class CombinationImpicitAndContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationImpicitAndContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -201,7 +195,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class CombinationOrContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.CombinationOrContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -222,7 +215,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class ExpressionGroupingContext(ExpressionContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.ExpressionContext)
             super(ContactQLParser.ExpressionGroupingContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -358,7 +350,6 @@ class ContactQLParser(Parser):
         return localctx
 
     class LiteralContext(ParserRuleContext):
-
         def __init__(self, parser, parent=None, invokingState=-1):
             super(ContactQLParser.LiteralContext, self).__init__(parent, invokingState)
             self.parser = parser
@@ -370,7 +361,6 @@ class ContactQLParser(Parser):
             super(ContactQLParser.LiteralContext, self).copyFrom(ctx)
 
     class StringLiteralContext(LiteralContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.LiteralContext)
             super(ContactQLParser.StringLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)
@@ -385,7 +375,6 @@ class ContactQLParser(Parser):
                 return visitor.visitChildren(self)
 
     class TextLiteralContext(LiteralContext):
-
         def __init__(self, parser, ctx):  # actually a ContactQLParser.LiteralContext)
             super(ContactQLParser.TextLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)

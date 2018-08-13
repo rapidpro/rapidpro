@@ -26,7 +26,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.db import models, transaction
@@ -36,14 +35,16 @@ from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 
+from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, languages
+from temba.utils import analytics, chunk_list, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
 from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
 
 EARLIEST_IMPORT_VERSION = "3"
@@ -147,6 +148,7 @@ class OrgLock(Enum):
     """
     Org-level lock types
     """
+
     contacts = 1
     channels = 2
     credits = 3
@@ -157,6 +159,7 @@ class OrgCache(Enum):
     """
     Org-level cache types
     """
+
     display = 1
     credits = 2
 
@@ -170,6 +173,7 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
         verbose_name=_("Plan"),
@@ -243,7 +247,7 @@ class Org(SmartModel):
         "locations.AdminBoundary",
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         help_text="The country this organization should map results for.",
     )
 
@@ -267,17 +271,13 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
 
-    is_purgeable = models.BooleanField(
-        default=False, help_text=_("Whether this org's outgoing messages should be purged")
-    )
-
     primary_language = models.ForeignKey(
         "orgs.Language",
         null=True,
         blank=True,
         related_name="orgs",
         help_text=_("The primary language will be used for contacts with no language preference."),
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
     )
 
     brand = models.CharField(
@@ -291,7 +291,13 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    parent = models.ForeignKey("orgs.Org", null=True, blank=True, help_text=_("The parent org that manages this org"))
+    parent = models.ForeignKey(
+        "orgs.Org",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text=_("The parent org that manages this org"),
+    )
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -379,7 +385,7 @@ class Org(SmartModel):
             ORG_CREDITS_PURCHASED_CACHE_KEY % self.pk,
             ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY % self.pk,
             ORG_ACTIVE_TOPUP_KEY % self.pk,
-            *active_topup_keys
+            *active_topup_keys,
         )
 
     def set_status(self, status):
@@ -1393,10 +1399,12 @@ class Org(SmartModel):
 
     def _calculate_low_credits_threshold(self):
         now = timezone.now()
-        last_topup_credits = (
-            self.topups.filter(is_active=True, expires_on__gte=now).aggregate(Sum("credits")).get("credits__sum")
-        )
-        return int(last_topup_credits * 0.15) if last_topup_credits else 0, self.get_credit_ttl()
+        unexpired_topups = self.topups.filter(is_active=True, expires_on__gte=now)
+
+        active_topup_credits = [topup.credits for topup in unexpired_topups if topup.get_remaining() > 0]
+        last_topup_credits = sum(active_topup_credits)
+
+        return int(last_topup_credits * 0.15), self.get_credit_ttl()
 
     def get_credits_total(self, force_dirty=False):
         """
@@ -2060,6 +2068,15 @@ class Org(SmartModel):
 
         return self.save_media(File(temp), extension)
 
+    def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
+        """
+        Gets the most recent date for which data hasn't been deleted yet or None if no deletion has been done
+        :return:
+        """
+        archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
+        if archive:
+            return archive.get_end_date()
+
     def save_response_media(self, response):
         disposition = response.headers.get("Content-Disposition", None)
         content_type = response.headers.get("Content-Type", None)
@@ -2098,7 +2115,7 @@ class Org(SmartModel):
             filename = "%s.%s" % (filename, extension)
 
         path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
-        location = default_storage.save(path, file)
+        location = public_file_storage.save(path, file)
 
         # force http for localhost
         scheme = "https"
@@ -2106,6 +2123,98 @@ class Org(SmartModel):
             scheme = "http"
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
+
+    def release(self, *, release_users=True, immediately=False):
+
+        # free our children
+        Org.objects.filter(parent=self).update(parent=None)
+
+        # deactivate ourselves
+        self.is_active = False
+        self.save(update_fields=("is_active", "modified_on"))
+
+        # immediately release our channels
+        from temba.channels.models import Channel
+
+        for channel in Channel.objects.filter(org=self, is_active=True):
+            channel.release()
+
+        # release any user that belongs only to us
+        if release_users:
+            for user in self.get_org_users():
+                # check if this user is a member of any org on any brand
+                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                if not other_orgs:
+                    user.release(self.brand)
+
+        # clear out all of our users
+        self.administrators.clear()
+        self.editors.clear()
+        self.viewers.clear()
+        self.surveyors.clear()
+
+        if immediately:
+            self._full_release()
+
+    def _full_release(self):
+        """
+        Do the dirty work of deleting this org
+        """
+        msg_ids = self.msgs.all().values_list("id", flat=True)
+
+        # might be a lot of messages, batch this
+        for id_batch in chunk_list(msg_ids, 1000):
+            for msg in self.msgs.filter(id__in=msg_ids):
+                msg.release()
+
+        # our system label counts
+        self.system_labels.all().delete()
+
+        for channel in self.channels.all():
+            channel.release()
+            channel.delete()
+
+        # any airtime transfers associate with us go away
+        self.airtime_transfers.all().delete()
+
+        # delete our contacts
+        for contact in self.org_contacts.all():
+            contact.release(contact.modified_by)
+            contact.delete()
+
+        # and all of the groups
+        for group in self.all_groups.all():
+            group.release()
+            group.delete()
+
+        # delete everything associated with our flows
+        for flow in self.flows.all():
+
+            # we want to manually release runs so we dont fire a task to do it
+            flow.release(release_runs=False)
+            flow.release_runs()
+
+            for rev in flow.revisions.all():
+                rev.release()
+
+            flow.rule_sets.all().delete()
+            flow.action_sets.all().delete()
+            flow.counts.all().delete()
+
+            flow.delete()
+
+        for archive in self.archives.all():
+            archive.release()
+
+        # return any unused credits to our parent
+        if self.parent:
+            self.allocate_credits(self.modified_by, self.parent, self.get_credits_remaining())
+
+        for topup in self.topups.all():
+            topup.release()
+
+        # now what we've all been waiting for
+        self.delete()
 
     @classmethod
     def create_user(cls, email, password):
@@ -2131,16 +2240,53 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
+def release(user, brand):
+
+    # if our user exists across brands don't muck with the user
+    if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
+        user_uuid = str(uuid4())
+        user.first_name = ""
+        user.last_name = ""
+        user.email = f"{user_uuid}@rapidpro.io"
+        user.username = f"{user_uuid}@rapidpro.io"
+        user.password = ""
+        user.is_active = False
+        user.save()
+
+    # release any orgs we own on this brand
+    for org in user.get_owned_orgs(brand):
+        org.release(release_users=False)
+
+    # remove us as a user on any org for our brand
+    for org in user.get_user_orgs(brand):
+        org.administrators.remove(user)
+        org.editors.remove(user)
+        org.viewers.remove(user)
+        org.surveyors.remove(user)
+
+
 def get_user_orgs(user, brand=None):
-    if not brand:
-        org = Org.get_org(user)
-        brand = org.brand if org else settings.DEFAULT_BRAND
 
     if user.is_superuser:
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.filter(brand=brand, is_active=True).distinct().order_by("name")
+
+    if brand:
+        user_orgs = user_orgs.filter(brand=brand)
+
+    return user_orgs.filter(is_active=True).distinct().order_by("name")
+
+
+def get_owned_orgs(user, brand=None):
+    """
+    Gets all the orgs where this is the only user for the currend brand
+    """
+    owned_orgs = []
+    for org in user.get_user_orgs(brand=brand):
+        if not org.get_org_users().exclude(id=user.id).exists():
+            owned_orgs.append(org)
+    return owned_orgs
 
 
 def get_org(obj):
@@ -2203,6 +2349,7 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
+User.release = release
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
@@ -2210,8 +2357,8 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
+User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
-
 
 USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))
 
@@ -2232,11 +2379,12 @@ class Language(SmartModel):
     and it is not really restricted to real-world languages at this level. Instead we restrict the
     language selection options to real-world languages.
     """
+
     name = models.CharField(max_length=128)
 
     iso_code = models.CharField(max_length=4)
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="languages")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="languages")
 
     @classmethod
     def create(cls, org, user, name, iso_code):
@@ -2277,8 +2425,10 @@ class Invitation(SmartModel):
     """
     An Invitation to an e-mail address to join an Org with specific roles.
     """
+
     org = models.ForeignKey(
         Org,
+        on_delete=models.PROTECT,
         verbose_name=_("Org"),
         related_name="invitations",
         help_text=_("The organization to which the account is invited to view"),
@@ -2345,7 +2495,8 @@ class UserSettings(models.Model):
     """
     User specific configuration
     """
-    user = models.ForeignKey(User, related_name="settings")
+
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(
         max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
     )
@@ -2370,7 +2521,10 @@ class TopUp(SmartModel):
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
     credits that can be consumed by messages.
     """
-    org = models.ForeignKey(Org, related_name="topups", help_text="The organization that was toppped up")
+
+    org = models.ForeignKey(
+        Org, on_delete=models.PROTECT, related_name="topups", help_text="The organization that was toppped up"
+    )
     price = models.IntegerField(
         null=True,
         blank=True,
@@ -2420,6 +2574,22 @@ class TopUp(SmartModel):
 
         org.clear_credit_cache()
         return topup
+
+    def release(self):
+
+        # clear us off any debits we are connected to
+        Debit.objects.filter(topup=self).update(topup=None)
+
+        # any debits benefitting us are deleted
+        Debit.objects.filter(beneficiary=self).delete()
+
+        # remove any credits associated with us
+        TopUpCredits.objects.filter(topup=self)
+
+        for used in TopUpCredits.objects.filter(topup=self):
+            used.release()
+
+        self.delete()
 
     def get_ledger(self):  # pragma: needs cover
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by("-created_by")
@@ -2521,26 +2691,33 @@ class TopUp(SmartModel):
         return self.credits - self.get_used()
 
     def __str__(self):  # pragma: needs cover
-        return "%s Credits" % self.credits
+        return f"{self.credits} Credits"
 
 
-class Debit(SquashableModel):
+class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
-    SQUASH_OVER = ("topup_id",)
 
     TYPE_ALLOCATION = "A"
-    TYPE_PURGE = "P"
 
-    DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"), (TYPE_PURGE, "Purge"))
+    DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"),)
 
-    topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
+
+    topup = models.ForeignKey(
+        TopUp,
+        on_delete=models.PROTECT,
+        null=True,
+        related_name="debits",
+        help_text=_("The topup these credits are applied against"),
+    )
 
     amount = models.IntegerField(help_text=_("How many credits were debited"))
 
     beneficiary = models.ForeignKey(
         TopUp,
+        on_delete=models.PROTECT,
         null=True,
         related_name="allocations",
         help_text=_("Optional topup that was allocated with these credits"),
@@ -2550,39 +2727,31 @@ class Debit(SquashableModel):
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         null=True,
         related_name="debits_created",
         help_text="The user which originally created this item",
     )
     created_on = models.DateTimeField(default=timezone.now, help_text="When this item was originally created")
 
-    @classmethod
-    def get_unsquashed(cls):
-        return super().get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
-            )
-            INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
-        """ % {
-            "table": cls._meta.db_table
-        }
-
-        return sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now())
-
 
 class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
+
     SQUASH_OVER = ("topup_id",)
 
-    topup = models.ForeignKey(TopUp, help_text=_("The topup these credits are being used against"))
+    topup = models.ForeignKey(
+        TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
+    )
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+
+    def release(self):
+        self.delete()
+
+    def __str__(self):  # pragma: no cover
+        return f"{self.topup} (Used: {self.used})"
 
     @classmethod
     def get_squash_query(cls, distinct_set):
@@ -2610,7 +2779,7 @@ class CreditAlert(SmartModel):
         (ORG_CREDIT_EXPIRING, _("Credits expiring soon")),
     )
 
-    org = models.ForeignKey(Org, help_text="The organization this alert was triggered for")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this alert was triggered for")
     alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES, help_text="The type of this alert")
 
     @classmethod

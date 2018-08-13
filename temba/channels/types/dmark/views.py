@@ -10,7 +10,6 @@ from ...views import ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-
     class Form(ClaimViewMixin.Form):
         shortcode = forms.IntegerField(help_text=_("Your short code on DMark Mobile"))
         country = forms.ChoiceField(choices=(("UG", _("Uganda")), ("CD", _("DRC"))))

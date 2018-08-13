@@ -11,7 +11,6 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 
 class TwilioTypeTest(TembaTest):
-
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_claim(self):
@@ -208,3 +207,25 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(
                     mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
                 )
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    def test_deactivate(self):
+
+        # make our channel of the twilio ilk
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        twilio_channel = self.org.channels.all().first()
+        twilio_channel.channel_type = "T"
+        twilio_channel.save()
+
+        # mock an authentication failure during the release process
+        with self.settings(IS_PROD=True):
+            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.update") as mock_numbers:
+                mock_numbers.side_effect = TwilioRestException(
+                    401, "http://twilio", msg="Authentication Failure", code=20003
+                )
+
+                # releasing shouldn't blow up on auth failures
+                twilio_channel.release()
+                twilio_channel.refresh_from_db()
+                self.assertFalse(twilio_channel.is_active)
