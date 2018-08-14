@@ -1,0 +1,72 @@
+<html>
+<head>
+
+    <title>{{ brand.name }} Problem - Uh oh!</title>
+    <style>
+        body {
+	        background-color:#FFFFFF;
+            font-family: "Helvetica Neue", Arial, "Lucida Grande", sans-serif;
+    	}
+
+        .logo {
+            width: 100%;
+            text-align: center;
+            margin: 140px auto 50px;
+        }
+
+        h3 {
+            margin-top: 22px;
+            color: #333;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        h4 {
+
+        }
+
+        .message {
+            margin: 0 auto;
+            color: #333;
+            font-size: 14px;
+            width: 500px;
+        }
+
+        .reference {
+            padding:20px;
+            background: #f3f3f3;
+            font-size: 14px;
+            text-align: center;
+            width: 460px;
+            margin: 30px auto 0;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="logo">
+<img src="/sitestatic{{ brand.logo }}"/>
+</div>
+<div style="text-align: center;">
+<h3>
+Sometimes bad things happen to good people.
+</h3>
+</div>
+<div class="message">
+While we do our best to write bug-free code, every now and again things do go wrong. Good news though!
+We've already been notified of the problem.
+<br/><br/>
+It will help us fix this quicker if you
+<a href='mailto:{{ brand.support_email }}?subject=Problem%20using%20{{ brand.name }}&body={% if request.sentry.id%}Reference:%20{{ request.sentry.id }}{% else %}{% endif %}'>send us a note</a> and let us know what you were up to when you encountered it.
+</div>
+
+{% if request.sentry.id %}
+    <div class='reference'>
+        Please be sure to include your reference number
+        <b>{{ request.sentry.id }}</b>
+    </div>
+{% endif %}
+
+</body>
+</html>

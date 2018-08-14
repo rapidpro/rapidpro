@@ -2,8 +2,8 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartLi
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -70,7 +70,7 @@ class CampaignCRUDL(SmartCRUDL):
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated():  # pragma: no cover
+            if not self.request.user.is_authenticated:  # pragma: no cover
                 return queryset.exclude(pk__gt=0)
             else:
                 return queryset.filter(org=self.request.user.get_org())

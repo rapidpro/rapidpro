@@ -27,9 +27,9 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.core.urlresolvers import reverse
 from django.db import models, transaction
 from django.db.models import F, Prefetch, Q, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -2370,7 +2370,7 @@ def _user_has_org_perm(user, org, permission):
     if user.is_superuser:  # pragma: needs cover
         return True
 
-    if user.is_anonymous():  # pragma: needs cover
+    if user.is_anonymous:  # pragma: needs cover
         return False
 
     # has it innately? (customer support)

@@ -60,9 +60,9 @@ if DEBUG_TOOLBAR:
 # -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
-MIDDLEWARE_CLASSES = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE_CLASSES
+MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
 if DEBUG_TOOLBAR:
-    MIDDLEWARE_CLASSES = ("debug_toolbar.middleware.DebugToolbarMiddleware",) + MIDDLEWARE_CLASSES
+    MIDDLEWARE = ("debug_toolbar.middleware.DebugToolbarMiddleware",) + MIDDLEWARE
 
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)

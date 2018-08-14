@@ -230,7 +230,7 @@ class ChannelType(metaclass=ABCMeta):
         if self.__class__.configuration_blurb is not None:
             return (
                 Engine.get_default()
-                .from_string(self.configuration_blurb)
+                .from_string(str(self.configuration_blurb))
                 .render(context=Context(dict(channel=channel)))
             )
         else:

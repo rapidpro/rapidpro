@@ -24,9 +24,9 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
-from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n

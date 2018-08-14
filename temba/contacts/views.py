@@ -22,12 +22,12 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
