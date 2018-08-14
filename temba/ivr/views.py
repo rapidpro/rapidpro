@@ -41,7 +41,7 @@ class CallHandler(View):
         request_path = request.get_full_path()
 
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML and request.POST.get("hangup", 0):
-            if not request.user.is_anonymous():
+            if not request.user.is_anonymous:
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
                     client.hangup(call)

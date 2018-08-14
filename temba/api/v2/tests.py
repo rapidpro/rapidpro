@@ -13,10 +13,10 @@ from rest_framework.test import APIClient
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
-from django.core.urlresolvers import reverse
 from django.db import connection
 from django.db.models import Q
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.api.models import APIToken, Resthook, WebHookEvent
@@ -176,22 +176,22 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
 
         field = fields.CampaignField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(campaign.uuid), campaign)
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {"id": 3})  # not a string or int
 
         field = fields.CampaignEventField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(event.uuid), event)
 
-        field.context = {"org": self.org2}
+        field._context = {"org": self.org2}
 
         self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
 
         field = fields.ChannelField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(self.channel.uuid), self.channel)
         self.channel.is_active = False
@@ -199,24 +199,24 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, self.channel.uuid)
 
         field = fields.ContactField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
         self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
 
         field = fields.ContactField(source="test", many=True)
-        field.child_relation.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value([self.joe.uuid, self.frank.uuid]), [self.joe, self.frank])
         self.assertRaises(serializers.ValidationError, field.to_internal_value, self.joe.uuid)
 
         field = fields.ContactGroupField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(group.uuid), group)
 
         field = fields.ContactFieldField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value("registered"), field_obj)
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "xyx")
@@ -225,19 +225,19 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("created_on"), field_created_on)
 
         field = fields.FlowField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value(flow.uuid), flow)
 
         field = fields.URNField(source="test")
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
 
         field = fields.TranslatableField(source="test", max_length=10)
-        field.context = {"org": self.org}
+        field._context = {"org": self.org}
 
         self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
         self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
@@ -1477,11 +1477,12 @@ class APITest(TembaTest):
             },
         )
         self.assertResponseError(response, "language", "Ensure this field has no more than 3 characters.")
-        self.assertResponseError(
-            response, "urns", "Invalid URN: 1234556789. Ensure phone numbers contain country codes."
-        )
         self.assertResponseError(response, "groups", "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, "fields", "Invalid contact field key: hmmm")
+
+        self.assertEqual(
+            response.json()["urns"], {"0": ["Invalid URN: 1234556789. Ensure phone numbers contain country codes."]}
+        )
 
         # update an existing contact by UUID but don't provide any fields
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {})

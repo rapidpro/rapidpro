@@ -26,9 +26,9 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlencode
@@ -487,7 +487,7 @@ def channel_status_processor(request):
     status = dict()
     user = request.user
 
-    if user.is_superuser or user.is_anonymous():
+    if user.is_superuser or user.is_anonymous:
         return status
 
     # from the logged in user get the channel
@@ -1734,7 +1734,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
             org = None
 
-            if not user.is_anonymous():
+            if not user.is_anonymous:
                 org = user.get_org()
 
             org_id = self.request.session.get("org_id", None)

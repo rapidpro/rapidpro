@@ -5,8 +5,8 @@ from urllib.parse import parse_qs, urlencode
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView, View
@@ -70,7 +70,7 @@ class Welcome(SmartTemplateView):
         return context
 
     def has_permission(self, request, *args, **kwargs):
-        return request.user.is_authenticated()
+        return request.user.is_authenticated
 
 
 class LeadViewer(SmartCRUDL):

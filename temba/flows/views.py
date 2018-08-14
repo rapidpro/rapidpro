@@ -26,10 +26,10 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.core.urlresolvers import reverse
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.text import slugify
@@ -323,7 +323,7 @@ class FlowCRUDL(SmartCRUDL):
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated():  # pragma: needs cover
+            if not self.request.user.is_authenticated:  # pragma: needs cover
                 return queryset.exclude(pk__gt=0)
             else:
                 return queryset.filter(org=self.request.user.get_org())
@@ -1827,7 +1827,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def has_permission(self, request, *args, **kwargs):
             # allow requests from the flowserver using token authentication
-            if request.user.is_anonymous() and settings.FLOW_SERVER_AUTH_TOKEN:
+            if request.user.is_anonymous and settings.FLOW_SERVER_AUTH_TOKEN:
                 authorization = request.META.get("HTTP_AUTHORIZATION", "").split(" ")
                 if (
                     len(authorization) == 2

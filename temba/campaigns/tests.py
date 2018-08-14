@@ -5,7 +5,7 @@ import pytz
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.campaigns.tasks import check_campaigns_task

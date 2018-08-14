@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.db import connection, transaction
 from django.test import override_settings
 from django.utils import timezone

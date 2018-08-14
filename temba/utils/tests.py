@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import CommandError, call_command
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.db import connection, models
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone

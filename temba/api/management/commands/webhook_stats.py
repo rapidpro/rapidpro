@@ -22,6 +22,9 @@ class Command(BaseCommand):  # pragma: no cover
     SORT_ALPHA = "alpha"
     SORT_TIMEOUTS = "timeouts"
 
+    # https://docs.djangoproject.com/en/2.0/releases/2.0/#call-command-validates-the-options-it-receives
+    stealth_options = ("key_by", "sort_by", "max_age")
+
     def add_arguments(self, parser):
         cmd = self
         subparsers = parser.add_subparsers(

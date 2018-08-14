@@ -44,7 +44,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ),
         )
         encoding = forms.ChoiceField(
-            Channel.ENCODING_CHOICES, label=_("Encoding"), help_text=_("What encoding to use for outgoing messages")
+            choices=Channel.ENCODING_CHOICES,
+            label=_("Encoding"),
+            help_text=_("What encoding to use for outgoing messages"),
         )
         verify_ssl = forms.BooleanField(
             initial=True,
