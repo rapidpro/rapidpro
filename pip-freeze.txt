@@ -103,7 +103,7 @@ python-magic==0.4.15
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
-rapidpro-expressions==1.5.1
+rapidpro-expressions==1.6
 raven==6.9.0
 rcssmin==1.0.6            # via django-compressor
 redis==2.10.5
@@ -115,7 +115,7 @@ responses==0.5.1
 rjsmin==1.0.12            # via django-compressor
 s3transfer==0.1.10        # via boto3
 selenium==3.4.3
-six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, elasticsearch-dsl, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, python-intercom, rapidpro-expressions, responses, smartmin, twilio
+six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, elasticsearch-dsl, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, python-intercom, responses, smartmin, twilio
 smartmin==2.0.0
 sqlparse==0.2.3           # via django-debug-toolbar, smartmin
 stop-words==2015.2.23.1
