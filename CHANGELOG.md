@@ -1,3 +1,8 @@
+v4.3.1
+----------
+ * Update to Django 2.0
+ * Update postgres adapter to use psycopg2-binary
+
 v4.3.0
 ----------
  * Wrap asset responses in a results object
