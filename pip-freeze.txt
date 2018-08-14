@@ -12,14 +12,14 @@ asn1crypto==0.22.0        # via cryptography
 attrs==18.1.0             # via black
 beautifulsoup4==4.6.0     # via google
 billiard==3.5.0.2         # via celery
-black==18.6b1
+black==18.6b4
 boto3==1.4.4
 botocore==1.5.71          # via boto3, s3transfer
 celery[redis]==4.0.2
 certifi==2017.4.17        # via python-intercom, python-telegram-bot, requests
 cffi==1.10.0              # via cryptography
 chardet==3.0.4            # via requests
-click==6.7                # via black
+click==6.7                # via black, pip-tools
 colorama==0.3.9
 cookies==2.2.1            # via responses
 coverage==4.4.1
@@ -46,6 +46,7 @@ elasticsearch-dsl==6.1.0
 elasticsearch==6.2.0
 enum34==1.1.6             # via django-hamlpy, rapidpro-expressions
 et-xmlfile==1.0.1         # via openpyxl
+first==2.0.1              # via pip-tools
 flake8-deprecated==1.2.1
 flake8-print==2.0.2
 flake8==3.3.0
@@ -78,9 +79,10 @@ oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.3
 pbr==3.1.0                # via mock
 phonenumbers
+pip-tools==2.0.2
 pisa==3.0.33
 polib==1.0.8              # via django-rosetta
-psycopg2==2.7.1
+psycopg2-binary==2.7.5
 pycodestyle==2.3.1        # via flake8
 pycountry==17.5.14
 pycparser==2.17           # via cffi
@@ -113,12 +115,18 @@ responses==0.5.1
 rjsmin==1.0.12            # via django-compressor
 s3transfer==0.1.10        # via boto3
 selenium==3.4.3
+<<<<<<< HEAD
+six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, elasticsearch-dsl, librato-bg, librato-metrics, microsofttranslator, mock, pip-tools, python-dateutil, python-intercom, rapidpro-expressions, responses, smartmin, twilio
+smartmin==1.11.10
+=======
 six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, elasticsearch-dsl, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, python-intercom, rapidpro-expressions, responses, smartmin, twilio
 smartmin==2.0.0
+>>>>>>> master
 sqlparse==0.2.3           # via django-debug-toolbar, smartmin
 stop-words==2015.2.23.1
 stripe==1.59.0
 texttable==0.9.0          # via pyexcel
+toml==0.9.4               # via black
 twilio==3.6.15
 twython==3.5.0
 unidecode==0.4.20

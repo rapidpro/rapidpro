@@ -4,8 +4,8 @@ from uuid import uuid4
 
 from mock import patch
 
-from django.urls import reverse
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.channels.models import Channel, ChannelEvent

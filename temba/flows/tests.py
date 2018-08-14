@@ -14,9 +14,9 @@ from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.urls import reverse
 from django.contrib.auth.models import Group
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 

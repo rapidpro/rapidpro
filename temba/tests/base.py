@@ -20,11 +20,11 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
-from django.urls import reverse
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 

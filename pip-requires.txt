@@ -59,7 +59,7 @@ pycountry
 pycrypto
 python-dateutil==2.2
 pytz
-psycopg2
+psycopg2-binary
 rapidpro-expressions
 redis
 requests
@@ -67,6 +67,7 @@ stop-words
 unidecode
 python-intercom
 pysocks; python_version >= "3.0"
+pip-tools
 
 ########################## testing ##########################
 black

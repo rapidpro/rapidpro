@@ -3,9 +3,9 @@ import json
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from django.contrib import messages
-from django.urls import reverse
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 

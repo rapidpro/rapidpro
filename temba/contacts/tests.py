@@ -15,11 +15,11 @@ from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.urls import reverse
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.api.models import WebHookEvent, WebHookResult
