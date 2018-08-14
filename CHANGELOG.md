@@ -1,3 +1,7 @@
+v4.3.2
+----------
+ * Update expressions library to get EPOCH() function
+
 v4.3.1
 ----------
  * Update to Django 2.0
