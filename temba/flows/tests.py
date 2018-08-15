@@ -15,8 +15,8 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
@@ -202,29 +202,35 @@ class FlowTest(TembaTest):
     def test_upload_media_action(self, mock_uuid):
         upload_media_action_url = reverse("flows.flow_upload_media_action", args=[self.flow.pk])
 
-        def assert_media_upload(filename, action_uuid, expected_path):
+        def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action=None, actionset="some-uuid", HTTP_X_FORWARDED_HTTPS="https")
+                post_data = dict(file=data, action=None, HTTP_X_FORWARDED_HTTPS="https")
                 response = self.client.post(upload_media_action_url, post_data)
 
                 self.assertEqual(response.status_code, 200)
-                path = response.json().get("path", None)
-                self.assertEqual(path, expected_path)
+                actual_type = response.json()["type"]
+                actual_url = response.json()["url"]
+                self.assertEqual(actual_type, expected_type)
+                self.assertEqual(actual_url, expected_path)
 
         self.login(self.admin)
 
-        mock_uuid.side_effect = ["11111-111-11", "22222-222-22"]
+        mock_uuid.side_effect = ["11111-111-11", "22222-222-22", "33333-333-33"]
 
         assert_media_upload(
             "%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT,
-            "action-uuid-1",
+            "image/jpeg",
             "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "11111-111-11", ".jpg"),
         )
-
         assert_media_upload(
             "%s/test_media/snow.mp4" % settings.MEDIA_ROOT,
-            "action-uuid-2",
+            "video/mp4",
             "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "22222-222-22", ".mp4"),
+        )
+        assert_media_upload(
+            "%s/test_media/snow.m4a" % settings.MEDIA_ROOT,
+            "audio/mp4",
+            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
         )
 
     def test_revision_history(self):
@@ -4175,7 +4181,7 @@ class ActionPackedTest(FlowFileTest):
         self.start_flow()
 
         # updating Phone Number should not create a contact field
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="tel_e164").first())
+        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="tel_e164").first())
 
         # instead it should update the tel urn for our contact
         self.contact = Contact.objects.get(id=self.contact.pk)
@@ -4782,7 +4788,7 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(self.org, dict(type="save", label="Superhero Name", value="@step"))
         run = FlowRun.create(self.flow, self.contact)
 
-        field = ContactField.objects.get(org=self.org, key="superhero_name")
+        field = ContactField.user_fields.get(org=self.org, key="superhero_name")
         self.assertEqual("Superhero Name", field.label)
 
         self.execute_action(test, run, sms)
@@ -4882,7 +4888,7 @@ class ActionTest(TembaTest):
         self.execute_action(test, run, sms)
 
         # updating Phone Number should not create a contact field
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="tel_e164").first())
+        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="tel_e164").first())
 
         # instead it should update the tel urn for our contact
         contact = Contact.objects.get(id=self.contact.pk)
@@ -4924,9 +4930,9 @@ class ActionTest(TembaTest):
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEqual(test_contact_urn, test_contact.urns.all().first())
 
-        self.assertFalse(ContactField.objects.filter(org=self.org, label="Ecole"))
+        self.assertFalse(ContactField.user_fields.filter(org=self.org, label="Ecole"))
         SaveToContactAction.from_json(self.org, dict(type="save", label="[_NEW_]Ecole", value="@step"))
-        field = ContactField.objects.get(org=self.org, key="ecole")
+        field = ContactField.user_fields.get(org=self.org, key="ecole")
         self.assertEqual("Ecole", field.label)
 
         # try saving some empty data into mailto
@@ -5810,7 +5816,7 @@ class SimulationTest(FlowFileTest):
 
         client = get_client()
 
-        builder = client.request_builder(self.org, int(time.time() * 1000000))
+        builder = client.request_builder(self.org)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
 
@@ -5827,7 +5833,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        builder = client.request_builder(self.org, int(time.time() * 1000000)).add_contact_changed(self.contact)
+        builder = client.request_builder(self.org).add_contact_changed(self.contact)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
         payload["session"] = response.json()["session"]
@@ -7426,6 +7432,44 @@ class FlowsTest(FlowFileTest):
             },
         )
 
+    def test_activity_for_pruned_paths(self):
+        flow = self.get_flow("color")
+        color_question = ActionSet.objects.get(x=1, y=1, flow=flow)
+        blue_action = ActionSet.objects.get(x=3, y=3, flow=flow)
+        other_action = ActionSet.objects.get(x=4, y=4, flow=flow)
+        color_ruleset = RuleSet.objects.get(label="color", flow=flow)
+
+        rules = color_ruleset.get_rules()
+        blue_rule = rules[1]
+        other_rule = rules[2]
+
+        run, = flow.start([], [self.contact])
+
+        now = datetime.datetime(2014, 1, 2, 3, 4, 5, 6, timezone.utc)
+
+        for m in range(50):
+            # send messages as if they're 1 hour apart so we don't trigger check for duplicate replies
+            with patch.object(timezone, "now", return_value=now + timedelta(hours=m)):
+                self.send_message(flow, f"azure{m}")
+
+        self.send_message(flow, f"blue")
+
+        run.refresh_from_db()
+        self.assertEqual(len(run.path), 100)  # path has been pruned to 100
+
+        (active, visited) = flow.get_activity()
+
+        self.assertEqual(active, {})  # run is complete
+        self.assertEqual(
+            visited,
+            {
+                "%s:%s" % (color_question.exit_uuid, color_ruleset.uuid): 1,
+                "%s:%s" % (other_rule.uuid, other_action.uuid): 50,
+                "%s:%s" % (other_action.exit_uuid, color_ruleset.uuid): 50,
+                "%s:%s" % (blue_rule.uuid, blue_action.uuid): 1,
+            },
+        )
+
     def test_prune_recentruns(self):
         flow = self.get_flow("favorites")
 
@@ -7961,7 +8005,9 @@ class FlowsTest(FlowFileTest):
 
         # create a campaign that contains this flow
         friends = self.create_group("Friends", [])
-        poll_date = ContactField.get_or_create(self.org, self.admin, "poll_date", "Poll Date")
+        poll_date = ContactField.get_or_create(
+            self.org, self.admin, "poll_date", "Poll Date", value_type=Value.TYPE_DATETIME
+        )
 
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Favorite Poll"), friends)
         event1 = CampaignEvent.create_flow_event(
@@ -8064,7 +8110,7 @@ class FlowsTest(FlowFileTest):
             flow = field_spec.get("flow", parent)
 
             # make sure our field exists after import
-            field = ContactField.objects.filter(key=key, label=label).first()
+            field = ContactField.user_fields.filter(key=key, label=label).first()
             self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, label))
 
             # and our flow is dependent on us
@@ -11268,14 +11314,14 @@ class AssetServerTest(TembaTest):
         # can access with correct auth token
         response = self.client.get(flows_url, HTTP_AUTHORIZATION="Token 112233445566")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json(), {"results": []})
 
         # can access as regular user too
         self.login(self.admin)
 
         response = self.client.get(flows_url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json(), {"results": []})
 
     @skip_if_no_flowserver
     def test_flows(self):
@@ -11286,9 +11332,9 @@ class AssetServerTest(TembaTest):
         # get all flows
         response = self.client.get("/flow/assets/%d/1234/flow/" % self.org.id)
         resp_json = response.json()
-        self.assertEqual(len(resp_json), 2)
-        self.assertEqual(resp_json[0]["uuid"], str(flow1.uuid))
-        self.assertEqual(resp_json[1]["uuid"], str(flow2.uuid))
+        self.assertEqual(len(resp_json["results"]), 2)
+        self.assertEqual(resp_json["results"][0]["uuid"], str(flow1.uuid))
+        self.assertEqual(resp_json["results"][1]["uuid"], str(flow2.uuid))
 
         # get a specific flow
         response = self.client.get("/flow/assets/%d/1234/flow/%s/" % (self.org.id, str(flow2.uuid)))
@@ -11318,7 +11364,9 @@ class AssetServerTest(TembaTest):
         self.login(self.admin)
         self.org.set_languages(self.admin, ["eng", "spa"], "eng")
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
-        self.assertEqual(response.json(), [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}])
+        self.assertEqual(
+            response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}]}
+        )
 
     def test_channels(self):
         self.login(self.admin)
@@ -11327,59 +11375,69 @@ class AssetServerTest(TembaTest):
         response = self.client.get("/flow/assets/%d/1234/channel/" % self.org.id)
         self.assertEqual(
             response.json(),
-            [
-                {
-                    "name": "Test Channel",
-                    "schemes": ["tel"],
-                    "uuid": str(self.channel.uuid),
-                    "roles": ["send", "receive"],
-                    "address": "+250785551212",
-                }
-            ],
+            {
+                "results": [
+                    {
+                        "name": "Test Channel",
+                        "schemes": ["tel"],
+                        "uuid": str(self.channel.uuid),
+                        "roles": ["send", "receive"],
+                        "address": "+250785551212",
+                    }
+                ]
+            },
         )
 
         # specifying simulator mode, adds the fake simulator channel
         response = self.client.get("/flow/assets/%d/1234/channel/?simulator=1" % self.org.id)
         self.assertEqual(
             response.json(),
-            [
-                {
-                    "uuid": str(self.channel.uuid),
-                    "name": "Test Channel",
-                    "address": "+250785551212",
-                    "schemes": ["tel"],
-                    "roles": ["send", "receive"],
-                },
-                {
-                    "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
-                    "name": "Simulator Channel",
-                    "address": "+18005551212",
-                    "schemes": ["tel"],
-                    "roles": ["send"],
-                },
-            ],
+            {
+                "results": [
+                    {
+                        "uuid": str(self.channel.uuid),
+                        "name": "Test Channel",
+                        "address": "+250785551212",
+                        "schemes": ["tel"],
+                        "roles": ["send", "receive"],
+                    },
+                    {
+                        "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
+                        "name": "Simulator Channel",
+                        "address": "+18005551212",
+                        "schemes": ["tel"],
+                        "roles": ["send"],
+                    },
+                ]
+            },
         )
 
     def test_location_hierarchy(self):
         self.login(self.admin)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
 
         response = self.client.get("/flow/assets/%d/1234/location_hierarchy/" % self.org.id)
         resp_json = response.json()
         self.assertEqual(
             resp_json,
             {
-                "name": "Rwanda",
-                "children": [
-                    {"name": "Kigali City", "children": [{"name": "Nyarugenge"}]},
+                "results": [
                     {
-                        "name": "Eastern Province",
+                        "name": "Rwanda",
                         "children": [
-                            {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
-                            {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
-                            {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
+                            {"name": "Kigali City", "aliases": ["Kigari"], "children": [{"name": "Nyarugenge"}]},
+                            {
+                                "name": "Eastern Province",
+                                "children": [
+                                    {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
+                                    {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
+                                    {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
+                                ],
+                            },
                         ],
-                    },
-                ],
+                    }
+                ]
             },
         )
 
@@ -11387,7 +11445,7 @@ class AssetServerTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json(), {"results": []})
 
         hook = Resthook.get_or_create(self.org, "new-registration", self.admin)
         hook.add_subscriber("http://localhost/call_me_maybe", self.admin)
@@ -11396,10 +11454,12 @@ class AssetServerTest(TembaTest):
         response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
         self.assertEqual(
             response.json(),
-            [
-                {
-                    "slug": "new-registration",
-                    "subscribers": ["http://localhost/call_me_maybe", "http://localhost/please"],
-                }
-            ],
+            {
+                "results": [
+                    {
+                        "slug": "new-registration",
+                        "subscribers": ["http://localhost/call_me_maybe", "http://localhost/please"],
+                    }
+                ]
+            },
         )

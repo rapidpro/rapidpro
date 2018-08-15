@@ -52,6 +52,9 @@ AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
+# bucket where archives files are stored
+ARCHIVE_BUCKET = "dl-temba-archives"
+
 # keys to access s3
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
@@ -160,7 +163,6 @@ TEMPLATES = [
                 "temba.utils.haml.HamlAppDirectoriesLoader",
                 "django.template.loaders.filesystem.Loader",
                 "django.template.loaders.app_directories.Loader",
-                "django.template.loaders.eggs.Loader",
             ],
             "debug": False if TESTING else DEBUG,
         },
@@ -170,7 +172,7 @@ TEMPLATES = [
 if TESTING:
     TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -905,9 +907,11 @@ REST_FRAMEWORK = {
         "v2.api": "2500/hour",
     },
     "PAGE_SIZE": 250,
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "DEFAULT_RENDERER_CLASSES": ("temba.api.support.DocumentationRenderer", "rest_framework.renderers.JSONRenderer"),
     "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
     "UNICODE_JSON": False,
+    "STRICT_JSON": False,
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 

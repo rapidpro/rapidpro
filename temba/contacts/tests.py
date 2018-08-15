@@ -15,11 +15,11 @@ from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.api.models import WebHookEvent, WebHookResult
@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, TembaTestMixin
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
@@ -2769,9 +2769,57 @@ class ContactTest(TembaTest):
             response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
             return response.json()["results"]
 
-        self.assertEqual(
-            omnibox_request(""),
-            [
+        # search with search string that will raise a SearchException, which we ignore
+        with ESMockWithScrollMultiple(data=[[], []]):
+
+            actual_result = omnibox_request("search=-123`213")
+            expected_result = []
+
+            self.assertEqual(actual_result, expected_result)
+
+        mock_es_data_contact = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
+            },
+        ]
+        mock_es_data_urn = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
+            },
+        ]
+        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+
+            actual_result = omnibox_request("")
+            expected_result = [
                 # all 3 groups A-Z
                 dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
                 dict(id="g-%s" % men.uuid, text="Men", extra=0),
@@ -2785,8 +2833,10 @@ class ContactTest(TembaTest):
                 dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
                 dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
                 dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-            ],
-        )
+                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+            ]
+
+            self.assertEqual(actual_result, expected_result)
 
         # apply type filters...
 
@@ -2810,27 +2860,60 @@ class ContactTest(TembaTest):
         )
 
         # c,u = contacts and URNs
-        self.assertEqual(
-            omnibox_request("types=c,u"),
-            [
-                dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
-                dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
-                dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
-                dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-            ],
-        )
+        mock_es_data = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            },
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
+            },
+        ]
+        with ESMockWithScroll(data=mock_es_data):
+            self.assertEqual(
+                omnibox_request("types=c,u"),
+                [
+                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
+                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
+                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
+                    dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
+                    dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
+                    dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                ],
+            )
 
         # search for Frank by phone
-        self.assertEqual(
-            omnibox_request("search=222"),
-            [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
-        )
+        mock_es_data = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
+            self.assertEqual(
+                omnibox_request("search=222"),
+                [dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel")],
+            )
 
         # search for Joe by twitter - won't return anything because there is no twitter channel
-        self.assertEqual(omnibox_request("search=blow80"), [])
+        with ESMockWithScrollMultiple(data=[[], []]):
+            self.assertEqual(omnibox_request("search=blow80"), [])
 
         # create twitter channel
         Channel.create(self.org, self.user, None, "TT")
@@ -2839,22 +2922,60 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
 
         # search for again for Joe by twitter
-        self.assertEqual(
-            omnibox_request("search=blow80"),
-            [dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter")],
-        )
+        mock_es_data = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[[], mock_es_data]):
+            self.assertEqual(
+                omnibox_request("search=blow80"),
+                [
+                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                ],
+            )
 
         # search for Joe again - match on last name and twitter handle
-        self.assertEqual(
-            omnibox_request("search=BLOW"),
-            [
-                dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
-            ],
-        )
+        mock_es_data_contact = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        mock_es_data_urn = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+            self.assertEqual(
+                omnibox_request("search=BLOW"),
+                [
+                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                    dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                ],
+            )
 
         # make sure our matches are ANDed
-        self.assertEqual(omnibox_request("search=Joe+o&types=c"), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")])
+        mock_es_data = [
+            {
+                "_type": "_doc",
+                "_index": "dummy_index",
+                "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+            }
+        ]
+        with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+            self.assertEqual(
+                omnibox_request("search=Joe+o&types=c"), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")]
+            )
+
         self.assertEqual(
             omnibox_request("search=Joe+o&types=g"),
             [dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2)],
@@ -2894,28 +3015,61 @@ class ContactTest(TembaTest):
         self.assertEqual(omnibox_request("l=%d" % label.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")])
 
         with AnonymousOrg(self.org):
-            self.assertEqual(
-                omnibox_request(""),
-                [
-                    # all 3 groups...
-                    dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                    dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                    dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                    # all 4 contacts A-Z
-                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                    dict(id="c-%s" % self.voldemort.uuid, text=self.voldemort.anon_identifier),
-                ],
-            )
+            mock_es_data = [
+                {
+                    "_type": "_doc",
+                    "_index": "dummy_index",
+                    "_source": {"id": self.billy.id, "modified_on": self.billy.modified_on.isoformat()},
+                },
+                {
+                    "_type": "_doc",
+                    "_index": "dummy_index",
+                    "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+                },
+                {
+                    "_type": "_doc",
+                    "_index": "dummy_index",
+                    "_source": {"id": self.joe.id, "modified_on": self.joe.modified_on.isoformat()},
+                },
+                {
+                    "_type": "_doc",
+                    "_index": "dummy_index",
+                    "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
+                },
+            ]
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+                self.assertEqual(
+                    omnibox_request(""),
+                    [
+                        # all 3 groups...
+                        dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+                        dict(id="g-%s" % men.uuid, text="Men", extra=0),
+                        dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
+                        # all 4 contacts A-Z
+                        dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
+                        dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
+                        dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                        dict(id="c-%s" % self.voldemort.uuid, text=self.voldemort.anon_identifier),
+                    ],
+                )
 
             # can search by frank id
-            self.assertEqual(
-                omnibox_request("search=%d" % self.frank.pk), [dict(id="c-%s" % self.frank.uuid, text="Frank Smith")]
-            )
+            mock_es_data = [
+                {
+                    "_type": "_doc",
+                    "_index": "dummy_index",
+                    "_source": {"id": self.frank.id, "modified_on": self.frank.modified_on.isoformat()},
+                }
+            ]
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+                self.assertEqual(
+                    omnibox_request("search=%d" % self.frank.pk),
+                    [dict(id="c-%s" % self.frank.uuid, text="Frank Smith")],
+                )
 
             # but not by frank number
-            self.assertEqual(omnibox_request("search=222"), [])
+            with ESMockWithScrollMultiple(data=[[], []]):
+                self.assertEqual(omnibox_request("search=222"), [])
 
         # exclude blocked and stopped contacts
         self.joe.block(self.admin)
@@ -3775,7 +3929,7 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
 
-        contact_field = ContactField.objects.filter(key="state").first()
+        contact_field = ContactField.user_fields.filter(key="state").first()
         response = self.client.get(
             "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
         )
@@ -3930,7 +4084,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Rwama Value")
 
         # bad field
-        contact_field = ContactField.objects.create(
+        contact_field = ContactField.user_fields.create(
             org=self.org, key="language", label="User Language", created_by=self.admin, modified_by=self.admin
         )
 
@@ -4947,7 +5101,7 @@ class ContactTest(TembaTest):
         self.assertEqual(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, "abc-1111")
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
-        ContactField.objects.filter(key="location").update(value_type=Value.TYPE_DATETIME)
+        ContactField.user_fields.filter(key="location").update(value_type=Value.TYPE_DATETIME)
         location.refresh_from_db()
         contact1 = Contact.objects.all().order_by("name")[0]
 
@@ -4955,7 +5109,7 @@ class ContactTest(TembaTest):
         self.assertEqual(contact1.get_field_value(location), None)
 
         # return it back to a state field
-        ContactField.objects.filter(key="location").update(value_type=Value.TYPE_STATE)
+        ContactField.user_fields.filter(key="location").update(value_type=Value.TYPE_STATE)
         location.refresh_from_db()
         contact1 = Contact.objects.all().order_by("name")[0]
 
@@ -4974,12 +5128,12 @@ class ContactTest(TembaTest):
         )  # persisted value is localized to org
         self.assertEqual(contact1.get_field_display(joined), "31-12-2014 00:00")  # display value is also localized
 
-        self.assertTrue(ContactField.objects.filter(org=self.org, label="Job and Projects"))
-        self.assertTrue(ContactField.objects.filter(org=self.org, label="Location"))
+        self.assertTrue(ContactField.user_fields.filter(org=self.org, label="Job and Projects"))
+        self.assertTrue(ContactField.user_fields.filter(org=self.org, label="Location"))
 
         # we never update existing contact fields labels or value types
-        self.assertTrue(ContactField.objects.filter(org=self.org, label="Shoes", value_type="T"))
-        self.assertFalse(ContactField.objects.filter(org=self.org, label="Shoes", value_type="N"))
+        self.assertTrue(ContactField.user_fields.filter(org=self.org, label="Shoes", value_type="T"))
+        self.assertFalse(ContactField.user_fields.filter(org=self.org, label="Shoes", value_type="N"))
 
         # import spreadsheet with extra columns again but check that giving column a reserved name
         # gives validation error
@@ -5044,7 +5198,7 @@ class ContactTest(TembaTest):
         self.assertFormError(response, "form", None, "District should be used once")
 
         # wrong field with reserve word key
-        ContactField.objects.create(
+        ContactField.user_fields.create(
             org=self.org, key="language", label="Lang", created_by=self.admin, modified_by=self.admin
         )
 
@@ -5089,7 +5243,7 @@ class ContactTest(TembaTest):
         self.release(ContactGroup.user_groups.all())
 
         # existing datetime field
-        ContactField.objects.create(
+        ContactField.user_fields.create(
             org=self.org,
             key="startdate",
             label="StartDate",
@@ -5323,7 +5477,7 @@ class ContactTest(TembaTest):
         # simple text field
         self.joe.set_field(self.user, "dog", "Chef", label="Dog")
         self.joe.refresh_from_db()
-        dog_uuid = str(ContactField.objects.get(key="dog").uuid)
+        dog_uuid = str(ContactField.user_fields.get(key="dog").uuid)
 
         self.assertEqual(self.joe.fields, {dog_uuid: {"text": "Chef"}})
 
@@ -5356,7 +5510,7 @@ class ContactTest(TembaTest):
         # setting another field doesn't ruin anything
         self.joe.set_field(self.user, "cat", "Rando", label="Cat")
         self.joe.refresh_from_db()
-        cat_uuid = str(ContactField.objects.get(key="cat").uuid)
+        cat_uuid = str(ContactField.user_fields.get(key="cat").uuid)
         self.assertEqual(
             self.joe.fields,
             {
@@ -5428,8 +5582,8 @@ class ContactTest(TembaTest):
         )
 
         # change our state to an invalid field value type
-        ContactField.objects.filter(key="state").update(value_type="Z")
-        bad_field = ContactField.objects.get(key="state")
+        ContactField.user_fields.filter(key="state").update(value_type="Z")
+        bad_field = ContactField.user_fields.get(key="state")
 
         with self.assertRaises(ValueError):
             self.joe.get_field_serialized(bad_field)
@@ -5451,12 +5605,12 @@ class ContactTest(TembaTest):
         self.assertEqual("1", self.joe.get_field_serialized(abc))
 
         # we should have a field with the key
-        ContactField.objects.get(key="abc_1234", label="Name", org=self.joe.org)
+        ContactField.user_fields.get(key="abc_1234", label="Name", org=self.joe.org)
 
         # setting with a different label should update it
         self.joe.set_field(self.user, "abc_1234", "Joe", label="First Name")
         self.assertEqual("Joe", self.joe.get_field_serialized(abc))
-        ContactField.objects.get(key="abc_1234", label="First Name", org=self.joe.org)
+        ContactField.user_fields.get(key="abc_1234", label="First Name", org=self.joe.org)
 
         modified_on = self.joe.modified_on
 
@@ -5492,6 +5646,8 @@ class ContactTest(TembaTest):
         state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
+        joe.language = "eng"
+        joe.save(update_fields=("language",))
 
         # none value instances
         self.assertEqual(joe.get_field_serialized(weight_field), None)
@@ -5523,6 +5679,27 @@ class ContactTest(TembaTest):
 
         self.assertEqual(joe.get_field_serialized(color_field), "green")
         self.assertEqual(joe.get_field_display(color_field), "green")
+
+        field_created_on = self.org.contactfields.get(key="created_on")
+        field_language = self.org.contactfields.get(key="language")
+        field_name = self.org.contactfields.get(key="name")
+
+        self.assertEqual(joe.get_field_serialized(field_created_on), joe.created_on)
+        self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
+
+        self.assertEqual(joe.get_field_serialized(field_language), joe.language)
+        self.assertEqual(joe.get_field_display(field_language), "eng")
+
+        self.assertEqual(joe.get_field_serialized(field_name), joe.name)
+        self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
+
+        # create a system field that is not supported
+        field_iban = ContactField.system_fields.create(
+            org_id=self.org.id, key="iban", label="IBAN", created_by_id=self.admin.id, modified_by_id=self.admin.id
+        )
+
+        self.assertRaises(ValueError, joe.get_field_serialized, field_iban)
+        self.assertRaises(ValueError, joe.get_field_display, field_iban)
 
     def test_set_location_fields(self):
         district_field = ContactField.get_or_create(
@@ -6012,7 +6189,7 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(label_field.key, "groups_field")
         self.assertEqual(label_field.label, "Groups")
-        self.assertFalse(ContactField.objects.filter(key="groups"))
+        self.assertFalse(ContactField.user_fields.filter(key="groups"))
         self.assertEqual(label_field.pk, groups_field.pk)
 
         # exisiting field by label has invalid key we should try to create a new field
@@ -6033,8 +6210,8 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(created_field.pk == groups_field.pk)
 
         # check it is not possible to create two field with the same label
-        self.assertFalse(ContactField.objects.filter(key="sport"))
-        self.assertFalse(ContactField.objects.filter(key="play"))
+        self.assertFalse(ContactField.user_fields.filter(key="sport"))
+        self.assertFalse(ContactField.user_fields.filter(key="play"))
 
         field1 = ContactField.get_or_create(self.org, self.admin, "sport", "Games")
         self.assertEqual(field1.key, "sport")
@@ -6692,7 +6869,7 @@ class ContactFieldTest(TembaTest):
         self.assertIsNotNone(favorite_cat)
 
         # try deleting favorite_cat, should not work since our flow depends on it
-        before = ContactField.objects.filter(org=self.org, is_active=True).count()
+        before = ContactField.user_fields.filter(org=self.org, is_active=True).count()
 
         # make sure we can't delete it directly
         with self.assertRaises(Exception):
@@ -6702,7 +6879,7 @@ class ContactFieldTest(TembaTest):
         post_data[favorite_cat] = ""
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(before, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(before, ContactField.user_fields.filter(org=self.org, is_active=True).count())
         self.assertFormError(
             response,
             "form",
@@ -6720,7 +6897,7 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("form", response.context)
-        self.assertEqual(before - 1, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(before - 1, ContactField.user_fields.filter(org=self.org, is_active=True).count())
 
     def test_manage_fields(self):
         manage_fields_url = reverse("contacts.contactfield_managefields")
@@ -6751,7 +6928,7 @@ class ContactFieldTest(TembaTest):
         self.assertNotIn("form", response.context)
 
         # should still have three contact fields
-        self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(3, ContactField.user_fields.filter(org=self.org, is_active=True).count())
 
         # fields name should be unique case insensitively
         post_data["label_1"] = "Town"
@@ -6759,8 +6936,8 @@ class ContactFieldTest(TembaTest):
 
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, "form", None, "Field names must be unique. 'town' is duplicated")
-        self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
-        self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
+        self.assertEqual(3, ContactField.user_fields.filter(org=self.org, is_active=True).count())
+        self.assertFalse(ContactField.user_fields.filter(org=self.org, label__in=["town", "Town"]))
 
         # now remove the first field, rename the second and change the type on the third
         post_data["label_1"] = ""
@@ -6775,20 +6952,22 @@ class ContactFieldTest(TembaTest):
         self.assertNotIn("form", response.context)
 
         # first field was blank, so it should be inactive
-        self.assertIsNone(ContactField.objects.filter(org=self.org, key="third", is_active=True).first())
+        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="third", is_active=True).first())
 
         # the second should be renamed
         self.assertEqual(
-            "Number 2", ContactField.objects.filter(org=self.org, key="first", is_active=True).first().label
+            "Number 2", ContactField.user_fields.filter(org=self.org, key="first", is_active=True).first().label
         )
 
         # the third should have a different type
         self.assertEqual(
-            "N", ContactField.objects.filter(org=self.org, key="second", is_active=True).first().value_type
+            "N", ContactField.user_fields.filter(org=self.org, key="second", is_active=True).first().value_type
         )
 
         # we should have a fourth field now
-        self.assertTrue(ContactField.objects.filter(org=self.org, key="new_field", label="New Field", value_type="T"))
+        self.assertTrue(
+            ContactField.user_fields.filter(org=self.org, key="new_field", label="New Field", value_type="T")
+        )
 
         # check that a field name which is a reserved field, gives an error
         post_data["label_2"] = "name"
@@ -6805,11 +6984,11 @@ class ContactFieldTest(TembaTest):
         self.assertFormError(response, "form", None, "Field name 'Name' is a reserved word")
 
         # bad field
-        ContactField.objects.create(
+        ContactField.user_fields.create(
             org=self.org, key="language", label="User Language", created_by=self.admin, modified_by=self.admin
         )
 
-        self.assertEqual(4, ContactField.objects.filter(org=self.org, is_active=True).count())
+        self.assertEqual(4, ContactField.user_fields.filter(org=self.org, is_active=True).count())
 
         response = self.client.get(manage_fields_url)
         post_data = dict()
@@ -6829,13 +7008,13 @@ class ContactFieldTest(TembaTest):
     def test_contactfield_priority(self):
 
         self.assertEqual(
-            list(ContactField.objects.order_by("-priority", "pk").values_list("label", flat=True)),
+            list(ContactField.user_fields.order_by("-priority", "pk").values_list("label", flat=True)),
             ["Third", "First", "Second"],
         )
         # change contactfield priority
         ContactField.get_or_create(org=self.org, user=self.user, key="first", priority=25)
         self.assertEqual(
-            list(ContactField.objects.order_by("-priority", "pk").values_list("label", flat=True)),
+            list(ContactField.user_fields.order_by("-priority", "pk").values_list("label", flat=True)),
             ["First", "Third", "Second"],
         )
 
@@ -6853,7 +7032,7 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(Org.objects.all().count(), 2)
 
-        ContactField.objects.filter(org=self.org, key="key1").update(is_active=False)
+        ContactField.user_fields.filter(org=self.org, key="key1").update(is_active=False)
 
         self.login(self.non_org_user)
         response = self.client.get(contact_field_json_url)
@@ -6902,7 +7081,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[16]["label"], "label0")
         self.assertEqual(response_json[16]["key"], "key0")
 
-        ContactField.objects.filter(org=self.org, key="key0").update(label="AAAA")
+        ContactField.user_fields.filter(org=self.org, key="key0").update(label="AAAA")
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
@@ -6911,6 +7090,21 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[15]["key"], "key0")
         self.assertEqual(response_json[16]["label"], "First")
         self.assertEqual(response_json[16]["key"], "first")
+
+
+class ContactFieldCRUDLTest(TembaTest):
+    def test_list(self):
+        self.login(self.admin)
+        self.create_secondary_org()
+
+        gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
+        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
+
+        # for a different org
+        ContactField.get_or_create(self.org2, self.admin2, "age", "Age", value_type=Value.TYPE_NUMBER)
+
+        response = self.client.get(reverse("contacts.contactfield_list"))
+        self.assertEqual(list(response.context["object_list"]), [age, gender])
 
 
 class URNTest(TembaTest):

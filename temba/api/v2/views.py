@@ -1099,7 +1099,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         queryset = queryset.prefetch_related(
             Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
-            Prefetch("relative_to", queryset=ContactField.objects.only("key", "label")),
+            Prefetch("relative_to", queryset=ContactField.all_fields.only("key", "label")),
         )
 
         return queryset
@@ -1541,7 +1541,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         So that we only fetch active contact fields once for all contacts
         """
         context = super().get_serializer_context()
-        context["contact_fields"] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
     def get_object(self):
@@ -1910,6 +1910,10 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = ContactFieldWriteSerializer
     pagination_class = CreatedOnCursorPagination
     lookup_params = {"key": "key"}
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        return getattr(self.model, "user_fields").filter(org=org)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2382,6 +2386,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
+     * **modified_on** - when the message was last modified (datetime)
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
@@ -2416,7 +2421,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "media": "wav:http://domain.com/recording.wav",
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
-                "sent_on": "2016-01-06T15:35:03.675716Z"
+                "sent_on": "2016-01-06T15:35:03.675716Z",
+                "modified_on": "2016-01-06T15:35:03.675716Z"
             },
             ...
         }

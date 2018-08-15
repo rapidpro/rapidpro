@@ -1,3 +1,55 @@
+v4.3.2
+----------
+ * Update expressions library to get EPOCH() function
+
+v4.3.1
+----------
+ * Update to Django 2.0
+ * Update postgres adapter to use psycopg2-binary
+
+v4.3.0
+----------
+ * Wrap asset responses in a results object
+ * Use trigger type of campaign when starting campign event flows in flowserver
+ * Fix count for blocktrans to not use string from intcomma
+ * Use audio/mp4 content type for m4a files
+
+v4.2.4
+----------
+ * Update to latest goflow and enable asset caching
+ * Actually fix uploading mp4 files
+
+v4.2.2
+----------
+ * Show only user fields when updating field values for a contact
+ * Fix MIME type for M4A files
+ * Allow test_db command to work without having ES installed
+
+v4.2.1
+----------
+ * Ignore search exceptions in omnibox
+ * Actually enable users to use system contact fields in campaign events
+
+v4.2.0
+----------
+ * Enable users to choose 'system fields' like created_on for campaign events
+
+v4.1.0
+----------
+ * Management commnd to recalculate node counts
+ * Fix run path triggers when paths are trimmed
+ * Allow file overwrite for public S3 uploads
+
+v4.0.3
+----------
+ * Handle cases when surveyor submits run with deleted action set
+ * Document modified_on on our API endpoint
+ * Use ElasticSearch for the omnibox widget
+
+v4.0.2
+----------
+ * fix count of suborgs after org deletion
+
 v4.0.1
 ----------
  * remove group settings call for WhatsApp which is no longer supported

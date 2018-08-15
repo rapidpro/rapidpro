@@ -5,21 +5,20 @@ from enum import Enum
 import requests
 
 from django.conf import settings
-from django.db.models import Prefetch
 from django.utils import timezone
 
-from .serialize import (
-    serialize_channel,
-    serialize_contact,
-    serialize_environment,
-    serialize_field,
-    serialize_flow,
-    serialize_group,
-    serialize_label,
-    serialize_location_hierarchy,
-    serialize_message,
-    serialize_resthook,
+from .assets import (
+    ChannelType,
+    FieldType,
+    FlowType,
+    GroupType,
+    LabelType,
+    LocationHierarchyType,
+    ResthookType,
+    get_asset_type,
+    get_asset_urls,
 )
+from .serialize import serialize_contact, serialize_environment, serialize_message, serialize_ref
 
 
 class Events(Enum):
@@ -49,7 +48,7 @@ class Events(Enum):
     webhook_called = 24
 
 
-class RequestBuilder(object):
+class RequestBuilder:
     def __init__(self, client, org, base_assets_url):
         self.client = client
         self.org = org
@@ -70,91 +69,31 @@ class RequestBuilder(object):
         return request
 
     def include_channels(self, simulator):
-        from temba.channels.models import Channel
-
-        channels = [serialize_channel(c) for c in self.org.channels.filter(is_active=True)]
-        if simulator:
-            channels.append(Channel.SIMULATOR_CHANNEL)
-
-        self.request["assets"].append(
-            {
-                "type": "channel_set",
-                "url": "%s/channel/?simulator=%d" % (self.base_assets_url, 1 if simulator else 0),
-                "content": channels,
-            }
-        )
+        self.request["assets"].append(get_asset_type(ChannelType).bundle_set(self.org, simulator))
         return self
 
     def include_fields(self):
-        from temba.contacts.models import ContactField
-
-        self.request["assets"].append(
-            {
-                "type": "field_set",
-                "url": "%s/field/" % self.base_assets_url,
-                "content": [serialize_field(f) for f in ContactField.objects.filter(org=self.org, is_active=True)],
-            }
-        )
+        self.request["assets"].append(get_asset_type(FieldType).bundle_set(self.org))
         return self
 
     def include_flow(self, flow):
-        self.request["assets"].append(
-            {
-                "type": "flow",
-                "url": "%s/flow/%s/" % (self.base_assets_url, str(flow.uuid)),
-                "content": serialize_flow(flow),
-            }
-        )
+        self.request["assets"].append(get_asset_type(FlowType).bundle_item(flow.org, str(flow.uuid)))
         return self
 
     def include_groups(self):
-        from temba.contacts.models import ContactGroup
-
-        self.request["assets"].append(
-            {
-                "type": "group_set",
-                "url": "%s/group/" % self.base_assets_url,
-                "content": [serialize_group(g) for g in ContactGroup.get_user_groups(self.org)],
-            }
-        )
+        self.request["assets"].append(get_asset_type(GroupType).bundle_set(self.org))
         return self
 
     def include_labels(self):
-        from temba.msgs.models import Label
-
-        self.request["assets"].append(
-            {
-                "type": "label_set",
-                "url": "%s/label/" % self.base_assets_url,
-                "content": [serialize_label(l) for l in Label.label_objects.filter(org=self.org, is_active=True)],
-            }
-        )
+        self.request["assets"].append(get_asset_type(LabelType).bundle_set(self.org))
         return self
 
     def include_country(self):
-        self.request["assets"].append(
-            {
-                "type": "location_hierarchy",
-                "url": "%s/location_hierarchy/" % self.base_assets_url,
-                "content": serialize_location_hierarchy(self.org.country, self.org),
-            }
-        )
+        self.request["assets"].append(get_asset_type(LocationHierarchyType).bundle_set(self.org))
         return self
 
     def include_resthooks(self):
-        from temba.api.models import Resthook, ResthookSubscriber
-
-        resthooks = Resthook.objects.filter(org=self.org, is_active=True).prefetch_related(
-            Prefetch("subscribers", ResthookSubscriber.objects.filter(is_active=True).order_by("created_on"))
-        )
-
-        self.request["assets"].append(
-            {
-                "type": "resthook_set",
-                "url": "%s/resthook/" % self.base_assets_url,
-                "content": [serialize_resthook(r) for r in resthooks],
-            }
-        )
+        self.request["assets"].append(get_asset_type(ResthookType).bundle_set(self.org))
         return self
 
     def add_environment_changed(self):
@@ -209,19 +148,7 @@ class RequestBuilder(object):
         return self
 
     def asset_server(self, simulator=False):
-        type_urls = {
-            "flow": "%s/flow/{uuid}/" % self.base_assets_url,
-            "channel_set": "%s/channel/?simulator=%d" % (self.base_assets_url, 1 if simulator else 0),
-            "field_set": "%s/field/" % self.base_assets_url,
-            "group_set": "%s/group/" % self.base_assets_url,
-            "label_set": "%s/label/" % self.base_assets_url,
-            "resthook_set": "%s/resthook/" % self.base_assets_url,
-        }
-
-        if self.org.country_id:
-            type_urls["location_hierarchy"] = "%s/location_hierarchy/" % self.base_assets_url
-
-        self.request["asset_server"] = {"type_urls": type_urls}
+        self.request["asset_server"] = {"type_urls": get_asset_urls(self.org, simulator)}
         return self
 
     def set_config(self, name, value):
@@ -262,6 +189,21 @@ class RequestBuilder(object):
 
         return self.client.start(self.request)
 
+    def start_by_campaign(self, contact, flow, event):
+        """
+        New session was triggered by a campaign event
+        """
+        self.request["trigger"] = {
+            "type": "campaign",
+            "environment": serialize_environment(self.org),
+            "contact": serialize_contact(contact),
+            "flow": {"uuid": str(flow.uuid), "name": flow.name},
+            "event": {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)},
+            "triggered_on": timezone.now().isoformat(),
+        }
+
+        return self.client.start(self.request)
+
     def resume(self, session):
         """
         Resume the given existing session
@@ -271,7 +213,7 @@ class RequestBuilder(object):
         return self.client.resume(self.request)
 
 
-class Output(object):
+class Output:
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json["session"], output_json.get("events", []))
@@ -294,7 +236,7 @@ class FlowServerException(Exception):
         return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
-class FlowServerClient(object):
+class FlowServerClient:
     """
     Basic client for GoFlow's flow server
     """
@@ -305,9 +247,9 @@ class FlowServerClient(object):
         self.base_url = base_url
         self.debug = debug
 
-    def request_builder(self, org, asset_timestamp):
+    def request_builder(self, org):
         assets_host = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
-        base_assets_url = "%s/flow/assets/%d/%d" % (assets_host, org.id, asset_timestamp)
+        base_assets_url = "%s/flow/assets/%d" % (assets_host, org.id)
 
         return RequestBuilder(self, org, base_assets_url)
 

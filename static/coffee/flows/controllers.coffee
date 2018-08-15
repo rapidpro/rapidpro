@@ -208,7 +208,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         showDialog('Invalid Attachment', 'Attachments must be either video, audio, or an image.')
         return
 
-      if media_type == 'audio' and media_encoding not in ['mp3', 'm4a', 'wav', 'ogg', 'oga']
+      if media_type == 'audio' and media_encoding not in ['mp3', 'm4a', 'x-m4a', 'wav', 'ogg', 'oga']
         showDialog('Invalid Format', 'Audio attachments must be encoded as mp3, m4a, wav, ogg or oga files.')
         return
 
@@ -267,7 +267,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ['reply', 'send']
         if not action.media
           action.media = {}
-        action.media[Flow.language.iso_code] = file.type + ':' + data['path']
+        action.media[Flow.language.iso_code] = data['type'] + ':' + data['url']
 
       # make sure our translation state is updated
       action.uploading = false

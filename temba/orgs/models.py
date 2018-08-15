@@ -27,9 +27,9 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.core.urlresolvers import reverse
 from django.db import models, transaction
 from django.db.models import F, Prefetch, Q, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -46,6 +46,7 @@ from temba.utils.email import send_custom_smtp_email, send_simple_email, send_te
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
+from temba.values.constants import Value
 
 EARLIEST_IMPORT_VERSION = "3"
 
@@ -1332,6 +1333,37 @@ class Org(SmartModel):
             modified_by=self.modified_by,
         )
 
+    def create_system_contact_fields(self):
+        from temba.contacts.models import ContactField
+
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Created On"),
+            key="created_on",
+            value_type=Value.TYPE_DATETIME,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Contact Name"),
+            key="name",
+            value_type=Value.TYPE_TEXT,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Language"),
+            key="language",
+            value_type=Value.TYPE_TEXT,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+
     def create_sample_flows(self, api_url):
         import json
 
@@ -1707,7 +1739,7 @@ class Org(SmartModel):
 
         # build an ordered dictionary of key->contact field
         fields = OrderedDict()
-        for cf in ContactField.objects.filter(org=self, is_active=True).order_by("key"):
+        for cf in ContactField.user_fields.filter(org=self, is_active=True).order_by("key"):
             cf.org = self
             fields[cf.key] = cf
 
@@ -2035,6 +2067,7 @@ class Org(SmartModel):
             branding = BrandingMiddleware.get_branding_for_host("")
 
         self.create_system_groups()
+        self.create_system_contact_fields()
         self.create_sample_flows(branding.get("api_link", ""))
         self.create_welcome_topup(topup_size)
 
@@ -2182,6 +2215,11 @@ class Org(SmartModel):
             contact.release(contact.modified_by)
             contact.delete()
 
+        # delete our contacts
+        for contactfield in self.contactfields(manager="all_fields").all():
+            contactfield.release(contactfield.modified_by)
+            contactfield.delete()
+
         # and all of the groups
         for group in self.all_groups.all():
             group.release()
@@ -2203,8 +2241,8 @@ class Org(SmartModel):
 
             flow.delete()
 
-        for archive in self.archives.all():
-            archive.release()
+        # release all archives objects and files for this org
+        Archive.release_org_archives(self)
 
         # return any unused credits to our parent
         if self.parent:
@@ -2332,7 +2370,7 @@ def _user_has_org_perm(user, org, permission):
     if user.is_superuser:  # pragma: needs cover
         return True
 
-    if user.is_anonymous():  # pragma: needs cover
+    if user.is_anonymous:  # pragma: needs cover
         return False
 
     # has it innately? (customer support)

@@ -14,7 +14,68 @@ from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from . import trial
-from .client import FlowServerException, get_client, serialize_channel, serialize_field, serialize_label
+from .assets import ChannelType, get_asset_type, get_asset_urls
+from .client import FlowServerException, get_client
+from .serialize import serialize_channel, serialize_field, serialize_label
+
+TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
+
+
+class AssetsTest(TembaTest):
+    def test_get_asset_urls(self):
+        self.assertEqual(
+            get_asset_urls(self.org),
+            {
+                "channel": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "field": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
+                "group": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
+                "label": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
+                "location_hierarchy": f"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
+                "resthook": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
+            },
+        )
+
+    def test_bundling(self):
+        self.assertEqual(
+            get_asset_type(ChannelType).bundle_set(self.org, simulator=True),
+            {
+                "type": "channel",
+                "url": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "content": [
+                    {
+                        "address": "+250785551212",
+                        "name": "Test Channel",
+                        "roles": ["send", "receive"],
+                        "schemes": ["tel"],
+                        "uuid": str(self.channel.uuid),
+                    },
+                    {
+                        "address": "+18005551212",
+                        "name": "Simulator Channel",
+                        "roles": ["send"],
+                        "schemes": ["tel"],
+                        "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
+                    },
+                ],
+            },
+        )
+        self.assertEqual(
+            get_asset_type(ChannelType).bundle_item(self.org, uuid=self.channel.uuid),
+            {
+                "type": "channel",
+                "url": matchers.String(
+                    pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
+                ),
+                "content": {
+                    "address": "+250785551212",
+                    "name": "Test Channel",
+                    "roles": ["send", "receive"],
+                    "schemes": ["tel"],
+                    "uuid": str(self.channel.uuid),
+                },
+            },
+        )
 
 
 class SerializationTest(TembaTest):
@@ -65,7 +126,7 @@ class ClientTest(TembaTest):
             self.contact.set_field(self.admin, "age", 36)
 
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_contact_changed(self.contact).request["events"],
+                self.client.request_builder(self.org).add_contact_changed(self.contact).request["events"],
                 [
                     {
                         "type": "contact_changed",
@@ -75,7 +136,6 @@ class ClientTest(TembaTest):
                             "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
-                            "timezone": "UTC",
                             "urns": [
                                 "twitterid:123456785?channel=%s#bobby" % str(twitter.uuid),
                                 "tel:+12345670987?channel=%s" % str(self.channel.uuid),
@@ -90,7 +150,7 @@ class ClientTest(TembaTest):
     def test_add_environment_changed(self):
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_environment_changed().request["events"],
+                self.client.request_builder(self.org).add_environment_changed().request["events"],
                 [
                     {
                         "type": "environment_changed",
@@ -114,7 +174,7 @@ class ClientTest(TembaTest):
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
 
             self.assertEqual(
-                self.client.request_builder(self.org, 1234).add_run_expired(run).request["events"],
+                self.client.request_builder(self.org).add_run_expired(run).request["events"],
                 [{"type": "run_expired", "created_on": run.exited_on.isoformat(), "run_uuid": str(run.uuid)}],
             )
 
@@ -126,7 +186,7 @@ class ClientTest(TembaTest):
         contact = self.create_contact("Joe", number="+29638356667")
 
         with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(self.org, 1234).start_manual(contact, flow)
+            self.client.request_builder(self.org).start_manual(contact, flow)
 
         self.assertEqual(
             e.exception.as_json(),

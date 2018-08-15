@@ -136,6 +136,9 @@ class Command(BaseCommand):
 
     help = "Generates a database suitable for performance testing"
 
+    # https://docs.djangoproject.com/en/2.0/releases/2.0/#call-command-validates-the-options-it-receives
+    stealth_options = ("num_orgs", "num_contacts", "seed", "org_id", "num_runs", "flow_name", "seed")
+
     def add_arguments(self, parser):
         cmd = self
         subparsers = parser.add_subparsers(
@@ -434,7 +437,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for f in FIELDS:
-                field = ContactField.objects.create(
+                field = ContactField.user_fields.create(
                     org=org,
                     key=f["key"],
                     label=f["label"],
@@ -457,7 +460,7 @@ class Command(BaseCommand):
             user = org.cache["users"][0]
             for g in GROUPS:
                 if g["query"]:
-                    group = ContactGroup.create_dynamic(org, user, g["name"], g["query"])
+                    group = ContactGroup.create_dynamic(org, user, g["name"], g["query"], evaluate=False)
                 else:
                     group = ContactGroup.create_static(org, user, g["name"])
                 group.member = g["member"]

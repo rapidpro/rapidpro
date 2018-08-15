@@ -6,7 +6,6 @@ and events with what the current engine produces.
 
 import json
 import logging
-import time
 
 from django_redis import get_redis_connection
 from jsondiff import diff as jsondiff
@@ -15,7 +14,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .client import Events, FlowServerException, get_client
-from .serialize import serialize_channel_ref, serialize_contact, serialize_environment
+from .serialize import serialize_contact, serialize_environment, serialize_ref
 
 logger = logging.getLogger(__name__)
 
@@ -141,9 +140,8 @@ def resume(trial, msg_in=None, expired_child_run=None):
     client = get_client()
 
     # build request to flow server
-    asset_timestamp = int(time.time() * 1000000)
     request = (
-        client.request_builder(org, asset_timestamp)
+        client.request_builder(org)
         .asset_server()
         .set_config("disable_webhooks", True)
         .set_config("webhook_mocks", webhook_mocks)
@@ -281,7 +279,7 @@ def serialize_input(msg):
     serialized = {"created_on": msg.created_on.isoformat(), "text": msg.text, "type": "msg", "uuid": str(msg.uuid)}
 
     if msg.channel_id:
-        serialized["channel"] = serialize_channel_ref(msg.channel)
+        serialized["channel"] = serialize_ref(msg.channel)
     if msg.contact_urn_id:
         serialized["urn"] = msg.contact_urn.urn
     if msg.attachments:

@@ -24,9 +24,9 @@ from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
-from django.core.urlresolvers import reverse
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -186,7 +186,7 @@ class FlowSession(models.Model):
         )
 
     @classmethod
-    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, params=None):
+    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, campaign_event=None, params=None):
         """
         Starts a contact in the given flow
         """
@@ -196,12 +196,10 @@ class FlowSession(models.Model):
 
         client = server.get_client()
 
-        asset_timestamp = int(time.time() * 1000000)
-
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder(flow.org, asset_timestamp).asset_server()
+            request = client.request_builder(flow.org).asset_server()
 
             if settings.TESTING:
                 # TODO find a way to run an assets server during testing?
@@ -214,6 +212,8 @@ class FlowSession(models.Model):
             try:
                 if parent_run_summary:
                     output = request.start_by_flow_action(contact, flow, parent_run_summary)
+                elif campaign_event:
+                    output = request.start_by_campaign(contact, flow, campaign_event)
                 else:
                     output = request.start_manual(contact, flow, params)
 
@@ -265,8 +265,7 @@ class FlowSession(models.Model):
         client = server.get_client()
 
         # build request to flow server
-        asset_timestamp = int(time.time() * 1000000)
-        request = client.request_builder(self.org, asset_timestamp).asset_server()
+        request = client.request_builder(self.org).asset_server()
 
         if settings.TESTING:
             # TODO find a way to run an assets server during testing?
@@ -1615,7 +1614,7 @@ class Flow(TembaModel):
 
         self.flow_type = Flow.MESSAGE
         self.base_language = base_language
-        self.version_number = "10.4"
+        self.version_number = get_current_export_version()
         self.save(update_fields=("name", "flow_type", "base_language", "version_number"))
 
         entry_uuid = str(uuid4())
@@ -1759,6 +1758,7 @@ class Flow(TembaModel):
         interrupt=True,
         connection=None,
         include_active=True,
+        campaign_event=None,
     ):
         """
         Starts a flow for the passed in groups and contacts.
@@ -1864,6 +1864,7 @@ class Flow(TembaModel):
                 start_msg=start_msg,
                 extra=extra,
                 flow_start=flow_start,
+                campaign_event=campaign_event,
                 parent_run=parent_run,
             )
 
@@ -2000,13 +2001,22 @@ class Flow(TembaModel):
         return runs
 
     def start_msg_flow(
-        self, all_contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
+        self,
+        all_contact_ids,
+        started_flows=None,
+        start_msg=None,
+        extra=None,
+        flow_start=None,
+        campaign_event=None,
+        parent_run=None,
     ):
 
         # only use flowserver if flow supports it, message is an actual message, and parent wasn't run in old engine
         if self.use_flow_server() and not (start_msg and not start_msg.contact_urn) and not parent_run:
             contacts = Contact.objects.filter(id__in=all_contact_ids).order_by("id")
-            runs = FlowSession.bulk_start(contacts, self, msg_in=start_msg, params=extra)
+            runs = FlowSession.bulk_start(
+                contacts, self, msg_in=start_msg, campaign_event=campaign_event, params=extra
+            )
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
@@ -3013,7 +3023,7 @@ class Flow(TembaModel):
                         groups.add(rule.test.group)
 
         if len(fields):
-            existing = ContactField.objects.filter(org=self.org, key__in=fields).values_list("key")
+            existing = ContactField.user_fields.filter(org=self.org, key__in=fields).values_list("key")
 
             # create any field that doesn't already exist
             for field in fields:
@@ -3022,7 +3032,7 @@ class Flow(TembaModel):
                     label = " ".join([word.capitalize() for word in field.split("_")])
                     ContactField.get_or_create(self.org, self.modified_by, field, label)
 
-        fields = ContactField.objects.filter(org=self.org, key__in=fields)
+        fields = ContactField.user_fields.filter(org=self.org, key__in=fields)
 
         self.group_dependencies.clear()
         self.group_dependencies.add(*groups)
@@ -3430,7 +3440,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         Properties of this contact being updated
         """
         user = get_flow_user(self.org)
-        field = ContactField.objects.get(org=self.org, key=event["field"]["key"])
+        field = ContactField.user_fields.get(org=self.org, key=event["field"]["key"])
         value = event["value"]
 
         self.contact.set_field(user, field.key, value)
@@ -3609,7 +3619,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return attachments
 
-    def update_from_surveyor(self, step_dicts):
+    def update_from_surveyor(self, revision, step_dicts):
         """
         Updates this run with the given Surveyor step JSON. For example an actionset might generate a step like:
             {
@@ -3632,20 +3642,30 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 "errors": []
             }
         """
+
+        # load the specific revision of the flow and migrate to latest spec
+        flow_rev = self.flow.revisions.filter(revision=revision).first()
+        definition = FlowRevision.migrate_definition(flow_rev.definition, self.flow, get_current_export_version())
+
+        rev_action_sets = {a["uuid"]: a for a in definition.get("action_sets", [])}
+        rev_rule_sets = {r["uuid"]: r for r in definition.get("rule_sets", [])}
+
         msgs = []
 
         for step_dict in step_dicts:
-            node = step_dict["node"]
+            node_uuid = step_dict["node"]
             arrived_on = iso8601.parse_date(step_dict["arrived_on"])
 
             prev_step = self.path[-1] if self.path else None
             if prev_step:
                 # was the previous step an actionset that we need to complete with an exit UUID ?
-                prev_action_set = self.flow.action_sets.filter(uuid=prev_step[FlowRun.PATH_NODE_UUID]).first()
-                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
-                    prev_step[FlowRun.PATH_EXIT_UUID] = str(prev_action_set.exit_uuid)
+                prev_action_set = rev_action_sets.get(prev_step[FlowRun.PATH_NODE_UUID])
 
-            if node.is_ruleset():
+                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
+                    prev_step[FlowRun.PATH_EXIT_UUID] = prev_action_set["exit_uuid"]
+
+            if node_uuid in rev_rule_sets:
+                node_json = rev_rule_sets[node_uuid]
                 rule_dict = step_dict.get("rule")
                 if rule_dict:
                     exit_uuid = step_dict["rule"]["uuid"]
@@ -3663,14 +3683,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     self.path.append(
                         {
                             FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node.uuid,
+                            FlowRun.PATH_NODE_UUID: node_uuid,
                             FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                             FlowRun.PATH_EXIT_UUID: exit_uuid,
                         }
                     )
 
                     # if a msg was sent to this ruleset, create it
-                    if node.is_pause():
+                    if node_json["ruleset_type"] in RuleSet.TYPE_WAIT:
                         incoming = Msg.create_incoming(
                             org=self.org,
                             contact=self.contact,
@@ -3684,30 +3704,22 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                         )
                         self.add_messages([incoming])
 
-                    ruleset_obj = node.as_ruleset_obj()
-
                     # look for an exact rule match by UUID
+                    ruleset_rules = Rule.from_json_array(self.flow.org, node_json["rules"])
                     rule = None
-                    for r in ruleset_obj.get_rules():
+                    for r in ruleset_rules:
                         if r.uuid == exit_uuid:
                             rule = r
                             break
 
-                    if not rule:
-                        # the user updated the rules try to match the new rules
-                        msg = Msg(org=self.org, contact=self.contact, text=rule_input, id=0)
-                        rule, value, rule_input = ruleset_obj.find_matching_rule(self, msg)
-                        if not rule:
-                            raise ValueError("No such rule with UUID %s" % exit_uuid)
-
-                        rule_value = value
-
-                    ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
+                    if rule:
+                        ruleset_obj = RuleSet(uuid=node_uuid, label=node_json.get("label"))
+                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
                 else:
                     self.path.append(
                         {
                             FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node.uuid,
+                            FlowRun.PATH_NODE_UUID: node_uuid,
                             FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                         }
                     )
@@ -3717,7 +3729,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.path.append(
                     {
                         FlowRun.PATH_STEP_UUID: str(uuid4()),
-                        FlowRun.PATH_NODE_UUID: node.uuid,
+                        FlowRun.PATH_NODE_UUID: node_uuid,
                         FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
                     }
                 )
@@ -3728,7 +3740,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
                 for action in actions:
                     context = self.flow.build_expressions_context(self.contact, last_incoming)
-                    msgs += action.execute(self, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
+                    msgs += action.execute(self, context, node_uuid, msg=last_incoming, offline_on=arrived_on)
                     self.add_messages(msgs)
 
         try:
@@ -4785,9 +4797,6 @@ class RuleSet(models.Model):
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, self.rules)
 
-    def get_rule_uuids(self):  # pragma: needs cover
-        return [rule["uuid"] for rule in self.rules]
-
     def set_rules(self, rules):
         rules_dict = []
         for rule in rules:
@@ -5790,6 +5799,14 @@ class FlowStart(SmartModel):
 
     include_active = models.BooleanField(default=True, help_text=_("Include contacts currently active in flows"))
 
+    campaign_event = models.ForeignKey(
+        "campaigns.CampaignEvent",
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="flow_starts",
+        help_text=_("The campaign event which created this flow start"),
+    )
+
     contact_count = models.IntegerField(default=0, help_text=_("How many unique contacts were started down the flow"))
 
     status = models.CharField(
@@ -5802,7 +5819,15 @@ class FlowStart(SmartModel):
 
     @classmethod
     def create(
-        cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None, include_active=True
+        cls,
+        flow,
+        user,
+        groups=None,
+        contacts=None,
+        restart_participants=True,
+        extra=None,
+        include_active=True,
+        campaign_event=None,
     ):
         if contacts is None:  # pragma: needs cover
             contacts = []
@@ -5814,6 +5839,7 @@ class FlowStart(SmartModel):
             flow=flow,
             restart_participants=restart_participants,
             include_active=include_active,
+            campaign_event=campaign_event,
             extra=extra,
             created_by=user,
             modified_by=user,
@@ -5850,6 +5876,7 @@ class FlowStart(SmartModel):
                 extra=extra,
                 restart_participants=self.restart_participants,
                 include_active=self.include_active,
+                campaign_event=self.campaign_event,
             )
 
         except Exception as e:  # pragma: no cover
@@ -7083,7 +7110,7 @@ class SaveToContactAction(Action):
         elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
             label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
-            contact_field = ContactField.objects.filter(org=org, key=field).first()
+            contact_field = ContactField.user_fields.filter(org=org, key=field).first()
             if contact_field:
                 label = contact_field.label
             else:

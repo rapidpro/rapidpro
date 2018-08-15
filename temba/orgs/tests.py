@@ -16,9 +16,9 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
@@ -266,17 +266,17 @@ class OrgDeleteTest(TembaTest):
         self.mock_s3 = MockS3Client()
 
         def create_archive(org, period, rollup=None):
-            file = f"archive{Archive.objects.all().count()}.jsonl.gz"
+            file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://test-bucket.aws.com/{file}",
+                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
                 period=period,
                 rollup=rollup,
             )
-            self.mock_s3.put_jsonl("test-bucket", file, [])
+            self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, file, [])
             return archive
 
         # parent archives
@@ -287,14 +287,17 @@ class OrgDeleteTest(TembaTest):
         daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
         create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
 
-    def release_org(self, org, child_org=None, immediately=False):
+        # extra S3 file in child archive dir
+        self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
+
+    def release_org(self, org, child_org=None, immediately=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
             org_user_ids = list(org.get_org_users().values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
-            self.assertEqual(4, len(self.mock_s3.objects))
+            self.assertEqual(5, len(self.mock_s3.objects))
 
             # release our primary org
             org.release(immediately=immediately)
@@ -310,7 +313,7 @@ class OrgDeleteTest(TembaTest):
 
             if immediately:
                 # oh noes, we deleted our archive files!
-                self.assertEqual(2, len(self.mock_s3.objects))
+                self.assertEqual(expected_files, len(self.mock_s3.objects))
 
                 # our channels and org are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
@@ -340,7 +343,7 @@ class OrgDeleteTest(TembaTest):
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org, immediately=True)
+        self.release_org(self.child_org, immediately=True, expected_files=2)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
@@ -2382,6 +2385,18 @@ class OrgTest(TembaTest):
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 1)
+
+        # sub_org is deleted
+        sub_org.release()
+
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 0)
+
     def test_sub_org_ui(self):
 
         self.login(self.admin)
@@ -3433,7 +3448,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(3, ContactGroup.user_groups.filter(org=self.org).count())
             self.assertEqual(1, Label.label_objects.filter(org=self.org).count())
             self.assertEqual(
-                1, ContactField.objects.filter(org=self.org, value_type="D", label="Next Appointment").count()
+                1, ContactField.user_fields.filter(org=self.org, value_type="D", label="Next Appointment").count()
             )
 
         # import all our bits
@@ -3756,13 +3771,14 @@ class EmailContextProcessorsTest(SmartminTest):
     def setUp(self):
         super().setUp()
         self.admin = self.create_user("Administrator")
-        self.middleware = BrandingMiddleware()
+        self.middleware = BrandingMiddleware(get_response=HttpResponse)
 
     def test_link_components(self):
         self.request = Mock(spec=HttpRequest)
         self.request.get_host.return_value = "rapidpro.io"
-        response = self.middleware.process_request(self.request)
-        self.assertIsNone(response)
+
+        self.middleware(self.request)
+
         self.assertEqual(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
 
         with self.settings(HOSTNAME="rapidpro.io"):
@@ -3771,7 +3787,7 @@ class EmailContextProcessorsTest(SmartminTest):
             post_data = dict()
             post_data["email"] = "nouser@nouser.com"
 
-            response = self.client.post(forget_url, post_data, follow=True)
+            self.client.post(forget_url, post_data, follow=True)
             self.assertEqual(1, len(mail.outbox))
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)

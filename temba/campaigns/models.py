@@ -12,6 +12,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
+from temba.values.constants import Value
 
 
 class Campaign(TembaModel):
@@ -292,8 +293,13 @@ class CampaignEvent(TembaModel):
     def create_message_event(
         cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None
     ):
-        if campaign.org != org:  # pragma: no cover
+        if campaign.org != org:
             raise ValueError("Org mismatch")
+
+        if relative_to.value_type != Value.TYPE_DATETIME:
+            raise ValueError(
+                f"Contact fields for CampaignEvents must have a datetime type, got {relative_to.value_type}."
+            )
 
         if isinstance(message, str):
             base_language = org.primary_language.iso_code if org.primary_language else "base"
@@ -316,8 +322,13 @@ class CampaignEvent(TembaModel):
 
     @classmethod
     def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
-        if campaign.org != org:  # pragma: no cover
+        if campaign.org != org:
             raise ValueError("Org mismatch")
+
+        if relative_to.value_type != Value.TYPE_DATETIME:
+            raise ValueError(
+                f"Contact fields for CampaignEvents must have a datetime type, got '{relative_to.value_type}'."
+            )
 
         return cls.objects.create(
             campaign=campaign,
@@ -451,9 +462,15 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
-        # if our flow is a single message flow, release that too
+        # if our flow is a single message flow, clean up
         if self.flow.flow_type == Flow.MESSAGE:
+            # delete any associated flow starts
+            self.flow_starts.all().delete()
+
             self.flow.release()
+        else:
+            # detach any associated flow starts
+            self.flow_starts.all().update(campaign_event=None)
 
         self.delete()
 
@@ -510,11 +527,12 @@ class EventFire(Model):
         """
         fired = timezone.now()
         contacts = [f.contact for f in fires]
+        event = fires[0].event
 
         if len(contacts) == 1:
-            flow.start([], contacts, restart_participants=True)
+            flow.start([], contacts, restart_participants=True, campaign_event=event)
         else:
-            start = FlowStart.create(flow, flow.created_by, contacts=contacts)
+            start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
             start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
@@ -547,15 +565,22 @@ class EventFire(Model):
         # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
             field = event.relative_to
-            field_uuid = str(field.uuid)
 
-            contacts = (
-                event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
-                .exclude(is_test=True)
-                .extra(
-                    where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
+            if field.field_type == ContactField.FIELD_TYPE_USER:
+                field_uuid = str(field.uuid)
+
+                contacts = (
+                    event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
+                    .exclude(is_test=True)
+                    .extra(
+                        where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'],
+                        params=[[field_uuid]],
+                    )
                 )
-            )
+            elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
+                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).exclude(is_test=True)
+            else:  # pragma: no cover
+                raise ValueError(f"Unhandled ContactField type {field.field_type}.")
 
             now = timezone.now()
             events = []

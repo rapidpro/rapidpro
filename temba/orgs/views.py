@@ -28,12 +28,12 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
 from django.utils.http import urlquote
@@ -96,7 +96,7 @@ def check_login(request):
     check whether we are logged in, if so then we will redirect to the LOGIN_URL, otherwise we take
     them to the normal user login page
     """
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         return HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
     else:
         return HttpResponseRedirect(settings.LOGIN_URL)
@@ -113,7 +113,7 @@ class OrgPermsMixin(object):
 
     def derive_org(self):
         org = None
-        if not self.get_user().is_anonymous():
+        if not self.get_user().is_anonymous:
             org = self.get_user().get_org()
         return org
 
@@ -134,7 +134,7 @@ class OrgPermsMixin(object):
         if self.get_user().is_superuser:
             return True
 
-        if self.get_user().is_anonymous():
+        if self.get_user().is_anonymous:
             return False
 
         if self.get_user().has_perm(self.permission):  # pragma: needs cover
@@ -146,7 +146,7 @@ class OrgPermsMixin(object):
 
         # non admin authenticated users without orgs get the org chooser
         user = self.get_user()
-        if user.is_authenticated() and not (user.is_superuser or user.is_staff):
+        if user.is_authenticated and not (user.is_superuser or user.is_staff):
             if not self.derive_org():
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
@@ -297,7 +297,7 @@ class OrgGrantForm(forms.ModelForm):
         help_text=_("Their password, at least eight letters please. (leave blank for existing users)"),
     )
     name = forms.CharField(label=_("Organization"), help_text=_("The name of the new organization"))
-    credits = forms.ChoiceField([], help_text=_("The initial number of credits granted to this organization."))
+    credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this organization."))
 
     def __init__(self, *args, **kwargs):
         branding = kwargs["branding"]
@@ -464,7 +464,7 @@ class UserCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             user = self.request.user
 
-            if user.is_anonymous():
+            if user.is_anonymous:
                 return False
 
             org = user.get_org()
@@ -472,7 +472,7 @@ class UserCRUDL(SmartCRUDL):
             if org:
                 org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
 
-                if not user.is_authenticated():  # pragma: needs cover
+                if not user.is_authenticated:  # pragma: needs cover
                     return False
 
                 if user in org_users:
@@ -1597,7 +1597,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
-            if user.is_authenticated():
+            if user.is_authenticated:
                 user_orgs = self.get_user_orgs()
 
                 if user.is_superuser or user.is_staff:
@@ -1627,7 +1627,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def has_permission(self, request, *args, **kwargs):
-            return self.request.user.is_authenticated()
+            return self.request.user.is_authenticated
 
         def customize_form_field(self, name, field):  # pragma: needs cover
             if name == "organization":
@@ -1751,7 +1751,7 @@ class OrgCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("public.public_index"))
 
-            if not request.user.is_authenticated():
+            if not request.user.is_authenticated:
                 return HttpResponseRedirect(reverse("orgs.org_create_login", args=[secret]))
             return None
 
@@ -1989,7 +1989,7 @@ class OrgCRUDL(SmartCRUDL):
             obj = super().post_save(obj)
             obj.administrators.add(self.user)
 
-            if not self.request.user.is_anonymous() and self.request.user.has_perm(
+            if not self.request.user.is_anonymous and self.request.user.has_perm(
                 "orgs.org_grant"
             ):  # pragma: needs cover
                 obj.administrators.add(self.request.user.pk)
@@ -2536,7 +2536,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            sub_orgs = Org.objects.filter(parent=self.get_object())
+            sub_orgs = Org.objects.filter(is_active=True, parent=self.get_object())
             context["sub_orgs"] = sub_orgs
             return context
 

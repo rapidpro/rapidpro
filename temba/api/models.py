@@ -13,9 +13,9 @@ from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
-from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -38,7 +38,7 @@ class APIPermission(BasePermission):
 
         if getattr(view, "permission", None):
             # no anon access to API endpoints
-            if request.user.is_anonymous():
+            if request.user.is_anonymous:
                 return False
 
             org = request.user.get_org()

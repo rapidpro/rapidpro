@@ -22,12 +22,12 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -196,7 +196,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
             )
         else:
             try:
-                contact_sort_field = ContactField.objects.values("value_type", "uuid").get(uuid=sort_field)
+                contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
             except ValidationError:
                 return None, None, None
             except ContactField.DoesNotExist:
@@ -627,7 +627,7 @@ class ContactCRUDL(SmartCRUDL):
 
             def clean(self):
 
-                existing_contact_fields = ContactField.objects.filter(org=self.org, is_active=True).values(
+                existing_contact_fields = ContactField.user_fields.filter(org=self.org, is_active=True).values(
                     "key", "label"
                 )
                 existing_contact_fields_map = {elt["label"]: elt["key"] for elt in existing_contact_fields}
@@ -761,7 +761,7 @@ class ContactCRUDL(SmartCRUDL):
             contact_fields = sorted(
                 [
                     dict(id=elt["label"], text=elt["label"])
-                    for elt in ContactField.objects.filter(org=org, is_active=True).values("label")
+                    for elt in ContactField.user_fields.filter(org=org, is_active=True).values("label")
                 ],
                 key=lambda k: k["text"].lower(),
             )
@@ -1041,7 +1041,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # lookup all of our contact fields
             contact_fields = []
-            fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by("label", "pk")
+            fields = ContactField.user_fields.filter(org=contact.org, is_active=True).order_by("label", "pk")
             for field in fields:
                 value = contact.get_field_value(field)
                 if value:
@@ -1209,7 +1209,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             context["actions"] = ("label", "block")
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
             context["export_url"] = self.derive_export_url()
@@ -1271,7 +1271,7 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = actions
             context["current_group"] = group
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
             context["export_url"] = self.derive_export_url()
@@ -1436,7 +1436,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             field_id = self.request.GET.get("field", 0)
             if field_id:
-                context["contact_field"] = org.contactfields.get(id=field_id)
+                context["contact_field"] = org.contactfields(manager="user_fields").get(id=field_id)
             return context
 
         def save(self, obj):
@@ -1444,7 +1444,9 @@ class ContactCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            contact_field = obj.org.contactfields.get(id=self.form.cleaned_data.get("contact_field"))
+            contact_field = obj.org.contactfields(manager="user_fields").get(
+                id=self.form.cleaned_data.get("contact_field")
+            )
             if contact_field:
                 obj.set_field(self.request.user, contact_field.key, self.form.cleaned_data.get("field_value", ""))
             return obj
@@ -1459,7 +1461,7 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             field_id = self.request.GET.get("field", 0)
             if field_id:
-                contact_field = ContactField.objects.filter(id=field_id).first()
+                contact_field = ContactField.user_fields.filter(id=field_id).first()
                 context["contact_field"] = contact_field
                 if contact_field:
                     context["value"] = self.get_object().get_field_display(contact_field)
@@ -1668,6 +1670,8 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "managefields", "json")
 
     class List(OrgPermsMixin, SmartListView):
+        queryset = ContactField.user_fields
+
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=self.request.user.get_org(), is_active=True)
@@ -1681,6 +1685,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Json(OrgPermsMixin, SmartListView):
         paginate_by = None
+        queryset = ContactField.user_fields
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -1712,7 +1717,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
+            num_fields = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
             for field_idx in range(1, num_fields + 2):
@@ -1738,7 +1743,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             form.fields.clear()
 
             org = self.request.user.get_org()
-            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by("-priority", "pk")
+            contact_fields = ContactField.user_fields.filter(org=org, is_active=True).order_by("-priority", "pk")
 
             added_fields = []
 

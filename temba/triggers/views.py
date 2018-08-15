@@ -5,9 +5,9 @@ import regex
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.core.urlresolvers import reverse
 from django.db.models import Min
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
@@ -463,7 +463,7 @@ class TriggerCRUDL(SmartCRUDL):
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated():  # pragma: needs cover
+            if not self.request.user.is_authenticated:  # pragma: needs cover
                 return queryset.exclude(pk__gt=0)
             else:
                 return queryset.filter(org=self.request.user.get_org())

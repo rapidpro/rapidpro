@@ -9,9 +9,9 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
 from django.db import connection, transaction
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.archives.models import Archive
@@ -3592,6 +3592,7 @@ class CeleryTaskTest(TembaTest):
 
         self.releaseMessages()
         self.releaseContacts(delete=True)
+        self.releaseContactFields(delete=True)
         self.releaseChannels(delete=True)
 
         TopUpCredits.objects.all().delete()
@@ -3600,6 +3601,7 @@ class CeleryTaskTest(TembaTest):
         SystemLabelCount.objects.all().delete()
         ContactGroupCount.objects.all().delete()
         ContactGroup.all_groups.all().delete()
+        ContactField.all_fields.all().delete()
         Org.objects.all().delete()
 
         for boundary in AdminBoundary.objects.all():

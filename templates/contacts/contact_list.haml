@@ -139,7 +139,7 @@
                   %span.search-error
                     =search_error
                 -elif search
-                  -blocktrans count results_count=paginator.count
+                  -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
                     Found {{ results_count }} contact matching <i>{{search}}</i>.
                     -plural
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.

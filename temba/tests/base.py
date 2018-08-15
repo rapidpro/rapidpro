@@ -20,11 +20,11 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
-from django.core.urlresolvers import reverse
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
@@ -163,6 +163,34 @@ class ESMockWithScroll:
         self.mock_es.stop()
 
 
+class ESMockWithScrollMultiple(ESMockWithScroll):
+    def __enter__(self):
+        patched_object = self.mock_es.start()
+
+        patched_object.search.side_effect = [
+            {
+                "_shards": {"failed": 0, "successful": 10, "total": 10},
+                "timed_out": False,
+                "took": 1,
+                "_scroll_id": "1",
+                "hits": {"hits": return_value},
+            }
+            for return_value in self.data
+        ]
+        patched_object.scroll.side_effect = [
+            {
+                "_shards": {"failed": 0, "successful": 10, "total": 10},
+                "timed_out": False,
+                "took": 1,
+                "_scroll_id": "1",
+                "hits": {"hits": []},
+            }
+            for _ in range(len(self.data))
+        ]
+
+        return patched_object()
+
+
 class TembaTestMixin(object):
     def clear_cache(self):
         """
@@ -298,7 +326,7 @@ class TembaTestMixin(object):
             return group
 
     def create_field(self, key, label, value_type=Value.TYPE_TEXT):
-        return ContactField.objects.create(
+        return ContactField.user_fields.create(
             org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
         )
 
@@ -643,6 +671,9 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
 
     def releaseContacts(self, delete=False):
         self.release(Contact.objects.all(), delete=delete, user=self.admin)
+
+    def releaseContactFields(self, delete=False):
+        self.release(ContactField.all_fields.all(), delete=delete, user=self.admin)
 
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)
