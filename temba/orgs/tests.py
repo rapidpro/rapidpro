@@ -266,17 +266,17 @@ class OrgDeleteTest(TembaTest):
         self.mock_s3 = MockS3Client()
 
         def create_archive(org, period, rollup=None):
-            file = f"archive{Archive.objects.all().count()}.jsonl.gz"
+            file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://test-bucket.aws.com/{file}",
+                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
                 period=period,
                 rollup=rollup,
             )
-            self.mock_s3.put_jsonl("test-bucket", file, [])
+            self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, file, [])
             return archive
 
         # parent archives
@@ -287,14 +287,17 @@ class OrgDeleteTest(TembaTest):
         daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
         create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
 
-    def release_org(self, org, child_org=None, immediately=False):
+        # extra S3 file in child archive dir
+        self.mock_s3.put_jsonl(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", [])
+
+    def release_org(self, org, child_org=None, immediately=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
             org_user_ids = list(org.get_org_users().values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
-            self.assertEqual(4, len(self.mock_s3.objects))
+            self.assertEqual(5, len(self.mock_s3.objects))
 
             # release our primary org
             org.release(immediately=immediately)
@@ -310,7 +313,7 @@ class OrgDeleteTest(TembaTest):
 
             if immediately:
                 # oh noes, we deleted our archive files!
-                self.assertEqual(2, len(self.mock_s3.objects))
+                self.assertEqual(expected_files, len(self.mock_s3.objects))
 
                 # our channels and org are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
@@ -340,7 +343,7 @@ class OrgDeleteTest(TembaTest):
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org, immediately=True)
+        self.release_org(self.child_org, immediately=True, expected_files=2)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
