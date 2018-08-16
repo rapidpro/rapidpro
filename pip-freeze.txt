@@ -15,7 +15,7 @@ billiard==3.5.0.2         # via celery
 black==18.6b4
 boto3==1.4.4
 botocore==1.5.71          # via boto3, s3transfer
-celery[redis]==4.0.2
+celery[redis]==4.2.1
 certifi==2017.4.17        # via python-intercom, python-telegram-bot, requests
 cffi==1.10.0              # via cryptography
 chardet==3.0.4            # via requests
@@ -44,7 +44,7 @@ djangorestframework==3.8.2
 docutils==0.13.1          # via botocore
 elasticsearch-dsl==6.1.0
 elasticsearch==6.2.0
-enum34==1.1.6             # via django-hamlpy, rapidpro-expressions
+enum34==1.1.6             # via django-hamlpy
 et-xmlfile==1.0.1         # via openpyxl
 first==2.0.1              # via pip-tools
 flake8-deprecated==1.2.1
