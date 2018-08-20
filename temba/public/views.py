@@ -1,5 +1,4 @@
 import json
-from random import randint
 from urllib.parse import parse_qs, urlencode
 
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
@@ -52,20 +51,10 @@ class Welcome(SmartTemplateView):
 
         user = self.request.user
         org = user.get_org()
+        brand = self.request.branding["slug"]
 
         if org:
-            user_dict = dict(
-                email=user.email,
-                first_name=user.first_name,
-                segment=randint(1, 10),
-                last_name=user.last_name,
-                brand=self.request.branding["slug"],
-            )
-            if org:
-                user_dict["org"] = org.name
-                user_dict["paid"] = org.account_value()
-
-            analytics.identify(user.email, f"{user.first_name} {user.last_name}", user_dict, orgs=[org])
+            analytics.identify(user, brand, org=org)
 
         return context
 
