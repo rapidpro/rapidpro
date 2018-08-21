@@ -12,6 +12,12 @@ import os  # pragma: needs cover
 from django.core.wsgi import get_wsgi_application  # pragma: needs cover
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "temba.settings")  # pragma: needs cover
-application = get_wsgi_application()  # pragma: needs cover
 
-harakiri = 120
+if os.getenv("MONITORING_NEWRELIC",""):
+    import newrelic.agent
+    newrelic.agent.initialize("/configs/newrelic.ini"))
+    application = newrelic.agent.WSGIApplicationWrapper(application)
+else:
+    application = get_wsgi_application()  # pragma: needs cover
+
+harakiri = 1200
