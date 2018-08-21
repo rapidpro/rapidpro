@@ -129,3 +129,4 @@ flower
 whitenoise==3.2.2
 django-cors-headers
 emoji
+newrelic
