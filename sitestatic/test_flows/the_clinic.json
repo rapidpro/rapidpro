@@ -1,0 +1,884 @@
+{
+  "campaigns": [
+    {
+      "events": [
+        {
+          "event_type": "F", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Confirm Appointment", 
+            "id": 2806
+          }, 
+          "offset": -1, 
+          "delivery_hour": 10, 
+          "message": "", 
+          "id": 9955, 
+          "unit": "D"
+        }, 
+        {
+          "event_type": "F", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Appointment Followup", 
+            "id": 2807
+          }, 
+          "offset": 3, 
+          "delivery_hour": -1, 
+          "message": "", 
+          "id": 9956, 
+          "unit": "H"
+        }, 
+        {
+          "event_type": "F", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Stop Notifications", 
+            "id": 2808
+          }, 
+          "offset": 45, 
+          "delivery_hour": -1, 
+          "message": "", 
+          "id": 9957, 
+          "unit": "M"
+        }, 
+        {
+          "event_type": "F", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Start Notifications", 
+            "id": 2809
+          }, 
+          "offset": -3, 
+          "delivery_hour": -1, 
+          "message": "", 
+          "id": 9958, 
+          "unit": "H"
+        }, 
+        {
+          "event_type": "M", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Single Message",
+            "id": 2814
+          }, 
+          "offset": -1, 
+          "delivery_hour": -1, 
+          "message": "Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", 
+          "id": 9959, 
+          "unit": "H"
+        }, 
+        {
+          "event_type": "M", 
+          "relative_to": {
+            "id": 1134, 
+            "key": "next_appointment", 
+            "label": "Next Appointment"
+          }, 
+          "flow": {
+            "name": "Single Message",
+            "id": 2815
+          }, 
+          "offset": 1, 
+          "delivery_hour": -1, 
+          "message": "This is a second campaign message", 
+          "id": 9960, 
+          "unit": "H"
+        }
+      ], 
+      "group": {
+        "name": "Pending Appointments", 
+        "id": 2308
+      }, 
+      "id": 405, 
+      "name": "Appointment Schedule"
+    }
+  ], 
+  "version": 3,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "definition": {
+        "entry": "276fb90d-1ac3-4e4c-b663-3fcd93c8bd20", 
+        "rule_sets": [], 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "276fb90d-1ac3-4e4c-b663-3fcd93c8bd20", 
+            "actions": [
+              {
+                "msg": "I don't know what that means, try again.", 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.200686Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2804, 
+      "flow_type": "F", 
+      "name": "Catch All"
+    }, 
+    {
+      "definition": {
+        "entry": "70e7ff3c-86af-4bb3-a70a-44907b493375", 
+        "rule_sets": [
+          {
+            "uuid": "3a662dd8-1760-409e-a315-30b3f00440b4", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "@date.today|time_delta:'0'", 
+                  "type": "date_after"
+                }, 
+                "category": "After Today", 
+                "destination": "18a87b1d-2eaf-42eb-a937-2a31beb85f22", 
+                "uuid": "f8ee30d6-7430-4eb4-a217-0ffa2bf3e847"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "Other", 
+                "destination": "f5a85f44-c01f-49bb-8894-194988a0831c", 
+                "uuid": "3cc636a0-e171-4da8-97a6-e12a4c34fb24"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Next Appointment", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 160, 
+            "x": 167
+          }
+        ], 
+        "action_sets": [
+          {
+            "y": 294, 
+            "x": 206, 
+            "destination": null, 
+            "uuid": "18a87b1d-2eaf-42eb-a937-2a31beb85f22", 
+            "actions": [
+              {
+                "msg": "Great, thanks for registering, we'll make sure to keep you in the loop as your appointment grows nearer.", 
+                "type": "reply"
+              }, 
+              {
+                "field": "next_appointment", 
+                "type": "save", 
+                "value": "@flow.next_appointment", 
+                "label": "Next Appointment"
+              }, 
+              {
+                "type": "add_group", 
+                "groups": [
+                  {
+                    "name": "Pending Appointments", 
+                    "id": 2308
+                  }
+                ]
+              }, 
+              {
+                "type": "flow", 
+                "name": "Triggered From Flow", 
+                "id": 2813
+              }
+            ]
+          }, 
+          {
+            "y": 24, 
+            "x": 431, 
+            "destination": "3a662dd8-1760-409e-a315-30b3f00440b4", 
+            "uuid": "f5a85f44-c01f-49bb-8894-194988a0831c", 
+            "actions": [
+              {
+                "msg": "Sorry, I'm not sure what that means. Please try entering the date and time for your next appointment. e.g: 1/18/2013 2:30pm", 
+                "type": "reply"
+              },
+              {
+                "labels": [
+                  {
+                    "name": "Confused Rating",
+                    "id": 196
+                  }
+                ],
+                "type": "add_label"
+              }
+            ]
+          }, 
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": "3a662dd8-1760-409e-a315-30b3f00440b4", 
+            "uuid": "70e7ff3c-86af-4bb3-a70a-44907b493375", 
+            "actions": [
+              {
+                "msg": "Thanks for registering for SMS alerts for The Clinic. When is your appointment?", 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.226957Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2805, 
+      "flow_type": "F", 
+      "name": "Register Patient"
+    }, 
+    {
+      "definition": {
+        "entry": "53d2c775-d64c-4d5e-b4dd-a29e15569b89", 
+        "rule_sets": [
+          {
+            "uuid": "53d2c775-d64c-4d5e-b4dd-a29e15569b89", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "type": "date"
+                }, 
+                "category": "Has Appointment", 
+                "destination": "3112342a-0f24-45c4-8861-49204593559b", 
+                "uuid": "b8c907c7-a344-4093-b812-95f99fde6ce2"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "Other", 
+                "destination": "b5ae11ff-e7d3-4dc4-a6de-a7ca6ada4229", 
+                "uuid": "a7756699-3f94-495a-8448-164765d8f7c4"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Response 1", 
+            "operand": "@contact.next_appointment", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 0, 
+            "x": 84
+          }, 
+          {
+            "uuid": "5819e334-bcba-4457-b4a9-0a840f1c0504", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "Yes Y confirm", 
+                  "type": "contains_any"
+                }, 
+                "category": "Yes", 
+                "destination": "81a28bd1-77af-465f-b1b9-d11333deb3ac", 
+                "uuid": "aca46657-3347-403d-8994-bc8406eaccd5"
+              }, 
+              {
+                "test": {
+                  "test": "No n", 
+                  "type": "contains_any"
+                }, 
+                "category": "No", 
+                "destination": "b3633acf-f7ac-467e-a902-eabe1be1e16e", 
+                "uuid": "030fd3a2-5e75-40ad-bd0b-dfdd4e72f2f6"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "Other", 
+                "destination": "1c5043d4-1010-47e5-b90f-2d85370c680a", 
+                "uuid": "1f92a68a-6fd1-4d30-84a4-1bc7ac20f53f"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Confirmation", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 170, 
+            "x": 295
+          }
+        ], 
+        "action_sets": [
+          {
+            "y": 240, 
+            "x": 653, 
+            "destination": "5819e334-bcba-4457-b4a9-0a840f1c0504", 
+            "uuid": "1c5043d4-1010-47e5-b90f-2d85370c680a", 
+            "actions": [
+              {
+                "msg": "I don't understand, please reply yes or no.", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 280, 
+            "x": 367, 
+            "destination": null, 
+            "uuid": "b3633acf-f7ac-467e-a902-eabe1be1e16e", 
+            "actions": [
+              {
+                "msg": "I'm sorry you are unable to attend. Please contact 1-888-THE-CLINIC to reschedule.", 
+                "type": "reply"
+              }, 
+              {
+                "type": "del_group", 
+                "groups": [
+                  {
+                    "name": "Pending Appointments", 
+                    "id": 2308
+                  }
+                ]
+              }, 
+              {
+                "field": "next_appointment", 
+                "type": "save", 
+                "value": "None", 
+                "label": "Next Appointment"
+              }
+            ]
+          }, 
+          {
+            "y": 117, 
+            "x": 25, 
+            "destination": "5819e334-bcba-4457-b4a9-0a840f1c0504", 
+            "uuid": "3112342a-0f24-45c4-8861-49204593559b", 
+            "actions": [
+              {
+                "msg": "Your next appointment at The Clinic is @contact.next_appointment. Will you be  attending this appointment? Please reply with Yes or No to confirm.", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 338, 
+            "x": 126, 
+            "destination": null, 
+            "uuid": "81a28bd1-77af-465f-b1b9-d11333deb3ac", 
+            "actions": [
+              {
+                "msg": "Thanks, your appointment at The Clinic has been confirmed for @contact.next_appointment. See you then!", 
+                "type": "reply"
+              }, 
+              {
+                "field": "appointment_confirmed", 
+                "type": "save", 
+                "value": "Confirmed", 
+                "label": "Appointment Confirmed"
+              }
+            ]
+          }, 
+          {
+            "y": 14, 
+            "x": 408, 
+            "destination": null, 
+            "uuid": "b5ae11ff-e7d3-4dc4-a6de-a7ca6ada4229", 
+            "actions": [
+              {
+                "msg": "You don't have an appointment scheduled. Please contact 1-888-THE-CLINIC to schedule your next appointment.", 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.253001Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2806, 
+      "flow_type": "F", 
+      "name": "Confirm Appointment"
+    }, 
+    {
+      "definition": {
+        "entry": "ee5efdea-1f37-4c46-a414-31c29382c407", 
+        "rule_sets": [
+          {
+            "uuid": "ff071c3f-1fdf-4559-ba8e-2c321dc26a93", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "Yes y sure", 
+                  "type": "contains_any"
+                }, 
+                "category": "Yes", 
+                "destination": "226e3ce8-765d-43ce-8e4c-3c10d2687364", 
+                "uuid": "c3dcf29a-b7c8-45ae-a4d8-2e5ad774c376"
+              }, 
+              {
+                "test": {
+                  "test": "No n", 
+                  "type": "contains_any"
+                }, 
+                "category": "No", 
+                "destination": "56293742-abdc-4ff6-b9dc-e828ed58313c", 
+                "uuid": "814ad52f-e17c-4320-9a54-7433f21f7e17"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "Other", 
+                "destination": "59a61d6f-75a9-49d8-9182-41de3ab26595", 
+                "uuid": "1d055623-7d54-411f-b24d-3ced5512f5b2"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Survey", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 253, 
+            "x": 390
+          }, 
+          {
+            "uuid": "40d8d356-d285-4e0c-b6ae-a47f8aff554e", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "max": "5", 
+                  "type": "between", 
+                  "min": "1"
+                }, 
+                "category": "Unlikely", 
+                "destination": "ef24eadd-5f84-4dd7-be6f-96d4d7ef69e0", 
+                "uuid": "4888b703-c47c-452e-b270-2b0e1763f6df"
+              }, 
+              {
+                "test": {
+                  "max": "8", 
+                  "type": "between", 
+                  "min": "6"
+                }, 
+                "category": "Somewhat Likely", 
+                "destination": "8736f559-f236-4e15-bc02-29660b9a2081", 
+                "uuid": "3daa1c4e-04ad-4881-9e26-1235adf5a49b"
+              }, 
+              {
+                "test": {
+                  "max": "10", 
+                  "type": "between", 
+                  "min": "9"
+                }, 
+                "category": "Very Likely", 
+                "destination": "d4251a10-0aa7-4feb-a743-9ccd2a75b225", 
+                "uuid": "6169b8c5-1048-47b1-b24f-7433eff2c3c2"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "Other", 
+                "destination": "51736b03-e53e-4ba1-b30b-455fc830668c", 
+                "uuid": "46708678-41be-459a-a92d-c0769c1b3eba"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Rating", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 532, 
+            "x": 286
+          }, 
+          {
+            "uuid": "6f190d1a-b6c9-4533-95ed-83edf7d1603c", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "All Responses", 
+                "destination": "42719e07-7ee5-4c5a-8ec4-7f98026d2ef9", 
+                "uuid": "a748ef8c-20ab-4e71-9ce0-3edf5c4b0556"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Doing Well", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 843, 
+            "x": 415
+          }, 
+          {
+            "uuid": "15a4e272-a689-41f6-9b8b-50c4d4923c15", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": "All Responses", 
+                "destination": "42719e07-7ee5-4c5a-8ec4-7f98026d2ef9", 
+                "uuid": "0306b829-54b1-4457-8147-92670e5ee38a"
+              }
+            ], 
+            "webhook": null, 
+            "label": "Improvements", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "C", 
+            "y": 903, 
+            "x": 59
+          }
+        ], 
+        "action_sets": [
+          {
+            "y": 264, 
+            "x": 740, 
+            "destination": "40d8d356-d285-4e0c-b6ae-a47f8aff554e", 
+            "uuid": "51736b03-e53e-4ba1-b30b-455fc830668c", 
+            "actions": [
+              {
+                "msg": "Sorry, I'm not sure what that means. On a scale of 1 to 10, How likely are you to recommend The Clinic to your friends and family, 10 being very likely.", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 638, 
+            "x": 505, 
+            "destination": "6f190d1a-b6c9-4533-95ed-83edf7d1603c", 
+            "uuid": "d4251a10-0aa7-4feb-a743-9ccd2a75b225", 
+            "actions": [
+              {
+                "msg": "That's wonderful. We are always striving to provide the best patient care possible. Can you share what part of your experience you were most pleased with?", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 361, 
+            "x": 465, 
+            "destination": null, 
+            "uuid": "56293742-abdc-4ff6-b9dc-e828ed58313c", 
+            "actions": [
+              {
+                "msg": "Okay, maybe some other time. We hope you continue to choose The Clinic.", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 1001, 
+            "x": 232, 
+            "destination": null, 
+            "uuid": "42719e07-7ee5-4c5a-8ec4-7f98026d2ef9", 
+            "actions": [
+              {
+                "msg": "Your feedback is extremely valuable to us. Thank you for helping us serve you better. We hope you continue to choose The Clinic.", 
+                "type": "reply"
+              }, 
+              {
+                "field": "rating", 
+                "type": "save", 
+                "value": "@flow.rating ", 
+                "label": "Rating"
+              }, 
+              {
+                "msg": "@flow", 
+                "type": "email", 
+                "emails": [
+                  "feedback@theclinic.com"
+                ], 
+                "subject": "Patient Feedback"
+              }
+            ]
+          }, 
+          {
+            "y": 86, 
+            "x": 723, 
+            "destination": "ff071c3f-1fdf-4559-ba8e-2c321dc26a93", 
+            "uuid": "59a61d6f-75a9-49d8-9182-41de3ab26595", 
+            "actions": [
+              {
+                "msg": "Sorry, I didn't understand that. Do you have time for a short survey? Please respond with either Yes or No. ", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 462, 
+            "x": 30, 
+            "destination": "40d8d356-d285-4e0c-b6ae-a47f8aff554e", 
+            "uuid": "226e3ce8-765d-43ce-8e4c-3c10d2687364", 
+            "actions": [
+              {
+                "msg": "On a scale of 1 to 10, How likely are you to recommend The Clinic to your friends and family, 10 being very likely.", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 663, 
+            "x": 279, 
+            "destination": "15a4e272-a689-41f6-9b8b-50c4d4923c15", 
+            "uuid": "8736f559-f236-4e15-bc02-29660b9a2081", 
+            "actions": [
+              {
+                "msg": "That's great. Do you have any ideas or recommendations on ways we could improve your experience?", 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 0, 
+            "x": 66, 
+            "destination": "ff071c3f-1fdf-4559-ba8e-2c321dc26a93", 
+            "uuid": "ee5efdea-1f37-4c46-a414-31c29382c407", 
+            "actions": [
+              {
+                "msg": "Thanks for choosing The Clinic. Your business is very important to us. To help us better serve you would you be interested in participating in a short survey?", 
+                "type": "reply"
+              }, 
+              {
+                "field": "next_appointment", 
+                "type": "save", 
+                "value": "None", 
+                "label": "Next Appointment"
+              }, 
+              {
+                "field": "appointment_confirmed", 
+                "type": "save", 
+                "value": "None", 
+                "label": "Appointment Confirmed"
+              }, 
+              {
+                "type": "del_group", 
+                "groups": [
+                  {
+                    "name": "Pending Appointments", 
+                    "id": 2308
+                  }
+                ]
+              }
+            ]
+          }, 
+          {
+            "y": 662, 
+            "x": 56, 
+            "destination": "15a4e272-a689-41f6-9b8b-50c4d4923c15", 
+            "uuid": "ef24eadd-5f84-4dd7-be6f-96d4d7ef69e0", 
+            "actions": [
+              {
+                "msg": "Okay, so we obviously can do better. Can you tell us how we could have made your experience more pleasant?", 
+                "type": "reply"
+              }, 
+              {
+                "type": "add_group", 
+                "groups": [
+                  {
+                    "name": "Unsatisfied Customers", 
+                    "id": 2309
+                  }
+                ]
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.296226Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2807, 
+      "flow_type": "F", 
+      "name": "Appointment Followup"
+    }, 
+    {
+      "definition": {
+        "entry": "5a8a8088-4496-41c7-aedc-24a5d131e9d3", 
+        "rule_sets": [], 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "5a8a8088-4496-41c7-aedc-24a5d131e9d3", 
+            "actions": [
+              {
+                "type": "del_group", 
+                "groups": [
+                  {
+                    "name": "Delay Notification", 
+                    "id": 2310
+                  }
+                ]
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.305278Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2808, 
+      "flow_type": "F", 
+      "name": "Stop Notifications"
+    }, 
+    {
+      "definition": {
+        "entry": "26678234-8a76-47a8-9ca7-e0b204765592", 
+        "rule_sets": [], 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "26678234-8a76-47a8-9ca7-e0b204765592", 
+            "actions": [
+              {
+                "type": "add_group", 
+                "groups": [
+                  {
+                    "name": "Delay Notification", 
+                    "id": 2310
+                  }
+                ]
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.313646Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2809, 
+      "flow_type": "F", 
+      "name": "Start Notifications"
+    }, 
+    {
+      "definition": {
+        "entry": "43072a12-d007-43b8-8aca-96de332f5398", 
+        "rule_sets": [], 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "43072a12-d007-43b8-8aca-96de332f5398", 
+            "actions": [
+              {
+                "msg": "Sorry, we missed your call.", 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.319977Z", 
+        "metadata": {
+          "notes": []
+        }
+      }, 
+      "id": 2810, 
+      "flow_type": "F", 
+      "name": "Missed Call"
+    }, 
+    {
+      "definition": {
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": null, 
+            "uuid": "0ce3e457-5a9b-4b33-8593-22f878bd5470", 
+            "actions": [
+              {
+                "msg": "I was triggered from another flow",
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2014-10-29T21:40:47.326814Z", 
+        "entry": "0ce3e457-5a9b-4b33-8593-22f878bd5470", 
+        "rule_sets": [], 
+        "metadata": {}
+      }, 
+      "id": 2813, 
+      "flow_type": "F", 
+      "name": "Triggered From Flow"
+    }
+  ], 
+  "triggers": [
+    {
+      "flow": {
+        "name": "Catch All", 
+        "id": 2804
+      }, 
+      "groups": [], 
+      "keyword": null, 
+      "trigger_type": "C"
+    }, 
+    {
+      "flow": {
+        "name": "Register Patient", 
+        "id": 2805
+      }, 
+      "groups": [], 
+      "keyword": "patient", 
+      "trigger_type": "K"
+    }, 
+    {
+      "flow": {
+        "name": "Confirm Appointment", 
+        "id": 2806
+      }, 
+      "groups": [], 
+      "keyword": "confirm", 
+      "trigger_type": "K"
+    }, 
+    {
+      "flow": {
+        "name": "Missed Call", 
+        "id": 2810
+      }, 
+      "groups": [], 
+      "keyword": null, 
+      "trigger_type": "M"
+    }
+  ]
+}

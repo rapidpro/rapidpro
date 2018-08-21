@@ -1,0 +1,82 @@
+.events h3 {
+  margin-top: 15px;
+  padding-bottom: 0px;
+  margin-bottom: 10px;
+}
+.break {
+  height: 15px;
+}
+.events {
+  width: 100%;
+}
+.campaign-event {
+  border: 2px solid #ecf0f1;
+}
+.campaign-event .time-badge {
+  min-width: 200px;
+  border: 0px solid green;
+  color: #999;
+  padding: 10px;
+  background: #ecf0f1;
+}
+.campaign-event .time-badge .offset {
+  display: inline-block;
+  border: 0px solid red;
+  font-size: 42px;
+  font-weight: 600;
+  line-height: 42px;
+}
+.campaign-event .time-badge .unit {
+  border: 0px solid orange;
+  margin-left: 5px;
+  display: inline-block;
+  font-weight: 100;
+  letter-spacing: 0.1em;
+}
+.campaign-event .time-badge .date {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #999;
+}
+.campaign-event .details {
+  border: 0px solid green;
+  font-size: 15px;
+  line-height: 17px;
+  color: #666;
+  padding: 15px;
+  width: 100%;
+}
+.campaign-event .details .start-flow {
+  border: 0px solid green;
+  margin-top: -5px;
+}
+.campaign-event .details .message {
+  border: 0px solid green;
+}
+.campaign-event .details .message .text {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.1em;
+  top: -10px;
+  left: 14px;
+  right: -14px;
+  margin-right: 25px;
+}
+.campaign-event .details .message .icon-left-quote {
+  position: relative;
+  z-index: 0;
+  top: -5px;
+  font-size: 28px;
+  color: #eee;
+  margin-right: 4px;
+}
+.campaign-event:hover {
+  cursor: pointer;
+  border-color: #dbdfe0;
+}
+.campaign-event:hover .details {
+  background: #fefefe;
+}
+.campaign-event:hover .time-badge {
+  background: #dbdfe0;
+}

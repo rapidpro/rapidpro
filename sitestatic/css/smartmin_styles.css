@@ -1,0 +1,227 @@
+/* Smartmin specific CSS Styles */
+
+html, body {
+    background-color: #efefef;
+}
+
+header {
+  background-color: #fff;
+}
+
+.container {
+}
+
+.table {
+    margin-bottom: 8px;
+}
+
+.form-horizontal .help-block {
+    margin-top: 3px;
+}
+
+table .headerSortUp, table .headerSortDown {
+  background-color: rgba(141, 192, 219, 0.25);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+
+}
+
+table .headerSortDown {
+  background-image: url(../img/sort_dsc.png);
+  background-repeat: no-repeat;
+  background-position: 98% 50%;
+}
+
+table .headerSortUp {
+  background-image: url(../img/sort_asc.png);
+  background-repeat: no-repeat;
+  background-position: 98% 50%;
+}
+
+table .header:hover {
+  background-image: url(../img/sort.png);
+  background-repeat: no-repeat;
+  background-position: 98% 50%;
+  cursor: pointer;
+}
+
+div.page-header {
+    margin-top: 0px;
+    margin-bottom: 17px;
+    padding-bottom: 0px;
+}
+
+.smartmin-form-field ul {
+    margin-left: 0px;
+    margin-top: 5px;
+    padding-left: 0px;
+}
+
+.smartmin-form-field ul li {
+    list-style: none;
+    margin-left: 0px;
+}
+
+.smartmin-form-field ul li input {
+  width: 30px
+
+}
+input.form-control, textarea.form-control, select.form-control {
+  width: 500px;
+}
+
+.smartmin-form-buttons {
+  padding: 17px 20px 18px 0px;
+  margin-top: 18px;
+  margin-bottom: 18px;
+  background-color: #eeeeee;
+  border-top: 1px solid #ddd;
+}
+
+.content {
+    background-color: #fff;
+    padding: 20px;
+    padding-top: 10px;
+    margin: 0 -20px;
+    -webkit-border-radius: 0 0 6px 6px;
+    -moz-border-radius: 0 0 6px 6px;
+    border-radius: 0 0 6px 6px;
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+
+.form-errors li {
+    list-style: none;
+}
+
+.alert-danger, .alert-error {
+    background-color: white;
+    border: #9D261D 3px solid;
+    font-size: 14px;
+}
+
+ul.errorlist {
+    margin-left: 0px;
+    margin-bottom: 8px;
+}
+
+#login-form {
+    padding-left: 0px;
+}
+
+.list-view-search fieldset {
+    padding-top: 0px;
+    margin-bottom: 0px;
+}
+
+.field-errors ul {
+    display: inline;
+}
+
+.field-errors li {
+    list-style: none;
+    color: #9D261D;
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+form div.clearfix.form-field.error {
+    margin-bottom: 12px;
+}
+
+input, textarea, select, .uneditable-input {
+    width: 500px;
+}
+
+input[type="checkbox"] {
+    width: initial;
+}
+
+.help-inline, .help-block {
+    color: #999;
+}
+
+.buttons {
+    margin-bottom: 5px;
+}
+
+.pagination {
+    margin: 0px;
+}
+
+.pagination-text {
+    margin-top: 9px;
+}
+
+tr.inactive td {
+    color: #ccc;
+}
+
+tr.inactive td a {
+    color: #ccc;
+}
+
+.image-picker table td {
+    border: 0px;
+    padding: 0px;
+    vertical-align: bottom;
+}
+
+.image-picker table {
+    border: 0px;
+    margin-bottom: 0px;
+}
+
+.input ul li {
+    display: inline-block;
+}
+
+.input ul li label {
+    text-align: left;
+    padding-right: 10px;
+}
+
+.input ul {
+    margin-left: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+fieldset {
+    padding-top: 0px;
+}
+
+fieldset.field-group legend {
+    background: white;
+    float: left;
+    margin: -25px 0 15px 140px;
+    padding: 0 10px;
+    font-size: 20px;
+    font-weight: normal;
+    line-height: 1;
+    color: #333;
+}
+
+fieldset.field-group {
+    margin: 20px -20px -10px 0;
+    padding: 13px 20px 5px 0;
+    border-top: 1px solid #DDD;
+}
+
+fieldset.field-group div.form-field {
+    clear: both;
+}
+
+.table td.read-label {
+    font-weight: bold;
+    text-align: right;
+}
+
+input[readonly].datepicker {
+    cursor: pointer;
+}
+
+.navbar-toggle .icon-bar {
+  background-color: #333;
+}

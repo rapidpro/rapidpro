@@ -1,0 +1,78 @@
+.deploy {
+  max-width: 940px;
+}
+.deploy .faq {
+  margin-top: 40px;
+}
+.deploy .faq .question {
+  font-weight: 500;
+  color: #666;
+}
+.deploy .faq .answer {
+  margin-bottom: 20px;
+}
+.deploy h5 {
+  color: #5ca869;
+  font-weight: 400;
+}
+.deploy .body {
+  margin-top: 5px;
+}
+.deploy .body .sidebox {
+  border: 1px solid #ecf0f1;
+  float: right;
+  padding: 15px;
+  font-size: 12px;
+  width: 230px;
+  margin-left: 50px;
+  margin-right: 20px;
+  margin-top: 5px;
+  margin-bottom: 20px;
+}
+.deploy .body .sidebox img {
+  margin: auto;
+}
+.deploy .body .sidebox .caption {
+  float: right;
+  width: 150px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+.deploy .body .subbox {
+  float: right;
+  padding: 15px;
+  background: #ecf0f1;
+  font-size: 11px;
+  color: #999;
+  width: 230px;
+  margin-left: 50px;
+  margin-right: 20px;
+  margin-top: -20px;
+  margin-bottom: 20px;
+}
+.deploy .body .subbox h4 {
+  margin-top: 0;
+}
+.deploy .kind {
+  margin-top: 30px;
+}
+.deploy .kind .icon {
+  background: #A5F281;
+  color: #7CB850;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  padding-top: 4px;
+  font-size: 34px;
+  display: inline-block;
+  border: 1px solid grey;
+}
+.deploy .kind .title {
+  display: inline-block;
+  margin: 10px 0px;
+  height: 20px;
+  border-left: 6px solid #7CB850;
+  padding-left: 10px;
+  font-size: 20px;
+  font-weight: 200;
+}

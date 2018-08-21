@@ -1,0 +1,12 @@
+#footer {
+    background-image: url("../img/nyaruka.png");
+    height: 16px;
+    width: 100px;
+    float: right;
+}
+
+footer {
+    margin-top: 5px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}

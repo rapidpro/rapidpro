@@ -1,0 +1,41 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.staging.nyaruka.com", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "ccb08225-1fd9-4c9b-9970-691ae95a24c6", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Hey"
+              }, 
+              "media": {
+                "base": "image/jpeg:attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "ccb08225-1fd9-4c9b-9970-691ae95a24c6", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 2, 
+        "uuid": "5dd69e4d-e73f-48f9-9da0-02aa2cd633b1", 
+        "name": "Media first action",
+        "saved_on": "2017-02-24T21:11:30.100335Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

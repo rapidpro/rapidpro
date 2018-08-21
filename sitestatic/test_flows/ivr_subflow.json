@@ -1,0 +1,260 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "http://rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 131, 
+          "destination": "29a21fe8-10da-40c1-8e17-635f3efee29a",
+          "uuid": "d1ad49dd-c68a-4a8a-8ade-c446024ecdf0", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "Hi there! This is my voice flow."
+              }, 
+              "type": "say", 
+              "uuid": "81a573f5-c07b-4cea-94d9-566a9eebe7ec"
+            }
+          ]
+        }, 
+        {
+          "y": 306, 
+          "x": 231, 
+          "destination": "894a8a44-0455-41ad-bd7c-384f2ed73bfd",
+          "uuid": "c00ebd29-9bd2-4aa6-bf07-776d13e86e0c", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "In the child flow you picked @child.color.category. I think that is a fine choice."
+              }, 
+              "type": "say", 
+              "uuid": "c25a53f4-212e-43fe-b4de-57383f1f8c79"
+            }
+          ]
+        }, 
+        {
+          "y": 264, 
+          "x": 562, 
+          "destination": null, 
+          "uuid": "894a8a44-0455-41ad-bd7c-384f2ed73bfd", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "Uhhhh. Goodbye."
+              }, 
+              "type": "say", 
+              "uuid": "dfadc9e7-e282-4924-a474-6d45710859dc"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "V", 
+      "entry": "d1ad49dd-c68a-4a8a-8ade-c446024ecdf0", 
+      "rule_sets": [
+        {
+          "uuid": "29a21fe8-10da-40c1-8e17-635f3efee29a", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "base": "Completed"
+              }, 
+              "destination": "c00ebd29-9bd2-4aa6-bf07-776d13e86e0c", 
+              "uuid": "60067a6f-db8b-4b46-894c-9ea86902e087", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "base": "Expired"
+              }, 
+              "destination": "894a8a44-0455-41ad-bd7c-384f2ed73bfd", 
+              "uuid": "524afc84-0b1c-43ae-a7c0-97b9161292db", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 130, 
+          "x": 348, 
+          "config": {
+            "flow": {
+              "name": "Child Call", 
+              "uuid": "2a3182a0-2fb6-4423-af2c-94e1b66736ea"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 30, 
+        "uuid": "557e46f0-5353-410f-bdea-f52b38e6e3bd", 
+        "name": "Parent Flow", 
+        "saved_on": "2017-01-19T19:32:49.072351Z"
+      }
+    },
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "77a2b419-90f6-42fd-a9ff-3e7494fc948e", 
+          "uuid": "986e1bc0-3a70-4373-8056-94306ebd2d00", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "This is a child flow. I'm going to ask you your favorite color in a moment. Are you ready? Let's Go!"
+              }, 
+              "type": "say", 
+              "uuid": "34948407-1f9a-4dc3-bdee-102d580e471f"
+            }, 
+            {
+              "recording": null, 
+              "msg": {
+                "base": "What is your favorite color? 1 for Red, 2 for green or 3 for blue."
+              }, 
+              "type": "say", 
+              "uuid": "b83061e6-7349-4169-89d4-b630c553eaa6"
+            }
+          ]
+        }, 
+        {
+          "y": 313, 
+          "x": 180, 
+          "destination": null, 
+          "uuid": "112d54e8-cec3-43e0-a21f-678013740125", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "Thanks, returning to the parent flow now."
+              }, 
+              "type": "say", 
+              "uuid": "a2b7c362-f205-41fd-8e79-79db37611a90"
+            }
+          ]
+        }, 
+        {
+          "y": 276, 
+          "x": 563, 
+          "destination": "77a2b419-90f6-42fd-a9ff-3e7494fc948e", 
+          "uuid": "a59010f9-cdcc-41fa-bd8f-169c89e5d61a", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "base": "Please press one two or three."
+              }, 
+              "type": "say", 
+              "uuid": "a10fefd3-8952-4f74-aea5-6d78bfe54e76"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "V", 
+      "entry": "986e1bc0-3a70-4373-8056-94306ebd2d00", 
+      "rule_sets": [
+        {
+          "uuid": "77a2b419-90f6-42fd-a9ff-3e7494fc948e", 
+          "rules": [
+            {
+              "category": {
+                "base": "Red"
+              }, 
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "destination": "112d54e8-cec3-43e0-a21f-678013740125", 
+              "uuid": "d9a03b5c-d393-451a-a85d-66e43d9f970a", 
+              "destination_type": "A"
+            }, 
+            {
+              "category": {
+                "base": "Green"
+              }, 
+              "test": {
+                "test": 2, 
+                "type": "eq"
+              }, 
+              "destination": "112d54e8-cec3-43e0-a21f-678013740125", 
+              "uuid": "f8ac52c6-f0a0-4277-afb2-be0feebc3e2c", 
+              "destination_type": "A"
+            }, 
+            {
+              "category": {
+                "base": "Blue"
+              }, 
+              "test": {
+                "test": 3, 
+                "type": "eq"
+              }, 
+              "destination": "112d54e8-cec3-43e0-a21f-678013740125", 
+              "uuid": "cbe70980-925c-4421-9251-ad9221b8b8d9", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "destination": "a59010f9-cdcc-41fa-bd8f-169c89e5d61a", 
+              "uuid": "4c6b4655-d0ed-4ae1-8647-4084356aa315", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_digit", 
+          "label": "Color", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 143, 
+          "x": 358, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 15, 
+        "uuid": "2a3182a0-2fb6-4423-af2c-94e1b66736ea", 
+        "name": "Child Call", 
+        "saved_on": "2016-12-07T22:47:57.804532Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "V", 
+      "flow": {
+        "name": "Parent Flow", 
+        "uuid": "557e46f0-5353-410f-bdea-f52b38e6e3bd"
+      }, 
+      "groups": [], 
+      "keyword": null, 
+      "channel": null
+    }
+  ]
+}

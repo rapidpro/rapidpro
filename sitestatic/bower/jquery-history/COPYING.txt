@@ -1,0 +1,47 @@
+jQuery History
+Copyright (C) 2008-2010 Benjamin Arthur Lupton
+
+jQuery History is free software; You can redistribute it and/or modify it under the terms of
+the GNU Affero General Public License version 3 as published by the Free Software Foundation.
+You don't have to do anything special to accept the license and you don’t have to notify
+anyone which that you have made that decision.
+
+jQuery History is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See your chosen license for more details.
+
+You should have received along with jQuery History:
+- A copy of the license used.
+  If not, see <http://www.gnu.org/licenses/agpl-3.0.html>.
+- A copy of our interpretation of the license used.
+  If not, see <http://github.com/balupton/jquery-history/blob/master/COPYING.txt>.
+
+There is a strong belief within us that the license we have chosen provides not only the best solution for providing you with the essential freedom necessary to use jQuery History within your projects, but also for maintaining enough copyleft strength for us to feel confident and secure with releasing our hard work to the public. For your convenience we've included our own interpretation of the license we chose, which can be seen below.
+
+This is our interpretation of the GNU Affero General Public License version 3: (Quoted words are words in which there exists a definition within the license to avoid ambiguity.)
+  1. You must always provide the source code, copyright and license information of jQuery History whenever you "convey" any part of jQuery History;
+       be it a verbatim copy or a modified copy.
+  2. jQuery History was developed and has been provided for the purpose of functioning as a software library.
+     As such it has been developed without any sufficient knowledge about the inner workings of the works which it will be "aggregated" or "used" with.
+     As such it can not be considered a work which is "based on" or "derived" from the works which it will be "aggregated" or "used with", i.e. your work.
+     This provides the following implications:
+       a) You are free to use jQuery History in a work covered by the following licenses:
+            - GNU General Public License version 2
+            - GNU Lesser General Public License version 2.1
+          This is due to those licenses acknowledging that work which is not "based on" their work to fall under the a special "aggregate" use case.
+          This allows for jQuery History to act as an "aggregated" work and be covered by it's own licensing decisions
+            regardless of the license of the work jQuery History would be "aggregating" with.
+          You may find the relevant passages of those licenses which document this starting at:
+            - Line 129 of the GNU General Public License version 2
+            - Line 206 of the GNU Lesser General Public License version 2.1
+      b) If you have "modified", "adapted" or "extended" jQuery History then any of those modifications/extensions/adaptations which you have made
+           are indeed bound by this license; as you are using jQuery History under the definition of a "based on" work.
+      c) If you have not "modified", "adapted" or "extended" jQuery History then your work is not bound by this license;
+           as you are using jQuery History under the definition of an "aggregate" work.
+
+Our dearest hopes are that your own interpretation, values and goals for using our work freely and yet securely align with the license chosen as well as our interpretation of it. If you have any questions about the license chosen for jQuery History you can always email us directly at contact@balupton.com or you can get in contact with the license authors (the Free Software Foundation) at licensing@fsf.org to gain their opinion too.
+
+Alternatively you can provide feedback and acquire the support you need at our support forum. We'll definitely try and help you as soon as possible and to the best of our ability; we understand that user experience is everything, so we want to make you as happy as possible! So feel free to get in touch via our support forum and chat with other users of jQuery History here at:
+http://getsatisfaction.com/balupton/products/balupton_jquery_history
+
+Thanks, and we hope you enjoy using jQuery History and that it's everything you ever hoped it could be.

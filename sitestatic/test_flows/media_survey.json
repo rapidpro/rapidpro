@@ -1,0 +1,202 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 449, 
+          "x": 128, 
+          "destination": "f7a21353-6050-4bed-bd42-b3627ac140d1", 
+          "uuid": "8c6d835f-4d34-4f9e-978f-2f0e161577b5", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Send your location"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 226, 
+          "x": 127, 
+          "destination": "19d6bdaf-c134-4b90-8f56-60a301060d99", 
+          "uuid": "e3138a39-5df2-4c6a-918a-a94e7044022c", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Send a profile pic"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 0, 
+          "x": 126, 
+          "destination": "fc80c25f-2099-453e-a4a8-9fa826ff3bd4", 
+          "uuid": "81f732f4-2a35-4283-9b77-abc4a09e5aa2", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What is your name?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 922, 
+          "x": 130, 
+          "destination": null, 
+          "uuid": "bc2581b8-209c-47a8-b041-ba06faf7eab9", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Name: @flow.name \nPhoto: @flow.photo\nVideo: @flow.video\nLocation: @flow.location"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 675, 
+          "x": 129, 
+          "destination": "5610d5e4-0b8f-4bef-a5d2-1a1ea61fbb1e", 
+          "uuid": "893191e2-dd1a-4904-8bd5-1df0e8ef44c2", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Send a video of yourself doing something awesome."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "S", 
+      "entry": "81f732f4-2a35-4283-9b77-abc4a09e5aa2", 
+      "rule_sets": [
+        {
+          "uuid": "f7a21353-6050-4bed-bd42-b3627ac140d1", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "893191e2-dd1a-4904-8bd5-1df0e8ef44c2", 
+              "uuid": "c0337ee3-0c9c-472f-a265-71f3604f5056", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_gps", 
+          "label": "Location", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 566, 
+          "x": 113, 
+          "config": {}
+        }, 
+        {
+          "uuid": "19d6bdaf-c134-4b90-8f56-60a301060d99", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "8c6d835f-4d34-4f9e-978f-2f0e161577b5", 
+              "uuid": "df070bac-d85f-4fba-bf1b-7c7215e8b41f", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_photo", 
+          "label": "Photo", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 337, 
+          "x": 112, 
+          "config": {}
+        }, 
+        {
+          "uuid": "fc80c25f-2099-453e-a4a8-9fa826ff3bd4", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "e3138a39-5df2-4c6a-918a-a94e7044022c", 
+              "uuid": "6ca9ffbe-2f99-47eb-a750-8c153799c3b6", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Name", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 108, 
+          "x": 111, 
+          "config": {}
+        }, 
+        {
+          "uuid": "5610d5e4-0b8f-4bef-a5d2-1a1ea61fbb1e", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "bc2581b8-209c-47a8-b041-ba06faf7eab9", 
+              "uuid": "ac5f4e3e-1075-4844-8784-7d715691a23c", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_video", 
+          "label": "Video", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 803, 
+          "x": 114, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "name": "Media Survey", 
+        "contact_creation": "run", 
+        "expires": 10080, 
+        "saved_on": "2016-02-27T00:23:19.801198Z", 
+        "id": 35613, 
+        "revision": 169
+      }
+    }
+  ], 
+  "triggers": []
+}

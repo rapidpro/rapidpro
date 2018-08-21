@@ -1,0 +1,50 @@
+{
+  "campaigns": [], 
+  "version": 6, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 0, 
+            "x": 100, 
+            "destination": "53ab0927-f33b-46ab-a32c-50cd144cc9e7", 
+            "uuid": "68df3ab0-a39d-48b1-81c6-72cc73c86f2f", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "This is the first message."
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 126, 
+            "x": 272, 
+            "destination": null, 
+            "uuid": "53ab0927-f33b-46ab-a32c-50cd144cc9e7", 
+            "actions": [
+              {
+                "type": "flow", 
+                "name": "Missing Flow",
+                "id": 35582
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-10-12T21:21:09.106022Z", 
+        "entry": "68df3ab0-a39d-48b1-81c6-72cc73c86f2f", 
+        "rule_sets": [], 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 35583, 
+      "flow_type": "F", 
+      "name": "Start Missing Flow"
+    }
+  ], 
+  "triggers": []
+}

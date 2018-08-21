@@ -1,0 +1,38 @@
+/* Imports*/
+@import url("./yui-reset-3.1.1-min.css");
+@import url("./generic.css");
+
+#demo, #demo div {
+	margin:0;
+}
+#demo {
+	margin: 1em 0;
+	padding: 0;
+	border: 5px solid #DDD;
+	font-size: 14px;
+}
+#menu {
+	margin:0;
+	padding:0;
+	background:#DDD;
+	border-bottom: 5px solid #DDD;
+}
+#menu li {
+	margin:0;
+	padding:0;
+	background:white;
+	padding:0 1em;
+}
+#menu .active {
+	background:yellow;
+	font-weight:bold;
+}
+#content {
+	padding:1em;
+}
+#current {
+	margin:0;
+	padding:0;
+	padding-left:1em;
+	border-top: 5px solid #DDD;
+}

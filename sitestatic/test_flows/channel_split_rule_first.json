@@ -1,0 +1,120 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 240, 
+          "x": 265, 
+          "destination": null, 
+          "uuid": "91f14431-f21a-4580-bc44-8f8850dc7012", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "206 Channel"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 114, 
+          "x": 70, 
+          "destination": null, 
+          "uuid": "5f8f25bb-0567-4dae-ad71-e9f9b03a5527", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "425 Channel"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 110, 
+          "x": 556, 
+          "destination": null, 
+          "uuid": "252b0718-fe80-47bc-9ad8-873c6514bb17", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Unknown Channel"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "2b75692d-8a97-4995-8793-5d55748d18c9", 
+      "rule_sets": [
+        {
+          "uuid": "2b75692d-8a97-4995-8793-5d55748d18c9", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "14255551212"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "425"
+              }, 
+              "destination": "5f8f25bb-0567-4dae-ad71-e9f9b03a5527", 
+              "uuid": "da1a04e4-6e2f-49a8-86f0-71db172335a2", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "12065551212"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "206"
+              }, 
+              "destination": "91f14431-f21a-4580-bc44-8f8850dc7012", 
+              "uuid": "443b9913-86c2-42a1-80fe-c4468709a1bf", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "252b0718-fe80-47bc-9ad8-873c6514bb17", 
+              "uuid": "27f3fea0-2c9b-477c-9d72-a3657b7e0459", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "expression", 
+          "label": "Channel", 
+          "operand": "@channel.tel_e164", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 298, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 35, 
+        "id": 41452, 
+        "name": "Channel Split", 
+        "saved_on": "2015-12-05T00:09:22.490781Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

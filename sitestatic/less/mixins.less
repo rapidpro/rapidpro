@@ -1,0 +1,115 @@
+.placeholder-text(@placeholder-color, @font-weight:400) {
+  ::-webkit-input-placeholder { color:@placeholder-color; font-weight: @font-weight; }
+  ::-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* firefox 19+ */
+  :-ms-input-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* ie */
+  input:-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  }
+}
+
+.opacity (@opacity) {
+    @opacityPercentage: @opacity * 100;
+    opacity: @opacity;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(opacity=(@{opacityPercentage}))";
+    filter: "alpha(opacity = (@{opacityPercentage}))";
+}
+
+.rotate(@rotations) {
+  @deg: @rotations * 90deg;
+  -ms-transform:rotate(@deg);     /* IE 9 */
+  -moz-transform:rotate(@deg);    /* Firefox */
+  -webkit-transform:rotate(@deg); /* Safari and Chrome */
+  -o-transform:rotate(@deg);      /* Opera */
+  filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=@rotations)";
+}
+
+.flip-horizontal () {
+  -moz-transform: scaleX(-1);
+  -o-transform: scaleX(-1);
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+  filter: FlipH;
+  -ms-filter: "FlipH";
+}
+
+.rounded-corners (@radius: 5px) {
+  -webkit-border-radius: @radius;
+  -moz-border-radius: @radius;
+  -ms-border-radius: @radius;
+  -o-border-radius: @radius;
+  border-radius: @radius;
+}
+
+.border-radius (@top, @right, @bottom, @left) {
+  -webkit-border-radius: @top @right @bottom @left;
+  -moz-border-radius: @top @right @bottom @left;
+  -ms-border-radius: @top @right @bottom @left;
+  -o-border-radius: @top @right @bottom @left;
+  border-radius: @top @right @bottom @left;
+}
+
+.drop-shadow (@x: 0px, @y: 1px, @blur: 2px, @spread: 1px, @alpha: 0.25, @color: 0) {
+    -webkit-box-shadow:	@x @y @blur @spread rgba(@color, @color, @color, @alpha);
+    -moz-box-shadow:	@x @y @blur @spread rgba(@color, @color, @color, @alpha);
+    box-shadow:		@x @y @blur @spread rgba(@color, @color, @color, @alpha);
+}
+
+.drop-shadow-color (@x: 0px, @y: 1px, @blur: 2px, @spread: 1px, @color: rgba(10,10,10,.8)) {
+    -webkit-box-shadow:	@x @y @blur @spread @color;
+    -moz-box-shadow:	@x @y @blur @spread @color;
+    box-shadow:		@x @y @blur @spread @color;
+}
+
+.arrow-right(@size: 20px, @color: @color-font-white) {
+  width: 0;
+  height: 0;
+  border-top: @size solid transparent;
+  border-bottom: @size solid transparent;
+  border-left: @size solid @color;
+}
+
+.bg-gradient(@top: @color-bg-lightgrey, @bottom:@color-bg-white, @stop1: 24%, @stop2:92%) {
+  background-color: @top;
+  background-image: -o-linear-gradient(bottom, @bottom @stop1, @top @stop2);
+  background-image: -moz-linear-gradient(bottom, @bottom @stop1, @top @stop2);
+  background-image: -webkit-gradient(linear, left bottom, left top, color-stop(0.24, @bottom), color-stop(0.92, @top));
+  background-image: -webkit-linear-gradient(bottom, @bottom @stop1, @top @stop2);
+  background-image: -ms-linear-gradient(bottom, @bottom @stop1, @top @stop2);
+  background-image: linear-gradient(bottom, @bottom @stop1, @top @stop2);
+}
+
+.scroll-x() {
+  overflow-x:auto;
+  width: 100%;
+
+  &::-webkit-scrollbar {
+      -webkit-appearance: none;
+  }
+
+  &::-webkit-scrollbar:horizontal {
+      height: 11px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+      border-radius: 8px;
+      border: 2px solid white;
+      background-color: rgba(0, 0, 0, .5);
+  }
+  &::-webkit-scrollbar-track {
+      background-color: #fff;
+      border-radius: 8px;
+  }
+}
+
+.scroll-y() {
+  overflow-y:auto;
+
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0,0,0,.5);
+    -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+  }
+}

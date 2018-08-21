@@ -1,0 +1,36 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "e41e7aad-de93-4cc0-ae56-d6af15ba1ac5", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hello world"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "e41e7aad-de93-4cc0-ae56-d6af15ba1ac5", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "id": 41049, 
+        "name": "No ruleset flow", 
+        "saved_on": "2015-11-20T11:02:19.790131Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

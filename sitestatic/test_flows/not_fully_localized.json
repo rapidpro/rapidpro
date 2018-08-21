@@ -1,0 +1,37 @@
+{
+  "version": 7,
+  "flows": [
+    {
+      "version": 7,
+      "flow_type": "F",
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": null,
+          "uuid": "127f3736-77ce-4006-9ab0-0c07cea88956",
+          "actions": [
+            {
+              "msg": {
+                "base": "What is your favorite color?"
+              },
+              "type": "reply"
+            }
+          ]
+        },
+      ],
+      "last_saved": "2015-09-15T02:37:08.805578Z",
+      "entry": "127f3736-77ce-4006-9ab0-0c07cea88956",
+      "rule_sets": [],
+      "metadata": {
+        "notes": [],
+        "name": "Not fully localized",
+        "id": 35559,
+        "expires": 720,
+        "revision": 1
+      }
+    }
+  ],
+  "triggers": []
+}

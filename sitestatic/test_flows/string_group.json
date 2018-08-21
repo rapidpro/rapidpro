@@ -1,0 +1,31 @@
+{
+  "campaigns": [],
+  "triggers": [],
+  "version": 3,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "name": "String Group",
+      "id": -1,
+      "uuid": "f467561a-3b95-4a4a-94bc-97bc6b4268c0",
+      "definition": {
+        "entry": "2d702ba6-461e-442c-96bc-2b8a87c9ceca",
+        "action_sets": [
+          {
+            "x": 0,
+            "y": 0,
+            "uuid": "2d702ba6-461e-442c-96bc-2b8a87c9ceca",
+            "destination": null,
+            "actions":[
+              {
+                "groups": ["The Funky Bunch", "@contact.name"],
+                "type": "add_group"
+              }
+            ]
+          }
+        ],
+        "rulesets": []
+      }
+    }
+  ]
+}

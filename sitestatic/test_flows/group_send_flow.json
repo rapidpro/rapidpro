@@ -1,0 +1,44 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "9855bdb6-7cd1-4d48-813f-516b651fee28", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "It is time for a new survey."
+              }, 
+              "variables": [], 
+              "type": "send", 
+              "groups": [
+                {
+                  "name": "Survey Audience", 
+                  "id": 195
+                }
+              ], 
+              "contacts": []
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "9855bdb6-7cd1-4d48-813f-516b651fee28", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "id": 43122, 
+        "name": "Group Send Flow", 
+        "saved_on": "2015-12-07T17:14:50.591634Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

@@ -1,0 +1,23 @@
+{
+  "name": "highcharts",
+  "description": "JavaScript charting framework",
+  "homepage": "http://www.highcharts.com",
+  "version": "v5.0.6",
+  "author": "Highsoft AS <support@highcharts.com> (http://www.highcharts.com/about)",
+  "main": "highcharts.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/highcharts/highcharts-dist"
+  },
+  "keywords": [
+    "charts",
+    "dataviz",
+    "graphs",
+    "visualization",
+    "data",
+    "browserify",
+    "webpack"
+  ],
+  "bugs": "https://github.com/highcharts/highcharts/issues",
+  "license": "https://www.highcharts.com/license"
+}

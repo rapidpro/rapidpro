@@ -1,0 +1,157 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "9195865b-05ea-45b2-af55-2fc321b4d0e7", 
+          "uuid": "e4ee1589-8f4c-42b9-89cc-f3a0bd7a1d5a", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Msg1"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 175, 
+          "x": 284, 
+          "destination": "6bfe2357-6cca-406b-be83-9c7693c5b905", 
+          "uuid": "9195865b-05ea-45b2-af55-2fc321b4d0e7", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Msg2"
+              }, 
+              "type": "reply"
+            }, 
+            {
+              "msg": {
+                "base": "Msg3"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 433, 
+          "x": 100, 
+          "destination": "1b7c905a-e587-4646-a356-4bce81cdf28d", 
+          "uuid": "6bfe2357-6cca-406b-be83-9c7693c5b905", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Msg4"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 756, 
+          "x": 430, 
+          "destination": "b977d8c7-d78a-422b-8719-2ff32792ad29", 
+          "uuid": "2d88f077-ba3e-4161-bfb8-e0f8d404be2f", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Ack1"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 921, 
+          "x": 527, 
+          "destination": "9c55ceb1-a65a-41ba-bb95-261c87900e29", 
+          "uuid": "b977d8c7-d78a-422b-8719-2ff32792ad29", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Ack2"
+              }, 
+              "type": "reply"
+            }, 
+            {
+              "msg": {
+                "base": "Ack3"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 1124, 
+          "x": 353, 
+          "destination": null, 
+          "uuid": "9c55ceb1-a65a-41ba-bb95-261c87900e29", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Ack4"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "e4ee1589-8f4c-42b9-89cc-f3a0bd7a1d5a", 
+      "rule_sets": [
+        {
+          "uuid": "1b7c905a-e587-4646-a356-4bce81cdf28d", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "destination": "2d88f077-ba3e-4161-bfb8-e0f8d404be2f", 
+              "uuid": "00a25d4f-ba69-43c5-869c-b5c643d0238e", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 586, 
+          "x": 284, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 20, 
+        "id": 52955, 
+        "name": "ordering", 
+        "saved_on": "2016-05-05T21:41:59.161439Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "ordering", 
+        "id": 52955
+      }, 
+      "groups": [], 
+      "keyword": "ordering", 
+      "channel": null
+    }
+  ]
+}

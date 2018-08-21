@@ -1,0 +1,55 @@
+.manage {
+  position: absolute;
+  right: 10px;
+  margin-top: -40px;
+}
+p.instructions {
+  margin-bottom: 0px;
+  width: 100%;
+  margin-top: 15px;
+  font-size: 19px;
+  line-height: 24px;
+}
+.video {
+  vertical-align: top;
+}
+.video h3 {
+  border-bottom: 1px solid #ddd;
+  margin-top: 40px;
+}
+.video iframe {
+  display: inline-block;
+  width: 600;
+  vertical-align: top;
+  border: 1px solid #f3f3f3;
+  margin-top: 15px;
+}
+.video .description {
+  display: inline-block;
+  width: 340px;
+  vertical-align: top;
+  font-size: 20px;
+  line-height: 24px;
+  margin-left: 25px;
+  color: #999;
+}
+.video .summary {
+  padding-top: 15px;
+  white-space: pre-line;
+}
+.video .more {
+  font-size: 14px;
+}
+.start-link {
+  font-size: 30px;
+  line-height: 40px;
+  padding: 10px;
+  display: block;
+  background-color: blue;
+  color: #fff;
+  text-decoration: none;
+}
+.start-cell {
+  margin: 20px 0px 30px 0px;
+  text-align: center;
+}

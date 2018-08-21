@@ -1,0 +1,274 @@
+{
+  "campaigns": [], 
+  "version": 9, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "c89414cf-7c07-42ce-9135-86a5a036f651", 
+          "uuid": "accd6da2-1c2c-4962-bd66-51f75c3d89d8", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "This is a parent flow. What would you like to do?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 65, 
+          "x": 590, 
+          "destination": "c89414cf-7c07-42ce-9135-86a5a036f651", 
+          "uuid": "2be31f2e-e38c-42da-8626-7b668f5c2bcb", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "I don't recognize that command."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 386, 
+          "x": 341, 
+          "destination": "c89414cf-7c07-42ce-9135-86a5a036f651",
+          "uuid": "4dd51bcf-6dde-47ae-84e5-40383bafb0d6", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "@flow.subflow.category: You picked @child.color.category."
+              }, 
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 386,
+          "x": 641,
+          "destination": null,
+          "uuid": "12345678-6dde-47ae-84e5-40383bafb0d6",
+          "actions": [
+            {
+              "msg": {
+                "eng": "You expired out of the subflow"
+              },
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "accd6da2-1c2c-4962-bd66-51f75c3d89d8", 
+      "rule_sets": [
+        {
+          "uuid": "c89414cf-7c07-42ce-9135-86a5a036f651", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "color"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Color"
+              }, 
+              "destination": "546c368a-90ef-4145-8da6-20b8bb198b31", 
+              "uuid": "b8eddbd7-3c31-46bb-895c-543bcba447bc", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "2be31f2e-e38c-42da-8626-7b668f5c2bcb", 
+              "uuid": "806cdd98-5104-4ebe-9ffc-4c884973ca5f", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "kind",
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 154, 
+          "x": 278, 
+          "config": {}
+        }, 
+        {
+          "uuid": "546c368a-90ef-4145-8da6-20b8bb198b31", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "eng": "Complete"
+              }, 
+              "destination": "4dd51bcf-6dde-47ae-84e5-40383bafb0d6", 
+              "uuid": "d163cfa4-5c75-4735-a0e0-d5a662001f80", 
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "category": {
+                "eng": "Expired"
+              },
+              "destination": "12345678-6dde-47ae-84e5-40383bafb0d6",
+              "uuid": "12345678-5c75-4735-a0e0-d5a662001f80",
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "subflow", 
+          "label": "Subflow", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 272, 
+          "x": 248, 
+          "config": {
+            "flow": {
+              "uuid": "8a2c48a7-0592-4863-85c1-6b32584d4a93",
+              "name": "Child Flow"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 24, 
+        "uuid": "7c1dee9b-af4c-407b-a269-5553e59149e1", 
+        "name": "Parent Flow", 
+        "saved_on": "2016-04-26T23:13:32.368766Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "fc561730-70f8-4426-b3c7-da237e88331e", 
+          "uuid": "b7fe7de0-bb6f-4c11-8a4d-93ff2a1526eb", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What @parent.kind do you like?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 160, 
+          "x": 730, 
+          "destination": "fc561730-70f8-4426-b3c7-da237e88331e", 
+          "uuid": "8d80451e-f457-4438-9f91-75b3232d1826", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Try again."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "b7fe7de0-bb6f-4c11-8a4d-93ff2a1526eb", 
+      "rule_sets": [
+        {
+          "uuid": "fc561730-70f8-4426-b3c7-da237e88331e", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Red"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Red"
+              }, 
+              "uuid": "8c25293a-5864-46b0-b61a-c9815ed03fdf"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "Green"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Green"
+              }, 
+              "uuid": "e04e08b0-9f64-459f-b4d3-f301c5a825ff"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "Blue"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Blue"
+              }, 
+              "uuid": "5cf35b6a-fe47-4ca4-bc59-9d9efb6348f1"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "8d80451e-f457-4438-9f91-75b3232d1826", 
+              "uuid": "e2790305-7662-4118-b27c-21e3cfd95317", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Color", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 110, 
+          "x": 254, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 11, 
+        "uuid": "8a2c48a7-0592-4863-85c1-6b32584d4a93", 
+        "name": "Child Flow", 
+        "saved_on": "2016-04-26T21:34:39.525175Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

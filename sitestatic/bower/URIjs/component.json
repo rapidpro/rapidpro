@@ -1,0 +1,15 @@
+{
+    "name": "URIjs",
+    "version": "1.9.1",
+    "main": [
+        "src/URI.js",
+        "src/IPv6.js",
+        "src/SecondLevelDomains.js",
+        "src/punycode.js",
+        "src/URITemplate.js",
+        "src/jquery.URI.js"
+    ],
+    "dependencies": {
+        "jquery": ">=1.7.0"
+    }
+}

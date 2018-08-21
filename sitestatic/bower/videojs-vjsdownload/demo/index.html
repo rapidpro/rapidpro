@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="http://vjs.zencdn.net/5.6.0/video-js.css" rel="stylesheet">
+        <link href="../dist/videojs-vjsdownload.css" rel="stylesheet">
+
+        <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+
+        <video id="my-video" class="video-js" controls preload="auto" width="640" height="264"
+          poster="http://vjs.zencdn.net/v/oceans.png">
+            <source src="http://techslides.com/demos/sample-videos/small.mp4" type='video/mp4'>
+            <source src="http://techslides.com/demos/sample-videos/small.webm" type='video/webm'>
+            <p class="vjs-no-js">
+              To view this video please enable JavaScript, and consider upgrading to a web browser that
+              <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+            </p>
+          </video>
+
+    <script src="http://vjs.zencdn.net/5.6.0/video.js"></script>
+    <script src="../dist/videojs-vjsdownload.js"></script>
+    <script type="text/javascript">
+        var player = videojs(document.querySelector('.video-js'), {
+          "playbackRates": [1],
+          plugins: {
+            vjsdownload:{
+              beforeElement: 'playbackRateMenuButton', // default fullscreenMenuToggle
+              textControl: 'Download video', // default "Download video"
+              name: 'downloadButton' // default "downloadButton"
+            }
+          }
+        } , function() {
+          console.log('Callback video-js initiated');
+          this.on('downloadvideo', function(){
+            console.log('downloadvideo triggered');
+          });
+        });
+    </script>
+    </body>
+</html>

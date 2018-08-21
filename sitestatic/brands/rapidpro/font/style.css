@@ -1,0 +1,15 @@
+@font-face {
+	font-family: 'rapidpro';
+	src:url('fonts/rapidpro.eot?-vr02l1');
+	src:url('fonts/rapidpro.eot?#iefix-vr02l1') format('embedded-opentype'),
+		url('fonts/rapidpro.woff?-vr02l1') format('woff'),
+		url('fonts/rapidpro.ttf?-vr02l1') format('truetype'),
+		url('fonts/rapidpro.svg?-vr02l1#rapidpro') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}
+
+.icon-logo:before {
+  font-family: 'rapidpro';
+  content: "\e600";
+}

@@ -1,0 +1,50 @@
+.select-section {
+  margin-top: -80px;
+  margin-right: -20px;
+}
+h3 {
+  margin-top: 30px;
+}
+.exportables {
+  border-top: 1px solid #ccc;
+  padding: 0px 20px;
+}
+.exportables .exportable {
+  vertical-align: top;
+  width: 350px;
+  display: inline-block;
+  padding-left: 23px;
+  margin-bottom: 10px;
+}
+.exportables h4 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #999;
+  padding-top: 10px;
+}
+.exportables input[type=checkbox] {
+  display: inline-block;
+  margin-top: 3px;
+  margin-right: 5px;
+  vertical-align: top;
+}
+.exportables label {
+  display: inline-block;
+  width: 290px;
+}
+.dependencies {
+  color: #9ba1a5;
+  margin-left: 25px;
+  font-size: 12px;
+}
+.dependencies p {
+  display: inline;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+.dependencies .list {
+  display: inline;
+  margin-right: 2px;
+  margin-left: 2px;
+}

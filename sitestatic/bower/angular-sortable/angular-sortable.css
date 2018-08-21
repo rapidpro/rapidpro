@@ -1,0 +1,38 @@
+[ng-sortable] {
+    position: relative !important;
+}
+[ng-sortable][class*=sortable-sorting] {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+[ng-sortable] [class*=sortable-item] {
+    cursor: move;
+}
+
+[ng-sortable] [class*=sortable-state] {
+    display: none;
+}
+[ng-sortable] [class*=sortable-clone] {
+    display: block !important;
+    position: absolute !important;
+}
+[ng-sortable] [class*=sortable-clone] [class*=sortable-initial] {
+    display: none;
+}
+[ng-sortable] [class*=sortable-clone] [class*=sortable-state] {
+    display: block;
+}
+
+[ng-sortable] [class*=sortable-item][class*=sortable-activeitem] {
+    opacity: 0.5;
+    display: block;
+}
+
+[ng-sortable][class*=sortable-both] [class*=sortable-item] {
+    display: inline-block;
+}
+[ng-sortable][class*=sortable-horizontal] [class*=sortable-item] {
+    display: inline-block;
+    white-space: nowrap;
+}

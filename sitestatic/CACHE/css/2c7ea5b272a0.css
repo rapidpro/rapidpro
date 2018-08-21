@@ -1,0 +1,53 @@
+h2 a {
+  text-decoration: none;
+  color: inherit;
+}
+h2 a:hover {
+  text-decoration: none;
+  color: inherit;
+}
+h4 {
+  margin-bottom: 6px;
+}
+.total {
+  color: #999;
+  font-size: 12px;
+  text-align: right;
+  margin-top: -5px;
+}
+.name {
+  display: inline-block;
+  width: 150px;
+}
+.relative-to {
+  display: inline-block;
+  color: #999;
+  margin-left: 10px;
+}
+.message {
+  font-size: 15px;
+  line-height: 17px;
+  border: 0px solid green;
+  color: #999;
+  margin-left: -13px;
+}
+.message .text {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.1em;
+  top: -10px;
+  left: 14px;
+  right: -14px;
+  margin-right: 25px;
+}
+.message .icon-left-quote {
+  position: relative;
+  z-index: 0;
+  top: -5px;
+  font-size: 28px;
+  color: #eee;
+  margin-right: 4px;
+}
+.no-messages {
+  color: #bbb;
+}

@@ -1,0 +1,97 @@
+{
+  "version": 4,
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng",
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": "6425c5fb-3da0-49ce-b3ab-39f27af00734",
+            "uuid": "e923eedd-f165-4034-8588-562f677cdc5a",
+            "actions": [
+              {
+                "recording": null,
+                "msg": {
+                  "eng": "Please make a recording after the tone."
+                },
+                "type": "say",
+                "uuid": "5f59e92c-77ad-40bf-8fcd-bbc48da5a9ab"
+              }
+            ]
+          },
+          {
+            "y": 267,
+            "x": 500,
+            "destination": "ebb433fe-aa4b-48e5-a036-627f1ecc205a",
+            "uuid": "ebb433fe-aa4b-48e5-a036-627f1ecc106b",
+            "actions": [
+              {
+                "url": "@flow.recording",
+                "type": "play",
+                "uuid": "3a64b44f-02c2-4a7b-89d6-96862ec74ac9"
+              }
+            ]
+          },
+          {
+            "y": 267,
+            "x": 100,
+            "destination": null,
+            "uuid": "ebb433fe-aa4b-48e5-a036-627f1ecc205a",
+            "actions": [
+              {
+                "recording": null,
+                "msg": {
+                  "eng": "Thank you for the recording."
+                },
+                "type": "say",
+                "uuid": "3a64b44f-02c2-4a7b-89d6-96862ec71bd7"
+              }
+            ]
+          }
+        ],
+        "last_saved": "2015-01-28T18:30:25.175217Z",
+        "entry": "e923eedd-f165-4034-8588-562f677cdc5a",
+        "rule_sets": [
+          {
+            "uuid": "6425c5fb-3da0-49ce-b3ab-39f27af00734",
+            "webhook_action": null,
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": {
+                  "base": "All Responses",
+                  "eng": "All Responses"
+                },
+                "destination": "ebb433fe-aa4b-48e5-a036-627f1ecc106b",
+                "config": {
+                  "type": "true",
+                  "verbose_name": "contains anything",
+                  "name": "Other",
+                  "operands": 0
+                },
+                "uuid": "288da1b3-3e63-4776-8845-39f398eb5b55"
+              }
+            ],
+            "webhook": null,
+            "label": "Recording",
+            "operand": "@step.value",
+            "finished_key": null,
+            "response_type": "R",
+            "y": 145,
+            "x": 85
+          }
+        ],
+        "metadata": {}
+      },
+      "id": 200,
+      "flow_type": "V",
+      "name": "Capture Recording"
+    }
+  ],
+  "triggers": []
+}

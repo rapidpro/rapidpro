@@ -1,0 +1,150 @@
+{
+  "version": 6, 
+  "flows": [
+    {
+      "definition": {
+        "base_language": "eng", 
+        "action_sets": [
+          {
+            "y": 184, 
+            "x": 328, 
+            "destination": "f6b24ae0-ed9e-425e-a994-533dfc967a3c", 
+            "uuid": "4b61528e-aad5-4497-982c-8aa0ca2b675e", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "Thanks for participating, what is your name?"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 534, 
+            "x": 329, 
+            "destination": null, 
+            "uuid": "33fcb32e-5598-43b7-84b3-83c601b4a3a8", 
+            "actions": [
+              {
+                "field": "name", 
+                "type": "save", 
+                "value": "@flow.name", 
+                "label": "Contact Name"
+              }, 
+              {
+                "msg": {
+                  "eng": "Great to meet you @contact.name"
+                }, 
+                "type": "reply"
+              }
+            ]
+          }, 
+          {
+            "y": 184, 
+            "x": 49, 
+            "destination": null, 
+            "uuid": "32e1e5d3-f0a0-4502-b87b-520415193147", 
+            "actions": [
+              {
+                "msg": {
+                  "eng": "We already know who you are Eric."
+                }, 
+                "type": "reply"
+              }
+            ]
+          }
+        ], 
+        "last_saved": "2015-10-01T19:17:31.399227Z", 
+        "entry": "17f75cfa-28cc-4fe5-9eda-78a698398e48", 
+        "rule_sets": [
+          {
+            "uuid": "17f75cfa-28cc-4fe5-9eda-78a698398e48", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": {
+                    "eng": "Eric"
+                  }, 
+                  "type": "contains_any"
+                }, 
+                "category": {
+                  "eng": "Eric"
+                }, 
+                "destination": "32e1e5d3-f0a0-4502-b87b-520415193147", 
+                "uuid": "a91926d7-1afb-4125-b47b-f392874ad9c8", 
+                "destination_type": "A"
+              }, 
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "Other"
+                }, 
+                "destination": "4b61528e-aad5-4497-982c-8aa0ca2b675e", 
+                "uuid": "dbf4fe9a-edbb-4765-8b10-8f0368725929", 
+                "destination_type": "A"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "contact_field", 
+            "label": "Contact Name", 
+            "operand": "@contact.name", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 0, 
+            "x": 100, 
+            "config": {}
+          }, 
+          {
+            "uuid": "f6b24ae0-ed9e-425e-a994-533dfc967a3c", 
+            "webhook_action": null, 
+            "rules": [
+              {
+                "test": {
+                  "test": "true", 
+                  "type": "true"
+                }, 
+                "category": {
+                  "eng": "All Responses"
+                }, 
+                "destination": "33fcb32e-5598-43b7-84b3-83c601b4a3a8", 
+                "uuid": "e1fc3b41-674e-4d36-8e02-3ec3d12cf896", 
+                "destination_type": "A"
+              }
+            ], 
+            "webhook": null, 
+            "ruleset_type": "wait_message", 
+            "label": "Name", 
+            "operand": "@step.value", 
+            "finished_key": null, 
+            "response_type": "", 
+            "y": 374, 
+            "x": 313, 
+            "config": {}
+          }
+        ], 
+        "type": "F", 
+        "metadata": {}
+      }, 
+      "expires": 10080, 
+      "id": 38220, 
+      "flow_type": "F", 
+      "name": "Trigger Start"
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Trigger Start", 
+        "id": 38220
+      }, 
+      "groups": [], 
+      "keyword": "trigger", 
+      "channel": null
+    }
+  ]
+}

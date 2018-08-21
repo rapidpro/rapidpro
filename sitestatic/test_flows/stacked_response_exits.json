@@ -1,0 +1,259 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.staging.nyaruka.com", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "d6a92b7b-7723-48b7-b457-ddcfc8000d28", 
+          "uuid": "60ec7772-b103-4db3-982c-78ae711a5ead", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Send something!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "60ec7772-b103-4db3-982c-78ae711a5ead", 
+      "rule_sets": [
+        {
+          "uuid": "d6a92b7b-7723-48b7-b457-ddcfc8000d28", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "uuid": "3504c61e-df54-409c-974b-581c3dbfbfae"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 178, 
+          "x": 171, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 7, 
+        "uuid": "0e2d8e89-4e80-4825-8de8-998e53d74af5", 
+        "name": "Stacker Leaf", 
+        "saved_on": "2017-04-12T15:33:07.266594Z"
+      }
+    }, 
+    {
+      "base_language": "base", 
+      "action_sets": [], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "45cca859-53af-40de-bdc6-ef0ab8ca4436", 
+      "rule_sets": [
+        {
+          "uuid": "45cca859-53af-40de-bdc6-ef0ab8ca4436", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "base": "Bucket 1"
+              }, 
+              "destination": "cd13998e-bda1-412a-b860-96576e130afd", 
+              "uuid": "02a5f043-f072-48ca-9d58-f8b94a591daf", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "base": "Bucket 2"
+              }, 
+              "destination": "cd13998e-bda1-412a-b860-96576e130afd", 
+              "uuid": "3e458151-fca6-4aa2-ac9e-6e323013e71c", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Response 1", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {}
+        }, 
+        {
+          "uuid": "cd13998e-bda1-412a-b860-96576e130afd", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "base": "Completed"
+              }, 
+              "uuid": "b19fa365-c000-4f9f-b011-c2963d09a185"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "base": "Expired"
+              }, 
+              "uuid": "78ae77e1-cbaf-4686-8daf-578b7dc10411"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 252, 
+          "x": 86, 
+          "config": {
+            "flow": {
+              "name": "Stack Leaf", 
+              "uuid": "0e2d8e89-4e80-4825-8de8-998e53d74af5"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 4, 
+        "uuid": "027c37db-bbdd-4eb0-bdeb-62fed613dcc2", 
+        "name": "Stacker", 
+        "saved_on": "2017-04-12T15:30:25.592752Z"
+      }
+    }, 
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "b2e58783-791a-4923-b710-a557637b3254", 
+          "uuid": "e7573da9-302a-4576-ad92-bf2bfeadcf88", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Start!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 374, 
+          "x": 34, 
+          "destination": null, 
+          "uuid": "56ffa968-7966-480a-9cb5-8265e198e972", 
+          "actions": [
+            {
+              "msg": {
+                "base": "End!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "e7573da9-302a-4576-ad92-bf2bfeadcf88", 
+      "rule_sets": [
+        {
+          "uuid": "b2e58783-791a-4923-b710-a557637b3254", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "base": "Completed"
+              }, 
+              "destination": "56ffa968-7966-480a-9cb5-8265e198e972", 
+              "uuid": "12c5b913-bbfd-4533-8f19-5e14eec7aa6b", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "base": "Expired"
+              }, 
+              "destination": "56ffa968-7966-480a-9cb5-8265e198e972", 
+              "uuid": "d37c36f7-c3c5-47cf-a9f8-2a49baea8c4a", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 164, 
+          "x": 148, 
+          "config": {
+            "flow": {
+              "name": "Stacker", 
+              "uuid": "027c37db-bbdd-4eb0-bdeb-62fed613dcc2"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "saved_on": "2017-04-12T15:31:00.808672Z", 
+        "uuid": "e1f8b021-dd86-4af2-883f-39ccf6f37690", 
+        "name": "Stacked", 
+        "revision": 6
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Stacked", 
+        "uuid": "e1f8b021-dd86-4af2-883f-39ccf6f37690"
+      }, 
+      "groups": [], 
+      "keyword": "stacked", 
+      "channel": null
+    }
+  ]
+}

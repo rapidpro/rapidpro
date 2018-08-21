@@ -1,0 +1,63 @@
+#range-group {
+  margin-top: 30px;
+  background: #eee;
+  padding: 2px;
+}
+#range-group #range-header {
+  height: 20px;
+  padding: 10px;
+}
+#range-group #range-header #range-from {
+  float: left;
+}
+#range-group #range-header #range-to {
+  float: right;
+}
+#range-group #message-chart {
+  height: 400px;
+}
+.range-details {
+  background: #fff;
+  padding: 10px;
+}
+.took {
+  font-size: 11px;
+}
+th.center,
+td.center {
+  text-align: center;
+}
+.posterize {
+  font-weight: 500;
+}
+#recents {
+  height: 330px;
+  padding-bottom: 30px;
+}
+#daily-visits {
+  height: 450px;
+  padding-bottom: 30px;
+}
+#active-channels {
+  height: 240px;
+  padding-bottom: 30px;
+}
+#messages {
+  height: 330px;
+  padding-bottom: 30px;
+}
+#new-rule-action-sets {
+  height: 240px;
+  padding-bottom: 30px;
+}
+#flowsteps {
+  height: 240px;
+  padding-bottom: 30px;
+}
+#contacts {
+  height: 330px;
+  padding-bottom: 30px;
+}
+.small-format {
+  width: 70px;
+}

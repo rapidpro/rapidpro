@@ -1,0 +1,62 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "be59c0db-2e49-4b05-a42f-b886aba58327", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "This is the first message."
+              }, 
+              "type": "reply"
+            }, 
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "bootstrap 3", 
+                  "id": 12644
+                }
+              ]
+            }, 
+            {
+              "msg": {
+                "eng": "This is the second message."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "be59c0db-2e49-4b05-a42f-b886aba58327", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 3, 
+        "id": 57118, 
+        "name": "Two in Row", 
+        "saved_on": "2016-07-12T13:31:24.894313Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Two in Row", 
+        "id": 57118
+      }, 
+      "groups": [], 
+      "keyword": "two", 
+      "channel": null
+    }
+  ]
+}
