@@ -19,7 +19,6 @@ db
 node_modules
 parser.out
 screenshots
-sitestatic
 src
 static/coffee/analytics.js
 static/coffee/flows.js
