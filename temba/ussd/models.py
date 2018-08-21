@@ -105,7 +105,7 @@ class USSDSession(ChannelSession):
         content=None,
         starcode=None,
         org=None,
-        async=True,
+        do_async=True,
     ):
 
         trigger = None
@@ -169,7 +169,7 @@ class USSDSession(ChannelSession):
             created = None
 
         # start session
-        if created and async and trigger:
+        if created and do_async and trigger:
             connection.start_async(trigger.flow, date, message_id)
 
         # resume session, deal with incoming content and all the other states
