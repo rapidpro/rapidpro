@@ -15,7 +15,8 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from twilio import TwilioRestException, twiml
+from twilio.base.exceptions import TwilioRestException
+from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
 from django.conf.urls import url
@@ -818,7 +819,7 @@ class Channel(TembaModel):
     def generate_ivr_response(self):
         ivr_protocol = Channel.get_type_from_code(self.channel_type).ivr_protocol
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            return twiml.Response()
+            return VoiceResponse()
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
             return NCCOResponse()
 

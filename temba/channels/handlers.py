@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 import pytz
-from twilio import twiml
+from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
 from django.db.models import Q
@@ -80,7 +80,7 @@ class TWIMLCallHandler(BaseChannelHandler):
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
-        from twilio.util import RequestValidator
+        from twilio.request_validator import RequestValidator
         from temba.flows.models import FlowSession
 
         signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
@@ -104,7 +104,7 @@ class TWIMLCallHandler(BaseChannelHandler):
             # find a channel that knows how to answer twilio calls
             channel = self.get_ringing_channel(uuid=channel_uuid)
             if not channel:
-                response = twiml.Response()
+                response = VoiceResponse()
                 response.say("Sorry, there is no channel configured to take this call. Goodbye.")
                 response.hangup()
                 return HttpResponse(str(response))

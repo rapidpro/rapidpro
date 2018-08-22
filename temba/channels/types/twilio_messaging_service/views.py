@@ -1,6 +1,6 @@
 
 from smartmin.views import SmartFormView
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.http import HttpResponseRedirect

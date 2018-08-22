@@ -3,8 +3,8 @@ import time
 
 import requests
 from nexmo import AuthenticationError, ClientError, ServerError
-from twilio import TwilioRestException
-from twilio.util import RequestValidator
+from twilio.base.exceptions import TwilioRestException
+from twilio.request_validator import RequestValidator
 
 from django.conf import settings
 from django.urls import reverse
@@ -126,9 +126,9 @@ class NexmoClient(NexmoCli):
 
 
 class TwilioClient(TembaTwilioRestClient):
-    def __init__(self, account, token, org, **kwargs):
+    def __init__(self, account_sid, token, org, **kwargs):
         self.org = org
-        super().__init__(account=account, token=token, **kwargs)
+        super().__init__(account_sid, token, **kwargs)
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
@@ -144,7 +144,7 @@ class TwilioClient(TembaTwilioRestClient):
             call.status = IVRCall.WIRED
             call.save()
 
-            for event in self.calls.events:
+            for event in self.events:
                 ChannelLog.log_ivr_interaction(call, "Started call", event)
 
         except TwilioRestException as twilio_error:
@@ -193,10 +193,10 @@ class TwilioClient(TembaTwilioRestClient):
         return None  # pragma: needs cover
 
     def hangup(self, call):
-        response = self.calls.hangup(call.external_id)
-        for event in self.calls.events:
+        twilio_call = self.calls.get(call.external_id).update(status="completed")
+        for event in self.events:
             ChannelLog.log_ivr_interaction(call, "Hung up call", event)
-        return response
+        return twilio_call
 
 
 class VerboiceClient:  # pragma: needs cover

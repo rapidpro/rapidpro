@@ -20,7 +20,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.conf import settings

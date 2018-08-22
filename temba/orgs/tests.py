@@ -1567,8 +1567,8 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
-    @patch("temba.orgs.views.TwilioRestClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("temba.orgs.views.Client", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_twilio_connect(self):
         with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount("Full")

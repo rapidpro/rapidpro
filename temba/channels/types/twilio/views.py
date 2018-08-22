@@ -4,7 +4,7 @@ from uuid import uuid4
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.conf import settings

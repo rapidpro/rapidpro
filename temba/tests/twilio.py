@@ -1,4 +1,4 @@
-from twilio.util import RequestValidator
+from twilio.request_validator import RequestValidator
 
 from temba.ivr.clients import TwilioClient
 
@@ -15,12 +15,28 @@ class MockTwilioClient(TwilioClient):
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base
-        self.applications = MockTwilioClient.MockApplications()
-        self.calls = MockTwilioClient.MockCalls()
-        self.accounts = MockTwilioClient.MockAccounts()
-        self.phone_numbers = MockTwilioClient.MockPhoneNumbers()
-        self.sms = MockTwilioClient.MockSMS()
         self.auth = ["", "FakeRequestToken"]
+        self.events = []
+
+    @property
+    def applications(self):
+        return MockTwilioClient.MockApplications()
+
+    @property
+    def calls(self):
+        return MockTwilioClient.MockCalls()
+
+    @property
+    def accounts(self):
+        return MockTwilioClient.MockAccounts()
+
+    @property
+    def phone_numbers(self):
+        return MockTwilioClient.MockPhoneNumbers()
+
+    @property
+    def messages(self):
+        return MockTwilioClient.MockSMS()
 
     def validate(self, request):
         return True
@@ -45,13 +61,13 @@ class MockTwilioClient(TwilioClient):
             self.uri = "/SMS"
             self.short_codes = MockTwilioClient.MockShortCodes()
 
-    class MockCall(object):
-        def __init__(self, to=None, from_=None, url=None, status_callback=None):
-            self.to = to
-            self.from_ = from_
-            self.url = url
-            self.status_callback = status_callback
+    class MockCallInstance(object):
+        def __init__(self, *args, **kwargs):
             self.sid = "CallSid"
+            pass
+
+        def update(self, status):
+            print("Updating call %s to status %s" % (self.sid, status))
 
     class MockApplication(object):
         def __init__(self, friendly_name):
@@ -106,8 +122,11 @@ class MockTwilioClient(TwilioClient):
         def __init__(self):
             self.events = []
 
+        def get(self, *args):
+            return MockTwilioClient.MockCallInstance()
+
         def create(self, to=None, from_=None, url=None, status_callback=None):
-            return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
+            return MockTwilioClient.MockCallInstance(to=to, from_=from_, url=url, status_callback=status_callback)
 
         def hangup(self, external_id):
             print("Hanging up %s on Twilio" % external_id)
