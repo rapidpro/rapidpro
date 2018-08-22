@@ -529,8 +529,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         if custom_fields is not None:
-            for key, value in custom_fields.items():
-                self.instance.set_field(self.context["user"], key, value)
+            self.instance.set_fields(user=self.context["user"], fields=custom_fields)
 
         # update our groups
         if groups is not None:
