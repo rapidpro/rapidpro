@@ -657,7 +657,7 @@ class EventFire(Model):
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_contact_field(cls, contact, keys, is_new=False):
+    def update_events_for_contact_fields(cls, contact, keys, is_new=False):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
