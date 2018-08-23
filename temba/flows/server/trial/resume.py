@@ -95,9 +95,7 @@ def end(trial, msg_in=None, expired_child_run=None):
         logger.error("trial resume in flowserver caused server error", extra=e.as_json())
         return False
     except Exception as e:
-        logger.error(
-            "exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True
-        )
+        logger.error("exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True)
         return False
 
 
