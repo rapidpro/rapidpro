@@ -25,7 +25,7 @@ class NexmoClient(nx.Client):
         kwargs["key"] = api_key.strip()
         kwargs["secret"] = api_secret.strip()
         kwargs["application_id"] = app_id.strip()
-        kwargs["private_key"] = app_private_key.strip()
+        kwargs["private_key"] = app_private_key
         nx.Client.__init__(self, **kwargs)
 
     def update_account(self, mo_url, dr_url):  # pragma: needs cover
