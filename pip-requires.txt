@@ -22,7 +22,7 @@ analytics-python
 boto3
 google
 librato_bg
-nexmo==1.4.0
+nexmo
 pyfcm
 python-gcm
 python-telegram-bot
