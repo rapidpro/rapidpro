@@ -72,7 +72,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server import trial
+from .server.trial import message_flow as trial_message_flow, resume as trial_resume
 
 logger = logging.getLogger(__name__)
 
@@ -968,7 +968,7 @@ class Flow(TembaModel):
                 Msg.mark_handled(msg)
                 return True, []
 
-            flowserver_trial = trial.maybe_start_resume(run) if allow_trial else None
+            trial = trial_resume.maybe_start(run) if allow_trial else None
 
             (handled, msgs) = Flow.handle_destination(
                 destination,
@@ -986,13 +986,13 @@ class Flow(TembaModel):
             if handled:
                 analytics.gauge("temba.run_resumes")
 
-                if flowserver_trial:
+                if trial:
                     trial_result = None
 
                     if expired_child_run:
-                        trial_result = trial.end_resume(flowserver_trial, expired_child_run=expired_child_run)
+                        trial_result = trial_resume.end(trial, expired_child_run=expired_child_run)
                     elif msg and msg.id:
-                        trial_result = trial.end_resume(flowserver_trial, msg_in=msg)
+                        trial_result = trial_resume.end(trial, msg_in=msg)
 
                     if trial_result is not None:
                         analytics.gauge(
@@ -2064,7 +2064,14 @@ class Flow(TembaModel):
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-            return self.start_msg_flow_batch(
+
+            # if this is a campaign event flow to one contact, let's trial it in the flowserver
+            if self.flow_type == Flow.MESSAGE and len(all_contact_ids) == 1:
+                trial = trial_message_flow.maybe_start(self, all_contact_ids[0], campaign_event)
+            else:
+                trial = None
+
+            runs = self.start_msg_flow_batch(
                 all_contact_ids,
                 broadcasts=broadcasts,
                 started_flows=started_flows,
@@ -2074,6 +2081,11 @@ class Flow(TembaModel):
                 parent_run=parent_run,
                 parent_context=parent_context,
             )
+
+            if trial and len(runs) == 1:
+                trial_message_flow.end(trial, runs[0])
+
+            return runs
 
         # otherwise, create batches instead
         else:
