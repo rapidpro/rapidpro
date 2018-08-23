@@ -121,7 +121,7 @@ stop-words==2015.2.23.1
 stripe==1.59.0
 texttable==0.9.0          # via pyexcel
 toml==0.9.4               # via black
-twilio==3.6.15
+twilio==5.7.0
 twython==3.5.0
 unidecode==0.4.20
 urllib3==1.21.1           # via elasticsearch, requests

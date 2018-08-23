@@ -28,7 +28,7 @@ python-gcm
 python-telegram-bot
 raven
 stripe
-twilio==3.6.15
+twilio<6.0.0
 twython
 elasticsearch
 elasticsearch_dsl
