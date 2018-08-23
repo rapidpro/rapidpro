@@ -353,13 +353,6 @@ class MessageFlowTest(TembaTest):
         mock_report_failure.assert_not_called()
 
     @skip_if_no_flowserver
-    @patch("temba.flows.server.trial.campaigns.report_success")
-    def test_run_successfully(self, mock_report_success):
-        self._run_flow()
-
-        mock_report_success.assert_called_once()
-
-    @skip_if_no_flowserver
     @patch("temba.flows.server.trial.campaigns.report_failure")
     def test_trial_fault_tolerance(self, mock_report_failure):
         # an exception in maybe_start shouldn't prevent normal flow execution
@@ -390,4 +383,47 @@ class MessageFlowTest(TembaTest):
             run = self._run_flow()
             self.assertEqual(len(run.path), 1)
 
-            self.assertEqual(mock_report_failure.call_count, 1)
+            mock_report_failure.assert_called_once()
+
+    @skip_if_no_flowserver
+    @patch("temba.flows.server.trial.campaigns.report_success")
+    def test_run_successfully(self, mock_report_success):
+        self._run_flow()
+
+        mock_report_success.assert_called_once()
+
+    @skip_if_no_flowserver
+    @patch("temba.flows.server.trial.campaigns.report_failure")
+    @patch("temba.flows.server.trial.campaigns.report_success")
+    @patch("temba.flows.server.trial.campaigns.run_flow")
+    def test_run_failures(self, mock_run_flow, mock_report_success, mock_report_failure):
+        # test that a waiting session is treated as a failure
+        mock_run_flow.return_value = {"status": "waiting", "runs": [{}]}
+        self._run_flow()
+
+        mock_report_failure.assert_called_once()
+        mock_report_failure.reset_mock()
+
+        # test that a session with more than one run is treated as a failure
+        mock_run_flow.return_value = {"status": "completed", "runs": [{"events": []}, {"events": []}]}
+        self._run_flow()
+
+        mock_report_failure.assert_called_once()
+        mock_report_failure.reset_mock()
+
+        # test that a session without a single message event is treated as a failure
+        mock_run_flow.return_value = {"status": "completed", "runs": [{"events": []}]}
+        self._run_flow()
+
+        mock_report_failure.assert_called_once()
+        mock_report_failure.reset_mock()
+
+        # test that a session with a different message event is treated as a failure
+        mock_run_flow.return_value = {
+            "status": "completed",
+            "runs": [{"events": [{"type": "msg_created", "msg": {"text": "hello?"}}]}],
+        }
+        self._run_flow()
+
+        mock_report_failure.assert_called_once()
+        mock_report_failure.reset_mock()

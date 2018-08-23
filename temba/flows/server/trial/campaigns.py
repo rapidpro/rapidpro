@@ -100,22 +100,20 @@ def run_flow(flow, contact, campaign_event):
 
 
 def compare(session, actual_event):
-    differences = []
     if session["status"] != "completed":
-        differences.append("Message flows should always produce a completed session")
+        return {"problem": "Message flows should always produce a completed session"}
     if len(session["runs"]) != 1:
-        differences.append("Message flows should always produce a session with a single run")
+        return {"problem": "Message flows should always produce a session with a single run"}
 
     new_engine_run = session["runs"][0]
     new_engine_events = new_engine_run.get("events", [])
 
     if len(new_engine_events) != 1 or new_engine_events[0]["type"] != "msg_created":
-        differences.append("Message flows runs should only have one msg_created event")
-        return
+        return {"problem": "Message flows runs should only have one msg_created event"}
 
     new = reduce_event(new_engine_events[0])
     old = reduce_event(actual_event)
     if new != old:
-        differences.append({"new": new, "old": old})
+        return {"new": new, "old": old}
 
-    return differences
+    return None
