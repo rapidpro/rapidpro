@@ -1,3 +1,12 @@
+v4.3.3
+----------
+ * Run Table should only exclude the referenced run, and include greater Ids
+ * Raise validation error ehen trying action inactive contacts over API
+ * Remove uservoice as a dependency
+ * Update versions of Celery, Postgis, Nexmo, Twilio
+ * Fix Python 3.7 issues
+ * Clear out archive org directory when full releasing orgs
+
 v4.3.2
 ----------
  * Update expressions library to get EPOCH() function

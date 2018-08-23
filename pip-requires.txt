@@ -13,7 +13,7 @@ django-rosetta
 django_select2
 django-storages
 django-timezone-field
-djangorestframework==3.5.1
+djangorestframework
 dj-database-url
 smartmin
 
@@ -22,15 +22,14 @@ analytics-python
 boto3
 google
 librato_bg
-nexmo==1.4.0
+nexmo
 pyfcm
 python-gcm
 python-telegram-bot
 raven
 stripe
-twilio==3.6.15
+twilio<6.0.0
 twython
-uservoice
 elasticsearch
 elasticsearch_dsl
 

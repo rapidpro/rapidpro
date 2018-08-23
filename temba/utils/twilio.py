@@ -2,8 +2,9 @@
 import json
 from urllib.parse import urlencode
 
-from twilio.rest import UNSET_TIMEOUT, Calls, Messages, TwilioRestClient
-from twilio.rest.resources import Resource, make_twilio_request
+from twilio.rest import TwilioRestClient
+from twilio.rest.resources import Calls, Messages, Resource, make_twilio_request
+from twilio.rest.resources.util import UNSET_TIMEOUT
 
 from django.utils.encoding import force_text
 

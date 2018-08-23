@@ -1586,6 +1586,9 @@ class APITest(TembaTest):
         jean.refresh_from_db()
         self.assertFalse(jean.is_active)
 
+        response = self.postJSON(url, "uuid=%s" % jean.uuid, {})
+        self.assertResponseError(response, "non_field_errors", "Inactive contacts can't be modified.")
+
         # create xavier
         response = self.postJSON(url, None, {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]})
         self.assertEqual(response.status_code, 201)
