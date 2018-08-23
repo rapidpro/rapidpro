@@ -9,7 +9,7 @@ from temba.msgs.models import Msg
 from temba.tests import TembaTest, skip_if_no_flowserver
 from temba.values.constants import Value
 
-from . import resume
+from . import resumes
 from ..client import FlowServerException
 
 
@@ -20,16 +20,16 @@ class ResumeTest(TembaTest):
         self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
 
     def test_is_flow_suitable(self):
-        self.assertTrue(resume.is_flow_suitable(self.get_flow("favorites")))
-        self.assertTrue(resume.is_flow_suitable(self.get_flow("action_packed")))
+        self.assertTrue(resumes.is_flow_suitable(self.get_flow("favorites")))
+        self.assertTrue(resumes.is_flow_suitable(self.get_flow("action_packed")))
 
-        self.assertFalse(resume.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
-        self.assertFalse(resume.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
+        self.assertFalse(resumes.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
+        self.assertFalse(resumes.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_trial_throttling(self, mock_report_success, mock_report_failure):
         # first resume in a suitable flow will be trialled
         favorites = self.get_flow("favorites")
@@ -47,8 +47,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_finding_session_runs(self, mock_report_success, mock_report_failure):
         contact2 = self.create_contact("Oprah Winfrey", "+12065552121")
         self.get_flow("hierarchy")
@@ -64,7 +64,7 @@ class ResumeTest(TembaTest):
         self.assertEqual(contact2_run2.parent, contact2_run1)
         self.assertEqual(contact2_run3.parent, contact2_run2)
 
-        session = resume.reconstruct_session(contact2_run3)
+        session = resumes.reconstruct_session(contact2_run3)
 
         # check the session runs don't include the runs for the other contact
         self.assertEqual(
@@ -83,15 +83,15 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_resume_with_message(self, mock_report_success, mock_report_failure):
         favorites = self.get_flow("favorites")
 
         run, = favorites.start([], [self.contact])
 
         # check the reconstructed session for this run
-        session = resume.reconstruct_session(run)
+        session = resumes.reconstruct_session(run)
         self.assertEqual(len(session["runs"]), 1)
         self.assertEqual(session["runs"][0]["flow"]["uuid"], str(favorites.uuid))
         self.assertEqual(session["contact"]["uuid"], str(self.contact.uuid))
@@ -115,20 +115,20 @@ class ResumeTest(TembaTest):
         self.assertEqual(mock_report_failure.call_count, 0)
 
         # simulate session not containing this run
-        self.assertEqual(set(resume.compare_run(run, {"runs": []}).keys()), {"session"})
+        self.assertEqual(set(resumes.compare(run, {"runs": []}).keys()), {"session"})
 
         # simulate differences in the path, results and events
-        session = resume.reconstruct_session(run)
+        session = resumes.reconstruct_session(run)
         session["runs"][0]["path"][0]["node_uuid"] = "wrong node"
         session["runs"][0]["results"]["color"]["value"] = "wrong value"
         session["runs"][0]["events"][0]["msg"]["text"] = "wrong text"
 
-        self.assertTrue(resume.compare_run(run, session)["diffs"])
+        self.assertTrue(resumes.compare(run, session)["diffs"])
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_resume_with_message_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow("subflow")
         parent_flow = Flow.objects.get(org=self.org, name="Parent Flow")
@@ -144,7 +144,7 @@ class ResumeTest(TembaTest):
         parent_run, child_run = list(FlowRun.objects.order_by("created_on"))
 
         # check the reconstructed session for this run
-        session = resume.reconstruct_session(child_run)
+        session = resumes.reconstruct_session(child_run)
         self.assertEqual(len(session["runs"]), 2)
         self.assertEqual(session["runs"][0]["flow"]["uuid"], str(parent_flow.uuid))
         self.assertEqual(session["runs"][1]["flow"]["uuid"], str(child_flow.uuid))
@@ -167,8 +167,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_resume_with_expiration_in_subflow(self, mock_report_success, mock_report_failure):
         self.get_flow("subflow")
         parent_flow = Flow.objects.get(org=self.org, name="Parent Flow")
@@ -192,8 +192,8 @@ class ResumeTest(TembaTest):
         self.assertEqual(mock_report_failure.call_count, 0)
 
     @skip_if_no_flowserver
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_resume_in_triggered_session(self, mock_report_success, mock_report_failure):
         parent_flow = self.get_flow("action_packed")
         child_flow = Flow.objects.get(org=self.org, name="Favorite Color")
@@ -212,7 +212,7 @@ class ResumeTest(TembaTest):
         self.assertEqual(child_run.contact, child_contact)
 
         # check that the run which triggered the child run isn't part of its session, but is part of the trigger
-        session = resume.reconstruct_session(child_run)
+        session = resumes.reconstruct_session(child_run)
         self.assertEqual(len(session["runs"]), 1)
         self.assertEqual(session["runs"][0]["flow"]["uuid"], str(child_flow.uuid))
         self.assertEqual(session["contact"]["uuid"], str(child_contact.uuid))
@@ -233,12 +233,12 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.resume.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_failure")
     def test_trial_fault_tolerance(self, mock_report_failure):
         favorites = self.get_flow("favorites")
 
         # an exception in maybe_start shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.resume.reconstruct_session") as mock_reconstruct_session:
+        with patch("temba.flows.server.trial.resumes.reconstruct_session") as mock_reconstruct_session:
             mock_reconstruct_session.side_effect = ValueError("BOOM")
 
             run, = favorites.start([], [self.contact])
@@ -246,8 +246,8 @@ class ResumeTest(TembaTest):
             run.refresh_from_db()
             self.assertEqual(len(run.path), 4)
 
-        # a flow server exception in end_resume also shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.resume.resume") as mock_resume:
+        # a flow server exception in end also shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.resumes.resume") as mock_resume:
             mock_resume.side_effect = FlowServerException("resume", {}, {"errors": ["Boom!"]})
 
             run, = favorites.start([], [self.contact], restart_participants=True)
@@ -256,7 +256,7 @@ class ResumeTest(TembaTest):
             self.assertEqual(len(run.path), 4)
 
         # any other exception in end_resume also shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.resume.resume") as mock_resume:
+        with patch("temba.flows.server.trial.resumes.resume") as mock_resume:
             mock_resume.side_effect = ValueError("BOOM")
 
             run, = favorites.start([], [self.contact], restart_participants=True)
@@ -265,8 +265,8 @@ class ResumeTest(TembaTest):
             self.assertEqual(len(run.path), 4)
 
         # detected differences should be reported but shouldn't effect normal flow execution
-        with patch("temba.flows.server.trial.resume.compare_run") as mock_compare_run:
-            mock_compare_run.return_value = {"diffs": ["a", "b"]}
+        with patch("temba.flows.server.trial.resumes.compare") as mock_compare:
+            mock_compare.return_value = {"diffs": ["a", "b"]}
 
             run, = favorites.start([], [self.contact], restart_participants=True)
             Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
@@ -277,8 +277,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always", SEND_WEBHOOKS=True)
-    @patch("temba.flows.server.trial.resume.report_failure")
-    @patch("temba.flows.server.trial.resume.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
         flow = self.get_flow("dual_webhook")
 
@@ -296,8 +296,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.resume.report_failure")
-    @patch("temba.flows.server.trial.resume.report_success")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
     def test_msg_events_with_attachments(self, mock_report_success, mock_report_failure):
         # test an outgoing message with media
         flow = self.get_flow("color")
@@ -339,18 +339,55 @@ class MessageFlowTest(TembaTest):
             base_language="eng",
         )
 
+    def _run_flow(self):
+        run, = self.event.flow.start([], [self.contact], campaign_event=self.event, restart_participants=True)
+        return run
+
     @override_settings(FLOW_SERVER_URL=None)
-    @patch("temba.flows.server.trial.message_flow.report_failure")
-    @patch("temba.flows.server.trial.message_flow.report_success")
+    @patch("temba.flows.server.trial.campaigns.report_failure")
+    @patch("temba.flows.server.trial.campaigns.report_success")
     def test_no_trials_if_no_server(self, mock_report_success, mock_report_failure):
-        self.event.flow.start([], [self.contact], campaign_event=self.event)
+        self._run_flow()
 
         mock_report_success.assert_not_called()
         mock_report_failure.assert_not_called()
 
     @skip_if_no_flowserver
-    @patch("temba.flows.server.trial.message_flow.report_success")
+    @patch("temba.flows.server.trial.campaigns.report_success")
     def test_run_successfully(self, mock_report_success):
-        self.event.flow.start([], [self.contact], campaign_event=self.event)
+        self._run_flow()
 
         mock_report_success.assert_called_once()
+
+    @skip_if_no_flowserver
+    @patch("temba.flows.server.trial.campaigns.report_failure")
+    def test_trial_fault_tolerance(self, mock_report_failure):
+        # an exception in maybe_start shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.campaigns.Trial") as mock_trial_cls:
+            mock_trial_cls.side_effect = ValueError("BOOM")
+
+            run = self._run_flow()
+            self.assertEqual(len(run.path), 1)
+
+        # a flow server exception in end also shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.campaigns.run_flow") as mock_run_flow:
+            mock_run_flow.side_effect = FlowServerException("start", {}, {"errors": ["Boom!"]})
+
+            run = self._run_flow()
+            self.assertEqual(len(run.path), 1)
+
+        # any other exception in end_resume also shouldn't prevent normal flow execution
+        with patch("temba.flows.server.trial.campaigns.run_flow") as mock_run_flow:
+            mock_run_flow.side_effect = ValueError("BOOM")
+
+            run = self._run_flow()
+            self.assertEqual(len(run.path), 1)
+
+        # detected differences should be reported but shouldn't effect normal flow execution
+        with patch("temba.flows.server.trial.campaigns.compare") as mock_compare:
+            mock_compare.return_value = ["oops"]
+
+            run = self._run_flow()
+            self.assertEqual(len(run.path), 1)
+
+            self.assertEqual(mock_report_failure.call_count, 1)

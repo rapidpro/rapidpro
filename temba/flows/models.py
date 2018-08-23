@@ -72,7 +72,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server.trial import message_flow as trial_message_flow, resume as trial_resume
+from .server.trial import campaigns as trial_campaigns, resumes as trial_resumes
 
 logger = logging.getLogger(__name__)
 
@@ -968,7 +968,7 @@ class Flow(TembaModel):
                 Msg.mark_handled(msg)
                 return True, []
 
-            trial = trial_resume.maybe_start(run) if allow_trial else None
+            trial = trial_resumes.maybe_start(run) if allow_trial else None
 
             (handled, msgs) = Flow.handle_destination(
                 destination,
@@ -990,9 +990,9 @@ class Flow(TembaModel):
                     trial_result = None
 
                     if expired_child_run:
-                        trial_result = trial_resume.end(trial, expired_child_run=expired_child_run)
+                        trial_result = trial_resumes.end(trial, expired_child_run=expired_child_run)
                     elif msg and msg.id:
-                        trial_result = trial_resume.end(trial, msg_in=msg)
+                        trial_result = trial_resumes.end(trial, msg_in=msg)
 
                     if trial_result is not None:
                         analytics.gauge(
@@ -2067,7 +2067,7 @@ class Flow(TembaModel):
 
             # if this is a campaign event flow to one contact, let's trial it in the flowserver
             if self.flow_type == Flow.MESSAGE and len(all_contact_ids) == 1:
-                trial = trial_message_flow.maybe_start(self, all_contact_ids[0], campaign_event)
+                trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
             else:
                 trial = None
 
@@ -2083,7 +2083,7 @@ class Flow(TembaModel):
             )
 
             if trial and len(runs) == 1:
-                trial_message_flow.end(trial, runs[0])
+                trial_campaigns.end(trial, runs[0])
 
             return runs
 

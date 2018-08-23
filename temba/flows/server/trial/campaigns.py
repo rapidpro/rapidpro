@@ -10,7 +10,11 @@ from .utils import reduce_event
 logger = logging.getLogger(__name__)
 
 
-class MessageFlowTrial:
+class Trial:
+    """
+    A trial of running a campaign message flow in the flowserver
+    """
+
     def __init__(self, flow, contact, campaign_event):
         self.flow = flow
         self.contact = contact
@@ -27,7 +31,7 @@ def maybe_start(flow, contact_id, campaign_event):
         return None
 
     try:
-        return MessageFlowTrial(flow, Contact.objects.get(id=contact_id), campaign_event)
+        return Trial(flow, Contact.objects.get(id=contact_id), campaign_event)
     except Exception:
         logger.error(
             f"Unable to start trial for contact #{contact_id} in message flow {str(flow.uuid)}", exc_info=True

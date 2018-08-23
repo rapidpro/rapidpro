@@ -19,7 +19,7 @@ TRIAL_LOCK = "flowserver_trial"
 TRIAL_PERIOD = 15  # only perform a trial every 15 seconds
 
 
-class ResumeTrial:
+class Trial:
     """
     A trial of resuming a run in the flowserver
     """
@@ -69,7 +69,7 @@ def maybe_start(run):
 
     try:
         print("Starting flowserver trial resume for run %s in flow '%s'" % (str(run.uuid), run.flow.name))
-        return ResumeTrial(run)
+        return Trial(run)
 
     except Exception as e:
         logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), str(e)), exc_info=True)
@@ -82,7 +82,7 @@ def end(trial, msg_in=None, expired_child_run=None):
     """
     try:
         trial.session_after = resume(trial, msg_in, expired_child_run)
-        trial.differences = compare_run(trial.run, trial.session_after)
+        trial.differences = compare(trial.run, trial.session_after)
 
         if trial.differences:
             report_failure(trial)
@@ -292,7 +292,7 @@ def serialize_run_summary(run):
     }
 
 
-def compare_run(run, session):
+def compare(run, session):
     """
     Compares the given run with the given session JSON from the flowserver and returns a dict of problems
     """
