@@ -7,6 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelLog, ChannelSession, ChannelType
 from temba.utils import on_transaction_commit
+from temba.utils.http import HttpEvent
 
 
 class IVRManager(models.Manager):
@@ -120,6 +121,10 @@ class IVRCall(ChannelSession):
 
                 traceback.print_exc()
 
+                ChannelLog.log_ivr_interaction(
+                    self, "Call failed unexpectedly", HttpEvent(method="INTERNAL", url=None, response_body=str(e))
+                )
+
                 self.status = self.FAILED
                 self.save()
 
@@ -129,6 +134,8 @@ class IVRCall(ChannelSession):
 
     def start_call(self):
         from temba.ivr.tasks import start_call_task
+
+        ChannelLog.log_ivr_interaction(self, "Call queued internally", HttpEvent(method="INTERNAL", url=None))
 
         self.status = IVRCall.QUEUED
         self.save()
