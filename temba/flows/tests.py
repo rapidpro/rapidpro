@@ -6724,6 +6724,21 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, "primus", contact=pete)
             self.send_message(favorites, "Pete", contact=pete)
 
+            response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
+            self.assertEqual(200, response.status_code)
+            self.assertContains(response, "Pete")
+            self.assertNotContains(response, "Jimmy")
+
+            # one more row to add
+            self.assertEqual(1, len(response.context["runs"]))
+
+            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_text(response.content)).group(1)
+            response = self.client.get(next_link)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(1, len(response.context["runs"]))
+            self.assertContains(response, "Jimmy")
+
             # now only one active, one completed, and 5 total responses
             response = self.client.get(reverse("flows.flow_activity_chart", args=[favorites.pk]))
             self.assertContains(response, "name: 'Active', y: 1")
