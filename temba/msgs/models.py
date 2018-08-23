@@ -606,10 +606,17 @@ class Attachment(object):
     @classmethod
     def parse(cls, s):
         return cls(*s.split(':', 1))
+    
+    @classmethod
+    def is_valid(cls, s):
+        value_list = s.split(":",1)
+        return (len(value_list)== 2 and\
+                value_list[0] and \
+                value_list[1])
 
     @classmethod
     def parse_all(cls, attachments):
-        return [cls.parse(s) for s in attachments] if attachments else []
+        return [cls.parse(s) for s in attachments if(cls.is_valid(s)) ] if attachments else []
 
     def as_json(self):
         return {'content_type': self.content_type, 'url': self.url}

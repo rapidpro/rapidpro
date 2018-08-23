@@ -2186,7 +2186,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
-
+     * **last_msgs** - Filter if you only want to obtain last 10 messages (work with contact)(boolean).
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
@@ -2285,6 +2285,10 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(pk=-1)
+            contact_last = params.get('last_msgs')
+            if contact_last:
+                queryset_id = queryset.order_by('-id').values('pk')[:50]
+                queryset = queryset.filter(pk__in=queryset_id)
         else:
             # otherwise filter out test contact runs
             test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list('pk', flat=True))
