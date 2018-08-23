@@ -2,10 +2,12 @@ from unittest.mock import patch
 
 from django.test.utils import override_settings
 
-from temba.contacts.models import Contact
+from temba.campaigns.models import Campaign, CampaignEvent
+from temba.contacts.models import Contact, ContactField
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg
 from temba.tests import TembaTest, skip_if_no_flowserver
+from temba.values.constants import Value
 
 from . import resume
 from ..client import FlowServerException
@@ -275,8 +277,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always", SEND_WEBHOOKS=True)
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resume.report_failure")
+    @patch("temba.flows.server.trial.resume.report_success")
     def test_webhook_mocking(self, mock_report_success, mock_report_failure):
         flow = self.get_flow("dual_webhook")
 
@@ -294,8 +296,8 @@ class ResumeTest(TembaTest):
 
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="always")
-    @patch("temba.flows.server.trial.report_failure")
-    @patch("temba.flows.server.trial.report_success")
+    @patch("temba.flows.server.trial.resume.report_failure")
+    @patch("temba.flows.server.trial.resume.report_success")
     def test_msg_events_with_attachments(self, mock_report_success, mock_report_failure):
         # test an outgoing message with media
         flow = self.get_flow("color")
@@ -308,3 +310,47 @@ class ResumeTest(TembaTest):
 
         self.assertEqual(mock_report_success.call_count, 1)
         self.assertEqual(mock_report_failure.call_count, 0)
+
+
+class MessageFlowTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.planting_date = ContactField.get_or_create(
+            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
+        )
+        self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
+        self.contact.set_field(self.admin, "planting_date", "2018-06-23T13:48:12.123456Z")
+
+        # create a campaign with a message event 1 day after planting date
+        self.farmers = self.create_group("Farmers", [self.contact])
+        self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        self.event = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            self.campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+        )
+
+    @override_settings(FLOW_SERVER_URL=None)
+    @patch("temba.flows.server.trial.message_flow.report_failure")
+    @patch("temba.flows.server.trial.message_flow.report_success")
+    def test_no_trials_if_no_server(self, mock_report_success, mock_report_failure):
+        self.event.flow.start([], [self.contact], campaign_event=self.event)
+
+        mock_report_success.assert_not_called()
+        mock_report_failure.assert_not_called()
+
+    @skip_if_no_flowserver
+    @patch("temba.flows.server.trial.message_flow.report_success")
+    def test_run_successfully(self, mock_report_success):
+        self.event.flow.start([], [self.contact], campaign_event=self.event)
+
+        mock_report_success.assert_called_once()
