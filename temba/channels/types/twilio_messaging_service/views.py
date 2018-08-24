@@ -34,7 +34,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.client = org.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
-            self.account = self.client.api.account.get(org.config[ACCOUNT_SID]).fetch()
+            self.account = self.client.api.account.fetch()
         except TwilioRestException:
             return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
 

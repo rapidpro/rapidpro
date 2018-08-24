@@ -1609,9 +1609,9 @@ class OrgTest(TembaTest):
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get_primary:
-                with patch("twilio.rest.resources.ListResource.get") as mock_list_resource_get:
+                with patch("twilio.rest.api.v2010.account.AccountContext.fetch") as mock_account_fetch:
                     mock_get_primary.return_value = MockTwilioClient.MockAccount("Full", "PrimaryAccountToken")
-                    mock_list_resource_get.return_value = MockTwilioClient.MockAccount("Full", "PrimaryAccountToken")
+                    mock_account_fetch.return_value = MockTwilioClient.MockAccount("Full", "PrimaryAccountToken")
 
                     response = self.client.post(connect_url, post_data)
                     self.assertEqual(response.status_code, 302)

@@ -22,18 +22,6 @@ class MockTwilioClient(TwilioClient):
     def api(self):
         return MockTwilioClient.MockAPI()
 
-    @property
-    def applications(self):
-        return MockTwilioClient.MockApplications()
-
-    @property
-    def accounts(self):
-        return MockTwilioClient.MockAccounts()
-
-    @property
-    def phone_numbers(self):
-        return MockTwilioClient.MockPhoneNumbers()
-
     def validate(self, request):
         return True
 
@@ -128,6 +116,9 @@ class MockTwilioClient(TwilioClient):
             self.sid = "AccountSid"
 
         def get(self, sid):
+            return self
+
+        def fetch(self):
             return self
 
     class MockAccounts(MockInstanceResource):

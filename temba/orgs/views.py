@@ -733,7 +733,7 @@ class OrgCRUDL(SmartCRUDL):
                     client = Client(account_sid, account_token)
 
                     # get the actual primary auth tokens from twilio and use them
-                    account = client.api.accounts(account_sid)
+                    account = client.api.account.fetch()
                     self.cleaned_data["account_sid"] = account.sid
                     self.cleaned_data["account_token"] = account.auth_token
                 except Exception:
