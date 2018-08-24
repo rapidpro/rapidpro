@@ -2187,6 +2187,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
      * **last_msgs** - Filter if you only want to obtain last 10 messages (work with contact)(boolean).
+
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 

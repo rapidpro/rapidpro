@@ -1,0 +1,28 @@
+// Sass for videojs-vjsdownload
+
+.video-js {
+
+  // This class is added to the video.js element by the plugin by default.
+  &.vjs-vjsdownload {
+    .vjs-button.vjs-vjsdownload {
+      cursor: pointer;
+      display: block;
+      font-family: VideoJs;
+      &:before {
+        content: '\f101';
+        transform: rotate(90deg);
+        top: 2px;
+      }
+      &:after {
+        display: block;
+        content: ' ';
+        width: 4px;
+        height: 4px;
+        background-color: white;
+        position: relative;
+        top: -3px;
+        left: calc(50% - 2px);
+      }
+    }
+  }
+}

@@ -5,7 +5,6 @@ import json
 import requests
 import six
 import time
-import re
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, URN, FACEBOOK_SCHEME
@@ -87,23 +86,14 @@ class FacebookType(ChannelType):
             raise SendException(six.text_type(e), event=event, start=start)
 
         # for now we only support sending one attachment per message but this could change in future
-        #Fix to send images
-        attachment = None
-        if msg.attachments:
-            attachment_url = ''
-            if type(msg.attachments) is list:
-                attachment_url = ''.join(msg.attachments)
-            elif type(msg.attachments) is unicode :
-                attachment_url = msg.attachments
-            if attachment_url:
-                attachment = {"content_type": attachment_url.split(":")[0],
-                              "url": ':'.join(attachment_url.split(":")[1:])}
+        attachments = Attachment.parse_all(msg.attachments)
+        attachment = attachments[0] if attachments else None
 
         if attachment:
-            category = attachment["content_type"].split('/')[0]
+            category = attachment.content_type.split('/')[0]
 
             payload = json.loads(payload)
-            payload['message'] = {'attachment': {'type': category, 'payload': {'url': attachment["url"]}}}
+            payload['message'] = {'attachment': {'type': category, 'payload': {'url': attachment.url}}}
             payload = json.dumps(payload)
 
             event = HttpEvent('POST', url, payload)

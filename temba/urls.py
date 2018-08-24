@@ -16,6 +16,7 @@ from django.conf.urls.static import static
 js_info_dict = {
     'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
+
 urlpatterns = [
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
@@ -24,7 +25,6 @@ urlpatterns = [
     url(r'^', include('temba.schedules.urls')),
     url(r'^', include('temba.flows.urls')),
     url(r'^', include('temba.triggers.urls')),
-    #url(r'^', include('temba.elasticsearch.urls')),
     url(r'^', include('temba.campaigns.urls')),
     url(r'^', include('temba.ivr.urls')),
     url(r'^', include('temba.locations.urls')),

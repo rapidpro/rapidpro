@@ -469,9 +469,9 @@ class Broadcast(models.Model):
 
             media = self.get_translated_media(contact)
             if media:
-                media_type, media_url = media.split(':')
-
-                # if we have a localized media, create the url
+                media_type, media_url = media.split(':', 1)
+                # arbitrary media urls don't have a full content type, so only
+                # make uploads into fully qualified urls
                 if media_url:
                     media = "%s:https://%s%s%s" % (media_type, settings.TEMBA_HOST,settings.MEDIA_URL, media_url)
 
@@ -1579,7 +1579,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path, display = URN.to_parts(recipient)
+            scheme, path, query, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
         else:  # pragma: no cover

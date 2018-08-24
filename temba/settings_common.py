@@ -176,11 +176,13 @@ if TESTING:
     TEMPLATES[0]['OPTIONS']['context_processors'] += ('temba.tests.add_testing_flag_to_context', )
 
 MIDDLEWARE_CLASSES = (
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
@@ -189,6 +191,10 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 )
+
+# security middleware configuration
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 ROOT_URLCONF = 'temba.urls'
 
@@ -244,7 +250,6 @@ INSTALLED_APPS = (
     'temba.orgs',
     'temba.contacts',
     'temba.channels',
-    #'temba.elasticsearch',
     'temba.msgs',
     'temba.flows',
     'temba.triggers',
@@ -985,19 +990,11 @@ REDIS_DB = 10 if TESTING else 15
 BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
-BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 15}
+BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
 CELERY_RESULT_BACKEND = BROKER_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
-CELERYD_AUTOSCALER = 'temba.celery_autoscaler:SuperAutoscaler'
-AUTOSCALE_MAX_CPU_USAGE = 80
-AUTOSCALE_MAX_USED_MEMORY = 80
-AUTOSCALE_MAX_WORKER_INC_BY = 2
-AUTOSCALE_MAX_WORKER_DEC_BY = 2
-AUTOSCALE_DB_QUERY_EXECUTION_MS = 10
-AUTOSCALE_DB_PERFORMANCE_QUERY = 'SELECT id FROM orgs_org ORDER BY id LIMIT 1'
 
 IS_PROD = True
 HOSTNAME = "rapidpro.datos.gob.mx"
@@ -1039,7 +1036,7 @@ REST_FRAMEWORK = {
         'v2.runs': '2500/hour',
         'v2.api': '250000/hour',
     },
-    'PAGE_SIZE': 100000000,
+    'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.support.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer'

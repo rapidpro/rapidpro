@@ -41,6 +41,7 @@ class BaseTriggerForm(forms.ModelForm):
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword')
+
         if keyword is None:  # pragma: no cover
             keyword = ''
 
@@ -50,7 +51,6 @@ class BaseTriggerForm(forms.ModelForm):
                 regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0) or
                 regex.match('^\w+ \w+$', keyword, flags=regex.UNICODE | regex.V0))):  # pragma: needs cover
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
-
 
         return keyword.lower()
 

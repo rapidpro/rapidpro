@@ -3024,7 +3024,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         # don't really update URNs on test contacts
         if self.contact.is_test:
-            scheme, path, display = URN.to_parts(event['urn'])
+            scheme, path, query, display = URN.to_parts(event['urn'])
             ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
         else:
             self.contact.update_urns(user, urns)

@@ -489,8 +489,5 @@ class @Modax extends @ConfirmationModal
       )
 
 $ ->
-  $('.launch-support-widget').click ->
-    if Intercom?
-      Intercom('showNewMessage')
-    else
-      document.location.href = "mailto:" + window.supportEmail;
+  $('.uv-send-message').click ->
+    UserVoice.push(['show', {}]);

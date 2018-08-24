@@ -773,7 +773,7 @@ class IVRTests(FlowFileTest):
         # make sure we set submitOnHash to true nexmo
         self.assertContains(response, '"submitOnHash": true,')
 
-        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (self.channel.callback_domain, callback_url))
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (self.channel.callback_domain, callback_url))
 
     @patch('jwt.encode')
     @patch('requests.put')

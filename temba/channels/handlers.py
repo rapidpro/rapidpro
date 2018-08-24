@@ -1442,11 +1442,11 @@ class KannelHandler(BaseChannelHandler):
                 return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
 
             # dates come in the format of a timestamp
-            #sms_date = datetime.utcfromtimestamp(int(sms_ts))
-            #gmt_date = pytz.timezone('GMT').localize(sms_date)
+            sms_date = datetime.utcfromtimestamp(int(sms_ts))
+            gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             urn = URN.from_tel(sms_sender)
-            sms = Msg.create_incoming(channel, urn, sms_message)#, date=gmt_date)
+            sms = Msg.create_incoming(channel, urn, sms_message, date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -2411,7 +2411,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, query, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2421,7 +2421,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, query, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2694,6 +2694,9 @@ class ViberPublicHandler(BaseChannelHandler):
 class FCMHandler(BaseChannelHandler):
     handler_url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.fcm_handler'
+
+    courier_url = r'^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$'
+    courier_name = 'courier.fcm'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)

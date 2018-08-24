@@ -38,7 +38,7 @@ from smartmin.views import SmartTemplateView, SmartModelFormView, SmartModelActi
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
-from temba.channels.models import Channel, ChannelCount
+from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
@@ -452,11 +452,11 @@ class CreateOrgForm(forms.ModelForm):
         fields = ('name', 'plan','administrators', 'language' )
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
-               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
-               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'smtp_server')
+    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
+               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
+               'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
+               'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -1024,34 +1024,36 @@ class OrgCRUDL(SmartCRUDL):
         def get_owner(self, obj):
             # default to the created by if there are no admins
             owner = obj.latest_admin() or obj.created_by
+
             return mark_safe("<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
                              % (owner.first_name, owner.last_name, owner))
 
-
         def get_service(self, obj):
             url = reverse('orgs.org_service')
+
             return mark_safe("<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a>"
                              % (url, obj.id))
-
 
         def get_name(self, obj):
             suspended = ''
             if obj.is_suspended():
                 suspended = '<span class="suspended">(Suspended)</span>'
+
             return mark_safe("<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
                              % (suspended, obj.name, obj.timezone))
-
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
             queryset = queryset.filter(is_active=True)
+
             brand = self.request.branding.get('brand')
             if brand:
                 queryset = queryset.filter(brand=brand)
+
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
-            return queryset
 
+            return queryset
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
@@ -1126,7 +1128,6 @@ class OrgCRUDL(SmartCRUDL):
             if field == 'owner':
                 return reverse('users.user_update', args=[obj.created_by.pk])
             return super(OrgCRUDL.Manage, self).lookup_field_link(context, field, obj)
-
 
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
@@ -2257,6 +2258,15 @@ class OrgCRUDL(SmartCRUDL):
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
                     formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', nobutton=True)
+
+            if self.has_org_perm('orgs.org_chatbase'):
+                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
+                if not chatbase_api_key:
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', button=_("Connect"))
+                else:  # pragma: needs cover
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):

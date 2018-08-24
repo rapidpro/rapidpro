@@ -53,10 +53,8 @@ class TwitterType(ChannelType):
 
         try:
             urn = getattr(msg, 'urn', URN.from_twitter(msg.urn_path))
-            (scheme, path, display) = URN.to_parts(urn)
-            print ("scheme %s"%(scheme))
-            print ("path %s"%(path))
-            print ("display %s"%(display))
+            (scheme, path, query, display) = URN.to_parts(urn)
+
             # this is a legacy URN (no display), the path is our screen name
             if scheme == TWITTER_SCHEME:
                 dm = twitter.send_direct_message(screen_name=path, text=text)
@@ -84,16 +82,12 @@ class TwitterType(ChannelType):
                     dm = twitter.post('direct_messages/events/new', params=params)
                     external_id = dm['event']['id']
                 else:
-                    print (path)
-                    print (text)
                     dm = twitter.send_direct_message(user_id=path, text=text)
                     external_id = dm['id']
 
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
             fatal = False
-            print ("Twitter type")
-            print (e)
 
             if error_code == 404:  # handle doesn't exist
                 fatal = True

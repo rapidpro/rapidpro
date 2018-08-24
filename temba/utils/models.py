@@ -4,7 +4,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import six
 import time
 import json
-import ast
 
 from collections import OrderedDict
 
@@ -115,11 +114,6 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
             raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value), ))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
-        if isinstance(value, six.string_types):
-            try:
-                value = ast.literal_eval(value)
-            except SyntaxError:
-                value = {}
         # if the value is falsy we will save is as null
         if self.null and value in (None, {}, []) and not kwargs.get('force'):
             return None
