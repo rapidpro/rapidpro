@@ -7,6 +7,7 @@ from platform import python_version
 from urllib.parse import urlparse
 
 import nexmo
+from django_redis import get_redis_connection
 from mock import MagicMock, patch
 
 from django.conf import settings
@@ -16,14 +17,17 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
+import celery.exceptions
+
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import ActionLog, Flow, FlowRevision, FlowRun
-from temba.ivr.tasks import check_calls_task
+from temba.ivr.tasks import check_calls_task, start_call_task
 from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.utils.locks import NonBlockingLock
 
 from .clients import IVRException
 from .models import IVRCall
@@ -153,8 +157,8 @@ class IVRTests(FlowFileTest):
             flow.start([], [contact])
 
             # should have a channel log for starting the call
-            log = ChannelLog.objects.get(is_error=False)
-            self.assertEqual(log.response, mock.return_value.text)
+            logs = ChannelLog.objects.filter(is_error=False).all()
+            self.assertEqual([log.response for log in logs], ["None", '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}'])
 
             # expire our flow, causing the call to hang up
             mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb855"}')
@@ -162,8 +166,15 @@ class IVRTests(FlowFileTest):
             run.expire()
 
             # two channel logs now
-            log = ChannelLog.objects.exclude(id=log.id).get(is_error=False)
-            self.assertEqual(log.response, mock.return_value.text)
+            logs = ChannelLog.objects.filter(is_error=False).all()
+            self.assertEqual(
+                [log.response for log in logs],
+                [
+                    "None",
+                    '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}',
+                    '{"sid": "CAa346467ca321c71dbd5e12f627deb855"}',
+                ],
+            )
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
@@ -256,7 +267,7 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, "<Say>Please make a recording after the tone.</Say>")
         self.assertEqual(response._headers["content-type"][1], "text/xml; charset=utf-8")
 
-        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
@@ -281,7 +292,7 @@ class IVRTests(FlowFileTest):
                 ),
             )
 
-        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        self.assertEqual(ChannelLog.objects.all().count(), 3)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
@@ -295,7 +306,7 @@ class IVRTests(FlowFileTest):
             reverse("ivr.ivrcall_handle", args=[call.pk]), dict(CallStatus="completed", CallDuration="15")
         )
 
-        self.assertEqual(ChannelLog.objects.all().count(), 3)
+        self.assertEqual(ChannelLog.objects.all().count(), 4)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")
@@ -398,14 +409,15 @@ class IVRTests(FlowFileTest):
             callback_url, content_type="application/json", data=json.dumps(dict(status="ringing", duration=0))
         )
 
-        self.assertEqual(ChannelLog.objects.all().count(), 2)
-        channel_log = ChannelLog.objects.first()
-        self.assertEqual(channel_log.connection.id, call.id)
-        self.assertEqual(channel_log.description, "Started call")
+        self.assertEqual(ChannelLog.objects.all().count(), 3)
+        channel_logs = ChannelLog.objects.order_by("id").all()
+        self.assertListEqual(
+            [channel_log.description for channel_log in channel_logs],
+            ["Call queued internally", "Started call", "Incoming request for call"],
+        )
 
-        channel_log = ChannelLog.objects.last()
+        channel_log = channel_logs[0]
         self.assertEqual(channel_log.connection.id, call.id)
-        self.assertEqual(channel_log.description, "Incoming request for call")
 
         # we have a talk action
         self.assertContains(response, '"action": "talk",')
@@ -442,7 +454,7 @@ class IVRTests(FlowFileTest):
             )
 
             self.assertEqual(response.json().get("message"), "Saved media url")
-            self.assertEqual(ChannelLog.objects.all().count(), 4)
+            self.assertEqual(ChannelLog.objects.all().count(), 5)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.connection.id, call.id)
             self.assertEqual(channel_log.description, "Saved media url")
@@ -454,7 +466,7 @@ class IVRTests(FlowFileTest):
                 data=json.dumps(dict(status="answered", duration=2, dtmf="")),
             )
 
-            self.assertEqual(ChannelLog.objects.all().count(), 6)
+            self.assertEqual(ChannelLog.objects.all().count(), 7)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.connection.id, call.id)
             self.assertEqual(channel_log.description, "Incoming request for call")
@@ -472,7 +484,7 @@ class IVRTests(FlowFileTest):
             data=json.dumps({"status": "completed", "duration": "15"}),
         )
 
-        self.assertEqual(ChannelLog.objects.all().count(), 7)
+        self.assertEqual(ChannelLog.objects.all().count(), 8)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")
@@ -911,7 +923,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelSession.INTERRUPTED, call.status)
 
         # call initiation, answer, and timeout should both be logged
-        self.assertEqual(3, ChannelLog.objects.filter(connection=call).count())
+        self.assertEqual(4, ChannelLog.objects.filter(connection=call).count())
         self.assertIsNotNone(call.ended_on)
 
     @patch("nexmo.Client.create_application")
@@ -1917,6 +1929,9 @@ class IVRTests(FlowFileTest):
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.NO_ANSWER,
+            duration=10,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=timezone.now(),
         )
         call2 = IVRCall.objects.create(
             channel=self.channel,
@@ -1930,6 +1945,9 @@ class IVRTests(FlowFileTest):
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS - 1,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.BUSY,
+            duration=10,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=timezone.now(),
         )
 
         # busy, but reached max retries
@@ -1945,6 +1963,9 @@ class IVRTests(FlowFileTest):
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS + 1,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.BUSY,
+            duration=10,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=timezone.now(),
         )
         # call in progress
         call4 = IVRCall.objects.create(
@@ -1959,6 +1980,9 @@ class IVRTests(FlowFileTest):
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.IN_PROGRESS,
+            duration=0,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=None,
         )
 
         self.assertTrue(all((call1.next_attempt, call2.next_attempt, call3.next_attempt, call4.next_attempt)))
@@ -1974,9 +1998,15 @@ class IVRTests(FlowFileTest):
 
         # these calls have been rescheduled
         self.assertIsNone(call1.next_attempt)
+        self.assertIsNone(call1.started_on)
+        self.assertIsNone(call1.ended_on)
+        self.assertEqual(call1.duration, 0)
         self.assertEqual(call1.status, IVRCall.QUEUED)
 
         self.assertIsNone(call2.next_attempt)
+        self.assertIsNone(call2.started_on)
+        self.assertIsNone(call2.ended_on)
+        self.assertEqual(call2.duration, 0)
         self.assertEqual(call2.status, IVRCall.QUEUED)
 
         # these calls should not be rescheduled
@@ -2231,3 +2261,30 @@ class IVRTests(FlowFileTest):
 
         self.assertRaises(ValueError, IVRCall.derive_ivr_status_twiml, None, None)
         self.assertRaises(ValueError, IVRCall.derive_ivr_status_twiml, "potato", None)
+
+    def test_ivr_call_task_retry(self):
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=0,
+            next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.NO_ANSWER,
+            duration=10,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=timezone.now(),
+        )
+
+        lock_key = f"ivr_call_start_task_contact_{call1.contact_id}"
+
+        # simulate that we are already executing a call task for this contact
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=60):
+
+            self.assertRaises(celery.exceptions.Retry, start_call_task, call1.id)
