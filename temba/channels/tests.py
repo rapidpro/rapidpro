@@ -1228,7 +1228,9 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+                create_app.return_value = MockResponse(
+                    200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+                )
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
@@ -1452,7 +1454,9 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+                create_app.return_value = MockResponse(
+                    200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+                )
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
 
