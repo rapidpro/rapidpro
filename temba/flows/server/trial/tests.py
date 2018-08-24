@@ -353,6 +353,7 @@ class MessageFlowTest(TembaTest):
         mock_report_failure.assert_not_called()
 
     @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.campaigns.report_failure")
     def test_trial_fault_tolerance(self, mock_report_failure):
         # an exception in maybe_start shouldn't prevent normal flow execution
@@ -386,6 +387,7 @@ class MessageFlowTest(TembaTest):
             mock_report_failure.assert_called_once()
 
     @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.campaigns.report_success")
     def test_run_successfully(self, mock_report_success):
         self._run_flow()
@@ -393,6 +395,7 @@ class MessageFlowTest(TembaTest):
         mock_report_success.assert_called_once()
 
     @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.campaigns.report_failure")
     @patch("temba.flows.server.trial.campaigns.report_success")
     @patch("temba.flows.server.trial.campaigns.run_flow")
