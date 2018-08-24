@@ -906,8 +906,9 @@ class Org(SmartModel):
         )
 
         response = client.create_application(params=params)
-        app_id = response.get("id", None)
-        private_key = response.get("keys", dict()).get("private_key", None)
+        response_json = response.json()
+        app_id = response_json.get("id", None)
+        private_key = response_json.get("keys", dict()).get("private_key", None)
 
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
