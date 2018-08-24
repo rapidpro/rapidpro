@@ -13,10 +13,10 @@ from django.utils.encoding import force_text
 
 from celery.task import task
 
+from temba.channels.courier import handle_new_contact, handle_new_message
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
 from temba.utils import analytics, chunk_list
-from temba.utils.mage import handle_new_contact, handle_new_message
 from temba.utils.queues import complete_task, nonoverlapping_task, start_task
 
 from .models import (
@@ -143,11 +143,7 @@ def process_message_task(msg_event):
 
                 # make sure we are still pending
                 if msg and msg.status == PENDING:
-                    process_message(
-                        msg,
-                        msg_event.get("from_mage", msg_event.get("new_message", False)),
-                        msg_event.get("new_contact", False),
-                    )
+                    process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
                     return
 
     # backwards compatibility for events without contact ids, we handle the message directly

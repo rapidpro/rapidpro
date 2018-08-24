@@ -5,24 +5,19 @@ from datetime import datetime
 import pytz
 from twilio import twiml
 
-from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.encoding import force_text
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, Msg
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import on_transaction_commit
 from temba.utils.http import HttpEvent
-from temba.utils.queues import push_task
 
 logger = logging.getLogger(__name__)
 
@@ -322,72 +317,6 @@ class NexmoCallHandler(BaseChannelHandler):
 
                 # either way, we need to hangup now
                 return JsonResponse(json.loads(str(response)), safe=False)
-
-
-class MageHandler(BaseChannelHandler):
-    handler_url = r"^mage/(?P<action>handle_message|follow_notification|stop_contact)$"
-    handler_name = "handlers.mage_handler"
-
-    @csrf_exempt
-    def dispatch(self, request, *args, **kwargs):
-        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
-
-    def post(self, request, *args, **kwargs):
-        from temba.triggers.tasks import fire_follow_triggers
-
-        if not settings.MAGE_AUTH_TOKEN:  # pragma: no cover
-            return JsonResponse(dict(error="Authentication not configured"), status=401)
-
-        authorization = request.META.get("HTTP_AUTHORIZATION", "").split(" ")
-
-        if len(authorization) != 2 or authorization[0] != "Token" or authorization[1] != settings.MAGE_AUTH_TOKEN:
-            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
-
-        action = kwargs["action"].lower()
-        new_contact = request.POST.get("new_contact", "").lower() in ("true", "1")
-
-        if action == "handle_message":
-            try:
-                msg_id = int(request.POST.get("message_id", ""))
-            except ValueError:
-                return JsonResponse(dict(error="Invalid message_id"), status=400)
-
-            msg = Msg.objects.select_related("org").get(pk=msg_id)
-
-            push_task(
-                msg.org,
-                HANDLER_QUEUE,
-                HANDLE_EVENT_TASK,
-                dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact),
-            )
-
-            # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
-
-        elif action == "follow_notification":
-            try:
-                channel_id = int(request.POST.get("channel_id", ""))
-                contact_urn_id = int(request.POST.get("contact_urn_id", ""))
-            except ValueError:  # pragma: needs cover
-                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
-
-            on_transaction_commit(
-                lambda: fire_follow_triggers.apply_async(
-                    args=(channel_id, contact_urn_id, new_contact), queue="handler"
-                )
-            )
-
-        elif action == "stop_contact":
-            contact = Contact.objects.filter(is_active=True, id=request.POST.get("contact_id", "-1")).first()
-            if not contact:
-                return JsonResponse(dict(error="Invalid contact_id"), status=400)
-
-            contact.stop(contact.modified_by)
-
-        return JsonResponse(dict(error=None))
 
 
 class JunebugUSSDHandler(BaseChannelHandler):

@@ -6071,7 +6071,7 @@ class ContactTest(TembaTest):
         )
 
         with self.assertNumQueries(13):
-            process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
+            process_message_task(dict(id=msg.id, new_message=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
@@ -6087,7 +6087,7 @@ class ContactTest(TembaTest):
         )
 
         with self.assertNumQueries(19):
-            process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
+            process_message_task(dict(id=msg.id, new_message=True, new_contact=True))
 
         self.assertCountEqual(
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],

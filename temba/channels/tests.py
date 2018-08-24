@@ -25,7 +25,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
-from temba.api.models import WebHookEvent
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.flows.models import FlowRun
@@ -44,12 +43,10 @@ from temba.msgs.models import (
     WIRED,
     Broadcast,
     Msg,
-    SystemLabel,
 )
 from temba.orgs.models import (
     ACCOUNT_SID,
     ACCOUNT_TOKEN,
-    ALL_EVENTS,
     APPLICATION_SID,
     FREE_PLAN,
     NEXMO_APP_ID,
@@ -59,7 +56,7 @@ from temba.orgs.models import (
     NEXMO_UUID,
     Org,
 )
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -2507,246 +2504,6 @@ class ChannelLogTest(TembaTest):
 
         response = self.client.get(read_url)
         self.assertContains(response, "invalid credentials")
-
-
-class MageHandlerTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.org.webhook = {"url": "http://fake.com/webhook.php"}
-        self.org.webhook_events = ALL_EVENTS
-        self.org.save()
-
-        self.joe = self.create_contact("Joe", number="+250788383383")
-
-        with ESMockWithScroll():
-            self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
-
-    def create_contact_like_mage(self, name, twitter):
-        """
-        Creates a contact as if it were created in Mage, i.e. no event/group triggering or cache updating
-        """
-        contact = Contact.objects.create(
-            org=self.org,
-            name=name,
-            is_active=True,
-            is_blocked=False,
-            uuid=uuid.uuid4(),
-            is_stopped=False,
-            modified_by=self.user,
-            created_by=self.user,
-            modified_on=timezone.now(),
-            created_on=timezone.now(),
-        )
-        urn = ContactURN.objects.create(
-            org=self.org,
-            contact=contact,
-            identity="twitter:%s" % twitter,
-            scheme="twitter",
-            path=twitter,
-            priority="90",
-        )
-        return contact, urn
-
-    def create_message_like_mage(self, text, contact, contact_urn=None):
-        """
-        Creates a message as it if were created in Mage, i.e. no topup decrementing or cache updating
-        """
-        if not contact_urn:
-            contact_urn = contact.get_urn(TEL_SCHEME)
-        return Msg.objects.create(
-            org=self.org,
-            text=text,
-            direction=INCOMING,
-            created_on=timezone.now(),
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact_urn,
-        )
-
-    @override_settings(MAGE_AUTH_TOKEN="abc123")
-    def test_handle_message(self):
-        url = reverse("handlers.mage_handler", args=["handle_message"])
-        headers = dict(HTTP_AUTHORIZATION="Token %s" % settings.MAGE_AUTH_TOKEN)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-        self.assertEqual(1000, self.org.get_credits_remaining())
-
-        msg = self.create_message_like_mage(text="Hello 1", contact=self.joe)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(1000, self.org.get_credits_remaining())
-
-        # check that GET doesn't work
-        response = self.client.get(url, dict(message_id=msg.pk), **headers)
-        self.assertEqual(405, response.status_code)
-
-        # check that POST does work
-        response = self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
-        self.assertEqual(200, response.status_code)
-
-        # check that new message is handled and has a topup
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual("H", msg.status)
-        self.assertEqual(self.welcome_topup, msg.topup)
-
-        # check for a web hook event
-        event = WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data
-        self.assertEqual(msg.id, event["sms"])
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(999, self.org.get_credits_remaining())
-
-        # check that a message that has a topup, doesn't decrement twice
-        msg = self.create_message_like_mage(text="Hello 2", contact=self.joe)
-        (msg.topup_id, amount) = self.org.decrement_credit()
-        msg.save()
-
-        self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(2, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(998, self.org.get_credits_remaining())
-
-        # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
-        mage_contact, mage_contact_urn = self.create_contact_like_mage("Bob", "bobby81")
-        msg = self.create_message_like_mage(text="Hello via Mage", contact=mage_contact, contact_urn=mage_contact_urn)
-
-        response = self.client.post(url, dict(message_id=msg.pk, new_contact=True), **headers)
-        self.assertEqual(200, response.status_code)
-
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual("H", msg.status)
-        self.assertEqual(self.welcome_topup, msg.topup)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(3, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(997, self.org.get_credits_remaining())
-
-        # check that contact ended up dynamic group
-        self.assertEqual([mage_contact], list(self.dyn_group.contacts.order_by("name")))
-
-        # check invalid auth key
-        response = self.client.post(url, dict(message_id=msg.pk), **dict(HTTP_AUTHORIZATION="Token xyz"))
-        self.assertEqual(401, response.status_code)
-
-        # check rejection of empty or invalid msgId
-        response = self.client.post(url, dict(), **headers)
-        self.assertEqual(400, response.status_code)
-        response = self.client.post(url, dict(message_id="xx"), **headers)
-        self.assertEqual(400, response.status_code)
-
-    @override_settings(MAGE_AUTH_TOKEN="abc123")
-    def test_follow_notification(self):
-        url = reverse("handlers.mage_handler", args=["follow_notification"])
-        headers = dict(HTTP_AUTHORIZATION="Token %s" % settings.MAGE_AUTH_TOKEN)
-
-        flow = self.create_flow()
-
-        channel = Channel.create(self.org, self.user, None, "TT", "Twitter Channel", address="billy_bob")
-
-        Trigger.objects.create(
-            created_by=self.user,
-            modified_by=self.user,
-            org=self.org,
-            trigger_type=Trigger.TYPE_FOLLOW,
-            flow=flow,
-            channel=channel,
-        )
-
-        contact = self.create_contact("Mary Jo", twitter="mary_jo")
-        urn = contact.get_urn(TWITTER_SCHEME)
-
-        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(1, flow.runs.all().count())
-        self.assertTrue(
-            ChannelEvent.objects.filter(channel=channel, contact=contact, event_type=ChannelEvent.TYPE_FOLLOW)
-        )
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
-
-        # simulate a a follow from existing stopped contact
-        contact.stop(self.admin)
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(2, flow.runs.all().count())
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
-
-        contact.refresh_from_db()
-        self.assertFalse(contact.is_stopped)
-
-        # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
-        mage_contact, mage_contact_urn = self.create_contact_like_mage("Bob", "bobby81")
-
-        response = self.client.post(
-            url, dict(channel_id=channel.id, contact_urn_id=mage_contact_urn.id, new_contact=True), **headers
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(3, flow.runs.all().count())
-
-        # check that contact ended up dynamic group
-        self.assertEqual([mage_contact], list(self.dyn_group.contacts.order_by("name")))
-
-        # check contact count updated
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
-
-        # simulate the follow of a released channel
-        channel_events_count = ChannelEvent.objects.filter(channel=channel).count()
-        channel.release()
-
-        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
-
-    @override_settings(MAGE_AUTH_TOKEN="abc123")
-    def test_stop_contact(self):
-        url = reverse("handlers.mage_handler", args=["stop_contact"])
-        headers = dict(HTTP_AUTHORIZATION="Token %s" % settings.MAGE_AUTH_TOKEN)
-        contact = self.create_contact("Mary Jo", twitter="mary_jo")
-
-        response = self.client.post(url, dict(contact_id=contact.id), **headers)
-        self.assertEqual(200, response.status_code)
-
-        # check the contact got stopped
-        contact.refresh_from_db()
-        self.assertTrue(contact.is_stopped)
-
-        # try with invalid id
-        response = self.client.post(url, dict(contact_id=-1), **headers)
-
-        # should get a 401
-        self.assertEqual(400, response.status_code)
 
 
 class JunebugTestMixin(object):
