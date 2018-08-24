@@ -62,7 +62,7 @@ class TwilioTypeTest(TembaTest):
             self.assertIn("account_trial", response.context)
             self.assertTrue(response.context["account_trial"])
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.search") as mock_search:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_search:
             search_url = reverse("channels.channel_search_numbers")
 
             # try making empty request
@@ -95,10 +95,10 @@ class TwilioTypeTest(TembaTest):
                 response.json()["error"], "Sorry, no numbers found, please enter another pattern and try again."
             )
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+12062345678")]
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = []
 
                 response = self.client.get(claim_twilio)
@@ -121,10 +121,10 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         # voice only number
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+554139087835")]
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = []
                 Channel.objects.all().delete()
 
@@ -139,10 +139,10 @@ class TwilioTypeTest(TembaTest):
                 channel = Channel.objects.get(channel_type="T", org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+4545335500")]
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = []
 
                 Channel.objects.all().delete()
@@ -158,10 +158,10 @@ class TwilioTypeTest(TembaTest):
                 # make sure it is actually connected
                 Channel.objects.get(channel_type="T", org=self.org)
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = []
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = [MockTwilioClient.MockShortCode("8080")]
                 Channel.objects.all().delete()
 
@@ -187,7 +187,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual("T", twilio_channel.channel_type)
 
         with self.settings(IS_PROD=True):
-            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.update") as mock_numbers:
+            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumber.update") as mock_numbers:
                 # our twilio channel removal should fail on bad auth
                 mock_numbers.side_effect = TwilioRestException(
                     401, "http://twilio", msg="Authentication Failure", code=20003

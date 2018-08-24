@@ -1800,13 +1800,13 @@ class ChannelCRUDL(SmartCRUDL):
 
             kwargs["type"] = "local"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
+                available_numbers += client.api.available_phone_numbers.stream(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 
             kwargs["type"] = "mobile"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
+                available_numbers += client.api.available_phone_numbers.stream(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 

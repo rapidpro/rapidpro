@@ -137,7 +137,7 @@ class TwilioClient(TembaTwilioRestClient):
         params = dict(to=to, from_=call.channel.address, url=status_callback, status_callback=status_callback)
 
         try:
-            twilio_call = self.calls.create(**params)
+            twilio_call = self.api.calls.create(**params)
             call.external_id = str(twilio_call.sid)
 
             # the call was successfully sent to the IVR provider
@@ -193,7 +193,7 @@ class TwilioClient(TembaTwilioRestClient):
         return None  # pragma: needs cover
 
     def hangup(self, call):
-        twilio_call = self.calls.get(call.external_id).update(status="completed")
+        twilio_call = self.api.calls.get(call.external_id).update(status="completed")
         for event in self.events:
             ChannelLog.log_ivr_interaction(call, "Hung up call", event)
         return twilio_call

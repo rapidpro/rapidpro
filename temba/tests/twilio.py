@@ -19,12 +19,12 @@ class MockTwilioClient(TwilioClient):
         self.events = []
 
     @property
-    def applications(self):
-        return MockTwilioClient.MockApplications()
+    def api(self):
+        return MockTwilioClient.MockAPI()
 
     @property
-    def calls(self):
-        return MockTwilioClient.MockCalls()
+    def applications(self):
+        return MockTwilioClient.MockApplications()
 
     @property
     def accounts(self):
@@ -34,34 +34,76 @@ class MockTwilioClient(TwilioClient):
     def phone_numbers(self):
         return MockTwilioClient.MockPhoneNumbers()
 
-    @property
-    def messages(self):
-        return MockTwilioClient.MockSMS()
-
     def validate(self, request):
         return True
 
-    class MockShortCode(object):
+    class MockInstanceResource(object):
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def fetch(self):
+            return self
+
+        def update(self, **kwargs):
+            return True
+
+        def delete(self, **kwargs):
+            return True
+
+        def get(self, sid):
+            return self.stream()[0]
+
+    class MockAPI(object):
+        def __init__(self, *args, **kwargs):
+            pass
+
+        @property
+        def account(self):
+            return MockTwilioClient.MockAccounts().get("Full")
+
+        @property
+        def incoming_phone_numbers(self):
+            return MockTwilioClient.MockPhoneNumbers()
+
+        @property
+        def available_phone_numbers(self):
+            return MockTwilioClient.MockPhoneNumbers()
+
+        @property
+        def short_codes(self):
+            return MockTwilioClient.MockShortCodes()
+
+        @property
+        def applications(self):
+            return MockTwilioClient.MockApplications()
+
+        @property
+        def calls(self):
+            return MockTwilioClient.MockCalls()
+
+        @property
+        def messages(self):
+            return MockTwilioClient.MockInstanceResource()
+
+    class MockShortCode(MockInstanceResource):
         def __init__(self, short_code):
             self.short_code = short_code
             self.sid = "ShortSid"
 
-    class MockShortCodes(object):
+    class MockShortCodes(MockInstanceResource):
         def __init__(self, *args):
             pass
 
         def list(self, short_code=None):
             return [MockTwilioClient.MockShortCode(short_code)]
 
+        def stream(self, *args, **kwargs):
+            return [MockTwilioClient.MockShortCode("1122")]
+
         def update(self, sid, **kwargs):
             print("Updating short code with sid %s" % sid)
 
-    class MockSMS(object):
-        def __init__(self, *args):
-            self.uri = "/SMS"
-            self.short_codes = MockTwilioClient.MockShortCodes()
-
-    class MockCallInstance(object):
+    class MockCallInstance(MockInstanceResource):
         def __init__(self, *args, **kwargs):
             self.sid = "CallSid"
             pass
@@ -69,43 +111,46 @@ class MockTwilioClient(TwilioClient):
         def update(self, status):
             print("Updating call %s to status %s" % (self.sid, status))
 
-    class MockApplication(object):
+    class MockApplication(MockInstanceResource):
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
             self.sid = "TwilioTestSid"
 
-    class MockPhoneNumber(object):
+    class MockPhoneNumber(MockInstanceResource):
         def __init__(self, phone_number):
             self.phone_number = phone_number
             self.sid = "PhoneNumberSid"
 
-    class MockAccount(object):
+    class MockAccount(MockInstanceResource):
         def __init__(self, account_type, auth_token="AccountToken"):
             self.type = account_type
             self.auth_token = auth_token
             self.sid = "AccountSid"
 
-    class MockAccounts(object):
+        def get(self, sid):
+            return self
+
+    class MockAccounts(MockInstanceResource):
         def __init__(self, *args):
             pass
 
         def get(self, account_type):
             return MockTwilioClient.MockAccount(account_type)
 
-    class MockPhoneNumbers(object):
+    class MockPhoneNumbers(MockInstanceResource):
         def __init__(self, *args):
             pass
 
         def list(self, phone_number=None):
             return [MockTwilioClient.MockPhoneNumber(phone_number)]
 
+        def stream(self, *args, **kwargs):
+            return [MockTwilioClient.MockPhoneNumber("+12062345678")]
+
         def search(self, **kwargs):
             return []
 
-        def update(self, sid, **kwargs):
-            print("Updating phone number with sid %s" % sid)
-
-    class MockApplications(object):
+    class MockApplications(MockInstanceResource):
         def __init__(self, *args):
             pass
 
@@ -115,12 +160,12 @@ class MockTwilioClient(TwilioClient):
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
 
-        def delete(self, **kwargs):
-            return True
+        def get(self, sid):
+            return self.list()[0]
 
-    class MockCalls(object):
+    class MockCalls(MockInstanceResource):
         def __init__(self):
-            self.events = []
+            pass
 
         def get(self, *args):
             return MockTwilioClient.MockCallInstance()
