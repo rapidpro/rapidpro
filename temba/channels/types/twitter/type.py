@@ -41,7 +41,7 @@ class TwitterType(ChannelType):
     )  # handle no longer follows us
 
     def is_available_to(self, user):
-        return user.is_beta()
+        return False
 
     def activate(self, channel):
         # tell Mage to activate this channel
