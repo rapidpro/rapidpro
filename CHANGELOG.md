@@ -1,3 +1,9 @@
+v4.3.4
+----------
+ * Increase IVR logging verbosity
+ * Trial all campaign message flows in flowserver
+ * Tweak android recommendation
+
 v4.3.3
 ----------
  * Run Table should only exclude the referenced run, and include greater Ids
