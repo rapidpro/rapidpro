@@ -67,15 +67,13 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print(f"Flowserver trial message flow for run {str(trial.run.uuid)} succeeded")
+    logger.info(f"Flowserver trial message flow for run {str(trial.run.uuid)} succeeded")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print(f"Flowserver trial message flow for run {str(trial.run.uuid)} failed")
-
     logger.error(
         "trial message flow in flowserver produced different output",
         extra={

@@ -68,11 +68,11 @@ def maybe_start(run):
         pass
 
     try:
-        print("Starting flowserver trial resume for run %s in flow '%s'" % (str(run.uuid), run.flow.name))
+        logger.info(f"Starting flowserver trial resume for run {str(run.uuid)} in flow '{run.flow.name}'")
         return Trial(run)
 
     except Exception as e:
-        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), str(e)), exc_info=True)
+        logger.error(f"Unable to reconstruct session for run {str(run.uuid)}: {str(e)}", exc_info=True)
         return None
 
 
@@ -92,10 +92,10 @@ def end(trial, msg_in=None, expired_child_run=None):
             return True
 
     except FlowServerException as e:
-        logger.error("trial resume in flowserver caused server error", extra=e.as_json())
+        logger.error("Trial resume in flowserver caused server error", extra=e.as_json())
         return False
     except Exception as e:
-        logger.error("exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True)
+        logger.error(f"Exception during trial resumption of run {str(trial.run.uuid)}: {str(e)}", exc_info=True)
         return False
 
 
@@ -103,15 +103,13 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
+    logger.info(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' failed")
-
     logger.error(
         "trial resume in flowserver produced different output",
         extra={
