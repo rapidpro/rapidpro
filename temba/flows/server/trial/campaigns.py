@@ -27,7 +27,7 @@ def maybe_start(flow, contact_id, campaign_event):
     """
     Starts a trial of a campaign message flow if a flowserver is configured
     """
-    if not settings.FLOW_SERVER_URL:
+    if not settings.FLOW_SERVER_URL or settings.FLOW_SERVER_TRIAL == "off":
         return None
 
     try:
