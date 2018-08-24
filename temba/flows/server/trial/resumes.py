@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from temba.flows.server.client import Events, FlowServerException, get_client
 from temba.flows.server.serialize import serialize_contact, serialize_environment, serialize_ref
+from temba.utils import analytics
 
 from .utils import copy_keys, reduce_event
 
@@ -105,6 +106,8 @@ def report_success(trial):  # pragma: no cover
     """
     logger.info(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
+    analytics.gauge("temba.flowserver_trial.resume_pass")
+
 
 def report_failure(trial):  # pragma: no cover
     """
@@ -119,6 +122,8 @@ def report_failure(trial):  # pragma: no cover
             "differences": trial.differences,
         },
     )
+
+    analytics.gauge("temba.flowserver_trial.resume_fail")
 
 
 def resume(trial, msg_in=None, expired_child_run=None):

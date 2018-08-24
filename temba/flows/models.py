@@ -987,17 +987,10 @@ class Flow(TembaModel):
                 analytics.gauge("temba.run_resumes")
 
                 if trial:
-                    trial_result = None
-
                     if expired_child_run:
-                        trial_result = trial_resumes.end(trial, expired_child_run=expired_child_run)
+                        trial_resumes.end(trial, expired_child_run=expired_child_run)
                     elif msg and msg.id:
-                        trial_result = trial_resumes.end(trial, msg_in=msg)
-
-                    if trial_result is not None:
-                        analytics.gauge(
-                            "temba.flowserver_trial.%s" % ("resume_pass" if trial_result else "resume_fail")
-                        )
+                        trial_resumes.end(trial, msg_in=msg)
 
                 return True, msgs
 

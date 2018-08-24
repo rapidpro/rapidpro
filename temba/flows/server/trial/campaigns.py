@@ -4,6 +4,7 @@ from django.conf import settings
 
 from temba.contacts.models import Contact
 from temba.flows.server.client import FlowServerException, get_client
+from temba.utils import analytics
 
 from .utils import reduce_event
 
@@ -69,6 +70,8 @@ def report_success(trial):  # pragma: no cover
     """
     logger.info(f"Flowserver trial message flow for run {str(trial.run.uuid)} succeeded")
 
+    analytics.gauge("temba.flowserver_trial.campaign_pass")
+
 
 def report_failure(trial):  # pragma: no cover
     """
@@ -83,6 +86,8 @@ def report_failure(trial):  # pragma: no cover
             "differences": trial.differences,
         },
     )
+
+    analytics.gauge("temba.flowserver_trial.campaign_fail")
 
 
 def run_flow(flow, contact, campaign_event):
