@@ -1,3 +1,7 @@
+v4.3.7
+----------
+ * Data migration to deactivate all old style Twitter channels
+
 v4.3.4
 ----------
  * Increase IVR logging verbosity
