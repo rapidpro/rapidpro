@@ -1505,11 +1505,11 @@ class ContactTest(TembaTest):
         self.billy = Contact.objects.get(pk=self.billy.pk)
 
         all = (self.joe, self.frank, self.billy)
-        Contact.bulk_cache_initialize(self.org, all, for_show_only=True)
+        Contact.bulk_cache_initialize(self.org, all)
 
-        self.assertEqual([u.scheme for u in getattr(self.joe, "__urns")], [TWITTER_SCHEME, TEL_SCHEME])
-        self.assertEqual([u.scheme for u in getattr(self.frank, "__urns")], [TEL_SCHEME])
-        self.assertEqual(getattr(self.billy, "__urns"), list())
+        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [TWITTER_SCHEME, TEL_SCHEME])
+        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [TEL_SCHEME])
+        self.assertEqual(getattr(self.billy, "_urns_cache"), list())
 
         with self.assertNumQueries(0):
             self.assertEqual(self.joe.get_field_value(age), 32)
@@ -2817,26 +2817,26 @@ class ContactTest(TembaTest):
             },
         ]
         with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+            with self.assertNumQueries(20):
+                actual_result = omnibox_request("")
+                expected_result = [
+                    # all 3 groups A-Z
+                    dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+                    dict(id="g-%s" % men.uuid, text="Men", extra=0),
+                    dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
+                    # all 4 contacts A-Z
+                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
+                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
+                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
+                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383", extra="250768383383"),
+                    # 3 sendable URNs with names as extra
+                    dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
+                    dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
+                    dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
+                    dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                ]
 
-            actual_result = omnibox_request("")
-            expected_result = [
-                # all 3 groups A-Z
-                dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2),
-                dict(id="g-%s" % men.uuid, text="Men", extra=0),
-                dict(id="g-%s" % nobody.uuid, text="Nobody", extra=0),
-                # all 4 contacts A-Z
-                dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
-                # 3 sendable URNs with names as extra
-                dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
-                dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
-                dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
-                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
-            ]
-
-            self.assertEqual(actual_result, expected_result)
+            self.assertEqual(expected_result, actual_result)
 
         # apply type filters...
 
@@ -2886,10 +2886,10 @@ class ContactTest(TembaTest):
             self.assertEqual(
                 omnibox_request("types=c,u"),
                 [
-                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone"),
-                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
-                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383"),
+                    dict(id="c-%s" % self.billy.uuid, text="Billy Nophone", extra=""),
+                    dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="250782222222"),
+                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
+                    dict(id="c-%s" % self.voldemort.uuid, text="250768383383", extra="250768383383"),
                     dict(id="u-%d" % voldemort_tel.pk, text="250768383383", extra=None, scheme="tel"),
                     dict(id="u-%d" % joe_tel.pk, text="250781111111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme="tel"),
@@ -2957,7 +2957,7 @@ class ContactTest(TembaTest):
             self.assertEqual(
                 omnibox_request("search=BLOW"),
                 [
-                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
+                    dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
                     dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
                     dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
                 ],
@@ -2973,7 +2973,8 @@ class ContactTest(TembaTest):
         ]
         with ESMockWithScrollMultiple(data=[mock_es_data, []]):
             self.assertEqual(
-                omnibox_request("search=Joe+o&types=c"), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")]
+                omnibox_request("search=Joe+o&types=c"),
+                [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")],
             )
 
         self.assertEqual(
@@ -2984,7 +2985,10 @@ class ContactTest(TembaTest):
         # lookup by contact ids
         self.assertEqual(
             omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)),
-            [dict(id="c-%s" % self.frank.uuid, text="Frank Smith"), dict(id="c-%s" % self.joe.uuid, text="Joe Blow")],
+            [
+                dict(id="c-%s" % self.frank.uuid, text="Frank Smith", extra="0782 222 222"),
+                dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
+            ],
         )
 
         # lookup by group id
@@ -3005,14 +3009,18 @@ class ContactTest(TembaTest):
 
         # lookup by message ids
         msg = self.create_msg(direction="I", contact=self.joe, text="some message")
-        self.assertEqual(omnibox_request("m=%d" % msg.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")])
+        self.assertEqual(
+            omnibox_request("m=%d" % msg.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")]
+        )
 
         # lookup by label ids
         label = Label.get_or_create(self.org, self.user, "msg label")
         self.assertEqual(omnibox_request("l=%d" % label.pk), [])
 
         msg.labels.add(label)
-        self.assertEqual(omnibox_request("l=%d" % label.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow")])
+        self.assertEqual(
+            omnibox_request("l=%d" % label.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")]
+        )
 
         with AnonymousOrg(self.org):
             mock_es_data = [
@@ -6311,7 +6319,7 @@ class ContactFieldTest(TembaTest):
             return workbook.worksheets
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(47):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6362,7 +6370,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(47):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6419,7 +6427,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(47):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -6503,7 +6511,7 @@ class ContactFieldTest(TembaTest):
             )
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(48):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -6559,7 +6567,7 @@ class ContactFieldTest(TembaTest):
             {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact3.id}},
         ]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(47):
+            with self.assertNumQueries(46):
                 self.assertExcelSheet(
                     request_export("?s=name+has+adam+or+name+has+deng")[0],
                     [
@@ -6612,7 +6620,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(48):
+            with self.assertNumQueries(47):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [

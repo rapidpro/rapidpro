@@ -277,7 +277,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context["object_list"])
-        Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
+        Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
