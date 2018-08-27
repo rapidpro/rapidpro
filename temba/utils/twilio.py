@@ -42,7 +42,7 @@ class TembaTwilioRestClient(Client):  # pragma: no cover
             self.events.append(event)
         resp = super().request(method, uri, auth=self.auth, **kwargs)
 
-        event.url = resp.url
+        event.url = uri
         event.status_code = resp.status_code
         event.response_body = force_text(resp.content)
 
