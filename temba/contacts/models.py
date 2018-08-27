@@ -1980,17 +1980,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_cache_initialize(self.org, [self])
 
     @classmethod
-    def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
+    def bulk_cache_initialize(cls, org, contacts):
         """
         Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
         variable substitution.
         """
         if not contacts:
             return
-
-        fields = org.cached_contact_fields.values()
-        if for_show_only:
-            fields = [f for f in fields if f.show_in_table]
 
         contact_map = dict()
         for contact in contacts:
