@@ -1328,7 +1328,7 @@ class APITest(TembaTest):
         hans = self.create_contact("Hans", "0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
