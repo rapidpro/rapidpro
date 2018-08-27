@@ -153,7 +153,7 @@ def process_message_task(msg_event):
             # grab our contact lock and handle this message
             key = "pcm_%d" % msg.contact_id
             with r.lock(key, timeout=120):
-                process_message(msg, msg_event.get("from_mage", False), msg_event.get("new_contact", False))
+                process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
 
 
 @task(track_started=True, name="send_broadcast")
