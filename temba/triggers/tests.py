@@ -529,8 +529,8 @@ class TriggerTest(TembaTest):
             favorites = self.get_flow("favorites")
             self.assertEqual(2, trigger_form.fields["flow"].choices.queryset.all().count())
 
-            # now change to a single message type
-            pick.flow_type = Flow.MESSAGE
+            # now change to a system flow
+            pick.is_system = True
             pick.save()
 
             # our flow should no longer be an option

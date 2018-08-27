@@ -743,7 +743,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.api.models import WebHookResult
-        from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, BroadcastRecipient
 
@@ -772,14 +771,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(
-            flow__flow_type=Flow.MESSAGE
-        )
+        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__is_system=True)
         started_runs = started_runs.order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
-        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(
-            flow__flow_type=Flow.MESSAGE
-        )
+        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__is_system=True)
         exited_runs = exited_runs.exclude(exit_type=None).order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)

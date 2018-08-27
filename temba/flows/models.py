@@ -606,7 +606,7 @@ class Flow(TembaModel):
         if not settings.FLOW_SERVER_URL:  # pragma: no cover
             return False
 
-        if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE, self.FLOW):
+        if settings.FLOW_SERVER_FORCE and self.flow_type == self.FLOW:
             return True
 
         return self.flow_server_enabled
@@ -1615,10 +1615,9 @@ class Flow(TembaModel):
         if base_language not in translations:  # pragma: no cover
             raise ValueError("Must include translation for base language")
 
-        self.flow_type = Flow.MESSAGE
         self.base_language = base_language
         self.version_number = get_current_export_version()
-        self.save(update_fields=("name", "flow_type", "base_language", "version_number"))
+        self.save(update_fields=("name", "base_language", "version_number"))
 
         entry_uuid = str(uuid4())
         definition = {
@@ -2069,7 +2068,7 @@ class Flow(TembaModel):
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
 
             # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            if self.flow_type == Flow.MESSAGE and len(all_contact_ids) == 1:
+            if self.is_system and len(all_contact_ids) == 1:
                 trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
             else:
                 trial = None

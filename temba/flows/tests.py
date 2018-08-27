@@ -373,7 +373,7 @@ class FlowTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # single message flow (flom campaign) should not be included in counts and not even on this list
-        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE)
+        Flow.objects.filter(pk=self.flow.pk).update(is_system=True)
 
         response = self.client.get(reverse("flows.flow_list"))
 
@@ -382,7 +382,7 @@ class FlowTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # single message flow should not be even in the archived list
-        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE, is_archived=True)
+        Flow.objects.filter(pk=self.flow.pk).update(is_system=True, is_archived=True)
 
         response = self.client.get(reverse("flows.flow_archived"))
         self.assertNotContains(response, self.flow.name)

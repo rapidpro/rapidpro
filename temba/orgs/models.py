@@ -1974,15 +1974,13 @@ class Org(SmartModel):
         campaign_prefetches = (
             Prefetch(
                 "events",
-                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE),
+                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__is_system=True),
                 to_attr="flow_events",
             ),
             "flow_events__flow",
         )
 
-        all_flows = (
-            self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
-        )
+        all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
         all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:

@@ -224,7 +224,7 @@ class Campaign(TembaModel):
         events = list(self.events.filter(is_active=True))
 
         for evt in events:
-            if evt.flow.flow_type == Flow.MESSAGE:
+            if evt.flow.is_system:
                 evt.flow.ensure_current_version()
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
@@ -462,8 +462,9 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
-        # if our flow is a single message flow, clean up
-        if self.flow.flow_type == Flow.MESSAGE:
+        # if flow isn't a user created flow we can delete it too
+        if self.flow.is_system:
+
             # delete any associated flow starts
             self.flow_starts.all().delete()
 

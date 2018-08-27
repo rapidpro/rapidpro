@@ -266,7 +266,7 @@ class CampaignEventForm(forms.ModelForm):
                 iso_code = language.language["iso_code"]
                 translations[iso_code] = self.cleaned_data.get(iso_code, "")
 
-            if not obj.flow_id or not obj.flow.is_active or obj.flow.flow_type != Flow.MESSAGE:
+            if not obj.flow_id or not obj.flow.is_active or not obj.flow.is_system:
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
             else:
                 # set our single message on our flow
