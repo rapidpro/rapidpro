@@ -450,7 +450,7 @@ class Flow(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
 
-    is_system = models.NullBooleanField(default=False, help_text=_("Whether this is a system created flow"))
+    is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW, help_text=_("The type of this flow"))
 
