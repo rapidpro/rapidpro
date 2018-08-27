@@ -1,5 +1,6 @@
 import calendar
 import itertools
+import json
 import logging
 import mimetypes
 import os
@@ -906,7 +907,7 @@ class Org(SmartModel):
         )
 
         response = client.create_application(params=params)
-        response_json = response.json()
+        response_json = json.loads(response)
         app_id = response_json.get("id", None)
         private_key = response_json.get("keys", dict()).get("private_key", None)
 

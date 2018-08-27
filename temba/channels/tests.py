@@ -1228,8 +1228,8 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = MockResponse(
-                    200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+                create_app.return_value = bytes(
+                    json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
                 )
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
@@ -1454,8 +1454,8 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = MockResponse(
-                    200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+                create_app.return_value = bytes(
+                    json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
                 )
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
@@ -2025,8 +2025,8 @@ class ChannelTest(TembaTest):
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")
     def test_get_ivr_client(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_update_call.return_value = dict(uuid="12345")
 

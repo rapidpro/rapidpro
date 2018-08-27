@@ -55,8 +55,8 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.util.RequestValidator", MockRequestValidator)
     def test_preferred_channel(self, mock_update_call, mock_create_call, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = dict(uuid="12345")
         mock_update_call.return_value = dict(uuid="12345")
@@ -200,8 +200,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_disable_calls_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = dict(uuid="12345")
 
@@ -387,8 +387,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("requests.post")
     def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application, mock_jwt):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
         mock_jwt.return_value = b"Encoded data"
@@ -830,8 +830,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = dict(uuid="12345")
 
@@ -880,8 +880,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("requests.post")
     def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid="12345"))))
         mock_jwt.return_value = b"Encoded data"
@@ -939,8 +939,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_ivr_subflow_with_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = dict(uuid="12345")
 
@@ -1475,8 +1475,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")
     def test_incoming_start_nexmo(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_update_call.return_value = dict(uuid="12345")
 
@@ -1526,8 +1526,8 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_incoming_call_nexmo(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1648,8 +1648,8 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_nexmo_config_empty_callbacks(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1683,8 +1683,8 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_no_channel_for_call_nexmo(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1714,8 +1714,8 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_no_flow_for_incoming_nexmo(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1828,8 +1828,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_create_call.return_value = dict(uuid="12345")
         mock_download_recording.side_effect = [
@@ -1896,8 +1896,8 @@ class IVRTests(FlowFileTest):
     @patch("jwt.encode")
     @patch("nexmo.Client.create_application")
     def test_temba_utils_nexmo_methods(self, mock_create_application, mock_jwt_encode):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         mock_jwt_encode.return_value = b"TOKEN"
 

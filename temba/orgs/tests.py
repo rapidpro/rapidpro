@@ -2070,8 +2070,8 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_connect_nexmo(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
         )
         self.login(self.admin)
 
@@ -2189,8 +2189,8 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_nexmo_configuration(self, mock_create_application):
-        mock_create_application.return_value = MockResponse(
-            200, json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
+        mock_create_application.return_value = bytes(
+            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n")))
         )
 
         self.login(self.admin)
