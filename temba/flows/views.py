@@ -1378,7 +1378,7 @@ class FlowCRUDL(SmartCRUDL):
                 id = self.request.GET["id"]
 
                 modified_on = iso8601.parse_date(modified_on)
-                runs = runs.filter(modified_on__lte=modified_on).exclude(id__gte=id)
+                runs = runs.filter(modified_on__lte=modified_on).exclude(id=id)
 
             # we grab one more than our page to denote whether there's more to get
             runs = list(runs.order_by("-modified_on")[: self.paginate_by + 1])
