@@ -107,7 +107,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         client = org.get_twilio_client()
-        twilio_phones = client.api.incoming_phone_numbers.stream(phone_number=phone_number)
+        twilio_phones = list(client.api.incoming_phone_numbers.stream(phone_number=phone_number))
         channel_uuid = uuid4()
 
         # create new TwiML app
@@ -131,7 +131,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         is_short_code = len(phone_number) <= 6
         if is_short_code:
-            short_codes = client.api.short_codes.stream(short_code=phone_number)
+            short_codes = list(client.api.short_codes.stream(short_code=phone_number))
 
             if short_codes:
                 short_code = short_codes[0]

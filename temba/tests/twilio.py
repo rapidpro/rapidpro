@@ -39,7 +39,7 @@ class MockTwilioClient(TwilioClient):
             return True
 
         def get(self, sid):
-            return self.stream()[0]
+            return list(self.stream())[0]
 
     class MockAPI(object):
         def __init__(self, *args, **kwargs):
@@ -140,6 +140,10 @@ class MockTwilioClient(TwilioClient):
 
         def search(self, **kwargs):
             return []
+
+        def create(self, *args, **kwargs):
+            phone_number = kwargs["phone_number"]
+            return MockTwilioClient.MockPhoneNumber(phone_number)
 
     class MockApplications(MockInstanceResource):
         def __init__(self, *args):
