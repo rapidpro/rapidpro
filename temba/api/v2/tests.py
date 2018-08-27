@@ -1,5 +1,4 @@
 import base64
-import json
 from datetime import datetime
 from urllib.parse import quote_plus
 from uuid import uuid4
@@ -29,6 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
+from temba.utils import json
 from temba.values.constants import Value
 
 from . import fields

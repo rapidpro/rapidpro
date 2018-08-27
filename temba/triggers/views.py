@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import regex
@@ -22,7 +21,7 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, on_transaction_commit
+from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.views import BaseActionForm
 
 from .models import Trigger

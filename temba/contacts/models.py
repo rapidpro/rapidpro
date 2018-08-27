@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import os
 import time
@@ -27,7 +26,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter

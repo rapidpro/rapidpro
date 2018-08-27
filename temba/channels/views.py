@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import json
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -41,7 +40,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics
+from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent

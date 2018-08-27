@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -23,6 +22,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, TembaTest, matchers
+from temba.utils import json
 from temba.utils.dates import datetime_to_json_date
 from temba.values.constants import Value
 

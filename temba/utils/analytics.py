@@ -10,7 +10,7 @@ from librato_bg import Client as LibratoClient
 from django.conf import settings
 from django.utils import timezone
 
-from temba.utils.dates import datetime_to_json_date
+from temba.utils.json import datetime_to_json_date
 
 logger = logging.getLogger(__name__)
 

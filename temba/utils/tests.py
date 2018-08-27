@@ -1,7 +1,7 @@
 import copy
 import datetime
-import json
 import os
+from collections import OrderedDict
 from decimal import Decimal
 
 import iso8601
@@ -27,10 +27,10 @@ from celery.app.task import Task
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.utils import json
 
 from . import (
     chunk_list,
-    dict_to_json,
     dict_to_struct,
     format_number,
     get_country_code_by_name,
@@ -44,7 +44,6 @@ from .currencies import currency_for_country
 from .dates import (
     date_to_utc_range,
     datetime_to_epoch,
-    datetime_to_json_date,
     datetime_to_ms,
     datetime_to_str,
     ms_to_datetime,
@@ -683,9 +682,9 @@ class JsonTest(TembaTest):
         source = dict(name="Date Test", age=10, now=now)
 
         # encode it
-        encoded = dict_to_json(source)
+        encoded = json.dumps(source)
 
-        self.assertEqual(json.loads(encoded), {"name": "Date Test", "age": 10, "now": datetime_to_json_date(now)})
+        self.assertEqual(json.loads(encoded), {"name": "Date Test", "age": 10, "now": json.datetime_to_json_date(now)})
 
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
@@ -695,7 +694,7 @@ class JsonTest(TembaTest):
         source["now"] = timezone.now().replace(microsecond=0)
 
         # encode it
-        encoded = dict_to_json(source)
+        encoded = json.dumps(source)
 
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
@@ -1999,3 +1998,9 @@ class NonBlockingLockTest(TestCase):
 
         # any other exceptions are handled as usual
         self.assertRaises(Exception, raise_exception)
+
+
+class JSONTest(TestCase):
+    def test_json(self):
+        self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
+        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1535402488123))))

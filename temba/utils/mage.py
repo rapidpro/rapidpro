@@ -1,8 +1,6 @@
-import json
-
 import requests
 
-from temba.utils import analytics
+from temba.utils import analytics, json
 
 
 class MageError(Exception):  # pragma: needs cover

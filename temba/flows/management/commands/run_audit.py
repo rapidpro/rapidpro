@@ -1,4 +1,3 @@
-import json
 import time
 
 from django.core.management.base import BaseCommand
@@ -6,6 +5,7 @@ from django.db import connection
 from django.db.models import Prefetch
 
 from temba.flows.models import Flow, FlowRun
+from temba.utils import json
 
 
 def audit_runs(max_id=0):  # pragma: no cover

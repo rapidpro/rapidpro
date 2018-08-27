@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime
 
@@ -20,7 +19,7 @@ from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, Msg
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import on_transaction_commit
+from temba.utils import json, on_transaction_commit
 from temba.utils.http import HttpEvent
 from temba.utils.queues import push_task
 
