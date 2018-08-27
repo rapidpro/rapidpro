@@ -627,6 +627,7 @@ class Flow(TembaModel):
         """
         Import flows from our flow export file
         """
+        version = float(exported_json.get("version", 0))
         created_flows = []
         flow_uuid_map = dict()
 
@@ -640,43 +641,45 @@ class Flow(TembaModel):
 
             flow = None
 
-            # Don't create our campaign message flows, we'll do that later
-            # this check is only needed up to version 3 of exports
-            if flow_type != Flow.MESSAGE:
-                # check if we can find that flow by id first
-                if same_site:
-                    flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
-                    if flow:  # pragma: needs cover
-                        expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
-                        if flow_type == Flow.VOICE:
-                            expires_minutes = min([expires_minutes, 15])
+            # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
+            # these here as they'll be created by the campaign event itself.
+            if version <= 3.0 and flow_type == "M":
+                continue
 
-                        flow.expires_after_minutes = expires_minutes
-                        flow.name = Flow.get_unique_name(org, name, ignore=flow)
-                        flow.save(update_fields=["name", "expires_after_minutes"])
-
-                # if it's not of our world, let's try by name
-                if not flow:
-                    flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
-
-                # if there isn't one already, create a new flow
-                if not flow:
+            # check if we can find that flow by id first
+            if same_site:
+                flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
+                if flow:  # pragma: needs cover
                     expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
                     if flow_type == Flow.VOICE:
                         expires_minutes = min([expires_minutes, 15])
 
-                    flow = Flow.create(
-                        org,
-                        user,
-                        Flow.get_unique_name(org, name),
-                        flow_type=flow_type,
-                        expires_after_minutes=expires_minutes,
-                    )
+                    flow.expires_after_minutes = expires_minutes
+                    flow.name = Flow.get_unique_name(org, name, ignore=flow)
+                    flow.save(update_fields=["name", "expires_after_minutes"])
 
-                created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+            # if it's not of our world, let's try by name
+            if not flow:
+                flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
 
-                if "uuid" in flow_spec["metadata"]:
-                    flow_uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
+            # if there isn't one already, create a new flow
+            if not flow:
+                expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
+                if flow_type == Flow.VOICE:
+                    expires_minutes = min([expires_minutes, 15])
+
+                flow = Flow.create(
+                    org,
+                    user,
+                    Flow.get_unique_name(org, name),
+                    flow_type=flow_type,
+                    expires_after_minutes=expires_minutes,
+                )
+
+            created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+
+            if "uuid" in flow_spec["metadata"]:
+                flow_uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
         def remap_flow(element):
