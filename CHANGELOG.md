@@ -1,3 +1,7 @@
+v4.3.8
+----------
+ * Tweak Twitter channel migration
+
 v4.3.7
 ----------
  * Data migration to deactivate all old style Twitter channels
