@@ -292,7 +292,11 @@ class CampaignEventForm(forms.ModelForm):
 
         flow = self.fields["flow_to_start"]
         flow.queryset = Flow.objects.filter(
-            org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE], is_active=True, is_archived=False
+            org=self.user.get_org(),
+            flow_type__in=[Flow.FLOW, Flow.MESSAGE, Flow.VOICE],
+            is_active=True,
+            is_archived=False,
+            is_system=False,
         ).order_by("name")
 
         message = self.instance.message or {}

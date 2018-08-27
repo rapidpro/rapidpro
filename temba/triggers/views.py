@@ -88,9 +88,7 @@ class DefaultTriggerForm(BaseTriggerForm):
     """
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
 
@@ -133,9 +131,7 @@ class CatchAllTriggerForm(GroupBasedTriggerForm):
     """
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -153,9 +149,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
     """
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -210,9 +204,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
 
         super().__init__(user, flows, *args, **kwargs)
 
@@ -242,9 +234,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         self.user = user
         self.fields["omnibox"].set_user(user)
 
-        flows = Flow.objects.filter(
-            org=self.user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
 
         self.fields["flow"].queryset = flows
 
@@ -280,7 +270,7 @@ class FollowTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):  # pragma: needs cover
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
         self.fields["channel"].queryset = Channel.objects.filter(
@@ -299,7 +289,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
         self.fields["channel"].queryset = Channel.objects.filter(
@@ -345,9 +335,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     )
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE]
-        )
+        flows = Flow.get_triggerable_flows(user.get_org())
         super().__init__(user, flows, *args, **kwargs)
 
         self.fields["channel"].queryset = Channel.objects.filter(

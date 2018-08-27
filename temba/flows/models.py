@@ -606,7 +606,7 @@ class Flow(TembaModel):
         if not settings.FLOW_SERVER_URL:  # pragma: no cover
             return False
 
-        if settings.FLOW_SERVER_FORCE and self.flow_type == self.FLOW:
+        if settings.FLOW_SERVER_FORCE and self.flow_type not in (Flow.VOICE, Flow.USSD, Flow.SURVEY):
             return True
 
         return self.flow_server_enabled
@@ -621,6 +621,16 @@ class Flow(TembaModel):
             elif version == ver:
                 return False
         return False
+
+    @classmethod
+    def get_triggerable_flows(cls, org):
+        return Flow.objects.filter(
+            org=org,
+            is_active=True,
+            is_archived=False,
+            flow_type__in=[Flow.FLOW, Flow.MESSAGE, Flow.VOICE],
+            is_system=False,
+        )
 
     @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
