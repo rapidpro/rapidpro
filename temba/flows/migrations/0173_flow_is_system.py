@@ -12,5 +12,10 @@ class Migration(migrations.Migration):
             model_name="flow",
             name="is_system",
             field=models.NullBooleanField(help_text="Whether this is a system created flow"),
-        )
+        ),
+        migrations.AlterField(
+            model_name="flow",
+            name="is_system",
+            field=models.NullBooleanField(default=False, help_text="Whether this is a system created flow"),
+        ),
     ]
