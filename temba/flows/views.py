@@ -600,12 +600,8 @@ class FlowCRUDL(SmartCRUDL):
                 return self.IVRFlowUpdateForm
             elif flow_type == Flow.SURVEY:
                 return self.SurveyFlowUpdateForm
-            elif flow_type == Flow.FLOW:
+            else:
                 return self.FlowUpdateForm
-            elif flow_type == Flow.USSD:  # pragma: needs cover
-                return self.FlowUpdateForm
-            else:  # pragma: no cover
-                raise ValueError(f"Unhandled Flow type: '{flow_type}'")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
