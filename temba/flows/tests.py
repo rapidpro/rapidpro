@@ -859,7 +859,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -2301,9 +2301,7 @@ class FlowTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
         group = self.create_group("players", [test_contact])
-        contact_field = ContactField.get_or_create(self.org, self.admin, 'custom', 'custom')
-        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
-                                                   string_value="hey")
+        test_contact.set_field(self.user, "custom", "hey")
 
         response = self.client.get(simulate_url)
         self.assertEqual(response.status_code, 302)
@@ -2313,8 +2311,9 @@ class FlowTest(TembaTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = response.json()
 
+        test_contact.refresh_from_db()
         self.assertFalse(group in test_contact.all_groups.all())
-        self.assertFalse(test_contact.values.all())
+        self.assertFalse(test_contact.fields)
 
         self.assertEqual(len(json_dict.keys()), 5)
         self.assertEqual(len(json_dict['messages']), 3)
@@ -2323,8 +2322,7 @@ class FlowTest(TembaTest):
         self.assertEqual("Test Contact has exited this flow", json_dict['messages'][2]['text'])
 
         group = self.create_group("fans", [test_contact])
-        contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
-                                                   string_value="hey")
+        test_contact.set_field(self.user, "custom", "hey")
 
         post_data['new_message'] = "Ok, Thanks"
         post_data['has_refresh'] = False
@@ -2334,8 +2332,7 @@ class FlowTest(TembaTest):
         json_dict = response.json()
 
         self.assertTrue(group in test_contact.all_groups.all())
-        self.assertTrue(test_contact.values.all())
-        self.assertEqual(test_contact.values.get(string_value='hey'), contact_field_value)
+        self.assertEqual("hey", test_contact.get_field_value(ContactField.get_by_key(self.org, "custom")))
 
         self.assertEqual(len(json_dict.keys()), 5)
         self.assertIn('status', json_dict.keys())
@@ -2952,13 +2949,14 @@ class ActionPackedTest(FlowFileTest):
         # boring field updates
         self.start_flow()
         self.contact.refresh_from_db()
-        self.assertEqual('Male', self.contact.get_field_display('gender'))
+        self.assertEqual('Male', self.contact.get_field_value(ContactField.get_by_key(self.org, 'gender')))
         self.assertEqual('Trey Anastasio', self.contact.name)
 
         # update action to instead clear the gender field
         self.update_action_field(self.flow, gender_action_uuid, 'value', '')
         self.start_flow()
-        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_raw('gender'))
+        gender = ContactField.get_by_key(self.org, 'gender')
+        self.assertEqual(None, Contact.objects.get(id=self.contact.id).get_field_serialized(gender))
 
         # test setting just the first name
         action = update_save_fields(self.get_action_json(self.flow, name_action_uuid), 'First Name', 'Frank')
@@ -2992,7 +2990,8 @@ class ActionPackedTest(FlowFileTest):
 
         self.update_action_json(self.flow, action)
         self.start_flow()
-        self.assertEqual(action['value'], self.contact.get_field('last_message').string_value)
+        self.contact.refresh_from_db()
+        self.assertEqual(action['value'], self.contact.get_field_value(ContactField.get_by_key(self.org, 'last_message')))
 
     @also_in_flowserver
     def test_add_phone_number(self):
@@ -3594,14 +3593,14 @@ class ActionTest(TembaTest):
 
         # user should now have a nickname field with a value of batman
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual("batman", contact.get_field_raw('superhero_name'))
+        self.assertEqual("batman", contact.get_field_serialized(field))
 
         # test clearing our value
         test = SaveToContactAction.from_json(self.org, test.as_json())
         test.value = ""
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(None, contact.get_field_raw('superhero_name'))
+        self.assertEqual(None, contact.get_field_serialized(field))
 
         # test setting our name
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
@@ -3652,7 +3651,7 @@ class ActionTest(TembaTest):
                      "fields and we want to enable that for them so that they can do what they want with the platform."
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
-        self.assertEqual(test.value, contact.get_field('last_message').string_value)
+        self.assertEqual(test.value, contact.get_field_value(ContactField.get_by_key(self.org, 'last_message')))
 
         # test saving a contact's phone number
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
@@ -6130,9 +6129,9 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015"))
 
         mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(mother.get_field_raw('edd').startswith('2015-01-31T'))
-        self.assertEqual(mother.get_field_raw('chw_phone'), self.contact.get_urn(TEL_SCHEME).path)
-        self.assertEqual(mother.get_field_raw('chw_name'), self.contact.name)
+        self.assertTrue(mother.get_field_serialized(ContactField.get_by_key(self.org, 'edd')).startswith('2015-01-31T'))
+        self.assertEqual(mother.get_field_serialized(ContactField.get_by_key(self.org, 'chw_phone')), self.contact.get_urn(TEL_SCHEME).path)
+        self.assertEqual(mother.get_field_serialized(ContactField.get_by_key(self.org, 'chw_name')), self.contact.name)
 
     def test_group_rule_first(self):
         rule_flow = self.get_flow('group_rule_first')
@@ -6161,10 +6160,13 @@ class FlowsTest(FlowFileTest):
         # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
         self.assertEqual(mother_flow.runs.count(), 2)
 
+        edd_field = ContactField.get_by_key(self.org, 'expected_delivery_date')
+        chw_field = ContactField.get_by_key(self.org, 'chw')
+
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('2014-01-31T'))
-        self.assertEqual("+12065552020", mother.get_field_raw('chw'))
+        self.assertTrue(mother.get_field_serialized(edd_field).startswith('2014-01-31T'))
+        self.assertEqual("+12065552020", mother.get_field_serialized(chw_field))
         self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
 
         pain_flow = self.get_flow('pain_flow')
@@ -6530,7 +6532,7 @@ class FlowsTest(FlowFileTest):
 
         # do a dry run once so that the groups and fields get created
         group = self.create_group("Campaign", [])
-        field = ContactField.get_or_create(self.org, self.admin, "campaign_date", "Campaign Date")
+        field = ContactField.get_or_create(self.org, self.admin, "campaign_date", "Campaign Date", value_type=Value.TYPE_DATETIME)
 
         # tests that a contact is properly updated when a child flow is called
         child = self.get_flow('child')
@@ -8301,7 +8303,7 @@ class ExitTest(FlowFileTest):
         self.farmers = self.create_group("Farmers", [self.contact])
 
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date", value_type=Value.TYPE_DATETIME)
         event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, planting_date,
                                                 offset=1, unit='W', flow=second_flow, delivery_hour='13')
 
@@ -8913,7 +8915,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest('GET', '/ip_test', '{"ip":"192.168.1.1"}', content_type='application/json')
-        with QueryTracker(assert_query_count=142, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=140, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

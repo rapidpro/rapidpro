@@ -1208,7 +1208,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 #)
 
 
-# Flowserver - disabled by default. GoFlow defaults to http://localhost:8080
+# Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None

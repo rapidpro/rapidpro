@@ -13,6 +13,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
+from temba.values.models import Value
 
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -272,7 +273,7 @@ class EventForm(forms.ModelForm):
         org = self.user.get_org()
 
         relative_to = self.fields['relative_to']
-        relative_to.queryset = ContactField.objects.filter(org=org, is_active=True).order_by('label')
+        relative_to.queryset = ContactField.objects.filter(org=org, is_active=True, value_type=Value.TYPE_DATETIME).order_by('label')
 
         flow = self.fields['flow_to_start']
         flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],

@@ -142,6 +142,20 @@ class AdminBoundary(MPTTModel, models.Model):
 
         return AdminBoundary.PADDED_PATH_SEPARATOR.join(parts[:-1])
 
+    @classmethod
+    def get_by_path(cls, org, path):
+        cache = getattr(org, '_abs', {})
+
+        if not cache:
+            setattr(org, '_abs', cache)
+
+        boundary = cache.get(path)
+        if not boundary:
+            boundary = AdminBoundary.objects.filter(path=path).first()
+            cache[path] = boundary
+
+        return boundary
+
     def __str__(self):
         return "%s" % self.name
 

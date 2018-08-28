@@ -787,9 +787,9 @@ class ContactCRUDL(SmartCRUDL):
             contact_fields = []
             fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by('label', 'pk')
             for field in fields:
-                value = getattr(contact, '__field__%s' % field.key)
+                value = contact.get_field_value(field)
                 if value:
-                    display = Contact.get_field_display_for_value(field, value)
+                    display = contact.get_field_display(field)
                     contact_fields.append(dict(id=field.id, label=field.label, value=display, featured=field.show_in_table))
 
             # stuff in the contact's language in the fields as well
@@ -1145,7 +1145,7 @@ class ContactCRUDL(SmartCRUDL):
                 contact_field = ContactField.objects.filter(id=field_id).first()
                 context['contact_field'] = contact_field
                 if contact_field:
-                    context['value'] = self.get_object().get_field_display(contact_field.key)
+                    context['value'] = self.get_object().get_field_display(contact_field)
             return context
 
     class Block(OrgPermsMixin, SmartUpdateView):

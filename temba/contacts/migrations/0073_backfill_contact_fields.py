@@ -132,7 +132,8 @@ def backfill_contact_fields(Org, Contact, ContactField, Value):
         r.setex('cf_last_id', EXPIRATION, last_id)
         chunk_rate = (time.time() - start) / float(processed)
         remaining = (max_id - last_id) * chunk_rate
-        print("** %d / %d contacts migrated - ~ %d mins remaining" % (last_id, max_id, remaining / 60))
+        if last_id > 0:
+            print("** %d / %d contacts migrated - ~ %d mins remaining" % (last_id, max_id, remaining / 60))
 
 
 def apply_manual():
