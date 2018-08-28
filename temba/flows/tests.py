@@ -2959,16 +2959,6 @@ class FlowTest(TembaTest):
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
-        # add triggers of other types
-        Trigger.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            org=self.org,
-            trigger_type=Trigger.TYPE_FOLLOW,
-            flow=flow_with_keywords,
-            channel=self.channel,
-        )
-
         Trigger.objects.create(
             created_by=self.admin,
             modified_by=self.admin,
@@ -3036,7 +3026,6 @@ class FlowTest(TembaTest):
         )
 
         # only keyword triggers got archived, other are stil active
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_FOLLOW))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_SCHEDULE))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
