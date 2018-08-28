@@ -3740,7 +3740,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "2018-03-05T02:31:00.000Z",
-                    "datetime": "2018-03-05T02:31:00+00:00"
+                    "datetime": "2018-03-05T04:31:00+02:00"
                 }
             }
         )
@@ -3754,7 +3754,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "2018-03-05T02:31:00.000Z",
-                    "datetime": "2018-03-05T02:31:00+00:00"
+                    "datetime": "2018-03-05T04:31:00+02:00"
                 },
                 cat_uuid: {
                     "text": "Rando"
@@ -3770,7 +3770,7 @@ class ContactTest(TembaTest):
             {
                 dog_uuid: {
                     "text": "2018-03-05T02:31:00.000Z",
-                    "datetime": "2018-03-05T02:31:00+00:00"
+                    "datetime": "2018-03-05T04:31:00+02:00"
                 },
                 cat_uuid: {
                     "text": "Rwanda > Kigali City",
@@ -4930,7 +4930,7 @@ class BackfillContactFieldsTest(MigrationTest):
                 },
                 six.text_type(self.datetime_field.uuid): {
                     "text": "2018-03-02T02:05:30Z",
-                    "datetime": "2018-03-02T02:05:30+00:00",
+                    "datetime": "2018-03-02T04:05:30+02:00",
                 },
                 six.text_type(self.decimal_field.uuid): {
                     "text": "12.00",
