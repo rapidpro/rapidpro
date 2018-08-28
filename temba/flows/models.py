@@ -653,7 +653,7 @@ class Flow(TembaModel):
 
             # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
             # these here as they'll be created by the campaign event itself.
-            if version <= 3.0 and flow_type == "M":
+            if version <= 3.0 and flow_type == "M":  # pragma: no cover
                 continue
 
             # check if we can find that flow by id first
