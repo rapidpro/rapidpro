@@ -1466,7 +1466,7 @@ class VoiceXMLTest(TembaTest):
         )
 
         response = voicexml.VXMLResponse()
-        response.gather(action="http://example.com", numDigits=1, timeout=45, finishOnKey="*")
+        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
 
         self.assertEqual(
             str(response),
@@ -1489,7 +1489,7 @@ class VoiceXMLTest(TembaTest):
         )
 
         response = voicexml.VXMLResponse()
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
 
         self.assertEqual(
             str(response),
@@ -1584,7 +1584,7 @@ class NCCOTest(TembaTest):
         response.say("Hello")
         response.redirect("http://example.com/")
         response.say("Please make a recording")
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
         response.say("Thanks")
         response.say("Allo")
         response.say("Cool")
@@ -1674,7 +1674,7 @@ class NCCOTest(TembaTest):
         )
 
         response = NCCOResponse()
-        response.gather(action="http://example.com", numDigits=1, timeout=45, finishOnKey="*")
+        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
 
         self.assertEqual(
             json.loads(str(response)),
@@ -1703,7 +1703,7 @@ class NCCOTest(TembaTest):
         )
 
         response = NCCOResponse()
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
 
         self.assertEqual(
             json.loads(str(response)),
@@ -1722,7 +1722,7 @@ class NCCOTest(TembaTest):
             ],
         )
         response = NCCOResponse()
-        response.record(action="http://example.com?param=12", method="post", maxLength=60)
+        response.record(action="http://example.com?param=12", method="post", max_length=60)
 
         self.assertEqual(
             json.loads(str(response)),

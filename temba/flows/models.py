@@ -4613,10 +4613,10 @@ class RuleSet(models.Model):
         if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
-            return voice_response.gather(finishOnKey=self.finished_key, timeout=120, action=action)
+            return voice_response.gather(finish_on_key=self.finished_key, timeout=120, action=action)
         else:
             # otherwise we assume it's single digit entry
-            return voice_response.gather(numDigits=1, timeout=120, action=action)
+            return voice_response.gather(num_digits=1, timeout=120, action=action)
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT

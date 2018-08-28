@@ -235,10 +235,10 @@ class NCCOResponse(object):
             result["eventMethod"] = method
             result["eventUrl"] = [kwargs.get("action")]
 
-        result["submitOnHash"] = kwargs.get("finishOnKey", "#") == "#"
+        result["submitOnHash"] = kwargs.get("finish_on_key", "#") == "#"
 
-        if kwargs.get("numDigits", False):
-            result["maxDigits"] = int(str(kwargs.get("numDigits")))
+        if kwargs.get("num_digits", False):
+            result["maxDigits"] = int(str(kwargs.get("num_digits")))
 
         if kwargs.get("timeout", False):
             result["timeOut"] = int(str(kwargs.get("timeout")))
@@ -249,8 +249,8 @@ class NCCOResponse(object):
     def record(self, **kwargs):
         result = dict(format="wav", endOnSilence=4, endOnKey="#", beepStart=True, action="record")
 
-        if kwargs.get("maxLength", False):
-            result["timeOut"] = int(str(kwargs.get("maxLength")))
+        if kwargs.get("max_length", False):
+            result["timeOut"] = int(str(kwargs.get("max_length")))
 
         if kwargs.get("action", False):
             method = kwargs.get("method", "post")
