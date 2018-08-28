@@ -382,6 +382,8 @@ class TembaTest(six.with_metaclass(AddFlowServerTestsMeta, SmartminTest)):
             if 'event' in log:
                 if log['event']['type'] == 'broadcast_created':
                     replies.append(log['event']['text'])
+                elif log['event']['type'] == 'msg_created':
+                    replies.append(log['event']['msg']['text'])
         return replies
 
     def create_msg(self, **kwargs):

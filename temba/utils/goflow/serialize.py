@@ -32,18 +32,13 @@ def serialize_flow(flow, strip_ui=True):
 def serialize_channel(channel):
     from temba.channels.models import Channel
 
-    serialized = {
+    return {
         'uuid': str(channel.uuid),
         'name': six.text_type(channel.get_name()),
         'address': channel.address,
         'schemes': channel.schemes,
         'roles': [Channel.ROLE_CONFIG[r] for r in channel.role]
     }
-
-    if channel.parent_id:
-        serialized['parent'] = serialize_channel_ref(channel.parent)
-
-    return serialized
 
 
 def serialize_channel_ref(channel):
@@ -67,9 +62,15 @@ def serialize_contact(contact):
     # augment URN values with preferred channel UUID as a parameter
     urn_values = []
     for u in contact.urns.order_by('-priority', 'id'):
-        scheme, path, query, display = URN.to_parts(u.urn)
-        query = urlencode({'channel': str(u.channel.uuid)}) if u.channel_id else None
-        urn_values.append(URN.from_parts(scheme, path, query=query, display=display))
+        # for each URN we resolve the preferred channel and include that as a query param
+        channel = contact.org.get_send_channel(contact_urn=u)
+        if channel:
+            scheme, path, query, display = URN.to_parts(u.urn)
+            urn_str = URN.from_parts(scheme, path, query=urlencode({'channel': str(channel.uuid)}), display=display)
+        else:
+            urn_str = u.urn
+
+        urn_values.append(urn_str)
 
     return {
         'uuid': contact.uuid,
@@ -77,7 +78,7 @@ def serialize_contact(contact):
         'language': contact.language,
         'timezone': "UTC",
         'urns': urn_values,
-        'groups': [serialize_group_ref(group) for group in contact.user_groups.all()],
+        'groups': [serialize_group_ref(group) for group in contact.user_groups.filter(is_active=True)],
         'fields': field_values
     }
 
@@ -153,7 +154,6 @@ def serialize_location_hierarchy(country, aliases_from_org=None):
 def serialize_message(msg):
     serialized = {
         'uuid': str(msg.uuid),
-        'created_on': msg.created_on.isoformat(),
         'text': msg.text,
     }
 

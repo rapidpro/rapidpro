@@ -1,3 +1,11 @@
+v3.0.339
+----------
+ * Remove leading and trailing spaces on location string before boundaries path query
+ * Require use of update_fields with Contact.save()
+ * Event time of contact_changed is when contact was modified
+ * Use latest goflow release
+ * Make special channel accessible during simulator use
+
 v3.0.338
 ----------
  * Always serialize contact field datetime values in the org timezone
