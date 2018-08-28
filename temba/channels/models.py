@@ -1587,7 +1587,6 @@ class ChannelEvent(models.Model):
     TYPE_CALL_IN_MISSED = "mo_miss"
     TYPE_NEW_CONVERSATION = "new_conversation"
     TYPE_REFERRAL = "referral"
-    TYPE_FOLLOW = "follow"
     TYPE_STOP_CONTACT = "stop_contact"
 
     EXTRA_REFERRER_ID = "referrer_id"
@@ -1602,7 +1601,6 @@ class ChannelEvent(models.Model):
         (TYPE_STOP_CONTACT, _("Stop Contact"), "stop-contact"),
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
-        (TYPE_FOLLOW, _("Follow"), "follow"),
     )
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
@@ -1693,9 +1691,6 @@ class ChannelEvent(models.Model):
             handled = Trigger.catch_triggers(
                 self, Trigger.TYPE_REFERRAL, self.channel, referrer_id=self.extra.get("referrer_id"), extra=self.extra
             )
-
-        elif self.event_type == ChannelEvent.TYPE_FOLLOW:
-            handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
 
         elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
             user = get_anonymous_user()

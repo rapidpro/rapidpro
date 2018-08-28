@@ -2959,16 +2959,6 @@ class FlowTest(TembaTest):
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
-        # add triggers of other types
-        Trigger.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            org=self.org,
-            trigger_type=Trigger.TYPE_FOLLOW,
-            flow=flow_with_keywords,
-            channel=self.channel,
-        )
-
         Trigger.objects.create(
             created_by=self.admin,
             modified_by=self.admin,
@@ -3001,7 +2991,7 @@ class FlowTest(TembaTest):
             flow=flow_with_keywords,
         )
 
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 8)
+        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
 
         # test if form has expected fields
         post_data = dict()
@@ -3025,18 +3015,17 @@ class FlowTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_list"))
         self.assertTrue(flow_with_keywords in response.context["object_list"].all())
-        self.assertEqual(flow_with_keywords.triggers.count(), 9)
+        self.assertEqual(flow_with_keywords.triggers.count(), 8)
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(
             flow_with_keywords.triggers.filter(is_archived=True, trigger_type=Trigger.TYPE_KEYWORD).count(), 2
         )
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
+        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 6)
         self.assertEqual(
             flow_with_keywords.triggers.filter(is_archived=True, trigger_type=Trigger.TYPE_KEYWORD).count(), 2
         )
 
         # only keyword triggers got archived, other are stil active
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_FOLLOW))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_SCHEDULE))
         self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))

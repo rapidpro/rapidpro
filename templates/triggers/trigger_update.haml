@@ -135,10 +135,6 @@
         select2div("#id_missedcall_flow", "520px", '{% trans "Flow to start" %}');
       {% endif %}
 
-      {% if object.trigger_type == 'F' %}
-        select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
-      {% endif %}
-
       {% if object.trigger_type == 'N' %}
         select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
       {% endif %}

@@ -6,7 +6,7 @@ from django.db import migrations
 def deactivate_old_twitter_channels(apps, schema_editor):
     from temba.channels.models import Channel
 
-    channels = list(Channel.objects.filter(channel_type="TT"))
+    channels = list(Channel.objects.filter(channel_type="TT", is_active=True))
     if channels:
         print(f"Found {len(channels)} to deactivate...")
 

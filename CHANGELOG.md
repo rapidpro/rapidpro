@@ -1,3 +1,8 @@
+v4.3.8
+----------
+ * Data migration to deactivate all old style Twitter channels
+ * Update Nexmo client
+
 v4.3.4
 ----------
  * Increase IVR logging verbosity
