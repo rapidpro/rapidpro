@@ -1,3 +1,7 @@
+v3.0.337
+----------
+ * Add migration for population of the contact field json
+
 v3.0.336
 ----------
  * Update middlewares to Django defaults for security

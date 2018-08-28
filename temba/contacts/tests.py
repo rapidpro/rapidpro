@@ -33,6 +33,7 @@ from temba.triggers.models import Trigger
 from temba.utils.dates import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.utils.profiler import QueryTracker
 from temba.values.models import Value
+from temba.tests.base import MigrationTest
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
@@ -3719,13 +3720,13 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe.fields, {})
 
         # numeric field value
-        self.joe.set_field(self.user, 'dog', "23")
+        self.joe.set_field(self.user, 'dog', "23.00")
         self.joe.refresh_from_db()
         self.assertEqual(
             self.joe.fields,
             {
                 dog_uuid: {
-                    "text": "23",
+                    "text": "23.00",
                     "decimal": "23"
                 }
             }
@@ -4889,3 +4890,66 @@ class PhoneNumberTest(TestCase):
         self.assertEqual(is_phonenumber('AMAZONS'), (False, None))
         self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
         self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))
+
+
+class BackfillContactFieldsTest(MigrationTest):
+    migrate_from = '0072_contact_fields'
+    migrate_to = '0073_backfill_contact_fields'
+    app = 'contacts'
+
+    def setUpBeforeMigration(self, apps):
+        self.joe = self.create_contact("Joe")
+        self.text_field = ContactField.get_or_create(self.org, self.admin, "dog")
+        self.datetime_field = ContactField.get_or_create(self.org, self.admin, "dob", value_type=Value.TYPE_DATETIME)
+        self.decimal_field = ContactField.get_or_create(self.org, self.admin, "weight", value_type=Value.TYPE_DECIMAL)
+        self.state_field = ContactField.get_or_create(self.org, self.admin, "state", value_type=Value.TYPE_STATE)
+        self.district_field = ContactField.get_or_create(self.org, self.admin, "district", value_type=Value.TYPE_DISTRICT)
+        self.ward_field = ContactField.get_or_create(self.org, self.admin, "ward", value_type=Value.TYPE_WARD)
+
+        # set just the values for these contacts
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.text_field,
+                             string_value="Chef")
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.datetime_field,
+                             string_value="2018-03-02T02:05:30Z", datetime_value=self.org.parse_date("2018-03-02T02:05:30Z"))
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.decimal_field,
+                             string_value="12.00", decimal_value=12.0)
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.state_field,
+                             string_value="Eastern Province", location_value=AdminBoundary.objects.get(name="Eastern Province"))
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.district_field,
+                             string_value="Kayônza", location_value=AdminBoundary.objects.get(name="Kayônza"))
+        Value.objects.create(org=self.org, contact=self.joe, contact_field=self.ward_field,
+                             string_value="Kabare", location_value=AdminBoundary.objects.get(name="Kabare"))
+
+    def test_fields_migrated(self):
+        self.joe.refresh_from_db()
+        self.assertEqual(
+            self.joe.fields,
+            {
+                six.text_type(self.text_field.uuid): {
+                    "text": "Chef"
+                },
+                six.text_type(self.datetime_field.uuid): {
+                    "text": "2018-03-02T02:05:30Z",
+                    "datetime": "2018-03-02T02:05:30+00:00",
+                },
+                six.text_type(self.decimal_field.uuid): {
+                    "text": "12.00",
+                    "decimal": "12",
+                },
+                six.text_type(self.state_field.uuid): {
+                    "text": "Eastern Province",
+                    "state": "Rwanda > Eastern Province",
+                },
+                six.text_type(self.district_field.uuid): {
+                    "text": "Kayônza",
+                    "state": "Rwanda > Eastern Province",
+                    "district": "Rwanda > Eastern Province > Kayônza",
+                },
+                six.text_type(self.ward_field.uuid): {
+                    "text": "Kabare",
+                    "state": "Rwanda > Eastern Province",
+                    "district": "Rwanda > Eastern Province > Kayônza",
+                    "ward": "Rwanda > Eastern Province > Kayônza > Kabare",
+                },
+            }
+        )
