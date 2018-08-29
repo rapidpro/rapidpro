@@ -62,7 +62,7 @@ class TwilioTypeTest(TembaTest):
             self.assertIn("account_trial", response.context)
             self.assertTrue(response.context["account_trial"])
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_search:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_search:
             search_url = reverse("channels.channel_search_numbers")
 
             # try making empty request
@@ -70,27 +70,26 @@ class TwilioTypeTest(TembaTest):
             self.assertEqual(response.json(), [])
 
             # try searching for US number
-            mock_search.return_value = iter([MockTwilioClient.MockPhoneNumber("+12062345678")])
+            mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+12062345678")]
             response = self.client.post(search_url, {"country": "US", "area_code": "206"})
-            self.assertEqual(response.json(), ["+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
 
             # try searching without area code
-            mock_search.return_value = iter([MockTwilioClient.MockPhoneNumber("+12062345678")])
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
-            self.assertEqual(response.json(), ["+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
 
-            mock_search.return_value = iter([])
+            mock_search.return_value = []
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
             self.assertEqual(
                 response.json()["error"], "Sorry, no numbers found, please enter another area code and try again."
             )
 
             # try searching for non-US number
-            mock_search.return_value = iter([MockTwilioClient.MockPhoneNumber("+442812345678")])
+            mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+442812345678")]
             response = self.client.post(search_url, {"country": "GB", "area_code": "028"})
-            self.assertEqual(response.json(), ["+44 28 1234 5678"])
+            self.assertEqual(response.json(), ["+44 28 1234 5678", "+44 28 1234 5678"])
 
-            mock_search.return_value = iter([])
+            mock_search.return_value = []
             response = self.client.post(search_url, {"country": "GB", "area_code": ""})
             self.assertEqual(
                 response.json()["error"], "Sorry, no numbers found, please enter another pattern and try again."
