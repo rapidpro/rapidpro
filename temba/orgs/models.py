@@ -1,6 +1,5 @@
 import calendar
 import itertools
-import json
 import logging
 import mimetypes
 import os
@@ -39,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, languages
+from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime

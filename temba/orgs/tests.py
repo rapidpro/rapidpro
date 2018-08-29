@@ -1,5 +1,4 @@
 import io
-import json
 from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -44,7 +43,7 @@ from temba.tests import MockResponse, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, languages
+from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper

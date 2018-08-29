@@ -1,5 +1,4 @@
 
-import json
 import logging
 import time
 from datetime import timedelta
@@ -15,7 +14,7 @@ from celery.task import task
 
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
-from temba.utils import analytics, chunk_list
+from temba.utils import analytics, chunk_list, json
 from temba.utils.mage import handle_new_contact, handle_new_message
 from temba.utils.queues import complete_task, nonoverlapping_task, start_task
 

@@ -1,5 +1,4 @@
 
-import json
 import logging
 import traceback
 from datetime import datetime, timedelta
@@ -52,7 +51,7 @@ from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import analytics, chunk_list, on_transaction_commit, str_to_bool
+from temba.utils import analytics, chunk_list, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage

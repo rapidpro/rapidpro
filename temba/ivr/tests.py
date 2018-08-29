@@ -1,5 +1,4 @@
 
-import json
 import os
 import re
 from datetime import timedelta
@@ -27,6 +26,7 @@ from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
 from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.utils import json
 from temba.utils.locks import NonBlockingLock
 
 from .clients import IVRException

@@ -1,4 +1,3 @@
-import json
 import time
 import uuid
 
@@ -7,6 +6,8 @@ import nexmo as nx
 import requests
 
 from django.utils.encoding import force_bytes
+
+from temba.utils import json
 
 
 class NexmoValidationError(Exception):

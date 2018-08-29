@@ -195,18 +195,6 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
-def datetime_to_json_date(dt, micros=False):
-    """
-    Formats a datetime as a string for inclusion in JSON
-    :param dt: the datetime to format
-    :param micros: whether to include microseconds
-    """
-    # always output as UTC / Z and always include milliseconds
-    as_utc = dt.astimezone(pytz.utc)
-    as_str = as_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")
-    return (as_str if micros else as_str[:-3]) + "Z"
-
-
 def datetime_to_s(dt):
     """
     Converts a datetime to a fractional second epoch

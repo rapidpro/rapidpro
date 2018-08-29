@@ -1,5 +1,4 @@
 
-import json
 import logging
 import time
 from abc import ABCMeta
@@ -33,7 +32,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
-from temba.utils import analytics, dict_to_json, dict_to_struct, get_anonymous_user, on_transaction_commit
+from temba.utils import analytics, dict_to_struct, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -931,7 +930,7 @@ class Channel(TembaModel):
                 return None
             else:
                 cached = channel.as_cached_json()
-                cache.set(key, dict_to_json(cached), 900)
+                cache.set(key, json.dumps(cached), 900)
         else:
             cached = json.loads(cached)
 

@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 from django.db import models
@@ -10,7 +9,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.utils import on_transaction_commit
+from temba.utils import json, on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
 from temba.values.constants import Value
 

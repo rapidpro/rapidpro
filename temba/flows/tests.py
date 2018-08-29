@@ -1,6 +1,5 @@
 import copy
 import datetime
-import json
 import os
 import re
 import time
@@ -41,6 +40,7 @@ from temba.tests import (
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
+from temba.utils import json
 from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
@@ -5545,6 +5545,22 @@ class WebhookTest(TembaTest):
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
+
+    @also_in_flowserver
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_webhook_decimals(self, in_flowserver):
+        flow = self.get_flow("webhook_decimal")
+        contact = self.create_contact("Ben Haggerty", "+250788383383")
+
+        self.mockRequest("GET", "/", '{ "decimal": 0.1 }')
+
+        run1, = flow.start([], [contact])
+        run1.refresh_from_db()
+
+        if not in_flowserver:
+            self.assertEqual(run1.fields, {"decimal": Decimal("0.1")})
+
+        self.assertEqual("Your webhook returned 0.1. Your number is 0.1", Msg.objects.get(contact=contact).text)
 
     @also_in_flowserver
     @override_settings(SEND_WEBHOOKS=True)
