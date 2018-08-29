@@ -1,4 +1,3 @@
-import collections
 import datetime
 import decimal
 
@@ -13,7 +12,7 @@ def loads(value):
     Converts the passed in string to a JSON dictionary. The dictionary passed back will be ordered
     and decimal values will be represented as a decimal.Decimal.
     """
-    return simplejson.loads(value, use_decimal=True, object_pairs_hook=collections.OrderedDict)
+    return simplejson.loads(value, use_decimal=True)
 
 
 def dumps(value, *args, **kwargs):
