@@ -2010,6 +2010,7 @@ class JSONTest(TestCase):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
         self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1535402488123))))
 
+
 class AnalyticsTest(TestCase):
     def setUp(self):
         super().setUp()
@@ -2286,4 +2287,3 @@ class AnalyticsTest(TestCase):
             industry="Mining",
             monthly_spend="a lot",
         )
-
