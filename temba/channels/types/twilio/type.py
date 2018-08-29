@@ -55,9 +55,10 @@ class TwilioType(ChannelType):
                 client.api.incoming_phone_numbers.get(number_sid).update(**number_update_args)
             except Exception:
                 if client:
-                    matching = list(client.api.incoming_phone_numbers.stream(phone_number=channel.address))
-                    if matching:
-                        client.api.incoming_phone_numbers.get(matching[0].sid).update(**number_update_args)
+                    matching = client.api.incoming_phone_numbers.stream(phone_number=channel.address)
+                    first_match = next(matching, None)
+                    if first_match:
+                        client.api.incoming_phone_numbers.get(first_match.sid).update(**number_update_args)
 
             if "application_sid" in config:
                 try:
