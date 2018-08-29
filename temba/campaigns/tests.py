@@ -305,6 +305,7 @@ class CampaignTest(TembaTest):
         event = CampaignEvent.objects.get()
         flow = event.flow
         self.assertEqual(Flow.MESSAGE, flow.flow_type)
+        self.assertTrue(flow.is_system)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg
