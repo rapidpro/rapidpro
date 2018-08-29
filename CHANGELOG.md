@@ -1,6 +1,13 @@
-v4.3.7
+v4.4.0
+----------
+ * Fix intercom ResourceNotFound on Org.Signup
+ * Remove follow triggers and channel events
+ * Add Flow.is_system and start populating for new campaign event single message flows
+
+v4.3.8
 ----------
  * Data migration to deactivate all old style Twitter channels
+ * Update Nexmo client
 
 v4.3.4
 ----------

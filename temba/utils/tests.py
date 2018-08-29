@@ -3,7 +3,11 @@ import datetime
 import os
 from collections import OrderedDict
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest import mock
+from unittest.mock import MagicMock
 
+import intercom.errors
 import iso8601
 import pycountry
 import pytz
@@ -24,6 +28,7 @@ from django.utils import timezone
 
 from celery.app.task import Task
 
+import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
@@ -2004,3 +2009,281 @@ class JSONTest(TestCase):
     def test_json(self):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
         self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1535402488123))))
+
+class AnalyticsTest(TestCase):
+    def setUp(self):
+        super().setUp()
+
+        # create org and user stubs
+        self.org = SimpleNamespace(
+            id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
+        )
+        self.admin = SimpleNamespace(first_name="", last_name="", email="admin@example.com")
+
+        self.intercom_mock = MagicMock()
+        temba.utils.analytics._intercom = self.intercom_mock
+        temba.utils.analytics.init_analytics()
+
+    @override_settings(IS_PROD=False)
+    def test_identify_not_prod_env(self):
+        result = temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        self.assertIsNone(result)
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_identify_intercom_exception(self):
+        self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=True)
+    def test_identify_intercom(self):
+        temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        # assert mocks
+        self.intercom_mock.users.create.assert_called_with(
+            custom_attributes={
+                "brand": "test",
+                "segment": mock.ANY,
+                "org": self.org.name,
+                "paid": self.org.account_value(),
+            },
+            email=self.admin.email,
+            name=" ",
+        )
+        self.assertListEqual(
+            self.intercom_mock.users.create.return_value.companies,
+            [
+                {
+                    "company_id": self.org.id,
+                    "name": self.org.name,
+                    "created_at": mock.ANY,
+                    "custom_attributes": {"brand": self.org.brand, "org_id": self.org.id},
+                }
+            ],
+        )
+        # did we actually call save?
+        self.intercom_mock.users.save.assert_called_once()
+
+    @override_settings(IS_PROD=True)
+    def test_track_intercom(self):
+        temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        self.intercom_mock.events.create.assert_called_with(
+            event_name="test event", created_at=mock.ANY, email=self.admin.email, metadata={"plan": "free"}
+        )
+
+    @override_settings(IS_PROD=False)
+    def test_track_not_prod_env(self):
+        result = temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.events.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_track_intercom_exception(self):
+        self.intercom_mock.events.create.side_effect = Exception("It's raining today")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=True)
+    def test_consent_missing_user(self):
+        self.intercom_mock.users.find.return_value = None
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_consent_invalid_user_decline(self):
+        self.intercom_mock.users.find.return_value = None
+        temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.delete.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user(self):
+
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user_already_consented(self):
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": True})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user_decline(self):
+
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=False, consent_changed=mock.ANY)
+        )
+        self.intercom_mock.users.delete.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_consent_exception(self):
+        self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=False)
+    def test_consent_not_prod_env(self):
+        result = temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.assertIsNone(result)
+        self.intercom_mock.users.find.assert_not_called()
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.delete.assert_not_called()
+
+    def test_get_intercom_user(self):
+        temba.utils.analytics.get_intercom_user(email="an email")
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+    def test_get_intercom_user_resourcenotfound(self):
+        self.intercom_mock.users.find.side_effect = intercom.errors.ResourceNotFound
+
+        result = temba.utils.analytics.get_intercom_user(email="an email")
+
+        self.assertIsNone(result)
+
+    @override_settings(IS_PROD=False)
+    def test_set_orgs_not_prod_env(self):
+        result = temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.users.find.assert_not_called()
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_invalid_user(self):
+        self.intercom_mock.users.find.return_value = None
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_same_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertEqual(intercom_user.companies, [{"company_id": self.org.id, "name": self.org.name}])
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_new_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertListEqual(
+            intercom_user.companies,
+            [{"company_id": self.org.id, "name": self.org.name}, {"company_id": -1, "remove": True}],
+        )
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_without_a_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        # we are not setting any org for the user
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertListEqual(
+            intercom_user.companies, [{"company_id": -1, "remove": True}, {"company_id": self.org.id, "remove": True}]
+        )
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=False)
+    def test_identify_org_not_prod_env(self):
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_identify_org_empty_attributes(self):
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_called_with(
+            company_id=self.org.id,
+            created_at=mock.ANY,
+            custom_attributes={"brand": self.org.brand, "org_id": self.org.id},
+            name=self.org.name,
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_identify_org_with_attributes(self):
+        attributes = dict(
+            website="https://example.com",
+            industry="Mining",
+            monthly_spend="a lot",
+            this_is_not_an_intercom_attribute="or is it?",
+        )
+
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=attributes)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_called_with(
+            company_id=self.org.id,
+            created_at=mock.ANY,
+            custom_attributes={
+                "brand": self.org.brand,
+                "org_id": self.org.id,
+                "this_is_not_an_intercom_attribute": "or is it?",
+            },
+            name=self.org.name,
+            website="https://example.com",
+            industry="Mining",
+            monthly_spend="a lot",
+        )
+

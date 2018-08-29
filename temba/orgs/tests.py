@@ -2496,6 +2496,22 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.topup_list"))
         self.assertContains(response, "600 Credits")
 
+    def test_account_value(self):
+
+        # base value
+        self.assertEqual(self.org.account_value(), 0.0)
+
+        # add a topup
+        TopUp.objects.create(
+            org=self.org,
+            price=123,
+            credits=1001,
+            expires_on=timezone.now() + timedelta(days=30),
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        self.assertAlmostEqual(self.org.account_value(), 1.23)
+
 
 class AnonOrgTest(TembaTest):
     """
