@@ -1,4 +1,3 @@
-from random import randint
 from urllib.parse import parse_qs, urlencode
 
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
