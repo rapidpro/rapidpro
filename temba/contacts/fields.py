@@ -1,8 +1,8 @@
 
-import json
-
 from django import forms
 from django.forms import widgets
+
+from temba.utils import json
 
 from .models import URN, Contact, ContactGroup, ContactURN
 

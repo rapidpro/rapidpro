@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import OrderedDict
 from datetime import timedelta
@@ -37,7 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with

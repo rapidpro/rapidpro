@@ -1,4 +1,3 @@
-import json
 import logging
 import numbers
 import time
@@ -60,7 +59,7 @@ from temba.msgs.models import (
     Msg,
 )
 from temba.orgs.models import Language, Org, get_current_export_version
-from temba.utils import analytics, chunk_list, on_transaction_commit
+from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -3132,7 +3131,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     fields = JSONAsTextField(
         blank=True,
         null=True,
-        object_pairs_hook=OrderedDict,
         default=dict,
         help_text=_("A JSON representation of any custom flow values the user has saved away"),
     )

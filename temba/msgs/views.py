@@ -1,4 +1,3 @@
-import json
 from datetime import date, timedelta
 
 from smartmin.views import (
@@ -29,7 +28,7 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, on_transaction_commit
+from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 

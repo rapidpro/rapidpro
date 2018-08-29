@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime
 
@@ -17,6 +16,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
+from temba.utils import json
 from temba.utils.http import HttpEvent
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,3 @@
-import json
-
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -10,6 +8,7 @@ from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog, ChannelType
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
+from temba.utils import json
 from temba.utils.http import HttpEvent
 
 

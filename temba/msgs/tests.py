@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -59,7 +58,7 @@ from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
-from temba.utils import dict_to_json, dict_to_struct
+from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.queues import DEFAULT_PRIORITY, push_task
@@ -461,7 +460,7 @@ class MsgTest(TembaTest):
 
         # even though we already handled it, push it back on our queue to test flushing
         payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
-        r.zadd(contact_queue, datetime_to_s(timezone.now()), dict_to_json(payload))
+        r.zadd(contact_queue, datetime_to_s(timezone.now()), json.dumps(payload))
 
         msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
 

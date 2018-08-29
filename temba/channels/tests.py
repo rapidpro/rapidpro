@@ -3,7 +3,6 @@ import base64
 import copy
 import hashlib
 import hmac
-import json
 import time
 import uuid
 from datetime import timedelta
@@ -57,7 +56,7 @@ from temba.orgs.models import (
 )
 from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, get_anonymous_user
+from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import push_task
 

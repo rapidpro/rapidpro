@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 from urllib.parse import parse_qs
 from uuid import uuid4
@@ -19,6 +18,7 @@ from temba.flows.models import ActionSet, Flow, WebhookAction
 from temba.msgs.models import FAILED, Broadcast
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest, matchers
+from temba.utils import json
 
 
 class APITokenTest(TembaTest):

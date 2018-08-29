@@ -1,9 +1,8 @@
-import json
 import time
 
 from django_redis import get_redis_connection
 
-from temba.utils import analytics
+from temba.utils import analytics, json
 from temba.utils.dates import datetime_to_str
 
 

@@ -29,14 +29,7 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import (
-    analytics,
-    chunk_list,
-    dict_to_json,
-    extract_constants,
-    get_anonymous_user,
-    on_transaction_commit,
-)
+from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import check_and_mark_in_timerange
 from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -1389,7 +1382,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection("default")
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)

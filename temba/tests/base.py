@@ -1,5 +1,4 @@
 import inspect
-import json
 import os
 import shutil
 import string
@@ -35,7 +34,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org
-from temba.utils import dict_to_struct, get_anonymous_user
+from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.values.constants import Value
 
 from .http import MockServer

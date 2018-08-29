@@ -1,4 +1,3 @@
-import json
 import logging
 
 from django_redis import get_redis_connection
@@ -9,7 +8,7 @@ from django.utils import timezone
 
 from temba.flows.server.client import Events, FlowServerException, get_client
 from temba.flows.server.serialize import serialize_contact, serialize_environment, serialize_ref
-from temba.utils import analytics
+from temba.utils import analytics, json
 
 from .utils import copy_keys, reduce_event
 
