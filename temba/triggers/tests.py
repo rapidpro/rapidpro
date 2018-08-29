@@ -470,7 +470,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW, name="Join Chat")
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -513,7 +513,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # confirm our objects
-        flow = Flow.objects.filter(flow_type=Flow.FLOW).order_by("-pk").first()
+        flow = Flow.objects.filter(flow_type=Flow.TYPE_MESSAGE).order_by("-pk").first()
         trigger = Trigger.objects.get(keyword="join_lang", flow=flow)
         self.assertEqual(trigger.flow.name, "Join Lang Group")
 
@@ -556,7 +556,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        Flow.objects.get(flow_type=Flow.FLOW)
+        Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # now let's try it out
         contact = self.create_contact("Ben", "+250788382382")
@@ -579,7 +579,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -925,7 +925,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
