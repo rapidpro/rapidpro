@@ -45,6 +45,7 @@ class MockTwilioClient(TwilioClient):
 
     class MockAPI(object):
         def __init__(self, *args, **kwargs):
+            self.base_url = "base_url"
             pass
 
         @property
