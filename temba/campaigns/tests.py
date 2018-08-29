@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import pytz
@@ -14,6 +13,7 @@ from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.tests import ESMockWithScroll, TembaTest, also_in_flowserver
+from temba.utils import json
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire

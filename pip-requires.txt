@@ -62,6 +62,7 @@ psycopg2-binary
 rapidpro-expressions
 redis
 requests
+simplejson
 stop-words
 unidecode
 python-intercom

@@ -1,5 +1,4 @@
 import copy
-import json
 from uuid import uuid4
 
 import regex
@@ -16,6 +15,7 @@ from temba.flows.models import (
     SendAction,
     StartsWithTest,
 )
+from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 

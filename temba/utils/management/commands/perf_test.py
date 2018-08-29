@@ -1,7 +1,6 @@
 # coding=utf-8
 
 import fnmatch
-import json
 import sys
 import time
 from datetime import datetime, timedelta
@@ -13,6 +12,7 @@ from django.utils.timezone import now
 
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
+from temba.utils import json
 from temba.utils.dates import datetime_to_str, get_datetime_format
 
 # default number of times per org to request each URL to determine min/max times
