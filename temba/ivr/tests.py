@@ -143,6 +143,26 @@ class IVRTests(FlowFileTest):
             log.text, "Call ended. Could not authenticate with your Twilio account. " "Check your token and try again."
         )
 
+    def test_twiml_client(self):
+        # no twiml api config yet
+        self.assertIsNone(self.channel.get_twiml_client())
+
+        # twiml api config
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twiml.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
+        channel = Channel.create(
+            self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC"
+        )
+        self.assertEqual(channel.org, self.org)
+        self.assertEqual(channel.address, "+558299990000")
+
+        twiml_client = channel.get_twiml_client()
+        self.assertIsNotNone(twiml_client)
+        self.assertEqual(twiml_client.api.base_url, "https://api.twiml.com")
+
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @patch("twilio.rest.api.v2010.account.call.CallInstance", MockTwilioClient.MockCallInstance)
     def test_call_logging(self):
@@ -1078,6 +1098,8 @@ class IVRTests(FlowFileTest):
         )
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, "+558299990000")
+
+        self.assertIsNotNone(channel.get_twiml_client())
 
         # import an ivr flow
         self.import_file("call_me_maybe")

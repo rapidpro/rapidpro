@@ -128,16 +128,20 @@ class TwilioTypeTest(TembaTest):
                 mock_short_codes.return_value = iter([])
                 Channel.objects.all().delete()
 
-                response = self.client.get(claim_twilio)
-                self.assertContains(response, "+55 41 3908-7835")
+                with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.get") as mock_numbers_get:
+                    mock_numbers_get.return_value = MockTwilioClient.MockPhoneNumber("+554139087835")
 
-                # claim it
-                response = self.client.post(claim_twilio, dict(country="BR", phone_number="554139087835"))
-                self.assertRedirects(response, reverse("public.public_welcome") + "?success")
+                    response = self.client.get(claim_twilio)
+                    self.assertContains(response, "+55 41 3908-7835")
 
-                # make sure it is actually connected
-                channel = Channel.objects.get(channel_type="T", org=self.org)
-                self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
+                    # claim it
+                    mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835")])
+                    response = self.client.post(claim_twilio, dict(country="BR", phone_number="554139087835"))
+                    self.assertRedirects(response, reverse("public.public_welcome") + "?success")
+
+                    # make sure it is actually connected
+                    channel = Channel.objects.get(channel_type="T", org=self.org)
+                    self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
             mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+4545335500")])
