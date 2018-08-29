@@ -1108,11 +1108,11 @@ class TriggerTest(TembaTest):
 
         group = self.create_group("Trigger Group", [])
 
-        # create a trigger on this flow for the follow actions but only on some groups
+        # create a trigger on this flow for the new conversation actions but only on some groups
         trigger = Trigger.objects.create(
             org=self.org,
             flow=flow,
-            trigger_type=Trigger.TYPE_FOLLOW,
+            trigger_type=Trigger.TYPE_NEW_CONVERSATION,
             channel=self.channel,
             created_by=self.admin,
             modified_by=self.admin,
@@ -1131,7 +1131,7 @@ class TriggerTest(TembaTest):
         self.org.import_app(export, self.admin)
 
         trigger = Trigger.objects.get()
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_FOLLOW)
+        self.assertEqual(trigger.trigger_type, Trigger.TYPE_NEW_CONVERSATION)
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
