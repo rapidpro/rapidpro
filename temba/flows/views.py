@@ -429,7 +429,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             # create triggers for this flow only if there are keywords and we aren't a survey
-            if self.form.cleaned_data.get("flow_type") != Flow.SURVEY:
+            if self.form.cleaned_data.get("flow_type") != Flow.TYPE_SURVEY:
                 if len(self.form.cleaned_data["keyword_triggers"]) > 0:
                     for keyword in self.form.cleaned_data["keyword_triggers"].split(","):
                         Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
@@ -1556,7 +1556,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if new_message or media:
                 try:
-                    if flow.flow_type == Flow.USSD:
+                    if flow.flow_type == Flow.TYPE_USSD:
                         if new_message == "__interrupt__":
                             status = USSDSession.INTERRUPTED
                         else:
@@ -1590,7 +1590,7 @@ class FlowCRUDL(SmartCRUDL):
 
             messages = Msg.objects.filter(contact=test_contact).order_by("pk", "created_on")
 
-            if flow.flow_type == Flow.USSD:
+            if flow.flow_type == Flow.TYPE_USSD:
                 for msg in messages:
                     if msg.connection.should_end:
                         msg.connection.close()

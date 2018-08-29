@@ -907,7 +907,7 @@ class Flow(TembaModel):
 
     @classmethod
     def should_close_connection(cls, run, current_destination, next_destination):
-        if run.flow.flow_type == Flow.USSD:
+        if run.flow.flow_type == Flow.TYPE_USSD:
             # this might be our last node that sends msg
             if not next_destination:
                 return True
@@ -5494,7 +5494,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 node.flow = flow
                 result_nodes.append(node)
 
-            if flow.flow_type == Flow.SURVEY:
+            if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True
 
         extra_urn_columns = []

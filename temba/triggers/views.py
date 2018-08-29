@@ -356,7 +356,9 @@ class UssdTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
+        flows = Flow.objects.filter(
+            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.TYPE_USSD]
+        )
         super().__init__(user, flows, *args, **kwargs)
 
         self.fields["channel"].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)

@@ -314,7 +314,7 @@ class TriggerTest(TembaTest):
         self.assertFalse(Schedule.objects.all())
 
         # survey flows should not be an option
-        flow.flow_type = Flow.SURVEY
+        flow.flow_type = Flow.TYPE_SURVEY
         flow.save()
         response = self.client.get(reverse("triggers.trigger_schedule"))
         self.assertEqual(0, response.context["form"].fields["flow"].queryset.all().count())
