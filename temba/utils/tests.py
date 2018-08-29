@@ -684,12 +684,14 @@ class JsonTest(TembaTest):
         now = timezone.now().replace(microsecond=1000)
 
         # our dictionary to encode
-        source = dict(name="Date Test", age=10, now=now)
+        source = dict(name="Date Test", age=Decimal("10"), now=now)
 
         # encode it
         encoded = json.dumps(source)
 
-        self.assertEqual(json.loads(encoded), {"name": "Date Test", "age": 10, "now": json.datetime_to_json_date(now)})
+        self.assertEqual(
+            json.loads(encoded), {"name": "Date Test", "age": Decimal("10"), "now": json.datetime_to_json_date(now)}
+        )
 
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
@@ -704,6 +706,10 @@ class JsonTest(TembaTest):
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
         self.assertEqual(mock.now, source["now"])
+
+        # test that we throw with unknown types
+        with self.assertRaises(TypeError):
+            json.dumps(dict(foo=Exception("invalid")))
 
 
 class QueueTest(TembaTest):

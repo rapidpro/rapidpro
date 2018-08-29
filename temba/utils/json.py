@@ -1,10 +1,7 @@
 import datetime
-import decimal
 
 import pytz
 import simplejson
-
-from django.utils.timezone import is_aware
 
 
 def loads(value):
@@ -44,16 +41,5 @@ class TembaEncoder(simplejson.JSONEncoder):
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime.datetime):
             return datetime_to_json_date(o)
-        elif isinstance(o, datetime.date):
-            return o.isoformat()
-        elif isinstance(o, datetime.time):
-            if is_aware(o):
-                raise ValueError("JSON can't represent timezone-aware times.")
-            r = o.isoformat()
-            if o.microsecond:
-                r = r[:12]
-            return r
-        elif isinstance(o, decimal.Decimal):
-            return str(o)
         else:
             return super().default(o)
