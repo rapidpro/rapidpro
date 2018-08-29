@@ -1,4 +1,3 @@
-import json
 import time
 
 import requests
@@ -15,6 +14,7 @@ from temba.channels.models import ChannelLog
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
+from temba.utils import json
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient as NexmoCli
 from temba.utils.twilio import TembaTwilioRestClient

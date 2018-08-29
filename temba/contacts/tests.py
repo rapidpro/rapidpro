@@ -1,6 +1,5 @@
 
 import copy
-import json
 import subprocess
 import time
 import uuid
@@ -37,6 +36,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
+from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.es import ES
 from temba.utils.profiler import QueryTracker
@@ -5497,6 +5497,11 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.user, "dog", "23.00")
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23.00", "number": "23"}})
+
+        # numeric field value
+        self.joe.set_field(self.user, "dog", "37.27903")
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "37.27903", "number": "37.27903"}})
 
         # numeric field values that could turn into shite due to normalization
         self.joe.set_field(self.user, "dog", "2300")
