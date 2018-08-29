@@ -130,10 +130,10 @@ class TwilioClient(TembaTwilioRestClient):
     def __init__(self, account_sid, token, org, base=None, **kwargs):
         self.org = org
         super().__init__(account_sid, token, **kwargs)
-        custom_api = Api(self)
         if base:
+            custom_api = Api(self)
             custom_api.base_url = base
-        self._api = custom_api
+            self._api = custom_api
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
