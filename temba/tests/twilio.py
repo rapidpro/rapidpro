@@ -39,7 +39,9 @@ class MockTwilioClient(TwilioClient):
             return True
 
         def get(self, sid):
-            return list(self.stream())[0]
+            objs = list(self.stream())
+            if len(objs) > 0:
+                return objs[0]
 
     class MockAPI(object):
         def __init__(self, *args, **kwargs):
@@ -86,7 +88,7 @@ class MockTwilioClient(TwilioClient):
             return [MockTwilioClient.MockShortCode(short_code)]
 
         def stream(self, *args, **kwargs):
-            return [MockTwilioClient.MockShortCode("1122")]
+            return iter([MockTwilioClient.MockShortCode("1122")])
 
         def update(self, sid, **kwargs):
             print("Updating short code with sid %s" % sid)
@@ -136,7 +138,7 @@ class MockTwilioClient(TwilioClient):
             return [MockTwilioClient.MockPhoneNumber(phone_number)]
 
         def stream(self, *args, **kwargs):
-            return [MockTwilioClient.MockPhoneNumber("+12062345678")]
+            return iter([MockTwilioClient.MockPhoneNumber("+12062345678")])
 
         def search(self, **kwargs):
             return []

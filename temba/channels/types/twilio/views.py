@@ -107,7 +107,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         org = user.get_org()
 
         client = org.get_twilio_client()
-        twilio_phones = list(client.api.incoming_phone_numbers.stream(phone_number=phone_number))
+        twilio_phones = client.api.incoming_phone_numbers.stream(phone_number=phone_number)
         channel_uuid = uuid4()
 
         # create new TwiML app
@@ -131,10 +131,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         is_short_code = len(phone_number) <= 6
         if is_short_code:
-            short_codes = list(client.api.short_codes.stream(short_code=phone_number))
+            short_codes = client.api.short_codes.stream(short_code=phone_number)
+            short_code = next(short_codes, None)
 
-            if short_codes:
-                short_code = short_codes[0]
+            if short_code:
                 number_sid = short_code.sid
                 app_url = "https://" + callback_domain + "%s" % reverse("courier.t", args=[channel_uuid, "receive"])
                 client.api.short_codes.get(number_sid).update(sms_url=app_url, sms_method="POST")
@@ -150,8 +150,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                     )
                 )
         else:
-            if twilio_phones:
-                twilio_phone = twilio_phones[0]
+            twilio_phone = next(twilio_phones, None)
+            if twilio_phone:
+
                 client.api.incoming_phone_numbers.get(twilio_phone.sid).update(
                     voice_application_sid=new_app.sid, sms_application_sid=new_app.sid
                 )
