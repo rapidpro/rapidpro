@@ -450,6 +450,8 @@ class Flow(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
 
+    is_system = models.NullBooleanField(default=False, help_text=_("Whether this is a system created flow"))
+
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW, help_text=_("The type of this flow"))
 
     metadata = JSONAsTextField(
@@ -500,14 +502,21 @@ class Flow(TembaModel):
         related_name="dependent_flows",
         verbose_name=_(""),
         blank=True,
-        help_text=("Any fields this flow depends on"),
+        help_text=_("Any fields this flow depends on"),
     )
 
     flow_server_enabled = models.BooleanField(default=False, help_text=_("Run this flow using the flow server"))
 
     @classmethod
     def create(
-        cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None
+        cls,
+        org,
+        user,
+        name,
+        flow_type=FLOW,
+        expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
+        base_language=None,
+        **kwargs,
     ):
         flow = Flow.objects.create(
             org=org,
@@ -518,6 +527,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
+            **kwargs,
         )
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
@@ -529,7 +539,7 @@ class Flow(TembaModel):
         Creates a special 'single message' flow
         """
         name = "Single Message (%s)" % str(uuid4())
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, is_system=True)
         flow.update_single_message_flow(message, base_language)
         return flow
 

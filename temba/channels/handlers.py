@@ -20,7 +20,6 @@ from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, Msg
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import on_transaction_commit
 from temba.utils.http import HttpEvent
 from temba.utils.queues import push_task
 
@@ -336,8 +335,6 @@ class MageHandler(BaseChannelHandler):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
 
     def post(self, request, *args, **kwargs):
-        from temba.triggers.tasks import fire_follow_triggers
-
         if not settings.MAGE_AUTH_TOKEN:  # pragma: no cover
             return JsonResponse(dict(error="Authentication not configured"), status=401)
 
@@ -366,19 +363,6 @@ class MageHandler(BaseChannelHandler):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
-
-        elif action == "follow_notification":
-            try:
-                channel_id = int(request.POST.get("channel_id", ""))
-                contact_urn_id = int(request.POST.get("contact_urn_id", ""))
-            except ValueError:  # pragma: needs cover
-                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
-
-            on_transaction_commit(
-                lambda: fire_follow_triggers.apply_async(
-                    args=(channel_id, contact_urn_id, new_contact), queue="handler"
-                )
-            )
 
         elif action == "stop_contact":
             contact = Contact.objects.filter(is_active=True, id=request.POST.get("contact_id", "-1")).first()
