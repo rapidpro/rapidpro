@@ -340,10 +340,10 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Run flow over"),
                 help_text=_("Choose the method for your flow"),
                 choices=(
-                    (Flow.FLOW, "Messaging"),
-                    (Flow.USSD, "USSD Messaging"),
-                    (Flow.VOICE, "Phone Call"),
-                    (Flow.SURVEY, "Surveyor"),
+                    (Flow.TYPE_MESSAGE, "Messaging"),
+                    (Flow.TYPE_USSD, "USSD Messaging"),
+                    (Flow.TYPE_VOICE, "Phone Call"),
+                    (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
             )
 
@@ -354,7 +354,9 @@ class FlowCRUDL(SmartCRUDL):
                 org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
-                flow_types = branding.get("flow_types", [Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD])
+                flow_types = branding.get(
+                    "flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, Flow.TYPE_USSD]
+                )
 
                 # prune our choices by brand config
                 choices = []
@@ -409,7 +411,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # default expiration is a week
             expires_after_minutes = 60 * 24 * 7
-            if obj.flow_type == Flow.VOICE:
+            if obj.flow_type == Flow.TYPE_VOICE:
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
@@ -596,9 +598,9 @@ class FlowCRUDL(SmartCRUDL):
         def get_form_class(self):
             flow_type = self.object.flow_type
 
-            if flow_type == Flow.VOICE:
+            if flow_type == Flow.TYPE_VOICE:
                 return self.IVRFlowUpdateForm
-            elif flow_type == Flow.SURVEY:
+            elif flow_type == Flow.TYPE_SURVEY:
                 return self.SurveyFlowUpdateForm
             else:
                 return self.FlowUpdateForm
@@ -963,7 +965,7 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             # hangup any test calls if we have them
-            if flow.flow_type == Flow.VOICE:
+            if flow.flow_type == Flow.TYPE_VOICE:
                 IVRCall.hangup_test_call(flow)
 
             flow.ensure_current_version()
@@ -981,7 +983,7 @@ class FlowCRUDL(SmartCRUDL):
             context["is_starting"] = flow.is_starting()
             context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["can_start"] = flow.flow_type != Flow.VOICE or flow.org.supports_ivr()
+            context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
             return context
 
         def get_gear_links(self):
@@ -989,7 +991,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
 
             if (
-                flow.flow_type not in [Flow.SURVEY, Flow.USSD]
+                flow.flow_type not in [Flow.TYPE_SURVEY, Flow.TYPE_USSD]
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):

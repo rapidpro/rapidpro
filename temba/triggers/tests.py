@@ -184,7 +184,7 @@ class TriggerTest(TembaTest):
 
         # now lets create our first valid inbound call trigger
         guitarist_flow = self.create_flow()
-        guitarist_flow.flow_type = Flow.VOICE
+        guitarist_flow.flow_type = Flow.TYPE_VOICE
         guitarist_flow.save()
 
         post_data = dict(flow=guitarist_flow.pk)
@@ -202,7 +202,7 @@ class TriggerTest(TembaTest):
 
         # flow specific to our group
         bassist_flow = self.create_flow()
-        bassist_flow.flow_type = Flow.VOICE
+        bassist_flow.flow_type = Flow.TYPE_VOICE
         bassist_flow.save()
 
         post_data = dict(flow=bassist_flow.pk, groups=[bassists.pk])
@@ -216,7 +216,7 @@ class TriggerTest(TembaTest):
         self.channel.release()
 
         # should still have two voice flows and triggers (they aren't archived)
-        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
+        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.TYPE_VOICE, is_archived=False).count())
         self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
     def test_referral_trigger(self):
