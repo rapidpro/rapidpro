@@ -23,7 +23,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.utils import json
-from temba.utils.dates import datetime_to_json_date
+from temba.utils.json import datetime_to_json_date
 from temba.values.constants import Value
 
 from .serializers import (

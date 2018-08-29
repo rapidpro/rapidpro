@@ -5498,6 +5498,11 @@ class ContactTest(TembaTest):
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.fields, {dog_uuid: {"text": "23.00", "number": "23"}})
 
+        # numeric field value
+        self.joe.set_field(self.user, "dog", "37.27903")
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.fields, {dog_uuid: {"text": "37.27903", "number": "37.27903"}})
+
         # numeric field values that could turn into shite due to normalization
         self.joe.set_field(self.user, "dog", "2300")
         self.joe.refresh_from_db()
