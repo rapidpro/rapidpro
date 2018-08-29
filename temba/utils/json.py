@@ -36,12 +36,6 @@ def datetime_to_json_date(dt, micros=False):
     return (as_str if micros else as_str[:-3]) + "Z"
 
 
-"""
-Custom encoder that takes care of converting datetimes and Decimal values to the appropriate JSON
-encodings.
-"""
-
-
 class TembaEncoder(simplejson.JSONEncoder):
     """
     Our own encoder for datetimes.. we always convert to UTC and always include milliseconds

@@ -5552,15 +5552,15 @@ class WebhookTest(TembaTest):
         flow = self.get_flow("webhook_decimal")
         contact = self.create_contact("Ben Haggerty", "+250788383383")
 
-        self.mockRequest("GET", "/", '{ "decimal": 37.27903 }')
+        self.mockRequest("GET", "/", '{ "decimal": 0.1 }')
 
         run1, = flow.start([], [contact])
         run1.refresh_from_db()
 
         if not in_flowserver:
-            self.assertEqual(run1.fields, {"decimal": Decimal("37.27903")})
+            self.assertEqual(run1.fields, {"decimal": Decimal("0.1")})
 
-        self.assertEqual("Your webhook returned 37.27903", Msg.objects.get(contact=contact).text)
+        self.assertEqual("Your webhook returned 0.1. Your number is 0.1", Msg.objects.get(contact=contact).text)
 
     @also_in_flowserver
     @override_settings(SEND_WEBHOOKS=True)

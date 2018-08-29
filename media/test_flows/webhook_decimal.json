@@ -7,15 +7,22 @@
       "action_sets": [
         {
           "uuid": "568154d4-0e10-4a92-8c90-e36207c120fe",
-          "x": 135,
-          "y": 161,
+          "x": 136,
+          "y": 162,
           "destination": null,
           "actions": [
+            {
+              "type": "save",
+              "uuid": "76e04fd1-eefc-416b-a861-2b31ee254170",
+              "label": "Number",
+              "field": "number",
+              "value": "@extra.decimal"
+            },
             {
               "type": "reply",
               "uuid": "fa936be1-3685-4f64-8c58-6c492d7baf51",
               "msg": {
-                "eng": "Your webhook returned @extra.decimal"
+                "eng": "Your webhook returned @extra.decimal. Your number is @contact.number"
               },
               "media": {},
               "quick_replies": [],
@@ -75,8 +82,8 @@
       "version": "11.4",
       "metadata": {
         "name": "Decimal Webhook",
-        "saved_on": "2018-08-27T21:23:09.123371Z",
-        "revision": 3,
+        "saved_on": "2018-08-29T16:41:22.073386Z",
+        "revision": 10,
         "uuid": "5feeffc2-7c08-414b-b2b6-992998b507a4",
         "expires": 10080
       }
