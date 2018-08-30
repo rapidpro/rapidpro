@@ -1,3 +1,8 @@
+v4.4.5
+----------
+ * Remove mage functionality
+ * Fix Twilio number searching
+
 v4.4.2
 ----------
  * Use SystemContactFields for Dynamic Groups
