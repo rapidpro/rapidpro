@@ -19,7 +19,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio.rest import TwilioRestClient
+from twilio.rest import Client
 
 from django import forms
 from django.conf import settings
@@ -729,10 +729,10 @@ class OrgCRUDL(SmartCRUDL):
                     raise ValidationError(_("You must enter your Twilio Account Token"))
 
                 try:
-                    client = TwilioRestClient(account_sid, account_token)
+                    client = Client(account_sid, account_token)
 
                     # get the actual primary auth tokens from twilio and use them
-                    account = client.accounts.get(account_sid)
+                    account = client.api.account.fetch()
                     self.cleaned_data["account_sid"] = account.sid
                     self.cleaned_data["account_token"] = account.auth_token
                 except Exception:
@@ -2464,10 +2464,10 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter your Twilio Account Token"))
 
                     try:
-                        client = TwilioRestClient(account_sid, account_token)
+                        client = Client(account_sid, account_token)
 
                         # get the actual primary auth tokens from twilio and use them
-                        account = client.accounts.get(account_sid)
+                        account = client.api.account.fetch()
                         self.cleaned_data["account_sid"] = account.sid
                         self.cleaned_data["account_token"] = account.auth_token
                     except Exception:  # pragma: needs cover
