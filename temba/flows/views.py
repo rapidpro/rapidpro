@@ -743,7 +743,7 @@ class FlowCRUDL(SmartCRUDL):
                 campaign__is_active=True,
                 flow__is_archived=False,
                 flow__is_active=True,
-                flow__flow_type=Flow.FLOW,
+                flow__is_system=False,
             )
             return (
                 events.values("campaign__name", "campaign__id").annotate(count=Count("id")).order_by("campaign__name")
@@ -819,7 +819,7 @@ class FlowCRUDL(SmartCRUDL):
             from temba.campaigns.models import CampaignEvent
 
             flow_ids = CampaignEvent.objects.filter(
-                campaign=self.get_campaign(), flow__is_archived=False, flow__flow_type=Flow.FLOW
+                campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
             ).values("flow__id")
 
             flows = Flow.objects.filter(id__in=flow_ids).order_by("-modified_on")
