@@ -19,7 +19,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.conf import settings
@@ -1799,13 +1799,13 @@ class ChannelCRUDL(SmartCRUDL):
 
             kwargs["type"] = "local"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
+                available_numbers += client.api.available_phone_numbers.list(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 
             kwargs["type"] = "mobile"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
+                available_numbers += client.api.available_phone_numbers.list(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 

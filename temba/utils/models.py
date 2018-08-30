@@ -204,7 +204,7 @@ class RequireUpdateFieldsMixin(object):
         if self.id and "update_fields" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):
