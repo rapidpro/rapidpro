@@ -599,14 +599,8 @@ class FlowCRUDL(SmartCRUDL):
                 return self.IVRFlowUpdateForm
             elif flow_type == Flow.SURVEY:
                 return self.SurveyFlowUpdateForm
-            elif flow_type == Flow.MESSAGE:  # pragma: needs cover
+            else:
                 return self.FlowUpdateForm
-            elif flow_type == Flow.FLOW:
-                return self.FlowUpdateForm
-            elif flow_type == Flow.USSD:  # pragma: needs cover
-                return self.FlowUpdateForm
-            else:  # pragma: no cover
-                raise ValueError(f"Unhandled Flow type: '{flow_type}'")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -735,7 +729,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
+            return qs.exclude(is_system=True).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
@@ -768,14 +762,14 @@ class FlowCRUDL(SmartCRUDL):
                 dict(
                     label="Active",
                     url=reverse("flows.flow_list"),
-                    count=Flow.objects.exclude(flow_type=Flow.MESSAGE)
+                    count=Flow.objects.exclude(is_system=True)
                     .filter(is_active=True, is_archived=False, org=org)
                     .count(),
                 ),
                 dict(
                     label="Archived",
                     url=reverse("flows.flow_archived"),
-                    count=Flow.objects.exclude(flow_type=Flow.MESSAGE)
+                    count=Flow.objects.exclude(is_system=True)
                     .filter(is_active=True, is_archived=True, org=org)
                     .count(),
                 ),
@@ -1507,7 +1501,7 @@ class FlowCRUDL(SmartCRUDL):
                 lang = request.GET.get("lang", None)
                 if lang:
                     test_contact.language = lang
-                    test_contact.save(update_fields=("language",))
+                    test_contact.save(update_fields=("language",), handle_update=False)
 
                 # delete all our steps and messages to restart the simulation
                 runs = FlowRun.objects.filter(contact=test_contact).order_by("-modified_on")
@@ -1534,7 +1528,7 @@ class FlowCRUDL(SmartCRUDL):
                 # reset the name for our test contact too
                 test_contact.fields = {}
                 test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
-                test_contact.save(update_fields=("name", "fields"))
+                test_contact.save(update_fields=("name", "fields"), handle_update=False)
 
                 # reset the groups for test contact
                 for group in test_contact.all_groups.all():

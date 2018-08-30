@@ -274,7 +274,7 @@ class TembaTestMixin(object):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
-            timezone="Africa/Kigali",
+            timezone=pytz.timezone("Africa/Kigali"),
             brand="rapidpro.io",
             created_by=self.admin2,
             modified_by=self.admin2,

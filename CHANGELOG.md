@@ -1,3 +1,10 @@
+v4.4.2
+----------
+ * Use SystemContactFields for Dynamic Groups
+ * Add our own json module for loads, dumps, always preserve decimals and ordering
+ * Replace reads of Flow.flow_type=MESSAGE with Flow.is_system=True
+ * Migration to populate Flow.is_system based on flow_type
+
 v4.4.0
 ----------
  * Fix intercom ResourceNotFound on Org.Signup
