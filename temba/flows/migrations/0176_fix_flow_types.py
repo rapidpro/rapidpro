@@ -6,10 +6,10 @@ from temba.utils import chunk_list
 
 
 def fix_flow_types(apps, schema_editor):
-    Flow = apps.get("flows", "Flow")
+    Flow = apps.get_model("flows", "Flow")
 
     num_updated = 0
-    for batch in chunk_list(Flow.objects.filter(flow_type="F")):
+    for batch in chunk_list(Flow.objects.filter(flow_type="F"), 1000):
         Flow.objects.filter(id__in=[f.id for f in batch]).update(flow_type="M")
         num_updated += len(batch)
         print(f" > Updated {num_updated} flows with type F to type M")
