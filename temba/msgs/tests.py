@@ -495,7 +495,7 @@ class MsgTest(TembaTest):
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
-        contact.save(update_fields=("is_blocked",))
+        contact.save(update_fields=("is_blocked",), handle_update=False)
         ignored_msg = Msg.create_incoming(self.channel, str(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
@@ -920,7 +920,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
@@ -1455,7 +1455,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         msg1 = self.create_msg(
             contact=self.joe,
@@ -2593,39 +2593,39 @@ class BroadcastTest(TembaTest):
 
         # unicode tests
         self.joe.name = "شاملیدل عمومی"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         self.assertEqual(("شاملیدل", []), substitute("@(first_word(contact))", dict()))
         self.assertEqual(("عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = "1234567890123456"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # phone number
         self.joe.name = "123456789012"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
 
         # triplets
         self.joe.name = "123456"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # soc security
         self.joe.name = "123456789"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = "12345"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = "123"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
 
     def test_expressions_context(self):

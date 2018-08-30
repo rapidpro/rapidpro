@@ -311,7 +311,7 @@ class FlowTest(TembaTest):
         # contact language doesn't override if it's not an org language
         self.contact.language = "fra"
 
-        self.contact.save(update_fields=("language",))
+        self.contact.save(update_fields=("language",), handle_update=False)
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
 
         # does override if it is
@@ -1143,7 +1143,7 @@ class FlowTest(TembaTest):
 
         # contact name with an illegal character
         self.contact3.name = "Nor\02bert"
-        self.contact3.save(update_fields=("name",))
+        self.contact3.save(update_fields=("name",), handle_update=False)
 
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
@@ -3890,6 +3890,8 @@ class ActionPackedTest(FlowFileTest):
                 group.query = 'gender="%s"' % group.name[0:-1]
                 group.update_query(group.query)
 
+            ContactGroup.create_dynamic(self.org, self.admin, "Steph group", "name has Steph")
+
         self.start_flow()
 
         # check that we are in (and only in) two groups including our dynamic one
@@ -3901,7 +3903,7 @@ class ActionPackedTest(FlowFileTest):
         self.flow.start([], [self.contact2])
         self.send("Steph", self.contact2)
         self.send("Female", self.contact2)
-        self.assertInUserGroups(self.contact2, ("Females", "Cat Facts", "Customers"), only=True)
+        self.assertInUserGroups(self.contact2, ("Females", "Cat Facts", "Customers", "Steph group"), only=True)
 
         # can't create groups dynamically
         self.contact.refresh_from_db()
@@ -3921,7 +3923,7 @@ class ActionPackedTest(FlowFileTest):
         group = ContactGroup.user_groups.filter(name=group_name).first()
         group.update_contacts(self.admin, [self.contact], False)
         self.contact.name += " "
-        self.contact.save(update_fields=("name",))
+        self.contact.save(update_fields=("name",), handle_update=False)
         self.start_flow()
         self.assertInUserGroups(self.contact, [group_name])
 
@@ -3989,7 +3991,7 @@ class ActionPackedTest(FlowFileTest):
 
         # can resume child even after deleting the parent contact
         self.contact.is_active = False
-        self.contact.save(update_fields=("is_active",))
+        self.contact.save(update_fields=("is_active",), handle_update=False)
 
         self.send("red", contact=lonely)
         self.send("Mr Lonely", contact=lonely)
@@ -4112,7 +4114,7 @@ class ActionPackedTest(FlowFileTest):
 
         # first name works starting with a single word
         self.contact.name = "Percy"
-        self.contact.save(update_fields=("name",))
+        self.contact.save(update_fields=("name",), handle_update=False)
         self.update_action_field(self.flow, name_action_uuid, "value", " Cole")
         self.start_flow()
         self.contact.refresh_from_db()
@@ -4235,11 +4237,17 @@ class ActionPackedTest(FlowFileTest):
     @also_in_flowserver
     def test_set_language_action(self, in_flowserver):
 
+        with ESMockWithScroll():
+            ContactGroup.create_dynamic(self.org, self.admin, "Espanjole", "language is spa")
+
         self.org.set_languages(self.admin, ["eng", "spa"], "eng")
         self.start_flow()
         self.send("spanish")
         self.contact.refresh_from_db()
         self.assertEqual("spa", self.contact.language)
+        self.assertSetEqual(
+            set(self.contact.user_groups.values_list("name", flat=True)), {"Customers", "Cat Facts", "Espanjole"}
+        )
 
         # check that some messages come back in spanish
         self.send("startover")
@@ -4254,6 +4262,33 @@ class ActionPackedTest(FlowFileTest):
         self.send("spanish")
         self.contact.refresh_from_db()
         self.assertIsNone(self.contact.language)
+        self.assertSetEqual(set(self.contact.user_groups.values_list("name", flat=True)), {"Customers", "Cat Facts"})
+
+    @also_in_flowserver
+    def test_set_name_action(self, in_flowserver):
+
+        with ESMockWithScroll():
+            ContactGroup.create_dynamic(self.org, self.admin, "Flavio", "name has Flavio")
+
+        self.flow.start([], [self.contact], restart_participants=True)
+        self.send("Flavio Marmelade")
+        self.send("Male")
+
+        self.contact.refresh_from_db()
+        self.assertIsNone(self.contact.language)
+        self.assertEqual(self.contact.name, "Flavio Marmelade")
+        self.assertSetEqual(
+            set(self.contact.user_groups.values_list("name", flat=True)), {"Customers", "Cat Facts", "Flavio"}
+        )
+
+        self.flow.start([], [self.contact], restart_participants=True)
+        self.send("Bob Marmelade")
+        self.send("Male")
+
+        self.contact.refresh_from_db()
+        self.assertIsNone(self.contact.language)
+        self.assertEqual(self.contact.name, "Bob Marmelade")
+        self.assertSetEqual(set(self.contact.user_groups.values_list("name", flat=True)), {"Customers", "Cat Facts"})
 
 
 class ActionTest(TembaTest):
@@ -4512,7 +4547,7 @@ class ActionTest(TembaTest):
 
         # now set contact's language to something we don't have in our org languages
         self.contact.language = "fra"
-        self.contact.save(update_fields=("language",))
+        self.contact.save(update_fields=("language",), handle_update=False)
         run = FlowRun.create(self.flow, self.contact)
 
         # resend the message to him
@@ -4524,7 +4559,7 @@ class ActionTest(TembaTest):
 
         # now set contact's language to hungarian
         self.contact.language = "hun"
-        self.contact.save(update_fields=("language",))
+        self.contact.save(update_fields=("language",), handle_update=False)
         run = FlowRun.create(self.flow, self.contact)
 
         # resend the message to him
@@ -4619,7 +4654,7 @@ class ActionTest(TembaTest):
         # try with a test contact and a group
         test_contact = Contact.get_test_contact(self.user)
         test_contact.name = "Mr Test"
-        test_contact.save(update_fields=("name",))
+        test_contact.save(update_fields=("name",), handle_update=False)
         test_contact.set_field(self.user, "state", "IN", label="State")
 
         self.other_group.update_contacts(self.user, [self.contact2], True)
@@ -4831,7 +4866,7 @@ class ActionTest(TembaTest):
         # first name works with a single word
         run.contact = contact
         contact.name = "Percy"
-        contact.save(update_fields=("name",))
+        contact.save(update_fields=("name",), handle_update=False)
 
         test = SaveToContactAction.from_json(
             self.org, dict(type="save", label="First Name", value="", field="first_name")
@@ -5013,7 +5048,7 @@ class ActionTest(TembaTest):
 
         # having the group name containing a space doesn't change anything
         self.contact.name += " "
-        self.contact.save(update_fields=("name",))
+        self.contact.save(update_fields=("name",), handle_update=False)
         run.contact = self.contact
 
         self.execute_action(action, run, msg)
@@ -7695,7 +7730,7 @@ class FlowsTest(FlowFileTest):
 
         # update our name to rowan so we match the name rule
         self.contact.name = "Rowan"
-        self.contact.save(update_fields=("name",))
+        self.contact.save(update_fields=("name",), handle_update=False)
 
         # but remove ourselves from the group so we enter the loop
         group_a.contacts.remove(self.contact)
@@ -7932,7 +7967,7 @@ class FlowsTest(FlowFileTest):
     def test_substitution(self):
         flow = self.get_flow("substitution")
         self.contact.name = "Ben Haggerty"
-        self.contact.save(update_fields=("name",))
+        self.contact.save(update_fields=("name",), handle_update=False)
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEqual(1, len(runs))
@@ -8254,7 +8289,7 @@ class FlowsTest(FlowFileTest):
 
         # but set our contact's language explicitly should keep us at english
         self.contact.language = "eng"
-        self.contact.save(update_fields=("language",))
+        self.contact.save(update_fields=("language",), handle_update=False)
         self.assertEqual(
             "Hello friend! What is your favorite color?",
             self.send_message(flow, "start flow", restart_participants=True, initiate_flow=True),
@@ -8788,7 +8823,7 @@ class FlowsTest(FlowFileTest):
         # now set our contact's preferred language to klingon
         self.releaseRuns()
         self.contact.language = "tlh"
-        self.contact.save(update_fields=("language",))
+        self.contact.save(update_fields=("language",), handle_update=False)
 
         self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
         self.assertEqual("Katishklick Shnik Red Errrrrrrrklop", self.send_message(favorites, "RED"))
