@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='airtimetransfer',
             name='org',
-            field=models.ForeignKey(help_text=b'The organization that this airtime was triggered for', on_delete=django.db.models.deletion.CASCADE, to='orgs.Org'),
+            field=models.ForeignKey(help_text='The organization that this airtime was triggered for', on_delete=django.db.models.deletion.CASCADE, to='orgs.Org'),
         ),
     ]

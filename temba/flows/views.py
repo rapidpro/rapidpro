@@ -277,18 +277,28 @@ class FlowCRUDL(SmartCRUDL):
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
 
             flow_type = forms.ChoiceField(label=_('Run flow over'),
-                                          help_text=_('Send messages, place phone calls, or submit Surveyor runs'),
+                                          help_text=_('Choose the method for your flow'),
                                           choices=((Flow.FLOW, 'Messaging'),
                                                    (Flow.USSD, 'USSD Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
                                                    (Flow.SURVEY, 'Surveyor')))
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, user, branding, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
                 org_languages = self.user.get_org().languages.all().order_by('orgs', 'name')
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
+
+                flow_types = branding.get('flow_types', [Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD])
+
+                # prune our choices by brand config
+                choices = []
+                for flow_choice in self.fields['flow_type'].choices:
+                    if flow_choice[0] in flow_types:
+                        choices.append(flow_choice)
+                self.fields['flow_type'].choices = choices
+
                 self.fields['base_language'] = forms.ChoiceField(label=_('Language'),
                                                                  initial=self.user.get_org().primary_language,
                                                                  choices=language_choices)
@@ -314,6 +324,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super(FlowCRUDL.Create, self).get_form_kwargs()
             kwargs['user'] = self.request.user
+            kwargs['branding'] = self.request.branding
             return kwargs
 
         def get_context_data(self, **kwargs):
@@ -498,7 +509,9 @@ class FlowCRUDL(SmartCRUDL):
                 added_keywords = keywords.difference(existing_keywords)
                 archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
                                                                             is_archived=True, groups=None)]
-                for keyword in added_keywords:
+
+                # set difference does not have a deterministic order, we need to sort the keywords
+                for keyword in sorted(added_keywords):
                     # first check if the added keyword is not amongst archived
                     if keyword in archived_keywords:  # pragma: needs cover
                         obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
@@ -1283,7 +1296,7 @@ class FlowCRUDL(SmartCRUDL):
                 for msg in messages_and_logs:
                     messages_json.append(msg.simulator_json())
 
-            (active, visited) = flow.get_activity(simulation=True)
+            (active, visited) = flow.get_activity(test_contact)
             response = dict(messages=messages_json, activity=active, visited=visited)
 
             # if we are at a ruleset, include it's details

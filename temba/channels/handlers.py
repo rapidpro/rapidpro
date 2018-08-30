@@ -43,7 +43,7 @@ from temba.utils.jiochat import JiochatClient
 from temba.utils.text import decode_base64
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
-from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
+from .tasks import fb_channel_subscribe, refresh_all_jiochat_access_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -1586,8 +1586,7 @@ class MageHandler(BaseChannelHandler):
 
         action = kwargs['action'].lower()
         new_contact = request.POST.get('new_contact', '').lower() in ('true', '1')
-        print ("En Mage handler, se recibio un post")
-        print ("accion %s", action)
+
         if action == 'handle_message':
             try:
                 msg_id = int(request.POST.get('message_id', ''))
@@ -1603,15 +1602,14 @@ class MageHandler(BaseChannelHandler):
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
 
         elif action == 'follow_notification':
-            pass
-            #try:
-            #    channel_id = int(request.POST.get('channel_id', ''))
-            #    contact_urn_id = int(request.POST.get('contact_urn_id', ''))
-            #except ValueError:  # pragma: needs cover
-            #    return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
+            try:
+                channel_id = int(request.POST.get('channel_id', ''))
+                contact_urn_id = int(request.POST.get('contact_urn_id', ''))
+            except ValueError:  # pragma: needs cover
+                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            #on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, #new_contact),
-            #                                                               queue='handler'))
+            on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+                                                                           queue='handler'))
 
         elif action == 'stop_contact':
             contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
@@ -2066,7 +2064,7 @@ class JioChatHandler(BaseChannelHandler):
             verified, echostr = client.verify_request(request, channel.config[Channel.CONFIG_SECRET])
 
             if verified:
-                refresh_jiochat_access_tokens.delay(channel.id)
+                refresh_all_jiochat_access_tokens.delay(channel.id)
                 return HttpResponse(echostr)
 
         return JsonResponse(dict(error="Unknown request"), status=400)
@@ -2489,8 +2487,8 @@ class ViberPublicHandler(BaseChannelHandler):
 
     @classmethod
     def calculate_sig(cls, request_body, auth_token):
-        return hmac.new(force_bytes(auth_token.encode('ascii')),
-                        msg=request_body, digestmod=hashlib.sha256).hexdigest()
+        return hmac.new(force_bytes(auth_token, encoding='ascii'),
+                        msg=force_bytes(request_body), digestmod=hashlib.sha256).hexdigest()
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)

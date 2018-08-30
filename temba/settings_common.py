@@ -331,6 +331,7 @@ BRANDING = {
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
+        'flow_types': ['F', 'V', 'S', 'U'],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
         'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
         'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -880,6 +881,25 @@ TEST_RUNNER = 'temba.tests.TembaTestRunner'
 TEST_EXCLUDE = ('smartmin',)
 
 # -----------------------------------------------------------------------------------
+# Need a PostgreSQL database on localhost with postgis extension installed.
+# -----------------------------------------------------------------------------------
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'temba',
+        'USER': 'temba',
+        'PASSWORD': POSTGRES_PASSWORD,
+        'HOST': POSTGRES_HOST,
+        'PORT': POSTGRES_PORT,
+        'ATOMIC_REQUESTS': True,
+        'CONN_MAX_AGE': 60,
+        'DISABLE_SERVER_SIDE_CURSORS': True,
+        'OPTIONS': {
+        }
+    }
+}
+
+# -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
 INTERNAL_IPS = ('*',)
@@ -968,6 +988,14 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "resolve-twitter-ids-task": {
+        'task': 'resolve_twitter_ids_task',
+        'schedule': timedelta(seconds=900)
+    },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600)
+    }
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1030,11 +1058,11 @@ REST_FRAMEWORK = {
         'temba.api.support.OrgRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'v2': '250000/hour',
-        'v2.contacts': '250000/hour',
-        'v2.messages': '250000/hour',
+        'v2': '2500/hour',
+        'v2.contacts': '2500/hour',
+        'v2.messages': '2500/hour',
         'v2.runs': '2500/hour',
-        'v2.api': '250000/hour',
+        'v2.api': '2500/hour',
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (

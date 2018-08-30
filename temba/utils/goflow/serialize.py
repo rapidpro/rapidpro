@@ -150,9 +150,9 @@ def serialize_message(msg):
         'text': msg.text,
     }
 
-    if msg.contact_urn:
+    if msg.contact_urn_id:
         serialized['urn'] = msg.contact_urn.urn
-    if msg.channel:
+    if msg.channel_id:
         serialized['channel'] = serialize_channel_ref(msg.channel)
     if msg.attachments:
         serialized['attachments'] = msg.attachments

@@ -9,6 +9,7 @@ show_missing = True
 skip_covered = True
 exclude_lines = 
     pragma: no cover
+    pragma: can't cover
     def __repr__
     if self.debug:
     if settings.DEBUG

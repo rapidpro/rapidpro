@@ -1,3 +1,46 @@
+v3.0.349
+----------
+ * Deal with null state values in contact search evaluation
+
+v3.0.348
+----------
+ * Fix off by one error in calculating best channel based on prefixes
+ * Reevaluate dynamic groups using local contact fields instead of SQL
+
+v3.0.347
+----------
+ * Add modified_on index for elasticsearch
+
+v3.0.346
+----------
+ * Don't start archived flows
+ * Don't show stale dates on campaign events
+ * Allow brands to configure flow types
+ * Remove group search from send to others action
+ * Fixes for test contact activity
+
+v3.0.345
+----------
+ * Migration to backfill run.events and add step uuids to run.path
+ * Do the right thing when we are presented with NaN decimals
+
+v3.0.344
+----------
+ * Use real JSONField for FlowRun.events
+ * Add FlowRun.events and start populating with msg events for new runs
+ * Serialize Contact.fields in test_db
+ * Update to latest goflow release
+
+v3.0.342
+----------
+ * Fix for decimal values in JSON fields attribute
+ * Fix for not being able to change contact field types if campaign event inactive
+
+v3.0.341
+----------
+ * Add if not exists to index creation for fields
+ * Last of Py3 compatibility changes
+
 v3.0.340
 ----------
  * Use fields JSON field on Contact instead of Value table for all reading.
@@ -16,9 +59,6 @@ v3.0.339
 v3.0.338
 ----------
  * Always serialize contact field datetime values in the org timezone
-
-v3.0.337
-----------
  * Add migration for population of the contact field json
 
 v3.0.336

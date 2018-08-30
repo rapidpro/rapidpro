@@ -75,7 +75,6 @@ def update_event_fires(event_id):
                     EventFire.do_update_eventfires_for_event(event)
 
         except Exception as e:  # pragma: no cover
-
             # requeue our task to try again in five minutes
             update_event_fires(event_id).delay(countdown=60 * 5)
 

@@ -24,7 +24,7 @@ from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_text, DjangoUnicodeDecodeError
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
@@ -476,13 +476,17 @@ class OrgCRUDL(SmartCRUDL):
 
                 # make sure they are in the proper tier
                 if not self.org.is_import_flows_tier():
-                    raise ValidationError("Sorry, import is a premium feature")
+                    raise ValidationError(_("Sorry, import is a premium feature"))
 
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
-                json_data = json.loads(force_text(data))
+                try:
+                    json_data = json.loads(force_text(data))
+                except (DjangoUnicodeDecodeError, ValueError):
+                    raise ValidationError(_('This file is not a valid flow definition file.'))
+
                 if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
-                    raise ValidationError('This file is no longer valid. Please export a new version and try again.')
+                    raise ValidationError(_('This file is no longer valid. Please export a new version and try again.'))
 
                 return data
 
@@ -2297,7 +2301,7 @@ class OrgCRUDL(SmartCRUDL):
                     try:
                         from temba.airtime.models import AirtimeTransfer
                         response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token, action='ping')
-                        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+                        parsed_response = AirtimeTransfer.parse_transferto_response(force_text(response.content))
 
                         error_code = int(parsed_response.get('error_code', None))
                         info_txt = parsed_response.get('info_txt', None)

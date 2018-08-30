@@ -8,7 +8,6 @@ import json
 import pycountry
 import pytz
 import six
-import time
 import os
 
 from celery.app.task import Task
@@ -45,7 +44,6 @@ from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from .http import http_headers
 from .nexmo import NCCOException, NCCOResponse
-from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string, decode_base64, truncate, slugify_with, random_string
@@ -108,6 +106,10 @@ class InitTest(TembaTest):
         self.assertEqual('123.34', format_decimal(Decimal('123.34')))
         self.assertEqual('123.34', format_decimal(Decimal('123.3400000')))
         self.assertEqual('-123', format_decimal(Decimal('-123.0')))
+        self.assertEqual('-12300', format_decimal(Decimal('-123E+2')))
+        self.assertEqual('-12350', format_decimal(Decimal('-123.5E+2')))
+        self.assertEqual('-1.235', format_decimal(Decimal('-123.5E-2')))
+        self.assertEqual('', format_decimal(Decimal('NaN')))
 
     def test_slugify_with(self):
         self.assertEqual('foo_bar', slugify_with('foo bar'))
@@ -1651,20 +1653,6 @@ class MiddlewareTest(TembaTest):
         self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
-class ProfilerTest(TembaTest):
-    @time_monitor(threshold=50)
-    def foo(self, bar):
-        time.sleep(bar / 1000.0)
-
-    @patch('logging.Logger.error')
-    def test_time_monitor(self, mock_error):
-        self.foo(1)
-        self.assertEqual(len(mock_error.mock_calls), 0)
-
-        self.foo(51)
-        self.assertEqual(len(mock_error.mock_calls), 1)
-
-
 class MakeTestDBTest(SimpleTestCase):
     """
     This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
@@ -1692,7 +1680,12 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
-        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
+
+        if six.PY2:
+            # approved by Nic Pottier :)
+            assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
+        else:
+            assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
@@ -1700,7 +1693,14 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
+        if six.PY2:
+            # approved by Nic Pottier :)
+            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
+        else:
+            self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '12b01ad0-db44-462d-81e6-dc0995c13a79')
+
+        # check if contact fields are serialized
+        self.assertIsNotNone(Contact.objects.filter(is_test=False).first().fields)
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

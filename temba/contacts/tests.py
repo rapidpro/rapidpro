@@ -21,7 +21,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.search import is_phonenumber
+from temba.contacts.search import is_phonenumber, evaluate_query
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -267,7 +267,7 @@ class ContactGroupTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_DECIMAL)
             ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), '(%s > 10)' % key)
 
-        with QueryTracker(assert_query_count=183, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=182, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1181,6 +1181,148 @@ class ContactTest(TembaTest):
             self.assertIsNone(self.frank.get_field_value(nick))
             self.assertIsNone(self.billy.get_field_value(nick))
 
+    def test_contact_search_evaluation(self):
+        ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type=Value.TYPE_TEXT)
+        ContactField.get_or_create(self.org, self.admin, 'empty_gender', "Empty gender", value_type=Value.TYPE_TEXT)
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'empty_age', "Empty age", value_type=Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'joined', "Joined On", value_type=Value.TYPE_DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'empty_joined', "Empty Joined On", value_type=Value.TYPE_DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'ward', "Ward", value_type=Value.TYPE_WARD)
+        ContactField.get_or_create(self.org, self.admin, 'empty_ward', "Empty Ward", value_type=Value.TYPE_WARD)
+        ContactField.get_or_create(self.org, self.admin, 'district', "District", value_type=Value.TYPE_DISTRICT)
+        ContactField.get_or_create(self.org, self.admin, 'empty_district', "Empty District", value_type=Value.TYPE_DISTRICT)
+        ContactField.get_or_create(self.org, self.admin, 'state', "State", value_type=Value.TYPE_STATE)
+        ContactField.get_or_create(self.org, self.admin, 'empty_state', "Empty State", value_type=Value.TYPE_STATE)
+
+        # test contact without any field data
+        self.assertFalse(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+
+        self.joe.set_field(self.admin, 'gender', 'Male')
+        self.joe.set_field(self.admin, 'age', 18)
+        self.joe.set_field(self.admin, 'joined', '01-03-2018')
+        self.joe.set_field(self.admin, 'ward', 'Rwanda > Eastern Province > Rwamagana > Bukure')
+        self.joe.set_field(self.admin, 'district', 'Rwanda > Eastern Province > Rwamagana')
+        self.joe.set_field(self.admin, 'state', 'Rwanda > Eastern Province')
+
+        # evaluator can't be used with Contact attributes (name, id)
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name = "joe Blow"', contact_json=self.joe.as_search_json())
+
+        self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'gender = Female', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'age = 18', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age > 20', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age <= 17', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'age < 20', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined > 01-04-2018', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined >= 01-03-2018', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined <= 28-02-2018', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined < 01-04-2018', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json()))
+
+        # setting value to a non number, removes Contact.fields 'decimal' value, field still exists but it's not set
+        self.joe.set_field(self.admin, 'empty_age', 'asd')
+        self.assertFalse(evaluate_query(self.org, 'empty_age != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_age = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_gender != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_gender = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json()))
+
+        # setting value to a non datetime, removes Contact.fields 'datetime' value, field still exists but it's not set
+        self.joe.set_field(self.admin, 'empty_joined', 'asd')
+        self.assertFalse(evaluate_query(self.org, 'empty_joined != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_joined = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json()))
+
+        # setting value to a non ward, removes Contact.fields 'ward' value, field still exists but it's not set
+        self.joe.set_field(self.admin, 'empty_ward', 'asd')
+        self.assertFalse(evaluate_query(self.org, 'empty_ward != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_ward = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json()))
+
+        # setting value to a non district, removes Contact.fields 'district' value, field still exists but it's not set
+        self.joe.set_field(self.admin, 'empty_district', 'asd')
+        self.assertFalse(evaluate_query(self.org, 'empty_district != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_district = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json()))
+
+        # setting value to a non state, removes Contact.fields 'state' value, field still exists but it's not set
+        self.joe.set_field(self.admin, 'empty_state', 'asd')
+        self.assertFalse(evaluate_query(self.org, 'empty_state != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'empty_state = ""', contact_json=self.joe.as_search_json()))
+
+        # ATTR is set
+        self.assertRaises(ValueError, evaluate_query, self.org, 'name != ""', contact_json=self.joe.as_search_json())
+
+        # URN is set
+        self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'twitter = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.billy.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_search_json()))
+
+        # add another tel URN
+        self.joe.update_urns(self.admin, urns=['tel:+250781111999', 'tel:+250781111111', 'twitter:blow80'])
+
+        self.assertTrue(evaluate_query(self.org, '+250781111111', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'tel = +250781111999', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'tel has 278', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND age < 19', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 OR age > 19', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'joined = 01-03-2018 AND (age > 19 OR gender = "male")', contact_json=self.joe.as_search_json()))
+
+        with AnonymousOrg(self.org):
+
+            self.assertTrue(evaluate_query(self.org, 'gender = male', contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, 'age >= 15', contact_json=self.joe.as_search_json()))
+
+            # do not evaluate URN queries if org is anonymous
+            self.assertFalse(evaluate_query(self.org, 'tel = +250781111111', contact_json=self.joe.as_search_json()))
+            self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
+
+            self.assertFalse(evaluate_query(self.org, 'joined = 01-03-2018 AND tel = +250781111111', contact_json=self.joe.as_search_json()))
+
+            # this will be parsed as search for contact id
+            self.assertRaises(ValueError, evaluate_query, self.org, six.text_type(self.joe.pk), contact_json=self.joe.as_search_json())
+
     def test_contact_search_parsing(self):
         # implicit condition on name
         self.assertEqual(parse_query('will'), ContactQuery(Condition('name', '~', 'will')))
@@ -1481,7 +1623,7 @@ class ContactTest(TembaTest):
         ContactGroup.create_dynamic(self.org, self.admin, 'urn group', 'twitter = "helio"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(35):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name='Željko', urns=['twitter:helio'])
 
         six.assertCountEqual(
@@ -3263,27 +3405,15 @@ class ContactTest(TembaTest):
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
             # import contact with uuid column to group the contacts
             self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
-                                     dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
+                                     dict(records=2, errors=1, creates=0, updates=2,
+                                          error_messages=[{"error": "No contact found with uuid: uuid-3333", "line": 3}]))
 
-            # one lock for the create
-            self.assertEqual(mock_lock.call_count, 1)
+            # no locks
+            self.assertEqual(mock_lock.call_count, 0)
 
         self.assertEqual(1, Contact.objects.filter(name='Bob').count())
         self.assertEqual(1, Contact.objects.filter(name='Kobe').count())
         self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
-
-        with AnonymousOrg(self.org):
-            with patch('temba.orgs.models.Org.lock_on') as mock_lock:
-                # import contact with uuid column to group the contacts for anon org
-                self.assertContactImport('%s/test_imports/sample_contacts_uuid_only.csv' % settings.MEDIA_ROOT,
-                                         dict(records=3, errors=0, error_messages=[], creates=1, updates=2))
-
-                # one lock for the create
-                self.assertEqual(mock_lock.call_count, 1)
-
-            self.assertEqual(1, Contact.objects.filter(name='Bob').count())
-            self.assertEqual(1, Contact.objects.filter(name='Kobe').count())
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -3502,6 +3632,7 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field names can only contain letters, numbers, hypens")
 
+        post_data['column_country_label'] = 'Whatevaar'  # reset invalid label value with a valid one
         post_data['column_joined_label'] = 'District'
 
         response = self.client.post(customize_url, post_data, follow=True)
@@ -3734,6 +3865,31 @@ class ContactTest(TembaTest):
                 dog_uuid: {
                     "text": "23.00",
                     "decimal": "23"
+                }
+            }
+        )
+
+        # numeric field values that could turn into shite due to normalization
+        self.joe.set_field(self.user, 'dog', "2300")
+        self.joe.refresh_from_db()
+        self.assertEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {
+                    "text": "2300",
+                    "decimal": "2300"
+                }
+            }
+        )
+
+        # numeric field values that could be NaN, we don't support that
+        self.joe.set_field(self.user, 'dog', "NaN")
+        self.joe.refresh_from_db()
+        self.assertEqual(
+            self.joe.fields,
+            {
+                dog_uuid: {
+                    "text": "NaN",
                 }
             }
         )
@@ -4258,7 +4414,7 @@ class ContactTest(TembaTest):
             text="Incoming twitter DM", created_on=timezone.now()
         )
 
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(19):
             process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
 
         six.assertCountEqual(
@@ -4626,7 +4782,7 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = "town"
 
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names must be unique. 'Town' is duplicated")
+        self.assertFormError(response, 'form', None, "Field names must be unique. 'town' is duplicated")
         self.assertEqual(3, ContactField.objects.filter(org=self.org, is_active=True).count())
         self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
 

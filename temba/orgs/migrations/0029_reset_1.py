@@ -95,7 +95,7 @@ class Migration(migrations.Migration):
                 ('msg_last_viewed', models.DateTimeField(auto_now_add=True, verbose_name='Message Last Viewed')),
                 ('flows_last_viewed', models.DateTimeField(auto_now_add=True, verbose_name='Flows Last Viewed')),
                 ('config', models.TextField(help_text='More Organization specific configuration', null=True, verbose_name='Configuration')),
-                ('slug', models.SlugField(blank=True, error_messages={b'unique': 'This slug is not available'}, max_length=255, null=True, unique=True, verbose_name='Slug')),
+                ('slug', models.SlugField(blank=True, error_messages={'unique': 'This slug is not available'}, max_length=255, null=True, unique=True, verbose_name='Slug')),
                 ('is_anon', models.BooleanField(default=False, help_text='Whether this organization anonymizes the phone numbers of contacts within it')),
                 ('is_purgeable', models.BooleanField(default=False, help_text="Whether this org's outgoing messages should be purged")),
                 ('brand', models.CharField(default='rapidpro.io', help_text='The brand used in emails', max_length=128, verbose_name='Brand')),
