@@ -5,7 +5,6 @@ from twilio.rest import Client
 
 from django.utils.encoding import force_text
 
-from temba.utils import json
 from temba.utils.http import HttpEvent
 
 
