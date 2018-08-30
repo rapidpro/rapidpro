@@ -1591,7 +1591,7 @@ class ContactTest(TembaTest):
             'created_on ~ "2016-01-01"',
             contact_json=self.joe.as_search_json(),
         )
-        query_created_on = datetime_to_str(self.joe.created_on, tz=self.org.timezone)
+        query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
         self.assertTrue(
             evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
