@@ -454,7 +454,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEqual(1, response.json()["metadata"]["revision"])
         self.assertEqual("Pick a Number", response.json()["metadata"]["name"])
-        self.assertEqual("F", response.json()["flow_type"])
+        self.assertEqual("M", response.json()["flow_type"])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
