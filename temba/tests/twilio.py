@@ -58,7 +58,7 @@ class MockTwilioClient(TwilioClient):
 
         @property
         def available_phone_numbers(self):
-            return MockTwilioClient.MockPhoneNumbers()
+            return MockTwilioClient.MockAvailablePhonenumbers()
 
         @property
         def short_codes(self):
@@ -130,6 +130,16 @@ class MockTwilioClient(TwilioClient):
 
         def get(self, account_type):
             return MockTwilioClient.MockAccount(account_type)
+
+    class MockAvailablePhonenumbers(MockInstanceResource):
+        def __init__(self, *args):
+            self.country_code = None
+            self.local = MockTwilioClient.MockPhoneNumbers()
+            self.mobile = MockTwilioClient.MockPhoneNumbers()
+
+        def __call__(self, country_code):
+            self.country_code = country_code
+            return self
 
     class MockPhoneNumbers(MockInstanceResource):
         def __init__(self, *args):

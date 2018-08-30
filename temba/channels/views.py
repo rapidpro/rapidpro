@@ -1797,15 +1797,16 @@ class ChannelCRUDL(SmartCRUDL):
         def search_available_numbers(self, client, **kwargs):
             available_numbers = []
 
-            kwargs["type"] = "local"
+            country = kwargs["country"]
+            del kwargs["country"]
+
             try:
-                available_numbers += client.api.available_phone_numbers.list(**kwargs)
+                available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 
-            kwargs["type"] = "mobile"
             try:
-                available_numbers += client.api.available_phone_numbers.list(**kwargs)
+                available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
             except TwilioRestException:  # pragma: no cover
                 pass
 
