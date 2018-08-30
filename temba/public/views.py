@@ -15,7 +15,6 @@ from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreate
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user
 from temba.utils.text import random_string
-from urllib.parse import urlencode
 from django import forms
 from temba.utils.email import send_simple_email
 

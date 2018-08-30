@@ -1288,9 +1288,9 @@ class ChannelCRUDL(SmartCRUDL):
             #  "setting_type" : "domain_whitelisting",
             #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
             #  "domain_action_type": "add"
-            # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
+            # }' "https://graph.facebook.com/v2.12/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
             access_token = self.object.config[Channel.CONFIG_AUTH_TOKEN]
-            response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
+            response = requests.post('https://graph.facebook.com/v2.12/me/thread_settings?access_token=' + access_token,
                                      json=dict(setting_type='domain_whitelisting',
                                                whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
                                                domain_action_type='add'))

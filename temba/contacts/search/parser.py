@@ -332,10 +332,23 @@ class Condition(QueryNode):
             if field_uuid not in contact_fields:
                 return False
 
-            if field.value_type == Value.TYPE_DECIMAL:
+            if field.value_type == Value.TYPE_TEXT:
+                query_value = self.value.upper()
+                contact_value = contact_fields.get(field_uuid).get('text').upper()
 
+                if self.comparator == '=':
+                    return contact_value == query_value
+                else:  # pragma: no cover
+                    raise ValueError('Unknown text comparator: %s' % (self.comparator,))
+
+            elif field.value_type == Value.TYPE_DECIMAL:
                 query_value = self._parse_decimal(self.value)
-                contact_value = self._parse_decimal(contact_fields.get(field_uuid).get('decimal'))
+
+                decimal_value = contact_fields.get(field_uuid).get('decimal')
+                if decimal_value is None:
+                    return False
+
+                contact_value = self._parse_decimal(decimal_value)
 
                 if self.comparator == '=':
                     return contact_value == query_value
@@ -350,21 +363,16 @@ class Condition(QueryNode):
                 else:  # pragma: no cover
                     raise ValueError('Unknown decimal comparator: %s' % (self.comparator,))
 
-            elif field.value_type == Value.TYPE_TEXT:
-                query_value = self.value.upper()
-                contact_value = contact_fields.get(field_uuid).get('text').upper()
-
-                if self.comparator == '=':
-                    return contact_value == query_value
-                else:  # pragma: no cover
-                    raise ValueError('Unknown text comparator: %s' % (self.comparator,))
-
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
-                contact_value = str_to_datetime(contact_fields.get(field_uuid).get('datetime'), field.org.timezone)
-
-                if not query_value:  # pragma: no cover
+                if not query_value:
                     raise SearchException(_("Unable to parse the date %s") % self.value)
+
+                datetime_value = contact_fields.get(field_uuid).get('datetime')
+                if datetime_value is None:
+                    return False
+
+                contact_value = str_to_datetime(datetime_value, field.org.timezone)
 
                 utc_range = date_to_utc_range(query_value.date(), field.org)
 
@@ -383,15 +391,25 @@ class Condition(QueryNode):
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
                 query_value = self.value.upper()
+
                 if field.value_type == Value.TYPE_WARD:
-                    contact_value = contact_fields.get(field_uuid).get('ward')
-                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
+                    ward_value = contact_fields.get(field_uuid).get('ward')
+                    if ward_value is None:
+                        ward_value = ""
+
+                    contact_value = ward_value.upper().split(' > ')[-1]
                 elif field.value_type == Value.TYPE_DISTRICT:
-                    contact_value = contact_fields.get(field_uuid).get('district')
-                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
+                    district_value = contact_fields.get(field_uuid).get('district')
+                    if district_value is None:
+                        district_value = ""
+
+                    contact_value = district_value.upper().split(' > ')[-1]
                 elif field.value_type == Value.TYPE_STATE:
-                    contact_value = contact_fields.get(field_uuid).get('state')
-                    contact_value = contact_value.upper().split(' > ')[-1] if contact_value else ""
+                    state_value = contact_fields.get(field_uuid).get('state')
+                    if state_value is None:
+                        state_value = ""
+
+                    contact_value = state_value.upper().split(' > ')[-1]
                 else:  # pragma: no cover
                     raise ValueError('Unknown location type: %s' % (field.value_type, ))
 
@@ -505,7 +523,19 @@ class IsSetCondition(Condition):
                 else:
                     return True
             else:
-                if field.value_type == Value.TYPE_DECIMAL:
+                if field.value_type == Value.TYPE_TEXT:
+                    contact_value = contact_fields.get(field_uuid).get('text')
+                    if is_set:
+                        if contact_value is not None:
+                            return True
+                        else:  # pragma: can't cover
+                            return False
+                    else:
+                        if contact_value is not None:
+                            return False
+                        else:  # pragma: can't cover
+                            return True
+                elif field.value_type == Value.TYPE_DECIMAL:
                     try:
                         contact_value = self._parse_decimal(contact_field.get('decimal'))
                     except SearchException:
@@ -520,19 +550,6 @@ class IsSetCondition(Condition):
                         if contact_value is not None:
                             return False
                         else:
-                            return True
-
-                elif field.value_type == Value.TYPE_TEXT:
-                    contact_value = contact_fields.get(field_uuid).get('text')
-                    if is_set:
-                        if contact_value is not None:
-                            return True
-                        else:  # pragma: can't cover
-                            return False
-                    else:
-                        if contact_value is not None:
-                            return False
-                        else:  # pragma: can't cover
                             return True
 
                 elif field.value_type == Value.TYPE_DATETIME:

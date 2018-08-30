@@ -7759,7 +7759,7 @@ class FacebookWhitelistTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "ok": "true" }')
             response = self.client.post(whitelist_url, dict(whitelisted_domain='https://foo.bar'))
 
-            mock.assert_called_once_with('https://graph.facebook.com/v2.6/me/thread_settings?access_token=auth',
+            mock.assert_called_once_with('https://graph.facebook.com/v2.12/me/thread_settings?access_token=auth',
                                          json=dict(setting_type='domain_whitelisting',
                                                    whitelisted_domains=['https://foo.bar'],
                                                    domain_action_type='add'))
@@ -8355,7 +8355,7 @@ class FacebookTest(TembaTest):
             self.assertEqual(msg.external_id, 'mid.external')
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.12/me/messages')
             self.assertEqual(json.loads(mock.call_args[0][1]),
                              dict(recipient=dict(id="1234"), message=dict(text="Facebook Msg")))
 
@@ -8403,13 +8403,13 @@ class FacebookTest(TembaTest):
 
             self.assertEqual(mock.call_count, 2)
 
-            self.assertEqual(mock.call_args_list[0][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(mock.call_args_list[0][0][0], 'https://graph.facebook.com/v2.12/me/messages')
 
             self.assertEqual(json.loads(mock.call_args_list[0][0][1]),
                              dict(recipient=dict(id="1234"),
                                   message=dict(text="Facebook Msg")))
 
-            self.assertEqual(mock.call_args_list[1][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(mock.call_args_list[1][0][0], 'https://graph.facebook.com/v2.12/me/messages')
 
             self.assertEqual(json.loads(mock.call_args_list[1][0][1]),
                              dict(recipient=dict(id="1234"),
@@ -8463,7 +8463,7 @@ class FacebookTest(TembaTest):
             self.assertEqual(msg.external_id, 'mid.external')
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.12/me/messages')
 
             self.assertEqual(json.loads(mock.call_args[0][1])['recipient']['id'], '1234')
             self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
@@ -8486,7 +8486,7 @@ class FacebookTest(TembaTest):
                 msg.refresh_from_db()
                 self.clear_cache()
 
-                self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+                self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.12/me/messages')
                 self.assertEqual(json.loads(mock.call_args[0][1])['recipient']['id'], '12345')
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')

@@ -1,3 +1,39 @@
+v3.0.357
+----------
+ * Add linear backdown for our refresh rate on inbox pages
+
+v3.0.356
+----------
+ * Do not log MageHandler calls
+ * Serialize contact field label as name instead
+
+v3.0.355
+----------
+ * Use force_text on uuids read from redis
+ * Log errors for any channel handler methods
+
+v3.0.354
+----------
+ * Set placeholder msg.id = 0
+ * Fix comparison when price is None
+
+v3.0.353
+----------
+ * Evaluate contact field with no value as False
+
+v3.0.352
+----------
+ * Update to Facebook graph api v2.12
+
+v3.0.351
+----------
+ * Support plain ISO dates (not just datetimes)
+
+v3.0.350
+----------
+ * Swallow exceptions encountered when parsing, don't add to group
+ * Set placeholder msg.id = 0
+
 v3.0.349
 ----------
  * Deal with null state values in contact search evaluation
