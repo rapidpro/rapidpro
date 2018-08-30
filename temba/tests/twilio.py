@@ -136,6 +136,7 @@ class MockTwilioClient(TwilioClient):
             self.country_code = None
             self.local = MockTwilioClient.MockPhoneNumbers()
             self.mobile = MockTwilioClient.MockPhoneNumbers()
+            self.toll_free = MockTwilioClient.MockPhoneNumbers()
 
         def __call__(self, country_code):
             self.country_code = country_code
