@@ -72,11 +72,11 @@ class TwilioTypeTest(TembaTest):
             # try searching for US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+12062345678")]
             response = self.client.post(search_url, {"country": "US", "area_code": "206"})
-            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678", "+1 206-234-5678"])
 
             # try searching without area code
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
-            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678", "+1 206-234-5678"])
 
             mock_search.return_value = []
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
@@ -87,7 +87,7 @@ class TwilioTypeTest(TembaTest):
             # try searching for non-US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+442812345678")]
             response = self.client.post(search_url, {"country": "GB", "area_code": "028"})
-            self.assertEqual(response.json(), ["+44 28 1234 5678", "+44 28 1234 5678"])
+            self.assertEqual(response.json(), ["+44 28 1234 5678", "+44 28 1234 5678", "+44 28 1234 5678"])
 
             mock_search.return_value = []
             response = self.client.post(search_url, {"country": "GB", "area_code": ""})
