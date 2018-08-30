@@ -629,7 +629,7 @@ class Flow(TembaModel):
             org=org,
             is_active=True,
             is_archived=False,
-            flow_type__in=[Flow.FLOW, Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
+            flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
             is_system=False,
         )
 
@@ -647,7 +647,7 @@ class Flow(TembaModel):
 
             FlowRevision.validate_flow_definition(flow_spec)
 
-            flow_type = flow_spec.get("flow_type", Flow.FLOW)
+            flow_type = flow_spec.get("flow_type", Flow.TYPE_MESSAGE)
             name = flow_spec["metadata"]["name"][:64].strip()
 
             flow = None
