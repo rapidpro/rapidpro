@@ -3452,11 +3452,19 @@ class BulkExportTest(TembaTest):
 
     def test_export_import(self):
         def assert_object_counts():
+            # the regular flows
             self.assertEqual(
-                8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type="F").count()
+                8,
+                Flow.objects.filter(
+                    org=self.org, is_active=True, is_archived=False, flow_type="M", is_system=False
+                ).count(),
             )
+            # the campaign single message flows
             self.assertEqual(
-                2, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type="M").count()
+                2,
+                Flow.objects.filter(
+                    org=self.org, is_active=True, is_archived=False, flow_type="M", is_system=True
+                ).count(),
             )
             self.assertEqual(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
             self.assertEqual(4, CampaignEvent.objects.filter(campaign__org=self.org, event_type="F").count())
@@ -3491,7 +3499,7 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type="M", events__offset=-1).order_by("pk").first()
+        message_flow = Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1).order_by("pk").first()
         action_set = message_flow.action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
@@ -3522,7 +3530,11 @@ class BulkExportTest(TembaTest):
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type="M", events__offset=-1, is_active=True).order_by("pk").first()
+        message_flow = (
+            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
+            .order_by("pk")
+            .first()
+        )
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
@@ -3549,7 +3561,8 @@ class BulkExportTest(TembaTest):
 
         # now let's export!
         post_data = dict(
-            flows=[f.pk for f in Flow.objects.filter(flow_type="F")], campaigns=[c.pk for c in Campaign.objects.all()]
+            flows=[f.pk for f in Flow.objects.filter(flow_type="M", is_system=False)],
+            campaigns=[c.pk for c in Campaign.objects.all()],
         )
 
         response = self.client.post(reverse("orgs.org_export"), post_data)
@@ -3568,7 +3581,11 @@ class BulkExportTest(TembaTest):
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
         assert_object_counts()
 
-        message_flow = Flow.objects.filter(flow_type="M", events__offset=-1, is_active=True).order_by("pk").first()
+        message_flow = (
+            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
+            .order_by("pk")
+            .first()
+        )
 
         # make sure the base language is set to 'base', not 'eng'
         self.assertEqual(message_flow.base_language, "base")
@@ -3609,7 +3626,9 @@ class BulkExportTest(TembaTest):
         self.org.import_app(exported, self.admin, site="http://temba.io")
 
         # the newly named objects won't get updated in this case and we'll create new ones instead
-        self.assertEqual(9, Flow.objects.filter(org=self.org, is_archived=False, flow_type="F").count())
+        self.assertEqual(
+            9, Flow.objects.filter(org=self.org, is_archived=False, flow_type="M", is_system=False).count()
+        )
         self.assertEqual(2, Campaign.objects.filter(org=self.org, is_archived=False).count())
         self.assertEqual(4, ContactGroup.user_groups.filter(org=self.org).count())
 

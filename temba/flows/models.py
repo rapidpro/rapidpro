@@ -657,6 +657,10 @@ class Flow(TembaModel):
             if version <= 3.0 and flow_type == "M":  # pragma: no cover
                 continue
 
+            # M used to mean single message flow and regular flows were F, now all messaging flows are M
+            if flow_type == "F":
+                flow_type = Flow.TYPE_MESSAGE
+
             # check if we can find that flow by id first
             if same_site:
                 flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
