@@ -449,7 +449,7 @@ class Flow(TembaModel):
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
 
-    is_system = models.NullBooleanField(default=False, help_text=_("Whether this is a system created flow"))
+    is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
     flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW, help_text=_("The type of this flow"))
 
@@ -605,7 +605,7 @@ class Flow(TembaModel):
         if not settings.FLOW_SERVER_URL:  # pragma: no cover
             return False
 
-        if settings.FLOW_SERVER_FORCE and self.flow_type in (self.MESSAGE, self.FLOW):
+        if settings.FLOW_SERVER_FORCE and self.flow_type not in (Flow.VOICE, Flow.USSD, Flow.SURVEY):
             return True
 
         return self.flow_server_enabled
@@ -622,10 +622,21 @@ class Flow(TembaModel):
         return False
 
     @classmethod
+    def get_triggerable_flows(cls, org):
+        return Flow.objects.filter(
+            org=org,
+            is_active=True,
+            is_archived=False,
+            flow_type__in=[Flow.FLOW, Flow.MESSAGE, Flow.VOICE],
+            is_system=False,
+        )
+
+    @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
         """
+        version = float(exported_json.get("version", 0))
         created_flows = []
         flow_uuid_map = dict()
 
@@ -639,43 +650,45 @@ class Flow(TembaModel):
 
             flow = None
 
-            # Don't create our campaign message flows, we'll do that later
-            # this check is only needed up to version 3 of exports
-            if flow_type != Flow.MESSAGE:
-                # check if we can find that flow by id first
-                if same_site:
-                    flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
-                    if flow:  # pragma: needs cover
-                        expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
-                        if flow_type == Flow.VOICE:
-                            expires_minutes = min([expires_minutes, 15])
+            # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
+            # these here as they'll be created by the campaign event itself.
+            if version <= 3.0 and flow_type == "M":  # pragma: no cover
+                continue
 
-                        flow.expires_after_minutes = expires_minutes
-                        flow.name = Flow.get_unique_name(org, name, ignore=flow)
-                        flow.save(update_fields=["name", "expires_after_minutes"])
-
-                # if it's not of our world, let's try by name
-                if not flow:
-                    flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
-
-                # if there isn't one already, create a new flow
-                if not flow:
+            # check if we can find that flow by id first
+            if same_site:
+                flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
+                if flow:  # pragma: needs cover
                     expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
                     if flow_type == Flow.VOICE:
                         expires_minutes = min([expires_minutes, 15])
 
-                    flow = Flow.create(
-                        org,
-                        user,
-                        Flow.get_unique_name(org, name),
-                        flow_type=flow_type,
-                        expires_after_minutes=expires_minutes,
-                    )
+                    flow.expires_after_minutes = expires_minutes
+                    flow.name = Flow.get_unique_name(org, name, ignore=flow)
+                    flow.save(update_fields=["name", "expires_after_minutes"])
 
-                created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+            # if it's not of our world, let's try by name
+            if not flow:
+                flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
 
-                if "uuid" in flow_spec["metadata"]:
-                    flow_uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
+            # if there isn't one already, create a new flow
+            if not flow:
+                expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
+                if flow_type == Flow.VOICE:
+                    expires_minutes = min([expires_minutes, 15])
+
+                flow = Flow.create(
+                    org,
+                    user,
+                    Flow.get_unique_name(org, name),
+                    flow_type=flow_type,
+                    expires_after_minutes=expires_minutes,
+                )
+
+            created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+
+            if "uuid" in flow_spec["metadata"]:
+                flow_uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
         def remap_flow(element):
@@ -1614,10 +1627,9 @@ class Flow(TembaModel):
         if base_language not in translations:  # pragma: no cover
             raise ValueError("Must include translation for base language")
 
-        self.flow_type = Flow.MESSAGE
         self.base_language = base_language
         self.version_number = get_current_export_version()
-        self.save(update_fields=("name", "flow_type", "base_language", "version_number"))
+        self.save(update_fields=("name", "base_language", "version_number"))
 
         entry_uuid = str(uuid4())
         definition = {
@@ -2068,7 +2080,7 @@ class Flow(TembaModel):
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
 
             # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            if self.flow_type == Flow.MESSAGE and len(all_contact_ids) == 1:
+            if self.is_system and len(all_contact_ids) == 1:
                 trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
             else:
                 trial = None

@@ -599,14 +599,8 @@ class FlowCRUDL(SmartCRUDL):
                 return self.IVRFlowUpdateForm
             elif flow_type == Flow.SURVEY:
                 return self.SurveyFlowUpdateForm
-            elif flow_type == Flow.MESSAGE:  # pragma: needs cover
+            else:
                 return self.FlowUpdateForm
-            elif flow_type == Flow.FLOW:
-                return self.FlowUpdateForm
-            elif flow_type == Flow.USSD:  # pragma: needs cover
-                return self.FlowUpdateForm
-            else:  # pragma: no cover
-                raise ValueError(f"Unhandled Flow type: '{flow_type}'")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -735,7 +729,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)
-            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
+            return qs.exclude(is_system=True).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
@@ -768,14 +762,14 @@ class FlowCRUDL(SmartCRUDL):
                 dict(
                     label="Active",
                     url=reverse("flows.flow_list"),
-                    count=Flow.objects.exclude(flow_type=Flow.MESSAGE)
+                    count=Flow.objects.exclude(is_system=True)
                     .filter(is_active=True, is_archived=False, org=org)
                     .count(),
                 ),
                 dict(
                     label="Archived",
                     url=reverse("flows.flow_archived"),
-                    count=Flow.objects.exclude(flow_type=Flow.MESSAGE)
+                    count=Flow.objects.exclude(is_system=True)
                     .filter(is_active=True, is_archived=True, org=org)
                     .count(),
                 ),
