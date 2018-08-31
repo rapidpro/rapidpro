@@ -1,3 +1,8 @@
+v4.4.6
+----------
+ * Fix updating dynamic groups on contact update from the UI
+ * Make editor agnostic to F/M flow types
+
 v4.4.5
 ----------
  * Remove mage functionality
