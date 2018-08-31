@@ -28,7 +28,7 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.dates import datetime_to_str, str_to_datetime
+from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.locks import NonBlockingLock
@@ -713,7 +713,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         obj["fields"] = self.fields if self.fields else {}
         obj["language"] = self.language
-        obj["created_on"] = datetime_to_str(self.created_on, tz=self.org.timezone)
+        obj["created_on"] = self.created_on.isoformat()
         obj["name"] = self.name
         obj["id"] = self.id
 

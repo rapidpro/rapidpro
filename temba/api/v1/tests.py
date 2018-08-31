@@ -23,7 +23,6 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, TembaTest, matchers
 from temba.utils import json
-from temba.utils.json import datetime_to_json_date
 from temba.values.constants import Value
 
 from .serializers import (
@@ -393,7 +392,7 @@ class APITest(TembaTest):
                         label="color",
                     )
                 ],
-                created_on=datetime_to_json_date(flow.created_on),
+                created_on=json.encode_datetime(flow.created_on),
                 expires=flow.expires_after_minutes,
                 archived=False,
             ),
@@ -1628,17 +1627,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 2)
 
         after_dre = drdre.modified_on + timedelta(microseconds=2000)
-        response = self.fetchJSON(url, "after=" + datetime_to_json_date(after_dre))
+        response = self.fetchJSON(url, "after=" + json.encode_datetime(after_dre))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Jay-Z")
 
         before_jayz = jay_z.modified_on - timedelta(microseconds=2000)
-        response = self.fetchJSON(url, "before=" + datetime_to_json_date(before_jayz))
+        response = self.fetchJSON(url, "before=" + json.encode_datetime(before_jayz))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         response = self.fetchJSON(
-            url, "after=%s&before=%s" % (datetime_to_json_date(after_dre), datetime_to_json_date(before_jayz))
+            url, "after=%s&before=%s" % (json.encode_datetime(after_dre), json.encode_datetime(before_jayz))
         )
         self.assertResultCount(response, 0)
 

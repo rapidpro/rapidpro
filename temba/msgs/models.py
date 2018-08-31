@@ -1143,7 +1143,7 @@ class Msg(models.Model):
         if msg.error_count >= 3 or fatal:
             if isinstance(msg, Msg):
                 msg.status_fail()
-            else:
+            else:  # pragma: no cover
                 Msg.objects.select_related("org").get(pk=msg.id).status_fail()
 
             if channel:
