@@ -60,7 +60,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
-from temba.utils.dates import datetime_to_str, str_to_datetime
+from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
@@ -2556,7 +2556,7 @@ class Flow(TembaModel):
             last_saved = self.modified_on
 
         metadata[Flow.NAME] = self.name
-        metadata[Flow.SAVED_ON] = datetime_to_str(last_saved)
+        metadata[Flow.SAVED_ON] = json.encode_datetime(last_saved, micros=True)
         metadata[Flow.REVISION] = revision.revision if revision else 1
         metadata[Flow.UUID] = self.uuid
         metadata[Flow.EXPIRES] = self.expires_after_minutes
@@ -5071,12 +5071,11 @@ class FlowRevision(SmartModel):
             definition = FlowRevision.migrate_definition(definition, self.flow)
         return definition
 
-    def as_json(self, include_definition=False):
-
+    def as_json(self):
         name = self.created_by.get_full_name()
         return dict(
             user=dict(email=self.created_by.email, name=name),
-            created_on=datetime_to_str(self.created_on),
+            created_on=json.encode_datetime(self.created_on, micros=True),
             id=self.pk,
             version=self.spec_version,
             revision=self.revision,

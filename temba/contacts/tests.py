@@ -1595,14 +1595,14 @@ class ContactTest(TembaTest):
         self.assertTrue(
             evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
-        query_created_on = datetime_to_str(self.joe.created_on - timedelta(days=6), tz=self.org.timezone)
+        query_created_on = (self.joe.created_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
         self.assertTrue(
             evaluate_query(self.org, f'created_on > "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
         self.assertTrue(
             evaluate_query(self.org, f'created_on >= "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
-        query_created_on = datetime_to_str(self.joe.created_on + timedelta(days=6), tz=self.org.timezone)
+        query_created_on = (self.joe.created_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
         self.assertTrue(
             evaluate_query(self.org, f'created_on < "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
