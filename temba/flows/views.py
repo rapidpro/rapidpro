@@ -817,7 +817,7 @@ class FlowCRUDL(SmartCRUDL):
             from temba.campaigns.models import CampaignEvent
 
             flow_ids = CampaignEvent.objects.filter(
-                campaign=self.get_campaign(), flow__is_archived=False, flow__flow_type=Flow.FLOW
+                campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
             ).values("flow__id")
 
             flows = Flow.objects.filter(id__in=flow_ids).order_by("-modified_on")
