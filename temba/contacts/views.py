@@ -1369,7 +1369,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields, handle_update=False)
+            obj.save(update_fields=fields, handle_update=True)
 
             self.save_m2m()
 
