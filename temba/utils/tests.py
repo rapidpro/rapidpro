@@ -230,11 +230,8 @@ class DatesTest(TembaTest):
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
 
-        self.assertEqual(datetime_to_str(d2), "2014-01-02T01:04:05.000006Z")  # no format
-        self.assertEqual(datetime_to_str(d2, format="%Y-%m-%d"), "2014-01-02")  # format provided
-        self.assertEqual(datetime_to_str(d2, tz=tz), "2014-01-02T03:04:05.000006Z")  # in specific timezone
-        self.assertEqual(datetime_to_str(d2, ms=False), "2014-01-02T01:04:05Z")  # no ms
-        self.assertEqual(datetime_to_str(d2.date()), "2014-01-02T00:00:00.000000Z")  # no ms
+        self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
+        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
 
     def test_datetime_to_epoch(self):
         dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
@@ -690,7 +687,7 @@ class JsonTest(TembaTest):
         encoded = json.dumps(source)
 
         self.assertEqual(
-            json.loads(encoded), {"name": "Date Test", "age": Decimal("10"), "now": json.datetime_to_json_date(now)}
+            json.loads(encoded), {"name": "Date Test", "age": Decimal("10"), "now": json.encode_datetime(now)}
         )
 
         # test the same using our object mocking

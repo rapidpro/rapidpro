@@ -1122,7 +1122,7 @@ class Org(SmartModel):
         """
         formats = get_datetime_format(self.get_dayfirst())
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, False, self.timezone)
+        return datetime_to_str(datetime, format, self.timezone)
 
     def parse_datetime(self, datetime_string):
         if isinstance(datetime_string, datetime):

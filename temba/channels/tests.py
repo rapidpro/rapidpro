@@ -6,12 +6,11 @@ import hmac
 import time
 import uuid
 from datetime import timedelta
+from unittest.mock import patch
 from urllib.parse import quote
 
 from django_redis import get_redis_connection
-from mock import ANY, patch
 from smartmin.tests import SmartminTest
-from twython import TwythonError
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -24,7 +23,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
-from temba.api.models import WebHookEvent
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.flows.models import FlowRun
@@ -43,12 +41,10 @@ from temba.msgs.models import (
     WIRED,
     Broadcast,
     Msg,
-    SystemLabel,
 )
 from temba.orgs.models import (
     ACCOUNT_SID,
     ACCOUNT_TOKEN,
-    ALL_EVENTS,
     APPLICATION_SID,
     FREE_PLAN,
     NEXMO_APP_ID,
@@ -58,7 +54,7 @@ from temba.orgs.models import (
     NEXMO_UUID,
     Org,
 )
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -87,7 +83,7 @@ class ChannelTest(TembaTest):
         )
 
         self.twitter_channel = Channel.create(
-            self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
+            self.org, self.user, None, "TWT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
         self.unclaimed_channel = Channel.create(
@@ -749,7 +745,7 @@ class ChannelTest(TembaTest):
         self.assertEqual("EATRIGHT", channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = "TT"
+        channel.channel_type = "TWT"
         channel.schemes = [TWITTER_SCHEME]
         channel.address = "billy_bob"
         channel.scheme = "twitter"
@@ -2514,175 +2510,6 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
 
-class MageHandlerTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.org.webhook = {"url": "http://fake.com/webhook.php"}
-        self.org.webhook_events = ALL_EVENTS
-        self.org.save()
-
-        self.joe = self.create_contact("Joe", number="+250788383383")
-
-        with ESMockWithScroll():
-            self.dyn_group = self.create_group("Bobs", query="twitter has bobby81")
-
-    def create_contact_like_mage(self, name, twitter):
-        """
-        Creates a contact as if it were created in Mage, i.e. no event/group triggering or cache updating
-        """
-        contact = Contact.objects.create(
-            org=self.org,
-            name=name,
-            is_active=True,
-            is_blocked=False,
-            uuid=uuid.uuid4(),
-            is_stopped=False,
-            modified_by=self.user,
-            created_by=self.user,
-            modified_on=timezone.now(),
-            created_on=timezone.now(),
-        )
-        urn = ContactURN.objects.create(
-            org=self.org,
-            contact=contact,
-            identity="twitter:%s" % twitter,
-            scheme="twitter",
-            path=twitter,
-            priority="90",
-        )
-        return contact, urn
-
-    def create_message_like_mage(self, text, contact, contact_urn=None):
-        """
-        Creates a message as it if were created in Mage, i.e. no topup decrementing or cache updating
-        """
-        if not contact_urn:
-            contact_urn = contact.get_urn(TEL_SCHEME)
-        return Msg.objects.create(
-            org=self.org,
-            text=text,
-            direction=INCOMING,
-            created_on=timezone.now(),
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact_urn,
-        )
-
-    @override_settings(MAGE_AUTH_TOKEN="abc123")
-    def test_handle_message(self):
-        url = reverse("handlers.mage_handler", args=["handle_message"])
-        headers = dict(HTTP_AUTHORIZATION="Token %s" % settings.MAGE_AUTH_TOKEN)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_FLOWS])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-        self.assertEqual(1000, self.org.get_credits_remaining())
-
-        msg = self.create_message_like_mage(text="Hello 1", contact=self.joe)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(0, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(1000, self.org.get_credits_remaining())
-
-        # check that GET doesn't work
-        response = self.client.get(url, dict(message_id=msg.pk), **headers)
-        self.assertEqual(405, response.status_code)
-
-        # check that POST does work
-        response = self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
-        self.assertEqual(200, response.status_code)
-
-        # check that new message is handled and has a topup
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual("H", msg.status)
-        self.assertEqual(self.welcome_topup, msg.topup)
-
-        # check for a web hook event
-        event = WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data
-        self.assertEqual(msg.id, event["sms"])
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(999, self.org.get_credits_remaining())
-
-        # check that a message that has a topup, doesn't decrement twice
-        msg = self.create_message_like_mage(text="Hello 2", contact=self.joe)
-        (msg.topup_id, amount) = self.org.decrement_credit()
-        msg.save()
-
-        self.client.post(url, dict(message_id=msg.pk, new_contact=False), **headers)
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(2, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(998, self.org.get_credits_remaining())
-
-        # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
-        mage_contact, mage_contact_urn = self.create_contact_like_mage("Bob", "bobby81")
-        msg = self.create_message_like_mage(text="Hello via Mage", contact=mage_contact, contact_urn=mage_contact_urn)
-
-        response = self.client.post(url, dict(message_id=msg.pk, new_contact=True), **headers)
-        self.assertEqual(200, response.status_code)
-
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual("H", msg.status)
-        self.assertEqual(self.welcome_topup, msg.topup)
-
-        msg_counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(3, msg_counts[SystemLabel.TYPE_INBOX])
-
-        contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
-
-        self.assertEqual(997, self.org.get_credits_remaining())
-
-        # check that contact ended up dynamic group
-        self.assertEqual([mage_contact], list(self.dyn_group.contacts.order_by("name")))
-
-        # check invalid auth key
-        response = self.client.post(url, dict(message_id=msg.pk), **dict(HTTP_AUTHORIZATION="Token xyz"))
-        self.assertEqual(401, response.status_code)
-
-        # check rejection of empty or invalid msgId
-        response = self.client.post(url, dict(), **headers)
-        self.assertEqual(400, response.status_code)
-        response = self.client.post(url, dict(message_id="xx"), **headers)
-        self.assertEqual(400, response.status_code)
-
-    @override_settings(MAGE_AUTH_TOKEN="abc123")
-    def test_stop_contact(self):
-        url = reverse("handlers.mage_handler", args=["stop_contact"])
-        headers = dict(HTTP_AUTHORIZATION="Token %s" % settings.MAGE_AUTH_TOKEN)
-        contact = self.create_contact("Mary Jo", twitter="mary_jo")
-
-        response = self.client.post(url, dict(contact_id=contact.id), **headers)
-        self.assertEqual(200, response.status_code)
-
-        # check the contact got stopped
-        contact.refresh_from_db()
-        self.assertTrue(contact.is_stopped)
-
-        # try with invalid id
-        response = self.client.post(url, dict(contact_id=-1), **headers)
-
-        # should get a 401
-        self.assertEqual(400, response.status_code)
-
-
 class JunebugTestMixin(object):
     def mk_event(self, **kwargs):
         default = {"event_type": "submitted", "message_id": "message-id", "timestamp": "2017-01-01 00:00:00+0000"}
@@ -3151,274 +2978,6 @@ class HandleEventTest(TembaTest):
 
         self.joe.refresh_from_db()
         self.assertTrue(self.joe.is_stopped)
-
-
-class TwitterTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.channel.delete()
-
-        # an old style Twitter channel which would use Mage for receiving messages
-        self.twitter = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "TT",
-            None,
-            "billy_bob",
-            config={"oauth_token": "abcdefghijklmnopqrstuvwxyz", "oauth_token_secret": "0123456789"},
-            uuid="00000000-0000-0000-0000-000000002345",
-        )
-
-        self.joe = self.create_contact("Joe", twitterid="10002")
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send_media(self):
-        msg = self.joe.send(
-            "MT", self.admin, trigger_send=False, attachments=["image/jpeg:https://example.com/attachments/pic.jpg"]
-        )[0]
-
-        with patch("twython.Twython.send_direct_message") as mock:
-            mock.return_value = dict(id=1234567890)
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # assert we were only called once
-            self.assertEqual(1, mock.call_count)
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertEqual("1234567890", msg.external_id)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(mock.call_args[1]["text"], "MT\nhttps://example.com/attachments/pic.jpg")
-
-            self.clear_cache()
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send(self):
-        testers = self.create_group("Testers", [self.joe])
-
-        msg = self.joe.send(
-            "This is a long message, longer than just 160 characters, it spans what was before "
-            "more than one message but which is now but one, solitary message, going off into the "
-            "Twitterverse to tweet away.",
-            self.admin,
-            trigger_send=False,
-        )[0]
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(id=1234567890)))
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # assert we were only called once
-            self.assertEqual(1, mock.call_count)
-            self.assertEqual("10002", mock.call_args[1]["data"]["user_id"])
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertEqual("1234567890", msg.external_id)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(mock.call_args[1]["data"]["text"], msg.text)
-
-            self.clear_cache()
-
-        ChannelLog.objects.all().delete()
-
-        msg.contact_urn.path = "joe81"
-        msg.contact_urn.scheme = "twitter"
-        msg.contact_urn.display = None
-        msg.contact_urn.identity = "twitter:joe81"
-        msg.contact_urn.save()
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(id=1234567890)))
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # assert we were only called once
-            self.assertEqual(1, mock.call_count)
-            self.assertEqual("joe81", mock.call_args[1]["data"]["screen_name"])
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(WIRED, msg.status)
-            self.assertEqual("1234567890", msg.external_id)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(mock.call_args[1]["data"]["text"], msg.text)
-
-            self.clear_cache()
-
-        ChannelLog.objects.all().delete()
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.side_effect = TwythonError("Failed to send message")
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(1, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-            self.assertEqual("Failed to send message", ChannelLog.objects.get(msg=msg).description)
-
-            self.clear_cache()
-
-        ChannelLog.objects.all().delete()
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.side_effect = TwythonError("Different 403 error.", error_code=403)
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEqual(ERRORED, msg.status)
-            self.assertEqual(2, msg.error_count)
-            self.assertTrue(msg.next_attempt)
-
-            # should not fail the contact
-            contact = Contact.objects.get(id=self.joe.id)
-            self.assertFalse(contact.is_stopped)
-            self.assertEqual(contact.user_groups.count(), 1)
-
-            # should record the right error
-            self.assertTrue(ChannelLog.objects.get(msg=msg).description.find("Different 403 error") >= 0)
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.side_effect = TwythonError(
-                "You cannot send messages to users who are not following you.", error_code=403
-            )
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # should fail the message
-            msg.refresh_from_db()
-            self.assertEqual(FAILED, msg.status)
-            self.assertEqual(2, msg.error_count)
-
-            # should be stopped
-            contact = Contact.objects.get(id=self.joe.id)
-            self.assertTrue(contact.is_stopped)
-            self.assertEqual(contact.user_groups.count(), 0)
-
-            self.clear_cache()
-
-        self.joe.is_stopped = False
-        self.joe.save(update_fields=("is_stopped",), handle_update=False)
-        testers.update_contacts(self.user, [self.joe], add=True)
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.side_effect = TwythonError(
-                "There was an error sending your message: You can't send direct messages to this user right now.",
-                error_code=403,
-            )
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # should fail the message
-            msg.refresh_from_db()
-            self.assertEqual(FAILED, msg.status)
-            self.assertEqual(2, msg.error_count)
-
-            # should fail the contact permanently (i.e. removed from groups)
-            contact = Contact.objects.get(id=self.joe.id)
-            self.assertTrue(contact.is_stopped)
-            self.assertEqual(contact.user_groups.count(), 0)
-
-            self.clear_cache()
-
-        self.joe.is_stopped = False
-        self.joe.save(update_fields=("is_stopped",), handle_update=False)
-        testers.update_contacts(self.user, [self.joe], add=True)
-
-        with patch("requests.sessions.Session.post") as mock:
-            mock.side_effect = TwythonError("Sorry, that page does not exist.", error_code=404)
-
-            # manually send it off
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            # should fail the message
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, FAILED)
-            self.assertEqual(msg.error_count, 2)
-
-            # should fail the contact permanently (i.e. removed from groups)
-            contact = Contact.objects.get(id=self.joe.id)
-            self.assertTrue(contact.is_stopped)
-            self.assertEqual(contact.user_groups.count(), 0)
-
-            self.clear_cache()
-
-    @override_settings(SEND_MESSAGES=True)
-    def test_send_quick_replies(self):
-        quick_replies = ["Yes", "No"]
-        msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=quick_replies)[0]
-
-        with patch("requests.sessions.Session.post") as mock:
-            response_dict = {
-                "event": {
-                    "created_timestamp": "1504717797522",
-                    "message_create": {
-                        "message_data": {
-                            "text": "Hello, choose\u200b an option, please.",
-                            "quick_reply": {"type": "options", "options": [{"label": "Yes"}, {"label": "No"}]},
-                            "entities": {"symbols": [], "user_mentions": [], "hashtags": [], "urls": []},
-                        },
-                        "sender_id": "000000",
-                        "target": {"recipient_id": "10002"},
-                    },
-                    "type": "message_create",
-                    "id": "000000000000000000",
-                }
-            }
-            mock.return_value = MockResponse(200, json.dumps(response_dict))
-
-            Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-
-            data = json.dumps(
-                dict(
-                    event=dict(
-                        message_create=dict(
-                            message_data=dict(
-                                text="Hello, world!",
-                                quick_reply=dict(type="options", options=[dict(label="Yes"), dict(label="No")]),
-                            ),
-                            target=dict(recipient_id="10002"),
-                        ),
-                        type="message_create",
-                    )
-                )
-            )
-
-            mock.assert_called_with(
-                "https://api.twitter.com/1.1/direct_messages/events/new.json", files=None, data=ANY
-            )
-
-            args, kwargs = mock.call_args
-            self.assertCountEqual(data, kwargs.get("data"))
-
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, WIRED)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(msg.external_id, "000000000000000000")
-            self.assertEqual(msg.metadata, dict(quick_replies=quick_replies))
-            data_args = json.loads(mock.call_args[1]["data"])
-            message_data = data_args["event"]["message_create"]["message_data"]
-            self.assertEqual(message_data["quick_reply"]["options"][0]["label"], "Yes")
-            self.assertEqual(message_data["quick_reply"]["options"][1]["label"], "No")
-            self.clear_cache()
 
 
 class FacebookTest(TembaTest):

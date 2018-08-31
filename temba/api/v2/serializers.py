@@ -12,7 +12,6 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import PENDING, QUEUED, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
 from temba.utils import extract_constants, json, on_transaction_commit
-from temba.utils.json import datetime_to_json_date
 from temba.values.constants import Value
 
 from . import fields
@@ -23,7 +22,7 @@ def format_datetime(value):
     """
     Datetime fields are formatted with microsecond accuracy for v2
     """
-    return datetime_to_json_date(value, micros=True) if value else None
+    return json.encode_datetime(value, micros=True) if value else None
 
 
 class ReadSerializer(serializers.ModelSerializer):

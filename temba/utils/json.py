@@ -20,9 +20,10 @@ def dumps(value, *args, **kwargs):
     return simplejson.dumps(value, *args, cls=TembaEncoder, use_decimal=True, **kwargs)
 
 
-def datetime_to_json_date(dt, micros=False):
+def encode_datetime(dt, micros=False):
     """
-    Formats a datetime as a string for inclusion in JSON
+    Formats a datetime as a string for inclusion in JSON using the format 2018-08-31T12:13:30.123Z which is parseable
+    on all modern browsers.
     :param dt: the datetime to format
     :param micros: whether to include microseconds
     """
@@ -40,6 +41,6 @@ class TembaEncoder(simplejson.JSONEncoder):
     def default(self, o):
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime.datetime):
-            return datetime_to_json_date(o)
+            return encode_datetime(o)
         else:
             return super().default(o)
