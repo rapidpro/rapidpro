@@ -1591,7 +1591,7 @@ class ContactTest(TembaTest):
             'created_on ~ "2016-01-01"',
             contact_json=self.joe.as_search_json(),
         )
-        query_created_on = datetime_to_str(self.joe.created_on, tz=self.org.timezone)
+        query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
         self.assertTrue(
             evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
         )
@@ -4307,27 +4307,45 @@ class ContactTest(TembaTest):
 
         self.assertEqual(language_group.contacts.count(), 0)
 
+        # set language, adds contact to a group
         self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Joe Blow", urn__tel__0="+250781111111"),
+            dict(language="eng", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
         )
 
         self.assertEqual(language_group.contacts.count(), 1)
+
+        # unset language, removes contact from group
+        self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            dict(language="fra", name="Joe Blow", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+        )
+
+        self.assertEqual(language_group.contacts.count(), 0)
 
     def test_contact_name_update(self):
         self.login(self.admin)
 
         with ESMockWithScroll():
-            dave_group = self.create_group("All Daves of the worls", query="name has Dave")
+            dave_group = self.create_group("All Daves of the world", query="name has Dave")
 
         self.assertEqual(dave_group.contacts.count(), 0)
 
+        # update name, adds contact to a group
         self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(language="eng", name="Dave Awesome", urn__tel__0="+250781112111"),
+            dict(language="eng", name="Dave Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
         )
 
         self.assertEqual(dave_group.contacts.count(), 1)
+
+        # update name, removes contact from a group
+        self.client.post(
+            reverse("contacts.contact_update", args=[self.joe.id]),
+            dict(language="eng", name="Muller Awesome", urn__tel__0="+250781111111", urn__twitter__1="blow80"),
+        )
+
+        self.assertEqual(dave_group.contacts.count(), 0)
 
     def test_number_normalized(self):
         self.org.country = None
@@ -6266,7 +6284,7 @@ class ContactTest(TembaTest):
         )
 
         with self.assertNumQueries(13):
-            process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
+            process_message_task(dict(id=msg.id, new_message=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
@@ -6282,7 +6300,7 @@ class ContactTest(TembaTest):
         )
 
         with self.assertNumQueries(20):
-            process_message_task(dict(id=msg.id, from_mage=True, new_contact=True))
+            process_message_task(dict(id=msg.id, new_message=True, new_contact=True))
 
         self.assertCountEqual(
             [group.name for group in self.joe.user_groups.filter(is_active=True).all()],

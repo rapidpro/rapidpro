@@ -540,7 +540,7 @@ class WebHookEvent(SmartModel):
 
         # make the request
         try:
-            if not settings.SEND_WEBHOOKS:
+            if not settings.SEND_WEBHOOKS:  # pragma: no cover
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
             headers = http_headers(extra=self.org.get_webhook_headers())
