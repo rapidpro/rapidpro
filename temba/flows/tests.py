@@ -41,7 +41,6 @@ from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import json
-from temba.utils.dates import datetime_to_str
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
@@ -1935,7 +1934,7 @@ class FlowTest(TembaTest):
                 revision=1,
                 expires=60,
                 uuid=copy.uuid,
-                saved_on=datetime_to_str(copy.saved_on),
+                saved_on=json.encode_datetime(copy.saved_on, micros=True),
             ),
             copy_json["metadata"],
         )
@@ -2047,7 +2046,7 @@ class FlowTest(TembaTest):
             {
                 "name": self.flow.name,
                 "author": "Ryan Lewis",
-                "saved_on": datetime_to_str(self.flow.saved_on),
+                "saved_on": json.encode_datetime(self.flow.saved_on, micros=True),
                 "revision": 1,
                 "expires": self.flow.expires_after_minutes,
                 "uuid": self.flow.uuid,
@@ -3356,7 +3355,7 @@ class FlowTest(TembaTest):
         ActionSet.objects.get(flow=self.flow)
 
         # can't save with an invalid uuid
-        json_dict["metadata"]["saved_on"] = datetime_to_str(timezone.now())
+        json_dict["metadata"]["saved_on"] = json.encode_datetime(timezone.now(), micros=True)
         json_dict["action_sets"][0]["destination"] = "notthere"
 
         response = self.client.post(

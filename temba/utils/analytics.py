@@ -11,7 +11,7 @@ from librato_bg import Client as LibratoClient
 from django.conf import settings
 from django.utils import timezone
 
-from temba.utils.json import datetime_to_json_date
+from temba.utils import json
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def identify_org(org, attributes=None):
         _intercom.companies.create(
             company_id=org.id,
             name=org.name,
-            created_at=datetime_to_json_date(org.created_on),
+            created_at=json.encode_datetime(org.created_on),
             custom_attributes=attributes,
             **intercom_attributes,
         )
@@ -138,7 +138,7 @@ def identify(user, brand, org):
                 dict(
                     company_id=org.id,
                     name=org.name,
-                    created_at=datetime_to_json_date(org.created_on),
+                    created_at=json.encode_datetime(org.created_on),
                     custom_attributes=dict(brand=org.brand, org_id=org.id),
                 )
             ]
@@ -182,7 +182,7 @@ def change_consent(email, consent):
 
     if _intercom:
         try:
-            change_date = datetime_to_json_date(timezone.now())
+            change_date = json.encode_datetime(timezone.now())
 
             user = get_intercom_user(email)
 
