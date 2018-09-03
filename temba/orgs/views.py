@@ -252,9 +252,11 @@ class OrgSignupForm(forms.ModelForm):
     Signup for new organizations
     """
 
-    first_name = forms.CharField(help_text=_("Your first name"))
-    last_name = forms.CharField(help_text=_("Your last name"))
-    email = forms.EmailField(help_text=_("Your email address"))
+    first_name = forms.CharField(
+        help_text=_("Your first name"), max_length=User._meta.get_field("first_name").max_length
+    )
+    last_name = forms.CharField(help_text=_("Your last name"), max_length=User._meta.get_field("last_name").max_length)
+    email = forms.EmailField(help_text=_("Your email address"), max_length=User._meta.get_field("username").max_length)
     timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
     password = forms.CharField(widget=forms.PasswordInput, help_text=_("Your password, at least eight letters please"))
     name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
@@ -286,9 +288,17 @@ class OrgSignupForm(forms.ModelForm):
 
 
 class OrgGrantForm(forms.ModelForm):
-    first_name = forms.CharField(help_text=_("The first name of the organization administrator"))
-    last_name = forms.CharField(help_text=_("Your last name of the organization administrator"))
-    email = forms.EmailField(help_text=_("Their email address"))
+    first_name = forms.CharField(
+        help_text=_("The first name of the organization administrator"),
+        max_length=User._meta.get_field("first_name").max_length,
+    )
+    last_name = forms.CharField(
+        help_text=_("Your last name of the organization administrator"),
+        max_length=User._meta.get_field("last_name").max_length,
+    )
+    email = forms.EmailField(
+        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+    )
     timezone = TimeZoneFormField(help_text=_("The timezone the organization is in"))
     password = forms.CharField(
         widget=forms.PasswordInput,
@@ -322,11 +332,11 @@ class OrgGrantForm(forms.ModelForm):
         # or both email and password must be included
         if email:
             user = User.objects.filter(username__iexact=email).first()
-            if user:  # pragma: needs cover
+            if user:
                 if password:
                     raise ValidationError(_("User already exists, please do not include password."))
 
-            elif not password or len(password) < 8:  # pragma: needs cover
+            elif not password or len(password) < 8:
                 raise ValidationError(_("Password must be at least 8 characters long"))
 
         return data
