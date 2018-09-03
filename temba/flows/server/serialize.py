@@ -24,7 +24,7 @@ def serialize_flow(flow):
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
-    return get_client().migrate({"flow": flow_def})
+    return get_client().migrate({"flow": flow_def, "collapse_exits": False})
 
 
 def serialize_channel(channel):
