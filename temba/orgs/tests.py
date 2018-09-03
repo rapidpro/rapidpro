@@ -1097,6 +1097,44 @@ class OrgTest(TembaTest):
         self.assertTrue(new_invited_user in self.org.administrators.all())
         self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
 
+    def test_create_login_invalid_form(self):
+        admin_invitation = Invitation.objects.create(
+            org=self.org, user_group="A", email="user@example.com", created_by=self.admin, modified_by=self.admin
+        )
+
+        admin_create_login_url = reverse("orgs.org_create_login", args=[admin_invitation.secret])
+        self.client.logout()
+
+        post_data = dict(first_name="Matija", last_name="Vujica", email="", password="just-a-password")
+
+        response = self.client.post(admin_create_login_url, post_data, follow=True)
+
+        self.assertFormError(response, "form", "email", "This field is required.")
+
+        post_data = dict(
+            first_name="Matija", last_name="Vujica", email="this-is-not-a-valid-email", password="just-a-password"
+        )
+
+        response = self.client.post(admin_create_login_url, post_data, follow=True)
+
+        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+
+        post_data = dict(
+            first_name="Matija_first_name_longer_than_30_chars",
+            last_name="Vujica_last_name_longer_than_150_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
+            email="matija@vujica-this-is-a-verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrry-loooooooooooooooooooooooooong-domain-name-not-sure-if-this-is-even-possible-to-register.com",
+            password="just-a-password",
+        )
+        response = self.client.post(admin_create_login_url, post_data)
+        self.assertFormError(
+            response, "form", "first_name", "Ensure this value has at most 30 characters (it has 38)."
+        )
+        self.assertFormError(
+            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 173)."
+        )
+        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 161).")
+        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+
     def test_surveyor_invite(self):
         surveyor_invite = Invitation.objects.create(
             org=self.org, user_group="S", email="surveyor@gmail.com", created_by=self.admin, modified_by=self.admin
@@ -2637,6 +2675,95 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
 
+    def test_org_grant_invalid_form(self):
+        grant_url = reverse("orgs.org_grant")
+
+        granters = Group.objects.get(name="Granters")
+        self.admin.groups.add(granters)
+
+        self.login(self.admin)
+
+        post_data = dict(
+            email="",
+            first_name="John",
+            last_name="Carmack",
+            name="Oculus",
+            timezone="Africa/Kigali",
+            credits="100000",
+            password="dukenukem",
+        )
+        response = self.client.post(grant_url, post_data)
+        self.assertFormError(response, "form", "email", "This field is required.")
+
+        post_data = dict(
+            email="this-is-not-a-valid-email",
+            first_name="John",
+            last_name="Carmack",
+            name="Oculus",
+            timezone="Africa/Kigali",
+            credits="100000",
+            password="dukenukem",
+        )
+        response = self.client.post(grant_url, post_data)
+        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+
+        post_data = dict(
+            email="john@carmack-this-is-a-verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrry-loooooooooooooooooooooooooong-domain-name-not-sure-if-this-is-even-possible-to-register.com",
+            first_name="John_first_name_longer_than_30_chars",
+            last_name="Carmack_last_name_longer_than_150_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
+            name="Oculus_company_name_longer_than_128_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
+            timezone="Africa/Kigali",
+            credits="100000",
+            password="dukenukem",
+        )
+        response = self.client.post(grant_url, post_data)
+        self.assertFormError(
+            response, "form", "first_name", "Ensure this value has at most 30 characters (it has 36)."
+        )
+        self.assertFormError(
+            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 174)."
+        )
+        self.assertFormError(response, "form", "name", "Ensure this value has at most 128 characters (it has 134).")
+        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 160).")
+        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+
+    def test_org_grant_form_clean(self):
+        grant_url = reverse("orgs.org_grant")
+
+        granters = Group.objects.get(name="Granters")
+        self.admin.groups.add(granters)
+        self.admin.username = "Administrator@nyaruka.com"
+        self.admin.set_password("Administrator@nyaruka.com")
+        self.admin.save()
+
+        self.login(self.admin)
+
+        # user with email Administrator@nyaruka.com already exists and we set a password
+        post_data = dict(
+            email="Administrator@nyaruka.com",
+            first_name="John",
+            last_name="Carmack",
+            name="Oculus",
+            timezone="Africa/Kigali",
+            credits="100000",
+            password="dukenukem",
+        )
+        response = self.client.post(grant_url, post_data)
+        self.assertFormError(response, "form", None, "User already exists, please do not include password.")
+
+        # try to create a new user with invalid password
+        post_data = dict(
+            email="a_new_user@nyaruka.com",
+            first_name="John",
+            last_name="Carmack",
+            name="Oculus",
+            timezone="Africa/Kigali",
+            credits="100000",
+            password="no_pass",
+        )
+        response = self.client.post(grant_url, post_data)
+        self.assertFormError(response, "form", None, "Password must be at least 8 characters long")
+
     @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
         mock_pre_process.return_value = None
@@ -2813,7 +2940,7 @@ class OrgCRUDLTest(TembaTest):
         post_data = dict(email="bill@msn.com", current_password="HelloWorld1")
         response = self.client.post(reverse("orgs.user_edit"), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertIn("email", response.context["form"].errors)
+        self.assertFormError(response, "form", "email", "Sorry, that email address is already taken.")
 
         post_data = dict(
             email="myal@wr.org",
