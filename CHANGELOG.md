@@ -1,3 +1,9 @@
+v4.4.7
+----------
+ * Enforce validation on OrgSignup and OrgGrant forms
+ * Cleanup encoding of datetimes in JSON
+ * New flows should be created with type M and rename constants for clarity
+
 v4.4.6
 ----------
  * Fix updating dynamic groups on contact update from the UI
