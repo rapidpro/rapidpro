@@ -4677,7 +4677,6 @@ class RuleSet(models.Model):
             header = {}
             action = "POST"
             resthook = None
-            requests_made = []
 
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
@@ -4720,22 +4719,24 @@ class RuleSet(models.Model):
 
                 if url is None:
                     continue
-                elif 200 <= result.status_code < 300 or result.status_code == 410:
-                    last_success = {"status_code": result.status_code, "body": result.body}
-                else:
-                    last_failure = {"status_code": result.status_code, "body": result.body}
 
-                requests_made.append("%s %s" % (action, value))
+                as_json = {"input": f"{action} {value}", "status_code": result.status_code, "body": result.body}
+
+                if 200 <= result.status_code < 300 or result.status_code == 410:
+                    last_success = as_json
+                else:
+                    last_failure = as_json
 
             # if we have a failed call, use that, if not the last call, if no calls then mock a successful one
-            use_call = last_failure or last_success or {"status_code": 200, "body": _("No subscribers to this event")}
-            result_input = "\n".join(requests_made)
+            use_call = last_failure or last_success
+            if not use_call:
+                use_call = {"input": "", "status_code": 200, "body": _("No subscribers to this event")}
 
             # find our matching rule, we pass in the status from our calls
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
                 if result > 0:
-                    return rule, use_call["body"], result_input
+                    return rule, use_call["body"], use_call["input"]
 
         else:
             # if it's a form field, construct an expression accordingly
