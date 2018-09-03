@@ -389,9 +389,6 @@ class Flow(TembaModel):
     X = "x"
     Y = "y"
 
-    # Flow types
-    FLOW = "F"  # TODO removed once all old flows with this type have been switch to MESSAGE
-
     TYPE_MESSAGE = "M"
     TYPE_VOICE = "V"
     TYPE_SURVEY = "S"
