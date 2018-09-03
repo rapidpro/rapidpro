@@ -252,7 +252,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 
 class InboundCallTriggerForm(GroupBasedTriggerForm):
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.VOICE)
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.TYPE_VOICE)
         super().__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -355,7 +355,9 @@ class UssdTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
+        flows = Flow.objects.filter(
+            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.TYPE_USSD]
+        )
         super().__init__(user, flows, *args, **kwargs)
 
         self.fields["channel"].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)

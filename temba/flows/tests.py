@@ -364,7 +364,7 @@ class FlowTest(TembaTest):
         self.assertEqual(1, response.context["folders"][1]["count"])
 
         # voice flows should be included in the count
-        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.VOICE)
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.TYPE_VOICE)
 
         response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, self.flow.name)
@@ -452,14 +452,14 @@ class FlowTest(TembaTest):
             self.admin,
             Flow.get_unique_name(self.org, "Surveyor Flow"),
             base_language="base",
-            flow_type=Flow.SURVEY,
+            flow_type=Flow.TYPE_SURVEY,
         )
         ivr = Flow.create(
             self.org,
             self.admin,
             Flow.get_unique_name(self.org, "IVR Flow"),
             base_language="base",
-            flow_type=Flow.VOICE,
+            flow_type=Flow.TYPE_VOICE,
         )
 
         # all flow types
@@ -1808,7 +1808,7 @@ class FlowTest(TembaTest):
         )
 
     def test_export_results_with_surveyor_msgs(self):
-        self.flow.flow_type = Flow.SURVEY
+        self.flow.flow_type = Flow.TYPE_SURVEY
         self.flow.save()
         run = self.flow.start([], [self.contact])[0]
 
@@ -2868,7 +2868,7 @@ class FlowTest(TembaTest):
             {
                 "name": "Flow #1",
                 "keyword_triggers": "toooooooooooooolong,test",
-                "flow_type": Flow.FLOW,
+                "flow_type": Flow.TYPE_MESSAGE,
                 "expires_after_minutes": 60 * 12,
             },
         )
@@ -2887,7 +2887,7 @@ class FlowTest(TembaTest):
             {
                 "name": "Flow #1",
                 "keyword_triggers": "testing, test",
-                "flow_type": Flow.FLOW,
+                "flow_type": Flow.TYPE_MESSAGE,
                 "expires_after_minutes": 60 * 12,
             },
         )
@@ -2903,7 +2903,7 @@ class FlowTest(TembaTest):
             {
                 "name": "Survey Flow",
                 "keyword_triggers": "notallowed",
-                "flow_type": Flow.SURVEY,
+                "flow_type": Flow.TYPE_SURVEY,
                 "expires_after_minutes": 60 * 12,
             },
         )
@@ -2916,7 +2916,7 @@ class FlowTest(TembaTest):
     def test_flow_keyword_update(self):
         self.login(self.admin)
         flow = Flow.create(self.org, self.admin, "Flow")
-        flow.flow_type = Flow.SURVEY
+        flow.flow_type = Flow.TYPE_SURVEY
         flow.save()
 
         # keywords aren't an option for survey flows
@@ -3091,34 +3091,38 @@ class FlowTest(TembaTest):
         # our default brand has all choice types
         response = self.client.get(reverse("flows.flow_create"))
         choices = [
-            (Flow.FLOW, "Messaging"),
-            (Flow.USSD, "USSD Messaging"),
-            (Flow.VOICE, "Phone Call"),
-            (Flow.SURVEY, "Surveyor"),
+            (Flow.TYPE_MESSAGE, "Messaging"),
+            (Flow.TYPE_USSD, "USSD Messaging"),
+            (Flow.TYPE_VOICE, "Phone Call"),
+            (Flow.TYPE_SURVEY, "Surveyor"),
         ]
         self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # now configure our deployment to ignore USSD
         branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["flow_types"] = [Flow.FLOW, Flow.VOICE, Flow.SURVEY]
-        choices = [(Flow.FLOW, "Messaging"), (Flow.VOICE, "Phone Call"), (Flow.SURVEY, "Surveyor")]
+        branding["rapidpro.io"]["flow_types"] = [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY]
+        choices = [(Flow.TYPE_MESSAGE, "Messaging"), (Flow.TYPE_VOICE, "Phone Call"), (Flow.TYPE_SURVEY, "Surveyor")]
         with override_settings(BRANDING=branding):
             response = self.client.get(reverse("flows.flow_create"))
             self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
-        response = self.client.post(reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.FLOW), follow=True)
+        response = self.client.post(
+            reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.TYPE_MESSAGE), follow=True
+        )
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(
             org=self.org, keyword="unique", flow=flow1, created_by=self.admin, modified_by=self.admin
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(flow1.flow_type, "F")
+        self.assertEqual(flow1.flow_type, Flow.TYPE_MESSAGE)
         self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
-        self.client.post(reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type=Flow.SURVEY), follow=True)
+        self.client.post(
+            reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type=Flow.TYPE_SURVEY), follow=True
+        )
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, "S")
         self.assertEqual(flow2.expires_after_minutes, 10080)
@@ -3129,7 +3133,7 @@ class FlowTest(TembaTest):
 
         # create a new voice flow
         response = self.client.post(
-            reverse("flows.flow_create"), dict(name="Voice Flow", flow_type=Flow.VOICE), follow=True
+            reverse("flows.flow_create"), dict(name="Voice Flow", flow_type=Flow.TYPE_VOICE), follow=True
         )
         voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
         self.assertEqual(response.status_code, 200)
@@ -3175,7 +3179,7 @@ class FlowTest(TembaTest):
         post_data = dict()
         post_data["name"] = "Flow With Good Keyword Triggers"
         post_data["keyword_triggers"] = "this,is,it"
-        post_data["flow_type"] = "F"
+        post_data["flow_type"] = Flow.TYPE_MESSAGE
         post_data["expires_after_minutes"] = 30
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         flow3 = Flow.objects.get(name=post_data["name"])
@@ -3293,7 +3297,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
 
         # make us a survey flow
-        flow3.flow_type = Flow.SURVEY
+        flow3.flow_type = Flow.TYPE_SURVEY
         flow3.save()
 
         # we should get the contact creation option, and test if form has expected fields
@@ -3519,21 +3523,21 @@ class FlowTest(TembaTest):
         self.channel.role = "SRCA"
         self.channel.save()
 
-        post_data = dict(name="Message flow", expires_after_minutes=5, flow_type="F")
+        post_data = dict(name="Message flow", expires_after_minutes=5, flow_type=Flow.TYPE_MESSAGE)
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         msg_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[msg_flow.uuid]))
-        self.assertEqual(msg_flow.flow_type, "F")
+        self.assertEqual(msg_flow.flow_type, Flow.TYPE_MESSAGE)
 
-        post_data = dict(name="Call flow", expires_after_minutes=5, flow_type="V")
+        post_data = dict(name="Call flow", expires_after_minutes=5, flow_type=Flow.TYPE_VOICE)
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         call_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[call_flow.uuid]))
-        self.assertEqual(call_flow.flow_type, "V")
+        self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a  flow with base language
         # create the language for our org
@@ -3541,7 +3545,9 @@ class FlowTest(TembaTest):
         self.org.primary_language = language
         self.org.save()
 
-        post_data = dict(name="Language Flow", expires_after_minutes=5, base_language=language.iso_code, flow_type="F")
+        post_data = dict(
+            name="Language Flow", expires_after_minutes=5, base_language=language.iso_code, flow_type=Flow.TYPE_MESSAGE
+        )
         response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
         language_flow = Flow.objects.get(name=post_data["name"])
 

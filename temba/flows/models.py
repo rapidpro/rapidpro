@@ -390,22 +390,22 @@ class Flow(TembaModel):
     Y = "y"
 
     # Flow types
-    FLOW = "F"
-    MESSAGE = "M"
-    VOICE = "V"
-    SURVEY = "S"
-    USSD = "U"
+    FLOW = "F"  # TODO removed once all old flows with this type have been switch to MESSAGE
+
+    TYPE_MESSAGE = "M"
+    TYPE_VOICE = "V"
+    TYPE_SURVEY = "S"
+    TYPE_USSD = "U"
+
+    FLOW_TYPES = (
+        (TYPE_MESSAGE, _("Message flow")),
+        (TYPE_VOICE, _("Phone call flow")),
+        (TYPE_SURVEY, _("Surveyor flow")),
+        (TYPE_USSD, _("USSD flow")),
+    )
 
     NODE_TYPE_RULESET = "R"
     NODE_TYPE_ACTIONSET = "A"
-
-    FLOW_TYPES = (
-        (FLOW, _("Message flow")),
-        (MESSAGE, _("Single Message Flow")),
-        (VOICE, _("Phone call flow")),
-        (SURVEY, _("Android Survey")),
-        (USSD, _("USSD flow")),
-    )
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
@@ -451,7 +451,9 @@ class Flow(TembaModel):
 
     is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
-    flow_type = models.CharField(max_length=1, choices=FLOW_TYPES, default=FLOW, help_text=_("The type of this flow"))
+    flow_type = models.CharField(
+        max_length=1, choices=FLOW_TYPES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
+    )
 
     metadata = JSONAsTextField(
         null=True,
@@ -512,7 +514,7 @@ class Flow(TembaModel):
         org,
         user,
         name,
-        flow_type=FLOW,
+        flow_type=TYPE_MESSAGE,
         expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
         base_language=None,
         **kwargs,
@@ -538,7 +540,7 @@ class Flow(TembaModel):
         Creates a special 'single message' flow
         """
         name = "Single Message (%s)" % str(uuid4())
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, is_system=True)
+        flow = Flow.create(org, user, name, flow_type=Flow.TYPE_MESSAGE, is_system=True)
         flow.update_single_message_flow(message, base_language)
         return flow
 
@@ -605,7 +607,7 @@ class Flow(TembaModel):
         if not settings.FLOW_SERVER_URL:  # pragma: no cover
             return False
 
-        if settings.FLOW_SERVER_FORCE and self.flow_type not in (Flow.VOICE, Flow.USSD, Flow.SURVEY):
+        if settings.FLOW_SERVER_FORCE and self.flow_type not in (Flow.TYPE_VOICE, Flow.TYPE_USSD, Flow.TYPE_SURVEY):
             return True
 
         return self.flow_server_enabled
@@ -627,7 +629,7 @@ class Flow(TembaModel):
             org=org,
             is_active=True,
             is_archived=False,
-            flow_type__in=[Flow.FLOW, Flow.MESSAGE, Flow.VOICE],
+            flow_type__in=[Flow.FLOW, Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
             is_system=False,
         )
 
@@ -655,12 +657,16 @@ class Flow(TembaModel):
             if version <= 3.0 and flow_type == "M":  # pragma: no cover
                 continue
 
+            # M used to mean single message flow and regular flows were F, now all messaging flows are M
+            if flow_type == "F":
+                flow_type = Flow.TYPE_MESSAGE
+
             # check if we can find that flow by id first
             if same_site:
                 flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
                 if flow:  # pragma: needs cover
                     expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
-                    if flow_type == Flow.VOICE:
+                    if flow_type == Flow.TYPE_VOICE:
                         expires_minutes = min([expires_minutes, 15])
 
                     flow.expires_after_minutes = expires_minutes
@@ -674,7 +680,7 @@ class Flow(TembaModel):
             # if there isn't one already, create a new flow
             if not flow:
                 expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
-                if flow_type == Flow.VOICE:
+                if flow_type == Flow.TYPE_VOICE:
                     expires_minutes = min([expires_minutes, 15])
 
                 flow = Flow.create(
@@ -904,7 +910,7 @@ class Flow(TembaModel):
 
     @classmethod
     def should_close_connection(cls, run, current_destination, next_destination):
-        if run.flow.flow_type == Flow.USSD:
+        if run.flow.flow_type == Flow.TYPE_USSD:
             # this might be our last node that sends msg
             if not next_destination:
                 return True
@@ -1616,7 +1622,7 @@ class Flow(TembaModel):
         Trigger.objects.filter(flow=self).update(is_archived=True)
 
     def restore(self):
-        if self.flow_type == Flow.VOICE:  # pragma: needs cover
+        if self.flow_type == Flow.TYPE_VOICE:  # pragma: needs cover
             if not self.org.supports_ivr():
                 raise FlowException("%s requires a Twilio number")
 
@@ -1857,12 +1863,12 @@ class Flow(TembaModel):
                 flow_start.update_status()
             return []
 
-        if self.flow_type == Flow.VOICE:
+        if self.flow_type == Flow.TYPE_VOICE:
             return self.start_call_flow(
                 all_contact_ids, start_msg=start_msg, extra=extra, flow_start=flow_start, parent_run=parent_run
             )
 
-        elif self.flow_type == Flow.USSD:
+        elif self.flow_type == Flow.TYPE_USSD:
             return self.start_ussd_flow(
                 all_contact_ids,
                 start_msg=start_msg,
@@ -3209,7 +3215,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
 
         # don't consider voice runs, those are interactive
-        runs = runs.exclude(flow__flow_type=Flow.VOICE)
+        runs = runs.exclude(flow__flow_type=Flow.TYPE_VOICE)
 
         # real contacts don't deal with archived flows
         if not contact.is_test:
@@ -5489,7 +5495,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 node.flow = flow
                 result_nodes.append(node)
 
-            if flow.flow_type == Flow.SURVEY:
+            if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True
 
         extra_urn_columns = []
@@ -7077,7 +7083,7 @@ class StartFlowAction(Action):
         extra = context.get("extra", dict())
 
         # if they are both flow runs, just redirect the call
-        if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
+        if run.flow.flow_type == Flow.TYPE_VOICE and self.flow.flow_type == Flow.TYPE_VOICE:
             new_run = self.flow.start(
                 [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
             )[0]

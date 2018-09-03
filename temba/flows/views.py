@@ -334,10 +334,10 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Run flow over"),
                 help_text=_("Choose the method for your flow"),
                 choices=(
-                    (Flow.FLOW, "Messaging"),
-                    (Flow.USSD, "USSD Messaging"),
-                    (Flow.VOICE, "Phone Call"),
-                    (Flow.SURVEY, "Surveyor"),
+                    (Flow.TYPE_MESSAGE, "Messaging"),
+                    (Flow.TYPE_USSD, "USSD Messaging"),
+                    (Flow.TYPE_VOICE, "Phone Call"),
+                    (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
             )
 
@@ -348,7 +348,9 @@ class FlowCRUDL(SmartCRUDL):
                 org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
-                flow_types = branding.get("flow_types", [Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD])
+                flow_types = branding.get(
+                    "flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, Flow.TYPE_USSD]
+                )
 
                 # prune our choices by brand config
                 choices = []
@@ -403,7 +405,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # default expiration is a week
             expires_after_minutes = 60 * 24 * 7
-            if obj.flow_type == Flow.VOICE:
+            if obj.flow_type == Flow.TYPE_VOICE:
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
@@ -421,7 +423,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             # create triggers for this flow only if there are keywords and we aren't a survey
-            if self.form.cleaned_data.get("flow_type") != Flow.SURVEY:
+            if self.form.cleaned_data.get("flow_type") != Flow.TYPE_SURVEY:
                 if len(self.form.cleaned_data["keyword_triggers"]) > 0:
                     for keyword in self.form.cleaned_data["keyword_triggers"].split(","):
                         Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
@@ -590,9 +592,9 @@ class FlowCRUDL(SmartCRUDL):
         def get_form_class(self):
             flow_type = self.object.flow_type
 
-            if flow_type == Flow.VOICE:
+            if flow_type == Flow.TYPE_VOICE:
                 return self.IVRFlowUpdateForm
-            elif flow_type == Flow.SURVEY:
+            elif flow_type == Flow.TYPE_SURVEY:
                 return self.SurveyFlowUpdateForm
             else:
                 return self.FlowUpdateForm
@@ -736,7 +738,7 @@ class FlowCRUDL(SmartCRUDL):
                 campaign__is_active=True,
                 flow__is_archived=False,
                 flow__is_active=True,
-                flow__flow_type=Flow.FLOW,
+                flow__is_system=False,
             )
             return (
                 events.values("campaign__name", "campaign__id").annotate(count=Count("id")).order_by("campaign__name")
@@ -957,7 +959,7 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             # hangup any test calls if we have them
-            if flow.flow_type == Flow.VOICE:
+            if flow.flow_type == Flow.TYPE_VOICE:
                 IVRCall.hangup_test_call(flow)
 
             flow.ensure_current_version()
@@ -975,7 +977,7 @@ class FlowCRUDL(SmartCRUDL):
             context["is_starting"] = flow.is_starting()
             context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["can_start"] = flow.flow_type != Flow.VOICE or flow.org.supports_ivr()
+            context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
             return context
 
         def get_gear_links(self):
@@ -983,7 +985,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
 
             if (
-                flow.flow_type not in [Flow.SURVEY, Flow.USSD]
+                flow.flow_type not in [Flow.TYPE_SURVEY, Flow.TYPE_USSD]
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
@@ -1548,7 +1550,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if new_message or media:
                 try:
-                    if flow.flow_type == Flow.USSD:
+                    if flow.flow_type == Flow.TYPE_USSD:
                         if new_message == "__interrupt__":
                             status = USSDSession.INTERRUPTED
                         else:
@@ -1582,7 +1584,7 @@ class FlowCRUDL(SmartCRUDL):
 
             messages = Msg.objects.filter(contact=test_contact).order_by("pk", "created_on")
 
-            if flow.flow_type == Flow.USSD:
+            if flow.flow_type == Flow.TYPE_USSD:
                 for msg in messages:
                     if msg.connection.should_end:
                         msg.connection.close()

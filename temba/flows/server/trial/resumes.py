@@ -38,7 +38,7 @@ def is_flow_suitable(flow):
     """
     from temba.flows.models import RuleSet, Flow
 
-    if flow.flow_type in (Flow.VOICE, Flow.USSD, Flow.SURVEY):
+    if flow.flow_type in (Flow.TYPE_VOICE, Flow.TYPE_USSD, Flow.TYPE_SURVEY):
         return False
 
     for rule_set in flow.rule_sets.all():
