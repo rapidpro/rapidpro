@@ -2035,14 +2035,17 @@ class OrgCRUDL(SmartCRUDL):
             return welcome_topup_size
 
         def post_save(self, obj):
-            obj = super().post_save(obj)
-            self.request.session["org_id"] = obj.pk
-
             user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])
-            login(self.request, user)
 
+            # setup user tracking before creating Org in super().post_save
             analytics.identify(user, brand=self.request.branding["slug"], org=obj)
             analytics.track(self.request.user.username, "temba.org_signup", dict(org=obj.name))
+
+            obj = super().post_save(obj)
+
+            self.request.session["org_id"] = obj.pk
+
+            login(self.request, user)
 
             return obj
 
