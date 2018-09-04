@@ -957,7 +957,7 @@ class Flow(TembaModel):
         msg,
         started_flows=None,
         voice_response=None,
-        allow_trial=True,
+        allow_trial=False,
         triggered_start=False,
         resume_parent_run=False,
         expired_child_run=None,
