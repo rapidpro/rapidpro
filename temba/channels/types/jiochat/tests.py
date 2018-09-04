@@ -96,3 +96,22 @@ class JioChatTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % channel.id,
                                    follow=True)
         self.assertEqual(len(response.context['object_list']), 2)
+
+        mock_post.reset_mock()
+        mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1235" }')
+
+        Channel.refresh_all_jiochat_access_token(channel.id)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 3)
+        self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+        self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
+        self.assertEqual(mock_post.call_count, 1)
+
+        self.assertEqual(channel_client.get_access_token(), b'ABC1235')
+        self.assertEqual(mock_post.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
+                                                                  'grant_type': 'client_credentials',
+                                                                  'client_id': u'app-id'})
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % channel.id,
+                                   follow=True)
+        self.assertEqual(len(response.context['object_list']), 3)

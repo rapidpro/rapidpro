@@ -43,6 +43,8 @@ class MsgTest(TembaTest):
         super(MsgTest, self).setUp()
 
         self.joe = self.create_contact("Joe Blow", "123")
+        ContactURN.create(self.org, self.joe, "tel:789")
+
         self.frank = self.create_contact("Frank Blow", "321")
         self.kevin = self.create_contact("Kevin Durant", "987")
 
@@ -451,37 +453,37 @@ class MsgTest(TembaTest):
         self.assertContains(response, "Outbox (1)")
         self.assertEqual(set(response.context_data['object_list']), {msg1})
 
-        broadcast2 = Broadcast.create(self.channel.org, self.admin, 'kLab is an awesome place for @contact.name',
+        broadcast2 = Broadcast.create(self.channel.org, self.admin, 'kLab is an awesome place',
                                       [self.kevin, self.joe_and_frank])
 
         # now send the broadcast so we have messages
         broadcast2.send(trigger_send=False)
-        msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2))
+        msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by('-created_on', '-id'))
 
         with self.assertNumQueries(38):
             response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
-        self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
+        self.assertEqual(list(response.context_data['object_list']), [msg4, msg3, msg2, msg1])
 
         response = self.client.get("%s?search=kevin" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.kevin)})
+        self.assertEqual(list(response.context_data['object_list']), [Msg.objects.get(contact=self.kevin)])
 
         response = self.client.get("%s?search=joe" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.joe)})
+        self.assertEqual(list(response.context_data['object_list']), [Msg.objects.get(contact=self.joe)])
 
         response = self.client.get("%s?search=frank" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.frank)})
+        self.assertEqual(list(response.context_data['object_list']), [Msg.objects.get(contact=self.frank)])
 
         response = self.client.get("%s?search=just" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), set())
+        self.assertEqual(list(response.context_data['object_list']), list())
 
-        response = self.client.get("%s?search=is" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), {msg4, msg3, msg2, msg1})
+        response = self.client.get("%s?search=klab" % reverse('msgs.msg_outbox'))
+        self.assertEqual(list(response.context_data['object_list']), [msg4, msg3, msg2])
 
         # make sure variables that are replaced in text messages match as well
         response = self.client.get("%s?search=durant" % reverse('msgs.msg_outbox'))
-        self.assertEqual(set(response.context_data['object_list']), {Msg.objects.get(contact=self.kevin)})
+        self.assertEqual(list(response.context_data['object_list']), [Msg.objects.get(contact=self.kevin)])
 
     def do_msg_action(self, url, msgs, action, label=None, label_add=True):
         post_data = dict()
@@ -1253,9 +1255,9 @@ class BroadcastTest(TembaTest):
         self.assertEqual(40, len(parts[3]))
 
     def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_NUMBER)
         self.joe.set_field(self.user, 'goats', "3 ")
-        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'temp', "Temperature", False, Value.TYPE_NUMBER)
         self.joe.set_field(self.user, 'temp', "37.45")
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
@@ -1900,6 +1902,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
+    @override_settings(LEGACY_CHANNELS=['EX'])
     def test_batch(self):
         # broadcast out to 11 contacts to test our batching
         contacts = []

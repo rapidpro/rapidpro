@@ -14,7 +14,7 @@ from django.utils.timezone import now
 from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
-from temba.utils import datetime_to_str, get_datetime_format
+from temba.utils.dates import datetime_to_str, get_datetime_format
 
 # default number of times per org to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3
