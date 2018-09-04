@@ -1,3 +1,12 @@
+v4.4.8
+----------
+ * Don't trial flow starts from triggers
+ * Fix messages from non-interactive subflows being added to their parent run
+ * Setup user tracking before creating an Org
+ * Migrate flows during flowserver trials with collapse_exits=false to keep paths exactly the same
+ * Input for a webhook result test should be a single request
+ * Migration to update F type flows to M
+
 v4.4.7
 ----------
  * Enforce validation on OrgSignup and OrgGrant forms

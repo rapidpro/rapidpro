@@ -311,6 +311,17 @@ class ResumeTest(TembaTest):
         self.assertEqual(mock_report_success.call_count, 1)
         self.assertEqual(mock_report_failure.call_count, 0)
 
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_TRIAL="always")
+    @patch("temba.flows.server.trial.resumes.report_failure")
+    @patch("temba.flows.server.trial.resumes.report_success")
+    def test_no_trial_for_triggers(self, mock_report_success, mock_report_failure):
+        self.get_flow("keywords")
+        Msg.create_incoming(self.channel, "tel:+12065552020", "Start")
+
+        mock_report_success.assert_not_called()
+        mock_report_failure.assert_not_called()
+
 
 class MessageFlowTest(TembaTest):
     def setUp(self):
