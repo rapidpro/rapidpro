@@ -1262,4 +1262,5 @@ MACHINE_HOSTNAME = socket.gethostname().split('.')[0]
 
 
 # ElasticSearch configuration (URL RFC-1738)
-ELASTICSEARCH_URL = os.environ.get('ELASTICSEARCH_URL', 'http://localhost:9200')
+ELASTICSEARCH_IP = os.environ.get('ELASTICSEARCH_PORT_9200_TCP_ADDR', 'localhost')
+ELASTICSEARCH_URL = 'http://{ip}:9200'.format(ip = ELASTICSEARCH_IP)
