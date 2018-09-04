@@ -6024,7 +6024,11 @@ class ContactTest(TembaTest):
             self.joe.org.refresh_from_db()
 
             context = self.joe.build_expressions_context()
-            self.assertEqual("********", context["tel"])
+            self.assertEqual("********", context["tel"]["__default__"])
+            self.assertEqual("********", context["tel"]["path"])
+            self.assertEqual("********", context["tel"]["urn"])
+            self.assertEqual("tel", context["tel"]["scheme"])
+
             self.assertEqual(self.joe.id, context["id"])
 
     def test_urn_priority(self):

@@ -2301,7 +2301,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return ""
 
         if org.is_anon:
-            return ContactURN.ANON_MASK
+            return {
+                "__default__": ContactURN.ANON_MASK,
+                "scheme": scheme,
+                "path": ContactURN.ANON_MASK,
+                "display": ContactURN.ANON_MASK,
+                "urn": ContactURN.ANON_MASK,
+            }
 
         display = urn.get_display(org=org, formatted=True, international=False)
 

@@ -1404,13 +1404,18 @@ class Msg(models.Model):
         value = str(self)
         attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
-        return {
+        context = {
             "__default__": value,
             "value": value,
             "text": self.text,
             "attachments": attachments,
             "time": datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone),
         }
+
+        if self.contact_urn:
+            context["urn"] = self.contact.get_urn_context(self.org, scheme=self.contact_urn.scheme)
+
+        return context
 
     def resend(self):
         """
