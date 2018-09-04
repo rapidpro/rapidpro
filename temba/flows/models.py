@@ -957,7 +957,7 @@ class Flow(TembaModel):
         msg,
         started_flows=None,
         voice_response=None,
-        allow_trial=True,
+        allow_trial=False,
         triggered_start=False,
         resume_parent_run=False,
         expired_child_run=None,
@@ -1163,7 +1163,7 @@ class Flow(TembaModel):
 
         # actually execute all the actions in our actionset
         msgs = actionset.execute_actions(run, msg, started_flows)
-        run.add_messages(msgs)
+        run.add_messages([m for m in msgs if not getattr(m, "from_other_run", False)])
 
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
@@ -7098,7 +7098,9 @@ class StartFlowAction(Action):
                 [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
             )
             for run in child_runs:
-                msgs += run.start_msgs
+                for msg in run.start_msgs:
+                    msg.from_other_run = True
+                    msgs.append(msg)
 
         self.logger(run)
         return msgs

@@ -6375,6 +6375,49 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.exit_type, "C")
         self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
 
+    @also_in_flowserver
+    def test_noninteractive_subflow(self, in_flowserver):
+        self.get_flow("keywords")
+
+        msg_in = Msg.create_incoming(self.channel, "tel:+12065552020", "Start!")
+
+        parent_run, child_run = FlowRun.objects.order_by("id")
+        msg_out = Msg.objects.get(direction="O")
+
+        self.assertEqual(
+            parent_run.events,
+            [
+                {
+                    "type": "msg_received",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": parent_run.path[0]["uuid"],
+                    "msg": {
+                        "uuid": str(msg_in.uuid),
+                        "text": "Start!",
+                        "urn": "tel:+12065552020",
+                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    },
+                }
+            ],
+        )
+
+        self.assertEqual(
+            child_run.events,
+            [
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": child_run.path[0]["uuid"],
+                    "msg": {
+                        "uuid": str(msg_out.uuid),
+                        "text": "Hi there Ben Haggerty",
+                        "urn": "tel:+12065552020",
+                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    },
+                }
+            ],
+        )
+
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
         run, = favorites.start([], [self.contact])
