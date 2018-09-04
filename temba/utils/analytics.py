@@ -114,7 +114,7 @@ def identify(user, brand, org):
         return
 
     attributes = dict(
-        email=user.email, first_name=user.first_name, segment=randint(1, 10), last_name=user.last_name, brand=brand
+        email=user.username, first_name=user.first_name, segment=randint(1, 10), last_name=user.last_name, brand=brand
     )
     user_name = f"{user.first_name} {user.last_name}"
     if org:
@@ -123,7 +123,7 @@ def identify(user, brand, org):
 
     # post to segment if configured
     if _segment:  # pragma: no cover
-        segment_analytics.identify(user.email, attributes)
+        segment_analytics.identify(user.username, attributes)
 
     # post to intercom if configured
     if _intercom:
@@ -132,7 +132,7 @@ def identify(user, brand, org):
             for key in ("first_name", "last_name", "email"):
                 attributes.pop(key, None)
 
-            intercom_user = _intercom.users.create(email=user.email, name=user_name, custom_attributes=attributes)
+            intercom_user = _intercom.users.create(email=user.username, name=user_name, custom_attributes=attributes)
 
             intercom_user.companies = [
                 dict(
