@@ -1693,7 +1693,7 @@ class Flow(TembaModel):
 
             # only populate channel if this contact can actually be reached (ie, has a URN)
             if contact_urn:
-                message_context["urn"] = contact.get_urn_context(self.org, scheme=contact_urn.scheme)
+                message_context["urn"] = contact_urn.build_expressions_context()
                 channel = contact.cached_send_channel(contact_urn=contact_urn)
                 if channel:
                     channel_context = channel.build_expressions_context()
