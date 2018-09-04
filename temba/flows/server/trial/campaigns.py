@@ -47,7 +47,7 @@ def end(trial, run):
     try:
         session = run_flow(trial.flow, trial.contact, trial.campaign_event)
         trial.run = run
-        trial.differences = compare(session, run.events[0])
+        trial.differences = compare(session, run)
 
         if trial.differences:
             report_failure(trial)
@@ -102,20 +102,19 @@ def run_flow(flow, contact, campaign_event):
     return request.start_by_campaign(contact, flow, campaign_event).session
 
 
-def compare(session, actual_event):
+def compare(session, actual_run):
     if session["status"] != "completed":
         return {"problem": "Message flows should always produce a completed session"}
     if len(session["runs"]) != 1:
         return {"problem": "Message flows should always produce a session with a single run"}
 
+    actual_events = actual_run.events
+
     new_engine_run = session["runs"][0]
     new_engine_events = new_engine_run.get("events", [])
 
-    if len(new_engine_events) != 1 or new_engine_events[0]["type"] != "msg_created":
-        return {"problem": "Message flows runs should only have one msg_created event"}
-
-    new = reduce_event(new_engine_events[0])
-    old = reduce_event(actual_event)
+    new = [reduce_event(e) for e in new_engine_events]
+    old = [reduce_event(e) for e in actual_events]
     if new != old:
         return {"new": new, "old": old}
 
