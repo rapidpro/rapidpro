@@ -2022,7 +2022,9 @@ class AnalyticsTest(TestCase):
         self.org = SimpleNamespace(
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
-        self.admin = SimpleNamespace(first_name="", last_name="", email="admin@example.com")
+        self.admin = SimpleNamespace(
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com"
+        )
 
         self.intercom_mock = MagicMock()
         temba.utils.analytics._intercom = self.intercom_mock
