@@ -6307,6 +6307,48 @@ class FlowsTest(FlowFileTest):
         self.assertIsNotNone(run.exited_on)
 
     @also_in_flowserver
+    def test_category_merging(self, in_flowserver):
+        favorites = self.get_flow("favorites")
+        action_set1, action_set3, action_set3 = favorites.action_sets.order_by("y")[:3]
+        rule_set1, rule_set2 = favorites.rule_sets.order_by("y")[:2]
+        navy_rule = rule_set1.rules[3]
+
+        run, = favorites.start([], [self.contact])
+        Msg.create_incoming(self.channel, "tel:+12065552020", "navy")
+
+        run.refresh_from_db()
+        self.assertEqual(
+            run.results,
+            {
+                "color": {
+                    "category": "Blue",  # navy rule uses blue category
+                    "node_uuid": str(rule_set1.uuid),
+                    "name": "Color",
+                    "value": "navy",
+                    "created_on": matchers.ISODate(),
+                    "input": "navy",
+                }
+            },
+        )
+        self.assertEqual(
+            run.path[:2],
+            [
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(action_set1.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(action_set1.exit_uuid),
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(rule_set1.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(navy_rule["uuid"]),
+                },
+            ],
+        )
+
+    @also_in_flowserver
     def test_terminal_nodes(self, in_flowserver):
         flow = self.get_flow("terminal_nodes")
         action_set1, action_set2 = flow.action_sets.order_by("y")
