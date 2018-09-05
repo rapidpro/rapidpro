@@ -219,6 +219,21 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 403)
 
+    @patch("temba.contacts.models.Contact.update_static_groups")
+    def test_transactions(self, mock_update_static_groups):
+        mock_update_static_groups.side_effect = ValueError("BOOM")
+
+        url = reverse("api.v1.contacts")
+        self.login(self.surveyor)
+
+        with self.assertRaises(ValueError):
+            self.postJSON(url, {"name": "Bob", "urns": ["tel:+250788123456"], "groups": ["Testers"]})
+
+        mock_update_static_groups.assert_called_once()
+
+        # ensure contact wasn't created
+        self.assertFalse(Contact.objects.filter(name="Bob").exists())
+
     def test_api_org(self):
         url = reverse("api.v1.org")
 
