@@ -1,3 +1,7 @@
+v4.4.11
+----------
+ * Fix broken sample flows file
+
 v4.4.10
 ----------
  * Fix editor references to F flow types
