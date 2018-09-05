@@ -14,7 +14,6 @@ from django_redis import get_redis_connection
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
-from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
@@ -32,7 +31,7 @@ from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
 from temba.utils.locks import NonBlockingLock
-from temba.utils.models import RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
+from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
 from temba.utils.text import truncate
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value

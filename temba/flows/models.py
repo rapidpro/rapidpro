@@ -20,7 +20,6 @@ from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
-from django.contrib.postgres.fields import JSONField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
@@ -64,7 +63,14 @@ from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import ContactFieldCollector
-from temba.utils.models import JSONAsTextField, RequireUpdateFieldsMixin, SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import (
+    JSONAsTextField,
+    JSONField,
+    RequireUpdateFieldsMixin,
+    SquashableModel,
+    TembaModel,
+    generate_uuid,
+)
 from temba.utils.queues import push_task
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with

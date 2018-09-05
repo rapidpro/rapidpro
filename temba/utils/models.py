@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from smartmin.models import SmartModel
 
-from django.contrib.postgres.fields import HStoreField
+from django.contrib.postgres.fields import HStoreField, JSONField as DjangoJSONField
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import connection, models
@@ -182,6 +182,16 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         return name, path, args, kwargs
+
+
+class JSONField(DjangoJSONField):
+    """
+    Convenience subclass of the regular JSONField that uses our custom JSON encoder
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs["encoder"] = json.TembaEncoder
+        super().__init__(*args, **kwargs)
 
 
 class TembaModel(SmartModel):
