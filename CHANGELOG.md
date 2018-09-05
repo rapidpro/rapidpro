@@ -1,3 +1,12 @@
+v4.4.9
+----------
+ * Ensure API v1 writes are atomic
+ * JSONFields should use our JSON encoder
+ * Use authenticated user for events on Org.signup
+ * Trial shouldn't blow up if run has no events
+ * Add urn to step/message context and make urn scheme accessible for anon org
+ * Get rid of Flow.FLOW
+
 v4.4.8
 ----------
  * Don't trial flow starts from triggers
