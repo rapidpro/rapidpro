@@ -24,7 +24,6 @@
                 "type": "email",
                 "emails": [
                   "{{EMAIL}}"
-                ],
                 "subject": "Order Comment: @flow.lookup: @extra.order"
               }
             ]
@@ -280,7 +279,7 @@
             "config": {}
           }
         ],
-        "type": "F",
+        "type": "M",
         "metadata": {
           "notes": [
             {
@@ -294,7 +293,7 @@
       },
       "expires": 720,
       "id": 950,
-      "flow_type": "F",
+      "flow_type": "M",
       "name": "Sample Flow - Order Status Checker"
     },
     {
@@ -940,7 +939,7 @@
             "config": {}
           }
         ],
-        "type": "F",
+        "type": "M",
         "metadata": {
           "notes": [
             {
@@ -954,7 +953,7 @@
       },
       "expires": 720,
       "id": 951,
-      "flow_type": "F",
+      "flow_type": "M",
       "name": "Sample Flow - Satisfaction Survey"
     },
     {
@@ -1077,7 +1076,7 @@
             "config": {}
           }
         ],
-        "type": "F",
+        "type": "M",
         "metadata": {
           "notes": [
             {
@@ -1091,7 +1090,7 @@
       },
       "expires": 720,
       "id": 952,
-      "flow_type": "F",
+      "flow_type": "M",
       "name": "Sample Flow - Simple Poll"
     }
   ],
