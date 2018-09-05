@@ -6307,6 +6307,48 @@ class FlowsTest(FlowFileTest):
         self.assertIsNotNone(run.exited_on)
 
     @also_in_flowserver
+    def test_category_merging(self, in_flowserver):
+        favorites = self.get_flow("favorites")
+        action_set1, action_set3, action_set3 = favorites.action_sets.order_by("y")[:3]
+        rule_set1, rule_set2 = favorites.rule_sets.order_by("y")[:2]
+        navy_rule = rule_set1.rules[3]
+
+        run, = favorites.start([], [self.contact])
+        Msg.create_incoming(self.channel, "tel:+12065552020", "navy")
+
+        run.refresh_from_db()
+        self.assertEqual(
+            run.results,
+            {
+                "color": {
+                    "category": "Blue",  # navy rule uses blue category
+                    "node_uuid": str(rule_set1.uuid),
+                    "name": "Color",
+                    "value": "navy",
+                    "created_on": matchers.ISODate(),
+                    "input": "navy",
+                }
+            },
+        )
+        self.assertEqual(
+            run.path[:2],
+            [
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(action_set1.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(action_set1.exit_uuid),
+                },
+                {
+                    "uuid": matchers.UUID4String(),
+                    "node_uuid": str(rule_set1.uuid),
+                    "arrived_on": matchers.ISODate(),
+                    "exit_uuid": str(navy_rule["uuid"]),
+                },
+            ],
+        )
+
+    @also_in_flowserver
     def test_terminal_nodes(self, in_flowserver):
         flow = self.get_flow("terminal_nodes")
         action_set1, action_set2 = flow.action_sets.order_by("y")
@@ -6332,6 +6374,49 @@ class FlowsTest(FlowFileTest):
         self.assertIsNotNone(run.exited_on)
         self.assertEqual(run.exit_type, "C")
         self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
+
+    @also_in_flowserver
+    def test_noninteractive_subflow(self, in_flowserver):
+        self.get_flow("keywords")
+
+        msg_in = Msg.create_incoming(self.channel, "tel:+12065552020", "Start!")
+
+        parent_run, child_run = FlowRun.objects.order_by("id")
+        msg_out = Msg.objects.get(direction="O")
+
+        self.assertEqual(
+            parent_run.events,
+            [
+                {
+                    "type": "msg_received",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": parent_run.path[0]["uuid"],
+                    "msg": {
+                        "uuid": str(msg_in.uuid),
+                        "text": "Start!",
+                        "urn": "tel:+12065552020",
+                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    },
+                }
+            ],
+        )
+
+        self.assertEqual(
+            child_run.events,
+            [
+                {
+                    "type": "msg_created",
+                    "created_on": matchers.ISODate(),
+                    "step_uuid": child_run.path[0]["uuid"],
+                    "msg": {
+                        "uuid": str(msg_out.uuid),
+                        "text": "Hi there Ben Haggerty",
+                        "urn": "tel:+12065552020",
+                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    },
+                }
+            ],
+        )
 
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
