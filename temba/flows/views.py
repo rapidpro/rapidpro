@@ -1472,14 +1472,14 @@ class FlowCRUDL(SmartCRUDL):
                 if "trigger" in json_dict:
                     flow_request.request["trigger"] = json_dict.get("trigger")
                     output = client.start(flow_request.request)
-                    return JsonResponse(output.as_json())
+                    return JsonResponse(output.as_json(), encoder=json.TembaEncoder)
 
                 # otherwise we are resuming
                 else:
                     session = json_dict.get("session")
                     flow_request.request["events"] = json_dict.get("events")
                     output = flow_request.resume(session)
-                    return JsonResponse(output.as_json())
+                    return JsonResponse(output.as_json(), encoder=json.TembaEncoder)
 
         def handle_legacy(self, request, json_dict):
 
@@ -1612,7 +1612,9 @@ class FlowCRUDL(SmartCRUDL):
                 if ruleset:
                     response["ruleset"] = ruleset.as_json()
 
-            return JsonResponse(dict(status="success", description="Message sent to Flow", **response))
+            return JsonResponse(
+                dict(status="success", description="Message sent to Flow", **response), encoder=json.TembaEncoder
+            )
 
     class Json(OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
