@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import os
 import time
@@ -27,7 +26,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -380,6 +379,9 @@ class ContactField(SmartModel):
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
 
+    # fields that cannot be updated by user
+    IMMUTABLE_FIELDS = ("id", "created_on")
+
     DATETIME_KEY = "datetime"
     TEXT_KEY = "text"
     NUMBER_KEY = "number"
@@ -679,6 +681,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self, "_user_groups", lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
         )
 
+    def save(self, *args, handle_update=None, **kwargs):
+        super().save(*args, **kwargs)
+
+        # `handle_update` must be explicity set to execute handle_update when saving contact
+        if self.id and "update_fields" in kwargs:
+            if handle_update is None:
+                raise ValueError("When saving contacts we need to specify value for `handle_update`.")
+
+            if handle_update is True:
+                self.handle_update(fields=kwargs["update_fields"])
+
     def as_json(self):
         obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
 
@@ -699,6 +712,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             obj["urns"] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
 
         obj["fields"] = self.fields if self.fields else {}
+        obj["language"] = self.language
+        obj["created_on"] = self.created_on.isoformat()
+        obj["name"] = self.name
+        obj["id"] = self.id
 
         return obj
 
@@ -743,7 +760,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.api.models import WebHookResult
-        from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, BroadcastRecipient
 
@@ -772,14 +788,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(
-            flow__flow_type=Flow.MESSAGE
-        )
+        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__is_system=True)
         started_runs = started_runs.order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
-        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(
-            flow__flow_type=Flow.MESSAGE
-        )
+        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__is_system=True)
         exited_runs = exited_runs.exclude(exit_type=None).order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
@@ -1022,9 +1034,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # update any groups or campaigns for this contact if not importing
         if has_changed and not importing:
-            self.handle_update(field=field)
+            self.handle_update(fields=[field.key])
 
-    def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
+    def handle_update(self, urns=(), fields=None, group=None, is_new=False):
         """
         Handles an update to a contact which can be one of
           1. A change to one or more attributes
@@ -1033,15 +1045,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         dynamic_group_change = False
 
-        if field or urns or is_new:
+        if fields or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field)
+            dynamic_group_change = self.reevaluate_dynamic_groups(for_fields=fields, urns=urns)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
 
-        if field:
-            EventFire.update_events_for_contact_field(self, field.key)
+        if fields:
+            EventFire.update_events_for_contact_field(contact=self, keys=fields, is_new=is_new)
 
         if group or dynamic_group_change:
             # delete any cached groups
@@ -1057,11 +1069,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from temba.campaigns.models import EventFire
 
-        dynamic_group_change = self.reevaluate_dynamic_groups()
+        dynamic_group_change = self.reevaluate_dynamic_groups(for_fields=field_keys)
 
         # ensure our campaigns are up to date for every field
-        for field_key in field_keys:
-            EventFire.update_events_for_contact_field(self, field_key)
+        EventFire.update_events_for_contact_field(contact=self, keys=field_keys)
 
         if dynamic_group_change:
             # ensure our campaigns are up to date
@@ -1132,7 +1143,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             analytics.gauge("temba.contact_created")
 
             # handle group and campaign updates
-            contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=True)
+            contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
             return contact, urn_obj
 
     @classmethod
@@ -1217,10 +1228,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
                         if updated_attrs:
                             contact.modified_by = user
-                            contact.save(update_fields=updated_attrs + ["modified_on", "modified_by"])
-
+                            contact.save(
+                                update_fields=updated_attrs + ["modified_on", "modified_by"], handle_update=False
+                            )
                         # handle group and campaign updates
-                        contact.handle_update(attrs=updated_attrs)
+                        contact.handle_update(fields=updated_attrs)
                         return contact
 
         # perform everything in a org-level lock to prevent duplication by different instances
@@ -1264,7 +1276,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
                 if updated_attrs:
                     contact.modified_by = user
-                    contact.save(update_fields=updated_attrs + ["modified_by", "modified_on"])
+                    contact.save(update_fields=updated_attrs + ["modified_by", "modified_on"], handle_update=False)
 
             # otherwise create new contact with all URNs
             else:
@@ -1272,7 +1284,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     org=org, name=name, language=language, is_test=is_test, created_by=user, modified_by=user
                 )
                 contact = Contact.objects.create(**kwargs)
-                updated_attrs = list(kwargs.keys())
+                updated_attrs = ["name", "language", "created_on"]
 
                 # add attribute which allows import process to track new vs existing
                 contact.is_new = True
@@ -1296,7 +1308,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             analytics.gauge("temba.contact_created")
 
         # handle group and campaign updates
-        contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
+        contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=contact.is_new)
         return contact
 
     @classmethod
@@ -1846,7 +1858,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         self.is_blocked = True
         self.modified_by = user
-        self.save(update_fields=("is_blocked", "modified_on", "modified_by"))
+        self.save(update_fields=("is_blocked", "modified_on", "modified_by"), handle_update=False)
 
     def unblock(self, user):
         """
@@ -1854,7 +1866,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         self.is_blocked = False
         self.modified_by = user
-        self.save(update_fields=("is_blocked", "modified_on", "modified_by"))
+        self.save(update_fields=("is_blocked", "modified_on", "modified_by"), handle_update=False)
 
         self.reevaluate_dynamic_groups()
 
@@ -1869,7 +1881,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         self.is_stopped = True
         self.modified_by = user
-        self.save(update_fields=["is_stopped", "modified_on", "modified_by"])
+        self.save(update_fields=["is_stopped", "modified_on", "modified_by"], handle_update=False)
 
         self.clear_all_groups(user)
 
@@ -1881,7 +1893,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         self.is_stopped = False
         self.modified_by = user
-        self.save(update_fields=["is_stopped", "modified_on", "modified_by"])
+        self.save(update_fields=["is_stopped", "modified_on", "modified_by"], handle_update=False)
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
@@ -1913,7 +1925,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.name = None
             self.fields = None
             self.modified_by = user
-            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"), handle_update=False)
 
         # kick off a task to remove all the things related to us
         if immediately:
@@ -1980,7 +1992,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Contact.bulk_cache_initialize(self.org, [self])
 
     @classmethod
-    def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
+    def bulk_cache_initialize(cls, org, contacts):
         """
         Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
         variable substitution.
@@ -1988,20 +2000,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not contacts:
             return
 
-        fields = org.cached_contact_fields.values()
-        if for_show_only:
-            fields = [f for f in fields if f.show_in_table]
-
         contact_map = dict()
         for contact in contacts:
             contact_map[contact.id] = contact
-            setattr(contact, "__urns", list())  # initialize URN list cache (setattr avoids name mangling or __urns)
+            # initialize URN list cache
+            setattr(contact, "_urns_cache", list())
 
         # cache all URN values (a priority ordered list on each contact)
         urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
         for urn in urns:
             contact = contact_map[urn.contact_id]
-            getattr(contact, "__urns").append(urn)
+            getattr(contact, "_urns_cache").append(urn)
 
         # set the cache initialize as correct
         for contact in contacts:
@@ -2101,14 +2110,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return self.urns.filter(scheme=scheme).order_by("-priority", "pk")
 
     def clear_urn_cache(self):
-        if hasattr(self, "__urns"):
-            delattr(self, "__urns")
+        if hasattr(self, "_urns_cache"):
+            delattr(self, "_urns_cache")
 
     def get_urns(self):
         """
         Gets all URNs ordered by priority
         """
-        cache_attr = "__urns"
+        cache_attr = "_urns_cache"
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
@@ -2190,7 +2199,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         urns_detached_qs.update(contact=None)
 
         self.modified_by = user
-        self.save(update_fields=("modified_on", "modified_by"))
+        self.save(update_fields=("modified_on", "modified_by"), handle_update=False)
 
         # trigger updates based all urns created or detached
         self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
@@ -2200,8 +2209,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
         # clear URN cache
-        if hasattr(self, "__urns"):
-            delattr(self, "__urns")
+        self.clear_urn_cache()
 
     def update_static_groups(self, user, groups):
         """
@@ -2219,7 +2227,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None):
+    def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
@@ -2235,8 +2243,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         user = get_anonymous_user()
 
         affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
-        if for_field:
-            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields=for_field)
+
+        # for URNs we evaluate all dynamic groups because we don't know which ones depend on urns
+        if not urns and for_fields:
+            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
 
         changed = False
 
@@ -2387,11 +2397,6 @@ class ContactURN(models.Model):
     CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
     IMPORT_HEADER_TO_SCHEME = {s[0].lower(): s[1] for s in IMPORT_HEADERS}
 
-    SCHEMES_SUPPORTING_FOLLOW = {
-        TWITTER_SCHEME,
-        TWITTERID_SCHEME,
-        JIOCHAT_SCHEME,
-    }  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers

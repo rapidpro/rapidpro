@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import OrderedDict
 from datetime import timedelta
@@ -37,7 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
@@ -277,7 +276,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context["object_list"])
-        Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
+        Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
@@ -1370,7 +1369,8 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields)
+            obj.save(update_fields=fields, handle_update=True)
+
             self.save_m2m()
 
             new_groups = self.form.cleaned_data.get("groups")

@@ -1,5 +1,3 @@
-import json
-
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from django.contrib import messages
@@ -11,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
+from temba.utils import json
 
 
 class BoundaryCRUDL(SmartCRUDL):

@@ -74,12 +74,12 @@ class VXMLResponse(object):
             result += 'termtimeout="' + str(kwargs.get("timeout")) + 's" '
             result += 'timeout="' + str(kwargs.get("timeout")) + 's" '
 
-        result += 'termchar="%s" ' % kwargs.get("finishOnKey", "#")
+        result += 'termchar="%s" ' % kwargs.get("finish_on_key", "#")
 
         result += 'src="builtin:dtmf/digits'
 
-        if kwargs.get("numDigits", False):
-            result += "?minlength=%s;maxlength=%s" % (kwargs.get("numDigits"), kwargs.get("numDigits"))
+        if kwargs.get("num_digits", False):
+            result += "?minlength=%s;maxlength=%s" % (kwargs.get("num_digits"), kwargs.get("num_digits"))
 
         result += '" />'
 
@@ -99,8 +99,8 @@ class VXMLResponse(object):
 
     def record(self, **kwargs):
         result = '<record name="UserRecording" beep="true" '
-        if kwargs.get("maxLength", False):
-            result += 'maxtime="' + str(kwargs.get("maxLength")) + 's" '
+        if kwargs.get("max_length", False):
+            result += 'maxtime="' + str(kwargs.get("max_length")) + 's" '
 
         result += 'finalsilence="4000ms" dtmfterm="true" type="audio/x-wav">'
 

@@ -1,8 +1,6 @@
 import hmac
-import json
 import time
 import uuid
-from collections import OrderedDict
 from datetime import timedelta
 from hashlib import sha1
 from urllib.parse import urlencode
@@ -23,7 +21,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import ActionLog, FlowRun
 from temba.orgs.models import Org
-from temba.utils import on_transaction_commit, prepped_request_to_str
+from temba.utils import json, on_transaction_commit, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
 from temba.utils.models import JSONAsTextField
@@ -326,7 +324,7 @@ class WebHookEvent(SmartModel):
 
             # process the webhook response
             try:
-                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+                response_json = json.loads(body)
 
                 # only update if we got a valid JSON dictionary or list
                 if not isinstance(response_json, dict) and not isinstance(response_json, list):
@@ -542,7 +540,7 @@ class WebHookEvent(SmartModel):
 
         # make the request
         try:
-            if not settings.SEND_WEBHOOKS:
+            if not settings.SEND_WEBHOOKS:  # pragma: no cover
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
             headers = http_headers(extra=self.org.get_webhook_headers())

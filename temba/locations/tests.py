@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import tempfile
@@ -9,6 +8,7 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from temba.tests import TembaTest
+from temba.utils import json
 
 from .models import AdminBoundary
 

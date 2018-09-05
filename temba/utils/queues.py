@@ -1,6 +1,5 @@
 
 import importlib
-import json
 import time
 from functools import wraps
 
@@ -11,7 +10,7 @@ from django.utils.encoding import force_text
 
 from celery import current_app, shared_task
 
-from temba.utils import dict_to_json
+from temba.utils import json
 
 LOW_PRIORITY = +10000000  # +10M ~ 110 days
 DEFAULT_PRIORITY = 0
@@ -38,7 +37,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
         org_id = org if isinstance(org, int) else org.id
-        pipe.zadd("%s:%d" % (task_name, org_id), score, dict_to_json(args))
+        pipe.zadd("%s:%d" % (task_name, org_id), score, json.dumps(args))
 
         # and make sure this key is in our list of queues so this job will get worked on
         pipe.zincrby("%s:active" % task_name, org_id, 0)

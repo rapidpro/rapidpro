@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import pytz
@@ -14,6 +13,7 @@ from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.tests import ESMockWithScroll, TembaTest, also_in_flowserver
+from temba.utils import json
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
@@ -84,7 +84,7 @@ class CampaignTest(TembaTest):
             dict(
                 name="Call Me Maybe",
                 org=self.org,
-                flow_type=Flow.MESSAGE,
+                is_system=True,
                 created_by=self.admin,
                 modified_by=self.admin,
                 saved_by=self.admin,
@@ -160,7 +160,7 @@ class CampaignTest(TembaTest):
 
         self.assertEqual(FlowRun.objects.count(), 0)
         self.assertEqual(FlowStart.objects.count(), 0)
-        self.assertEqual(Flow.objects.filter(flow_type=Flow.MESSAGE, is_active=True).count(), 0)
+        self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
 
     def test_trim_event_fires(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -304,7 +304,7 @@ class CampaignTest(TembaTest):
         # should have one event, which created a corresponding flow
         event = CampaignEvent.objects.get()
         flow = event.flow
-        self.assertEqual(Flow.MESSAGE, flow.flow_type)
+        self.assertTrue(flow.is_system)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg

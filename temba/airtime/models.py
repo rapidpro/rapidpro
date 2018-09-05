@@ -1,5 +1,4 @@
 import hashlib
-import json
 import time
 
 import requests
@@ -12,7 +11,7 @@ from django.utils.encoding import force_bytes
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.orgs.models import TRANSFERTO_ACCOUNT_CURRENCY, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, Org
-from temba.utils import get_country_code_by_name
+from temba.utils import get_country_code_by_name, json
 
 
 class AirtimeTransfer(SmartModel):

@@ -1,3 +1,61 @@
+v4.4.8
+----------
+ * Don't trial flow starts from triggers
+ * Fix messages from non-interactive subflows being added to their parent run
+ * Setup user tracking before creating an Org
+ * Migrate flows during flowserver trials with collapse_exits=false to keep paths exactly the same
+ * Input for a webhook result test should be a single request
+ * Migration to update F type flows to M
+
+v4.4.7
+----------
+ * Enforce validation on OrgSignup and OrgGrant forms
+ * Cleanup encoding of datetimes in JSON
+ * New flows should be created with type M and rename constants for clarity
+
+v4.4.6
+----------
+ * Fix updating dynamic groups on contact update from the UI
+ * Make editor agnostic to F/M flow types
+
+v4.4.5
+----------
+ * Remove mage functionality
+ * Fix Twilio number searching
+
+v4.4.2
+----------
+ * Use SystemContactFields for Dynamic Groups
+ * Add our own json module for loads, dumps, always preserve decimals and ordering
+ * Replace reads of Flow.flow_type=MESSAGE with Flow.is_system=True
+ * Migration to populate Flow.is_system based on flow_type
+
+v4.4.0
+----------
+ * Fix intercom ResourceNotFound on Org.Signup
+ * Remove follow triggers and channel events
+ * Add Flow.is_system and start populating for new campaign event single message flows
+
+v4.3.8
+----------
+ * Data migration to deactivate all old style Twitter channels
+ * Update Nexmo client
+
+v4.3.4
+----------
+ * Increase IVR logging verbosity
+ * Trial all campaign message flows in flowserver
+ * Tweak android recommendation
+
+v4.3.3
+----------
+ * Run Table should only exclude the referenced run, and include greater Ids
+ * Raise validation error ehen trying action inactive contacts over API
+ * Remove uservoice as a dependency
+ * Update versions of Celery, Postgis, Nexmo, Twilio
+ * Fix Python 3.7 issues
+ * Clear out archive org directory when full releasing orgs
+
 v4.3.2
 ----------
  * Update expressions library to get EPOCH() function

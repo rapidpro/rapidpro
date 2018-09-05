@@ -38,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, languages
+from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -906,8 +906,9 @@ class Org(SmartModel):
         )
 
         response = client.create_application(params=params)
-        app_id = response.get("id", None)
-        private_key = response.get("keys", dict()).get("private_key", None)
+        response_json = json.loads(response)
+        app_id = response_json.get("id", None)
+        private_key = response_json.get("keys", dict()).get("private_key", None)
 
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
@@ -1121,7 +1122,7 @@ class Org(SmartModel):
         """
         formats = get_datetime_format(self.get_dayfirst())
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, False, self.timezone)
+        return datetime_to_str(datetime, format, self.timezone)
 
     def parse_datetime(self, datetime_string):
         if isinstance(datetime_string, datetime):
@@ -1336,6 +1337,15 @@ class Org(SmartModel):
     def create_system_contact_fields(self):
         from temba.contacts.models import ContactField
 
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("ID"),
+            key="id",
+            value_type=Value.TYPE_NUMBER,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
         ContactField.system_fields.create(
             org_id=self.id,
             label=_("Created On"),
@@ -1972,15 +1982,13 @@ class Org(SmartModel):
         campaign_prefetches = (
             Prefetch(
                 "events",
-                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE),
+                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__is_system=True),
                 to_attr="flow_events",
             ),
             "flow_events__flow",
         )
 
-        all_flows = (
-            self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
-        )
+        all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
         all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:
