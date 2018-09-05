@@ -2300,7 +2300,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not urn:
             return ""
 
-        return urn.build_expressions_context()
+        return urn.build_expressions_context(org)
 
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
@@ -2533,8 +2533,7 @@ class ContactURN(models.Model):
 
         return existing
 
-    def build_expressions_context(self):
-        org = self.contact.org
+    def build_expressions_context(self, org):
         if org.is_anon:
             return {
                 "__default__": ContactURN.ANON_MASK,

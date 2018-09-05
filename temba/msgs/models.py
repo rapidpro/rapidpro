@@ -1413,7 +1413,7 @@ class Msg(models.Model):
         }
 
         if self.contact_urn:
-            context["urn"] = self.contact_urn.build_expressions_context()
+            context["urn"] = self.contact_urn.build_expressions_context(self.org)
 
         return context
 
