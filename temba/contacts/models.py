@@ -2300,12 +2300,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not urn:
             return ""
 
-        if org.is_anon:
-            return ContactURN.ANON_MASK
-
-        display = urn.get_display(org=org, formatted=True, international=False)
-
-        return {"__default__": display, "scheme": scheme, "path": urn.path, "display": display, "urn": urn.urn}
+        return urn.build_expressions_context(org)
 
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
@@ -2537,6 +2532,18 @@ class ContactURN(models.Model):
                 return twitterid_urn
 
         return existing
+
+    def build_expressions_context(self, org):
+        if org.is_anon:
+            return {
+                "__default__": ContactURN.ANON_MASK,
+                "scheme": self.scheme,
+                "path": ContactURN.ANON_MASK,
+                "display": ContactURN.ANON_MASK,
+                "urn": ContactURN.ANON_MASK,
+            }
+        display = self.get_display(org=org, formatted=True, international=False)
+        return {"__default__": display, "scheme": self.scheme, "path": self.path, "display": display, "urn": self.urn}
 
     def release(self):
         for event in ChannelEvent.objects.filter(contact_urn=self):

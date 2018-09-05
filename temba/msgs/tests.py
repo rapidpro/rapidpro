@@ -2666,6 +2666,8 @@ class BroadcastTest(TembaTest):
         self.assertEqual(context["value"], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
         self.assertEqual(context["text"], "")
         self.assertEqual(context["attachments"], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
+        self.assertEqual(context["urn"]["scheme"], "tel")
+        self.assertEqual(context["urn"]["path"], "123")
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, self.admin, "sector", "sector")
