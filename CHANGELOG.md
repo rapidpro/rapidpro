@@ -1,3 +1,7 @@
+v4.4.10
+----------
+ * Fix editor references to F flow types
+
 v4.4.9
 ----------
  * Ensure API v1 writes are atomic
