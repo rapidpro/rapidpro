@@ -2039,7 +2039,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # setup user tracking before creating Org in super().post_save
             analytics.identify(user, brand=self.request.branding["slug"], org=obj)
-            analytics.track(self.request.user.username, "temba.org_signup", dict(org=obj.name))
+            analytics.track(email=user.username, event_name="temba.org_signup", properties=dict(org=obj.name))
 
             obj = super().post_save(obj)
 
