@@ -445,7 +445,7 @@ class FlowTest(TembaTest):
             self.admin,
             Flow.get_unique_name(self.org, "Message Flow"),
             base_language="base",
-            flow_type=Flow.FLOW,
+            flow_type=Flow.TYPE_MESSAGE,
         )
         survey = Flow.create(
             self.org,
@@ -481,13 +481,13 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, msg.name)
 
         # only text flows
-        response = self.client.get("%s?_format=select2&flow_type=F" % reverse("flows.flow_list"))
+        response = self.client.get("%s?_format=select2&flow_type=M" % reverse("flows.flow_list"))
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)
         self.assertNotContains(response, ivr.name)
 
         # two at a time
-        response = self.client.get("%s?_format=select2&flow_type=V&flow_type=F" % reverse("flows.flow_list"))
+        response = self.client.get("%s?_format=select2&flow_type=V&flow_type=M" % reverse("flows.flow_list"))
         self.assertContains(response, ivr.name)
         self.assertContains(response, msg.name)
         self.assertNotContains(response, survey.name)

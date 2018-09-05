@@ -396,9 +396,6 @@ class FlowCRUDL(SmartCRUDL):
             analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
-            if not obj.flow_type:  # pragma: needs cover
-                obj.flow_type = Flow.FLOW
-
             # if we don't have a language, use base
             if not obj.base_language:  # pragma: needs cover
                 obj.base_language = "base"

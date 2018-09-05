@@ -320,7 +320,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(0, response.context["form"].fields["flow"].queryset.all().count())
 
         # back to normal flow type
-        flow.flow_type = Flow.FLOW
+        flow.flow_type = Flow.TYPE_MESSAGE
         flow.save()
         self.assertEqual(1, response.context["form"].fields["flow"].queryset.all().count())
 
