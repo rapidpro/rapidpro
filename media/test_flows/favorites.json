@@ -3,7 +3,7 @@
   "flows": [
     {
       "version": 7,
-      "flow_type": "F",
+      "flow_type": "M",
       "base_language": "base",
       "action_sets": [
         {
