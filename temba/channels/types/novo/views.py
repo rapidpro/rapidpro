@@ -12,13 +12,22 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class NVClaimForm(ClaimViewMixin.Form):
-        shortcode = forms.CharField(max_length=15, min_length=1, help_text=_("The Novo short code"))
+        shortcode = forms.CharField(
+            max_length=15, min_length=1, help_text=_("The Novo short code")
+        )
         merchant_id = forms.CharField(
-            max_length=30, min_length=1, label=_("Merchant ID"),
-            help_text=_("The merchant id to compose your Merchant URL provided by Novo")
+            max_length=30,
+            min_length=1,
+            label=_("Merchant ID"),
+            help_text=_(
+                "The merchant id to compose your Merchant URL provided by Novo"
+            ),
         )
         merchant_secret = forms.CharField(
-            max_length=30, min_length=1, label=_("Merchant Secret"), help_text=_("The merchant secret provided by Novo")
+            max_length=30,
+            min_length=1,
+            label=_("Merchant Secret"),
+            help_text=_("The merchant secret provided by Novo"),
         )
 
     form_class = NVClaimForm
@@ -39,7 +48,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org, user, "TT", "NV", name="Novo: %s" % data["shortcode"], address=data["shortcode"], config=config
+            org,
+            user,
+            "TT",
+            "NV",
+            name="Novo: %s" % data["shortcode"],
+            address=data["shortcode"],
+            config=config,
         )
 
         return super(ClaimView, self).form_valid(form)
