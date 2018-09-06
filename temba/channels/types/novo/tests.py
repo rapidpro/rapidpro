@@ -45,9 +45,7 @@ class NovoTypeTest(TembaTest):
 
         self.assertEqual("TT", channel.country)
         self.assertEqual("smsAPI_Merchant", channel.config[NovoType.CONFIG_MERCHANT_ID])
-        self.assertEqual(
-            "HmGWbdCFiJBj5bui", channel.config[NovoType.CONFIG_MERCHANT_SECRET]
-        )
+        self.assertEqual("HmGWbdCFiJBj5bui", channel.config[NovoType.CONFIG_MERCHANT_SECRET])
         self.assertEqual(post_data["shortcode"], channel.address)
         self.assertEqual("NV", channel.channel_type)
 
@@ -57,6 +55,4 @@ class NovoTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertContains(
-            response, reverse("courier.nv", args=[channel.uuid, "receive"])
-        )
+        self.assertContains(response, reverse("courier.nv", args=[channel.uuid, "receive"]))

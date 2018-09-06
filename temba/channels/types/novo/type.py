@@ -39,9 +39,7 @@ class NovoType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}",
-            description=_(
-                "To receive incoming messages, you need to set the receive URL for your Novo account."
-            ),
+            description=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
         ),
     )
 
