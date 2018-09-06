@@ -6029,6 +6029,7 @@ class ContactTest(TembaTest):
             self.assertEqual("********", context["tel"]["urn"])
             self.assertEqual("tel", context["tel"]["scheme"])
 
+            self.assertEqual(self.joe.id, context["__default__"])
             self.assertEqual(self.joe.id, context["id"])
 
     def test_urn_priority(self):
