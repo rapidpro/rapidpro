@@ -35,12 +35,6 @@ class NovoType(ChannelType):
 
     attachment_support = False
 
-    configuration_blurb = _(
-        """
-        To finish configuring your Novo connection you'll need to set the following callback URLs on your Novo account.
-        """
-    )
-
     configuration_urls = (
         dict(
             label=_("Receive URL"),
@@ -52,6 +46,3 @@ class NovoType(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["America/Port_of_Spain"]
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Novo messages is only possible via Courier")
