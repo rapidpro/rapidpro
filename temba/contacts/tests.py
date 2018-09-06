@@ -6029,8 +6029,14 @@ class ContactTest(TembaTest):
             self.assertEqual("********", context["tel"]["urn"])
             self.assertEqual("tel", context["tel"]["scheme"])
 
-            self.assertEqual(self.joe.id, context["__default__"])
+            self.assertEqual("Joe Blow", context["__default__"])
             self.assertEqual(self.joe.id, context["id"])
+
+            self.joe.name = ""
+            self.joe.save(update_fields=("name",), handle_update=False)
+            context = self.joe.build_expressions_context()
+
+            self.assertEqual(self.joe.id, context["__default__"])
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
