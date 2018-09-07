@@ -1,3 +1,9 @@
+v4.4.13
+----------
+ * Defer to mailroom for processing event fires for flows that are flowserver enabled
+ * Tweaks to comparing events during flow server trials
+ * Fix saved operand for group tests on anon orgs
+
 v4.4.12
 ----------
  * Add step URN editor completions
