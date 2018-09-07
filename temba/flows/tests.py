@@ -6215,6 +6215,9 @@ class FlowsTest(FlowFileTest):
                 {"uuid": matchers.UUID4String(), "node_uuid": str(rule_set2.uuid), "arrived_on": matchers.ISODate()},
             ],
         )
+
+        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
+
         self.assertEqual(
             run.events,
             [
@@ -6225,7 +6228,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg1.uuid),
                         "text": "What is your favorite color?",
-                        "urn": "tel:+12065552020",
+                        "urn": urn,
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6237,7 +6240,7 @@ class FlowsTest(FlowFileTest):
                         "uuid": str(msg2.uuid),
                         "text": "I like red",
                         "attachments": ["image/jpeg:http://example.com/test.jpg"],
-                        "urn": "tel:+12065552020",
+                        "urn": urn,
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6248,7 +6251,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": matchers.UUID4String(),
                         "text": "Good choice, I like Red too! What is your favorite beer?",
-                        "urn": "tel:+12065552020",
+                        "urn": urn,
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6383,6 +6386,7 @@ class FlowsTest(FlowFileTest):
 
         parent_run, child_run = FlowRun.objects.order_by("id")
         msg_out = Msg.objects.get(direction="O")
+        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
 
         self.assertEqual(
             parent_run.events,
@@ -6394,7 +6398,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg_in.uuid),
                         "text": "Start!",
-                        "urn": "tel:+12065552020",
+                        "urn": urn,
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 }
@@ -6411,7 +6415,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg_out.uuid),
                         "text": "Hi there Ben Haggerty",
-                        "urn": "tel:+12065552020",
+                        "urn": urn,
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 }
@@ -6453,6 +6457,7 @@ class FlowsTest(FlowFileTest):
 
         msg = Msg.objects.all().order_by("-id").first()
         run = FlowRun.objects.all().order_by("id").first()
+        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
 
         # if there is no urn, it still works, but is omitted
         empty_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
@@ -6466,7 +6471,7 @@ class FlowsTest(FlowFileTest):
         fallback_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
         empty_flow = self.get_flow("empty_payload")
         empty_flow.start([], [self.contact], restart_participants=True)
-        self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
+        self.assertEqual(urn, fallback_post.data["contact"]["urn"])
 
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(
