@@ -2024,7 +2024,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         org = self.org
         context = {
-            "__default__": self.get_display(),
+            "__default__": self.get_display(for_expressions=True),
             Contact.NAME: self.name or "",
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
@@ -2272,7 +2272,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for group in self.user_groups.all():
             group.remove_contacts(user, [self])
 
-    def get_display(self, org=None, formatted=True, short=False):
+    def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -2283,7 +2283,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if self.name:
             res = self.name
         elif org.is_anon:
-            res = self.anon_identifier
+            res = self.id if for_expressions else self.anon_identifier
         else:
             res = self.get_urn_display(org=org, formatted=formatted)
 
