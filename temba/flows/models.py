@@ -4789,7 +4789,7 @@ class RuleSet(models.Model):
 
             elif self.ruleset_type == RuleSet.TYPE_GROUP:
                 # this won't actually be used by the rules, but will end up in the results
-                operand = run.contact.get_display() or ""
+                operand = run.contact.get_display(for_expressions=True) or ""
 
             try:
                 rules = self.get_rules()
