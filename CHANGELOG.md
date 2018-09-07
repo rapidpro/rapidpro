@@ -1,3 +1,10 @@
+v4.4.12
+----------
+ * Add step URN editor completions
+ * Add name to the channels shown on the flow editor
+ * Don't zero pad anon ids in context
+ * Update to latest expressions
+
 v4.4.11
 ----------
  * Ensure API v1 writes are atomic
