@@ -26,7 +26,9 @@ def check_campaigns_task():
     """
     from temba.flows.models import Flow
 
-    unfired = EventFire.objects.filter(fired=None, scheduled__lte=timezone.now())
+    unfired = EventFire.objects.filter(
+        fired=None, scheduled__lte=timezone.now(), event__flow__flow_server_enabled=False
+    )
     unfired = unfired.values("id", "event__flow_id")
 
     # group fire events by flow so they can be batched
