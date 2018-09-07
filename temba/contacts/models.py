@@ -630,6 +630,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     CONTACT_UUID = "contact uuid"
     GROUPS = "groups"
     ID = "id"
+    CREATED_ON_TITLE = "created on"
 
     RESERVED_ATTRIBUTES = {
         ID,
@@ -641,6 +642,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         UUID,
         CONTACT_UUID,
         CREATED_ON,
+        CREATED_ON_TITLE,
         "created_by",
         "modified_by",
         "org",
@@ -649,7 +651,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         "tel_e164",
     }
 
-    SUPPORTED_IMPORT_ATTRIBUTE_HEADERS = {ID, NAME, LANGUAGE, UUID, CONTACT_UUID}
+    SUPPORTED_IMPORT_ATTRIBUTE_HEADERS = {ID, NAME, LANGUAGE, UUID, CONTACT_UUID, CREATED_ON_TITLE}
 
     # can't create custom contact fields with these keys
     RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
