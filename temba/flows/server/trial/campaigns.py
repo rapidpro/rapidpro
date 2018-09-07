@@ -108,7 +108,7 @@ def compare(session, actual_run):
     if len(session["runs"]) != 1:
         return {"problem": "Message flows should always produce a session with a single run"}
 
-    actual_events = actual_run.events
+    actual_events = actual_run.events or []
 
     new_engine_run = session["runs"][0]
     new_engine_events = new_engine_run.get("events", [])
