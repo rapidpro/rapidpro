@@ -6240,7 +6240,7 @@ class FlowsTest(FlowFileTest):
                         "uuid": str(msg2.uuid),
                         "text": "I like red",
                         "attachments": ["image/jpeg:http://example.com/test.jpg"],
-                        "urn": urn,
+                        "urn": "tel:+12065552020",
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6386,7 +6386,6 @@ class FlowsTest(FlowFileTest):
 
         parent_run, child_run = FlowRun.objects.order_by("id")
         msg_out = Msg.objects.get(direction="O")
-        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
 
         self.assertEqual(
             parent_run.events,
@@ -6398,7 +6397,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg_in.uuid),
                         "text": "Start!",
-                        "urn": urn,
+                        "urn": "tel:+12065552020",
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 }
@@ -6415,7 +6414,9 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg_out.uuid),
                         "text": "Hi there Ben Haggerty",
-                        "urn": urn,
+                        "urn": f"tel:+12065552020?channel={str(self.channel.uuid)}"
+                        if in_flowserver
+                        else "tel:+12065552020",
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 }
