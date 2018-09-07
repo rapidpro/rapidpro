@@ -4859,6 +4859,26 @@ class ContactTest(TembaTest):
             ),
         )
 
+        # import a spreadsheet where a contact has a missing phone number and another has an invalid urn
+        self.assertContactImport(
+            "%s/test_imports/sample_contacts_with_missing_and_invalid_urns.xls" % settings.MEDIA_ROOT,
+            dict(
+                records=1,
+                errors=2,
+                creates=0,
+                updates=1,
+                error_messages=[
+                    dict(
+                        line=3,
+                        error="Missing any valid URNs; at least one among URN:tel, "
+                        "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                    ),
+                    dict(line=4, error="Invalid URN: abcdef"),
+                ],
+            ),
+        )
+
         # import a spreadsheet with a name and a twitter columns only
         self.assertContactImport(
             "%s/test_imports/sample_contacts_twitter.xls" % settings.MEDIA_ROOT,

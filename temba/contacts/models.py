@@ -1403,9 +1403,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
-                    error_msg = "Invalid Phone number %s" % value
+                    error_msg = f"Invalid Phone number {value}"
                     if not country:
-                        error_msg = "Invalid Phone number or no country code specified for %s" % value
+                        error_msg = f"Invalid Phone number or no country code specified for {value}"
 
                     raise SmartImportRowError(error_msg)
 
@@ -1413,7 +1413,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
 
-            urn = URN.from_parts(urn_scheme, value)
+            urn = URN.normalize(URN.from_parts(urn_scheme, value), country)
+            if not URN.validate(urn):
+                raise SmartImportRowError(f"Invalid URN: {value}")
+
             search_contact = Contact.from_urn(org, urn, country)
 
             # if this is an anonymous org, don't allow updating
@@ -1424,11 +1427,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             urn_headers = ", ".join(possible_urn_headers)
-            error_str = "Missing any valid URNs; at least one among %s should be provided or a Contact UUID" % (
-                urn_headers,
+            raise SmartImportRowError(
+                f"Missing any valid URNs; at least one among {urn_headers} should be provided or a Contact UUID"
             )
-
-            raise SmartImportRowError(error_str)
 
         # title case our name
         name = field_dict.get(Contact.NAME, None)
@@ -1439,13 +1440,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if language is not None and len(language) != 3:
             language = None
         if language is not None and _get_language_name_iso6393(language) is None:
-            raise SmartImportRowError("Language: '%s' is not a valid ISO639-3 code" % (language,))
+            raise SmartImportRowError(f"Language: '{language}' is not a valid ISO639-3 code")
 
         # if this is just a UUID import, look up the contact directly
         if uuid and not urns and not language and not name:
             contact = Contact.objects.filter(uuid=uuid).first()
             if not contact:
-                raise SmartImportRowError("No contact found with uuid: %s" % uuid)
+                raise SmartImportRowError(f"No contact found with uuid: {uuid}")
 
         else:
             # create new contact or fetch existing one
