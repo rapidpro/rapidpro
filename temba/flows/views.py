@@ -1631,7 +1631,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # all the channels available for our org
             channels = [
-                dict(uuid=chan.uuid, name="%s: %s" % (chan.get_channel_type_display(), chan.get_address_display()))
+                dict(uuid=chan.uuid, name=f"{chan.get_channel_type_display()}: {chan.name}")
                 for chan in flow.org.channels.filter(is_active=True)
             ]
             return JsonResponse(
