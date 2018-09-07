@@ -7091,6 +7091,10 @@ class FlowsTest(FlowFileTest):
         assert_in_response(response, "message_completions", "flow.color.text")
         assert_in_response(response, "message_completions", "flow.color.time")
 
+        assert_in_response(response, "message_completions", "step")
+        assert_in_response(response, "message_completions", "step.urn")
+        assert_in_response(response, "message_completions", "step.urn.scheme")
+
         assert_in_response(response, "function_completions", "SUM")
         assert_in_response(response, "function_completions", "ABS")
         assert_in_response(response, "function_completions", "YEAR")
