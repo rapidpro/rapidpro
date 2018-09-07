@@ -910,6 +910,11 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name="channel.tel", display=str(_("Sent to"))),
                 dict(name="channel.tel_e164", display=str(_("Sent to"))),
                 dict(name="step", display=str(_("Sent to"))),
+                dict(name="step.urn", display=str(_("Sent to"))),
+                dict(name="step.urn.display", display=str(_("Sent to URN display"))),
+                dict(name="step.urn.path", display=str(_("Sent to URN path"))),
+                dict(name="step.urn.scheme", display=str(_("Sent to URN type"))),
+                dict(name="step.urn.urn", display=str(_("Sent to URN"))),
                 dict(name="step.value", display=str(_("Sent to"))),
             ]
 
