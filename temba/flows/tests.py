@@ -6216,8 +6216,6 @@ class FlowsTest(FlowFileTest):
             ],
         )
 
-        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
-
         self.assertEqual(
             run.events,
             [
@@ -6228,7 +6226,7 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": str(msg1.uuid),
                         "text": "What is your favorite color?",
-                        "urn": urn,
+                        "urn": "tel:+12065552020",
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6251,7 +6249,9 @@ class FlowsTest(FlowFileTest):
                     "msg": {
                         "uuid": matchers.UUID4String(),
                         "text": "Good choice, I like Red too! What is your favorite beer?",
-                        "urn": urn,
+                        "urn": f"tel:+12065552020?channel={str(self.channel.uuid)}"
+                        if in_flowserver
+                        else "tel:+12065552020",
                         "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     },
                 },
@@ -6458,7 +6458,6 @@ class FlowsTest(FlowFileTest):
 
         msg = Msg.objects.all().order_by("-id").first()
         run = FlowRun.objects.all().order_by("id").first()
-        urn = f"tel:+12065552020?channel={str(self.channel.uuid)}" if in_flowserver else "tel:+12065552020"
 
         # if there is no urn, it still works, but is omitted
         empty_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
@@ -6472,7 +6471,7 @@ class FlowsTest(FlowFileTest):
         fallback_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
         empty_flow = self.get_flow("empty_payload")
         empty_flow.start([], [self.contact], restart_participants=True)
-        self.assertEqual(urn, fallback_post.data["contact"]["urn"])
+        self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
 
         def assert_payload(payload, path_length, result_count, results):
             self.assertEqual(
@@ -11538,6 +11537,7 @@ class AssetServerTest(TembaTest):
                         "uuid": str(self.channel.uuid),
                         "roles": ["send", "receive"],
                         "address": "+250785551212",
+                        "country": "RW",
                     }
                 ]
             },
@@ -11555,6 +11555,7 @@ class AssetServerTest(TembaTest):
                         "address": "+250785551212",
                         "schemes": ["tel"],
                         "roles": ["send", "receive"],
+                        "country": "RW",
                     },
                     {
                         "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",

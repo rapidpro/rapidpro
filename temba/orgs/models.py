@@ -532,14 +532,13 @@ class Org(SmartModel):
         from temba.contacts.models import ContactURN
 
         if contact_urn:
-            if contact_urn:
-                scheme = contact_urn.scheme
+            scheme = contact_urn.scheme
 
-                # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active:
-                    previous_sender = self.get_channel_delegate(contact_urn.channel, role)
-                    if previous_sender:
-                        return previous_sender
+            # if URN has a previously used channel that is still active, use that
+            if contact_urn.channel and contact_urn.channel.is_active:
+                previous_sender = self.get_channel_delegate(contact_urn.channel, role)
+                if previous_sender:
+                    return previous_sender
 
             if scheme == TEL_SCHEME:
                 path = contact_urn.path

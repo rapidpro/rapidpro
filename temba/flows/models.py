@@ -285,7 +285,7 @@ class FlowSession(models.Model):
             request.add_wait_timed_out()
 
         # TODO determine if contact or environment has changed
-        # request = request.add_contact_changed(self.contact)
+        request = request.add_contact_changed(self.contact)
         # request = request.add_environment_changed()
 
         try:
