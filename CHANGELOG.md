@@ -1,3 +1,7 @@
+v4.4.14
+----------
+ * Enable import of GADM data using import_geojson
+
 v4.4.13
 ----------
  * Defer to mailroom for processing event fires for flows that are flowserver enabled
