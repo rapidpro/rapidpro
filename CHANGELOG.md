@@ -1,3 +1,7 @@
+v4.4.16
+----------
+ * Fix IVR simulation
+
 v4.4.15
 ----------
  * Fix importing with Created On columns
