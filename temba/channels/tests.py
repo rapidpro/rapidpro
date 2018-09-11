@@ -3555,6 +3555,20 @@ class FacebookTest(TembaTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"ad_id": "6798564483757", "source": "ADS", "type": "OPEN_THREAD"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the flow was not started
+        self.assertEqual(0, favorites.runs.all().count())
+
         Trigger.objects.create(
             org=self.org,
             trigger_type=Trigger.TYPE_REFERRAL,
