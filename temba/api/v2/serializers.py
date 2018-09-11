@@ -517,11 +517,12 @@ class ContactWriteSerializer(WriteSerializer):
                 self.instance.language = language
                 changed.append("language")
 
+            if changed:
+                self.instance.save(update_fields=changed, handle_update=True)
+
             if "urns" in self.validated_data and urns is not None:
                 self.instance.update_urns(self.context["user"], urns)
 
-            if changed:
-                self.instance.save(update_fields=changed, handle_update=True)
         else:
             self.instance = Contact.get_or_create_by_urns(
                 self.context["org"], self.context["user"], name, urns=urns, language=language
@@ -529,8 +530,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our fields
         if custom_fields is not None:
-            for key, value in custom_fields.items():
-                self.instance.set_field(self.context["user"], key, value)
+            self.instance.set_fields(user=self.context["user"], fields=custom_fields)
 
         # update our groups
         if groups is not None:

@@ -920,85 +920,87 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return str(value)
 
-    def set_field(self, user, key, value, label=None, importing=False):
+    def serialize_field(self, field, value):
+        # parse as all value data types
+        str_value = str(value)[: Value.MAX_VALUE_LEN]
+        dt_value = self.org.parse_datetime(value)
+        num_value = self.org.parse_number(value)
+        loc_value = None
+
+        # for locations, if it has a '>' then it is explicit, look it up that way
+        if AdminBoundary.PATH_SEPARATOR in str_value:
+            loc_value = self.org.parse_location_path(str_value)
+
+        # otherwise, try to parse it as a name at the appropriate level
+        else:
+            if field.value_type == Value.TYPE_WARD:
+                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                district_value = self.get_field_value(district_field)
+                if district_value:
+                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
+
+            elif field.value_type == Value.TYPE_DISTRICT:
+                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
+                if state_field:
+                    state_value = self.get_field_value(state_field)
+                    if state_value:
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
+
+            elif field.value_type == Value.TYPE_STATE:
+                loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+
+            if loc_value is not None and len(loc_value) > 0:
+                loc_value = loc_value[0]
+            else:
+                loc_value = None
+
+        # all fields have a text value
+        field_dict = {ContactField.TEXT_KEY: str_value}
+
+        # set all the other fields that have a non-zero value
+        if dt_value is not None:
+            field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
+
+        if num_value is not None:
+            field_dict[ContactField.NUMBER_KEY] = format_number(num_value)
+
+        if loc_value:
+            if loc_value.level == AdminBoundary.LEVEL_STATE:
+                field_dict[ContactField.STATE_KEY] = loc_value.path
+            elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+                field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+            elif loc_value.level == AdminBoundary.LEVEL_WARD:
+                field_dict[ContactField.WARD_KEY] = loc_value.path
+                field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(
+                    field_dict[ContactField.DISTRICT_KEY]
+                )
+
+        return field_dict
+
+    def set_field(self, user, key, value, label=None):
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
 
         has_changed = False
+
+        field_uuid = str(field.uuid)
+        if self.fields is None:
+            self.fields = {}
 
         # parse into the appropriate value types
         if value is None or value == "":
             # setting a blank value is equivalent to removing the value
             value = None
 
-        else:
-            # parse as all value data types
-            str_value = str(value)[: Value.MAX_VALUE_LEN]
-            dt_value = self.org.parse_datetime(value)
-            num_value = self.org.parse_number(value)
-            loc_value = None
-
-            # for locations, if it has a '>' then it is explicit, look it up that way
-            if AdminBoundary.PATH_SEPARATOR in str_value:
-                loc_value = self.org.parse_location_path(str_value)
-
-            # otherwise, try to parse it as a name at the appropriate level
-            else:
-                if field.value_type == Value.TYPE_WARD:
-                    district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                    district_value = self.get_field_value(district_field)
-                    if district_value:
-                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
-
-                elif field.value_type == Value.TYPE_DISTRICT:
-                    state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
-                    if state_field:
-                        state_value = self.get_field_value(state_field)
-                        if state_value:
-                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
-
-                elif field.value_type == Value.TYPE_STATE:
-                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
-
-                if loc_value is not None and len(loc_value) > 0:
-                    loc_value = loc_value[0]
-                else:
-                    loc_value = None
-
-        field_uuid = str(field.uuid)
-        if self.fields is None:
-            self.fields = {}
-
-        # value being cleared, remove our key
-        if value is None:
+            # value being cleared, remove our key
             if field_uuid in self.fields:
                 del self.fields[field_uuid]
                 has_changed = True
 
-        # otherwise, update our field in our fields dict
         else:
-            # all fields have a text value
-            field_dict = {ContactField.TEXT_KEY: str_value}
-
-            # set all the other fields that have a non-zero value
-            if dt_value is not None:
-                field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
-
-            if num_value is not None:
-                field_dict[ContactField.NUMBER_KEY] = format_number(num_value)
-
-            if loc_value:
-                if loc_value.level == AdminBoundary.LEVEL_STATE:
-                    field_dict[ContactField.STATE_KEY] = loc_value.path
-                elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
-                    field_dict[ContactField.DISTRICT_KEY] = loc_value.path
-                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
-                elif loc_value.level == AdminBoundary.LEVEL_WARD:
-                    field_dict[ContactField.WARD_KEY] = loc_value.path
-                    field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
-                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(
-                        field_dict[ContactField.DISTRICT_KEY]
-                    )
+            field_dict = self.serialize_field(field, value)
 
             # update our field if it is different
             if self.fields.get(field_uuid) != field_dict:
@@ -1033,9 +1035,74 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                         )
                     )
 
-        # update any groups or campaigns for this contact if not importing
-        if has_changed and not importing:
+        # update any groups or campaigns for this contact
+        if has_changed:
             self.handle_update(fields=[field.key])
+
+    def set_fields(self, user, fields):
+        if self.fields is None:
+            self.fields = {}
+
+        fields_for_delete = set()
+        fields_for_update = set()
+        changed_field_keys = set()
+        all_fields = {}
+
+        for key, value in fields.items():
+            field = ContactField.get_or_create(self.org, user, key)
+
+            field_uuid = str(field.uuid)
+
+            # parse into the appropriate value types
+            if value is None or value == "":
+                # value being cleared, remove our key
+                if field_uuid in self.fields:
+                    fields_for_delete.add(field_uuid)
+
+                    changed_field_keys.add(key)
+
+            else:
+                field_dict = self.serialize_field(field, value)
+
+                # update our field if it is different
+                if self.fields.get(field_uuid) != field_dict:
+                    fields_for_update.add(field_uuid)
+                    all_fields.update({field_uuid: field_dict})
+
+                    changed_field_keys.add(key)
+
+        modified_by_id = user.id
+        modified_on = timezone.now()
+
+        # if there was a change, update our JSONB on our contact
+        if fields_for_delete:
+            with connection.cursor() as cursor:
+                # prepare expression for multiple field delete
+                remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
+                cursor.execute(
+                    f"UPDATE contacts_contact SET fields = fields - {remove_fields}, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                    [*fields_for_delete, modified_by_id, modified_on, self.id],
+                )
+
+        if fields_for_update:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                    [json.dumps(all_fields), modified_by_id, modified_on, self.id],
+                )
+
+        # update local contact cache
+        self.fields.update(all_fields)
+
+        # remove deleted fields
+        for field_uuid in fields_for_delete:
+            self.fields.pop(field_uuid, None)
+
+        self.modified_by_id = modified_by_id
+        self.modified_on = modified_on
+
+        if changed_field_keys:
+            self.handle_update(fields=list(fields.keys()))
 
     def handle_update(self, urns=(), fields=None, group=None, is_new=False):
         """
@@ -1054,28 +1121,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.campaigns.models import EventFire
 
         if fields:
-            EventFire.update_events_for_contact_field(contact=self, keys=fields, is_new=is_new)
+            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
 
         if group or dynamic_group_change:
             # delete any cached groups
             if hasattr(self, "_user_groups"):
                 delattr(self, "_user_groups")
 
-            # ensure our campaigns are up to date
-            EventFire.update_events_for_contact(self)
-
-    def handle_update_contact(self, field_keys):
-        """
-        Used for imports to minimize the time for imports
-        """
-        from temba.campaigns.models import EventFire
-
-        dynamic_group_change = self.reevaluate_dynamic_groups(for_fields=field_keys)
-
-        # ensure our campaigns are up to date for every field
-        EventFire.update_events_for_contact_field(contact=self, keys=field_keys)
-
-        if dynamic_group_change:
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
@@ -1458,15 +1510,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if contact.is_blocked:
             contact.unblock(user)
 
-        contact_field_keys_updated = set()
-        for key in field_dict.keys():
-            # ignore any reserved fields or URN schemes
-            if key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
-                continue
+        # ignore any reserved fields or URN schemes
+        valid_keys = (
+            key
+            for key in field_dict.keys()
+            if not (key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS or key.startswith("urn:"))
+        )
 
-            if key.startswith("urn:"):
-                continue
-
+        valid_field_dict = {}
+        for key in valid_keys:
             value = field_dict[key]
 
             # date values need converted to localized strings
@@ -1474,14 +1526,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # make naive datetime timezone-aware, ignoring date
                 if getattr(value, "tzinfo", "ignore") is None:
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
+
                 value = org.format_datetime(value, True)
 
-            contact.set_field(user, key, value, importing=True)
-            contact_field_keys_updated.add(key)
+            valid_field_dict.update({key: value})
 
-        # to handle dynamic groups and campaign events updates
-        if contact_field_keys_updated:
-            contact.handle_update_contact(field_keys=contact_field_keys_updated)
+        contact.set_fields(user, valid_field_dict)
 
         return contact
 
