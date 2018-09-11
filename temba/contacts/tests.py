@@ -6554,6 +6554,18 @@ class ContactFieldTest(TembaTest):
             workbook = load_workbook(filename=filename)
             return workbook.worksheets
 
+        def assertImportExportedFile(query=""):
+            # test an export can be imported back
+            self.client.post(reverse("contacts.contact_export") + query, dict(group_memberships=(group.pk,)))
+            task = ExportContactsTask.objects.all().order_by("-id").first()
+            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+
+            csv_file = open(filename, "rb")
+            post_data = dict(csv_file=csv_file)
+            response = self.client.post(reverse("contacts.contact_import"), post_data, follow=True)
+
+            self.assertIsNotNone(response.context["task"])
+
         # no group specified, so will default to 'All Contacts'
         with self.assertNumQueries(47):
             export = request_export()
@@ -6602,6 +6614,8 @@ class ContactFieldTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
+
+        assertImportExportedFile()
 
         # change the order of the fields
         self.contactfield_2.priority = 15
@@ -6656,6 +6670,7 @@ class ContactFieldTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
+        assertImportExportedFile()
 
         # more contacts do not increase the queries
         contact3 = self.create_contact("Luol Deng", "+12078776655", twitter="deng")
@@ -6745,6 +6760,7 @@ class ContactFieldTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
+        assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(48):
@@ -6796,6 +6812,8 @@ class ContactFieldTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
+
+        assertImportExportedFile("?g=%s" % group.uuid)
 
         # export a search
         mock_es_data = [
@@ -6853,6 +6871,8 @@ class ContactFieldTest(TembaTest):
                     tz=self.org.timezone,
                 )
 
+            assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
+
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
@@ -6892,6 +6912,8 @@ class ContactFieldTest(TembaTest):
                     tz=self.org.timezone,
                 )
 
+            assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
+
         # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.assertExcelSheet(
@@ -6923,6 +6945,7 @@ class ContactFieldTest(TembaTest):
                 ],
                 tz=self.org.timezone,
             )
+            assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
         ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=Value.TYPE_WARD)
