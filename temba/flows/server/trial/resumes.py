@@ -57,7 +57,7 @@ def is_flow_simple(flow):
             return False
     for action_set in flow.action_sets.all():
         for action in action_set.actions:
-            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction, WebhookAction.TYPE):
+            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction, WebhookAction.TYPE):  # pragma: no cover
                 return False
 
     return True
