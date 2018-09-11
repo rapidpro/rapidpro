@@ -38,7 +38,7 @@ class Command(BaseCommand):
         repo = options["repo"]
         oauth_token = options["oauth_token"]
 
-        if oauth_token:
+        if oauth_token:  # pragma: needs cover
             headers = {"Authorization": "token %s" % (oauth_token,)}
         else:
             headers = {}
