@@ -26,6 +26,10 @@ class ResumeTest(TembaTest):
         self.assertFalse(resumes.is_flow_suitable(self.get_flow("airtime")))  # airtime rulesets
         self.assertFalse(resumes.is_flow_suitable(self.get_flow("call_me_maybe")))  # IVR
 
+    def test_is_flow_simple(self):
+        self.assertTrue(resumes.is_flow_simple(self.get_flow("favorites")))
+        self.assertFalse(resumes.is_flow_simple(self.get_flow("action_packed")))
+
     @skip_if_no_flowserver
     @override_settings(FLOW_SERVER_TRIAL="on")
     @patch("temba.flows.server.trial.resumes.report_failure")

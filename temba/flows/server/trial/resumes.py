@@ -49,7 +49,7 @@ def is_flow_suitable(flow):
     return True
 
 
-def is_simple_flow(flow):
+def is_flow_simple(flow):
     from temba.flows.models import RuleSet, StartFlowAction, TriggerFlowAction, WebhookAction
 
     for rule_set in flow.rule_sets.all():
@@ -83,7 +83,7 @@ def maybe_start(run):
         pass
 
     try:
-        is_simple = is_simple_flow(run.flow)
+        is_simple = is_flow_simple(run.flow)
 
         logger.info(f"Starting flowserver trial resume for run {str(run.uuid)} in flow '{run.flow.name}'")
         return Trial(run, is_simple)
