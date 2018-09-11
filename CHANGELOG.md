@@ -1,3 +1,10 @@
+v4.4.15
+----------
+ * Fix importing with Created On columns
+ * Validate URNs during import
+ * Classify flow server trials as simple if they don't have subflows etc
+ * Use latest goflow for testing
+
 v4.4.14
 ----------
  * Enable import of GADM data using import_geojson
