@@ -24,9 +24,10 @@ class Trial:
     A trial of resuming a run in the flowserver
     """
 
-    def __init__(self, run):
+    def __init__(self, run, is_simple):
         self.started_on = timezone.now()
         self.run = run
+        self.is_simple = is_simple
         self.session_before = reconstruct_session(run)
         self.session_after = None
         self.differences = None
@@ -44,6 +45,20 @@ def is_flow_suitable(flow):
     for rule_set in flow.rule_sets.all():
         if rule_set.ruleset_type == RuleSet.TYPE_AIRTIME:
             return False
+
+    return True
+
+
+def is_flow_simple(flow):
+    from temba.flows.models import RuleSet, StartFlowAction, TriggerFlowAction, WebhookAction
+
+    for rule_set in flow.rule_sets.all():
+        if rule_set.ruleset_type in (RuleSet.TYPE_SUBFLOW, RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
+            return False
+    for action_set in flow.action_sets.all():
+        for action in action_set.actions:
+            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction, WebhookAction.TYPE):
+                return False
 
     return True
 
@@ -68,8 +83,10 @@ def maybe_start(run):
         pass
 
     try:
+        is_simple = is_flow_simple(run.flow)
+
         logger.info(f"Starting flowserver trial resume for run {str(run.uuid)} in flow '{run.flow.name}'")
-        return Trial(run)
+        return Trial(run, is_simple)
 
     except Exception as e:
         logger.error(f"Unable to reconstruct session for run {str(run.uuid)}: {str(e)}", exc_info=True)
@@ -103,7 +120,7 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    logger.info(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
+    logger.info(f"Trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
 
     analytics.gauge("temba.flowserver_trial.resume_pass")
 
@@ -113,7 +130,7 @@ def report_failure(trial):  # pragma: no cover
     Reports a trial failure to sentry
     """
     logger.error(
-        "trial resume in flowserver produced different output",
+        f"Trial resume (simple={'yes' if trial.is_simple else 'no'}) in flowserver produced different output",
         extra={
             "org": trial.run.org.name,
             "flow": {"uuid": str(trial.run.flow.uuid), "name": trial.run.flow.name},
@@ -122,7 +139,10 @@ def report_failure(trial):  # pragma: no cover
         },
     )
 
-    analytics.gauge("temba.flowserver_trial.resume_fail")
+    if trial.is_simple:
+        analytics.gauge("temba.flowserver_trial.resume_simple_fail")
+    else:
+        analytics.gauge("temba.flowserver_trial.resume_fail")
 
 
 def resume(trial, msg_in=None, expired_child_run=None):

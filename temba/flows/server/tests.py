@@ -39,6 +39,7 @@ class AssetsTest(TembaTest):
                 "content": [
                     {
                         "address": "+250785551212",
+                        "country": "RW",
                         "name": "Test Channel",
                         "roles": ["send", "receive"],
                         "schemes": ["tel"],
@@ -63,6 +64,7 @@ class AssetsTest(TembaTest):
                 ),
                 "content": {
                     "address": "+250785551212",
+                    "country": "RW",
                     "name": "Test Channel",
                     "roles": ["send", "receive"],
                     "schemes": ["tel"],
@@ -85,6 +87,30 @@ class SerializationTest(TembaTest):
         self.assertEqual(serialize_label(spam), {"uuid": str(spam.uuid), "name": "Spam"})
 
     def test_serialize_channel(self):
+        nexmo = Channel.create(
+            self.org,
+            self.admin,
+            country="",
+            channel_type="NX",
+            name="Bulk",
+            address="1234",
+            parent=self.channel,
+            config={Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ["25078"]},
+        )
+
+        self.assertEqual(
+            serialize_channel(nexmo),
+            {
+                "uuid": str(nexmo.uuid),
+                "name": "Bulk",
+                "address": "1234",
+                "roles": ["send", "receive"],
+                "schemes": ["tel"],
+                "match_prefixes": ["25078"],
+                "parent": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+            },
+        )
+
         self.assertEqual(
             serialize_channel(self.channel),
             {
@@ -93,6 +119,7 @@ class SerializationTest(TembaTest):
                 "address": "+250785551212",
                 "roles": ["send", "receive"],
                 "schemes": ["tel"],
+                "country": "RW",
             },
         )
 
@@ -130,10 +157,7 @@ class ClientTest(TembaTest):
                             "id": self.contact.id,
                             "name": "Bob",
                             "language": None,
-                            "urns": [
-                                "twitterid:123456785?channel=%s#bobby" % str(twitter.uuid),
-                                "tel:+12345670987?channel=%s" % str(self.channel.uuid),
-                            ],
+                            "urns": ["twitterid:123456785?channel=%s#bobby" % str(twitter.uuid), "tel:+12345670987"],
                             "fields": {"gender": {"text": "M"}, "age": {"text": "36", "number": "36"}},
                             "groups": [{"uuid": str(self.testers.uuid), "name": "Testers"}],
                         },
