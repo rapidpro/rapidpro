@@ -2811,6 +2811,9 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertIn("name", response.context["form"].fields)
 
+        # make sure that we don't embed refresh script if View.refresh is not set
+        self.assertNotContains(response, "function refresh")
+
         # submit with missing fields
         response = self.client.post(signup_url, {})
         self.assertFormError(response, "form", "name", "This field is required.")

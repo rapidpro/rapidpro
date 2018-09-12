@@ -668,6 +668,9 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(63):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
+        # make sure that we embed refresh script if View.refresh is set
+        self.assertContains(response, "function refresh")
+
         self.assertEqual(response.context["refresh"], 20000)
         self.assertEqual(response.context["object_list"].count(), 5)
         self.assertEqual(response.context["folders"][0]["url"], "/msg/inbox/")
