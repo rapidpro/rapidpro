@@ -340,7 +340,7 @@ class Trigger(SmartModel):
             # if we catch more than one trigger with a referrer_id, ignore the catchall
             if len(triggers) > 1:
                 triggers = triggers.exclude(referrer_id="")
-        else:
+        elif trigger_type == Trigger.TYPE_REFERRAL:
             triggers = triggers.filter(referrer_id="")
 
         # is there a match for a group specific trigger?
