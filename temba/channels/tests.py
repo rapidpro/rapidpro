@@ -3605,6 +3605,20 @@ class FacebookTest(TembaTest):
             channel=self.channel,
             contact=self.contact,
             event_type=ChannelEvent.TYPE_REFERRAL,
+            extra={"ad_id": "6798564483757", "source": "ADS", "type": "OPEN_THREAD"},
+            occurred_on=timezone.now(),
+        )
+        event.handle()
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path="1122")
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.order_by("id").last().text)
+
+        event = ChannelEvent.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=self.contact,
+            event_type=ChannelEvent.TYPE_REFERRAL,
             extra={"referrer_id": "not_handled", "source": "SHORTLINK", "type": "OPEN_THREAD"},
             occurred_on=timezone.now(),
         )
