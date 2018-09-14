@@ -1,3 +1,10 @@
+v4.4.17
+----------
+ * Don't do duplicate message check for surveyor messages which are already SENT
+ * Update to goflow 0.15.1
+ * Update Location URLs to work with GADM IDs
+ * Fix potential XSS issue: embed script only if `View.refresh` is set
+
 v4.4.16
 ----------
  * Fix IVR simulation
