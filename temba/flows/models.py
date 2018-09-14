@@ -4417,7 +4417,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         }
 
         if raw_input is not None:
-            results[key][FlowRun.RESULT_INPUT] = raw_input
+            results[key][FlowRun.RESULT_INPUT] = str(raw_input)
 
         # if we have a different localized name for our category, save it as well
         if category != category_localized:

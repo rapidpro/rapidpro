@@ -2089,7 +2089,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # anonymous orgs also get @contact.id
         if org.is_anon:
-            context["id"] = self.id
+            context["id"] = str(self.id)
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
