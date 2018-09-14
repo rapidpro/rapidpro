@@ -1720,7 +1720,7 @@ class Msg(models.Model):
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
-        if insert_object:
+        if insert_object and status != SENT:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(
