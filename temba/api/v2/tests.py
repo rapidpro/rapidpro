@@ -235,6 +235,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18001234567)  # non-string
 
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
