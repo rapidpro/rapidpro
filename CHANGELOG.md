@@ -1,3 +1,7 @@
+v4.4.19
+----------
+ * Fix validating URNField when input isn't a string
+
 v4.4.18
 ----------
  * Fix incorrect units in wehbook_stats
