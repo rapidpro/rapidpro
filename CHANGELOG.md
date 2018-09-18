@@ -1,3 +1,8 @@
+v4.4.18
+----------
+ * Fix incorrect units in wehbook_stats
+ * Result input should always be a string
+
 v4.4.17
 ----------
  * Don't do duplicate message check for surveyor messages which are already SENT
