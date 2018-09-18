@@ -108,7 +108,7 @@ class URNField(serializers.CharField):
             return str(obj)
 
     def to_internal_value(self, data):
-        return validate_urn(data)
+        return validate_urn(str(data))
 
 
 class URNListField(LimitedListField):
