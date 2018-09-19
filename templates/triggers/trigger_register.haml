@@ -1,5 +1,5 @@
 -extends 'smartmin/form.html'
--load i18n
+-load i18n temba
 
 -block extra-style
   {{block.super}}
@@ -16,7 +16,7 @@
     $(document).ready(function() {
       select2div("#id_register_action_join_group", "520px", '{% trans "Group to join" %}', '{% trans "Add Group: " %}');
       select2div("#id_register_flow", "520px", '{% trans "Flow to start" %}');
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_register_response'));
+      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_register_response'));
     });
 
 -block summary

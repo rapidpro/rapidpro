@@ -1,5 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin sms contacts
+-load smartmin sms contacts temba
 -load i18n humanize
 
 -block page-title
@@ -458,7 +458,7 @@
       var modal = new Modax('{% trans "Save Search as Group" %}', '{% url "contacts.contactgroup_create"%}');
       modal.setIcon('icon-users');
       modal.setListeners({
-        onFormLoaded: function() { $("#active-modal form input#id_group_query").val('{{ search|escapejs }}'); }
+        onFormLoaded: function() { $("#active-modal form input#id_group_query").val('{{ search|to_json }}'); }
       });
       modal.setRedirectOnSuccess(true);
       modal.show();
