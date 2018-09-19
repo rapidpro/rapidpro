@@ -35,6 +35,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
+from django.utils.html import escape
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
@@ -367,7 +368,7 @@ class UserCRUDL(SmartCRUDL):
                 more = ", ..."
                 orgs = orgs[0:5]
             org_links = ", ".join(
-                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{org.name}</a>" for org in orgs]
+                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{escape(org.name)}</a>" for org in orgs]
             )
             return mark_safe(f"{org_links}{more}")
 
@@ -1121,8 +1122,7 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.latest_admin() or obj.created_by
 
             return mark_safe(
-                "<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
-                % (owner.first_name, owner.last_name, owner)
+                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
             )
 
         def get_service(self, obj):
@@ -1138,8 +1138,7 @@ class OrgCRUDL(SmartCRUDL):
                 suspended = '<span class="suspended">(Suspended)</span>'
 
             return mark_safe(
-                "<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
-                % (suspended, obj.name, obj.timezone)
+                f"<div class='org-name'>{suspended} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
@@ -1526,8 +1525,7 @@ class OrgCRUDL(SmartCRUDL):
                 org_type = "parent"
 
             return mark_safe(
-                "<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>"
-                % (org_type, obj.name, obj.timezone)
+                f"<div class='{org_type}-org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
