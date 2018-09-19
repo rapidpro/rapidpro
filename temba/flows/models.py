@@ -7151,10 +7151,11 @@ class SaveToContactAction(Action):
             label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.user_fields.filter(org=org, key=field).first()
-            if contact_field:
-                label = contact_field.label
-            else:
-                ContactField.get_or_create(org, get_flow_user(org), field, label)
+
+            if not contact_field:
+                contact_field = ContactField.get_or_create(org, get_flow_user(org), field, label)
+
+            label = contact_field.label
 
         return label
 

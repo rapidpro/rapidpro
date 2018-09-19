@@ -4970,6 +4970,8 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, None)
         self.assertEqual(ActionLog.objects.get().text, "Contact not updated, missing connection for contact")
 
+        self.assertEqual(SaveToContactAction.get_label(self.org, "foo"), "Foo")
+
     def test_set_language_action(self):
         action = SetLanguageAction(str(uuid4()), "kli", "Klingon")
 
