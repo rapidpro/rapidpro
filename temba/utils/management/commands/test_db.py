@@ -251,7 +251,7 @@ class Command(BaseCommand):
         self._log("Preparing existing orgs... ")
 
         for org in orgs:
-            flows = org.flows.order_by("id")
+            flows = org.flows.order_by("id").exclude(is_system=True)
 
             if flow_name:
                 flows = flows.filter(name=flow_name)
