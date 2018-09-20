@@ -1,5 +1,5 @@
 -extends 'smartmin/form.html'
--load i18n
+-load i18n temba
 -load humanize
 
 -block summary
@@ -147,7 +147,7 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));
+      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_response'));
 
       $('#id_flow').select2({
         minimumResultsForSearch: -1

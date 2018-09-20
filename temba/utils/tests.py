@@ -436,6 +436,8 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
+
+class TemplateTagTestSimple(TestCase):
     def test_format_seconds(self):
         from temba.utils.templatetags.temba import format_seconds
 
@@ -490,6 +492,25 @@ class TemplateTagTest(TembaTest):
         self.assertEqual(", ", oxford(forloop(1, 4)))
         self.assertEqual(", and ", oxford(forloop(2, 4)))
         self.assertEqual(".", oxford(forloop(3, 4), "."))
+
+    def test_to_json(self):
+        from temba.utils.templatetags.temba import to_json
+
+        # only works with plain str objects
+        self.assertRaises(ValueError, to_json, dict())
+
+        self.assertEqual(to_json(json.dumps({})), 'JSON.parse("{}")')
+        self.assertEqual(to_json(json.dumps({"a": 1})), 'JSON.parse("{\\u0022a\\u0022: 1}")')
+        self.assertEqual(
+            to_json(json.dumps({"special": '"'})),
+            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u005C\\u0022\\u0022}")',
+        )
+
+        # ecapes special <script>
+        self.assertEqual(
+            to_json(json.dumps({"special": '<script>alert("XSS");</script>'})),
+            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u003Cscript\\u003Ealert(\\u005C\\u0022XSS\\u005C\\u0022)\\u003B\\u003C/script\\u003E\\u0022}")',
+        )
 
 
 class CacheTest(TembaTest):
