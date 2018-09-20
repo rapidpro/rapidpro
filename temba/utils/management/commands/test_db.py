@@ -20,6 +20,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from temba.archives.models import Archive
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import (
@@ -32,7 +33,7 @@ from temba.contacts.models import (
     ContactGroupCount,
     ContactURN,
 )
-from temba.flows.models import FlowRun, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
@@ -111,6 +112,25 @@ FLOWS = (
     },
     {"name": "SMS Form", "file": "sms_form.json", "templates": (["22 F Seattle"], ["35 M MIAMI"])},
     {"name": "Pick a Number", "file": "pick_a_number.json", "templates": (["1"], ["4"], ["5"], ["7"], ["8"])},
+)
+CAMPAIGNS = (
+    {
+        "name": "Doctor Reminders",
+        "group": "Doctors",
+        "events": (
+            {"flow": "Favorites", "offset_field": "joined", "offset": "5", "offset_unit": "D", "delivery_hour": 12},
+            {
+                "base_language": "eng",
+                "message": {
+                    "eng": "Hi @contact.name, it is time to consult with your patients.",
+                    "fra": "Bonjour @contact.name, il est temps de consulter vos patients.",
+                },
+                "offset_field": "joined",
+                "offset": "10",
+                "offset_unit": "M",
+            },
+        ),
+    },
 )
 
 # contact names are generated from these components
@@ -206,6 +226,7 @@ class Command(BaseCommand):
         self.create_flows(orgs)
         self.create_archives(orgs)
         self.create_contacts(orgs, locations, num_contacts)
+        self.create_campaigns(orgs)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
         """
@@ -230,7 +251,7 @@ class Command(BaseCommand):
         self._log("Preparing existing orgs... ")
 
         for org in orgs:
-            flows = org.flows.order_by("id")
+            flows = org.flows.order_by("id").exclude(is_system=True)
 
             if flow_name:
                 flows = flows.filter(name=flow_name)
@@ -493,6 +514,50 @@ class Command(BaseCommand):
             for f in FLOWS:
                 with open("media/test_flows/" + f["file"], "r") as flow_file:
                     org.import_app(json.load(flow_file), user)
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_campaigns(self, orgs):
+        """
+        Creates the campaigns for each org
+        """
+        self._log("Creating %d campaigns... " % (len(orgs) * len(CAMPAIGNS)))
+
+        for org in orgs:
+            user = org.cache["users"][0]
+            for c in CAMPAIGNS:
+                group = ContactGroup.all_groups.get(org=org, name=c["group"])
+                campaign = Campaign.objects.create(
+                    name=c["name"], group=group, is_archived=False, org=org, created_by=user, modified_by=user
+                )
+
+                for e in c.get("events", []):
+                    field = ContactField.all_fields.get(org=org, key=e["offset_field"])
+
+                    if "flow" in e:
+                        flow = Flow.objects.get(org=org, name=e["flow"])
+                        CampaignEvent.create_flow_event(
+                            org,
+                            user,
+                            campaign,
+                            field,
+                            e["offset"],
+                            e["offset_unit"],
+                            flow,
+                            delivery_hour=e.get("delivery_hour", -1),
+                        )
+                    else:
+                        CampaignEvent.create_message_event(
+                            org,
+                            user,
+                            campaign,
+                            field,
+                            e["offset"],
+                            e["offset_unit"],
+                            e["message"],
+                            delivery_hour=e.get("delivery_hour", -1),
+                            base_language=e["base_language"],
+                        )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
