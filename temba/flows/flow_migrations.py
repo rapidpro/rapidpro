@@ -20,6 +20,52 @@ from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 
 
+def migrate_to_version_11_5(json_flow, flow=None):
+    """
+    Replaces @flow.foo and @flow.foo.value with @extra.webhook where foo is a webhook or resthook ruleset
+    """
+    # figure out which rulesets are webhook or resthook calls
+    rule_sets = json_flow.get("rule_sets", [])
+    webhook_rulesets = set()
+    non_webhook_rulesets = set()
+    for r in rule_sets:
+        slug = Flow.label_to_slug(r["label"])
+        if not slug:
+            continue
+        if r["ruleset_type"] in (RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
+            webhook_rulesets.add(slug)
+        else:
+            non_webhook_rulesets.add(slug)
+
+    # ignore any slugs of webhook rulesets which are also used by non-webhook rulesets
+    slugs = webhook_rulesets.difference(non_webhook_rulesets)
+    if not slugs:
+        return json_flow
+
+    # make a regex that matches a context reference to these (see https://regex101.com/r/65b2ZT/3)
+    replace_pattern = r"flow\.(" + "|".join(slugs) + ")(\.value)?(?!\.\w)"
+    replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
+    replace_with = "extra.webhook"
+
+    # for every action in this flow, replace such references
+    for actionset in json_flow.get("action_sets", []):
+        for action in actionset.get("actions", []):
+            if action["type"] in ["reply", "send", "say", "email"]:
+                msg = action["msg"]
+                if isinstance(msg, str):
+                    action["msg"] = replace_regex.sub(replace_with, msg)
+                else:
+                    for lang, text in msg.items():
+                        msg[lang] = replace_regex.sub(replace_with, text)
+
+    # and in any ruleset operands
+    for ruleset in json_flow.get("rule_sets", []):
+        if "operand" in ruleset:
+            ruleset["operand"] = replace_regex.sub(replace_with, ruleset["operand"])
+
+    return json_flow
+
+
 def migrate_to_version_11_4(json_flow, flow=None):
     """
     Replaces @flow.foo.text with @step.value for non-waiting rulesets, to bring old world functionality inline with the
@@ -28,6 +74,9 @@ def migrate_to_version_11_4(json_flow, flow=None):
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
     non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
+
+    if not non_waiting:
+        return json_flow
 
     # make a regex that matches a context reference to the .text on any result from these
     replace_pattern = r"flow\.(" + "|".join(non_waiting) + ")\.text"

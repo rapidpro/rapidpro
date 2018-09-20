@@ -434,6 +434,7 @@ class Flow(TembaModel):
         "11.2",
         "11.3",
         "11.4",
+        "11.5",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -4338,7 +4339,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map):
+    def update_fields(self, field_map, do_save=True):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map)
         if not self.fields:
@@ -4710,9 +4711,9 @@ class RuleSet(models.Model):
             for url in urls:
                 from temba.api.models import WebHookEvent
 
-                (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
+                (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
                 result = WebHookEvent.trigger_flow_webhook(
-                    run, value, self.uuid, msg, action, resthook=resthook, headers=header
+                    run, evaled_url, self.uuid, msg, action, resthook=resthook, headers=header
                 )
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
@@ -4723,7 +4724,7 @@ class RuleSet(models.Model):
                 if url is None:
                     continue
 
-                as_json = {"input": f"{action} {value}", "status_code": result.status_code, "body": result.body}
+                as_json = {"input": f"{action} {evaled_url}", "status_code": result.status_code, "body": result.body}
 
                 if 200 <= result.status_code < 300 or result.status_code == 410:
                     last_success = as_json
@@ -4739,7 +4740,7 @@ class RuleSet(models.Model):
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
                 if result > 0:
-                    return rule, use_call["body"], use_call["input"]
+                    return rule, str(use_call["status_code"]), use_call["input"]
 
         else:
             # if it's a form field, construct an expression accordingly
