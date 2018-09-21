@@ -5680,8 +5680,6 @@ class WebhookTest(TembaTest):
         run3, = flow.start([], [contact], restart_participants=True)
         run3.refresh_from_db()
 
-        self.maxDiff = None
-
         if not in_flowserver:
             self.assertEqual(run3.fields, {"0": "zero", "1": "one", "2": "two", "webhook": '["zero", "one", "two"]'})
 
@@ -6481,10 +6479,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
 
         def assert_payload(payload, path_length, result_count, results):
-            print("============================")
-            print(json.dumps(payload["results"], indent=2))
-            print("============================")
-
             self.assertEqual(
                 dict(name="Ben Haggerty", uuid=self.contact.uuid, urn="tel:+12065552020"), payload["contact"]
             )
