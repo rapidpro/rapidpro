@@ -189,8 +189,8 @@
               "category": {
                 "eng": "All Responses"
               },
-              "destination": null,
-              "destination_type": null,
+              "destination": "f39a6d73-57d9-4d10-9055-57446addc87a",
+              "destination_type": "R",
               "test": {
                 "type": "true"
               },
@@ -202,6 +202,46 @@
           "response_type": "",
           "operand": "@(flow.response_1 & flow.response_2 & flow.response_3)",
           "config": {}
+        },
+        {
+          "uuid": "f39a6d73-57d9-4d10-9055-57446addc87a",
+          "x": 414,
+          "y": 625,
+          "label": "Response 6",
+          "rules": [
+            {
+              "uuid": "820f0020-0c72-44cd-9c12-a2b05c13e470",
+              "category": {
+                "eng": "Yes"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "yes"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "d1c61a49-64f5-4ff6-b17f-1f22472f829f",
+              "category": {
+                "eng": "Other"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "flow_field",
+          "response_type": "",
+          "operand": "@flow.response_1",
+          "config": {}
         }
       ],
       "base_language": "eng",
@@ -209,10 +249,42 @@
       "version": "11.4",
       "metadata": {
         "name": "Migrate to 11.5 Test",
-        "saved_on": "2018-09-20T21:20:16.198634Z",
-        "revision": 60,
+        "saved_on": "2018-09-21T21:25:41.540842Z",
+        "revision": 71,
         "uuid": "915144c5-605e-46f3-afa3-53aae2c9b8ee",
-        "expires": 10080
+        "expires": 10080,
+        "notes": [
+          {
+            "x": 357,
+            "y": 0,
+            "title": "New Note",
+            "body": "@flow.response_1"
+          },
+          {
+            "x": 358,
+            "y": 117,
+            "title": "New Note",
+            "body": "flow.response_2"
+          },
+          {
+            "x": 358,
+            "y": 236,
+            "title": "New Note",
+            "body": "reuses flow.response_2"
+          },
+          {
+            "x": 360,
+            "y": 346,
+            "title": "New Note",
+            "body": "@flow.response_3"
+          },
+          {
+            "x": 671,
+            "y": 498,
+            "title": "New Note",
+            "body": "operand should be migrated too"
+          }
+        ]
       }
     }
   ],

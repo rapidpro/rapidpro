@@ -4734,7 +4734,7 @@ class RuleSet(models.Model):
 
                 (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
                 result = WebHookEvent.trigger_flow_webhook(
-                    run, evaled_url, self.uuid, msg, action, resthook=resthook, headers=header
+                    run, evaled_url, self, msg, action, resthook=resthook, headers=header
                 )
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
@@ -6273,7 +6273,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get("name")] = item.get("value")
 
-        WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
+        WebHookEvent.trigger_flow_webhook(run, value, None, msg, self.action, headers=headers)
         return []
 
 

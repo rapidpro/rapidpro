@@ -5616,7 +5616,7 @@ class WebhookTest(TembaTest):
         run1.refresh_from_db()
 
         if not in_flowserver:
-            self.assertEqual(run1.fields, {"text": "Get", "blank": "", "webhook": '{ "text": "Get", "blank": "" }'})
+            self.assertEqual(run1.fields, {"text": "Get", "blank": "", "response_1": '{ "text": "Get", "blank": "" }'})
 
         self.assertEqual(
             run1.results,
@@ -5681,12 +5681,14 @@ class WebhookTest(TembaTest):
         run3.refresh_from_db()
 
         if not in_flowserver:
-            self.assertEqual(run3.fields, {"0": "zero", "1": "one", "2": "two", "webhook": '["zero", "one", "two"]'})
+            self.assertEqual(
+                run3.fields, {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'}
+            )
 
             # which is also how it will appear in the expressions context
             message_context = flow.build_expressions_context(contact, None)
             self.assertEqual(
-                message_context["extra"], {"0": "zero", "1": "one", "2": "two", "webhook": '["zero", "one", "two"]'}
+                message_context["extra"], {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'}
             )
 
             # check that we limit JSON responses to 256 values
@@ -5696,7 +5698,7 @@ class WebhookTest(TembaTest):
             run4, = flow.start([], [contact], restart_participants=True)
             run4.refresh_from_db()
             expected_fields = {str(n): "x" for n in range(256)}
-            expected_fields["webhook"] = body[: Value.MAX_VALUE_LEN]
+            expected_fields["response_1"] = body[: Value.MAX_VALUE_LEN]
             self.assertEqual(run4.fields, expected_fields)
 
             # check we handle a non-dict or list response
@@ -5704,7 +5706,7 @@ class WebhookTest(TembaTest):
 
             run5, = flow.start([], [contact], restart_participants=True)
             run5.refresh_from_db()
-            self.assertEqual(run5.fields, {"webhook": "12345"})
+            self.assertEqual(run5.fields, {"response_1": "12345"})
 
         # check we handle a non-JSON response
         self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "asdfasdfasdf")
@@ -5713,7 +5715,7 @@ class WebhookTest(TembaTest):
         run6.refresh_from_db()
 
         if not in_flowserver:
-            self.assertEqual(run6.fields, {"webhook": "asdfasdfasdf"})
+            self.assertEqual(run6.fields, {"response_1": "asdfasdfasdf"})
 
         results = run6.results
         self.assertEqual(len(results), 2)
@@ -5728,7 +5730,7 @@ class WebhookTest(TembaTest):
         run7.refresh_from_db()
 
         if not in_flowserver:
-            self.assertEqual(run7.fields, {"webhook": "Server Error"})
+            self.assertEqual(run7.fields, {"response_1": "Server Error"})
         self.assertEqual(
             run7.results,
             {
@@ -5752,7 +5754,8 @@ class WebhookTest(TembaTest):
 
         if not in_flowserver:
             self.assertEqual(
-                run8.fields, {"text": "Valid", "error": "400", "message": "Missing field in request", "webhook": body}
+                run8.fields,
+                {"text": "Valid", "error": "400", "message": "Missing field in request", "response_1": body},
             )
 
         results = run8.results
@@ -9511,12 +9514,13 @@ class FlowMigrationTest(FlowFileTest):
         flow = self.get_flow("migrate_to_11_5")
         flow_json = flow.as_json()
 
+        # check text was updated in the reply action
         expected_msg = "\n".join(
             [
-                "@extra.webhook",
-                "@extra.webhook",
+                "@extra.response_1",
+                "@extra.response_1",
                 "@flow.response_1.category",  # unchanged because its category
-                "@(upper(extra.webhook))",
+                "@(upper(extra.response_1))",
                 "@(upper(flow.response_1.category))",
                 "",
                 "@flow.response_2",  # unchanged because this slug is also used by a non-webhook ruleset
@@ -9525,16 +9529,24 @@ class FlowMigrationTest(FlowFileTest):
                 "@(upper(flow.response_2))",
                 "@(upper(flow.response_2.category))",
                 "",
-                "@extra.webhook",
-                "@extra.webhook",
+                "@extra.response_3",
+                "@extra.response_3",
                 "@flow.response_3.category",
-                "@(upper(extra.webhook))",
+                "@(upper(extra.response_3))",
                 "@(upper(flow.response_3.category))",
             ]
         )
-
         self.assertEqual(flow_json["action_sets"][0]["actions"][0]["msg"]["eng"], expected_msg)
-        self.assertEqual(flow_json["rule_sets"][4]["operand"], "@(extra.webhook & flow.response_2 & extra.webhook)")
+
+        # check operand was updated in the split by expression
+        self.assertEqual(
+            flow_json["rule_sets"][4]["operand"], "@(extra.response_1 & flow.response_2 & extra.response_3)"
+        )
+
+        # check operand and type were updated in the split by flow field
+        rs = flow_json["rule_sets"][5]
+        self.assertEqual(rs["operand"], "@extra.response_1")
+        self.assertEqual(rs["ruleset_type"], "expression")
 
     def test_migrate_to_11_4(self):
         flow = self.get_flow("migrate_to_11_4")

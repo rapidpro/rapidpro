@@ -19,7 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
-from temba.flows.models import ActionLog, FlowRun
+from temba.flows.models import ActionLog, Flow, FlowRun
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
@@ -241,7 +241,7 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_webhook(cls, run, webhook_url, node_uuid, msg, action="POST", resthook=None, headers=None):
+    def trigger_flow_webhook(cls, run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
 
         flow = run.flow
         contact = run.contact
@@ -322,7 +322,8 @@ class WebHookEvent(SmartModel):
                 body = "Skipped actual send"
                 status_code = 200
 
-            run.update_fields({"webhook": body}, do_save=False)
+            if ruleset:
+                run.update_fields({Flow.label_to_slug(ruleset.label): body}, do_save=False)
             new_extra = {}
 
             # process the webhook response

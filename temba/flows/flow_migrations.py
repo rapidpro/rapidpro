@@ -45,7 +45,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
     # make a regex that matches a context reference to these (see https://regex101.com/r/65b2ZT/3)
     replace_pattern = r"flow\.(" + "|".join(slugs) + ")(\.value)?(?!\.\w)"
     replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
-    replace_with = "extra.webhook"
+    replace_with = r"extra.\1"
 
     # for every action in this flow, replace such references
     for actionset in json_flow.get("action_sets", []):
@@ -61,7 +61,12 @@ def migrate_to_version_11_5(json_flow, flow=None):
     # and in any ruleset operands
     for ruleset in json_flow.get("rule_sets", []):
         if "operand" in ruleset:
-            ruleset["operand"] = replace_regex.sub(replace_with, ruleset["operand"])
+            operand = ruleset["operand"]
+            ruleset["operand"] = replace_regex.sub(replace_with, operand)
+
+            # if we've changed the operand on a flow_field ruleset.. it has to become a split by expression
+            if operand != ruleset["operand"] and ruleset["ruleset_type"] == "flow_field":
+                ruleset["ruleset_type"] = "expression"
 
     return json_flow
 
