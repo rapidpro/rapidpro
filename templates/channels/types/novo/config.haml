@@ -20,3 +20,9 @@
     :plain
       POST https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}
       from=%2B250788123123&text=Love+is+patient.+Love+is+kind.
+
+%h4
+  -trans "Token"
+
+%code
+  {{ channel.config.secret }}

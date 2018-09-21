@@ -39,6 +39,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             NovoType.CONFIG_MERCHANT_ID: data["merchant_id"],
             NovoType.CONFIG_MERCHANT_SECRET: data["merchant_secret"],
+            Channel.CONFIG_SECRET: Channel.generate_secret(32),
         }
 
         self.object = Channel.create(
