@@ -58,7 +58,7 @@ from temba.msgs.models import (
     Msg,
 )
 from temba.orgs.models import Language, Org, get_current_export_version
-from temba.utils import analytics, chunk_list, json, on_transaction_commit
+from temba.utils import analytics, chunk_list, http, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -3559,24 +3559,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("No such flow with UUID %s" % flow_ref["uuid"])
 
-    def parse_response(self, data):
-        import urllib3
-
-        from io import BytesIO
-        from http.client import HTTPResponse
-
-        class BytesIOSocket:
-            def __init__(self, content):
-                self.handle = BytesIO(content)
-
-            def makefile(self, mode):
-                return self.handle
-
-        response = HTTPResponse(BytesIOSocket(data.encode("utf-8")))
-        response.begin()
-
-        return urllib3.HTTPResponse.from_httplib(response)
-
     def apply_resthook_called(self, event, msg_in):
         """
         A resthook was called
@@ -3608,7 +3590,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             parts = request.split("\r\n\r\n")
             payload = json.loads(parts[1]) if len(parts) == 2 else {}
 
-            resp = self.parse_response(response)
+            resp = http.parse_response(response)
 
             if resp.status == 410:
                 resthook.remove_subscriber(call["url"], user)
