@@ -30,7 +30,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
     non_webhook_rulesets = set()
     for r in rule_sets:
         slug = Flow.label_to_slug(r["label"])
-        if not slug:
+        if not slug:  # pragma: no cover
             continue
         if r["ruleset_type"] in (RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
             webhook_rulesets.add(slug)
@@ -74,9 +74,6 @@ def migrate_to_version_11_4(json_flow, flow=None):
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
     non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
-
-    if not non_waiting:
-        return json_flow
 
     # make a regex that matches a context reference to the .text on any result from these
     replace_pattern = r"flow\.(" + "|".join(non_waiting) + ")\.text"
