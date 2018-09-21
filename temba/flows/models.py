@@ -3269,6 +3269,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if e["type"] in (server.Events.msg_received.name, server.Events.msg_created.name)
         ]
 
+        # don't persist extra on results
+        for result in results.values():
+            if "extra" in result:
+                del result["extra"]
+
         if existing:
             existing.path = path
             existing.events = events
@@ -3554,6 +3559,24 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("No such flow with UUID %s" % flow_ref["uuid"])
 
+    def parse_response(self, data):
+        import urllib3
+
+        from io import BytesIO
+        from http.client import HTTPResponse
+
+        class BytesIOSocket:
+            def __init__(self, content):
+                self.handle = BytesIO(content)
+
+            def makefile(self, mode):
+                return self.handle
+
+        response = HTTPResponse(BytesIOSocket(data.encode("utf-8")))
+        response.begin()
+
+        return urllib3.HTTPResponse.from_httplib(response)
+
     def apply_resthook_called(self, event, msg_in):
         """
         A resthook was called
@@ -3562,22 +3585,38 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         user = get_flow_user(self.org)
         resthook = Resthook.get_or_create(self.org, slug=event["resthook"], user=user)
-        payload = json.loads(event["payload"])
         calls = event.get("calls", [])
 
         if not calls:
-            calls.append({"status": "success", "status_code": 200, "url": None})
+            webhook = WebHookEvent.objects.create(
+                org=self.org,
+                resthook=resthook,
+                status=WebHookEvent.STATUS_COMPLETE,
+                run=self,
+                event=WebHookEvent.TYPE_FLOW,
+                action="POST",
+                data={},
+                created_by=user,
+                modified_by=user,
+            )
+            WebHookResult.record_result(webhook, {"url": None, "message": "Success", "data": "", "status_code": 200})
 
         for call in calls:
-            url, status, status_code = call["url"], call["status"], call["status_code"]
+            url, status, request, response = call["url"], call["status"], call["request"], call["response"]
 
-            if status_code == 410:
+            # get the body sent in the call
+            parts = request.split("\r\n\r\n")
+            payload = json.loads(parts[1]) if len(parts) == 2 else {}
+
+            resp = self.parse_response(response)
+
+            if resp.status == 410:
                 resthook.remove_subscriber(call["url"], user)
 
             webhook = WebHookEvent.objects.create(
                 org=self.org,
                 resthook=resthook,
-                status=WebHookEvent.STATUS_FAILED if status != "success" else WebHookEvent.STATUS_COMPLETE,
+                status=WebHookEvent.STATUS_FAILED if status != "Success" else WebHookEvent.STATUS_COMPLETE,
                 run=self,
                 event=WebHookEvent.TYPE_FLOW,
                 action="POST",
@@ -3585,10 +3624,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 created_by=user,
                 modified_by=user,
             )
-            if url:
-                WebHookResult.record_result(
-                    webhook, {"url": url, "message": status, "data": event["payload"], "status_code": status_code}
-                )
+            WebHookResult.record_result(
+                webhook, {"url": url, "message": status, "data": payload, "status_code": resp.status}
+            )
 
     def apply_error(self, event, msg_in):
         """
@@ -4349,7 +4387,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing_map.update(field_map)
             self.fields = existing_map
 
-        self.save(update_fields=["fields"])
+        if do_save:
+            self.save(update_fields=["fields"])
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED

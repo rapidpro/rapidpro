@@ -5713,7 +5713,9 @@ class WebhookTest(TembaTest):
 
         run6, = flow.start([], [contact], restart_participants=True)
         run6.refresh_from_db()
-        self.assertEqual(run6.fields, {"webhook": "asdfasdfasdf"})
+
+        if not in_flowserver:
+            self.assertEqual(run6.fields, {"webhook": "asdfasdfasdf"})
 
         results = run6.results
         self.assertEqual(len(results), 2)
@@ -5727,7 +5729,8 @@ class WebhookTest(TembaTest):
         run7, = flow.start([], [contact], restart_participants=True)
         run7.refresh_from_db()
 
-        self.assertEqual(run7.fields, {"webhook": "Server Error"})
+        if not in_flowserver:
+            self.assertEqual(run7.fields, {"webhook": "Server Error"})
         self.assertEqual(
             run7.results,
             {
@@ -6478,6 +6481,10 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
 
         def assert_payload(payload, path_length, result_count, results):
+            print("============================")
+            print(json.dumps(payload["results"], indent=2))
+            print("============================")
+
             self.assertEqual(
                 dict(name="Ben Haggerty", uuid=self.contact.uuid, urn="tel:+12065552020"), payload["contact"]
             )
