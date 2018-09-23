@@ -1,3 +1,10 @@
+v4.4.20
+----------
+ * Fix channel selection for sending to TEL_SCHEME
+ * Add campaigns to all test orgs for make_db
+ * Correctly embed JS in templates
+ * Escape data before using `mark_safe`
+
 v4.4.19
 ----------
  * Fix validating URNField when input isn't a string
