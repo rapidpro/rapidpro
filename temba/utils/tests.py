@@ -441,7 +441,9 @@ class TemplateTagTestSimple(TestCase):
     def test_format_seconds(self):
         from temba.utils.templatetags.temba import format_seconds
 
-        self.assertIsNone(format_seconds(None))
+        self.assertEqual("--", format_seconds(None))
+
+        self.assertEqual("0 sec", format_seconds(0))
 
         # less than a minute
         self.assertEqual("30 sec", format_seconds(30))
