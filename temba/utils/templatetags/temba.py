@@ -62,8 +62,8 @@ def verbose_name_plural(object):
 
 @register.filter
 def format_seconds(seconds):
-    if seconds is None:
-        return "--"
+    if not seconds:
+        return None
 
     if seconds < 60:
         return "%s sec" % seconds
