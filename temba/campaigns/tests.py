@@ -231,6 +231,61 @@ class CampaignTest(TembaTest):
         self.assertEqual(FlowRun.objects.count(), 1)
         self.assertEqual(FlowStart.objects.all().count(), 1)
 
+    def test_events_batch_fire_system_flow(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        event = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+        )
+
+        self.assertEqual(0, EventFire.objects.all().count())
+        self.farmer1.set_field(self.user, "planting_date", "10-05-2020 12:30:10")
+        self.farmer2.set_field(self.user, "planting_date", "15-05-2020 12:30:10")
+
+        # now we have event fires accordingly
+        self.assertEqual(2, EventFire.objects.all().count())
+
+        self.assertEqual(0, FlowStart.objects.all().count())
+
+        first_event_fire = EventFire.objects.all().first()
+        self.assertFalse(EventFire.objects.get(id=first_event_fire.id).fired)
+
+        # no flow start if we start just one contact
+        EventFire.batch_fire([first_event_fire], event.flow)
+
+        self.assertEqual(0, FlowStart.objects.all().count())
+        self.assertTrue(EventFire.objects.get(id=first_event_fire.id).fired)
+
+        # should have a flowstart object is we start many event fires
+        EventFire.batch_fire(list(EventFire.objects.all()), event.flow)
+        self.assertEqual(1, FlowStart.objects.all().count())
+        self.assertEqual(0, EventFire.objects.filter(fired=None).count())
+
+        # fires should delete when we release a contact
+        self.assertEqual(1, EventFire.objects.filter(contact=self.farmer1).count())
+        self.farmer1.release(self.admin)
+        self.assertEqual(0, EventFire.objects.filter(contact=self.farmer1).count())
+
+        # but our campaign and group remains intact
+        Campaign.objects.get(id=campaign.id)
+        ContactGroup.user_groups.get(id=self.farmers.id)
+
+        # deleting this event should delete the runs or starts for system flows
+        event.release()
+
+        self.assertEqual(FlowRun.objects.count(), 0)
+        self.assertEqual(FlowStart.objects.all().count(), 0)
+        self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
+
     def test_message_event_editing(self):
         # update the planting date for our contacts
         self.farmer1.set_field(self.user, "planting_date", "1/10/2020")

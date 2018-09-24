@@ -1441,6 +1441,11 @@ class Flow(TembaModel):
             for run in runs:
                 run.release()
 
+        if self.is_system:
+            start_ids = self.starts.all().values_list("id", flat=True)
+            FlowStartCount.objects.filter(start_id__in=start_ids).delete()
+            FlowStart.objects.filter(id__in=start_ids).delete()
+
         # clear all our cached stats
         self.clear_props_cache()
 
