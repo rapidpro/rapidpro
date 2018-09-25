@@ -399,6 +399,15 @@ class OrgTest(TembaTest):
         self.assertEqual(mtn, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", mtn_urn))
         self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
 
+    def test_get_send_channel_for_tel_short_code(self):
+        self.releaseChannels()
+        short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
+        Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
+
+        joe = self.create_contact("Joe")
+        urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
+        self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
+
     def test_get_channel_countries(self):
         self.assertEqual(self.org.get_channel_countries(), [])
 

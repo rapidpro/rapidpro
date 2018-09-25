@@ -556,7 +556,7 @@ class Org(SmartModel):
                 channels = []
                 if country_code:
                     for c in self.cached_channels:
-                        if c.country == country_code:
+                        if c.country == country_code and TEL_SCHEME in c.schemes:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
