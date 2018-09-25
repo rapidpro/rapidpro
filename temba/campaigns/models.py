@@ -467,7 +467,7 @@ class CampaignEvent(TembaModel):
         # if flow isn't a user created flow we can delete it too
         if self.flow.is_system:
             self.flow.starts.all().update(is_active=False)
-            self.flow.release(False)
+            self.flow.release()
 
         self.delete()
 

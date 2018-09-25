@@ -1348,13 +1348,11 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self, release_runs=True):
+    def release(self):
         """
         Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import release_flow_runs_task
-
         self.is_active = False
         self.save()
 
@@ -1371,10 +1369,6 @@ class Flow(TembaModel):
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
-
-        # deactivate our runs in the background
-        if release_runs:
-            on_transaction_commit(lambda: release_flow_runs_task.delay(self.id))
 
     def get_category_counts(self, deleted_nodes=True):
 

@@ -2236,7 +2236,7 @@ class Org(SmartModel):
         for flow in self.flows.all():
 
             # we want to manually release runs so we dont fire a task to do it
-            flow.release(release_runs=False)
+            flow.release()
             flow.release_runs()
 
             for rev in flow.revisions.all():
