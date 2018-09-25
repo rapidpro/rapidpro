@@ -6099,6 +6099,21 @@ class FlowsTest(FlowFileTest):
         # but all the runs should not be deleted
         self.assertEqual(FlowRun.objects.all().count(), 1)
 
+    def test_flow_with_runs_release(self):
+        # create a flow run
+        favorites = self.get_flow("favorites")
+        self.send_message(favorites, "green")
+
+        # now release our flow
+        favorites.release()
+        favorites.release_runs()
+
+        # flow should be inactive
+        self.assertFalse(Flow.objects.filter(id=favorites.id, is_active=True).exists())
+
+        # but all the runs should not be deleted
+        self.assertEqual(FlowRun.objects.all().count(), 0)
+
     def run_flowrun_deletion(self, delete_reason, test_cases):
         """
         Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final

@@ -183,9 +183,3 @@ def squash_flowruncounts():
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
-
-
-@task(track_started=True, name="release_flow_runs_task")
-def release_flow_runs_task(flow_id):
-    flow = Flow.objects.get(id=flow_id)
-    flow.release_runs()
