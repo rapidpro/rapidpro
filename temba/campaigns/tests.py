@@ -282,8 +282,10 @@ class CampaignTest(TembaTest):
         # deleting this event should delete the runs or starts for system flows
         event.release()
 
-        self.assertEqual(FlowRun.objects.count(), 0)
-        self.assertEqual(FlowStart.objects.all().count(), 0)
+        self.assertEqual(FlowRun.objects.count(), 1)
+        self.assertEqual(FlowStart.objects.all().count(), 1)
+        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 0)
+        self.assertEqual(FlowStart.objects.filter(is_active=True).count(), 0)
         self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
 
     def test_message_event_editing(self):
