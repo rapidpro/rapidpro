@@ -142,7 +142,7 @@ class CampaignTest(TembaTest):
         # schedule our events to fire
         check_campaigns_task()
 
-        run = FlowRun.objects.get()
+        run = FlowRun.objects.filter(contact=self.farmer1).first()
         msg = run.get_messages().get()
 
         self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
@@ -158,6 +158,7 @@ class CampaignTest(TembaTest):
         # deleting a message campaign event should clean up the flow/runs/starts created by it
         event.release()
 
+        self.assertFalse(event.is_active)
         self.assertEqual(FlowRun.objects.count(), 1)
         self.assertEqual(FlowStart.objects.count(), 0)
         self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
@@ -228,6 +229,7 @@ class CampaignTest(TembaTest):
         # deleting this event shouldn't delete the runs or starts
         event.release()
 
+        self.assertFalse(event.is_active)
         self.assertEqual(FlowRun.objects.count(), 1)
         self.assertEqual(FlowStart.objects.all().count(), 1)
 
@@ -359,7 +361,7 @@ class CampaignTest(TembaTest):
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
 
         # should have one event, which created a corresponding flow
-        event = CampaignEvent.objects.get()
+        event = CampaignEvent.objects.filter(is_active=True).first()
         flow = event.flow
         self.assertTrue(flow.is_system)
 
@@ -435,7 +437,7 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.filter(id=event.id).exists())
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
 
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(0, event.flow.field_dependencies.all().count())
@@ -465,7 +467,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse("campaigns.campaign_create"), post_data)
 
         # should redirect to read page for this campaign
-        campaign = Campaign.objects.get()
+        campaign = Campaign.objects.filter(is_active=True).first()
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
 
         # go to the list page, should be there as well
@@ -774,7 +776,7 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.all().exists())
+        self.assertFalse(CampaignEvent.objects.filter(is_active=True).exists())
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
         self.assertNotContains(response, "Color Flow")
 
@@ -891,7 +893,7 @@ class CampaignTest(TembaTest):
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
-        self.farmers = ContactGroup.user_groups.get(name="Farmers")
+        self.farmers = ContactGroup.user_groups.filter(name="Farmers", is_active=True).first()
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
         self.client.post(reverse("campaigns.campaign_update", args=[campaign.pk]), post_data)
@@ -1116,7 +1118,7 @@ class CampaignTest(TembaTest):
         check_campaigns_task()
 
         # should have one flow run now
-        run = FlowRun.objects.get()
+        run = FlowRun.objects.filter(contact=self.farmer1).first()
         self.assertEqual(event.contact, run.contact)
 
         # deleting this event shouldn't delete the runs

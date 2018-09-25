@@ -93,7 +93,7 @@ class Campaign(TembaModel):
                     campaign.group = group
                     campaign.save()
 
-                # release all of our events, we'll recreate these
+                # deactivate all of our events, we'll recreate these
                 for event in campaign.events.all():
                     event.release()
 
@@ -468,8 +468,6 @@ class CampaignEvent(TembaModel):
         if self.flow.is_system:
             self.flow.starts.all().update(is_active=False)
             self.flow.release()
-
-        self.delete()
 
     def calculate_scheduled_fire(self, contact):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
