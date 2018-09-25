@@ -158,7 +158,7 @@ class CampaignTest(TembaTest):
         # deleting a message campaign event should clean up the flow/runs/starts created by it
         event.release()
 
-        self.assertEqual(FlowRun.objects.count(), 0)
+        self.assertEqual(FlowRun.objects.count(), 1)
         self.assertEqual(FlowStart.objects.count(), 0)
         self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
 
