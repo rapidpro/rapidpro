@@ -20,6 +20,38 @@ from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 
 
+def migrate_to_version_11_5(json_flow, flow=None):
+    """
+    Replaces @flow.foo and @flow.foo.value with @extra.webhook where foo is a webhook or resthook ruleset
+    """
+    # figure out which rulesets are webhook or resthook calls
+    rule_sets = json_flow.get("rule_sets", [])
+    webhook_rulesets = set()
+    non_webhook_rulesets = set()
+    for r in rule_sets:
+        slug = Flow.label_to_slug(r["label"])
+        if not slug:  # pragma: no cover
+            continue
+        if r["ruleset_type"] in (RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
+            webhook_rulesets.add(slug)
+        else:
+            non_webhook_rulesets.add(slug)
+
+    # ignore any slugs of webhook rulesets which are also used by non-webhook rulesets
+    slugs = webhook_rulesets.difference(non_webhook_rulesets)
+    if not slugs:
+        return json_flow
+
+    # make a regex that matches a context reference to these (see https://regex101.com/r/65b2ZT/3)
+    replace_pattern = r"flow\.(" + "|".join(slugs) + ")(\.value)?(?!\.\w)"
+    replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
+    replace_with = r"extra.\1"
+
+    replace_templates(json_flow, lambda t: replace_regex.sub(replace_with, t))
+
+    return json_flow
+
+
 def migrate_to_version_11_4(json_flow, flow=None):
     """
     Replaces @flow.foo.text with @step.value for non-waiting rulesets, to bring old world functionality inline with the
@@ -911,3 +943,42 @@ def insert_node(flow, node, _next):
         for rule in node.get("rules", []):
             rule["destination"] = _next["uuid"]
         flow["rule_sets"].append(node)
+
+
+def replace_templates(json_flow, replace_func):
+    """
+    Applies a replace function to all the template fields in a flow definition
+    """
+    for actionset in json_flow.get("action_sets", []):
+        for action in actionset.get("actions", []):
+            if action["type"] in ["reply", "send", "say", "email"]:
+                msg = action["msg"]
+                if isinstance(msg, str):
+                    action["msg"] = replace_func(msg)
+                else:
+                    for lang, text in msg.items():
+                        msg[lang] = replace_func(text)
+            elif action["type"] == "save":
+                action["value"] = replace_func(action["value"])
+            elif action["type"] == "api":
+                action["webhook"] = replace_func(action["webhook"])
+
+    for ruleset in json_flow.get("rule_sets", []):
+        if "operand" in ruleset:
+            operand = ruleset["operand"]
+            ruleset["operand"] = replace_func(operand)
+
+            # if we've changed the operand on a flow_field ruleset.. it has to become a split by expression
+            if operand != ruleset["operand"] and ruleset["ruleset_type"] == "flow_field":
+                ruleset["ruleset_type"] = "expression"
+
+            for rule in ruleset.get("rules", []):
+                test = rule["test"]
+                if "test" in test and isinstance(test["test"], dict):
+                    for lang, test_text in test["test"].items():
+                        test["test"][lang] = replace_func(test_text)
+
+        if "config" in ruleset:
+            config = ruleset["config"]
+            if "webhook" in config:
+                config["webhook"] = replace_func(config["webhook"])

@@ -58,7 +58,7 @@ from temba.msgs.models import (
     Msg,
 )
 from temba.orgs.models import Language, Org, get_current_export_version
-from temba.utils import analytics, chunk_list, json, on_transaction_commit
+from temba.utils import analytics, chunk_list, http, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -434,6 +434,7 @@ class Flow(TembaModel):
         "11.2",
         "11.3",
         "11.4",
+        "11.5",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -3268,6 +3269,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if e["type"] in (server.Events.msg_received.name, server.Events.msg_created.name)
         ]
 
+        # don't persist extra on results
+        for result in results.values():
+            if "extra" in result:
+                del result["extra"]
+
         if existing:
             existing.path = path
             existing.events = events
@@ -3561,22 +3567,38 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         user = get_flow_user(self.org)
         resthook = Resthook.get_or_create(self.org, slug=event["resthook"], user=user)
-        payload = json.loads(event["payload"])
         calls = event.get("calls", [])
 
         if not calls:
-            calls.append({"status": "success", "status_code": 200, "url": None})
+            webhook = WebHookEvent.objects.create(
+                org=self.org,
+                resthook=resthook,
+                status=WebHookEvent.STATUS_COMPLETE,
+                run=self,
+                event=WebHookEvent.TYPE_FLOW,
+                action="POST",
+                data={},
+                created_by=user,
+                modified_by=user,
+            )
+            WebHookResult.record_result(webhook, {"url": None, "message": "Success", "data": "", "status_code": 200})
 
         for call in calls:
-            url, status, status_code = call["url"], call["status"], call["status_code"]
+            url, status, request, response = call["url"], call["status"], call["request"], call["response"]
 
-            if status_code == 410:
+            # get the body sent in the call
+            parts = request.split("\r\n\r\n")
+            payload = json.loads(parts[1]) if len(parts) == 2 else {}
+
+            resp = http.parse_response(response)
+
+            if resp.status == 410:
                 resthook.remove_subscriber(call["url"], user)
 
             webhook = WebHookEvent.objects.create(
                 org=self.org,
                 resthook=resthook,
-                status=WebHookEvent.STATUS_FAILED if status != "success" else WebHookEvent.STATUS_COMPLETE,
+                status=WebHookEvent.STATUS_FAILED if status != "Success" else WebHookEvent.STATUS_COMPLETE,
                 run=self,
                 event=WebHookEvent.TYPE_FLOW,
                 action="POST",
@@ -3584,10 +3606,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 created_by=user,
                 modified_by=user,
             )
-            if url:
-                WebHookResult.record_result(
-                    webhook, {"url": url, "message": status, "data": event["payload"], "status_code": status_code}
-                )
+            WebHookResult.record_result(
+                webhook, {"url": url, "message": status, "data": payload, "status_code": resp.status}
+            )
 
     def apply_error(self, event, msg_in):
         """
@@ -4338,7 +4359,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map):
+    def update_fields(self, field_map, do_save=True):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map)
         if not self.fields:
@@ -4348,7 +4369,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             existing_map.update(field_map)
             self.fields = existing_map
 
-        self.save(update_fields=["fields"])
+        if do_save:
+            self.save(update_fields=["fields"])
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -4710,9 +4732,9 @@ class RuleSet(models.Model):
             for url in urls:
                 from temba.api.models import WebHookEvent
 
-                (value, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
+                (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
                 result = WebHookEvent.trigger_flow_webhook(
-                    run, value, self.uuid, msg, action, resthook=resthook, headers=header
+                    run, evaled_url, self, msg, action, resthook=resthook, headers=header
                 )
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
@@ -4723,7 +4745,7 @@ class RuleSet(models.Model):
                 if url is None:
                     continue
 
-                as_json = {"input": f"{action} {value}", "status_code": result.status_code, "body": result.body}
+                as_json = {"input": f"{action} {evaled_url}", "status_code": result.status_code, "body": result.body}
 
                 if 200 <= result.status_code < 300 or result.status_code == 410:
                     last_success = as_json
@@ -4739,7 +4761,7 @@ class RuleSet(models.Model):
             for rule in self.get_rules():
                 (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
                 if result > 0:
-                    return rule, use_call["body"], use_call["input"]
+                    return rule, str(use_call["status_code"]), use_call["input"]
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -6251,7 +6273,7 @@ class WebhookAction(Action):
             for item in self.webhook_headers:
                 headers[item.get("name")] = item.get("value")
 
-        WebHookEvent.trigger_flow_webhook(run, value, actionset_uuid, msg, self.action, headers=headers)
+        WebHookEvent.trigger_flow_webhook(run, value, None, msg, self.action, headers=headers)
         return []
 
 
