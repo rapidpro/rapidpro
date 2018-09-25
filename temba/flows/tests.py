@@ -9548,6 +9548,20 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(rs["operand"], "@extra.response_1")
         self.assertEqual(rs["ruleset_type"], "expression")
 
+        # check rule test was updated
+        self.assertEqual(flow_json["rule_sets"][5]["rules"][1]["test"]["test"]["eng"], "@extra.response_1")
+
+        # check webhook URL on ruleset was updated
+        self.assertEqual(flow_json["rule_sets"][6]["config"]["webhook"], "http://example.com/?thing=@extra.response_1")
+
+        # check webhook field on webhook action was updsated
+        self.assertEqual(
+            flow_json["action_sets"][1]["actions"][0]["webhook"], "http://example.com/?thing=@extra.response_1&foo=bar"
+        )
+
+        # check value field on save action was updsated
+        self.assertEqual(flow_json["action_sets"][1]["actions"][1]["value"], "@extra.response_3")
+
     def test_migrate_to_11_4(self):
         flow = self.get_flow("migrate_to_11_4")
         flow_json = flow.as_json()

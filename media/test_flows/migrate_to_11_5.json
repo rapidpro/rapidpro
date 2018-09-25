@@ -23,6 +23,29 @@
             }
           ],
           "exit_uuid": "65af1dca-b48e-4b36-867c-2ace47038093"
+        },
+        {
+          "uuid": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+          "x": 412,
+          "y": 814,
+          "destination": null,
+          "actions": [
+            {
+              "type": "api",
+              "uuid": "9b46779a-f680-450f-8f3c-005f3b7efccd",
+              "webhook": "http://example.com/?thing=@flow.response_1&foo=bar",
+              "action": "GET",
+              "webhook_headers": []
+            },
+            {
+              "type": "save",
+              "uuid": "e0ecf2a5-0429-45ec-a9d7-e2c122274484",
+              "label": "Contact Name",
+              "field": "name",
+              "value": "@flow.response_3.value"
+            }
+          ],
+          "exit_uuid": "25d8d2ae-ea82-4214-9561-42e0bf420a93"
         }
       ],
       "rule_sets": [
@@ -214,12 +237,27 @@
               "category": {
                 "eng": "Yes"
               },
-              "destination": null,
-              "destination_type": null,
+              "destination": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+              "destination_type": "R",
               "test": {
                 "type": "contains_any",
                 "test": {
                   "eng": "yes"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "8e55e70f-acf0-45a2-b7f9-2f95ccbbfc4d",
+              "category": {
+                "eng": "Matching"
+              },
+              "destination": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "@flow.response_1"
                 }
               },
               "label": null
@@ -242,6 +280,49 @@
           "response_type": "",
           "operand": "@flow.response_1",
           "config": {}
+        },
+        {
+          "uuid": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+          "x": 489,
+          "y": 722,
+          "label": "Response 7",
+          "rules": [
+            {
+              "uuid": "234fff68-780f-442f-a1c6-757131fbc213",
+              "category": {
+                "eng": "Success"
+              },
+              "destination": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+              "destination_type": "A",
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "70b79516-40a5-439c-9dee-45b242d6bb8b",
+              "category": {
+                "eng": "Failure"
+              },
+              "destination": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+              "destination_type": "A",
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "webhook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "webhook": "http://example.com/?thing=@flow.response_1.value",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
         }
       ],
       "base_language": "eng",
@@ -249,8 +330,8 @@
       "version": "11.4",
       "metadata": {
         "name": "Migrate to 11.5 Test",
-        "saved_on": "2018-09-21T21:25:41.540842Z",
-        "revision": 71,
+        "saved_on": "2018-09-25T14:57:23.429081Z",
+        "revision": 97,
         "uuid": "915144c5-605e-46f3-afa3-53aae2c9b8ee",
         "expires": 10080,
         "notes": [
@@ -283,6 +364,30 @@
             "y": 498,
             "title": "New Note",
             "body": "operand should be migrated too"
+          },
+          {
+            "x": 717,
+            "y": 608,
+            "title": "New Note",
+            "body": "rule test should be migrated"
+          },
+          {
+            "x": 747,
+            "y": 712,
+            "title": "New Note",
+            "body": "webhook URL in config should be migrated"
+          },
+          {
+            "x": 681,
+            "y": 830,
+            "title": "New Note",
+            "body": "webhook URL on action should be migrated"
+          },
+          {
+            "x": 682,
+            "y": 934,
+            "title": "New Note",
+            "body": "field value should be migrated"
           }
         ]
       }
