@@ -1,3 +1,8 @@
+v4.5.0
+----------
+ * Add Stopped event to message history and unknown/unsupported events
+ * Switch result value to be status code from webhook rulesets, save body as @extra.<resultname> and migrate result references to that
+
 v4.4.20
 ----------
  * Fix channel selection for sending to TEL_SCHEME
