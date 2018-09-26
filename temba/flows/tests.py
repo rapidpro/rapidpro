@@ -8221,7 +8221,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(flow.runs.count(), 2)
 
         # our campaign event should no longer be active
-        self.assertFalse(CampaignEvent.objects.filter(id=event1.id).exists())
+        self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
 
         # nor should our trigger
         self.assertFalse(Trigger.objects.filter(id=trigger.id).exists())

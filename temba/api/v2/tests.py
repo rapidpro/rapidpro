@@ -1195,7 +1195,7 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
         self.assertEqual(response.status_code, 204)
 
-        self.assertFalse(CampaignEvent.objects.filter(id=event1.id).exists())
+        self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
 
         # should no longer have any events
         self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
