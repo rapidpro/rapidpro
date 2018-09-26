@@ -9,6 +9,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -161,8 +162,9 @@ class CreateAPIMixin(object):
         serializer = self.write_serializer_class(user=user, data=request.data, context=context)
 
         if serializer.is_valid():
-            output = serializer.save()
-            return self.render_write_response(output, context)
+            with transaction.atomic():
+                output = serializer.save()
+                return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

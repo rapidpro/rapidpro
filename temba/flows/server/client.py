@@ -1,11 +1,12 @@
 
-import json
 from enum import Enum
 
 import requests
 
 from django.conf import settings
 from django.utils import timezone
+
+from temba.utils import json
 
 from .assets import (
     ChannelType,

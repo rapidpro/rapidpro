@@ -2007,7 +2007,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
-        queryset = queryset.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE)
+        queryset = queryset.exclude(is_active=False).exclude(is_system=True)
 
         # filter by UUID (optional)
         uuid = params.get("uuid")

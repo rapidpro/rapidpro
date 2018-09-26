@@ -8,7 +8,7 @@ from django.db.models.functions import Upper
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.search import SearchException, contact_es_search
 from temba.msgs.models import Label
-from temba.utils.models import ProxyQuerySet, mapEStoDB
+from temba.utils.models import mapEStoDB
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -115,10 +115,15 @@ def omnibox_mixed_search(org, search, types):
 
         try:
             search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
-            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
-            es_results = ProxyQuerySet([obj for obj in mapEStoDB(Contact, es_search)])
 
-            results += list(es_results)
+            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
+            contact_ids = list(mapEStoDB(Contact, es_search, only_ids=True))
+
+            es_results = Contact.objects.filter(id__in=contact_ids).order_by(Upper("name"))
+
+            results += list(es_results[:per_type_limit])
+
+            Contact.bulk_cache_initialize(org, contacts=results)
 
         except SearchException:
             # ignore SearchException
@@ -196,7 +201,10 @@ def omnibox_results_to_dict(org, results):
         if isinstance(obj, ContactGroup):
             result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
         elif isinstance(obj, Contact):
-            result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+            if org.is_anon:
+                result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+            else:
+                result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org), "extra": obj.get_urn_display()}
         elif isinstance(obj, ContactURN):
             result = {
                 "id": "u-%d" % obj.id,

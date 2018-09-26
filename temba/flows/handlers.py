@@ -10,5 +10,5 @@ class FlowHandler(MessageHandler):
 
     def handle(self, msg):
         # hand off to our Flow object to handle
-        (handled, msgs) = Flow.find_and_handle(msg)
+        (handled, msgs) = Flow.find_and_handle(msg, allow_trial=True)
         return handled

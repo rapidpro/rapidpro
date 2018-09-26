@@ -1,3 +1,126 @@
+v4.5.0
+----------
+ * Add Stopped event to message history and unknown/unsupported events
+ * Switch result value to be status code from webhook rulesets, save body as @extra.<resultname> and migrate result references to that
+
+v4.4.20
+----------
+ * Fix channel selection for sending to TEL_SCHEME
+ * Add campaigns to all test orgs for make_db
+ * Correctly embed JS in templates
+ * Escape data before using `mark_safe`
+
+v4.4.19
+----------
+ * Fix validating URNField when input isn't a string
+
+v4.4.18
+----------
+ * Fix incorrect units in wehbook_stats
+ * Result input should always be a string
+
+v4.4.17
+----------
+ * Don't do duplicate message check for surveyor messages which are already SENT
+ * Update to goflow 0.15.1
+ * Update Location URLs to work with GADM IDs
+ * Fix potential XSS issue: embed script only if `View.refresh` is set
+
+v4.4.16
+----------
+ * Fix IVR simulation
+
+v4.4.15
+----------
+ * Fix importing with Created On columns
+ * Validate URNs during import
+ * Classify flow server trials as simple if they don't have subflows etc
+ * Use latest goflow for testing
+
+v4.4.14
+----------
+ * Enable import of GADM data using import_geojson
+
+v4.4.13
+----------
+ * Defer to mailroom for processing event fires for flows that are flowserver enabled
+ * Tweaks to comparing events during flow server trials
+ * Fix saved operand for group tests on anon orgs
+
+v4.4.12
+----------
+ * Add step URN editor completions
+ * Add name to the channels shown on the flow editor
+ * Don't zero pad anon ids in context
+ * Update to latest expressions
+
+v4.4.11
+----------
+ * Ensure API v1 writes are atomic
+ * JSONFields should use our JSON encoder
+ * Use authenticated user for events on Org.signup
+ * Trial shouldn't blow up if run has no events
+ * Add urn to step/message context and make urn scheme accessible for anon org
+ * Get rid of Flow.FLOW
+
+v4.4.8
+----------
+ * Don't trial flow starts from triggers
+ * Fix messages from non-interactive subflows being added to their parent run
+ * Setup user tracking before creating an Org
+ * Migrate flows during flowserver trials with collapse_exits=false to keep paths exactly the same
+ * Input for a webhook result test should be a single request
+ * Migration to update F type flows to M
+
+v4.4.7
+----------
+ * Enforce validation on OrgSignup and OrgGrant forms
+ * Cleanup encoding of datetimes in JSON
+ * New flows should be created with type M and rename constants for clarity
+
+v4.4.6
+----------
+ * Fix updating dynamic groups on contact update from the UI
+ * Make editor agnostic to F/M flow types
+
+v4.4.5
+----------
+ * Remove mage functionality
+ * Fix Twilio number searching
+
+v4.4.2
+----------
+ * Use SystemContactFields for Dynamic Groups
+ * Add our own json module for loads, dumps, always preserve decimals and ordering
+ * Replace reads of Flow.flow_type=MESSAGE with Flow.is_system=True
+ * Migration to populate Flow.is_system based on flow_type
+
+v4.4.0
+----------
+ * Fix intercom ResourceNotFound on Org.Signup
+ * Remove follow triggers and channel events
+ * Add Flow.is_system and start populating for new campaign event single message flows
+
+v4.3.8
+----------
+ * Data migration to deactivate all old style Twitter channels
+ * Update Nexmo client
+
+v4.3.4
+----------
+ * Increase IVR logging verbosity
+ * Trial all campaign message flows in flowserver
+ * Tweak android recommendation
+
+v4.3.3
+----------
+ * Run Table should only exclude the referenced run, and include greater Ids
+ * Raise validation error ehen trying action inactive contacts over API
+ * Remove uservoice as a dependency
+ * Update versions of Celery, Postgis, Nexmo, Twilio
+ * Fix Python 3.7 issues
+ * Clear out archive org directory when full releasing orgs
+
 v4.3.2
 ----------
  * Update expressions library to get EPOCH() function

@@ -29,14 +29,7 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import (
-    analytics,
-    chunk_list,
-    dict_to_json,
-    extract_constants,
-    get_anonymous_user,
-    on_transaction_commit,
-)
+from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import check_and_mark_in_timerange
 from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -1150,7 +1143,7 @@ class Msg(models.Model):
         if msg.error_count >= 3 or fatal:
             if isinstance(msg, Msg):
                 msg.status_fail()
-            else:
+            else:  # pragma: no cover
                 Msg.objects.select_related("org").get(pk=msg.id).status_fail()
 
             if channel:
@@ -1389,7 +1382,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection("default")
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1411,13 +1404,18 @@ class Msg(models.Model):
         value = str(self)
         attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
-        return {
+        context = {
             "__default__": value,
             "value": value,
             "text": self.text,
             "attachments": attachments,
             "time": datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone),
         }
+
+        if self.contact_urn:
+            context["urn"] = self.contact_urn.build_expressions_context(self.org)
+
+        return context
 
     def resend(self):
         """
@@ -1722,7 +1720,7 @@ class Msg(models.Model):
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
-        if insert_object:
+        if insert_object and status != SENT:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(

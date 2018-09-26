@@ -3,6 +3,8 @@ from django.conf import settings
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
+from django.utils.html import escapejs
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
 
 from ...campaigns.models import Campaign
@@ -150,3 +152,19 @@ class LessBlockNode(template.Node):
 
 # register our tag
 lessblock = register.tag(lessblock)
+
+
+@register.filter
+def to_json(value):
+    """
+    To use a python variable in JS, we call json.dumps to serialize as JSON server-side and reconstruct using
+    JSON.parse. The serialized string must be escaped appropriately before dumping into the client-side code.
+
+    https://stackoverflow.com/a/14290542
+    """
+    if type(value) != str:
+        raise ValueError(f"Expected str got {type(value)} for to_json")
+
+    escaped_output = escapejs(value)
+
+    return mark_safe(f'JSON.parse("{escaped_output}")')

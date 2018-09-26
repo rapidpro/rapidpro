@@ -124,7 +124,9 @@ class AdminBoundary(MPTTModel, models.Model):
         _update_child_paths(self)
 
     def release(self):
-        AdminBoundary.objects.filter(parent=self).update(parent=None)
+        for child_boundary in AdminBoundary.objects.filter(parent=self):
+            child_boundary.release()
+
         self.delete()
 
     @classmethod

@@ -9,7 +9,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 class TwimlAPITypeTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
 
