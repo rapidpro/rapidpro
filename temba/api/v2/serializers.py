@@ -841,6 +841,11 @@ class FlowStartWriteSerializer(WriteSerializer):
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
+        # request is parsed by DRF.JSONParser, and if extra is a valid json it gets deserialized as dict
+        # in any other case we need to raise a ValidationError
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Must be a valid JSON value")
+
         if not value:  # pragma: needs cover
             return None
         else:
