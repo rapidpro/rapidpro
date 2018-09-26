@@ -3069,20 +3069,23 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-        self.is_active = False
-        self.save()
-        self.contacts.clear()
-        self.counts.all().delete()
+        with transaction.atomic():
+            if self.is_active is True:
+                self.is_active = False
+                self.save()
 
-        # delete any event fires related to our group
-        from temba.campaigns.models import EventFire
+            self.contacts.clear()
+            self.counts.all().delete()
 
-        EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
+            # delete any event fires related to our group
+            from temba.campaigns.models import EventFire
 
-        # mark any triggers that operate only on this group as inactive
-        from temba.triggers.models import Trigger
+            EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
-        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+            # mark any triggers that operate only on this group as inactive
+            from temba.triggers.models import Trigger
+
+            Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
     @property
     def is_dynamic(self):

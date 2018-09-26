@@ -26,6 +26,14 @@ def export_contacts_task(task_id):
     ExportContactsTask.objects.get(id=task_id).perform()
 
 
+@nonoverlapping_task(track_started=True, name="release_group_task")
+def release_group_task(group_id):
+    """
+    Releases group
+    """
+    ContactGroup.all_groups.get(id=group_id).release()
+
+
 @nonoverlapping_task(track_started=True, name="squash_contactgroupcounts")
 def squash_contactgroupcounts():
     """
