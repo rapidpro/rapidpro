@@ -125,7 +125,13 @@ from .models import (
     get_flow_user,
 )
 from .server import FlowServerException, get_client, serialize_contact
-from .tasks import check_flow_timeouts_task, squash_flowpathcounts, squash_flowruncounts, update_run_expirations_task
+from .tasks import (
+    check_flow_timeouts_task,
+    squash_flowpathcounts,
+    squash_flowruncounts,
+    start_flow_task,
+    update_run_expirations_task,
+)
 from .views import FlowCRUDL
 
 
@@ -11325,7 +11331,14 @@ class FlowTriggerTest(TembaTest):
         )
         group_trigger.groups.add(group)
 
-        group_trigger.fire()
+        real_func = start_flow_task.apply_async
+        with patch("temba.flows.tasks.start_flow_task.apply_async") as mock_start_flow_task:
+            mock_start_flow_task.side_effect = real_func
+
+            group_trigger.fire()
+
+            start = FlowStart.objects.get()
+            mock_start_flow_task.assert_called_once_with(args=[start.id], queue="flows")
 
         # contact should be added to flow again
         self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())

@@ -5911,7 +5911,10 @@ class FlowStart(SmartModel):
     def async_start(self):
         from temba.flows.tasks import start_flow_task
 
-        queue = Queue.FLOWS if self.contact_count > 1 else Queue.HANDLER
+        # we prioritize the case where a specific contact is being started by themselves
+        prioritize = self.contacts.count() == 1 and self.groups.count() == 0
+
+        queue = Queue.HANDLER if prioritize else Queue.FLOWS
 
         on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
 
