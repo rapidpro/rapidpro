@@ -134,7 +134,9 @@ class Campaign(TembaModel):
                         )
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec["flow"]["uuid"]).first()
+                        flow = Flow.objects.filter(
+                            org=org, is_active=True, is_system=False, uuid=event_spec["flow"]["uuid"]
+                        ).first()
                         if flow:
                             CampaignEvent.create_flow_event(
                                 org,
@@ -192,7 +194,7 @@ class Campaign(TembaModel):
         definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
-        for event in self.events.all().order_by("flow__uuid"):
+        for event in self.events.filter(is_active=True).order_by("flow__uuid"):
             event_definition = dict(
                 uuid=event.uuid,
                 offset=event.offset,
@@ -465,7 +467,7 @@ class CampaignEvent(TembaModel):
         self.flow_starts.all().update(campaign_event=None)
 
         # if flow isn't a user created flow we can delete it too
-        if self.flow.is_system:
+        if self.event_type == CampaignEvent.TYPE_MESSAGE:
             self.flow.starts.all().update(is_active=False)
             self.flow.release()
 

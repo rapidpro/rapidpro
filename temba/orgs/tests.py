@@ -3752,7 +3752,7 @@ class BulkExportTest(TembaTest):
 
         # and our objets should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
-        self.assertEqual("Appointment Schedule", Campaign.objects.all().first().name)
+        self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
         self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
