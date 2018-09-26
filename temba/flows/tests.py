@@ -5782,16 +5782,17 @@ class WebhookTest(TembaTest):
         # we don't have the resthook registered yet, so this won't trigger any calls
         webhook_flow.start([], [self.contact])
 
-        # should have two messages of failures
+        # should have two messages
         msgs = list(self.contact.msgs.order_by("id"))
         self.assertEqual(msgs[0].text, "That was a success.")
         self.assertEqual(msgs[1].text, "The second succeeded.")
 
-        # but we should have created a webhook event regardless
-        self.assertTrue(WebHookEvent.objects.filter(resthook__slug="new-registration"))
+        if not in_flowserver:
+            # but we should have created a webhook event regardless
+            self.assertTrue(WebHookEvent.objects.filter(resthook__slug="new-registration"))
 
-        # ok, let's go add a listener for that event (should have been created automatically)
-        resthook = Resthook.objects.get(org=self.org, slug="new-registration")
+        # ok, let's go add a listener for that event
+        resthook = Resthook.get_or_create(self.org, slug="new-registration", user=self.admin)
         resthook.subscribers.create(
             target_url="http://localhost:49999/foo", created_by=self.admin, modified_by=self.admin
         )
