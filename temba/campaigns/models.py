@@ -456,12 +456,9 @@ class CampaignEvent(TembaModel):
         Removes this event.. also takes care of removing any event fires that were scheduled and unfired
         """
 
-        # we need to be inactive so our message flows don't try to circle back and release us
+        # we need to be inactive so our fires are noops
         self.is_active = False
         self.save(update_fields=("is_active",))
-
-        # delete any event fires
-        self.event_fires.all().delete()
 
         # detach any associated flow starts
         self.flow_starts.all().update(campaign_event=None)
@@ -508,7 +505,11 @@ class EventFire(Model):
         Actually fires this event for the passed in contact and flow
         """
         self.fired = timezone.now()
-        self.event.flow.start([], [self.contact], restart_participants=True)
+
+        # only start our flow if our event is still active
+        if self.event.is_active:
+            self.event.flow.start([], [self.contact], restart_participants=True)
+
         self.save(update_fields=("fired",))
 
     def release(self):
