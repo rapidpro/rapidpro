@@ -458,7 +458,7 @@
       var modal = new Modax('{% trans "Save Search as Group" %}', '{% url "contacts.contactgroup_create"%}');
       modal.setIcon('icon-users');
       modal.setListeners({
-        onFormLoaded: function() { $("#active-modal form input#id_group_query").val('{{ search|to_json }}'); }
+        onFormLoaded: function() { $("#active-modal form input#id_group_query").val('{{ search|escapejs }}'); }
       });
       modal.setRedirectOnSuccess(true);
       modal.show();
