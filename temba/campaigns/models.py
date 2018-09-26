@@ -527,11 +527,12 @@ class EventFire(Model):
         contacts = [f.contact for f in fires]
         event = fires[0].event
 
-        if len(contacts) == 1:
-            flow.start([], contacts, restart_participants=True, campaign_event=event)
-        else:
-            start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
-            start.async_start()
+        if event.is_active:
+            if len(contacts) == 1:
+                flow.start([], contacts, restart_participants=True, campaign_event=event)
+            else:
+                start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
+                start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod

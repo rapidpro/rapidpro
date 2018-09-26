@@ -163,6 +163,44 @@ class CampaignTest(TembaTest):
         self.assertEqual(FlowStart.objects.count(), 0)
         self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
 
+    def test_event_release(self):
+        # create a campaign with a message event 1 day after planting date
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        event = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+        )
+
+        # update the planting date for our contact
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
+
+        fire = EventFire.objects.get()
+
+        # change our fire date to sometime in the past so it gets triggered
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save(update_fields=("scheduled",))
+
+        # release our event
+        event.release()
+
+        # our fire should still exist
+        fire.refresh_from_db()
+
+        # schedule our events to fire
+        check_campaigns_task()
+
+        self.assertFalse(FlowRun.objects.filter(contact=self.farmer1).exists())
+        self.assertFalse(event.is_active)
+        self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
+
     def test_trim_event_fires(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
