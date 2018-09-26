@@ -3069,8 +3069,10 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-        self.is_active = False
-        self.save()
+        if self.is_active is True:
+            self.is_active = False
+            self.save()
+
         self.contacts.clear()
         self.counts.all().delete()
 

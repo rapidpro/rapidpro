@@ -56,7 +56,7 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
-from .tasks import export_contacts_task
+from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
 
@@ -1609,11 +1609,12 @@ class ContactGroupCRUDL(SmartCRUDL):
             if flows.count():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # remove our group
-            group.release()
+            # deactivate the group, this makes it 'invisible'
+            group.is_active = False
+            group.save()
 
-            # make is_active False for all its triggers too
-            group.trigger_set.all().update(is_active=False)
+            # release the group in a background task
+            on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
             response = self.render_to_response(
