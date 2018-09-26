@@ -1,3 +1,10 @@
+v4.5.1
+----------
+ * Use constants for queue names and switch single contact flow starts to use the handler queue
+ * Raise ValidationError if flow.extra is not a valid JSON
+ * Defer group.release in a background task
+ * Fix saving dynamic groups by reverting back to escapejs for contact group query on dialog
+
 v4.5.0
 ----------
  * Add Stopped event to message history and unknown/unsupported events
