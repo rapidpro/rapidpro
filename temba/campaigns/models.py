@@ -93,7 +93,7 @@ class Campaign(TembaModel):
                     campaign.group = group
                     campaign.save()
 
-                # release all of our events, we'll recreate these
+                # deactivate all of our events, we'll recreate these
                 for event in campaign.events.all():
                     event.release()
 
@@ -134,7 +134,9 @@ class Campaign(TembaModel):
                         )
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec["flow"]["uuid"]).first()
+                        flow = Flow.objects.filter(
+                            org=org, is_active=True, is_system=False, uuid=event_spec["flow"]["uuid"]
+                        ).first()
                         if flow:
                             CampaignEvent.create_flow_event(
                                 org,
@@ -192,7 +194,7 @@ class Campaign(TembaModel):
         definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
-        for event in self.events.all().order_by("flow__uuid"):
+        for event in self.events.filter(is_active=True).order_by("flow__uuid"):
             event_definition = dict(
                 uuid=event.uuid,
                 offset=event.offset,
@@ -461,18 +463,13 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
+        # detach any associated flow starts
+        self.flow_starts.all().update(campaign_event=None)
+
         # if flow isn't a user created flow we can delete it too
-        if self.flow.is_system:
-
-            # delete any associated flow starts
-            self.flow_starts.all().delete()
-
+        if self.event_type == CampaignEvent.TYPE_MESSAGE:
+            self.flow.starts.all().update(is_active=False)
             self.flow.release()
-        else:
-            # detach any associated flow starts
-            self.flow_starts.all().update(campaign_event=None)
-
-        self.delete()
 
     def calculate_scheduled_fire(self, contact):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
