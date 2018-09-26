@@ -308,13 +308,16 @@ class FlowSession(models.Model):
 
         except server.FlowServerException:
             # something has gone wrong so this session is over
-            self.status = FlowSession.STATUS_FAILED
-            self.ended_on = timezone.now()
-            self.save(update_fields=("status", "ended_on"))
+            self.end(FlowSession.STATUS_FAILED)
 
             self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
 
         return True, []
+
+    def end(self, status):
+        self.status = status
+        self.ended_on = timezone.now()
+        self.save(update_fields=("status", "ended_on"))
 
     def sync_runs(self, output, msg_in, prev_waiting_run=None):
         """

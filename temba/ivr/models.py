@@ -67,12 +67,15 @@ class IVRCall(ChannelSession):
                     test_call.close()
 
     def close(self):
-        if not self.is_done():
+        from temba.flows.models import FlowSession
 
+        if not self.is_done():
             # mark us as interrupted
             self.status = ChannelSession.INTERRUPTED
             self.ended_on = timezone.now()
-            self.save()
+            self.save(update_fields=("status", "ended_on"))
+
+            self.session.end(FlowSession.STATUS_INTERRUPTED)
 
             client = self.channel.get_ivr_client()
             if client and self.external_id:
