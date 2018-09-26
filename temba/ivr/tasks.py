@@ -7,7 +7,7 @@ from celery.task import task
 from temba.channels.models import ChannelLog
 from temba.utils.http import HttpEvent
 from temba.utils.locks import NonBlockingLock
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.queues import Queue, nonoverlapping_task
 
 from .models import IVRCall
 
@@ -53,4 +53,4 @@ def check_calls_task():
         call.modified_on = timezone.now()
         call.save()
 
-        start_call_task.apply_async(kwargs={"call_pk": call.id}, queue="handler")
+        start_call_task.apply_async(kwargs={"call_pk": call.id}, queue=Queue.HANDLER)

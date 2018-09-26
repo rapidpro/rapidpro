@@ -9,11 +9,11 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.flows.models import FLOW_BATCH
-from temba.msgs.models import BROADCAST_BATCH, HANDLE_EVENT_TASK, HANDLER_QUEUE, TIMEOUT_EVENT, Broadcast, Msg
+from temba.msgs.models import BROADCAST_BATCH, HANDLE_EVENT_TASK, TIMEOUT_EVENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
 from temba.utils.dates import datetime_to_epoch
-from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import (
     ExportFlowResultsTask,
@@ -80,7 +80,7 @@ def check_flow_timeouts_task():
         if not queued_timeouts.is_queued(run):
             try:
                 task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
-                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
+                push_task(run.org_id, Queue.HANDLER, HANDLE_EVENT_TASK, task_payload)
 
                 queued_timeouts.set_queued([run])
             except Exception:  # pragma: no cover

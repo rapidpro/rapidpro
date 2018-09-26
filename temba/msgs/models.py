@@ -35,7 +35,7 @@ from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_forma
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
-from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, push_task
+from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
 from .handler import MessageHandler
@@ -43,10 +43,8 @@ from .handler import MessageHandler
 logger = logging.getLogger(__name__)
 __message_handlers = None
 
-MSG_QUEUE = "msgs"
 SEND_MSG_TASK = "send_msg_task"
 
-HANDLER_QUEUE = "handler"
 HANDLE_EVENT_TASK = "handle_event_task"
 MSG_EVENT = "msg"
 FIRE_EVENT = "fire"
@@ -368,7 +366,7 @@ class Broadcast(models.Model):
 
         # otherwise, create batches and fire those off
         else:
-            from temba.flows.models import FLOWS_QUEUE, Flow
+            from temba.flows.models import Flow
 
             for batch in chunk_list(urns, BATCH_SIZE):
                 kwargs = dict(
@@ -382,7 +380,7 @@ class Broadcast(models.Model):
                 )
                 push_task(
                     self.org,
-                    FLOWS_QUEUE,
+                    Queue.FLOWS,
                     Flow.START_MSG_FLOW_BATCH,
                     dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
                 )
@@ -1038,7 +1036,7 @@ class Msg(models.Model):
     @classmethod
     def _send_rapid_msg_batches(cls, batches):
         for batch in batches:
-            push_task(batch["org"], MSG_QUEUE, SEND_MSG_TASK, batch["msgs"], priority=batch["priority"])
+            push_task(batch["org"], Queue.MSGS, SEND_MSG_TASK, batch["msgs"], priority=batch["priority"])
 
     @classmethod
     def _send_courier_msg_batches(cls, batches):
@@ -1385,7 +1383,7 @@ class Msg(models.Model):
         r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
 
         # queue up our celery task
-        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
+        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
 
     def handle(self):
         if self.direction == OUTGOING:

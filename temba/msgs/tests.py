@@ -34,7 +34,6 @@ from temba.msgs.models import (
     FLOW,
     HANDLE_EVENT_TASK,
     HANDLED,
-    HANDLER_QUEUE,
     INBOX,
     INCOMING,
     MSG_EVENT,
@@ -61,7 +60,7 @@ from temba.tests.s3 import MockS3Client
 from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.queues import DEFAULT_PRIORITY, push_task
+from temba.utils.queues import DEFAULT_PRIORITY, Queue, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
@@ -3665,7 +3664,7 @@ class CeleryTaskTest(TembaTest):
 class HandleEventTest(TembaTest):
     def test_stop_contact_task(self):
         self.joe = self.create_contact("Joe", "+12065551212")
-        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
+        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
         self.joe.refresh_from_db()
         self.assertTrue(self.joe.is_stopped)
 

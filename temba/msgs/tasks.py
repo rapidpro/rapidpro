@@ -16,7 +16,7 @@ from temba.channels.courier import handle_new_contact, handle_new_message
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
 from temba.utils import analytics, chunk_list, json
-from temba.utils.queues import complete_task, nonoverlapping_task, start_task
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
 
 from .models import (
     FIRE_EVENT,
@@ -315,9 +315,9 @@ def check_messages_task():  # pragma: needs cover
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
-        send_msg_task.apply_async(queue="msgs")
-        handle_event_task.apply_async(queue="handler")
-        start_msg_flow_batch_task.apply_async(queue="flows")
+        send_msg_task.apply_async(queue=Queue.MSGS)
+        handle_event_task.apply_async(queue=Queue.HANDLER)
+        start_msg_flow_batch_task.apply_async(queue=Queue.FLOWS)
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
