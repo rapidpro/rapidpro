@@ -3271,6 +3271,38 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True))
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
 
+        # should raise validation error for invalid JSON in extra
+        response = self.postJSON(
+            url,
+            None,
+            dict(
+                urns=["tel:+12067791212"],
+                contacts=[self.joe.uuid],
+                groups=[hans_group.uuid],
+                flow=flow.uuid,
+                restart_participants=False,
+                extra="YES",
+            ),
+        )
+
+        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+
+        # a list is valid JSON, but extra has to be a dict
+        response = self.postJSON(
+            url,
+            None,
+            dict(
+                urns=["tel:+12067791212"],
+                contacts=[self.joe.uuid],
+                groups=[hans_group.uuid],
+                flow=flow.uuid,
+                restart_participants=False,
+                extra=[],
+            ),
+        )
+
+        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+
         # invalid URN
         response = self.postJSON(
             url, None, dict(flow=flow.uuid, restart_participants=True, urns=["foo:bar"], contacts=[self.joe.uuid])
