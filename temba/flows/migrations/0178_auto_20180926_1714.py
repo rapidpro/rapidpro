@@ -16,8 +16,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="flowsession",
-            name="exited_on",
-            field=models.DateTimeField(help_text="When this session was exited", null=True),
+            name="ended_on",
+            field=models.DateTimeField(help_text="When this session ended", null=True),
         ),
         migrations.AlterField(
             model_name="flowsession",

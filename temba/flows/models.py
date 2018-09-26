@@ -177,7 +177,7 @@ class FlowSession(models.Model):
 
     created_on = models.DateTimeField(null=True, default=timezone.now, help_text=_("When this session was created"))
 
-    exited_on = models.DateTimeField(null=True, help_text=_("When this session was exited"))
+    ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
     @classmethod
     def create(cls, contact, connection):
@@ -190,7 +190,7 @@ class FlowSession(models.Model):
     @classmethod
     def interrupt_waiting(cls, contacts):
         cls.objects.filter(contact__in=contacts, status=FlowSession.STATUS_WAITING).update(
-            status=FlowSession.STATUS_INTERRUPTED, exited_on=timezone.now()
+            status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
         )
 
     @classmethod
@@ -237,7 +237,7 @@ class FlowSession(models.Model):
                 status=status,
                 output=output.session,
                 responded=bool(msg_in and msg_in.created_on),
-                exited_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
+                ended_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
             )
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -300,8 +300,8 @@ class FlowSession(models.Model):
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
             self.status = status
-            self.exited_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
-            self.save(update_fields=("output", "responded", "status", "exited_on"))
+            self.ended_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
+            self.save(update_fields=("output", "responded", "status", "ended_on"))
 
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
@@ -309,8 +309,8 @@ class FlowSession(models.Model):
         except server.FlowServerException:
             # something has gone wrong so this session is over
             self.status = FlowSession.STATUS_FAILED
-            self.exited_on = timezone.now()
-            self.save(update_fields=("status", "exited_on"))
+            self.ended_on = timezone.now()
+            self.save(update_fields=("status", "ended_on"))
 
             self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
 

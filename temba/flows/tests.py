@@ -11459,7 +11459,7 @@ class FlowServerTest(TembaTest):
         self.assertTrue(run1.session.output)
         self.assertEqual(run1.session.status, "W")
         self.assertIsNotNone(run1.session.created_on)
-        self.assertIsNone(run1.session.exited_on)
+        self.assertIsNone(run1.session.ended_on)
         self.assertEqual(run1.flow, flow)
         self.assertEqual(run1.contact, self.contact)
 
@@ -11523,7 +11523,7 @@ class FlowServerTest(TembaTest):
 
         run1.refresh_from_db()
         self.assertEqual(run1.session.status, "F")
-        self.assertIsNotNone(run1.session.exited_on)
+        self.assertIsNotNone(run1.session.ended_on)
         self.assertEqual(run1.exit_type, "C")
         self.assertIsNotNone(run1.exited_on)
 
