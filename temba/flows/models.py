@@ -71,7 +71,7 @@ from temba.utils.models import (
     TembaModel,
     generate_uuid,
 )
-from temba.utils.queues import push_task
+from temba.utils.queues import Queue, push_task
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.values.constants import Value
@@ -114,7 +114,6 @@ FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
 UNREAD_FLOW_RESPONSES = "unread_flow_responses"
 
 FLOW_BATCH = "flow_batch"
-FLOWS_QUEUE = "flows"
 
 
 class FlowLock(Enum):
@@ -2131,13 +2130,13 @@ class Flow(TembaModel):
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                    push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
+                    push_task(self.org, Queue.FLOWS, Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context["contacts"] = batch_contacts
 
             if batch_contacts:
                 print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                push_task(self.org, FLOWS_QUEUE, Flow.START_MSG_FLOW_BATCH, task_context)
+                push_task(self.org, Queue.FLOWS, Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
 
@@ -5912,7 +5911,12 @@ class FlowStart(SmartModel):
     def async_start(self):
         from temba.flows.tasks import start_flow_task
 
-        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=FLOWS_QUEUE))
+        # we prioritize the case where a specific contact is being started by themselves
+        prioritize = self.contacts.count() == 1 and self.groups.count() == 0
+
+        queue = Queue.HANDLER if prioritize else Queue.FLOWS
+
+        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING

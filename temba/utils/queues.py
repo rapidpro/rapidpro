@@ -12,6 +12,15 @@ from celery import current_app, shared_task
 
 from temba.utils import json
 
+
+# celery queue names
+class Queue:
+    CELERY = "celery"
+    FLOWS = "flows"
+    HANDLER = "handler"
+    MSGS = "msgs"
+
+
 LOW_PRIORITY = +10000000  # +10M ~ 110 days
 DEFAULT_PRIORITY = 0
 HIGH_PRIORITY = -10000000  # -10M ~ 110 days

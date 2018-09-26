@@ -11,9 +11,9 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
+from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
-from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
@@ -79,7 +79,7 @@ def send_msg_task():
         # if some msgs weren't sent for some reason, then requeue them for later sending
         if msg_tasks:
             # requeue any unsent msgs
-            push_task(org_id, MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
+            push_task(org_id, Queue.MSGS, SEND_MSG_TASK, msg_tasks)
 
 
 @nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")
