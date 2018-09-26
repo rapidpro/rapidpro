@@ -3530,7 +3530,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 group.update_contacts(user, [self.contact], add=False)
 
             if self.contact.is_test:  # pragma: no cover
-                ActionLog.info(self, _("Removed %s to %s") % (self.contact.name, group.name))
+                ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
     def apply_session_triggered(self, event, msg_in):
         """
