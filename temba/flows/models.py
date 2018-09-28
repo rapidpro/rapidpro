@@ -3490,9 +3490,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         user = get_flow_user(self.org)
         field = ContactField.user_fields.get(org=self.org, key=event["field"]["key"])
-        value = event["value"]
+        value = event.get("value")
 
-        self.contact.set_field(user, field.key, value["text"])
+        self.contact.set_field(user, field.key, value["text"] if value else "")
 
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event["value"]))
