@@ -1,3 +1,7 @@
+v4.6.0
+----------
+ * Latest goflow
+
 v4.5.2
 ----------
  * Add config for deduping messages
