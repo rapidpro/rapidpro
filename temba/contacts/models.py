@@ -3069,23 +3069,38 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-        with transaction.atomic():
-            if self.is_active is True:
-                self.is_active = False
-                self.save()
 
-            self.contacts.clear()
-            self.counts.all().delete()
+        # if group is still active, deactivate it
+        if self.is_active is True:
+            self.is_active = False
+            self.save()
 
-            # delete any event fires related to our group
-            from temba.campaigns.models import EventFire
+        # delete all counts for this group
+        self.counts.all().delete()
 
-            EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
+        # get the automatically generated M2M model
+        ContactGroupContacts = self.contacts.through
 
-            # mark any triggers that operate only on this group as inactive
-            from temba.triggers.models import Trigger
+        # grab the ids of all our m2m related rows
+        contactgroup_contact_ids = ContactGroupContacts.objects.filter(contactgroup_id=self.id).values_list(
+            "id", flat=True
+        )
 
-            Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+        for id_batch in chunk_list(contactgroup_contact_ids, 1000):
+            ContactGroupContacts.objects.filter(id__in=id_batch).delete()
+
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+
+        eventfire_ids = EventFire.objects.filter(event__campaign__group=self, fired=None).values_list("id", flat=True)
+
+        for id_batch in chunk_list(eventfire_ids, 1000):
+            EventFire.objects.filter(id__in=id_batch).delete()
+
+        # mark any triggers that operate only on this group as inactive
+        from temba.triggers.models import Trigger
+
+        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
     @property
     def is_dynamic(self):
