@@ -2085,6 +2085,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "tel_e164": self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
             "groups": ",".join([_.name for _ in self.cached_user_groups]),
             "uuid": self.uuid,
+            "created_on": self.created_on.isoformat(),
         }
 
         # anonymous orgs also get @contact.id
