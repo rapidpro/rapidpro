@@ -1973,9 +1973,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if immediately:
             from temba.contacts.tasks import full_release_contact
 
-            full_release_contact.delay(self.id, user.id)
+            full_release_contact.delay(self.id)
 
-    def _full_release(self, user):
+    def _full_release(self):
         with transaction.atomic():
 
             # release our messages
