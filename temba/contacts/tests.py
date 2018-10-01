@@ -5992,9 +5992,11 @@ class ContactTest(TembaTest):
 
         context = self.joe.build_expressions_context()
 
+        self.assertEqual("Joe Blow", context["__default__"])
         self.assertEqual("Joe", context["first_name"])
         self.assertEqual("Joe Blow", context["name"])
-        self.assertEqual("Joe Blow", context["__default__"])
+        self.assertEqual(str(self.joe.uuid), context["uuid"])
+        self.assertEqual(self.joe.created_on.isoformat(), context["created_on"])
 
         self.assertEqual("0781 111 111", context["tel"]["__default__"])
         self.assertEqual("+250781111111", context["tel"]["path"])
