@@ -1,3 +1,9 @@
+v4.7.0
+----------
+ * Bump Smartmin and Django versions
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+
 v4.6.0
 ----------
  * Latest goflow
