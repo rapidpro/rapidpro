@@ -39,7 +39,7 @@ django-rosetta==0.7.13
 django-select2==5.10.0
 django-storages==1.5.2
 django-timezone-field==2.0
-django==2.0.8
+django==2.0.9
 djangorestframework==3.8.2
 docutils==0.13.1          # via botocore
 elasticsearch-dsl==6.1.0
@@ -115,7 +115,7 @@ s3transfer==0.1.10        # via boto3
 selenium==3.4.3
 six==1.10.0               # via analytics-python, cryptography, django-extensions, django-hamlpy, django-rosetta, elasticsearch-dsl, librato-bg, librato-metrics, microsofttranslator, mock, pip-tools, python-dateutil, python-intercom, responses, twilio
 simplejson==3.16.0
-smartmin==2.0.0
+smartmin==2.0.2
 sqlparse==0.2.3           # via django-debug-toolbar, smartmin
 stop-words==2015.2.23.1
 stripe==1.59.0
