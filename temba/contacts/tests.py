@@ -1143,7 +1143,6 @@ class ContactTest(TembaTest):
 
         self.assertIsNone(contact.fields)
         self.assertIsNone(contact.name)
-        self.assertEqual(self.admin, contact.modified_by)
 
         # nope, we aren't paranoid or anything
         Org.objects.get(id=self.org.id)
@@ -4379,7 +4378,6 @@ class ContactTest(TembaTest):
 
         contact1.refresh_from_db()
         self.assertTrue(contact1.modified_on > first_modified_on)
-        self.assertEqual(contact1.modified_by, self.editor)
 
         contact2 = self.create_contact(name="Boy", number="12345")
         self.assertEqual(contact2.get_display(), "Boy")
