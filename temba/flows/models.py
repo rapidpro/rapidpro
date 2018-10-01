@@ -29,6 +29,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelSession
@@ -1765,7 +1766,10 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
+        if self.flow_server_enabled:
+            on_transaction_commit(lambda: flow_start.start_in_mailroom())
+        else:
+            on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(
         self,
@@ -5938,6 +5942,28 @@ class FlowStart(SmartModel):
         if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=["status"])
+
+    def start_in_mailroom(self):
+        """
+        Starts this flow start in mailroom
+        """
+        org_id = self.flow.org_id
+
+        # build our task
+        task = dict(
+            start_id=self.id,
+            org_id=org_id,
+            flow_id=self.flow_id,
+            group_ids=[g.id for g in self.groups.all()],
+            contact_ids=[c.id for c in self.contacts.all()],
+            restart_participants=self.restart_participants,
+            include_active=self.include_active,
+        )
+
+        # queue to mailroom
+        mailroom.queue_mailroom_task(
+            org_id, mailroom.BATCH_QUEUE, mailroom.START_FLOW_TASK, task, mailroom.HIGH_PRIORITY
+        )
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)

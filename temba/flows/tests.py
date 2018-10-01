@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import iso8601
 import pytz
+from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 
@@ -3560,6 +3561,44 @@ class FlowTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
+
+    def test_mailroom_starts(self):
+        self.login(self.admin)
+
+        # mark our flow as being flow server enabled
+        self.flow.flow_server_enabled = True
+        self.flow.save()
+
+        # start a contact in our flow
+        response = self.client.get(reverse("flows.flow_broadcast", args=[self.flow.id]))
+        self.assertEqual(len(response.context["form"].fields), 4)
+        self.assertIn("omnibox", response.context["form"].fields)
+        self.assertIn("restart_participants", response.context["form"].fields)
+        self.assertIn("include_active", response.context["form"].fields)
+
+        post_data = dict()
+        post_data["omnibox"] = "c-%s" % self.contact.uuid
+        post_data["restart_participants"] = "on"
+        self.client.post(reverse("flows.flow_broadcast", args=[self.flow.id]), post_data, follow=True)
+
+        # should now have our flow start queued
+        r = get_redis_connection()
+        self.assertEqual(1, r.zcard("batch:%d" % self.org.id))
+        self.assertEqual(1, r.zcard("batch:active"))
+
+        start = FlowStart.objects.last()
+
+        # pop our task off
+        task_json = r.zrange("batch:%d" % self.org.id, 0, 0)
+        task = json.loads(task_json[0].decode("utf8"))
+        self.assertEqual("start_flow", task["type"])
+        self.assertEqual(self.flow.id, task["task"]["flow_id"])
+        self.assertEqual(self.org.id, task["task"]["org_id"])
+        self.assertEqual([self.contact.id], task["task"]["contact_ids"])
+        self.assertEqual([], task["task"]["group_ids"])
+        self.assertEqual(True, task["task"]["restart_participants"])
+        self.assertEqual(False, task["task"]["include_active"])
+        self.assertTrue(start.id, task["task"]["start_id"])
 
     def test_views_viewers(self):
         # create a viewer
