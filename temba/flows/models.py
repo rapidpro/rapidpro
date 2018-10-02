@@ -3481,7 +3481,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         field = ContactField.user_fields.get(org=self.org, key=event["field"]["key"])
         value = event["value"]
 
-        self.contact.set_field(user, field.key, value)
+        self.contact.set_field(user, field.key, value["text"])
 
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event["value"]))
@@ -3506,26 +3506,25 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             else:  # pragma: no cover
                 ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg_in.text))
 
-    def apply_contact_groups_added(self, event, msg_in):
+    def apply_contact_groups_changed(self, event, msg_in):
         """
-        This contact being added to one or more groups
+        This contact being added/removed to/from one or more groups
         """
         user = get_flow_user(self.org)
-        for group_ref in event["groups"]:
+        for group_ref in event.get("groups_added", []):
             group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref["uuid"])
+            if group.is_dynamic:
+                continue
             if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=True)
 
             if self.contact.is_test:  # pragma: no cover
                 ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
-    def apply_contact_groups_removed(self, event, msg_in):
-        """
-        This contact being removed from one or more groups
-        """
-        user = get_flow_user(self.org)
-        for group_ref in event["groups"]:
+        for group_ref in event.get("groups_removed", []):
             group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref["uuid"])
+            if group.is_dynamic:
+                continue
             if not self.contact.is_stopped and not self.contact.is_blocked:
                 group.update_contacts(user, [self.contact], add=False)
 
@@ -3557,56 +3556,43 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("No such flow with UUID %s" % flow_ref["uuid"])
 
-    def apply_resthook_called(self, event, msg_in):
+    def apply_webhook_called(self, event, msg_in):
         """
-        A resthook was called
+        A webhook/resthook was called
         """
         from temba.api.models import Resthook, WebHookEvent, WebHookResult
 
         user = get_flow_user(self.org)
-        resthook = Resthook.get_or_create(self.org, slug=event["resthook"], user=user)
-        calls = event.get("calls", [])
+        if event.get("resthook"):
+            resthook = Resthook.get_or_create(self.org, slug=event["resthook"], user=user)
+        else:
+            resthook = None
 
-        if not calls:
-            webhook = WebHookEvent.objects.create(
-                org=self.org,
-                resthook=resthook,
-                status=WebHookEvent.STATUS_COMPLETE,
-                run=self,
-                event=WebHookEvent.TYPE_FLOW,
-                action="POST",
-                data={},
-                created_by=user,
-                modified_by=user,
-            )
-            WebHookResult.record_result(webhook, {"url": None, "message": "Success", "data": "", "status_code": 200})
+        url, status, request, response = event["url"], event["status"], event["request"], event["response"]
 
-        for call in calls:
-            url, status, request, response = call["url"], call["status"], call["request"], call["response"]
+        # get the body sent in the call
+        parts = request.split("\r\n\r\n")
+        payload = json.loads(parts[1]) if len(parts) == 2 and parts[1] else {}
 
-            # get the body sent in the call
-            parts = request.split("\r\n\r\n")
-            payload = json.loads(parts[1]) if len(parts) == 2 else {}
+        resp = http.parse_response(response)
 
-            resp = http.parse_response(response)
+        if resthook and resp.status == 410:
+            resthook.remove_subscriber(url, user)
 
-            if resp.status == 410:
-                resthook.remove_subscriber(call["url"], user)
-
-            webhook = WebHookEvent.objects.create(
-                org=self.org,
-                resthook=resthook,
-                status=WebHookEvent.STATUS_FAILED if status != "Success" else WebHookEvent.STATUS_COMPLETE,
-                run=self,
-                event=WebHookEvent.TYPE_FLOW,
-                action="POST",
-                data=payload,
-                created_by=user,
-                modified_by=user,
-            )
-            WebHookResult.record_result(
-                webhook, {"url": url, "message": status, "data": payload, "status_code": resp.status}
-            )
+        webhook = WebHookEvent.objects.create(
+            org=self.org,
+            resthook=resthook,
+            status=WebHookEvent.STATUS_FAILED if status != "Success" else WebHookEvent.STATUS_COMPLETE,
+            run=self,
+            event=WebHookEvent.TYPE_FLOW,
+            action="POST",
+            data=payload,
+            created_by=user,
+            modified_by=user,
+        )
+        WebHookResult.record_result(
+            webhook, {"url": url, "message": status, "data": payload, "status_code": resp.status}
+        )
 
     def apply_error(self, event, msg_in):
         """
