@@ -3073,7 +3073,7 @@ class ContactGroup(TembaModel):
         # if group is still active, deactivate it
         if self.is_active is True:
             self.is_active = False
-            self.save()
+            self.save(update_fields=("is_active",))
 
         # delete all counts for this group
         self.counts.all().delete()
