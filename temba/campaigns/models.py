@@ -549,7 +549,7 @@ class EventFire(Model):
         contacts = [f.contact for f in fires]
         event = fires[0].event
 
-        if event.is_active:
+        if event.is_active and not event.campaign.is_archived:
             if len(contacts) == 1:
                 flow.start([], contacts, restart_participants=True, campaign_event=event)
             else:

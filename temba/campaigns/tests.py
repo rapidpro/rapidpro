@@ -681,7 +681,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
         # should be redirected to our new event
-        event = CampaignEvent.objects.all().order_by("-pk").first()
+        event = CampaignEvent.objects.filter(is_active=True).get()
         self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.pk]))
 
         # should now have update the campaign event
@@ -690,7 +690,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(1, event.offset)
 
         # should also event fires rescheduled for our contacts
-        fire = EventFire.objects.all().order_by("-pk").first()
+        fire = EventFire.objects.filter(event__is_active=True).get()
         self.assertEqual(13, fire.scheduled.hour)
         self.assertEqual(0, fire.scheduled.minute)
         self.assertEqual(0, fire.scheduled.second)
