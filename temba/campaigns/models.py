@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 from django.db import models
@@ -10,7 +9,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.utils import on_transaction_commit
+from temba.utils import json, on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
 from temba.values.constants import Value
 
@@ -94,7 +93,7 @@ class Campaign(TembaModel):
                     campaign.group = group
                     campaign.save()
 
-                # release all of our events, we'll recreate these
+                # deactivate all of our events, we'll recreate these
                 for event in campaign.events.all():
                     event.release()
 
@@ -135,7 +134,9 @@ class Campaign(TembaModel):
                         )
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec["flow"]["uuid"]).first()
+                        flow = Flow.objects.filter(
+                            org=org, is_active=True, is_system=False, uuid=event_spec["flow"]["uuid"]
+                        ).first()
                         if flow:
                             CampaignEvent.create_flow_event(
                                 org,
@@ -193,7 +194,7 @@ class Campaign(TembaModel):
         definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
-        for event in self.events.all().order_by("flow__uuid"):
+        for event in self.events.filter(is_active=True).order_by("flow__uuid"):
             event_definition = dict(
                 uuid=event.uuid,
                 offset=event.offset,
@@ -224,7 +225,7 @@ class Campaign(TembaModel):
         events = list(self.events.filter(is_active=True))
 
         for evt in events:
-            if evt.flow.flow_type == Flow.MESSAGE:
+            if evt.flow.is_system:
                 evt.flow.ensure_current_version()
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
@@ -462,17 +463,13 @@ class CampaignEvent(TembaModel):
         # delete any event fires
         self.event_fires.all().delete()
 
-        # if our flow is a single message flow, clean up
-        if self.flow.flow_type == Flow.MESSAGE:
-            # delete any associated flow starts
-            self.flow_starts.all().delete()
+        # detach any associated flow starts
+        self.flow_starts.all().update(campaign_event=None)
 
+        # if flow isn't a user created flow we can delete it too
+        if self.event_type == CampaignEvent.TYPE_MESSAGE:
+            self.flow.starts.all().update(is_active=False)
             self.flow.release()
-        else:
-            # detach any associated flow starts
-            self.flow_starts.all().update(campaign_event=None)
-
-        self.delete()
 
     def calculate_scheduled_fire(self, contact):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
@@ -649,29 +646,31 @@ class EventFire(Model):
         # remove all pending fires for this contact
         EventFire.objects.filter(contact=contact, fired=None).delete()
 
-        # get all the groups this user is in
-        groups = [g.id for g in contact.cached_user_groups]
-
         # for each campaign that might affect us
         for campaign in Campaign.objects.filter(
-            group__in=groups, org=contact.org, is_active=True, is_archived=False
+            group__in=contact.user_groups, org=contact.org, is_active=True, is_archived=False
         ).distinct():
             # update all the events for the campaign
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_contact_field(cls, contact, key):
+    def update_events_for_contact_fields(cls, contact, keys, is_new=False):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
-        # get all the groups this user is in
-        groups = [_.id for _ in contact.cached_user_groups]
-
         # get all events which are in one of these groups and on this field
         events = CampaignEvent.objects.filter(
-            campaign__group__in=groups, relative_to__key=key, campaign__is_archived=False, is_active=True
+            campaign__group__in=contact.user_groups,
+            relative_to__key__in=keys,
+            campaign__is_archived=False,
+            is_active=True,
         ).prefetch_related("relative_to")
+
+        if is_new is False:
+            # only new contacts can trigger campaign event reevaluation that are relative to immutable fields
+            events.exclude(relative_to__key__in=ContactField.IMMUTABLE_FIELDS)
+
         for event in events:
             # remove any unfired events, they will get recreated below
             EventFire.objects.filter(event=event, contact=contact, fired=None).delete()

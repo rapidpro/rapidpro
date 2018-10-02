@@ -1,6 +1,6 @@
 -extends "smartmin/form.html"
 
--load smartmin
+-load smartmin temba
 
 -block extra-script
   {{ block.super }}
@@ -32,8 +32,8 @@
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      var completions = {{completions|safe}};
-      var function_completions = {{function_completions|safe}};
+      var completions = {{ completions|to_json }};
+      var function_completions = {{ function_completions|to_json }};
 
       $('#message-section textarea').each(function() {
 

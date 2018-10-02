@@ -184,7 +184,7 @@ class TriggerTest(TembaTest):
 
         # now lets create our first valid inbound call trigger
         guitarist_flow = self.create_flow()
-        guitarist_flow.flow_type = Flow.VOICE
+        guitarist_flow.flow_type = Flow.TYPE_VOICE
         guitarist_flow.save()
 
         post_data = dict(flow=guitarist_flow.pk)
@@ -202,7 +202,7 @@ class TriggerTest(TembaTest):
 
         # flow specific to our group
         bassist_flow = self.create_flow()
-        bassist_flow.flow_type = Flow.VOICE
+        bassist_flow.flow_type = Flow.TYPE_VOICE
         bassist_flow.save()
 
         post_data = dict(flow=bassist_flow.pk, groups=[bassists.pk])
@@ -216,7 +216,7 @@ class TriggerTest(TembaTest):
         self.channel.release()
 
         # should still have two voice flows and triggers (they aren't archived)
-        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
+        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.TYPE_VOICE, is_archived=False).count())
         self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
     def test_referral_trigger(self):
@@ -314,13 +314,13 @@ class TriggerTest(TembaTest):
         self.assertFalse(Schedule.objects.all())
 
         # survey flows should not be an option
-        flow.flow_type = Flow.SURVEY
+        flow.flow_type = Flow.TYPE_SURVEY
         flow.save()
         response = self.client.get(reverse("triggers.trigger_schedule"))
         self.assertEqual(0, response.context["form"].fields["flow"].queryset.all().count())
 
         # back to normal flow type
-        flow.flow_type = Flow.FLOW
+        flow.flow_type = Flow.TYPE_MESSAGE
         flow.save()
         self.assertEqual(1, response.context["form"].fields["flow"].queryset.all().count())
 
@@ -470,7 +470,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW, name="Join Chat")
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -513,7 +513,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # confirm our objects
-        flow = Flow.objects.filter(flow_type=Flow.FLOW).order_by("-pk").first()
+        flow = Flow.objects.filter(flow_type=Flow.TYPE_MESSAGE).order_by("-pk").first()
         trigger = Trigger.objects.get(keyword="join_lang", flow=flow)
         self.assertEqual(trigger.flow.name, "Join Lang Group")
 
@@ -529,8 +529,8 @@ class TriggerTest(TembaTest):
             favorites = self.get_flow("favorites")
             self.assertEqual(2, trigger_form.fields["flow"].choices.queryset.all().count())
 
-            # now change to a single message type
-            pick.flow_type = Flow.MESSAGE
+            # now change to a system flow
+            pick.is_system = True
             pick.save()
 
             # our flow should no longer be an option
@@ -556,7 +556,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        Flow.objects.get(flow_type=Flow.FLOW)
+        Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # now let's try it out
         contact = self.create_contact("Ben", "+250788382382")
@@ -579,7 +579,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -925,7 +925,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -1108,11 +1108,11 @@ class TriggerTest(TembaTest):
 
         group = self.create_group("Trigger Group", [])
 
-        # create a trigger on this flow for the follow actions but only on some groups
+        # create a trigger on this flow for the new conversation actions but only on some groups
         trigger = Trigger.objects.create(
             org=self.org,
             flow=flow,
-            trigger_type=Trigger.TYPE_FOLLOW,
+            trigger_type=Trigger.TYPE_NEW_CONVERSATION,
             channel=self.channel,
             created_by=self.admin,
             modified_by=self.admin,
@@ -1131,7 +1131,7 @@ class TriggerTest(TembaTest):
         self.org.import_app(export, self.admin)
 
         trigger = Trigger.objects.get()
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_FOLLOW)
+        self.assertEqual(trigger.trigger_type, Trigger.TYPE_NEW_CONVERSATION)
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])

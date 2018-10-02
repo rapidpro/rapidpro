@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import OrderedDict
 from datetime import timedelta
@@ -37,7 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
@@ -57,7 +56,7 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
-from .tasks import export_contacts_task
+from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +276,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context["object_list"])
-        Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
+        Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
@@ -1370,7 +1369,8 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields)
+            obj.save(update_fields=fields, handle_update=True)
+
             self.save_m2m()
 
             new_groups = self.form.cleaned_data.get("groups")
@@ -1609,11 +1609,12 @@ class ContactGroupCRUDL(SmartCRUDL):
             if flows.count():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # remove our group
-            group.release()
+            # deactivate the group, this makes it 'invisible'
+            group.is_active = False
+            group.save()
 
-            # make is_active False for all its triggers too
-            group.trigger_set.all().update(is_active=False)
+            # release the group in a background task
+            on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
             response = self.render_to_response(

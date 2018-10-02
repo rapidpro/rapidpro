@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -23,7 +22,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, TembaTest, matchers
-from temba.utils.dates import datetime_to_json_date
+from temba.utils import json
 from temba.values.constants import Value
 
 from .serializers import (
@@ -220,6 +219,21 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 403)
 
+    @patch("temba.contacts.models.Contact.update_static_groups")
+    def test_transactions(self, mock_update_static_groups):
+        mock_update_static_groups.side_effect = ValueError("BOOM")
+
+        url = reverse("api.v1.contacts")
+        self.login(self.surveyor)
+
+        with self.assertRaises(ValueError):
+            self.postJSON(url, {"name": "Bob", "urns": ["tel:+250788123456"], "groups": ["Testers"]})
+
+        mock_update_static_groups.assert_called_once()
+
+        # ensure contact wasn't created
+        self.assertFalse(Contact.objects.filter(name="Bob").exists())
+
     def test_api_org(self):
         url = reverse("api.v1.org")
 
@@ -393,7 +407,7 @@ class APITest(TembaTest):
                         label="color",
                     )
                 ],
-                created_on=datetime_to_json_date(flow.created_on),
+                created_on=json.encode_datetime(flow.created_on),
                 expires=flow.expires_after_minutes,
                 archived=False,
             ),
@@ -454,7 +468,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEqual(1, response.json()["metadata"]["revision"])
         self.assertEqual("Pick a Number", response.json()["metadata"]["name"])
-        self.assertEqual("F", response.json()["flow_type"])
+        self.assertEqual("M", response.json()["flow_type"])
 
         # make sure the version that is returned increments properly
         flow.update(flow.as_json())
@@ -1628,17 +1642,17 @@ class APITest(TembaTest):
         self.assertResultCount(response, 2)
 
         after_dre = drdre.modified_on + timedelta(microseconds=2000)
-        response = self.fetchJSON(url, "after=" + datetime_to_json_date(after_dre))
+        response = self.fetchJSON(url, "after=" + json.encode_datetime(after_dre))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Jay-Z")
 
         before_jayz = jay_z.modified_on - timedelta(microseconds=2000)
-        response = self.fetchJSON(url, "before=" + datetime_to_json_date(before_jayz))
+        response = self.fetchJSON(url, "before=" + json.encode_datetime(before_jayz))
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
         response = self.fetchJSON(
-            url, "after=%s&before=%s" % (datetime_to_json_date(after_dre), datetime_to_json_date(before_jayz))
+            url, "after=%s&before=%s" % (json.encode_datetime(after_dre), json.encode_datetime(before_jayz))
         )
         self.assertResultCount(response, 0)
 

@@ -11,10 +11,9 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
+from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
-from temba.utils.mage import MageClient
-from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
@@ -80,7 +79,7 @@ def send_msg_task():
         # if some msgs weren't sent for some reason, then requeue them for later sending
         if msg_tasks:
             # requeue any unsent msgs
-            push_task(org_id, MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
+            push_task(org_id, Queue.MSGS, SEND_MSG_TASK, msg_tasks)
 
 
 @nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")
@@ -117,22 +116,6 @@ def trim_channel_log_task():  # pragma: needs cover
     if all_logs_trim_time:
         all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
         ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
-
-
-@task(track_started=True, name="notify_mage_task")
-def notify_mage_task(channel_uuid, action):
-    """
-    Notifies Mage of a change to a Twitter channel
-    """
-    action = MageStreamAction[action]
-    mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)
-
-    if action == MageStreamAction.activate:
-        mage.activate_twitter_stream(channel_uuid)
-    elif action == MageStreamAction.deactivate:
-        mage.deactivate_twitter_stream(channel_uuid)
-    else:  # pragma: no cover
-        raise ValueError("Invalid action: %s" % action)
 
 
 @nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts")
