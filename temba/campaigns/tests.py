@@ -464,6 +464,8 @@ class CampaignTest(TembaTest):
         self.org.save()
 
         # and still get the same settings, (it should use the base of the flow instead of just base here)
+        event = CampaignEvent.objects.all().order_by("-pk").first()
+        url = reverse("campaigns.campaignevent_update", args=[event.id])
         response = self.client.get(url)
         self.assertIn("base", response.context["form"].fields)
         self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
@@ -678,17 +680,17 @@ class CampaignTest(TembaTest):
         )
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
-        # should be redirected back to our campaign event read page
+        # should be redirected to our new event
+        event = CampaignEvent.objects.all().order_by("-pk").first()
         self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.pk]))
 
         # should now have update the campaign event
-        event = CampaignEvent.objects.get()
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(1, event.offset)
 
         # should also event fires rescheduled for our contacts
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.all().order_by("-pk").first()
         self.assertEqual(13, fire.scheduled.hour)
         self.assertEqual(0, fire.scheduled.minute)
         self.assertEqual(0, fire.scheduled.second)

@@ -131,9 +131,7 @@
         $(".update-event").live('click', function(){
           var modal = new Modax('Update Event', '{% url "campaigns.campaignevent_update" object.pk %}');
           modal.setIcon('icon-instant');
-          modal.setListeners({
-            onSuccess: function(data) {location.reload(); },
-          });
+          modal.setRedirectOnSuccess(true);
           modal.show();
         });
       {% endif %}

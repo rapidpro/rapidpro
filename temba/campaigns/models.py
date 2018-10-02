@@ -360,10 +360,14 @@ class CampaignEvent(TembaModel):
         if not self.message:
             return None
 
+        message = None
         if contact and contact.language and contact.language in self.message:
-            return self.message[contact.language]
+            message = self.message[contact.language]
 
-        return self.message[self.flow.base_language]
+        if not message:
+            message = self.message[self.flow.base_language]
+
+        return message
 
     def update_flow_name(self):
         """
@@ -451,9 +455,39 @@ class CampaignEvent(TembaModel):
 
         return None  # pragma: no cover
 
+    def deactivate_and_copy(self):
+
+        self.release()
+
+        # clone our event into a new event
+        if self.event_type == CampaignEvent.TYPE_FLOW:
+            return CampaignEvent.create_flow_event(
+                self.campaign.org,
+                self.created_by,
+                self.campaign,
+                self.relative_to,
+                self.offset,
+                self.unit,
+                self.flow,
+                self.delivery_hour,
+            )
+
+        elif self.event_type == CampaignEvent.TYPE_MESSAGE:
+            return CampaignEvent.create_message_event(
+                self.campaign.org,
+                self.created_by,
+                self.campaign,
+                self.relative_to,
+                self.offset,
+                self.unit,
+                self.message,
+                self.delivery_hour,
+                self.flow.base_language,
+            )
+
     def release(self):
         """
-        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        Marks the event inactive and releases flows for single message flows
         """
 
         # we need to be inactive so our fires are noops
@@ -500,18 +534,6 @@ class EventFire(Model):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
 
-    def fire(self):
-        """
-        Actually fires this event for the passed in contact and flow
-        """
-        self.fired = timezone.now()
-
-        # only start our flow if our event is still active
-        if self.event.is_active:
-            self.event.flow.start([], [self.contact], restart_participants=True)
-
-        self.save(update_fields=("fired",))
-
     def release(self):
         """
         Deletes this fire
@@ -533,7 +555,9 @@ class EventFire(Model):
             else:
                 start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
                 start.async_start()
-        EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
+            EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
+        else:
+            event.release()
 
     @classmethod
     def update_campaign_events(cls, campaign):
@@ -558,13 +582,15 @@ class EventFire(Model):
 
     @classmethod
     def do_update_eventfires_for_event(cls, event):
-        # unschedule any fires
-        EventFire.objects.filter(event=event, fired=None).delete()
 
-        # add new ones if this event exists and the campaign is active
         if event.is_active and not event.campaign.is_archived:
-            field = event.relative_to
 
+            # if we've ever produced fires in the past, we need to release and create a new copy of ourselves
+            if EventFire.objects.filter(event=event).exists():
+                event = event.deactivate_and_copy()
+
+            # create fires for our event
+            field = event.relative_to
             if field.field_type == ContactField.FIELD_TYPE_USER:
                 field_uuid = str(field.uuid)
 
