@@ -506,7 +506,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.flow != obj.flow
             ):
                 obj = obj.deactivate_and_copy()
-                EventFire.update_eventfires_for_event(obj)
+                EventFire.create_eventfires_for_event(obj)
 
             return obj
 
@@ -555,7 +555,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.update_eventfires_for_event(obj)
+            EventFire.create_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):

@@ -63,8 +63,8 @@ def check_campaigns_task():
                     logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
-@task(track_started=True, name="update_event_fires_task")  # pragma: no cover
-def update_event_fires(event_id):
+@task(track_started=True, name="create_event_fires_task")  # pragma: no cover
+def create_event_fires(event_id):
 
     # get a lock
     r = get_redis_connection()
@@ -76,11 +76,11 @@ def update_event_fires(event_id):
             with transaction.atomic():
                 event = CampaignEvent.objects.filter(pk=event_id).first()
                 if event:
-                    EventFire.do_update_eventfires_for_event(event)
+                    EventFire.do_create_eventfires_for_event(event)
 
         except Exception as e:  # pragma: no cover
             # requeue our task to try again in five minutes
-            update_event_fires(event_id).delay(countdown=60 * 5)
+            create_event_fires(event_id).delay(countdown=60 * 5)
 
             # bubble up the exception so sentry sees it
             raise e

@@ -575,19 +575,18 @@ class EventFire(Model):
             cls.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_eventfires_for_event(cls, event):
-        from temba.campaigns.tasks import update_event_fires
+    def create_eventfires_for_event(cls, event):
+        from temba.campaigns.tasks import create_event_fires
 
-        on_transaction_commit(lambda: update_event_fires.delay(event.pk))
+        on_transaction_commit(lambda: create_event_fires.delay(event.pk))
 
     @classmethod
-    def do_update_eventfires_for_event(cls, event):
+    def do_create_eventfires_for_event(cls, event):
+
+        if EventFire.objects.filter(event=event).exists():
+            return
 
         if event.is_active and not event.campaign.is_archived:
-
-            # if we've ever produced fires in the past, we need to release and create a new copy of ourselves
-            if EventFire.objects.filter(event=event).exists():
-                event = event.deactivate_and_copy()
 
             # create fires for our event
             field = event.relative_to
