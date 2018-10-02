@@ -24,19 +24,31 @@ def serialize_flow(flow):
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
-    return get_client().migrate({"flow": flow_def})
+    return get_client().migrate({"flow": flow_def, "collapse_exits": False})
 
 
 def serialize_channel(channel):
     from temba.channels.models import Channel
 
-    return {
+    serialized = {
         "uuid": str(channel.uuid),
         "name": channel.name or "",
         "address": channel.address,
         "schemes": channel.schemes,
         "roles": [Channel.ROLE_CONFIG[r] for r in channel.role],
     }
+
+    if channel.parent_id:
+        serialized["parent"] = serialize_ref(channel.parent)
+    if channel.country:
+        serialized["country"] = channel.country.code
+
+    config = channel.config or {}
+    match_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+    if match_prefixes:
+        serialized["match_prefixes"] = match_prefixes
+
+    return serialized
 
 
 def serialize_contact(contact):
@@ -49,11 +61,10 @@ def serialize_contact(contact):
     # augment URN values with preferred channel UUID as a parameter
     urn_values = []
     for u in contact.urns.order_by("-priority", "id"):
-        # for each URN we resolve the preferred channel and include that as a query param
-        channel = contact.org.get_send_channel(contact_urn=u)
-        if channel:
+        # for each URN we include the preferred channel as a query param if there is one
+        if u.channel and u.channel.is_active:
             scheme, path, query, display = URN.to_parts(u.urn)
-            urn_str = URN.from_parts(scheme, path, query=urlencode({"channel": str(channel.uuid)}), display=display)
+            urn_str = URN.from_parts(scheme, path, query=urlencode({"channel": str(u.channel.uuid)}), display=display)
         else:
             urn_str = u.urn
 
@@ -65,7 +76,7 @@ def serialize_contact(contact):
         "name": contact.name,
         "language": contact.language,
         "urns": urn_values,
-        "groups": [serialize_group_ref(group) for group in contact.user_groups.filter(is_active=True)],
+        "groups": [serialize_ref(group) for group in contact.user_groups.filter(is_active=True)],
         "fields": field_values,
     }
 
@@ -88,10 +99,6 @@ def serialize_field(field):
 
 def serialize_group(group):
     return {"uuid": str(group.uuid), "name": group.name, "query": group.query}
-
-
-def serialize_group_ref(group):
-    return {"uuid": str(group.uuid), "name": group.name}
 
 
 def serialize_label(label):

@@ -1,4 +1,4 @@
--load i18n
+-load i18n temba
 
 #send-message.send-message.modal.hide.notice{data-dismiss:'modal'}
   .modal-header
@@ -54,7 +54,7 @@
 
   :javascript
     $(document).ready(function() {
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_text'));
+      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_text'));
       $("textarea").keyup(messageTextareaLengthCheck);
 
     });

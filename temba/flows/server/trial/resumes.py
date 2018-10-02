@@ -1,10 +1,3 @@
-
-"""
-Temporary functionality to help us try running some flows against a flowserver instance and comparing the results, path
-and events with what the current engine produces.
-"""
-
-import json
 import logging
 
 from django_redis import get_redis_connection
@@ -13,8 +6,11 @@ from jsondiff import diff as jsondiff
 from django.conf import settings
 from django.utils import timezone
 
-from .client import Events, FlowServerException, get_client
-from .serialize import serialize_contact, serialize_environment, serialize_ref
+from temba.flows.server.client import Events, FlowServerException, get_client
+from temba.flows.server.serialize import serialize_contact, serialize_environment, serialize_ref
+from temba.utils import analytics, json
+
+from .utils import copy_keys, reduce_event
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +19,15 @@ TRIAL_LOCK = "flowserver_trial"
 TRIAL_PERIOD = 15  # only perform a trial every 15 seconds
 
 
-class ResumeTrial(object):
+class Trial:
     """
     A trial of resuming a run in the flowserver
     """
 
-    def __init__(self, run):
+    def __init__(self, run, is_simple):
         self.started_on = timezone.now()
         self.run = run
+        self.is_simple = is_simple
         self.session_before = reconstruct_session(run)
         self.session_after = None
         self.differences = None
@@ -42,7 +39,7 @@ def is_flow_suitable(flow):
     """
     from temba.flows.models import RuleSet, Flow
 
-    if flow.flow_type not in (Flow.FLOW, Flow.MESSAGE):
+    if flow.flow_type in (Flow.TYPE_VOICE, Flow.TYPE_USSD, Flow.TYPE_SURVEY):
         return False
 
     for rule_set in flow.rule_sets.all():
@@ -52,7 +49,21 @@ def is_flow_suitable(flow):
     return True
 
 
-def maybe_start_resume(run):
+def is_flow_simple(flow):
+    from temba.flows.models import RuleSet, StartFlowAction, TriggerFlowAction, WebhookAction
+
+    for rule_set in flow.rule_sets.all():
+        if rule_set.ruleset_type in (RuleSet.TYPE_SUBFLOW, RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
+            return False
+    for action_set in flow.action_sets.all():
+        for action in action_set.actions:
+            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction, WebhookAction.TYPE):  # pragma: no cover
+                return False
+
+    return True
+
+
+def maybe_start(run):
     """
     Either starts a new trial resume or returns nothing
     """
@@ -72,21 +83,23 @@ def maybe_start_resume(run):
         pass
 
     try:
-        print("Starting flowserver trial resume for run %s in flow '%s'" % (str(run.uuid), run.flow.name))
-        return ResumeTrial(run)
+        is_simple = is_flow_simple(run.flow)
+
+        logger.info(f"Starting flowserver trial resume for run {str(run.uuid)} in flow '{run.flow.name}'")
+        return Trial(run, is_simple)
 
     except Exception as e:
-        logger.error("unable to reconstruct session for run %s: %s" % (str(run.uuid), str(e)), exc_info=True)
+        logger.error(f"Unable to reconstruct session for run {str(run.uuid)}: {str(e)}", exc_info=True)
         return None
 
 
-def end_resume(trial, msg_in=None, expired_child_run=None):
+def end(trial, msg_in=None, expired_child_run=None):
     """
     Ends a trial resume by performing the resumption in the flowserver and comparing the differences
     """
     try:
         trial.session_after = resume(trial, msg_in, expired_child_run)
-        trial.differences = compare_run(trial.run, trial.session_after)
+        trial.differences = compare(trial.run, trial.session_after)
 
         if trial.differences:
             report_failure(trial)
@@ -96,12 +109,10 @@ def end_resume(trial, msg_in=None, expired_child_run=None):
             return True
 
     except FlowServerException as e:
-        logger.error("trial resume in flowserver caused server error", extra=e.as_json())
+        logger.error("Trial resume in flowserver caused server error", extra=e.as_json())
         return False
     except Exception as e:
-        logger.error(
-            "flowserver exception during trial resumption of run %s: %s" % (str(trial.run.uuid), str(e)), exc_info=True
-        )
+        logger.error(f"Exception during trial resumption of run {str(trial.run.uuid)}: {str(e)}", exc_info=True)
         return False
 
 
@@ -109,17 +120,17 @@ def report_success(trial):  # pragma: no cover
     """
     Reports a trial success... essentially a noop but useful for mocking in tests
     """
-    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
+    logger.info(f"Trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' succeeded")
+
+    analytics.gauge("temba.flowserver_trial.resume_pass")
 
 
 def report_failure(trial):  # pragma: no cover
     """
     Reports a trial failure to sentry
     """
-    print(f"Flowserver trial resume for run {str(trial.run.uuid)} in flow '{trial.run.flow.name}' failed")
-
     logger.error(
-        "trial resume in flowserver produced different output",
+        f"Trial resume (simple={'yes' if trial.is_simple else 'no'}) in flowserver produced different output",
         extra={
             "org": trial.run.org.name,
             "flow": {"uuid": str(trial.run.flow.uuid), "name": trial.run.flow.name},
@@ -127,6 +138,11 @@ def report_failure(trial):  # pragma: no cover
             "differences": trial.differences,
         },
     )
+
+    if trial.is_simple:
+        analytics.gauge("temba.flowserver_trial.resume_simple_fail")
+    else:
+        analytics.gauge("temba.flowserver_trial.resume_fail")
 
 
 def resume(trial, msg_in=None, expired_child_run=None):
@@ -298,7 +314,7 @@ def serialize_run_summary(run):
     }
 
 
-def compare_run(run, session):
+def compare(run, session):
     """
     Compares the given run with the given session JSON from the flowserver and returns a dict of problems
     """
@@ -354,22 +370,5 @@ def reduce_events(events):
         if event["type"] not in (Events.msg_created.name, Events.msg_received.name):
             continue
 
-        new_event = copy_keys(event, {"type", "msg"})
-        new_event["msg"] = copy_keys(event["msg"], {"text", "urn", "channel", "attachments"})
-        new_msg = new_event["msg"]
-
-        # legacy events are re-constructed from real messages which have their text stripped
-        if new_msg["text"]:
-            new_msg["text"] = new_msg["text"].strip()
-
-        # legacy events have absoluute paths for attachments, new have relative
-        if "attachments" in new_msg:
-            abs_prefix = f"https://{settings.AWS_BUCKET_DOMAIN}/"
-            new_msg["attachments"] = [a.replace(abs_prefix, "") for a in new_msg["attachments"]]
-
-        reduced.append(new_event)
+        reduced.append(reduce_event(event))
     return reduced
-
-
-def copy_keys(d, keys):
-    return {k: v for k, v in d.items() if k in keys}

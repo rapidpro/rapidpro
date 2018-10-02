@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -35,7 +34,6 @@ from temba.msgs.models import (
     FLOW,
     HANDLE_EVENT_TASK,
     HANDLED,
-    HANDLER_QUEUE,
     INBOX,
     INCOMING,
     MSG_EVENT,
@@ -59,10 +57,10 @@ from temba.orgs.models import Language, Org, TopUp, TopUpCredits
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
-from temba.utils import dict_to_json, dict_to_struct
+from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.queues import DEFAULT_PRIORITY, push_task
+from temba.utils.queues import DEFAULT_PRIORITY, Queue, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
@@ -461,7 +459,7 @@ class MsgTest(TembaTest):
 
         # even though we already handled it, push it back on our queue to test flushing
         payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
-        r.zadd(contact_queue, datetime_to_s(timezone.now()), dict_to_json(payload))
+        r.zadd(contact_queue, datetime_to_s(timezone.now()), json.dumps(payload))
 
         msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
 
@@ -496,7 +494,7 @@ class MsgTest(TembaTest):
         # test blocked contacts are skipped from inbox and are not handled by flows
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
-        contact.save(update_fields=("is_blocked",))
+        contact.save(update_fields=("is_blocked",), handle_update=False)
         ignored_msg = Msg.create_incoming(self.channel, str(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
@@ -668,6 +666,9 @@ class MsgTest(TembaTest):
         # visit inbox page as a manager of the organization
         with self.assertNumQueries(63):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
+
+        # make sure that we embed refresh script if View.refresh is set
+        self.assertContains(response, "function refresh")
 
         self.assertEqual(response.context["refresh"], 20000)
         self.assertEqual(response.context["object_list"].count(), 5)
@@ -921,7 +922,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
@@ -1456,7 +1457,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         msg1 = self.create_msg(
             contact=self.joe,
@@ -2594,39 +2595,39 @@ class BroadcastTest(TembaTest):
 
         # unicode tests
         self.joe.name = "شاملیدل عمومی"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
 
         self.assertEqual(("شاملیدل", []), substitute("@(first_word(contact))", dict()))
         self.assertEqual(("عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = "1234567890123456"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # phone number
         self.joe.name = "123456789012"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
 
         # triplets
         self.joe.name = "123456"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # soc security
         self.joe.name = "123456789"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = "12345"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = "123"
-        self.joe.save(update_fields=("name",))
+        self.joe.save(update_fields=("name",), handle_update=False)
         self.assertEqual(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
 
     def test_expressions_context(self):
@@ -2667,6 +2668,8 @@ class BroadcastTest(TembaTest):
         self.assertEqual(context["value"], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
         self.assertEqual(context["text"], "")
         self.assertEqual(context["attachments"], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
+        self.assertEqual(context["urn"]["scheme"], "tel")
+        self.assertEqual(context["urn"]["path"], "123")
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, self.admin, "sector", "sector")
@@ -3661,7 +3664,7 @@ class CeleryTaskTest(TembaTest):
 class HandleEventTest(TembaTest):
     def test_stop_contact_task(self):
         self.joe = self.create_contact("Joe", "+12065551212")
-        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
+        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
         self.joe.refresh_from_db()
         self.assertTrue(self.joe.is_stopped)
 

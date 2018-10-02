@@ -11,10 +11,10 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK, HANDLER_QUEUE
+from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK
 from temba.utils import chunk_list
 from temba.utils.cache import QueueRecord
-from temba.utils.queues import nonoverlapping_task, push_task
+from temba.utils.queues import Queue, nonoverlapping_task, push_task
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,9 @@ def check_campaigns_task():
     """
     from temba.flows.models import Flow
 
-    unfired = EventFire.objects.filter(fired=None, scheduled__lte=timezone.now())
+    unfired = EventFire.objects.filter(
+        fired=None, scheduled__lte=timezone.now(), event__flow__flow_server_enabled=False
+    )
     unfired = unfired.values("id", "event__flow_id")
 
     # group fire events by flow so they can be batched
@@ -52,7 +54,7 @@ def check_campaigns_task():
             if queued_fire_ids:
                 try:
                     push_task(
-                        flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=queued_fire_ids)
+                        flow.org_id, Queue.HANDLER, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=queued_fire_ids)
                     )
 
                     queued_fires.set_queued(queued_fire_ids)

@@ -1,5 +1,4 @@
 import itertools
-import json
 import logging
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -20,7 +19,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio.rest import TwilioRestClient
+from twilio.rest import Client
 
 from django import forms
 from django.conf import settings
@@ -36,6 +35,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
+from django.utils.html import escape
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
@@ -48,7 +48,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, get_anonymous_user, languages
+from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -253,9 +253,11 @@ class OrgSignupForm(forms.ModelForm):
     Signup for new organizations
     """
 
-    first_name = forms.CharField(help_text=_("Your first name"))
-    last_name = forms.CharField(help_text=_("Your last name"))
-    email = forms.EmailField(help_text=_("Your email address"))
+    first_name = forms.CharField(
+        help_text=_("Your first name"), max_length=User._meta.get_field("first_name").max_length
+    )
+    last_name = forms.CharField(help_text=_("Your last name"), max_length=User._meta.get_field("last_name").max_length)
+    email = forms.EmailField(help_text=_("Your email address"), max_length=User._meta.get_field("username").max_length)
     timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
     password = forms.CharField(widget=forms.PasswordInput, help_text=_("Your password, at least eight letters please"))
     name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
@@ -287,9 +289,17 @@ class OrgSignupForm(forms.ModelForm):
 
 
 class OrgGrantForm(forms.ModelForm):
-    first_name = forms.CharField(help_text=_("The first name of the organization administrator"))
-    last_name = forms.CharField(help_text=_("Your last name of the organization administrator"))
-    email = forms.EmailField(help_text=_("Their email address"))
+    first_name = forms.CharField(
+        help_text=_("The first name of the organization administrator"),
+        max_length=User._meta.get_field("first_name").max_length,
+    )
+    last_name = forms.CharField(
+        help_text=_("Your last name of the organization administrator"),
+        max_length=User._meta.get_field("last_name").max_length,
+    )
+    email = forms.EmailField(
+        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+    )
     timezone = TimeZoneFormField(help_text=_("The timezone the organization is in"))
     password = forms.CharField(
         widget=forms.PasswordInput,
@@ -323,11 +333,11 @@ class OrgGrantForm(forms.ModelForm):
         # or both email and password must be included
         if email:
             user = User.objects.filter(username__iexact=email).first()
-            if user:  # pragma: needs cover
+            if user:
                 if password:
                     raise ValidationError(_("User already exists, please do not include password."))
 
-            elif not password or len(password) < 8:  # pragma: needs cover
+            elif not password or len(password) < 8:
                 raise ValidationError(_("Password must be at least 8 characters long"))
 
         return data
@@ -358,7 +368,7 @@ class UserCRUDL(SmartCRUDL):
                 more = ", ..."
                 orgs = orgs[0:5]
             org_links = ", ".join(
-                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{org.name}</a>" for org in orgs]
+                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{escape(org.name)}</a>" for org in orgs]
             )
             return mark_safe(f"{org_links}{more}")
 
@@ -730,10 +740,10 @@ class OrgCRUDL(SmartCRUDL):
                     raise ValidationError(_("You must enter your Twilio Account Token"))
 
                 try:
-                    client = TwilioRestClient(account_sid, account_token)
+                    client = Client(account_sid, account_token)
 
                     # get the actual primary auth tokens from twilio and use them
-                    account = client.accounts.get(account_sid)
+                    account = client.api.account.fetch()
                     self.cleaned_data["account_sid"] = account.sid
                     self.cleaned_data["account_token"] = account.auth_token
                 except Exception:
@@ -1112,8 +1122,7 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.latest_admin() or obj.created_by
 
             return mark_safe(
-                "<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
-                % (owner.first_name, owner.last_name, owner)
+                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
             )
 
         def get_service(self, obj):
@@ -1129,8 +1138,7 @@ class OrgCRUDL(SmartCRUDL):
                 suspended = '<span class="suspended">(Suspended)</span>'
 
             return mark_safe(
-                "<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
-                % (suspended, obj.name, obj.timezone)
+                f"<div class='org-name'>{suspended} {escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
@@ -1517,8 +1525,7 @@ class OrgCRUDL(SmartCRUDL):
                 org_type = "parent"
 
             return mark_safe(
-                "<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>"
-                % (org_type, obj.name, obj.timezone)
+                f"<div class='{org_type}-org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
             )
 
         def derive_queryset(self, **kwargs):
@@ -2026,12 +2033,17 @@ class OrgCRUDL(SmartCRUDL):
             return welcome_topup_size
 
         def post_save(self, obj):
+            user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])
+
+            # setup user tracking before creating Org in super().post_save
+            analytics.identify(user, brand=self.request.branding["slug"], org=obj)
+            analytics.track(email=user.username, event_name="temba.org_signup", properties=dict(org=obj.name))
+
             obj = super().post_save(obj)
+
             self.request.session["org_id"] = obj.pk
 
-            user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])
             login(self.request, user)
-            analytics.track(self.request.user.username, "temba.org_signup", dict(org=obj.name))
 
             return obj
 
@@ -2463,10 +2475,10 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter your Twilio Account Token"))
 
                     try:
-                        client = TwilioRestClient(account_sid, account_token)
+                        client = Client(account_sid, account_token)
 
                         # get the actual primary auth tokens from twilio and use them
-                        account = client.accounts.get(account_sid)
+                        account = client.api.account.fetch()
                         self.cleaned_data["account_sid"] = account.sid
                         self.cleaned_data["account_token"] = account.auth_token
                     except Exception:  # pragma: needs cover

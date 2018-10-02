@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import json
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -20,7 +19,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 
 from django import forms
 from django.conf import settings
@@ -41,7 +40,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics
+from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
@@ -1798,16 +1797,22 @@ class ChannelCRUDL(SmartCRUDL):
         def search_available_numbers(self, client, **kwargs):
             available_numbers = []
 
-            kwargs["type"] = "local"
+            country = kwargs["country"]
+            del kwargs["country"]
+
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:  # pragma: no cover
+                available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
+            except TwilioException:  # pragma: no cover
                 pass
 
-            kwargs["type"] = "mobile"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:  # pragma: no cover
+                available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
+            except TwilioException:  # pragma: no cover
+                pass
+
+            try:
+                available_numbers += client.api.available_phone_numbers(country).toll_free.list(**kwargs)
+            except TwilioException:  # pragma: no cover
                 pass
 
             return available_numbers

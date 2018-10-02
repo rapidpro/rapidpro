@@ -1,9 +1,8 @@
-import json
 import time
 
 from django_redis import get_redis_connection
 
-from temba.utils.dates import datetime_to_str
+from temba.utils import analytics, json
 
 
 def push_courier_msgs(channel, msgs, high_priority=False):
@@ -59,11 +58,11 @@ def msg_as_task(msg):
         response_to_external_id=msg.response_to.external_id if msg.response_to else "",
         external_id=msg.external_id,
         tps_cost=msg.channel.calculate_tps_cost(msg),
-        next_attempt=datetime_to_str(msg.next_attempt, ms=True),
-        created_on=datetime_to_str(msg.created_on, ms=True),
-        modified_on=datetime_to_str(msg.modified_on, ms=True),
-        queued_on=datetime_to_str(msg.queued_on, ms=True),
-        sent_on=datetime_to_str(msg.sent_on, ms=True),
+        next_attempt=msg.next_attempt.isoformat() if msg.next_attempt else None,
+        created_on=msg.created_on.isoformat(),
+        modified_on=msg.modified_on.isoformat(),
+        queued_on=msg.queued_on.isoformat() if msg.queued_on else None,
+        sent_on=msg.sent_on.isoformat() if msg.sent_on else None,
     )
 
     if msg.contact_urn.auth:  # pragma: no cover
@@ -106,3 +105,31 @@ LUA_PUSH = """
     return 0
   end
 """
+
+
+def handle_new_message(org, msg):
+    """
+    Messages created by courier are only saved to the database. Here we take care of the other stuff
+    """
+    if not msg.topup_id:
+        (msg.topup_id, amount) = org.decrement_credit()
+        msg.save(update_fields=("topup_id",))
+
+    # set the preferred channel for this contact
+    msg.contact.set_preferred_channel(msg.channel)
+
+    # if this contact is stopped, unstop them
+    if msg.contact.is_stopped:
+        msg.contact.unstop(msg.channel.created_by)
+
+    analytics.gauge("temba.msg_incoming_%s" % msg.channel.channel_type.lower())
+
+
+def handle_new_contact(org, contact):
+    """
+    Contacts created by courier are only saved to the database. Here we take care of the other stuff
+    """
+    # possible to have dynamic groups based on name
+    contact.handle_update(fields=("name",), is_new=True, urns=[str(u) for u in contact.get_urns()])
+
+    analytics.gauge("temba.contact_created")
