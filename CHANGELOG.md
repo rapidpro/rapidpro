@@ -1,3 +1,12 @@
+v4.8.0
+----------
+ * Remove trialing of campaign events
+ * Remove no longer used ruleset_analytis.haml
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+ * Optimize group releases
+ * Add created_on/ended_on to FlowSession
+
 v4.7.0
 ----------
  * Bump Smartmin and Django versions
