@@ -2,12 +2,10 @@ from unittest.mock import patch
 
 from django.test.utils import override_settings
 
-from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import Contact, ContactField
+from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg
 from temba.tests import TembaTest, skip_if_no_flowserver
-from temba.values.constants import Value
 
 from . import resumes
 from ..client import FlowServerException
@@ -325,123 +323,3 @@ class ResumeTest(TembaTest):
 
         mock_report_success.assert_not_called()
         mock_report_failure.assert_not_called()
-
-
-class MessageFlowTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
-        )
-        self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
-        self.contact.set_field(self.admin, "planting_date", "2018-06-23T13:48:12.123456Z")
-
-        # create a campaign with a message event 1 day after planting date
-        self.farmers = self.create_group("Farmers", [self.contact])
-        self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-
-        self.event = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            self.campaign,
-            relative_to=self.planting_date,
-            offset=1,
-            unit="D",
-            message={
-                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
-            },
-            base_language="eng",
-        )
-
-    def _run_flow(self):
-        run, = self.event.flow.start([], [self.contact], campaign_event=self.event, restart_participants=True)
-        return run
-
-    @override_settings(FLOW_SERVER_URL=None)
-    @patch("temba.flows.server.trial.campaigns.report_failure")
-    @patch("temba.flows.server.trial.campaigns.report_success")
-    def test_no_trials_if_no_server(self, mock_report_success, mock_report_failure):
-        self._run_flow()
-
-        mock_report_success.assert_not_called()
-        mock_report_failure.assert_not_called()
-
-    @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="on")
-    @patch("temba.flows.server.trial.campaigns.report_failure")
-    def test_trial_fault_tolerance(self, mock_report_failure):
-        # an exception in maybe_start shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.campaigns.Trial") as mock_trial_cls:
-            mock_trial_cls.side_effect = ValueError("BOOM")
-
-            run = self._run_flow()
-            self.assertEqual(len(run.path), 1)
-
-        # a flow server exception in end also shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.campaigns.run_flow") as mock_run_flow:
-            mock_run_flow.side_effect = FlowServerException("start", {}, {"errors": ["Boom!"]})
-
-            run = self._run_flow()
-            self.assertEqual(len(run.path), 1)
-
-        # any other exception in end_resume also shouldn't prevent normal flow execution
-        with patch("temba.flows.server.trial.campaigns.run_flow") as mock_run_flow:
-            mock_run_flow.side_effect = ValueError("BOOM")
-
-            run = self._run_flow()
-            self.assertEqual(len(run.path), 1)
-
-        # detected differences should be reported but shouldn't effect normal flow execution
-        with patch("temba.flows.server.trial.campaigns.compare") as mock_compare:
-            mock_compare.return_value = ["oops"]
-
-            run = self._run_flow()
-            self.assertEqual(len(run.path), 1)
-
-            mock_report_failure.assert_called_once()
-
-    @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="on")
-    @patch("temba.flows.server.trial.campaigns.report_success")
-    def test_run_successfully(self, mock_report_success):
-        self._run_flow()
-
-        mock_report_success.assert_called_once()
-
-    @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_TRIAL="on")
-    @patch("temba.flows.server.trial.campaigns.report_failure")
-    @patch("temba.flows.server.trial.campaigns.report_success")
-    @patch("temba.flows.server.trial.campaigns.run_flow")
-    def test_run_failures(self, mock_run_flow, mock_report_success, mock_report_failure):
-        # test that a waiting session is treated as a failure
-        mock_run_flow.return_value = {"status": "waiting", "runs": [{}]}
-        self._run_flow()
-
-        mock_report_failure.assert_called_once()
-        mock_report_failure.reset_mock()
-
-        # test that a session with more than one run is treated as a failure
-        mock_run_flow.return_value = {"status": "completed", "runs": [{"events": []}, {"events": []}]}
-        self._run_flow()
-
-        mock_report_failure.assert_called_once()
-        mock_report_failure.reset_mock()
-
-        # test that a session without a single message event is treated as a failure
-        mock_run_flow.return_value = {"status": "completed", "runs": [{"events": []}]}
-        self._run_flow()
-
-        mock_report_failure.assert_called_once()
-        mock_report_failure.reset_mock()
-
-        # test that a session with a different message event is treated as a failure
-        mock_run_flow.return_value = {
-            "status": "completed",
-            "runs": [{"events": [{"type": "msg_created", "msg": {"text": "hello?"}}]}],
-        }
-        self._run_flow()
-
-        mock_report_failure.assert_called_once()
-        mock_report_failure.reset_mock()

@@ -77,7 +77,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server.trial import campaigns as trial_campaigns, resumes as trial_resumes
+from .server.trial import resumes as trial_resumes
 
 logger = logging.getLogger(__name__)
 
@@ -2097,14 +2097,7 @@ class Flow(TembaModel):
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-
-            # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            if self.is_system and len(all_contact_ids) == 1:
-                trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
-            else:
-                trial = None
-
-            runs = self.start_msg_flow_batch(
+            return self.start_msg_flow_batch(
                 all_contact_ids,
                 broadcasts=broadcasts,
                 started_flows=started_flows,
@@ -2114,11 +2107,6 @@ class Flow(TembaModel):
                 parent_run=parent_run,
                 parent_context=parent_context,
             )
-
-            if trial and len(runs) == 1:
-                trial_campaigns.end(trial, runs[0])
-
-            return runs
 
         # otherwise, create batches instead
         else:
