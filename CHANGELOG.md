@@ -1,3 +1,7 @@
+v4.8.1
+----------
+ * Add novo channel
+
 v4.8.0
 ----------
  * Remove trialing of campaign events
