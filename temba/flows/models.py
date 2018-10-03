@@ -1530,7 +1530,7 @@ class Flow(TembaModel):
         """
         return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
 
-    def get_localized_text(self, text_translations, contact=None, default_text=""):
+    def get_localized_text(self, text_translations, contact=None):
         """
         Given a language dict and a preferred language, return the best possible text match
         :param text_translations: The text in all supported languages, or string (which will just return immediately)
@@ -1555,7 +1555,7 @@ class Flow(TembaModel):
 
         preferred_languages.append(self.base_language)
 
-        return Language.get_localized_text(text_translations, preferred_languages, default_text)
+        return Language.get_localized_text(text_translations, preferred_languages)
 
     def import_definition(self, flow_json):
         """

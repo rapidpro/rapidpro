@@ -3195,16 +3195,16 @@ class LanguageTest(TembaTest):
         text_translations = dict(eng="Hello", spa="Hola")
 
         # null case
-        self.assertEqual(Language.get_localized_text(None, None, "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(None, None), "")
 
         # simple dictionary case
-        self.assertEqual(Language.get_localized_text(text_translations, ["eng"], "Hi"), "Hello")
+        self.assertEqual(Language.get_localized_text(text_translations, ["eng"]), "Hello")
 
         # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ["fra"], "Hi"), "Hi")
+        self.assertEqual(Language.get_localized_text(text_translations, ["fra"]), "")
 
         # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ["fra", "spa"], "Hi"), "Hola")
+        self.assertEqual(Language.get_localized_text(text_translations, ["fra", "spa"]), "Hola")
 
     def test_language_migrations(self):
         self.assertEqual("pcm", languages.iso6392_to_iso6393("cpe", country_code="NG"))

@@ -297,32 +297,29 @@ class FlowTest(TembaTest):
 
         text_translations = dict(eng="Hello", spa="Hola", fra="Salut")
 
-        # use default when flow, contact and org don't have language set
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
-
         # flow language used regardless of whether it's an org language
         self.flow.base_language = "eng"
         self.flow.save(update_fields=["base_language"])
         self.flow.org.set_languages(self.admin, ["eng"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # flow language now valid org language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # org primary language overrides flow language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "spa")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = "fra"
 
         self.contact.save(update_fields=("language",), handle_update=False)
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # does override if it is
         self.flow.org.set_languages(self.admin, ["eng", "spa", "fra"], "fra")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Salut")
 
     def test_flow_lists(self):
         self.login(self.admin)
