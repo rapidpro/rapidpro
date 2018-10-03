@@ -1468,8 +1468,6 @@ class FlowCRUDL(SmartCRUDL):
                 if settings.TESTING:
                     flow_request.include_all(simulator=True)
 
-                flow_request.request["events"] = json_dict.get("events")
-
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
                     flow_request.request["trigger"] = json_dict.get("trigger")
@@ -1478,9 +1476,9 @@ class FlowCRUDL(SmartCRUDL):
 
                 # otherwise we are resuming
                 else:
-                    session = json_dict.get("session")
-                    flow_request.request["events"] = json_dict.get("events")
-                    output = flow_request.resume(session)
+                    flow_request.request["resume"] = json_dict.get("resume")
+                    flow_request.request["session"] = json_dict.get("session")
+                    output = client.resume(flow_request.request)
                     return JsonResponse(output.as_json())
 
         def handle_legacy(self, request, json_dict):

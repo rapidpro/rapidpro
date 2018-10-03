@@ -54,7 +54,7 @@ class RequestBuilder:
         self.client = client
         self.org = org
         self.base_assets_url = base_assets_url
-        self.request = {"assets": [], "events": [], "config": {}}
+        self.request = {"assets": [], "config": {}}
 
     def include_all(self, simulator=False):
         request = self
@@ -97,32 +97,6 @@ class RequestBuilder:
         self.request["assets"].append(get_asset_type(ResthookType).bundle_set(self.org))
         return self
 
-    def add_environment_changed(self):
-        """
-        Notify the engine that the environment has changed
-        """
-        self.request["events"].append(
-            {
-                "type": Events.environment_changed.name,
-                "created_on": timezone.now().isoformat(),
-                "environment": serialize_environment(self.org),
-            }
-        )
-        return self
-
-    def add_contact_changed(self, contact):
-        """
-        Notify the engine that the contact has changed
-        """
-        self.request["events"].append(
-            {
-                "type": Events.contact_changed.name,
-                "created_on": contact.modified_on.isoformat(),
-                "contact": serialize_contact(contact),
-            }
-        )
-        return self
-
     def add_msg_received(self, msg):
         """
         Notify the engine that an incoming message has been received from the session contact
@@ -130,22 +104,6 @@ class RequestBuilder:
         self.request["events"].append(
             {"type": Events.msg_received.name, "created_on": msg.created_on.isoformat(), "msg": serialize_message(msg)}
         )
-        return self
-
-    def add_run_expired(self, run):
-        """
-        Notify the engine that the active run in this session has expired
-        """
-        self.request["events"].append(
-            {"type": Events.run_expired.name, "created_on": run.exited_on.isoformat(), "run_uuid": str(run.uuid)}
-        )
-        return self
-
-    def add_wait_timed_out(self):
-        """
-        Notify the engine that the session wait timed out
-        """
-        self.request["events"].append({"type": Events.wait_timed_out.name, "created_on": timezone.now().isoformat()})
         return self
 
     def asset_server(self, simulator=False):
@@ -160,18 +118,17 @@ class RequestBuilder:
         """
         User is manually starting this session
         """
-        trigger = {
-            "type": "manual",
-            "environment": serialize_environment(self.org),
-            "contact": serialize_contact(contact),
-            "flow": {"uuid": str(flow.uuid), "name": flow.name},
-            "params": params,
-            "triggered_on": timezone.now().isoformat(),
-        }
-        if params:
-            trigger["params"] = params
+        self.request["trigger"] = self._base_trigger("manual", timezone.now().isoformat(), contact, flow)
+        self.request["trigger"]["params"] = params
 
-        self.request["trigger"] = trigger
+        return self.client.start(self.request)
+
+    def start_by_msg(self, contact, flow, msg):
+        """
+        New session was triggered by a new message from the contact
+        """
+        self.request["trigger"] = self._base_trigger("msg", timezone.now().isoformat(), contact, flow)
+        self.request["trigger"]["msg"] = serialize_message(msg)
 
         return self.client.start(self.request)
 
@@ -179,14 +136,8 @@ class RequestBuilder:
         """
         New session was triggered by a flow action in a different run
         """
-        self.request["trigger"] = {
-            "type": "flow_action",
-            "environment": serialize_environment(self.org),
-            "contact": serialize_contact(contact),
-            "flow": {"uuid": str(flow.uuid), "name": flow.name},
-            "triggered_on": timezone.now().isoformat(),
-            "run": parent_run_summary,
-        }
+        self.request["trigger"] = self._base_trigger("flow_action", timezone.now().isoformat(), contact, flow)
+        self.request["trigger"]["run"] = parent_run_summary
 
         return self.client.start(self.request)
 
@@ -194,24 +145,62 @@ class RequestBuilder:
         """
         New session was triggered by a campaign event
         """
-        self.request["trigger"] = {
-            "type": "campaign",
-            "environment": serialize_environment(self.org),
-            "contact": serialize_contact(contact),
-            "flow": {"uuid": str(flow.uuid), "name": flow.name},
-            "event": {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)},
-            "triggered_on": timezone.now().isoformat(),
-        }
+        self.request["trigger"] = self._base_trigger("campaign", timezone.now().isoformat(), contact, flow)
+        self.request["trigger"]["event"] = {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)}
 
         return self.client.start(self.request)
 
-    def resume(self, session):
+    def resume_by_msg(self, session, msg, contact=None):
         """
-        Resume the given existing session
+        Resume an existing session because of a new message
         """
+        from temba.msgs.models import Msg
+
+        if isinstance(msg, Msg):
+            resumed_on = msg.created_on.isoformat()
+            msg = serialize_message(msg)
+        else:
+            resumed_on = timezone.now().isoformat()
+
+        self.request["resume"] = self._base_resume("msg", resumed_on, contact)
+        self.request["resume"]["msg"] = msg
         self.request["session"] = session
 
         return self.client.resume(self.request)
+
+    def resume_by_run_expiration(self, session, run, contact=None):
+        """
+        Resume an existing session because of a run expiration
+        """
+        self.request["resume"] = self._base_resume("run_expiration", run.exited_on.isoformat(), contact)
+        self.request["session"] = session
+
+        return self.client.resume(self.request)
+
+    def resume_by_wait_timeout(self, session, contact=None):
+        """
+        Resume an existing session because of a wait timeout
+        """
+        self.request["resume"] = self._base_resume("wait_timeout", timezone.now().isoformat(), contact)
+        self.request["session"] = session
+
+        return self.client.resume(self.request)
+
+    def _base_trigger(self, type_name, triggered_on, contact, flow):
+        return {
+            "type": type_name,
+            "triggered_on": triggered_on,
+            "contact": serialize_contact(contact),
+            "environment": serialize_environment(self.org),
+            "flow": {"uuid": str(flow.uuid), "name": flow.name},
+        }
+
+    @staticmethod
+    def _base_resume(type_name, resumed_on, contact=None):
+        resume = {"type": type_name, "resumed_on": resumed_on}
+        if contact:
+            resume["contact"] = serialize_contact(contact)
+        return resume
 
 
 class Output:
