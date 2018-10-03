@@ -82,13 +82,12 @@ def serialize_contact(contact):
 
 
 def serialize_environment(org):
-    languages = [org.primary_language.iso_code] if org.primary_language else []
-
     return {
         "date_format": "DD-MM-YYYY" if org.date_format == "D" else "MM-DD-YYYY",
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
-        "languages": languages,
+        "default_language": org.primary_language.iso_code if org.primary_language else None,
+        "allowed_languages": org.get_language_codes(),
         "redaction_policy": "urns" if org.is_anon else "none",
     }
 
