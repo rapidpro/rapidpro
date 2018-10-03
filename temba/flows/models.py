@@ -5643,7 +5643,11 @@ class ExportFlowResultsTask(BaseExportTask):
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
             # get this run's results by node UUID
-            results_by_node = {result["node"]: result for result in run["values"].values()}
+            run_values = run["values"]
+            if isinstance(run_values, list):
+                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+            else:
+                results_by_node = {result["node"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [

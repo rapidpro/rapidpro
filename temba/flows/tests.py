@@ -1732,11 +1732,16 @@ class FlowTest(TembaTest):
             period="D",
             build_time=23425,
         )
+
+        # prepare 'old' archive format that used a list of values
+        old_archive_format = contact2_run.as_archive_json()
+        old_archive_format["values"] = [old_archive_format["values"]]
+
         mock_s3 = MockS3Client()
         mock_s3.put_jsonl(
             "test-bucket",
             "archive1.jsonl.gz",
-            [contact1_run.as_archive_json(), contact2_run.as_archive_json(), contact2_other_flow.as_archive_json()],
+            [contact1_run.as_archive_json(), old_archive_format, contact2_other_flow.as_archive_json()],
         )
 
         contact1_run.release()
