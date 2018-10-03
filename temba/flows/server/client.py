@@ -27,26 +27,25 @@ class Events(Enum):
     contact_changed = 2
     contact_channel_changed = 3
     contact_field_changed = 4
-    contact_groups_added = 5
-    contact_groups_removed = 6
-    contact_language_changed = 7
-    contact_name_changed = 8
-    contact_timezone_changed = 9
-    contact_urn_added = 10
-    email_created = 11
-    environment_changed = 12
-    error = 13
-    flow_triggered = 14
-    input_labels_added = 15
-    msg_created = 16
-    msg_received = 17
-    msg_wait = 18
-    nothing_wait = 19
-    run_expired = 20
-    run_result_changed = 21
-    session_triggered = 22
-    wait_timed_out = 23
-    webhook_called = 24
+    contact_groups_changed = 5
+    contact_language_changed = 6
+    contact_name_changed = 7
+    contact_timezone_changed = 8
+    contact_urn_added = 9
+    email_created = 10
+    environment_changed = 11
+    error = 12
+    flow_triggered = 13
+    input_labels_added = 14
+    msg_created = 15
+    msg_received = 16
+    msg_wait = 17
+    nothing_wait = 18
+    run_expired = 19
+    run_result_changed = 20
+    session_triggered = 21
+    wait_timed_out = 22
+    webhook_called = 23
 
 
 class RequestBuilder:

@@ -182,9 +182,10 @@ class ClientTest(TembaTest):
     def test_resume_by_run_expiration(self, mock_resume):
         flow = self.get_flow("color")
         run, = flow.start([], [self.contact])
-        run.set_interrupted()
 
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
+            run.set_interrupted()
+
             self.client.request_builder(self.org).resume_by_run_expiration({}, run)
 
             mock_resume.assert_called_once_with(
