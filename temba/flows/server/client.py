@@ -96,15 +96,6 @@ class RequestBuilder:
         self.request["assets"].append(get_asset_type(ResthookType).bundle_set(self.org))
         return self
 
-    def add_msg_received(self, msg):
-        """
-        Notify the engine that an incoming message has been received from the session contact
-        """
-        self.request["events"].append(
-            {"type": Events.msg_received.name, "created_on": msg.created_on.isoformat(), "msg": serialize_message(msg)}
-        )
-        return self
-
     def asset_server(self, simulator=False):
         self.request["asset_server"] = {"type_urls": get_asset_urls(self.org, simulator)}
         return self
