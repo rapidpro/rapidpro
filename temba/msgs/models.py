@@ -1718,12 +1718,11 @@ class Msg(models.Model):
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
-        if insert_object and status != SENT:
+        if insert_object and status != SENT and getattr(settings, "DEDUPE_OUTGOING", True):
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(
                 contact_urn=contact_urn,
-                contact__is_test=False,
                 channel=channel,
                 attachments=evaluated_attachments,
                 text=text,
@@ -1744,7 +1743,6 @@ class Msg(models.Model):
             if tel and len(tel) < 6:
                 same_msg_count = Msg.objects.filter(
                     contact_urn=contact_urn,
-                    contact__is_test=False,
                     channel=channel,
                     text=text,
                     direction=OUTGOING,

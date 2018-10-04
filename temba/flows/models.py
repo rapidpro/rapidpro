@@ -29,6 +29,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelSession
@@ -77,7 +78,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server.trial import campaigns as trial_campaigns, resumes as trial_resumes
+from .server.trial import resumes as trial_resumes
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,10 @@ class FlowSession(models.Model):
 
     output = JSONAsTextField(null=True, default=dict)
 
+    created_on = models.DateTimeField(null=True, default=timezone.now, help_text=_("When this session was created"))
+
+    ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
+
     @classmethod
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
@@ -186,7 +191,7 @@ class FlowSession(models.Model):
     @classmethod
     def interrupt_waiting(cls, contacts):
         cls.objects.filter(contact__in=contacts, status=FlowSession.STATUS_WAITING).update(
-            status=FlowSession.STATUS_INTERRUPTED
+            status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
         )
 
     @classmethod
@@ -233,6 +238,7 @@ class FlowSession(models.Model):
                 status=status,
                 output=output.session,
                 responded=bool(msg_in and msg_in.created_on),
+                ended_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
             )
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -289,24 +295,30 @@ class FlowSession(models.Model):
 
         try:
             new_output = request.resume(self.output)
+            status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
 
             # update our output
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
-            self.status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
-            self.save(update_fields=("output", "responded", "status"))
+            self.status = status
+            self.ended_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
+            self.save(update_fields=("output", "responded", "status", "ended_on"))
 
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
 
         except server.FlowServerException:
             # something has gone wrong so this session is over
-            self.status = FlowSession.STATUS_FAILED
-            self.save(update_fields=("status",))
+            self.end(FlowSession.STATUS_FAILED)
 
             self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
 
         return True, []
+
+    def end(self, status):
+        self.status = status
+        self.ended_on = timezone.now()
+        self.save(update_fields=("status", "ended_on"))
 
     def sync_runs(self, output, msg_in, prev_waiting_run=None):
         """
@@ -1765,7 +1777,10 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
+        if self.flow_server_enabled:
+            on_transaction_commit(lambda: flow_start.start_in_mailroom())
+        else:
+            on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(
         self,
@@ -2086,14 +2101,7 @@ class Flow(TembaModel):
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-
-            # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            if self.is_system and len(all_contact_ids) == 1:
-                trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
-            else:
-                trial = None
-
-            runs = self.start_msg_flow_batch(
+            return self.start_msg_flow_batch(
                 all_contact_ids,
                 broadcasts=broadcasts,
                 started_flows=started_flows,
@@ -2103,11 +2111,6 @@ class Flow(TembaModel):
                 parent_run=parent_run,
                 parent_context=parent_context,
             )
-
-            if trial and len(runs) == 1:
-                trial_campaigns.end(trial, runs[0])
-
-            return runs
 
         # otherwise, create batches instead
         else:
@@ -3479,9 +3482,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         user = get_flow_user(self.org)
         field = ContactField.user_fields.get(org=self.org, key=event["field"]["key"])
-        value = event["value"]
+        value = event.get("value")
 
-        self.contact.set_field(user, field.key, value["text"])
+        self.contact.set_field(user, field.key, value["text"] if value else "")
 
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event["value"]))
@@ -5640,7 +5643,11 @@ class ExportFlowResultsTask(BaseExportTask):
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
             # get this run's results by node UUID
-            results_by_node = {result["node"]: result for result in run["values"].values()}
+            run_values = run["values"]
+            if isinstance(run_values, list):
+                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+            else:
+                results_by_node = {result["node"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [
@@ -5938,6 +5945,28 @@ class FlowStart(SmartModel):
         if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=["status"])
+
+    def start_in_mailroom(self):
+        """
+        Starts this flow start in mailroom
+        """
+        org_id = self.flow.org_id
+
+        # build our task
+        task = dict(
+            start_id=self.id,
+            org_id=org_id,
+            flow_id=self.flow_id,
+            group_ids=[g.id for g in self.groups.all()],
+            contact_ids=[c.id for c in self.contacts.all()],
+            restart_participants=self.restart_participants,
+            include_active=self.include_active,
+        )
+
+        # queue to mailroom
+        mailroom.queue_mailroom_task(
+            org_id, mailroom.BATCH_QUEUE, mailroom.START_FLOW_TASK, task, mailroom.HIGH_PRIORITY
+        )
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)

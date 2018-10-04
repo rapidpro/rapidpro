@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -67,12 +68,16 @@ class IVRCall(ChannelSession):
                     test_call.close()
 
     def close(self):
-        if not self.is_done():
+        from temba.flows.models import FlowSession
 
+        if not self.is_done():
             # mark us as interrupted
             self.status = ChannelSession.INTERRUPTED
             self.ended_on = timezone.now()
-            self.save()
+            self.save(update_fields=("status", "ended_on"))
+
+            if self.has_flow_session():
+                self.session.end(FlowSession.STATUS_INTERRUPTED)
 
             client = self.channel.get_ivr_client()
             if client and self.external_id:
@@ -177,6 +182,11 @@ class IVRCall(ChannelSession):
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
+
+            from temba.flows.models import FlowSession
+
+            if self.has_flow_session():
+                self.session.end(FlowSession.STATUS_COMPLETED)
 
             if self.contact.is_test:
                 run = FlowRun.objects.filter(connection=self)
@@ -284,3 +294,14 @@ class IVRCall(ChannelSession):
             return run.flow
         else:  # pragma: no cover
             raise ValueError(f"Cannot find flow for IVRCall id={self.id}")
+
+    def has_flow_session(self):
+        """
+        Checks whether this channel session has an associated flow session.
+        See https://docs.djangoproject.com/en/2.1/topics/db/examples/one_to_one/
+        """
+        try:
+            self.session
+            return True
+        except ObjectDoesNotExist:
+            return False

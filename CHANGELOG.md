@@ -1,3 +1,35 @@
+v4.8.1
+----------
+ * Add novo channel
+
+v4.8.0
+----------
+ * Remove trialing of campaign events
+ * Remove no longer used ruleset_analytis.haml
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+ * Optimize group releases
+ * Add created_on/ended_on to FlowSession
+
+v4.7.0
+----------
+ * Bump Smartmin and Django versions
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+
+v4.6.0
+----------
+ * Latest goflow
+
+v4.5.2
+----------
+ * Add config for deduping messages
+ * Add created_on/ended_on to FlowSession
+ * Update to latest goflow (event changes)
+ * Do not delete campaign events, deactivate them
+ * Do not delete runs when deleting a flow
+ * Fix Campaigns events delete for system flow
+
 v4.5.1
 ----------
  * Use constants for queue names and switch single contact flow starts to use the handler queue

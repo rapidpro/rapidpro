@@ -14,6 +14,7 @@ from django_redis import get_redis_connection
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
@@ -619,6 +620,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         verbose_name=_("Fields"), null=True, help_text=_("The fields set for this contact, keyed by UUID")
     )
 
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
+    )
+
     simulation = False
 
     NAME = "name"
@@ -1009,7 +1018,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # if there was a change, update our JSONB on our contact
         if has_changed:
-            self.modified_by = user
             self.modified_on = timezone.now()
 
             with connection.cursor() as cursor:
@@ -1017,21 +1025,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     # delete the field
                     (
                         cursor.execute(
-                            "UPDATE contacts_contact SET fields = fields - %s, modified_by_id = %s, modified_on = %s WHERE id = %s",
-                            [field_uuid, self.modified_by.id, self.modified_on, self.id],
+                            "UPDATE contacts_contact SET fields = fields - %s, modified_on = %s WHERE id = %s",
+                            [field_uuid, self.modified_on, self.id],
                         )
                     )
                 else:
                     # update the field
                     (
                         cursor.execute(
-                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
-                            [
-                                json.dumps({field_uuid: self.fields[field_uuid]}),
-                                self.modified_by.id,
-                                self.modified_on,
-                                self.id,
-                            ],
+                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
+                            [json.dumps({field_uuid: self.fields[field_uuid]}), self.modified_on, self.id],
                         )
                     )
 
@@ -1071,7 +1074,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
                     changed_field_keys.add(key)
 
-        modified_by_id = user.id
         modified_on = timezone.now()
 
         # if there was a change, update our JSONB on our contact
@@ -1080,15 +1082,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 # prepare expression for multiple field delete
                 remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
                 cursor.execute(
-                    f"UPDATE contacts_contact SET fields = fields - {remove_fields}, modified_by_id = %s, modified_on = %s WHERE id = %s",
-                    [*fields_for_delete, modified_by_id, modified_on, self.id],
+                    f"UPDATE contacts_contact SET fields = fields - {remove_fields}, modified_on = %s WHERE id = %s",
+                    [*fields_for_delete, modified_on, self.id],
                 )
 
         if fields_for_update:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
-                    [json.dumps(all_fields), modified_by_id, modified_on, self.id],
+                    "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
+                    [json.dumps(all_fields), modified_on, self.id],
                 )
 
         # update local contact cache
@@ -1098,7 +1100,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for field_uuid in fields_for_delete:
             self.fields.pop(field_uuid, None)
 
-        self.modified_by_id = modified_by_id
         self.modified_on = modified_on
 
         if changed_field_keys:
@@ -1180,7 +1181,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ContactURN.update_auth(existing_urn, auth)
             return contact, existing_urn
         else:
-            kwargs = dict(org=org, name=name, created_by=user, modified_by=user, is_test=is_test)
+            kwargs = dict(org=org, name=name, created_by=user, is_test=is_test)
             contact = Contact.objects.create(**kwargs)
             updated_attrs = list(kwargs.keys())
 
@@ -1280,10 +1281,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                             updated_attrs.append(Contact.LANGUAGE)
 
                         if updated_attrs:
-                            contact.modified_by = user
-                            contact.save(
-                                update_fields=updated_attrs + ["modified_on", "modified_by"], handle_update=False
-                            )
+                            contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
                         # handle group and campaign updates
                         contact.handle_update(fields=updated_attrs)
                         return contact
@@ -1328,14 +1326,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     updated_attrs.append(Contact.LANGUAGE)
 
                 if updated_attrs:
-                    contact.modified_by = user
-                    contact.save(update_fields=updated_attrs + ["modified_by", "modified_on"], handle_update=False)
+                    contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
 
             # otherwise create new contact with all URNs
             else:
-                kwargs = dict(
-                    org=org, name=name, language=language, is_test=is_test, created_by=user, modified_by=user
-                )
+                kwargs = dict(org=org, name=name, language=language, is_test=is_test, created_by=user)
                 contact = Contact.objects.create(**kwargs)
                 updated_attrs = ["name", "language", "created_on"]
 
@@ -1717,7 +1712,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             field_values = dict(zip(header, row_data))
             log_field_values = field_values.copy()
             field_values["created_by"] = user
-            field_values["modified_by"] = user
             try:
 
                 field_values = cls.prepare_fields(field_values, import_params, user)
@@ -1910,16 +1904,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Trigger.archive_triggers_for_contact(self, user)
 
         self.is_blocked = True
-        self.modified_by = user
-        self.save(update_fields=("is_blocked", "modified_on", "modified_by"), handle_update=False)
+        self.save(update_fields=("is_blocked", "modified_on"), handle_update=False)
 
     def unblock(self, user):
         """
         Unlocks this contact and marking it as not archived
         """
         self.is_blocked = False
-        self.modified_by = user
-        self.save(update_fields=("is_blocked", "modified_on", "modified_by"), handle_update=False)
+        self.save(update_fields=("is_blocked", "modified_on"), handle_update=False)
 
         self.reevaluate_dynamic_groups()
 
@@ -1933,8 +1925,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             raise ValueError("Can't stop a test contact")
 
         self.is_stopped = True
-        self.modified_by = user
-        self.save(update_fields=["is_stopped", "modified_on", "modified_by"], handle_update=False)
+        self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
 
         self.clear_all_groups(user)
 
@@ -1945,8 +1936,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Unstops this contact, re-adding them to any dynamic groups they belong to
         """
         self.is_stopped = False
-        self.modified_by = user
-        self.save(update_fields=["is_stopped", "modified_on", "modified_by"], handle_update=False)
+        self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
@@ -1977,16 +1967,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.is_active = False
             self.name = None
             self.fields = None
-            self.modified_by = user
-            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"), handle_update=False)
+            self.save(update_fields=("name", "is_active", "fields", "modified_on"), handle_update=False)
 
         # kick off a task to remove all the things related to us
         if immediately:
             from temba.contacts.tasks import full_release_contact
 
-            full_release_contact.delay(self.id, user.id)
+            full_release_contact.delay(self.id)
 
-    def _full_release(self, user):
+    def _full_release(self):
         with transaction.atomic():
 
             # release our messages
@@ -2085,6 +2074,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "tel_e164": self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
             "groups": ",".join([_.name for _ in self.cached_user_groups]),
             "uuid": self.uuid,
+            "created_on": self.created_on.isoformat(),
         }
 
         # anonymous orgs also get @contact.id
@@ -2251,8 +2241,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         urns_detached = list(urns_detached_qs)
         urns_detached_qs.update(contact=None)
 
-        self.modified_by = user
-        self.save(update_fields=("modified_on", "modified_by"), handle_update=False)
+        self.save(update_fields=("modified_on",), handle_update=False)
 
         # trigger updates based all urns created or detached
         self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
@@ -2896,7 +2885,7 @@ class ContactGroup(TembaModel):
             # update modified on in small batches to avoid long table lock, and having too many non-unique values for
             # modified_on which is the primary ordering for the API
             for batch in chunk_list(changed, 100):
-                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_by=user, modified_on=timezone.now())
+                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_on=timezone.now())
 
         return changed
 
@@ -3069,23 +3058,38 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-        with transaction.atomic():
-            if self.is_active is True:
-                self.is_active = False
-                self.save()
 
-            self.contacts.clear()
-            self.counts.all().delete()
+        # if group is still active, deactivate it
+        if self.is_active is True:
+            self.is_active = False
+            self.save(update_fields=("is_active",))
 
-            # delete any event fires related to our group
-            from temba.campaigns.models import EventFire
+        # delete all counts for this group
+        self.counts.all().delete()
 
-            EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
+        # get the automatically generated M2M model
+        ContactGroupContacts = self.contacts.through
 
-            # mark any triggers that operate only on this group as inactive
-            from temba.triggers.models import Trigger
+        # grab the ids of all our m2m related rows
+        contactgroup_contact_ids = ContactGroupContacts.objects.filter(contactgroup_id=self.id).values_list(
+            "id", flat=True
+        )
 
-            Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+        for id_batch in chunk_list(contactgroup_contact_ids, 1000):
+            ContactGroupContacts.objects.filter(id__in=id_batch).delete()
+
+        # delete any event fires related to our group
+        from temba.campaigns.models import EventFire
+
+        eventfire_ids = EventFire.objects.filter(event__campaign__group=self, fired=None).values_list("id", flat=True)
+
+        for id_batch in chunk_list(eventfire_ids, 1000):
+            EventFire.objects.filter(id__in=id_batch).delete()
+
+        # mark any triggers that operate only on this group as inactive
+        from temba.triggers.models import Trigger
+
+        Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
     @property
     def is_dynamic(self):
