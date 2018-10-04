@@ -11511,6 +11511,7 @@ class FlowServerTest(TembaTest):
 
         self.assertTrue(run1.session.output)
         self.assertEqual(run1.session.status, "W")
+        self.assertEqual(run1.session.current_flow, flow)
         self.assertIsNotNone(run1.session.created_on)
         self.assertIsNone(run1.session.ended_on)
         self.assertEqual(run1.flow, flow)
@@ -11565,6 +11566,9 @@ class FlowServerTest(TembaTest):
         run1.session.resume_by_input(msg1)
 
         run1.refresh_from_db()
+        self.assertEqual(run1.session.status, "W")
+        self.assertEqual(run1.session.current_flow, flow)
+
         self.assertIn("color", run1.results)
 
         # when flowserver returns an error
