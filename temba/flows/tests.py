@@ -5888,18 +5888,11 @@ class SimulationTest(FlowFileTest):
         """
         Add a message to the payload for the flow server using the default contact
         """
-        payload["events"] = [
-            {
-                "type": "msg_received",
-                "created_on": timezone.now().isoformat(),
-                "msg": {
-                    "text": text,
-                    "uuid": str(uuid4()),
-                    "urn": "tel:+12065551212",
-                    "created_on": timezone.now().isoformat(),
-                },
-            }
-        ]
+        payload["resume"] = {
+            "type": "msg",
+            "resumed_on": timezone.now().isoformat(),
+            "msg": {"text": text, "uuid": str(uuid4()), "urn": "tel:+12065551212"},
+        }
 
     def get_replies(self, response):
         """
@@ -5937,7 +5930,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        builder = client.request_builder(self.org).add_contact_changed(self.contact)
+        builder = client.request_builder(self.org)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
         payload["session"] = response.json()["session"]

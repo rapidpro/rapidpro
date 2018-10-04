@@ -214,15 +214,13 @@ class FlowSession(models.Model):
                 # TODO find a way to run an assets server during testing?
                 request.include_all()
 
-            # only include message if it's a real message
-            if msg_in and msg_in.created_on:
-                request.add_msg_received(msg_in)
-
             try:
                 if parent_run_summary:
                     output = request.start_by_flow_action(contact, flow, parent_run_summary)
                 elif campaign_event:
                     output = request.start_by_campaign(contact, flow, campaign_event)
+                elif msg_in and msg_in.created_on:
+                    output = request.start_by_msg(contact, flow, msg_in)
                 else:
                     output = request.start_manual(contact, flow, params)
 
@@ -281,20 +279,17 @@ class FlowSession(models.Model):
             # TODO find a way to run an assets server during testing?
             request.include_all()
 
-        # only include message if it's a real message
-        if msg_in and msg_in.created_on:
-            request.add_msg_received(msg_in)
-        elif expired_run:  # pragma: needs cover
-            request.add_run_expired(expired_run)
-        elif timeout:
-            request.add_wait_timed_out()
-
-        # TODO determine if contact or environment has changed
-        request = request.add_contact_changed(self.contact)
-        # request = request.add_environment_changed()
-
         try:
-            new_output = request.resume(self.output)
+            # only resume by message if it's a real message
+            if msg_in and msg_in.created_on:
+                new_output = request.resume_by_msg(self.output, msg_in, contact=self.contact)
+            elif expired_run:  # pragma: needs cover
+                new_output = request.resume_by_run_expiration(self.output, expired_run, contact=self.contact)
+            elif timeout:
+                new_output = request.resume_by_wait_timeout(self.output, contact=self.contact)
+            else:  # pragma: needs cover
+                raise ValueError("need something to resume session with")
+
             status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
 
             # update our output
