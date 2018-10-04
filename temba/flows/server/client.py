@@ -144,16 +144,8 @@ class RequestBuilder:
         """
         Resume an existing session because of a new message
         """
-        from temba.msgs.models import Msg
-
-        if isinstance(msg, Msg):
-            resumed_on = msg.created_on.isoformat()
-            msg = serialize_message(msg)
-        else:
-            resumed_on = timezone.now().isoformat()
-
-        self.request["resume"] = self._base_resume("msg", resumed_on, contact)
-        self.request["resume"]["msg"] = msg
+        self.request["resume"] = self._base_resume("msg", msg.created_on.isoformat(), contact)
+        self.request["resume"]["msg"] = serialize_message(msg)
         self.request["session"] = session
 
         return self.client.resume(self.request)
