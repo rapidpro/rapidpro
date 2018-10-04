@@ -261,6 +261,16 @@ class CampaignEvent(TembaModel):
 
     UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
+    MODE_FORCE = "F"
+    MODE_SKIP = "S"
+    MODE_PASSIVE = "P"
+
+    EXEC_MODES_CHOICES = (
+        (MODE_FORCE, _("Force interruption")),
+        (MODE_SKIP, _("Skip")),
+        (MODE_PASSIVE, _("Send in background, No interruption")),
+    )
+
     campaign = models.ForeignKey(
         Campaign, on_delete=models.PROTECT, related_name="events", help_text="The campaign this event is part of"
     )
@@ -279,6 +289,10 @@ class CampaignEvent(TembaModel):
 
     flow = models.ForeignKey(
         Flow, on_delete=models.PROTECT, related_name="events", help_text="The flow that will be triggered"
+    )
+
+    exec_mode = models.CharField(
+        max_length=1, choices=EXEC_MODES_CHOICES, default=MODE_FORCE, help_text="The execution mode of this event"
     )
 
     event_type = models.CharField(

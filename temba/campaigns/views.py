@@ -424,7 +424,16 @@ class CampaignEventCRUDL(SmartCRUDL):
         success_message = ""
         form_class = CampaignEventForm
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "exec_mode",
+        ]
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -476,7 +485,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def pre_save(self, obj):
 
             prev = CampaignEvent.objects.get(pk=obj.pk)
-            if prev.event_type == "M" and obj.event_type == "F" and prev.flow:  # pragma: needs cover
+            if prev.event_type == "M" and (obj.event_type == "F" and prev.flow):  # pragma: needs cover
                 flow = prev.flow
                 flow.is_active = False
                 flow.save()
@@ -491,7 +500,16 @@ class CampaignEventCRUDL(SmartCRUDL):
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "exec_mode",
+        ]
         form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
