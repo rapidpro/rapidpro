@@ -112,7 +112,7 @@ class Campaign(TembaModel):
 
                         message = event_spec["message"]
                         base_language = event_spec.get("base_language")
-                        exec_mode = (event_spec.get("exec_mode", "F"),)
+                        exec_mode = event_spec.get("exec_mode", "F")
 
                         if not isinstance(message, dict):
                             try:
