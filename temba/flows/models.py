@@ -1840,7 +1840,7 @@ class Flow(TembaModel):
             already_started = set(self.runs.all().values_list("contact_id", flat=True))
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
-        if not include_active or (campaign_event is not None and campaign_event.exec_mode == CampaignEvent.MODE_SKIP):
+        if not include_active:
             # exclude anybody who has an active flow run and are not for system flow
             already_active = set(
                 FlowRun.objects.filter(is_active=True, org=self.org)
@@ -1859,7 +1859,7 @@ class Flow(TembaModel):
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
-        if campaign_event is None or campaign_event.exec_mode == CampaignEvent.MODE_FORCE:
+        if campaign_event is None or campaign_event.start_mode == CampaignEvent.MODE_INTERRUPT:
             # for the contacts that will be started, exit any existing flow runs except system flow runs
             for contact_batch in chunk_list(all_contact_ids, 1000):
                 active_runs = (

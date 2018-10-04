@@ -273,13 +273,13 @@ class CampaignEventForm(forms.ModelForm):
                 obj.flow.update_single_message_flow(translations, base_language)
 
             obj.message = translations
-            obj.exec_mode = self.cleaned_data["exec_mode"]
+            obj.start_mode = self.cleaned_data["start_mode"]
             obj.full_clean()
 
         # otherwise, it's an event that runs an existing flow
         else:
             obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
-            obj.exec_mode = "F"
+            obj.start_mode = CampaignEvent.MODE_INTERRUPT
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
@@ -434,7 +434,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             "direction",
             "relative_to",
             "delivery_hour",
-            "exec_mode",
+            "start_mode",
         ]
 
         def get_form_kwargs(self):
@@ -510,7 +510,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             "direction",
             "relative_to",
             "delivery_hour",
-            "exec_mode",
+            "start_mode",
         ]
         form_class = CampaignEventForm
         success_message = ""

@@ -113,7 +113,7 @@ class CampaignTest(TembaTest):
         self.assertNotEqual(flow.version_number, 3)
         self.assertEqual(flow.version_number, get_current_export_version())
 
-    def test_message_event_exec_mode_force_interrupt(self):
+    def test_message_event_start_mode_interrupt(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         CampaignEvent.create_message_event(
@@ -127,7 +127,7 @@ class CampaignTest(TembaTest):
                 "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
             },
             base_language="eng",
-            exec_mode="F",
+            start_mode="I",
         )
 
         # update the planting date for our contact
@@ -158,7 +158,7 @@ class CampaignTest(TembaTest):
         run1.refresh_from_db()
         self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
 
-    def test_message_event_exec_mode_passive(self):
+    def test_message_event_start_mode_passive(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         CampaignEvent.create_message_event(
@@ -172,7 +172,7 @@ class CampaignTest(TembaTest):
                 "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
             },
             base_language="eng",
-            exec_mode="P",
+            start_mode="P",
         )
 
         # update the planting date for our contact
@@ -203,7 +203,7 @@ class CampaignTest(TembaTest):
         run1.refresh_from_db()
         self.assertIsNone(run1.exit_type)
 
-    def test_message_event_exec_mode_skip(self):
+    def test_message_event_start_mode_skip(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         CampaignEvent.create_message_event(
@@ -217,7 +217,7 @@ class CampaignTest(TembaTest):
                 "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
             },
             base_language="eng",
-            exec_mode="S",
+            start_mode="S",
         )
 
         # update the planting date for our contact
@@ -485,7 +485,7 @@ class CampaignTest(TembaTest):
             unit="W",
             flow_to_start="",
             delivery_hour=13,
-            exec_mode="F",
+            start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -509,7 +509,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(13, event.delivery_hour)
         self.assertEqual("W", event.unit)
         self.assertEqual("M", event.event_type)
-        self.assertEqual("F", event.exec_mode)
+        self.assertEqual("I", event.start_mode)
 
         self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
         self.assertEqual(event.get_message(contact=self.farmer2), "hola")
@@ -548,7 +548,7 @@ class CampaignTest(TembaTest):
             unit="W",
             flow_to_start="",
             delivery_hour=13,
-            exec_mode="P",
+            start_mode="P",
         )
         response = self.client.post(url, post_data)
         self.assertEqual(302, response.status_code)
@@ -570,7 +570,7 @@ class CampaignTest(TembaTest):
         # our single message flow should have a dependency on planting_date
         event.refresh_from_db()
         self.assertEqual(1, event.flow.field_dependencies.all().count())
-        self.assertEqual("P", event.exec_mode)
+        self.assertEqual("P", event.start_mode)
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
@@ -679,7 +679,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="M",
             flow_to_start=self.reminder_flow.pk,
-            exec_mode="F",
+            start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -697,7 +697,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="M",
             flow_to_start=self.reminder_flow.pk,
-            exec_mode="F",
+            start_mode="I",
         )
 
         response = self.client.post(
@@ -718,7 +718,7 @@ class CampaignTest(TembaTest):
             offset=2,
             unit="D",
             event_type="F",
-            exec_mode="F",
+            start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -736,7 +736,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder_flow.pk,
-            exec_mode="F",
+            start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -750,7 +750,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(2, event.offset)
-        self.assertEqual("F", event.exec_mode)
+        self.assertEqual("I", event.start_mode)
 
         # read the campaign read page
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
@@ -779,7 +779,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder_flow.pk,
-            exec_mode="F",
+            start_mode="I",
         )
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
@@ -791,7 +791,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(1, event.offset)
-        self.assertEqual("F", event.exec_mode)
+        self.assertEqual("I", event.start_mode)
 
         # flow event always set exec mode to 'F' no matter what
         post_data = dict(
@@ -803,7 +803,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder_flow.pk,
-            exec_mode="P",
+            start_mode="P",
         )
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
@@ -815,7 +815,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(1, event.offset)
-        self.assertEqual("F", event.exec_mode)
+        self.assertEqual("I", event.start_mode)
 
         # should also event fires rescheduled for our contacts
         fire = EventFire.objects.get()
@@ -837,7 +837,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder2_flow.pk,
-            exec_mode="F",
+            start_mode="I",
         )
         self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
@@ -1442,7 +1442,7 @@ class CampaignTest(TembaTest):
                         "offset": 3,
                         "unit": "D",
                         "event_type": "F",
-                        "exec_mode": "F",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"label": "Planting Date", "key": "planting_date"},
@@ -1469,7 +1469,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "F",
-                        "exec_mode": "F",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"key": "created_on", "label": "Created On"},
@@ -1496,7 +1496,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "M",
-                        "exec_mode": "F",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": {"base": "o' a framer?"},
                         "relative_to": {"key": "created_on", "label": "Created On"},

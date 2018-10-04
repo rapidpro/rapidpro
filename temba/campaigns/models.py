@@ -112,7 +112,7 @@ class Campaign(TembaModel):
 
                         message = event_spec["message"]
                         base_language = event_spec.get("base_language")
-                        exec_mode = event_spec.get("exec_mode", "F")
+                        start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                         if not isinstance(message, dict):
                             try:
@@ -132,7 +132,7 @@ class Campaign(TembaModel):
                             message,
                             event_spec["delivery_hour"],
                             base_language=base_language,
-                            exec_mode=exec_mode,
+                            start_mode=start_mode,
                         )
                         event.update_flow_name()
                     else:
@@ -205,7 +205,7 @@ class Campaign(TembaModel):
                 delivery_hour=event.delivery_hour,
                 message=event.message,
                 relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
-                exec_mode=event.exec_mode,
+                start_mode=event.start_mode,
             )
 
             # only include the flow definition for standalone flows
@@ -264,15 +264,11 @@ class CampaignEvent(TembaModel):
 
     UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
-    MODE_FORCE = "F"
+    MODE_INTERRUPT = "I"
     MODE_SKIP = "S"
     MODE_PASSIVE = "P"
 
-    EXEC_MODES_CHOICES = (
-        (MODE_FORCE, _("Force interruption")),
-        (MODE_SKIP, _("Skip")),
-        (MODE_PASSIVE, _("Send in background, No interruption")),
-    )
+    START_MODES_CHOICES = ((MODE_INTERRUPT, _("Interrupt")), (MODE_SKIP, _("Skip")), (MODE_PASSIVE, _("Passive")))
 
     campaign = models.ForeignKey(
         Campaign, on_delete=models.PROTECT, related_name="events", help_text="The campaign this event is part of"
@@ -294,8 +290,8 @@ class CampaignEvent(TembaModel):
         Flow, on_delete=models.PROTECT, related_name="events", help_text="The flow that will be triggered"
     )
 
-    exec_mode = models.CharField(
-        max_length=1, choices=EXEC_MODES_CHOICES, default=MODE_FORCE, help_text="The execution mode of this event"
+    start_mode = models.CharField(
+        max_length=1, choices=START_MODES_CHOICES, default=MODE_INTERRUPT, help_text="The start mode of this event"
     )
 
     event_type = models.CharField(
@@ -319,7 +315,7 @@ class CampaignEvent(TembaModel):
         message,
         delivery_hour=-1,
         base_language=None,
-        exec_mode="F",
+        start_mode="I",
     ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
@@ -344,7 +340,7 @@ class CampaignEvent(TembaModel):
             message=message,
             flow=flow,
             delivery_hour=delivery_hour,
-            exec_mode=exec_mode,
+            start_mode=start_mode,
             created_by=user,
             modified_by=user,
         )
@@ -554,10 +550,16 @@ class EventFire(Model):
         contacts = [f.contact for f in fires]
         event = fires[0].event
 
+        include_active = not (
+            event.event_type == CampaignEvent.TYPE_MESSAGE and event.start_mode == CampaignEvent.MODE_SKIP
+        )
+
         if len(contacts) == 1:
-            flow.start([], contacts, restart_participants=True, campaign_event=event)
+            flow.start([], contacts, restart_participants=True, include_active=include_active, campaign_event=event)
         else:
-            start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
+            start = FlowStart.create(
+                flow, flow.created_by, contacts=contacts, include_active=include_active, campaign_event=event
+            )
             start.async_start()
         EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
