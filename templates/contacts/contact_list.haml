@@ -481,7 +481,24 @@
         onFormLoaded:function() {
           useFontCheckbox("input[type=checkbox]", false);
         },
-        onSuccess: function() { refresh(function() { recheckIds(); }, true); }
+        onSuccess: function() {
+            // grab the current search string, sort_on/page/...
+            var url = window.location.search;
+
+            if (!url) {
+                url = '?'
+            }
+
+            // bust cache
+            url += '&ts=' + new Date().getTime();
+
+            fetchPJAXContent(url, '#pjax', {
+                forceReload: true,
+                onSuccess: function () {
+                    recheckIds();
+                }
+            })
+        }
       });
       modal.show();
     });
