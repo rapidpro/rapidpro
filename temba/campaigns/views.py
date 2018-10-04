@@ -273,11 +273,13 @@ class CampaignEventForm(forms.ModelForm):
                 obj.flow.update_single_message_flow(translations, base_language)
 
             obj.message = translations
+            obj.exec_mode = self.cleaned_data["exec_mode"]
             obj.full_clean()
 
         # otherwise, it's an event that runs an existing flow
         else:
             obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
+            obj.exec_mode = "F"
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
