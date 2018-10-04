@@ -1800,6 +1800,8 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        from temba.campaigns.models import CampaignEvent
+
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
@@ -1838,10 +1840,12 @@ class Flow(TembaModel):
             already_started = set(self.runs.all().values_list("contact_id", flat=True))
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
-        if not include_active:
-            # exclude anybody who has an active flow run
+        if not include_active or (campaign_event is not None and campaign_event.exec_mode == CampaignEvent.MODE_SKIP):
+            # exclude anybody who has an active flow run and are not for system flow
             already_active = set(
-                FlowRun.objects.filter(is_active=True, org=self.org).values_list("contact_id", flat=True)
+                FlowRun.objects.filter(is_active=True, org=self.org)
+                .exclude(flow__is_system=True)
+                .values_list("contact_id", flat=True)
             )
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
 
@@ -1855,17 +1859,20 @@ class Flow(TembaModel):
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
-        # for the contacts that will be started, exit any existing flow runs
-        for contact_batch in chunk_list(all_contact_ids, 1000):
-            active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch).exclude(
-                id__in=ancestor_ids
-            )
-            FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        if campaign_event is None or campaign_event.exec_mode == CampaignEvent.MODE_FORCE:
+            # for the contacts that will be started, exit any existing flow runs except system flow runs
+            for contact_batch in chunk_list(all_contact_ids, 1000):
+                active_runs = (
+                    FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch)
+                    .exclude(id__in=ancestor_ids)
+                    .exclude(flow__is_system=True)
+                )
+                FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
-        # if we are interrupting parent flow runs, mark them as completed
-        if ancestor_ids and interrupt:
-            ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
-            FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
+            # if we are interrupting parent flow runs, mark them as completed
+            if ancestor_ids and interrupt:
+                ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
+                FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
         contact_count = len(all_contact_ids)
 

@@ -112,6 +112,7 @@ class Campaign(TembaModel):
 
                         message = event_spec["message"]
                         base_language = event_spec.get("base_language")
+                        exec_mode = (event_spec.get("exec_mode", "F"),)
 
                         if not isinstance(message, dict):
                             try:
@@ -131,6 +132,7 @@ class Campaign(TembaModel):
                             message,
                             event_spec["delivery_hour"],
                             base_language=base_language,
+                            exec_mode=exec_mode,
                         )
                         event.update_flow_name()
                     else:
@@ -203,6 +205,7 @@ class Campaign(TembaModel):
                 delivery_hour=event.delivery_hour,
                 message=event.message,
                 relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
+                exec_mode=event.exec_mode,
             )
 
             # only include the flow definition for standalone flows
@@ -306,7 +309,17 @@ class CampaignEvent(TembaModel):
 
     @classmethod
     def create_message_event(
-        cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None
+        cls,
+        org,
+        user,
+        campaign,
+        relative_to,
+        offset,
+        unit,
+        message,
+        delivery_hour=-1,
+        base_language=None,
+        exec_mode="F",
     ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
@@ -331,6 +344,7 @@ class CampaignEvent(TembaModel):
             message=message,
             flow=flow,
             delivery_hour=delivery_hour,
+            exec_mode=exec_mode,
             created_by=user,
             modified_by=user,
         )

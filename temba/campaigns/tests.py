@@ -113,6 +113,139 @@ class CampaignTest(TembaTest):
         self.assertNotEqual(flow.version_number, 3)
         self.assertEqual(flow.version_number, get_current_export_version())
 
+    def test_message_event_exec_mode_force_interrupt(self):
+        # create a campaign with a message event 1 day after planting date
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+            exec_mode="F",
+        )
+
+        # update the planting date for our contact
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
+
+        fire = EventFire.objects.get()
+
+        # change our fire date to sometime in the past so it gets triggered
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save(update_fields=("scheduled",))
+
+        # contact is arleady in a another flow
+        flow = self.get_flow("favorites")
+        flow.start([], [self.farmer1])
+
+        run1 = FlowRun.objects.filter(contact=self.farmer1).first()
+        self.assertEqual(run1.flow, flow)
+
+        # schedule our events to fire
+        check_campaigns_task()
+
+        run2 = FlowRun.objects.filter(contact=self.farmer1).order_by("-created_on").first()
+        msg = run2.get_messages().get()
+        self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
+        self.assertEqual(run2.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # run1 should have been Interrupted
+        run1.refresh_from_db()
+        self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+    def test_message_event_exec_mode_passive(self):
+        # create a campaign with a message event 1 day after planting date
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+            exec_mode="P",
+        )
+
+        # update the planting date for our contact
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
+
+        fire = EventFire.objects.get()
+
+        # change our fire date to sometime in the past so it gets triggered
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save(update_fields=("scheduled",))
+
+        # contact is arleady in a another flow
+        flow = self.get_flow("favorites")
+        flow.start([], [self.farmer1])
+
+        run1 = FlowRun.objects.filter(contact=self.farmer1).first()
+        self.assertEqual(run1.flow, flow)
+
+        # schedule our events to fire
+        check_campaigns_task()
+
+        run2 = FlowRun.objects.filter(contact=self.farmer1).order_by("-created_on").first()
+        msg = run2.get_messages().get()
+        self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
+        self.assertEqual(run2.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # run1 should not have an exit type
+        run1.refresh_from_db()
+        self.assertIsNone(run1.exit_type)
+
+    def test_message_event_exec_mode_skip(self):
+        # create a campaign with a message event 1 day after planting date
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=self.planting_date,
+            offset=1,
+            unit="D",
+            message={
+                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+            },
+            base_language="eng",
+            exec_mode="S",
+        )
+
+        # update the planting date for our contact
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
+
+        fire = EventFire.objects.get()
+
+        # change our fire date to sometime in the past so it gets triggered
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save(update_fields=("scheduled",))
+
+        # contact is arleady in a another flow
+        flow = self.get_flow("favorites")
+        flow.start([], [self.farmer1])
+
+        run1 = FlowRun.objects.filter(contact=self.farmer1).first()
+        self.assertEqual(run1.flow, flow)
+
+        # schedule our events to fire
+        check_campaigns_task()
+
+        run2 = FlowRun.objects.filter(contact=self.farmer1).order_by("-created_on").first()
+        self.assertEqual(run1.pk, run2.pk)  # no other run
+
+        # run1 should not have an exit type
+        run1.refresh_from_db()
+        self.assertIsNone(run1.exit_type)
+
     @also_in_flowserver
     def test_message_event(self, in_flowserver):
         # create a campaign with a message event 1 day after planting date
@@ -1309,6 +1442,7 @@ class CampaignTest(TembaTest):
                         "offset": 3,
                         "unit": "D",
                         "event_type": "F",
+                        "exec_mode": "F",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"label": "Planting Date", "key": "planting_date"},
@@ -1335,6 +1469,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "F",
+                        "exec_mode": "F",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"key": "created_on", "label": "Created On"},
@@ -1361,6 +1496,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "M",
+                        "exec_mode": "F",
                         "delivery_hour": -1,
                         "message": {"base": "o' a framer?"},
                         "relative_to": {"key": "created_on", "label": "Created On"},
