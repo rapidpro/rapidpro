@@ -366,7 +366,7 @@ class CampaignEventCRUDL(SmartCRUDL):
     class Read(OrgObjPermsMixin, SmartReadView):
         def pre_process(self, request, *args, **kwargs):
             event = self.get_object()
-            if not event.is_active or not event.campaign.is_active:
+            if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
                 return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.pk]))
 

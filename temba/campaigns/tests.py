@@ -328,6 +328,26 @@ class CampaignTest(TembaTest):
         self.assertEqual(FlowStart.objects.filter(is_active=True).count(), 0)
         self.assertEqual(Flow.objects.filter(is_system=True, is_active=True).count(), 0)
 
+    def test_event_fire_creation(self):
+
+        self.login(self.admin)
+
+        # update the planting date for our contacts
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
+
+        # create a campaign with an event
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        field = ContactField.get_by_key(self.org, "planting_date")
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, field, 15, "D", "Event Message")
+
+        # should create one event fire
+        EventFire.do_create_eventfires_for_event(event)
+        self.assertEqual(1, EventFire.objects.filter(event=event).count())
+
+        # but shouldn't create extras if we call it again
+        EventFire.do_create_eventfires_for_event(event)
+        self.assertEqual(1, EventFire.objects.filter(event=event).count())
+
     def test_message_event_editing(self):
         # update the planting date for our contacts
         self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
@@ -681,8 +701,17 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
         # should be redirected to our new event
+        previous_event = event
         event = CampaignEvent.objects.filter(is_active=True).get()
         self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.pk]))
+
+        # reading our old event should redirect to the campaign page
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[previous_event.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.pk]))
+
+        # attempting to update our old event gives a 404
+        response = self.client.post(reverse("campaigns.campaignevent_update", args=[previous_event.pk]), post_data)
+        self.assertEqual(404, response.status_code)
 
         # should now have update the campaign event
         self.assertEqual(self.reminder_flow, event.flow)
