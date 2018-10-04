@@ -87,7 +87,7 @@ def serialize_environment(org):
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
         "default_language": org.primary_language.iso_code if org.primary_language else None,
-        "allowed_languages": org.get_language_codes(),
+        "allowed_languages": list(org.get_language_codes()),
         "redaction_policy": "urns" if org.is_anon else "none",
     }
 

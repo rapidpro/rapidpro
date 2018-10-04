@@ -11635,7 +11635,8 @@ class AssetServerTest(TembaTest):
                 "date_format": "DD-MM-YYYY",
                 "time_format": "tt:mm",
                 "timezone": "Africa/Kigali",
-                "languages": [],
+                "default_language": None,
+                "allowed_languages": [],
                 "redaction_policy": "none",
             },
         )
