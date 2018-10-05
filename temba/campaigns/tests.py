@@ -194,8 +194,11 @@ class CampaignTest(TembaTest):
         # our fire should still exist
         fire.refresh_from_db()
 
-        # schedule our events to fire
+        # fire off our event
         check_campaigns_task()
+
+        # our fire should have deleted itself
+        self.assertFalse(EventFire.objects.all().exists())
 
         self.assertFalse(FlowRun.objects.filter(contact=self.farmer1).exists())
         self.assertFalse(event.is_active)
@@ -1175,23 +1178,23 @@ class CampaignTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, "planting_date", "planting Date")
 
         # should be back!
-        event = EventFire.objects.get()
-        self.assertEqual(planting_reminder, event.event)
-        self.assertEqual(9, event.scheduled.day)
+        fire = EventFire.objects.get()
+        self.assertEqual(planting_reminder, fire.event)
+        self.assertEqual(9, fire.scheduled.day)
 
         # change our fire date to sometime in the past so it gets triggered
-        event.scheduled = timezone.now() - timedelta(hours=1)
-        event.save()
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.save()
 
         # schedule our events to fire
         check_campaigns_task()
 
         # should have one flow run now
         run = FlowRun.objects.filter(contact=self.farmer1).first()
-        self.assertEqual(event.contact, run.contact)
+        self.assertEqual(fire.contact, run.contact)
 
         # deleting this event shouldn't delete the runs
-        event.release()
+        fire.delete()
 
         self.assertEqual(FlowRun.objects.count(), 1)
 

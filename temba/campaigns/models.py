@@ -534,12 +534,6 @@ class EventFire(Model):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
 
-    def release(self):
-        """
-        Deletes this fire
-        """
-        self.delete()
-
     @classmethod
     def batch_fire(cls, fires, flow):
         """
@@ -557,7 +551,7 @@ class EventFire(Model):
                 start.async_start()
             EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
         else:
-            event.release()
+            EventFire.objects.filter(id__in=[f.id for f in fires]).delete()
 
     @classmethod
     def update_campaign_events(cls, campaign):
