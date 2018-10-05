@@ -11420,6 +11420,8 @@ class TypeTest(TembaTest):
         contact = self.create_contact("Joe", "+250788373373")
         self.get_flow("type_flow")
 
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+
         self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
         self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
         self.assertEqual(Value.TYPE_NUMBER, RuleSet.objects.get(label="Number").value_type)
