@@ -774,7 +774,8 @@ class Flow(TembaModel):
         else:
             node = ActionSet.get(flow, uuid)
 
-        node.flow = flow
+        if node:
+            node.flow = flow
         return node
 
     @classmethod
