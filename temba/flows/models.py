@@ -387,7 +387,7 @@ class FlowSession(models.Model):
         for run in output.get("runs", []):
             if run["status"] == "waiting":
                 return run
-        return None
+        return None  # pragma: no cover
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
