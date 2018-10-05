@@ -297,32 +297,29 @@ class FlowTest(TembaTest):
 
         text_translations = dict(eng="Hello", spa="Hola", fra="Salut")
 
-        # use default when flow, contact and org don't have language set
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
-
         # flow language used regardless of whether it's an org language
         self.flow.base_language = "eng"
         self.flow.save(update_fields=["base_language"])
         self.flow.org.set_languages(self.admin, ["eng"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # flow language now valid org language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # org primary language overrides flow language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "spa")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = "fra"
 
         self.contact.save(update_fields=("language",), handle_update=False)
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # does override if it is
         self.flow.org.set_languages(self.admin, ["eng", "spa", "fra"], "fra")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Salut")
 
     def test_flow_lists(self):
         self.login(self.admin)
@@ -3746,11 +3743,15 @@ class FlowTest(TembaTest):
         flow = self.get_flow("quick_replies")
         run, = flow.start([], [self.contact4])
 
-        run.refresh_from_db()
-        self.assertEqual(len(run.path), 2)
+        # contact language is Portugese but this isn't an org language so we should use English
+        msg = Msg.objects.filter(direction="O").last()
+        self.assertEqual(msg.metadata, {"quick_replies": ["Yes", "No"]})
 
-        # check flow sent a message with quick replies
-        msg = Msg.objects.get(direction="O")
+        # add Portugese as an org language and try again
+        self.org.set_languages(self.admin, ["eng", "por"], "eng")
+        run, = flow.start([], [self.contact4], restart_participants=True)
+
+        msg = Msg.objects.filter(direction="O").last()
         self.assertEqual(msg.metadata, {"quick_replies": ["Sim", "No"]})
 
     @also_in_flowserver
@@ -11419,6 +11420,8 @@ class TypeTest(TembaTest):
         contact = self.create_contact("Joe", "+250788373373")
         self.get_flow("type_flow")
 
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+
         self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
         self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
         self.assertEqual(Value.TYPE_NUMBER, RuleSet.objects.get(label="Number").value_type)
@@ -11642,7 +11645,8 @@ class AssetServerTest(TembaTest):
                 "date_format": "DD-MM-YYYY",
                 "time_format": "tt:mm",
                 "timezone": "Africa/Kigali",
-                "languages": [],
+                "default_language": None,
+                "allowed_languages": [],
                 "redaction_policy": "none",
             },
         )
