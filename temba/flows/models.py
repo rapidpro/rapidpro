@@ -234,8 +234,8 @@ class FlowSession(models.Model):
             status = FlowSession.GOFLOW_STATUSES[output.session["status"]]
 
             if status == FlowSession.STATUS_WAITING:
-                waiting_run = cls._find_waiting_run(output.session)
-                current_flow_uuid = waiting_run["flow"]["uuid"]
+                current_run = cls._find_waiting_run(output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
 
                 current_flow = Flow.objects.get(uuid=current_flow_uuid, org=flow.org)
                 ended_on = None
@@ -303,8 +303,8 @@ class FlowSession(models.Model):
             status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
 
             if status == FlowSession.STATUS_WAITING:
-                waiting_run = self._find_waiting_run(new_output.session)
-                current_flow_uuid = waiting_run["flow"]["uuid"]
+                current_run = self._find_waiting_run(new_output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
 
                 current_flow = Flow.objects.get(uuid=current_flow_uuid, org=self.org)
                 ended_on = None
