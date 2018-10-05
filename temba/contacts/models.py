@@ -2117,7 +2117,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Sets the preferred channel for communicating with this Contact
         """
-        if channel is None or set(Channel.ROLE_SEND, Channel.ROLE_CALL).intersection(set(channel.roles)):
+        if channel is None or not set(Channel.ROLE_SEND, Channel.ROLE_CALL).intersection(set(channel.roles)):
             return
 
         # don't set preferred channels for test contacts
