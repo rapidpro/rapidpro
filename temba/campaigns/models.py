@@ -315,7 +315,7 @@ class CampaignEvent(TembaModel):
         message,
         delivery_hour=-1,
         base_language=None,
-        start_mode="I",
+        start_mode=MODE_INTERRUPT,
     ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
