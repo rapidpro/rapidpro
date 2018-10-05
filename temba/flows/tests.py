@@ -10643,7 +10643,7 @@ class ExitTest(FlowFileTest):
         planting_date = ContactField.get_or_create(
             self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
         )
-        event = CampaignEvent.create_flow_event(
+        CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, planting_date, offset=1, unit="W", flow=second_flow, delivery_hour="13"
         )
 
@@ -10651,10 +10651,10 @@ class ExitTest(FlowFileTest):
 
         # update our campaign events
         EventFire.update_campaign_events(campaign)
-        event = EventFire.objects.get()
+        fire = EventFire.objects.get()
 
         # fire it, this will start our second flow
-        event.fire()
+        EventFire.batch_fire([fire], fire.event.flow)
 
         second_run = FlowRun.objects.get(is_active=True)
         first_run.refresh_from_db()

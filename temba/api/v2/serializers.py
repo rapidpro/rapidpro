@@ -295,6 +295,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
         flow = self.validated_data.get("flow")
 
         if self.instance:
+
+            # we dont update, we only create
+            self.instance = self.instance.deactivate_and_copy()
+
             # we are being set to a flow
             if flow:
                 self.instance.flow = flow
@@ -347,7 +351,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
             self.instance.update_flow_name()
 
         # create our event fires for this event in the background
-        EventFire.update_eventfires_for_event(self.instance)
+        EventFire.create_eventfires_for_event(self.instance)
 
         return self.instance
 
