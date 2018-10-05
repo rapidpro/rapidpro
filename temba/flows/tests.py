@@ -3743,11 +3743,15 @@ class FlowTest(TembaTest):
         flow = self.get_flow("quick_replies")
         run, = flow.start([], [self.contact4])
 
-        run.refresh_from_db()
-        self.assertEqual(len(run.path), 2)
+        # contact language is Portugese but this isn't an org language so we should use English
+        msg = Msg.objects.filter(direction="O").last()
+        self.assertEqual(msg.metadata, {"quick_replies": ["Yes", "No"]})
 
-        # check flow sent a message with quick replies
-        msg = Msg.objects.get(direction="O")
+        # add Portugese as an org language and try again
+        self.org.set_languages(self.admin, ["eng", "por"], "eng")
+        run, = flow.start([], [self.contact4], restart_participants=True)
+
+        msg = Msg.objects.filter(direction="O").last()
         self.assertEqual(msg.metadata, {"quick_replies": ["Sim", "No"]})
 
     @also_in_flowserver
