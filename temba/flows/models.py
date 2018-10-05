@@ -180,6 +180,10 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    current_flow = models.ForeignKey(
+        "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
+    )
+
     @classmethod
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
@@ -229,6 +233,16 @@ class FlowSession(models.Model):
 
             status = FlowSession.GOFLOW_STATUSES[output.session["status"]]
 
+            if status == FlowSession.STATUS_WAITING:
+                current_run = cls._find_waiting_run(output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=flow.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
+
             # create our session
             session = cls.objects.create(
                 org=contact.org,
@@ -236,7 +250,8 @@ class FlowSession(models.Model):
                 status=status,
                 output=output.session,
                 responded=bool(msg_in and msg_in.created_on),
-                ended_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
+                current_flow=current_flow,
+                ended_on=ended_on,
             )
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -261,12 +276,7 @@ class FlowSession(models.Model):
         Resumes an existing flow session
         """
         # find the run that was waiting for input
-        waiting_run = None
-        for run in self.output["runs"]:
-            if run["status"] == "waiting":
-                waiting_run = run
-                break
-
+        waiting_run = self._find_waiting_run(self.output)
         if not waiting_run:  # pragma: no cover
             raise ValueError("Can't resume a session with no waiting run")
 
@@ -292,12 +302,23 @@ class FlowSession(models.Model):
 
             status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
 
+            if status == FlowSession.STATUS_WAITING:
+                current_run = self._find_waiting_run(new_output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=self.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
+
             # update our output
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
             self.status = status
-            self.ended_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
-            self.save(update_fields=("output", "responded", "status", "ended_on"))
+            self.current_flow = current_flow
+            self.ended_on = ended_on
+            self.save(update_fields=("output", "responded", "status", "current_flow", "ended_on"))
 
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
@@ -360,6 +381,13 @@ class FlowSession(models.Model):
             self.org.trigger_send(msgs_to_send)
 
         return runs
+
+    @staticmethod
+    def _find_waiting_run(output):
+        for run in output.get("runs", []):
+            if run["status"] == "waiting":
+                return run
+        return None  # pragma: no cover
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
