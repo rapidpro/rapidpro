@@ -1,8 +1,9 @@
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
+from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -365,6 +366,12 @@ class CampaignEventCRUDL(SmartCRUDL):
     actions = ("create", "delete", "read", "update")
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        def pre_process(self, request, *args, **kwargs):
+            event = self.get_object()
+            if not event.is_active:
+                messages.error(self.request, "Campaign event no longer exists")
+                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.pk]))
+
         def get_object_org(self):
             return self.get_object().campaign.org
 
@@ -372,7 +379,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             event_fires = self.get_object().event_fires.all()
 
-            fired_event_fires = event_fires.exclude(fired=None).order_by("fired", "pk")
+            fired_event_fires = event_fires.exclude(fired=None).order_by("-fired", "pk")
             scheduled_event_fires = event_fires.filter(fired=None).order_by("scheduled", "pk")
 
             fired = fired_event_fires[:25]
@@ -437,6 +444,11 @@ class CampaignEventCRUDL(SmartCRUDL):
             "start_mode",
         ]
 
+        def pre_process(self, request, *args, **kwargs):
+            event = self.get_object()
+            if not event.is_active or not event.campaign.is_active:
+                raise Http404("Event not found")
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
@@ -481,10 +493,12 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
+
+            obj = super().pre_save(obj)
+            self.form.pre_save(self.request, obj)
 
             prev = CampaignEvent.objects.get(pk=obj.pk)
             if prev.event_type == "M" and (obj.event_type == "F" and prev.flow):  # pragma: needs cover
@@ -493,8 +507,18 @@ class CampaignEventCRUDL(SmartCRUDL):
                 flow.save()
                 obj.message = None
 
-            obj = super().pre_save(obj)
-            self.form.pre_save(self.request, obj)
+            # if we changed anything, update our event fires
+            if (
+                prev.unit != obj.unit
+                or prev.offset != obj.offset
+                or prev.relative_to != obj.relative_to
+                or prev.delivery_hour != obj.delivery_hour
+                or prev.message != obj.message
+                or prev.flow != obj.flow
+            ):
+                obj = obj.deactivate_and_copy()
+                EventFire.create_eventfires_for_event(obj)
+
             return obj
 
         def get_success_url(self):
@@ -551,7 +575,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.update_eventfires_for_event(obj)
+            EventFire.create_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):

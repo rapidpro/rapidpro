@@ -2439,7 +2439,7 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text=None):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text=""):
         """
         Returns the appropriate translation to use.
         :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code

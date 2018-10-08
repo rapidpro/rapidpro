@@ -989,7 +989,10 @@ class ContactCRUDL(SmartCRUDL):
             context["contact_groups"] = contact.user_groups.order_by(Lower("name"))
 
             # event fires
-            event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by("scheduled")
+            event_fires = contact.fire_events.filter(
+                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
+            ).order_by("scheduled")
+
             scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []

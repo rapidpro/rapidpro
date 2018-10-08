@@ -1,3 +1,15 @@
+v4.9.0
+----------
+ * Delete event fires in bulk for inactive events
+ * Fix using contact language for categories when it's not a valid org language
+ * Fix translation of quick replies
+ * Add FlowSession.current_flow and start populating
+ * Refresh contacts list page after managing fields
+ * Update to latest goflow (no more caller events, resumes, etc)
+ * Fix flow results export to read old archive format
+ * Batch event fires by event ID and not by flow ID
+ * Make campaign events immutable
+
 v4.8.1
 ----------
  * Add novo channel

@@ -297,32 +297,29 @@ class FlowTest(TembaTest):
 
         text_translations = dict(eng="Hello", spa="Hola", fra="Salut")
 
-        # use default when flow, contact and org don't have language set
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hi")
-
         # flow language used regardless of whether it's an org language
         self.flow.base_language = "eng"
         self.flow.save(update_fields=["base_language"])
         self.flow.org.set_languages(self.admin, ["eng"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # flow language now valid org language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "eng")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hello")
 
         # org primary language overrides flow language
         self.flow.org.set_languages(self.admin, ["eng", "spa"], "spa")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # contact language doesn't override if it's not an org language
         self.contact.language = "fra"
 
         self.contact.save(update_fields=("language",), handle_update=False)
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hola")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Hola")
 
         # does override if it is
         self.flow.org.set_languages(self.admin, ["eng", "spa", "fra"], "fra")
-        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Salut")
+        self.assertEqual(self.flow.get_localized_text(text_translations, self.contact), "Salut")
 
     def test_flow_lists(self):
         self.login(self.admin)
@@ -3746,11 +3743,15 @@ class FlowTest(TembaTest):
         flow = self.get_flow("quick_replies")
         run, = flow.start([], [self.contact4])
 
-        run.refresh_from_db()
-        self.assertEqual(len(run.path), 2)
+        # contact language is Portugese but this isn't an org language so we should use English
+        msg = Msg.objects.filter(direction="O").last()
+        self.assertEqual(msg.metadata, {"quick_replies": ["Yes", "No"]})
 
-        # check flow sent a message with quick replies
-        msg = Msg.objects.get(direction="O")
+        # add Portugese as an org language and try again
+        self.org.set_languages(self.admin, ["eng", "por"], "eng")
+        run, = flow.start([], [self.contact4], restart_participants=True)
+
+        msg = Msg.objects.filter(direction="O").last()
         self.assertEqual(msg.metadata, {"quick_replies": ["Sim", "No"]})
 
     @also_in_flowserver
@@ -5888,18 +5889,11 @@ class SimulationTest(FlowFileTest):
         """
         Add a message to the payload for the flow server using the default contact
         """
-        payload["events"] = [
-            {
-                "type": "msg_received",
-                "created_on": timezone.now().isoformat(),
-                "msg": {
-                    "text": text,
-                    "uuid": str(uuid4()),
-                    "urn": "tel:+12065551212",
-                    "created_on": timezone.now().isoformat(),
-                },
-            }
-        ]
+        payload["resume"] = {
+            "type": "msg",
+            "resumed_on": timezone.now().isoformat(),
+            "msg": {"text": text, "uuid": str(uuid4()), "urn": "tel:+12065551212"},
+        }
 
     def get_replies(self, response):
         """
@@ -5937,7 +5931,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
 
         # create a new payload based on the session we get back
-        builder = client.request_builder(self.org).add_contact_changed(self.contact)
+        builder = client.request_builder(self.org)
         builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
         payload = builder.request
         payload["session"] = response.json()["session"]
@@ -10649,7 +10643,7 @@ class ExitTest(FlowFileTest):
         planting_date = ContactField.get_or_create(
             self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
         )
-        event = CampaignEvent.create_flow_event(
+        CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, planting_date, offset=1, unit="W", flow=second_flow, delivery_hour="13"
         )
 
@@ -10657,10 +10651,10 @@ class ExitTest(FlowFileTest):
 
         # update our campaign events
         EventFire.update_campaign_events(campaign)
-        event = EventFire.objects.get()
+        fire = EventFire.objects.get()
 
         # fire it, this will start our second flow
-        event.fire()
+        EventFire.batch_fire([fire], fire.event.flow)
 
         second_run = FlowRun.objects.get(is_active=True)
         first_run.refresh_from_db()
@@ -11426,6 +11420,8 @@ class TypeTest(TembaTest):
         contact = self.create_contact("Joe", "+250788373373")
         self.get_flow("type_flow")
 
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+
         self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
         self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
         self.assertEqual(Value.TYPE_NUMBER, RuleSet.objects.get(label="Number").value_type)
@@ -11518,6 +11514,7 @@ class FlowServerTest(TembaTest):
 
         self.assertTrue(run1.session.output)
         self.assertEqual(run1.session.status, "W")
+        self.assertEqual(run1.session.current_flow, flow)
         self.assertIsNotNone(run1.session.created_on)
         self.assertIsNone(run1.session.ended_on)
         self.assertEqual(run1.flow, flow)
@@ -11572,6 +11569,9 @@ class FlowServerTest(TembaTest):
         run1.session.resume_by_input(msg1)
 
         run1.refresh_from_db()
+        self.assertEqual(run1.session.status, "W")
+        self.assertEqual(run1.session.current_flow, flow)
+
         self.assertIn("color", run1.results)
 
         # when flowserver returns an error
@@ -11645,7 +11645,8 @@ class AssetServerTest(TembaTest):
                 "date_format": "DD-MM-YYYY",
                 "time_format": "tt:mm",
                 "timezone": "Africa/Kigali",
-                "languages": [],
+                "default_language": None,
+                "allowed_languages": [],
                 "redaction_policy": "none",
             },
         )
