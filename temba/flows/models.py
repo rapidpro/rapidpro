@@ -180,6 +180,10 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    current_flow = models.ForeignKey(
+        "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
+    )
+
     @classmethod
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
@@ -229,6 +233,16 @@ class FlowSession(models.Model):
 
             status = FlowSession.GOFLOW_STATUSES[output.session["status"]]
 
+            if status == FlowSession.STATUS_WAITING:
+                current_run = cls._find_waiting_run(output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=flow.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
+
             # create our session
             session = cls.objects.create(
                 org=contact.org,
@@ -236,7 +250,8 @@ class FlowSession(models.Model):
                 status=status,
                 output=output.session,
                 responded=bool(msg_in and msg_in.created_on),
-                ended_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
+                current_flow=current_flow,
+                ended_on=ended_on,
             )
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -261,12 +276,7 @@ class FlowSession(models.Model):
         Resumes an existing flow session
         """
         # find the run that was waiting for input
-        waiting_run = None
-        for run in self.output["runs"]:
-            if run["status"] == "waiting":
-                waiting_run = run
-                break
-
+        waiting_run = self._find_waiting_run(self.output)
         if not waiting_run:  # pragma: no cover
             raise ValueError("Can't resume a session with no waiting run")
 
@@ -292,12 +302,23 @@ class FlowSession(models.Model):
 
             status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
 
+            if status == FlowSession.STATUS_WAITING:
+                current_run = self._find_waiting_run(new_output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=self.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
+
             # update our output
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
             self.status = status
-            self.ended_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
-            self.save(update_fields=("output", "responded", "status", "ended_on"))
+            self.current_flow = current_flow
+            self.ended_on = ended_on
+            self.save(update_fields=("output", "responded", "status", "current_flow", "ended_on"))
 
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
@@ -360,6 +381,13 @@ class FlowSession(models.Model):
             self.org.trigger_send(msgs_to_send)
 
         return runs
+
+    @staticmethod
+    def _find_waiting_run(output):
+        for run in output.get("runs", []):
+            if run["status"] == "waiting":
+                return run
+        return None  # pragma: no cover
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
@@ -770,9 +798,13 @@ class Flow(TembaModel):
             return None
 
         if destination_type == Flow.NODE_TYPE_RULESET:
-            return RuleSet.get(flow, uuid)
+            node = RuleSet.get(flow, uuid)
         else:
-            return ActionSet.get(flow, uuid)
+            node = ActionSet.get(flow, uuid)
+
+        if node:
+            node.flow = flow
+        return node
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
@@ -1262,7 +1294,7 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
-        ruleset.save_run_value(run, result_rule, result_value, result_input)
+        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -1525,7 +1557,7 @@ class Flow(TembaModel):
         """
         return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
 
-    def get_localized_text(self, text_translations, contact=None, default_text=""):
+    def get_localized_text(self, text_translations, contact=None):
         """
         Given a language dict and a preferred language, return the best possible text match
         :param text_translations: The text in all supported languages, or string (which will just return immediately)
@@ -1550,7 +1582,7 @@ class Flow(TembaModel):
 
         preferred_languages.append(self.base_language)
 
-        return Language.get_localized_text(text_translations, preferred_languages, default_text)
+        return Language.get_localized_text(text_translations, preferred_languages)
 
     def import_definition(self, flow_json):
         """
@@ -3751,7 +3783,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
                     if rule:
                         ruleset_obj = RuleSet(uuid=node_uuid, label=node_json.get("label"))
-                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
+                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input, org=self.org)
                 else:
                     self.path.append(
                         {
@@ -4817,12 +4849,15 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, raw_value, raw_input):
+    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
+        org = org or self.flow.org
+        contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
+
         run.save_run_result(
             name=self.label,
             node_uuid=self.uuid,
             category=rule.get_category_name(run.flow.base_language),
-            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
+            category_localized=rule.get_category_name(run.flow.base_language, contact_language),
             raw_value=raw_value,
             raw_input=raw_input,
         )
@@ -6664,9 +6699,8 @@ class ReplyAction(Action):
         Gets the appropriate metadata translation for the given contact
         """
         language_metadata = []
-        preferred_languages = [run.contact.language, run.flow.base_language]
         for item in metadata:
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            text = run.flow.get_localized_text(text_translations=item, contact=run.contact)
             language_metadata.append(text)
 
         return language_metadata

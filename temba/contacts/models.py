@@ -2010,8 +2010,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 run.release()
 
             # and any event fire history
-            for fire in self.fire_events.all():
-                fire.release()
+            self.fire_events.all().delete()
 
             # take us out of broadcast addressed contacts
             for broadcast in self.addressed_broadcasts.all():
