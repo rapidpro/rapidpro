@@ -14,7 +14,8 @@
     $(document).ready(function() {
 
       select2div("#id_flow_to_start", "515px", "Flow to Start");
-      select2div("#id_start_mode", "515px", "Start Mode");
+      select2div("#id_message_start_mode", "249px", "Start Mode");
+      select2div("#id_flow_start_mode", "249px", "Start Mode");
       select2div("#id_relative_to", "249px", "Select a date");
       select2div("#id_direction", "85px");
       select2div("#id_unit", "100px");
@@ -180,6 +181,13 @@
       font-size:16px;
     }
 
+    .start-mode-help {
+      display: inline-block;
+      width:262px;
+      color: #666;
+      font-size:16px;
+    }
+
     #languages {
       float:right;
     }
@@ -203,11 +211,18 @@
       .language{class:'{{field.language.iso_code}} {%if forloop.counter0 > 0%}hide{%endif%}'}
         -render_field field.language.iso_code
 
-    #event-start-mode
-      -render_field 'start_mode'
+    #event-message-start-mode
+      .start-mode-help
+        If the contact is already in a flow
+      -render_field 'message_start_mode'
 
   #flow-section
     -render_field 'flow_to_start'
+
+    #event-flow-start-mode
+      .start-mode-help
+        If the contact is already in a flow    
+      -render_field 'flow_start_mode'
 
   #schedule-section
     -render_field 'offset'

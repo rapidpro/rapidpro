@@ -106,13 +106,13 @@ class Campaign(TembaModel):
                         label=event_spec["relative_to"]["label"],
                         value_type="D",
                     )
+                    start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                     # create our message flow for message events
                     if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
 
                         message = event_spec["message"]
                         base_language = event_spec.get("base_language")
-                        start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                         if not isinstance(message, dict):
                             try:
@@ -149,6 +149,7 @@ class Campaign(TembaModel):
                                 event_spec["unit"],
                                 flow,
                                 event_spec["delivery_hour"],
+                                start_mode=start_mode,
                             )
 
                 # update our scheduled events for this campaign
@@ -346,7 +347,9 @@ class CampaignEvent(TembaModel):
         )
 
     @classmethod
-    def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
+    def create_flow_event(
+        cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1, start_mode=MODE_INTERRUPT
+    ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
@@ -362,6 +365,7 @@ class CampaignEvent(TembaModel):
             unit=unit,
             event_type=cls.TYPE_FLOW,
             flow=flow,
+            start_mode=start_mode,
             delivery_hour=delivery_hour,
             created_by=user,
             modified_by=user,
@@ -494,6 +498,7 @@ class CampaignEvent(TembaModel):
                 self.unit,
                 self.flow,
                 self.delivery_hour,
+                self.start_mode,
             )
 
         elif self.event_type == CampaignEvent.TYPE_MESSAGE:
@@ -507,6 +512,7 @@ class CampaignEvent(TembaModel):
                 self.message,
                 self.delivery_hour,
                 self.flow.base_language,
+                self.start_mode,
             )
 
     def release(self):
