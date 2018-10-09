@@ -58,7 +58,9 @@ def check_flows_task():
     """
     See if any flow runs need to be expired
     """
-    runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).order_by("expires_on")
+    runs = FlowRun.objects.filter(
+        is_active=True, expires_on__lte=timezone.now(), org__flow_server_enabled=False
+    ).order_by("expires_on")
     FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
@@ -70,7 +72,7 @@ def check_flow_timeouts_task():
     See if any flow runs have timed out
     """
     # find any runs that should have timed out
-    runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
+    runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now(), org__flow_server_enabled=False)
     runs = runs.only("id", "org", "timeout_on")
 
     queued_timeouts = QueueRecord("flow_timeouts", lambda r: "%d:%d" % (r.id, datetime_to_epoch(r.timeout_on)))
