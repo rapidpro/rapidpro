@@ -7,7 +7,7 @@ ignore_errors = True
 precision = 0
 show_missing = True
 skip_covered = True
-exclude_lines = 
+exclude_lines =
     pragma: no cover
     pragma: can't cover
     def __repr__
@@ -27,7 +27,6 @@ omit =
     *settings*,
     *management/commands*
     temba/perf_tests.py
-    temba/celery_autoscaler.py
     temba/wsgi.py
 
 [html]

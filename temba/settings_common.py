@@ -57,8 +57,9 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
 # where recordings and exports are stored
-#AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
-#AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
+AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
+AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
+STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # keys to access s3
 #AWS_ACCESS_KEY_ID = "aws_access_key_id"
@@ -310,29 +311,29 @@ LOGGING = {
 # Branding Configuration
 # -----------------------------------------------------------------------------------
 BRANDING = {
-    'rapidpro.datos.gob.mx': {
-        'slug': 'rapidpro',
-        'name': 'RapidPro',
-        'org': 'UNICEF',
-        'colors': dict(primary='#0c6596'),
-        'styles': ['brands/rapidpro/font/style.css'],
-        'welcome_topup': 1000,
-        'email': 'join@rapidpro.io',
-        'support_email': 'support@rapidpro.io',
-        'link': 'https://rapidpro.datos.gob.mx',
-        'api_link': 'https://rapidpro.datos.gob.mx',
-        'docs_link': 'http://docs.rapidpro.datos.gob.mx',
-        'domain': 'rapidpro.datos.gob.mx',
-        'favico': 'brands/rapidpro/rapidpro.ico',
-        'splash': 'sitestatic/brands/rapidpro/splash.jpg',
-        'logo': '/brands/rapidpro/logo.png',
-        'allow_signups': True,
-        'flow_types': ['F', 'V', 'S', 'U'],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
-        'tiers': dict(import_flows=0, multi_user=0, multi_org=0),
-        'bundles': [],
-        'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
-        'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.")
+    "rapidpro.datos.gob.mx": {
+        "slug": "rapidpro",
+        "name": "RapidPro",
+        "org": "UNICEF",
+        "colors": dict(primary="#0c6596"),
+        "styles": ["brands/rapidpro/font/style.css"],
+        "welcome_topup": 1000,
+        "email": "join@rapidpro.io",
+        "support_email": "support@rapidpro.io",
+        "link": "https://rapidpro.datos.gob.mx",
+        "api_link": "https://rapidpro.datos.gob.mx",
+        "docs_link": "http://docs.rapidpro.datos.gob.mx",
+        "domain": "rapidpro.datos.gob.mx",
+        "favico": "brands/rapidpro/rapidpro.ico",
+        "splash": "sitestatic/brands/rapidpro/splash.jpg",
+        "logo": "brands/rapidpro/logo.png",
+        "allow_signups": True,
+        "flow_types": ["F", "V", "S", "U"],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
+        "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
+        "bundles": [],
+        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
+        "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
 DEFAULT_BRAND = 'rapidpro.datos.gob.mx'
@@ -822,24 +823,6 @@ TEST_RUNNER = "temba.tests.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
 
 # -----------------------------------------------------------------------------------
-# Need a PostgreSQL database on localhost with postgis extension installed.
-# -----------------------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'temba',
-        'USER': 'temba',
-        'PASSWORD': POSTGRES_PASSWORD,
-        'HOST': POSTGRES_HOST,
-        'PORT': POSTGRES_PORT,
-        'ATOMIC_REQUESTS': True,
-        'CONN_MAX_AGE': 60,
-        'OPTIONS': {
-        }
-    }
-}
-
-# -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
 INTERNAL_IPS = ('*',)
@@ -1069,10 +1052,10 @@ SESSION_CACHE_ALIAS = "default"
 # -----------------------------------------------------------------------------------
 # 3rd Party Integration Keys
 # -----------------------------------------------------------------------------------
-TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
-TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
+TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
+TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
-SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
+SEGMENT_IO_KEY = os.environ.get("SEGMENT_IO_KEY", "")
 
 INTERCOM_TOKEN = os.environ.get("INTERCOM_TOKEN", "")
 
@@ -1086,7 +1069,7 @@ LIBRATO_TOKEN = os.environ.get("LIBRATO_TOKEN", "")
 #
 # You need to change these to real addresses to work with these.
 # -----------------------------------------------------------------------------------
-IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
+IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how big they want their text messages and contact fields to be.
@@ -1147,6 +1130,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 
 # ElasticSearch configuration (URL RFC-1738)
-ELASTICSEARCH_IP = os.environ.get('ELASTICSEARCH_PORT_9200_TCP_ADDR', 'localhost')
-ELASTICSEARCH_URL = 'http://{ip}:9200'.format(ip = ELASTICSEARCH_IP)
+ELASTICSEARCH_IP = os.environ.get("ELASTICSEARCH_PORT_9200_TCP_ADDR", "localhost")
+ELASTICSEARCH_URL = "http://{ip}:9200".format(ip = ELASTICSEARCH_IP)
 
