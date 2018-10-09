@@ -14,6 +14,6 @@ SQL = """
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0178_auto_20180926_1714")]
+    dependencies = [("flows", "0179_flowsession_current_flow")]
 
     operations = [migrations.RunSQL(SQL)]
