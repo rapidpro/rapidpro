@@ -1,7 +1,7 @@
 from temba.msgs.handler import MessageHandler
 
 from .models import Trigger
-
+from temba.contacts.models import ContactField
 
 class TriggerHandler(MessageHandler):
     def __init__(self):
@@ -16,4 +16,11 @@ class CatchAllHandler(MessageHandler):
         super().__init__("triggers")
 
     def handle(self, msg):
+        ############ Save last uncaught response from contact ###############
+        contact = msg.contact
+        contact.add_field_to_contact(
+              label=ContactField.UNCAUGHT_LABEL,
+              field=ContactField.UNCAUGHT_FIELD,
+              value=msg.text,
+              org=msg.org)
         return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)

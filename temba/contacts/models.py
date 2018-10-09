@@ -367,6 +367,10 @@ class ContactField(SmartModel):
     STATE_KEY = "state"
     DISTRICT_KEY = "district"
     WARD_KEY = "ward"
+    UNCAUGHT_FIELD = "uncaught_field"
+    UNCAUGHT_LABEL = "uncaught-field"
+    REFERRER_FIELD = "referrer_field"
+    REFERRER_LABEL = "referrer-field"
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -2307,6 +2311,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def __str__(self):
         return self.get_display()
 
+    def add_field_to_contact(self, label, field, value, org):
+        branding = org.get_branding()
+        email = branding['support_email']
+        username = '%s_flow' % branding['slug']
+        user = User.objects.filter(username=username).first()
+        contact_field = ContactField.objects.filter(
+                            org=org, key=field).first()
+        if not contact_field:
+            ContactField.get_or_create(org, user, field, label)
+        self.set_field(user,field, value)
 
 class ContactURN(models.Model):
     """
