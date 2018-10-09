@@ -1,0 +1,59 @@
+.service {
+  margin-top: 5px;
+}
+.num-credits {
+  text-align: right;
+}
+.num-credits a {
+  color: #333;
+  font-size: 22px;
+  font-weight: 100;
+}
+.used-pct {
+  text-align: right;
+  font-size: 18px;
+  color: #aaa;
+}
+.used-pct.used-warning {
+  color: #e68628;
+}
+.used-pct.used-alert {
+  color: #c14c46;
+}
+.suspended {
+  color: #c14c46;
+}
+.table td {
+  vertical-align: middle;
+}
+.value-owner {
+  width: 280px;
+}
+.owner {
+  display: inline;
+}
+.service {
+  width: 50px;
+  margin-right: 20px;
+}
+.owner-email {
+  font-size: 11px;
+  line-height: 11px;
+}
+.org-timezone {
+  font-size: 11px;
+  line-height: 11px;
+}
+.quick {
+  padding: 5px;
+}
+.quick-searches {
+  margin-bottom: 20px;
+  background: #f5f9fa;
+  padding: 10px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  -ms-border-radius: 5px;
+  -o-border-radius: 5px;
+  border-radius: 5px;
+}

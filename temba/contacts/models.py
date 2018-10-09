@@ -1,85 +1,92 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import datetime
-import itertools
 import json
 import logging
 import os
+import time
+import uuid
+from decimal import Decimal
+from itertools import chain
+
+import iso8601
 import phonenumbers
 import pytz
 import regex
-import six
-import time
-import uuid
+from django_redis import get_redis_connection
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError, SmartModel
 
+from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models, transaction, IntegrityError
+from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
-from itertools import chain
-from smartmin.models import SmartModel, SmartImportRowError
-from smartmin.csv_imports.models import ImportTask
+from django.utils.translation import ugettext_lazy as _
+
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, chunk_list, get_anonymous_user, on_transaction_commit
-from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import SquashableModel, TembaModel
+from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
+from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import time_monitor
-from temba.utils.text import clean_string, truncate
-from temba.values.models import Value
-from django.contrib.auth.models import User
+from temba.utils.languages import _get_language_name_iso6393
+from temba.utils.locks import NonBlockingLock
+from temba.utils.models import RequireUpdateFieldsMixin, SquashableModel, TembaModel, mapEStoDB
+from temba.utils.text import truncate
+from temba.utils.urns import ParsedURN, parse_urn
+from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
-OLD_TEST_CONTACT_TEL = '12065551212'
+OLD_TEST_CONTACT_TEL = "12065551212"
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
-EMAIL_SCHEME = 'mailto'
-EXTERNAL_SCHEME = 'ext'
-FACEBOOK_SCHEME = 'facebook'
-JIOCHAT_SCHEME = 'jiochat'
-LINE_SCHEME = 'line'
-TEL_SCHEME = 'tel'
-TELEGRAM_SCHEME = 'telegram'
-TWILIO_SCHEME = 'twilio'
-TWITTER_SCHEME = 'twitter'
-TWITTERID_SCHEME = 'twitterid'
-VIBER_SCHEME = 'viber'
-FCM_SCHEME = 'fcm'
-WHATSAPP_SCHEME = 'whatsapp'
+DELETED_SCHEME = "deleted"
+EMAIL_SCHEME = "mailto"
+EXTERNAL_SCHEME = "ext"
+FACEBOOK_SCHEME = "facebook"
+JIOCHAT_SCHEME = "jiochat"
+LINE_SCHEME = "line"
+TEL_SCHEME = "tel"
+TELEGRAM_SCHEME = "telegram"
+TWILIO_SCHEME = "twilio"
+TWITTER_SCHEME = "twitter"
+TWITTERID_SCHEME = "twitterid"
+VIBER_SCHEME = "viber"
+FCM_SCHEME = "fcm"
+WHATSAPP_SCHEME = "whatsapp"
+WECHAT_SCHEME = "wechat"
 
-FACEBOOK_PATH_REF_PREFIX = 'ref:'
+FACEBOOK_PATH_REF_PREFIX = "ref:"
 
 # Scheme, Label, Export/Import Header, Context Key
-URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME, FACEBOOK_SCHEME),
-                     (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME, TWITTER_SCHEME),
-                     (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME, TWITTERID_SCHEME),
-                     (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME, VIBER_SCHEME),
-                     (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME, LINE_SCHEME),
-                     (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME, TELEGRAM_SCHEME),
-                     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME, EMAIL_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME, JIOCHAT_SCHEME),
-                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME, FCM_SCHEME),
-                     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME, WHATSAPP_SCHEME))
+URN_SCHEME_CONFIG = (
+    (TEL_SCHEME, _("Phone number"), "tel_e164"),
+    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
+    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
+    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
+    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
+    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
+    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
+    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
+    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
+    (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME),
+    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
+    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
+    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
+)
 
 
-IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
+IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
-STOP_CONTACT_EVENT = 'stop_contact'
+STOP_CONTACT_EVENT = "stop_contact"
 
 
 class URN(object):
@@ -90,27 +97,25 @@ class URN(object):
         * Path component can be any non-blank unicode string
         * No hex escaping in URN path
     """
+
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {s[2] for s in URN_SCHEME_CONFIG}
+    IMPORT_HEADERS = {f"URN:{s[0]}" for s in URN_SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path, display=None):
+    def from_parts(cls, scheme, path, query=None, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        if not scheme or scheme not in cls.VALID_SCHEMES:
+        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != DELETED_SCHEME):
             raise ValueError("Invalid scheme component: '%s'" % scheme)
 
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        if display:
-            return '%s:%s#%s' % (scheme, path, display)
-        else:
-            return '%s:%s' % (scheme, path)
+        return str(ParsedURN(scheme, path, query=query, fragment=display))
 
     @classmethod
     def to_parts(cls, urn):
@@ -118,23 +123,36 @@ class URN(object):
         Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
         """
         try:
-            scheme, path = urn.split(':', 1)
-        except Exception:
+            parsed = parse_urn(urn)
+        except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if not scheme or scheme not in cls.VALID_SCHEMES:
-            raise ValueError("URN contains an invalid scheme component: '%s'" % scheme)
+        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
+            raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
-        if not path:
-            raise ValueError("URN contains an invalid path component: '%s'" % path)
+        return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
-        path_parts = path.split("#")
-        display = None
-        if len(path_parts) > 1:
-            path = path_parts[0]
-            display = path_parts[1]
+    @classmethod
+    def format(cls, urn, international=False, formatted=True):
+        """
+        formats this URN as a human friendly string
+        """
+        scheme, path, query, display = cls.to_parts(urn)
 
-        return scheme, path, display
+        if scheme == TEL_SCHEME and formatted:
+            try:
+                if path and path[0] == "+":
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                    return phonenumbers.format_number(phonenumbers.parse(path, None), phone_format)
+            except phonenumbers.NumberParseException:  # pragma: no cover
+                pass
+
+        if display:
+            return display
+
+        return path
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -142,7 +160,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path, display = cls.to_parts(urn)
+            scheme, path, query, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -155,13 +173,13 @@ class URN(object):
 
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
-            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+            return regex.match(r"^[a-zA-Z0-9_]{1,15}$", path, regex.V0)
 
         # validate path is a number and display is a handle if present
         elif scheme == TWITTERID_SCHEME:
             valid = path.isdigit()
             if valid and display:
-                valid = regex.match(r'^[a-zA-Z0-9_]{1,15}$', display, regex.V0)
+                valid = regex.match(r"^[a-zA-Z0-9_]{1,15}$", display, regex.V0)
 
             return valid
 
@@ -188,11 +206,11 @@ class URN(object):
 
         # telegram and whatsapp use integer ids
         elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
-            return regex.match(r'^[0-9]+$', path, regex.V0)
+            return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
-            return regex.match(r'^[a-zA-Z0-9_=]{1,24}$', path, regex.V0)
+            return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
         # anything goes for external schemes
         return True
@@ -202,28 +220,28 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path, display = cls.to_parts(urn)
+        scheme, path, query, display = cls.to_parts(urn)
 
-        norm_path = six.text_type(path).strip()
+        norm_path = str(path).strip()
 
         if scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
         elif scheme == TWITTER_SCHEME:
             norm_path = norm_path.lower()
-            if norm_path[0:1] == '@':  # strip @ prefix if provided
+            if norm_path[0:1] == "@":  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
 
         elif scheme == TWITTERID_SCHEME:
             if display:
-                display = six.text_type(display).strip().lower()
-                if display and display[0] == '@':
+                display = str(display).strip().lower()
+                if display and display[0] == "@":
                     display = display[1:]
 
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path, display)
+        return cls.from_parts(scheme, norm_path, query, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -236,14 +254,14 @@ class URN(object):
         """
         # if the number ends with e11, then that is Excel corrupting it, remove it
         if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
-            number = number[0:-4].replace('.', '')
+            number = number[0:-4].replace(".", "")
 
         # remove other characters
-        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
+        number = regex.sub("[^0-9a-z\+]", "", number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] not in ['+', '0']:
-            number = '+' + number
+        if len(number) >= 11 and number[0] not in ["+", "0"]:
+            number = "+" + number
 
         normalized = None
         try:
@@ -259,16 +277,16 @@ class URN(object):
             pass
 
         # this must be a local number of some kind, just lowercase and save
-        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+        return regex.sub("[^0-9a-z]", "", number.lower(), regex.V0), False
 
     @classmethod
     def identity(cls, urn):
-        scheme, path, display = URN.to_parts(urn)
+        scheme, path, query, display = URN.to_parts(urn)
         return URN.from_parts(scheme, path)
 
     @classmethod
     def fb_ref_from_path(cls, path):
-        return path[len(FACEBOOK_PATH_REF_PREFIX):]
+        return path[len(FACEBOOK_PATH_REF_PREFIX) :]
 
     @classmethod
     def path_from_fb_ref(cls, ref):
@@ -290,7 +308,7 @@ class URN(object):
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, screen_name)
+        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
 
     @classmethod
     def from_email(cls, path):
@@ -328,43 +346,54 @@ class URN(object):
     def from_jiochat(cls, path):
         return cls.from_parts(JIOCHAT_SCHEME, path)
 
+    @classmethod
+    def from_wechat(cls, path):
+        return cls.from_parts(WECHAT_SCHEME, path)
 
-@six.python_2_unicode_compatible
+
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
+
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
-    REFERRER_FIELD = "referrer_field"
-    REFERRER_LABEL = "referrer-field"
-    UNCAUGHT_FIELD = "uncaught_field"
-    UNCAUGHT_LABEL = "uncaught-field"
+
+    DATETIME_KEY = "datetime"
+    TEXT_KEY = "text"
+    NUMBER_KEY = "number"
+    COUNTRY_KEY = "country"
+    STATE_KEY = "state"
+    DISTRICT_KEY = "district"
+    WARD_KEY = "ward"
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
 
     label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
     key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
 
-    value_type = models.CharField(choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT,
-                                  verbose_name="Field Type")
+    value_type = models.CharField(
+        choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT, verbose_name="Field Type"
+    )
     show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
+
+    priority = models.PositiveIntegerField(default=0)
 
     @classmethod
     def make_key(cls, label):
         """
         Generates a key from a label. There is no guarantee that the key is valid so should be checked with is_valid_key
         """
-        key = regex.sub(r'([^a-z0-9]+)', ' ', label.lower(), regex.V0)
-        return regex.sub(r'([^a-z0-9]+)', '_', key.strip(), regex.V0)
+        key = regex.sub(r"([^a-z0-9]+)", " ", label.lower(), regex.V0)
+        return regex.sub(r"([^a-z0-9]+)", "_", key.strip(), regex.V0)
 
     @classmethod
     def is_valid_key(cls, key):
-        if not regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0):
+        if not regex.match(r"^[a-z][a-z0-9_]*$", key, regex.V0):
             return False
         if key in Contact.RESERVED_FIELD_KEYS or len(key) > cls.MAX_KEY_LEN:
             return False
@@ -373,27 +402,29 @@ class ContactField(SmartModel):
     @classmethod
     def is_valid_label(cls, label):
         label = label.strip()
-        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
+        return regex.match(r"^[A-Za-z0-9\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
 
     @classmethod
     def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
             from temba.flows.models import Flow
+
             if Flow.objects.filter(field_dependencies__in=[existing]).exists():
                 raise ValueError("Cannot delete field '%s' while used in flows." % key)
 
             existing.is_active = False
             existing.show_in_table = False
             existing.modified_by = user
-            existing.save(update_fields=('is_active', 'show_in_table', 'modified_by', 'modified_on'))
+            existing.save(update_fields=("is_active", "show_in_table", "modified_by", "modified_on"))
 
             # cancel any events on this
             from temba.campaigns.models import EventFire
+
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -433,7 +464,15 @@ class ContactField(SmartModel):
 
                 # update our type if we were given one
                 if value_type and field.value_type != value_type:
+                    # no changing away from datetime if we have campaign events
+                    if field.value_type == Value.TYPE_DATETIME and field.campaigns.filter(is_active=True).count() > 0:
+                        raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
+
                     field.value_type = value_type
+                    changed = True
+
+                if priority is not None and field.priority != priority:
+                    field.priority = priority
                     changed = True
 
                 if changed:
@@ -442,12 +481,13 @@ class ContactField(SmartModel):
 
                     if update_events:
                         from temba.campaigns.models import EventFire
+
                         EventFire.update_field_events(field)
 
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
-                    label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
+                    label = regex.sub(r"([^A-Za-z0-9\- ]+)", " ", key, regex.V0).title()
 
                 if not value_type:
                     value_type = Value.TYPE_TEXT
@@ -455,18 +495,38 @@ class ContactField(SmartModel):
                 if show_in_table is None:
                     show_in_table = False
 
-                if not ContactField.is_valid_key(key):
-                    raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
+                if priority is None:
+                    priority = 0
 
-                field = ContactField.objects.create(org=org, key=key, label=label,
-                                                    show_in_table=show_in_table, value_type=value_type,
-                                                    created_by=user, modified_by=user)
+                if not ContactField.is_valid_key(key):
+                    raise ValueError("Field key %s has invalid characters or is a reserved field name" % key)
+
+                field = ContactField.objects.create(
+                    org=org,
+                    key=key,
+                    label=label,
+                    show_in_table=show_in_table,
+                    value_type=value_type,
+                    created_by=user,
+                    modified_by=user,
+                    priority=priority,
+                )
 
             return field
 
     @classmethod
     def get_by_label(cls, org, label):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
+
+    @classmethod
+    def get_by_key(cls, org, key):
+        field = org.cached_contact_fields.get(key)
+        if field is None:
+            field = ContactField.objects.filter(org=org, is_active=True, key=key).first()
+            if field:
+                org.cached_contact_fields[key] = field
+
+        return field
 
     @classmethod
     def get_location_field(cls, org, type):
@@ -480,41 +540,75 @@ NEW_CONTACT_VARIABLE = "@new_contact"
 MAX_HISTORY = 50
 
 
-@six.python_2_unicode_compatible
-class Contact(TembaModel):
-    name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
-                            help_text=_("The name of this contact"))
+class Contact(RequireUpdateFieldsMixin, TembaModel):
+    name = models.CharField(
+        verbose_name=_("Name"), max_length=128, blank=True, null=True, help_text=_("The name of this contact")
+    )
 
-    org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="org_contacts",
-                            help_text=_("The organization that this contact belongs to"))
+    org = models.ForeignKey(
+        Org,
+        on_delete=models.PROTECT,
+        verbose_name=_("Org"),
+        related_name="org_contacts",
+        help_text=_("The organization that this contact belongs to"),
+    )
 
-    is_blocked = models.BooleanField(verbose_name=_("Is Blocked"), default=False,
-                                     help_text=_("Whether this contact has been blocked"))
+    is_blocked = models.BooleanField(
+        verbose_name=_("Is Blocked"), default=False, help_text=_("Whether this contact has been blocked")
+    )
 
-    is_test = models.BooleanField(verbose_name=_("Is Test"), default=False,
-                                  help_text=_("Whether this contact is for simulation"))
+    is_test = models.BooleanField(
+        verbose_name=_("Is Test"), default=False, help_text=_("Whether this contact is for simulation")
+    )
 
-    is_stopped = models.BooleanField(verbose_name=_("Is Stopped"), default=False,
-                                     help_text=_("Whether this contact has opted out of receiving messages"))
+    is_stopped = models.BooleanField(
+        verbose_name=_("Is Stopped"),
+        default=False,
+        help_text=_("Whether this contact has opted out of receiving messages"),
+    )
 
-    language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
-                                help_text=_("The preferred language for this contact"))
+    language = models.CharField(
+        max_length=3,
+        verbose_name=_("Language"),
+        null=True,
+        blank=True,
+        help_text=_("The preferred language for this contact"),
+    )
+
+    fields = JSONField(
+        verbose_name=_("Fields"), null=True, help_text=_("The fields set for this contact, keyed by UUID")
+    )
 
     simulation = False
 
-    NAME = 'name'
-    FIRST_NAME = 'first_name'
-    LANGUAGE = 'language'
-    PHONE = 'phone'
-    UUID = 'uuid'
-    CONTACT_UUID = 'contact uuid'
-    GROUPS = 'groups'
-    ID = 'id'
+    NAME = "name"
+    FIRST_NAME = "first_name"
+    LANGUAGE = "language"
+    CREATED_ON = "created_on"
+    PHONE = "phone"
+    UUID = "uuid"
+    CONTACT_UUID = "contact uuid"
+    GROUPS = "groups"
+    ID = "id"
 
     RESERVED_ATTRIBUTES = {
-        ID, NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID,
-        'created_by', 'modified_by', 'org', 'is', 'has', 'tel_e164',
+        ID,
+        NAME,
+        FIRST_NAME,
+        PHONE,
+        LANGUAGE,
+        GROUPS,
+        UUID,
+        CONTACT_UUID,
+        "created_by",
+        "modified_by",
+        "org",
+        "is",
+        "has",
+        "tel_e164",
     }
+
+    SUPPORTED_IMPORT_ATTRIBUTE_HEADERS = {ID, NAME, LANGUAGE, UUID, CONTACT_UUID}
 
     # can't create custom contact fields with these keys
     RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
@@ -541,32 +635,35 @@ class Contact(TembaModel):
         """
         Define Contact.user_groups to only refer to user groups
         """
-        return get_cacheable_attr(self, '_user_groups', lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED))
+        return get_cacheable_attr(
+            self, "_user_groups", lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        )
 
     def as_json(self):
-        obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
+        obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
             for urn in self.urns.all():
                 urns.append(dict(scheme=urn.scheme, path=urn.path, priority=urn.priority))
-            obj['urns'] = urns
+            obj["urns"] = urns
 
         return obj
 
-    def add_field_to_contact(self, label, field, value, org):
-        branding = org.get_branding()
-        email = branding['support_email']
-        username = '%s_flow' % branding['slug']
-        user = User.objects.filter(username=username).first()
-        contact_field = ContactField.objects.filter(
-                            org=org, key=field).first()
-        if not contact_field:
-            ContactField.get_or_create(org, user, field, label)
-        self.set_field(user,field, value)
+    def as_search_json(self):
+        obj = dict()
+
+        if self.org.is_anon:
+            obj["urns"] = []
+        else:
+            obj["urns"] = [dict(scheme=urn.scheme, path=urn.path) for urn in self.urns.all()]
+
+        obj["fields"] = self.fields if self.fields else {}
+
+        return obj
 
     def groups_as_text(self):
-        groups = self.user_groups.all().order_by('name')
+        groups = self.user_groups.all().order_by("name")
         groups_name_list = [group.name for group in groups]
         return ", ".join(groups_name_list)
 
@@ -590,13 +687,16 @@ class Contact(TembaModel):
         contact_groups = self.user_groups.all()
         now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False)
+        scheduled_broadcasts = SystemLabel.get_queryset(
+            self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False
+        )
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
         scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
-            Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
+            Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups)
+        )
 
-        return scheduled_broadcasts.order_by('schedule__next_fire')
+        return scheduled_broadcasts.order_by("schedule__next_fire")
 
     def get_activity(self, after, before):
         """
@@ -608,12 +708,19 @@ class Contact(TembaModel):
         from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).order_by('-created_on').select_related('channel').prefetch_related('channel_logs')[:MAX_HISTORY]
+        msgs = (
+            msgs.exclude(visibility=Msg.VISIBILITY_DELETED)
+            .order_by("-created_on")
+            .select_related("channel")
+            .prefetch_related("channel_logs")[:MAX_HISTORY]
+        )
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
-        recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
-        recipients = recipients.order_by('-broadcast__created_on').select_related('broadcast')[:MAX_HISTORY]
+        recipients = recipients.filter(
+            broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before
+        )
+        recipients = recipients.order_by("-broadcast__created_on").select_related("broadcast")[:MAX_HISTORY]
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
@@ -625,201 +732,229 @@ class Contact(TembaModel):
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        started_runs = started_runs.order_by('-created_on').select_related('flow')[:MAX_HISTORY]
+        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(
+            flow__flow_type=Flow.MESSAGE
+        )
+        started_runs = started_runs.order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
-        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        exited_runs = exited_runs.exclude(exit_type=None).order_by('-created_on').select_related('flow')[:MAX_HISTORY]
+        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(
+            flow__flow_type=Flow.MESSAGE
+        )
+        exited_runs = exited_runs.exclude(exit_type=None).order_by("-created_on").select_related("flow")[:MAX_HISTORY]
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
-        channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
+        channel_events = channel_events.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
 
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.order_by('-fired').select_related('event__campaign')[:MAX_HISTORY]
+        event_fires = event_fires.order_by("-fired").select_related("event__campaign")[:MAX_HISTORY]
 
         webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
-        webhook_results = webhook_results.order_by('-created_on').select_related('event')[:MAX_HISTORY]
+        webhook_results = webhook_results.order_by("-created_on").select_related("event")[:MAX_HISTORY]
 
         # and the contact's failed IVR calls
-        calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
-            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
-        ])
-        calls = calls.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
+        calls = IVRCall.objects.filter(
+            contact=self,
+            created_on__gte=after,
+            created_on__lt=before,
+            status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED],
+        )
+        calls = calls.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
 
         # wrap items, chain and sort by time
         activity = chain(
-            [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
-            [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
-            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in started_runs],
-            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in exited_runs],
-            [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
-            [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
-            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_results],
-            [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
+            [{"type": "msg", "time": m.created_on, "obj": m} for m in msgs],
+            [{"type": "broadcast", "time": b.created_on, "obj": b} for b in broadcasts],
+            [{"type": "run-start", "time": r.created_on, "obj": r} for r in started_runs],
+            [{"type": "run-exit", "time": r.exited_on, "obj": r} for r in exited_runs],
+            [{"type": "channel-event", "time": e.created_on, "obj": e} for e in channel_events],
+            [{"type": "event-fire", "time": f.fired, "obj": f} for f in event_fires],
+            [{"type": "webhook-result", "time": r.created_on, "obj": r} for r in webhook_results],
+            [{"type": "call", "time": c.created_on, "obj": c} for c in calls],
         )
 
-        return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
+        return sorted(activity, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
 
-    def get_field(self, key):
+    def get_field_json(self, field):
         """
-        Gets the (possibly cached) value of a contact field
+        Returns the JSON (as a dict) value for this field, or None if there is no value
         """
-        key = key.lower()
-        cache_attr = '__field__%s' % key
-        if hasattr(self, cache_attr):
-            return getattr(self, cache_attr)
+        return self.fields.get(str(field.uuid)) if self.fields else None
 
-        value = Value.objects.filter(contact=self, contact_field__key__exact=key).select_related('contact_field').first()
-        self.set_cached_field_value(key, value)
-        return value
+    def get_field_serialized(self, field):
+        """
+        Given the passed in contact field object, returns the value (as a string) for this contact or None.
+        """
+        json_value = self.get_field_json(field)
+        if not json_value:
+            return
 
-    def get_field_raw(self, key):
-        """
-        Gets the string value (i.e. raw user input) of a contact field
-        """
-        value = self.get_field(key)
-        return value.string_value if value else None
+        if field.value_type == Value.TYPE_TEXT:
+            return json_value.get(ContactField.TEXT_KEY)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return json_value.get(ContactField.DATETIME_KEY)
+        elif field.value_type == Value.TYPE_NUMBER:
+            dec_value = json_value.get(ContactField.NUMBER_KEY, json_value.get("decimal"))
+            return format_number(Decimal(dec_value)) if dec_value is not None else None
+        elif field.value_type == Value.TYPE_STATE:
+            return json_value.get(ContactField.STATE_KEY)
+        elif field.value_type == Value.TYPE_DISTRICT:
+            return json_value.get(ContactField.DISTRICT_KEY)
+        elif field.value_type == Value.TYPE_WARD:
+            return json_value.get(ContactField.WARD_KEY)
 
-    def get_field_display(self, key):
+        raise ValueError("unknown contact field value type: %s", field.value_type)
+
+    def get_field_value(self, field):
         """
-        Gets either the field category if set, or the formatted field value
+        Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
+        for this contact or None.
         """
-        value = self.get_field(key)
-        if value:
-            field = value.contact_field
-            return Contact.get_field_display_for_value(field, value, org=self.org)
-        else:
+        string_value = self.get_field_serialized(field)
+        if string_value is None:
             return None
 
-    @classmethod
-    def get_field_display_for_value(cls, field, value, org=None):
-        """
-        Utility method to determine best display value for the passed in field, value pair.
-        """
-        org = org or field.org
+        if field.value_type == Value.TYPE_TEXT:
+            return string_value
+        elif field.value_type == Value.TYPE_DATETIME:
+            return iso8601.parse_date(string_value)
+        elif field.value_type == Value.TYPE_NUMBER:
+            return Decimal(string_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            return AdminBoundary.get_by_path(self.org, string_value)
 
+    def get_field_display(self, field):
+        """
+        Returns the display value for the passed in field, or empty string if None
+        """
+        value = self.get_field_value(field)
         if value is None:
-            return None
+            return ""
 
         if field.value_type == Value.TYPE_DATETIME:
-            return org.format_date(value.datetime_value)
-        elif field.value_type == Value.TYPE_DECIMAL:
-            return format_decimal(value.decimal_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.name
+            return self.org.format_datetime(value)
+        elif field.value_type == Value.TYPE_NUMBER:
+            return format_number(value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
+            return value.name
         else:
-            return value.string_value
-
-    @classmethod
-    def serialize_field_value(cls, field, value, org=None):
-        """
-        Utility method to give the serialized value for the passed in field, value pair.
-        """
-        org = org or field.org
-
-        if value is None:
-            return None
-
-        if field.value_type == Value.TYPE_DATETIME:
-            return value.datetime_value.astimezone(org.timezone).isoformat() if value.datetime_value else None
-        elif field.value_type == Value.TYPE_DECIMAL:
-            if value.decimal_value is None:
-                return None
-
-            as_int = value.decimal_value.to_integral_value()
-            is_int = value.decimal_value == as_int
-            return six.text_type(as_int) if is_int else six.text_type(value.decimal_value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.path
-        else:
-            return value.string_value
+            return str(value)
 
     def set_field(self, user, key, value, label=None, importing=False):
-        from temba.values.models import Value
-
         # make sure this field exists
         field = ContactField.get_or_create(self.org, user, key, label)
 
-        existing = None
         has_changed = False
 
-        if value is None or value == '':
+        # parse into the appropriate value types
+        if value is None or value == "":
             # setting a blank value is equivalent to removing the value
-            Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
-            has_changed = True
+            value = None
+
         else:
             # parse as all value data types
-            str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
-            dt_value = self.org.parse_date(value)
-            dec_value = self.org.parse_decimal(value)
+            str_value = str(value)[: Value.MAX_VALUE_LEN]
+            dt_value = self.org.parse_datetime(value)
+            num_value = self.org.parse_number(value)
             loc_value = None
 
-            if field.value_type == Value.TYPE_WARD:
-                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                district_value = self.get_field(district_field.key)
-                if district_value:
-                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
+            # for locations, if it has a '>' then it is explicit, look it up that way
+            if AdminBoundary.PATH_SEPARATOR in str_value:
+                loc_value = self.org.parse_location_path(str_value)
 
-            elif field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
-                if state_field:
-                    state_value = self.get_field(state_field.key)
-                    if state_value:
-                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
+            # otherwise, try to parse it as a name at the appropriate level
             else:
-                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
+                if field.value_type == Value.TYPE_WARD:
+                    district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                    district_value = self.get_field_value(district_field)
+                    if district_value:
+                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
-            if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value[0]
-            else:
-                loc_value = None
+                elif field.value_type == Value.TYPE_DISTRICT:
+                    state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
+                    if state_field:
+                        state_value = self.get_field_value(state_field)
+                        if state_value:
+                            loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
-            category = loc_value.name if loc_value else None
+                elif field.value_type == Value.TYPE_STATE:
+                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
 
-            # find the existing value
-            existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
+                if loc_value is not None and len(loc_value) > 0:
+                    loc_value = loc_value[0]
+                else:
+                    loc_value = None
 
-            if existing:
-                # only update the existing value if it will be different
-                if existing.string_value != str_value \
-                        or existing.decimal_value != dec_value \
-                        or existing.datetime_value != dt_value \
-                        or existing.location_value != loc_value \
-                        or existing.category != category:
+        field_uuid = str(field.uuid)
+        if self.fields is None:
+            self.fields = {}
 
-                    existing.string_value = str_value
-                    existing.decimal_value = dec_value
-                    existing.datetime_value = dt_value
-                    existing.location_value = loc_value
-                    existing.category = category
-
-                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                                 'location_value', 'category', 'modified_on'])
-                    has_changed = True
-
-                # remove any others on the same field that may exist
-                Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
-
-            # otherwise, create a new value for it
-            else:
-                existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
-                                                string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
-                                                location_value=loc_value, category=category)
+        # value being cleared, remove our key
+        if value is None:
+            if field_uuid in self.fields:
+                del self.fields[field_uuid]
                 has_changed = True
 
-        # cache this field value
-        self.set_cached_field_value(key, existing)
+        # otherwise, update our field in our fields dict
+        else:
+            # all fields have a text value
+            field_dict = {ContactField.TEXT_KEY: str_value}
 
+            # set all the other fields that have a non-zero value
+            if dt_value is not None:
+                field_dict[ContactField.DATETIME_KEY] = timezone.localtime(dt_value, self.org.timezone).isoformat()
+
+            if num_value is not None:
+                field_dict[ContactField.NUMBER_KEY] = format_number(num_value)
+
+            if loc_value:
+                if loc_value.level == AdminBoundary.LEVEL_STATE:
+                    field_dict[ContactField.STATE_KEY] = loc_value.path
+                elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+                    field_dict[ContactField.DISTRICT_KEY] = loc_value.path
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                elif loc_value.level == AdminBoundary.LEVEL_WARD:
+                    field_dict[ContactField.WARD_KEY] = loc_value.path
+                    field_dict[ContactField.DISTRICT_KEY] = AdminBoundary.strip_last_path(loc_value.path)
+                    field_dict[ContactField.STATE_KEY] = AdminBoundary.strip_last_path(
+                        field_dict[ContactField.DISTRICT_KEY]
+                    )
+
+            # update our field if it is different
+            if self.fields.get(field_uuid) != field_dict:
+                self.fields[field_uuid] = field_dict
+                has_changed = True
+
+        # if there was a change, update our JSONB on our contact
         if has_changed:
             self.modified_by = user
-            self.save(update_fields=('modified_by', 'modified_on'))
+            self.modified_on = timezone.now()
 
-            # update any groups or campaigns for this contact if not importing
-            if not importing:
-                self.handle_update(field=field)
+            with connection.cursor() as cursor:
+                if value is None:
+                    # delete the field
+                    (
+                        cursor.execute(
+                            "UPDATE contacts_contact SET fields = fields - %s, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                            [field_uuid, self.modified_by.id, self.modified_on, self.id],
+                        )
+                    )
+                else:
+                    # update the field
+                    (
+                        cursor.execute(
+                            "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_by_id = %s, modified_on = %s WHERE id = %s",
+                            [
+                                json.dumps({field_uuid: self.fields[field_uuid]}),
+                                self.modified_by.id,
+                                self.modified_on,
+                                self.id,
+                            ],
+                        )
+                    )
 
-    def set_cached_field_value(self, key, value):
-        setattr(self, '__field__%s' % key, value)
+        # update any groups or campaigns for this contact if not importing
+        if has_changed and not importing:
+            self.handle_update(field=field)
 
     def handle_update(self, attrs=(), urns=(), field=None, group=None, is_new=False):
         """
@@ -832,17 +967,18 @@ class Contact(TembaModel):
 
         if field or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(field, is_new=is_new)
+            dynamic_group_change = self.reevaluate_dynamic_groups(field)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
+
         if field:
             EventFire.update_events_for_contact_field(self, field.key)
 
         if group or dynamic_group_change:
             # delete any cached groups
-            if hasattr(self, '_user_groups'):
-                delattr(self, '_user_groups')
+            if hasattr(self, "_user_groups"):
+                delattr(self, "_user_groups")
 
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
@@ -852,6 +988,7 @@ class Contact(TembaModel):
         Used for imports to minimize the time for imports
         """
         from temba.campaigns.models import EventFire
+
         dynamic_group_change = self.reevaluate_dynamic_groups()
 
         # ensure our campaigns are up to date for every field
@@ -924,14 +1061,26 @@ class Contact(TembaModel):
             updated_urns = [urn]
 
             # record contact creation in analytics
-            analytics.gauge('temba.contact_created')
+            analytics.gauge("temba.contact_created")
 
             # handle group and campaign updates
             contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=True)
             return contact, urn_obj
 
     @classmethod
-    def get_or_create_by_urns(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
+    def get_or_create_by_urns(
+        cls,
+        org,
+        user,
+        name=None,
+        urns=None,
+        channel=None,
+        uuid=None,
+        language=None,
+        is_test=False,
+        force_urn_update=False,
+        auth=None,
+    ):
         """
         Gets or creates a contact with the given URNs
         """
@@ -976,7 +1125,7 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = set(contact.get_urns().values_list('identity', flat=True))
+                contact_urns = set(contact.get_urns().values_list("identity", flat=True))
                 if len(urns) <= len(contact_urns):
                     for urn in urns:
                         normalized = URN.normalize(urn, country)
@@ -1000,7 +1149,7 @@ class Contact(TembaModel):
 
                         if updated_attrs:
                             contact.modified_by = user
-                            contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
+                            contact.save(update_fields=updated_attrs + ["modified_on", "modified_by"])
 
                         # handle group and campaign updates
                         contact.handle_update(attrs=updated_attrs)
@@ -1047,12 +1196,13 @@ class Contact(TembaModel):
 
                 if updated_attrs:
                     contact.modified_by = user
-                    contact.save(update_fields=updated_attrs + ['modified_by', 'modified_on'])
+                    contact.save(update_fields=updated_attrs + ["modified_by", "modified_on"])
 
             # otherwise create new contact with all URNs
             else:
-                kwargs = dict(org=org, name=name, language=language, is_test=is_test,
-                              created_by=user, modified_by=user)
+                kwargs = dict(
+                    org=org, name=name, language=language, is_test=is_test, created_by=user, modified_by=user
+                )
                 contact = Contact.objects.create(**kwargs)
                 updated_attrs = list(kwargs.keys())
 
@@ -1066,7 +1216,7 @@ class Contact(TembaModel):
             urn_objects = existing_orphan_urns.copy()
 
             # add all new URNs
-            for raw, normalized in six.iteritems(urns_to_create):
+            for raw, normalized in urns_to_create.items():
                 urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
                 urn_objects[raw] = urn
 
@@ -1074,8 +1224,8 @@ class Contact(TembaModel):
             updated_urns = list(urn_objects.keys())
 
         # record contact creation in analytics
-        if getattr(contact, 'is_new', False):
-            analytics.gauge('temba.contact_created')
+        if getattr(contact, "is_new", False):
+            analytics.gauge("temba.contact_created")
 
         # handle group and campaign updates
         contact.handle_update(attrs=updated_attrs, urns=updated_urns, is_new=contact.is_new)
@@ -1088,7 +1238,7 @@ class Contact(TembaModel):
         """
         org = user.get_org()
         test_contacts = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True)
-        test_contact = test_contacts.order_by('-created_on').first()
+        test_contact = test_contacts.order_by("-created_on").first()
 
         # double check that our test contact has a valid URN, it may have been reassigned
         if test_contact:
@@ -1102,7 +1252,7 @@ class Contact(TembaModel):
         if not test_contact:
             # creates a full URN string from a phone number stored as an integer
             def make_urn(tel_as_int):
-                return URN.from_tel('+%s' % tel_as_int)
+                return URN.from_tel("+%s" % tel_as_int)
 
             # generate sequential test contact URNs until we find an available one
             test_urn_path = START_TEST_CONTACT_PATH
@@ -1111,49 +1261,39 @@ class Contact(TembaModel):
                 test_urn_path += 1
                 existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact, urn_obj = Contact.get_or_create(org, make_urn(test_urn_path), user=user, name="Test Contact",
-                                                          is_test=True)
+            test_contact, urn_obj = Contact.get_or_create(
+                org, make_urn(test_urn_path), user=user, name="Test Contact", is_test=True
+            )
         return test_contact
-
-    @classmethod
-    def search(cls, org, query, base_group=None, base_set=None):
-        """
-        Performs a search of contacts within a group (system or user)
-        """
-        from .search import contact_search
-
-        if not base_group:
-            base_group = org.cached_all_contacts_group
-
-        return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
     @classmethod
     def create_instance(cls, field_dict):
         """
         Creates or updates a contact from the given field values during an import
         """
-        if 'org' not in field_dict or 'created_by' not in field_dict:
+        if "org" not in field_dict or "created_by" not in field_dict:
             raise ValueError("Import fields dictionary must include org and created_by")
 
-        org = field_dict.pop('org')
-        user = field_dict.pop('created_by')
+        org = field_dict.pop("org")
+        user = field_dict.pop("created_by")
         is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop('contact uuid', None)
+        uuid = field_dict.pop("contact uuid", None)
 
         # for backward compatibility
         if uuid is None:
-            uuid = field_dict.pop('uuid', None)
+            uuid = field_dict.pop("uuid", None)
 
         country = org.get_country_code()
         urns = []
 
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
+        possible_urn_headers_case_insensitive = [scheme.lower() for scheme in possible_urn_headers]
 
         # prevent urns update on anon org
         if uuid and org.is_anon and not is_admin:
-            possible_urn_headers = []
+            possible_urn_headers_case_insensitive = []
 
-        for urn_header in possible_urn_headers:
+        for urn_header in possible_urn_headers_case_insensitive:
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
@@ -1162,13 +1302,13 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            value = six.text_type(value)
+            value = str(value)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
             if urn_scheme == TEL_SCHEME:
 
-                value = regex.sub(r'[ \-()]+', '', value, regex.V0)
+                value = regex.sub(r"[ \-()]+", "", value, regex.V0)
 
                 # at this point the number might be a decimal, something that looks like '18094911278.0' due to
                 # excel formatting that field as numeric.. try to parse it into an int instead
@@ -1218,11 +1358,19 @@ class Contact(TembaModel):
         if language is not None and len(language) != 3:
             language = None
         if language is not None and _get_language_name_iso6393(language) is None:
-            raise SmartImportRowError('Language: \'%s\' is not a valid ISO639-3 code' % (language, ))
+            raise SmartImportRowError("Language: '%s' is not a valid ISO639-3 code" % (language,))
 
-        # create new contact or fetch existing one
-        contact = Contact.get_or_create_by_urns(org, user, name, uuid=uuid, urns=urns, language=language,
-                                                force_urn_update=True)
+        # if this is just a UUID import, look up the contact directly
+        if uuid and not urns and not language and not name:
+            contact = Contact.objects.filter(uuid=uuid).first()
+            if not contact:
+                raise SmartImportRowError("No contact found with uuid: %s" % uuid)
+
+        else:
+            # create new contact or fetch existing one
+            contact = Contact.get_or_create_by_urns(
+                org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
+            )
 
         # if they exist and are blocked, unblock them
         if contact.is_blocked:
@@ -1234,58 +1382,64 @@ class Contact(TembaModel):
             if key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 continue
 
+            if key.startswith("urn:"):
+                continue
+
             value = field_dict[key]
 
             # date values need converted to localized strings
             if isinstance(value, datetime.date):
                 # make naive datetime timezone-aware, ignoring date
-                if getattr(value, 'tzinfo', 'ignore') is None:
+                if getattr(value, "tzinfo", "ignore") is None:
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
-                value = org.format_date(value, True)
+                value = org.format_datetime(value, True)
 
             contact.set_field(user, key, value, importing=True)
             contact_field_keys_updated.add(key)
 
         # to handle dynamic groups and campaign events updates
-        contact.handle_update_contact(field_keys=contact_field_keys_updated)
+        if contact_field_keys_updated:
+            contact.handle_update_contact(field_keys=contact_field_keys_updated)
 
         return contact
 
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
-        if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:
-            raise ValueError('Import params must include org_id and extra_fields')
+        if not import_params or "org_id" not in import_params or "extra_fields" not in import_params:
+            raise ValueError("Import params must include org_id and extra_fields")
 
-        field_dict['created_by'] = user
-        field_dict['org'] = Org.objects.get(pk=import_params['org_id'])
+        field_dict["created_by"] = user
+        field_dict["org"] = Org.objects.get(pk=import_params["org_id"])
 
         extra_fields = []
 
         # include extra fields specified in the params
-        for field in import_params['extra_fields']:
-            key = field['key']
-            label = field['label']
+        for field in import_params["extra_fields"]:
+            key = field["key"]
+            label = field["label"]
             if key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
-                if  field['header'] in field_dict:
-                    value = field_dict[field['header']]
-                    del field_dict[field['header']]
-                    field_dict[key] = value
-                else:
-                    field_dict[key] = ''
+                value = field_dict[field["header"]]
+                del field_dict[field["header"]]
+                field_dict[key] = value
+
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
+                ContactField.get_or_create(field_dict["org"], user, key, label, False, field["type"])
                 extra_fields.append(key)
             else:
-                raise ValueError('Extra field %s is a reserved field name' % key)
+                raise ValueError("Extra field %s is a reserved field name" % key)
 
-        active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        active_scheme_headers = [h[0].lower() for h in IMPORT_HEADERS]
 
         # remove any field that's not a reserved field or an explicitly included extra field
         return {
             key: value
             for key, value in field_dict.items()
-            if not ((key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS) and key not in extra_fields and key not in active_scheme)
+            if not (
+                (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS)
+                and key not in extra_fields
+                and key not in active_scheme_headers
+            )
         }
 
     @classmethod
@@ -1294,18 +1448,17 @@ class Contact(TembaModel):
 
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
-        from uuid import uuid4
 
         # make sure our tmp directory is present (throws if already present)
         try:
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
         except Exception:
             pass
 
         # write our file out
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s' % str(uuid4()))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid.uuid4()))
 
-        out_file = open(tmp_file, 'wb')
+        out_file = open(tmp_file, "wb")
         out_file.write(csv_file.read())
         out_file.close()
 
@@ -1320,6 +1473,9 @@ class Contact(TembaModel):
         possible_fields = []
         for header in headers:
             header = header.strip().lower()
+            if not header.startswith("field:"):
+                continue
+
             if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
                 possible_fields.append(header)
 
@@ -1328,23 +1484,52 @@ class Contact(TembaModel):
     @classmethod
     def validate_org_import_header(cls, headers, org):
         possible_headers = [h[0] for h in IMPORT_HEADERS]
-        found_headers = [h for h in headers if h in possible_headers]
+        possible_headers_case_insensitive = [h.lower() for h in possible_headers]
 
-        capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
+        found_headers = []
+        unsupported_headers = []
 
-        if 'uuid' in headers or 'contact uuid' in headers:
+        for h in headers:
+            h_lower_stripped = h.strip().lower()
+
+            if h_lower_stripped in possible_headers_case_insensitive:
+                found_headers.append(h_lower_stripped)
+
+            if (
+                h_lower_stripped
+                and not h_lower_stripped.startswith("urn:")
+                and not h_lower_stripped.startswith("field:")
+                and not h_lower_stripped.startswith("group:")
+                and h_lower_stripped not in Contact.SUPPORTED_IMPORT_ATTRIBUTE_HEADERS
+            ):
+                unsupported_headers.append(h_lower_stripped)
+
+        joined_possible_headers = '", "'.join([h for h in possible_headers])
+        joined_unsupported_headers = '", "'.join([h for h in unsupported_headers])
+
+        if unsupported_headers:
+            raise Exception(
+                _(
+                    f'The provided file has unrecognized headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
+                )
+            )
+
+        if "uuid" in headers or "contact uuid" in headers:
             return
 
         if not found_headers:
-            raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'or "Contact UUID" should be included.' % capitalized_possible_headers))
+            raise Exception(
+                _(
+                    f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
+                )
+            )
 
-        if 'name' not in headers:
-            raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
+        if "name" not in headers:
+            raise Exception(_('The file you provided is missing a required header called "Name".'))
 
     @classmethod
     def normalize_value(cls, val):
-        if isinstance(val, six.string_types):
+        if isinstance(val, str):
             return SmartModel.normalize_value(val)
         return val
 
@@ -1352,6 +1537,7 @@ class Contact(TembaModel):
     def import_excel(cls, filename, user, import_params, log=None, import_results=None):
 
         import pyexcel
+
         sheet_data = pyexcel.get_array(file_name=filename.name)
 
         line_number = 0
@@ -1383,19 +1569,22 @@ class Contact(TembaModel):
             for cell in row:
                 cell_value = cls.normalize_value(cell)
                 if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
-                    cell_value = six.text_type(cell_value)
+                    cell_value = str(cell_value)
                 row_data.append(cell_value)
 
             line_number += 1
 
             # make sure there are same number of fields
             if len(row_data) != len(header):  # pragma: needs cover
-                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row_data)))
+                raise Exception(
+                    "Line %d: The number of fields for this row is incorrect. Expected %d but found %d."
+                    % (line_number, len(header), len(row_data))
+                )
 
             field_values = dict(zip(header, row_data))
             log_field_values = field_values.copy()
-            field_values['created_by'] = user
-            field_values['modified_by'] = user
+            field_values["created_by"] = user
+            field_values["modified_by"] = user
             try:
 
                 field_values = cls.prepare_fields(field_values, import_params, user)
@@ -1411,15 +1600,21 @@ class Contact(TembaModel):
             except Exception as e:  # pragma: needs cover
                 if log:
                     import traceback
+
                     traceback.print_exc(limit=100, file=log)
                 raise Exception("Line %d: %s\n\n%s" % (line_number, str(e), str(log_field_values)))
 
         if import_results is not None:
-            import_results['records'] = len(records)
-            import_results['errors'] = num_errors + len(error_messages)
-            import_results['error_messages'] = error_messages
+            import_results["records"] = len(records)
+            import_results["errors"] = num_errors + len(error_messages)
+            import_results["error_messages"] = error_messages
 
         return records
+
+    @classmethod
+    def finalize_import(cls, task, records):
+        for chunk in chunk_list(records, 1000):
+            Contact.objects.filter(id__in=[c.id for c in chunk]).update(modified_on=timezone.now())
 
     @classmethod
     def import_csv(cls, task, log=None):
@@ -1439,23 +1634,24 @@ class Contact(TembaModel):
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
         from uuid import uuid4
+
         # make sure our tmp directory is present (throws if already present)
         try:
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
         except Exception:
             pass
 
         # rewrite our file to local disk
-        extension = filename.name.rpartition('.')[2]
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
+        extension = filename.name.rpartition(".")[2]
+        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.%s" % (str(uuid4()), extension.lower()))
         filename.open()
 
-        out_file = open(tmp_file, 'wb')
+        out_file = open(tmp_file, "wb")
         out_file.write(filename.read())
         out_file.close()
 
         # convert the file to CSV
-        csv_tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.csv' % str(uuid4()))
+        csv_tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.csv" % str(uuid4()))
 
         pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
 
@@ -1475,11 +1671,11 @@ class Contact(TembaModel):
             return contacts
 
         # we always create a group after a successful import (strip off 8 character uniquifier by django)
-        group_name = os.path.splitext(os.path.split(import_params.get('original_filename'))[-1])[0]
-        group_name = group_name.replace('_', ' ').replace('-', ' ').title()
+        group_name = os.path.splitext(os.path.split(import_params.get("original_filename"))[-1])[0]
+        group_name = group_name.replace("_", " ").replace("-", " ").title()
 
         if len(group_name) >= ContactGroup.MAX_NAME_LEN - 10:
-            group_name = group_name[:ContactGroup.MAX_NAME_LEN - 10]
+            group_name = group_name[: ContactGroup.MAX_NAME_LEN - 10]
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
@@ -1488,7 +1684,7 @@ class Contact(TembaModel):
         num_creates = 0
         for contact in contacts:
             # if contact has is_new attribute, then we have created a new contact rather than updated an existing one
-            if getattr(contact, 'is_new', False):
+            if getattr(contact, "is_new", False):
                 num_creates += 1
 
             # do not add blocked or stopped contacts
@@ -1499,7 +1695,10 @@ class Contact(TembaModel):
         if not group_org.is_whitelisted():
             try:
                 # get all of our phone numbers for the imported contacts
-                paths = [int(u.path) for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])]
+                paths = [
+                    int(u.path)
+                    for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])
+                ]
                 paths = sorted(paths)
 
                 last_path = None
@@ -1519,8 +1718,8 @@ class Contact(TembaModel):
                 pass
 
         # overwrite the import results for adding the counts
-        import_results['creates'] = num_creates
-        import_results['updates'] = len(contacts) - num_creates
+        import_results["creates"] = num_creates
+        import_results["updates"] = len(contacts) - num_creates
         task.import_results = json.dumps(import_results)
 
         return contacts
@@ -1579,7 +1778,7 @@ class Contact(TembaModel):
 
         self.is_blocked = True
         self.modified_by = user
-        self.save(update_fields=('is_blocked', 'modified_on', 'modified_by'))
+        self.save(update_fields=("is_blocked", "modified_on", "modified_by"))
 
     def unblock(self, user):
         """
@@ -1587,7 +1786,7 @@ class Contact(TembaModel):
         """
         self.is_blocked = False
         self.modified_by = user
-        self.save(update_fields=('is_blocked', 'modified_on', 'modified_by'))
+        self.save(update_fields=("is_blocked", "modified_on", "modified_by"))
 
         self.reevaluate_dynamic_groups()
 
@@ -1602,7 +1801,7 @@ class Contact(TembaModel):
 
         self.is_stopped = True
         self.modified_by = user
-        self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
+        self.save(update_fields=["is_stopped", "modified_on", "modified_by"])
 
         self.clear_all_groups(user)
 
@@ -1614,7 +1813,7 @@ class Contact(TembaModel):
         """
         self.is_stopped = False
         self.modified_by = user
-        self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
+        self.save(update_fields=["is_stopped", "modified_on", "modified_by"])
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
@@ -1624,34 +1823,80 @@ class Contact(TembaModel):
             user = get_anonymous_user()
         self.unstop(user)
 
-    def release(self, user):
+    def release(self, user, *, immediately=True):
         """
-        Releases (i.e. deletes) this contact, provided it is currently not deleted
+        Marks this contact for deletion
         """
-        # detach all contact's URNs
-        self.update_urns(user, [])
+        with transaction.atomic():
+            # prep our urns for deletion so our old path creates a new urn
+            for urn in self.urns.all():
+                path = str(uuid.uuid4())
+                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.path = path
+                urn.scheme = DELETED_SCHEME
+                urn.channel = None
+                urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-        # remove from all groups
-        self.clear_all_groups(user)
+            # no group for you!
+            self.clear_all_groups(user)
 
-        # release all messages with this contact
-        for msg in self.msgs.all():
-            msg.release()
+            # now deactivate the contact itself
+            self.is_active = False
+            self.name = None
+            self.fields = None
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_on", "modified_by"))
 
-        # release all channel events with this contact
-        for event in self.channel_events.all():
-            event.release()
+        # kick off a task to remove all the things related to us
+        if immediately:
+            from temba.contacts.tasks import full_release_contact
 
-        # remove all flow runs and steps
-        for run in self.runs.all():
-            run.release()
+            full_release_contact.delay(self.id, user.id)
 
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
+    def _full_release(self, user):
+        with transaction.atomic():
+
+            # release our messages
+            for msg in self.msgs.all():
+                msg.release()
+
+            # release any calls or ussd sessions
+            for session in self.sessions.all():
+                session.release()
+
+            # any urns currently owned by us
+            for urn in self.urns.all():
+
+                # release any messages attached with each urn,
+                # these could include messages that began life
+                # on a different contact
+                for msg in urn.msgs.all():
+                    msg.release()
+
+                # same thing goes for sessions
+                for session in urn.channelsession_set.all():
+                    session.release()
+
+                urn.release()
+
+            # release our channel events
+            for event in self.channel_events.all():
+                event.release()
+
+            # release our runs too
+            for run in self.runs.all():
+                run.release()
+
+            # and any event fire history
+            for fire in self.fire_events.all():
+                fire.release()
+
+            # take us out of broadcast addressed contacts
+            for broadcast in self.addressed_broadcasts.all():
+                broadcast.contacts.remove(self)
 
     def cached_send_channel(self, contact_urn):
-        cache = getattr(self, '_send_channels', {})
+        cache = getattr(self, "_send_channels", {})
         channel = cache.get(contact_urn.id)
         if not channel:
             channel = self.org.get_send_channel(contact_urn=contact_urn)
@@ -1661,7 +1906,7 @@ class Contact(TembaModel):
         return channel
 
     def initialize_cache(self):
-        if getattr(self, '__cache_initialized', False):
+        if getattr(self, "__cache_initialized", False):
             return
 
         Contact.bulk_cache_initialize(self.org, [self])
@@ -1672,49 +1917,28 @@ class Contact(TembaModel):
         Performs optimizations on our contacts to prepare them to send. This includes loading all our contact fields for
         variable substitution.
         """
-        from temba.values.models import Value
-
         if not contacts:
             return
 
-        fields = org.cached_contact_fields
+        fields = org.cached_contact_fields.values()
         if for_show_only:
             fields = [f for f in fields if f.show_in_table]
-
-        # build id maps to avoid re-fetching contact objects
-        key_map = {f.id: f.key for f in fields}
 
         contact_map = dict()
         for contact in contacts:
             contact_map[contact.id] = contact
-            setattr(contact, '__urns', list())  # initialize URN list cache (setattr avoids name mangling or __urns)
-
-        # cache all field values
-        values = Value.objects.filter(contact_id__in=contact_map.keys(),
-                                      contact_field_id__in=key_map.keys()).select_related('contact_field', 'location_value')
-        for value in values:
-            contact = contact_map[value.contact_id]
-            field_key = key_map[value.contact_field_id]
-            cache_attr = '__field__%s' % field_key
-            setattr(contact, cache_attr, value)
-
-        # set missing fields as None attributes to avoid cache fetches later
-        for contact in contacts:
-            for field in fields:
-                cache_attr = '__field__%s' % field.key
-                if not hasattr(contact, cache_attr):
-                    setattr(contact, cache_attr, None)
+            setattr(contact, "__urns", list())  # initialize URN list cache (setattr avoids name mangling or __urns)
 
         # cache all URN values (a priority ordered list on each contact)
-        urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by('contact', '-priority', 'pk')
+        urns = ContactURN.objects.filter(contact__in=contact_map.keys()).order_by("contact", "-priority", "pk")
         for urn in urns:
             contact = contact_map[urn.contact_id]
-            getattr(contact, '__urns').append(urn)
+            getattr(contact, "__urns").append(urn)
 
         # set the cache initialize as correct
         for contact in contacts:
             contact.org = org
-            setattr(contact, '__cache_initialized', True)
+            setattr(contact, "__cache_initialized", True)
 
     def build_expressions_context(self):
         """
@@ -1724,18 +1948,18 @@ class Contact(TembaModel):
 
         org = self.org
         context = {
-            '__default__': self.get_display(),
-            Contact.NAME: self.name or '',
+            "__default__": self.get_display(),
+            Contact.NAME: self.name or "",
             Contact.FIRST_NAME: self.first_name(org),
             Contact.LANGUAGE: self.language,
-            'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            'groups': ",".join([_.name for _ in self.cached_user_groups]),
-            'uuid': self.uuid
+            "tel_e164": self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
+            "groups": ",".join([_.name for _ in self.cached_user_groups]),
+            "uuid": self.uuid,
         }
 
         # anonymous orgs also get @contact.id
         if org.is_anon:
-            context['id'] = self.id
+            context["id"] = self.id
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
@@ -1746,9 +1970,9 @@ class Contact(TembaModel):
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
         # add all active fields to our context
-        for field in org.cached_contact_fields:
-            field_value = Contact.serialize_field_value(field, self.get_field(field.key), org=org)
-            context[field.key] = field_value if field_value is not None else ''
+        for field in org.cached_contact_fields.values():
+            field_value = self.get_field_serialized(field)
+            context[field.key] = field_value if field_value is not None else ""
 
         return context
 
@@ -1788,7 +2012,7 @@ class Contact(TembaModel):
             for urn in urns:
                 if urn.scheme in channel.schemes and urn.channel_id != channel.id:
                     urn.channel = channel
-                    urn.save(update_fields=['channel'])
+                    urn.save(update_fields=["channel"])
 
         # if our scheme isn't the highest priority
         if urns and urns[0].scheme not in channel.schemes:
@@ -1796,7 +2020,7 @@ class Contact(TembaModel):
             for urn in urns[1:]:
                 if urn.scheme in channel.schemes:
                     urn.priority = urns[0].priority + 1
-                    urn.save(update_fields=['priority'])
+                    urn.save(update_fields=["priority"])
 
                     # clear our URN cache, order is different now
                     self.clear_urn_cache()
@@ -1806,21 +2030,21 @@ class Contact(TembaModel):
         """
         Returns all the URNs for the passed in scheme
         """
-        return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+        return self.urns.filter(scheme=scheme).order_by("-priority", "pk")
 
     def clear_urn_cache(self):
-        if hasattr(self, '__urns'):
-            delattr(self, '__urns')
+        if hasattr(self, "__urns"):
+            delattr(self, "__urns")
 
     def get_urns(self):
         """
         Gets all URNs ordered by priority
         """
-        cache_attr = '__urns'
+        cache_attr = "__urns"
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
-        urns = self.urns.order_by('-priority', 'pk')
+        urns = self.urns.order_by("-priority", "pk")
         setattr(self, cache_attr, urns)
         return urns
 
@@ -1828,7 +2052,7 @@ class Contact(TembaModel):
         """
         Gets the highest priority matching URN for this contact. Schemes may be a single scheme or a set/list/tuple
         """
-        if isinstance(schemes, six.string_types):
+        if isinstance(schemes, str):
             schemes = (schemes,)
 
         urns = self.get_urns()
@@ -1856,6 +2080,9 @@ class Contact(TembaModel):
         # perform everything in a org-level lock to prevent duplication by different instances. Org-level is required
         # to prevent conflicts with get_or_create which uses an org-level lock.
 
+        # list of other contacts that were modified
+        modified_contacts = set()
+
         with self.org.lock_on(OrgLock.contacts):
 
             # urns are submitted in order of priority
@@ -1869,8 +2096,11 @@ class Contact(TembaModel):
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
 
-                # unassigned URN or assigned to someone else
+                # unassigned URN or different contact
                 elif not urn.contact or urn.contact != self:
+                    if urn.contact:
+                        modified_contacts.add(urn.contact.id)
+
                     urn.contact = self
                     urn.priority = priority
                     urn.save()
@@ -1892,14 +2122,18 @@ class Contact(TembaModel):
         urns_detached_qs.update(contact=None)
 
         self.modified_by = user
-        self.save(update_fields=('modified_on', 'modified_by'))
+        self.save(update_fields=("modified_on", "modified_by"))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[str(u) for u in (urns_created + urns_attached + urns_detached)])
+
+        # update modified on any other modified contacts
+        if modified_contacts:
+            Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
 
         # clear URN cache
-        if hasattr(self, '__urns'):
-            delattr(self, '__urns')
+        if hasattr(self, "__urns"):
+            delattr(self, "__urns")
 
     def update_static_groups(self, user, groups):
         """
@@ -1917,24 +2151,42 @@ class Contact(TembaModel):
         for group in add_groups:
             group.update_contacts(user, [self], add=True)
 
-    def reevaluate_dynamic_groups(self, for_field=None, is_new=False):
+    def reevaluate_dynamic_groups(self, for_field=None):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
         """
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
+        from .search import evaluate_query
 
+        # blocked, stopped or test contacts can't be in dynamic groups
+        if self.is_blocked or self.is_stopped or self.is_test:
+            return False
+
+        # cache contact search json
+        contact_search_json = self.as_search_json()
+        user = get_anonymous_user()
+
+        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True)
         if for_field:
             affected_dynamic_groups = affected_dynamic_groups.filter(query_fields=for_field)
 
-        group_change = False
-        for group in affected_dynamic_groups:
-            group.org = self.org
-            changed = group.reevaluate_contacts([self], is_new=is_new)
-            if changed:
-                group_change = True
+        changed = False
 
-        return group_change
+        for dynamic_group in affected_dynamic_groups:
+            dynamic_group.org = self.org
+
+            try:
+                should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
+            except Exception:  # pragma: no cover
+                should_add = False
+                logger.exception("Error evaluating query", exc_info=True)
+
+            changed_set = dynamic_group._update_contacts(user, [self], add=should_add)
+
+            if changed_set and not changed:
+                changed = True
+
+        return changed
 
     def clear_all_groups(self, user):
         """
@@ -1975,13 +2227,7 @@ class Contact(TembaModel):
 
         display = urn.get_display(org=org, formatted=True, international=False)
 
-        return {
-            '__default__': display,
-            'scheme': scheme,
-            'path': urn.path,
-            'display': display,
-            'urn': urn.urn,
-        }
+        return {"__default__": display, "scheme": scheme, "path": urn.path, "display": display, "urn": urn.urn}
 
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
@@ -1994,23 +2240,36 @@ class Contact(TembaModel):
         urn = self.get_urn(scheme)
 
         if not urn:
-            return ''
+            return ""
 
         if org.is_anon:
             return ContactURN.ANON_MASK
 
-        return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
+        return urn.get_display(org=org, formatted=formatted, international=international) if urn else ""
 
     def raw_tel(self):
         tel = self.get_urn(TEL_SCHEME)
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, expressions_context=None, connection=None,
-             quick_replies=None, attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
+    def send(
+        self,
+        text,
+        user,
+        trigger_send=True,
+        response_to=None,
+        expressions_context=None,
+        connection=None,
+        quick_replies=None,
+        attachments=None,
+        msg_type=None,
+        sent_on=None,
+        all_urns=False,
+        high_priority=False,
+    ):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
-        status = SENT if created_on else PENDING
+        status = SENT if sent_on else PENDING
 
         if all_urns:
             recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
@@ -2020,11 +2279,21 @@ class Contact(TembaModel):
         msgs = []
         for recipient in recipients:
             try:
-                msg = Msg.create_outgoing(self.org, user, recipient, text,
-                                          response_to=response_to, expressions_context=expressions_context,
-                                          connection=connection, attachments=attachments, msg_type=msg_type or INBOX,
-                                          status=status, quick_replies=quick_replies, created_on=created_on,
-                                          high_priority=high_priority)
+                msg = Msg.create_outgoing(
+                    self.org,
+                    user,
+                    recipient,
+                    text,
+                    response_to=response_to,
+                    expressions_context=expressions_context,
+                    connection=connection,
+                    attachments=attachments,
+                    msg_type=msg_type or INBOX,
+                    status=status,
+                    quick_replies=quick_replies,
+                    sent_on=sent_on,
+                    high_priority=high_priority,
+                )
                 if msg is not None:
                     msgs.append(msg)
             except UnreachableException:
@@ -2039,36 +2308,25 @@ class Contact(TembaModel):
         return self.get_display()
 
 
-@six.python_2_unicode_compatible
 class ContactURN(models.Model):
     """
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
+
     # schemes that we actually support
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-    CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
-    CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
-    IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
+    CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
+    CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
+    IMPORT_HEADER_TO_SCHEME = {s[0].lower(): s[1] for s in IMPORT_HEADERS}
 
-    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
+    SCHEMES_SUPPORTING_FOLLOW = {
+        TWITTER_SCHEME,
+        TWITTERID_SCHEME,
+        JIOCHAT_SCHEME,
+    }  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
-
-    EXPORT_FIELDS = {
-        TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-        TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-        TWITTERID_SCHEME: dict(label="TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
-        EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-        EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-        TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-        FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-        VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
-        JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
-        FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
-        LINE_SCHEME: dict(label='Line', key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
-        WHATSAPP_SCHEME: dict(label="WhatsApp", key=None, id=0, field=None, urn_scheme=WHATSAPP_SCHEME),
-    }
 
     EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
 
@@ -2076,42 +2334,77 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD,
-                         TWITTER_SCHEME: 90, TWITTERID_SCHEME: 90,
-                         FACEBOOK_SCHEME: 90,
-                         TELEGRAM_SCHEME: 90,
-                         VIBER_SCHEME: 90,
-                         FCM_SCHEME: 90}
+    PRIORITY_DEFAULTS = {
+        TEL_SCHEME: PRIORITY_STANDARD,
+        TWITTER_SCHEME: 90,
+        TWITTERID_SCHEME: 90,
+        FACEBOOK_SCHEME: 90,
+        TELEGRAM_SCHEME: 90,
+        VIBER_SCHEME: 90,
+        FCM_SCHEME: 90,
+    }
 
-    ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
-    ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
+    ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
+    ANON_MASK_HTML = "\u2022" * 8  # Pretty HTML version of anon mask
 
-    contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
-                                help_text="The contact that this URN is for, can be null")
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="urns",
+        help_text="The contact that this URN is for, can be null",
+    )
 
-    identity = models.CharField(max_length=255,
-                                help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383")
+    identity = models.CharField(
+        max_length=255,
+        help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383",
+    )
 
-    path = models.CharField(max_length=255,
-                            help_text="The path component of our URN. ex: +250788383383")
+    path = models.CharField(max_length=255, help_text="The path component of our URN. ex: +250788383383")
 
-    display = models.CharField(max_length=255, null=True,
-                               help_text="The display component for this URN, if any")
+    display = models.CharField(max_length=255, null=True, help_text="The display component for this URN, if any")
 
-    scheme = models.CharField(max_length=128,
-                              help_text="The scheme for this URN, broken out for optimization reasons, ex: tel")
+    scheme = models.CharField(
+        max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
+    )
 
-    org = models.ForeignKey(Org,
-                            help_text="The organization for this URN, can be null")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization for this URN, can be null")
 
-    priority = models.IntegerField(default=PRIORITY_STANDARD,
-                                   help_text="The priority of this URN for the contact it is associated with")
+    priority = models.IntegerField(
+        default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
+    )
 
-    channel = models.ForeignKey(Channel, null=True, blank=True,
-                                help_text="The preferred channel for this URN")
+    channel = models.ForeignKey(
+        Channel, on_delete=models.PROTECT, null=True, blank=True, help_text="The preferred channel for this URN"
+    )
 
-    auth = models.TextField(null=True,
-                            help_text=_("Any authentication information needed by this URN"))
+    auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
+
+    @classmethod
+    def get_urns_for_contacts(self, contact_ids, schemes, all_urns=False):
+        """
+        Optimized call that fetches the preferred URN for the passed in contacts within the passed in
+        schemes.
+        """
+        urns = list()
+        distinct = "" if all_urns else "DISTINCT ON(contact_id)"
+
+        for chunk in chunk_list(contact_ids, 1000):
+            chunk_urns = ContactURN.objects.raw(
+                f"""
+                SELECT {distinct} contact_id, *
+                FROM contacts_contacturn
+                WHERE contact_id = ANY (%s) AND scheme = ANY (%s)
+                ORDER BY contact_id, priority DESC;
+                """,
+                [chunk, list(schemes)],
+            )
+
+            for urn in chunk_urns:
+                urns.append(urn)
+
+        return urns
 
     @classmethod
     def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
@@ -2131,14 +2424,23 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path, display = URN.to_parts(urn_as_string)
+        scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
-        return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel, auth=auth,
-                                  scheme=scheme, path=path, identity=urn_as_string, display=display)
+        return cls.objects.create(
+            org=org,
+            contact=contact,
+            priority=priority,
+            channel=channel,
+            auth=auth,
+            scheme=scheme,
+            path=path,
+            identity=urn_as_string,
+            display=display,
+        )
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -2149,22 +2451,29 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         identity = URN.identity(urn_as_string)
-        (scheme, path, display) = URN.to_parts(urn_as_string)
+        (scheme, path, query, display) = URN.to_parts(urn_as_string)
 
-        existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+        existing = cls.objects.filter(org=org, identity=identity).select_related("contact").first()
 
         # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
         if scheme == TWITTER_SCHEME:
-            twitterid_urn = cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related('contact').first()
+            twitterid_urn = (
+                cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related("contact").first()
+            )
             if twitterid_urn:
                 return twitterid_urn
 
         return existing
 
+    def release(self):
+        for event in ChannelEvent.objects.filter(contact_urn=self):
+            event.release()
+        self.delete()
+
     def update_auth(self, auth):
         if auth and auth != self.auth:
             self.auth = auth
-            self.save(update_fields=['auth'])
+            self.save(update_fields=["auth"])
 
     def update_affinity(self, channel):
         """
@@ -2172,7 +2481,7 @@ class ContactURN(models.Model):
         """
         if channel and self.channel != channel:
             self.channel = channel
-            self.save(update_fields=['channel'])
+            self.save(update_fields=["channel"])
 
     def ensure_number_normalization(self, country_code):
         """
@@ -2181,7 +2490,7 @@ class ContactURN(models.Model):
         """
         number = self.path
 
-        if number and not number[0] == '+' and country_code:
+        if number and not number[0] == "+" and country_code:
             (norm_number, valid) = URN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
@@ -2189,7 +2498,7 @@ class ContactURN(models.Model):
             if not ContactURN.objects.filter(identity=norm_urn, org_id=self.org_id).exclude(id=self.id):
                 self.identity = norm_urn
                 self.path = norm_number
-                self.save(update_fields=['identity', 'path'])
+                self.save(update_fields=["identity", "path"])
 
         return self
 
@@ -2214,95 +2523,88 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
-        if self.scheme == TEL_SCHEME and formatted:
-            # if we don't want a full tell, see if we can show the national format instead
-            try:
-                if self.path and self.path[0] == '+':
-                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
-                    if international:
-                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
-
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
-
-            except Exception:  # pragma: no cover
-                pass
-
-        if self.display:
-            return self.display
-
-        return self.path
+        return URN.format(self.urn, international=international, formatted=formatted)
 
     @property
     def urn(self):
         """
         Returns a full representation of this contact URN as a string
         """
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return URN.from_parts(self.scheme, self.path, display=self.display)
 
     def __str__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
-
-    def __unicode__(self):  # pragma: no cover
-        return URN.from_parts(self.scheme, self.path, self.display)
+        return self.urn
 
     class Meta:
-        unique_together = ('identity', 'org')
-        ordering = ('-priority', 'id')
+        unique_together = ("identity", "org")
+        ordering = ("-priority", "id")
 
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return super().get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
 
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED,
-                                                                          is_active=True)
+        return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
 
-@six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
-    TYPE_ALL = 'A'
-    TYPE_BLOCKED = 'B'
-    TYPE_STOPPED = 'S'
-    TYPE_USER_DEFINED = 'U'
+    TYPE_ALL = "A"
+    TYPE_BLOCKED = "B"
+    TYPE_STOPPED = "S"
+    TYPE_USER_DEFINED = "U"
 
-    TYPE_CHOICES = ((TYPE_ALL, "All Contacts"),
-                    (TYPE_BLOCKED, "Blocked Contacts"),
-                    (TYPE_STOPPED, "Stopped Contacts"),
-                    (TYPE_USER_DEFINED, "User Defined Groups"))
+    TYPE_CHOICES = (
+        (TYPE_ALL, "All Contacts"),
+        (TYPE_BLOCKED, "Blocked Contacts"),
+        (TYPE_STOPPED, "Stopped Contacts"),
+        (TYPE_USER_DEFINED, "User Defined Groups"),
+    )
 
-    STATUS_INITIALIZING = 'I'  # group has been created but not yet (re)evaluated
-    STATUS_EVALUATING = 'V'    # a task is currently (re)evaluating this group
-    STATUS_READY = 'R'         # group is ready for use
+    STATUS_INITIALIZING = "I"  # group has been created but not yet (re)evaluated
+    STATUS_EVALUATING = "V"  # a task is currently (re)evaluating this group
+    STATUS_READY = "R"  # group is ready for use
 
     # single char flag, human readable name, API readable name
-    STATUS_CONFIG = ((STATUS_INITIALIZING, _("Initializing"), 'initializing'),
-                     (STATUS_EVALUATING, _("Evaluating"), 'evaluating'),
-                     (STATUS_READY, _("Ready"), 'ready'))
+    STATUS_CONFIG = (
+        (STATUS_INITIALIZING, _("Initializing"), "initializing"),
+        (STATUS_EVALUATING, _("Evaluating"), "evaluating"),
+        (STATUS_READY, _("Ready"), "ready"),
+    )
 
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
-    REEVALUATE_LOCK_KEY = 'contactgroup_reevaluating_%d'
+    REEVALUATE_LOCK_KEY = "contactgroup_reevaluating_%d"
 
-    name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
-                            help_text=_("The name of this contact group"))
+    name = models.CharField(
+        verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
+    )
 
-    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED,
-                                  help_text=_("What type of group it is, either user defined or one of our system groups"))
+    group_type = models.CharField(
+        max_length=1,
+        choices=TYPE_CHOICES,
+        default=TYPE_USER_DEFINED,
+        help_text=_("What type of group it is, either user defined or one of our system groups"),
+    )
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
+    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name="all_groups")
 
-    org = models.ForeignKey(Org, related_name='all_groups',
-                            verbose_name=_("Org"), help_text=_("The organization this group is part of"))
+    org = models.ForeignKey(
+        Org,
+        on_delete=models.PROTECT,
+        related_name="all_groups",
+        verbose_name=_("Org"),
+        help_text=_("The organization this group is part of"),
+    )
 
-    import_task = models.ForeignKey(ImportTask, null=True, blank=True)
+    import_task = models.ForeignKey(ImportTask, on_delete=models.PROTECT, null=True, blank=True)
 
     query = models.TextField(null=True, help_text=_("The membership query for this group"))
 
@@ -2389,7 +2691,8 @@ class ContactGroup(TembaModel):
             query=query,
             status=ContactGroup.STATUS_INITIALIZING if query else ContactGroup.STATUS_READY,
             import_task=task,
-            created_by=user, modified_by=user
+            created_by=user,
+            modified_by=user,
         )
 
     @classmethod
@@ -2397,7 +2700,7 @@ class ContactGroup(TembaModel):
         """
         Returns a normalized name for the passed in group name
         """
-        return None if name is None else name.strip()[:cls.MAX_NAME_LEN]
+        return None if name is None else name.strip()[: cls.MAX_NAME_LEN]
 
     @classmethod
     def is_valid_name(cls, name):
@@ -2409,7 +2712,7 @@ class ContactGroup(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match('\w', name[0], flags=regex.UNICODE)
+        return regex.match("\w", name[0], flags=regex.UNICODE)
 
     def update_contacts(self, user, contacts, add):
         """
@@ -2419,22 +2722,6 @@ class ContactGroup(TembaModel):
             raise ValueError("Can't add or remove contacts from system or dynamic groups")
 
         return self._update_contacts(user, contacts, add)
-
-    def reevaluate_contacts(self, contacts, is_new=False):
-        """
-        Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
-        """
-        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
-            raise ValueError("Can't re-evaluate contacts against system or static groups")
-
-        user = get_anonymous_user()
-        changed = set()
-        for contact in contacts:
-            qualifies = self._check_dynamic_membership(contact, is_new=is_new)
-            changed = self._update_contacts(user, [contact], qualifies)
-            if changed:
-                changed.add(contact)
-        return changed
 
     def remove_contacts(self, user, contacts):
         """
@@ -2499,7 +2786,7 @@ class ContactGroup(TembaModel):
 
         self.query = parsed_query.as_text()
         self.status = ContactGroup.STATUS_INITIALIZING
-        self.save(update_fields=('query', 'status'))
+        self.save(update_fields=("query", "status"))
 
         # update the set of contact fields that this query depends on
         self.query_fields.clear()
@@ -2514,58 +2801,118 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates the contacts in a dynamic group
         """
-        if self.status == ContactGroup.STATUS_EVALUATING:
-            raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        self.status = ContactGroup.STATUS_EVALUATING
-        self.save(update_fields=('status',))
+        lock_key = ContactGroup.REEVALUATE_LOCK_KEY % self.id
+        lock_timeout = 3600
 
-        new_members, _ = self._get_dynamic_members()
-        new_member_ids = {c.id for c in new_members}
-        existing_member_ids = set(self.contacts.values_list('id', flat=True))
-        to_add = [c for c in new_members if c.id not in existing_member_ids]
-        to_remove = [c for c in self.contacts.only('id') if c.id not in new_member_ids]
+        with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=lock_timeout) as lock:
+            lock.exit_if_not_locked()
 
-        self.contacts.add(*to_add)
-        self.contacts.remove(*to_remove)
+            if self.status == ContactGroup.STATUS_EVALUATING:
+                raise ValueError("Cannot re-evaluate a group which is currently re-evaluating")
 
-        for changed_contact in itertools.chain(to_add + to_remove):
-            changed_contact.handle_update(group=self)
+            self.status = ContactGroup.STATUS_EVALUATING
+            self.save(update_fields=("status",))
 
-        self.status = ContactGroup.STATUS_READY
-        self.save(update_fields=('status',))
+            new_group_members = set(self._get_dynamic_members())
+            existing_member_ids = set(self.contacts.values_list("id", flat=True))
 
-    def _get_dynamic_members(self, base_set=None, is_new=False):
+            to_add_ids = new_group_members.difference(existing_member_ids)
+            to_remove_ids = existing_member_ids.difference(new_group_members)
+
+            # add new contacts to the group
+            for members_chunk in chunk_list(to_add_ids, 1000):
+                to_add = Contact.objects.filter(id__in=members_chunk)
+
+                self.contacts.add(*to_add)
+
+                for changed_contact in to_add:
+                    changed_contact.handle_update(group=self)
+
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=("modified_on",))
+
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
+
+            # remove contacts from the group that are not in the search
+            for members_chunk in chunk_list(to_remove_ids, 1000):
+                to_remove = Contact.objects.filter(id__in=members_chunk)
+
+                self.contacts.remove(*to_remove)
+
+                for changed_contact in to_remove:
+                    changed_contact.handle_update(group=self)
+
+                # update group updated_at
+                self.modified_on = datetime.datetime.now()
+                self.save(update_fields=("modified_on",))
+
+                # extend the lock
+                lock.extend(additional_time=lock_timeout)
+
+            self.status = ContactGroup.STATUS_READY
+            self.save(update_fields=("status", "modified_on"))
+
+    def _get_dynamic_members(self):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
-        from .search import SearchException
-
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
+        from .search import contact_es_search, SearchException, evaluate_query
+        from temba.utils.es import ES, ModelESSearch
+
+        # get the modified_on of the last synced contact
+        last_synced_contact_search = (
+            ModelESSearch(model=Contact, index="contacts")
+            .params(size=1, routing=self.org.id)
+            .sort("-modified_on_mu")
+            .source(include=["modified_on"])
+            .using(ES)
+            .execute()
+        )
+
+        if len(last_synced_contact_search.hits):
+            last_modifed_on = str_to_datetime(last_synced_contact_search.hits[0].modified_on, tz=timezone.utc)
+        else:
+            # there are no contacts for this org in the ES index
+            last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
+
+        # search the ES
         try:
-            qs, parsed = Contact.search(self.org, self.query, base_set=base_set)
+            search_object, _ = contact_es_search(self.org, self.query, None)
 
-            # if a contact has just been created than apply special contact search rules
-            if is_new:
-                if parsed.has_is_not_set_condition() or parsed.has_urn_condition():
-                    return qs, parsed
-                else:
-                    return Contact.objects.none(), None
-            else:
-                return qs, parsed
-        except SearchException:  # pragma: no cover
-            return Contact.objects.none(), None
+            es_search = search_object.source(include=["id"]).using(ES).scan()
+            contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
+        except SearchException:
+            logger.exception("Error evaluating query", exc_info=True)
+            raise  # reraise the exception
 
-    @time_monitor(threshold=10000)
-    def _check_dynamic_membership(self, contact, is_new=False):
-        """
-        For dynamic groups, determines whether the given contact belongs in the group
-        """
+        # search the database for any new contacts that have been modified after the modified_on
+        db_contacts = Contact.objects.filter(
+            org_id=self.org.id,
+            modified_on__gt=last_modifed_on,
+            is_test=False,
+            is_active=True,
+            is_blocked=False,
+            is_stopped=False,
+        )
 
-        qs, _ = self._get_dynamic_members(base_set=[contact], is_new=is_new)
-        return qs.exists()
+        # check if contacts are members of the new group
+        for contact in db_contacts:
+            should_add = evaluate_query(self.org, self.query, contact_json=contact.as_search_json())
+
+            if should_add is True:
+                contact_ids.add(contact.id)
+
+        db_contacts_count = db_contacts.count()
+        if db_contacts_count > 1000:  # pragma: no cover
+            logger.error("Dynamic group manually evaluating more contacts than expected %s > 1000", db_contacts_count)
+
+        return contact_ids
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
@@ -2591,13 +2938,16 @@ class ContactGroup(TembaModel):
         self.is_active = False
         self.save()
         self.contacts.clear()
+        self.counts.all().delete()
 
         # delete any event fires related to our group
         from temba.campaigns.models import EventFire
+
         EventFire.objects.filter(event__campaign__group=self, fired=None).delete()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
+
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
     @property
@@ -2612,15 +2962,15 @@ class ContactGroup(TembaModel):
         return self.name
 
 
-@six.python_2_unicode_compatible
 class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
     by a recurring task.
     """
-    SQUASH_OVER = ('group_id',)
 
-    group = models.ForeignKey(ContactGroup, related_name='counts', db_index=True)
+    SQUASH_OVER = ("group_id",)
+
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -2631,7 +2981,9 @@ class ContactGroupCount(SquashableModel):
         )
         INSERT INTO %(table)s("group_id", "count", "is_squashed")
         VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {'table': cls._meta.db_table}
+        """ % {
+            "table": cls._meta.db_table
+        }
 
         return sql, (distinct_set.group_id,) * 2
 
@@ -2641,8 +2993,8 @@ class ContactGroupCount(SquashableModel):
         Gets total counts for all the given groups
         """
         counts = cls.objects.filter(group__in=groups)
-        counts = counts.values('group').order_by('group').annotate(count_sum=Sum('count'))
-        counts_by_group_id = {c['group']: c['count_sum'] for c in counts}
+        counts = counts.values("group").order_by("group").annotate(count_sum=Sum("count"))
+        counts_by_group_id = {c["group"]: c["count_sum"] for c in counts}
         return {g: counts_by_group_id.get(g.id, 0) for g in groups}
 
     @classmethod
@@ -2651,7 +3003,7 @@ class ContactGroupCount(SquashableModel):
         ContactGroupCount.objects.filter(group=group).delete()
 
         # get test contacts on this org
-        test_contacts = Contact.objects.filter(org=group.org, is_test=True).values('id')
+        test_contacts = Contact.objects.filter(org=group.org, is_test=True).values("id")
 
         # calculate our count for the group
         count = group.contacts.all().exclude(id__in=test_contacts).count()
@@ -2664,34 +3016,52 @@ class ContactGroupCount(SquashableModel):
 
 
 class ExportContactsTask(BaseExportTask):
-    analytics_key = 'contact_export'
+    analytics_key = "contact_export"
     email_subject = "Your contacts export is ready"
-    email_template = 'contacts/email/contacts_export_download'
+    email_template = "contacts/email/contacts_export_download"
 
-    group = models.ForeignKey(ContactGroup, null=True, related_name='exports',
-                              help_text=_("The unique group to export"))
+    group = models.ForeignKey(
+        ContactGroup,
+        on_delete=models.PROTECT,
+        null=True,
+        related_name="exports",
+        help_text=_("The unique group to export"),
+    )
+
+    group_memberships = models.ManyToManyField(ContactGroup)
+
     search = models.TextField(null=True, blank=True, help_text=_("The search query"))
 
     @classmethod
-    def create(cls, org, user, group=None, search=None):
-        return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
+    def create(cls, org, user, group=None, search=None, group_memberships=()):
+        export = cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
+        export.group_memberships.add(*group_memberships)
+        return export
 
     def get_export_fields_and_schemes(self):
         fields = [
-            dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
-            dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None),
-            dict(label='Language', key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None)
+            dict(label="Contact UUID", key=Contact.UUID, id=0, field=None, urn_scheme=None),
+            dict(label="Name", key=Contact.NAME, id=0, field=None, urn_scheme=None),
+            dict(label="Language", key=Contact.LANGUAGE, id=0, field=None, urn_scheme=None),
+            dict(label="Created On", key=Contact.CREATED_ON, id=0, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label='ID', key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
+            fields = [dict(label="ID", key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
             active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
 
-            scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
+            scheme_counts = {
+                scheme: ContactURN.objects.filter(org=self.org, scheme=scheme)
+                .exclude(contact=None)
+                .values("contact")
+                .annotate(count=Count("contact"))
+                .aggregate(Max("count"))["count__max"]
+                for scheme in active_urn_schemes
+            }
 
             schemes = list(scheme_counts.keys())
             schemes.sort()
@@ -2700,34 +3070,53 @@ class ExportContactsTask(BaseExportTask):
                 count = scheme_counts[scheme]
                 if count is not None:
                     for i in range(count):
-                        field_dict = ContactURN.EXPORT_FIELDS[scheme].copy()
-                        field_dict['position'] = i
+                        field_dict = dict(
+                            label=f"URN:{scheme.capitalize()}", key=None, id=0, field=None, urn_scheme=scheme
+                        )
+                        field_dict["position"] = i
                         fields.append(field_dict)
 
-        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+        contact_fields_list = (
+            ContactField.objects.filter(org=self.org, is_active=True).select_related("org").order_by("-priority", "pk")
+        )
         for contact_field in contact_fields_list:
-            fields.append(dict(field=contact_field,
-                               label=contact_field.label,
-                               key=contact_field.key,
-                               id=contact_field.id,
-                               urn_scheme=None))
+            fields.append(
+                dict(
+                    field=contact_field,
+                    label="Field:%s" % contact_field.label,
+                    key=contact_field.key,
+                    id=contact_field.id,
+                    urn_scheme=None,
+                )
+            )
 
-        return fields, scheme_counts
+        group_fields = []
+        for group in self.group_memberships.all():
+            group_fields.append(dict(label="Group:%s" % group.name, key=None, group_id=group.id, group=group))
+
+        return fields, scheme_counts, group_fields
 
     def write_export(self):
-        fields, scheme_counts = self.get_export_fields_and_schemes()
+        from .search import contact_es_search
+        from temba.utils.es import ES
+
+        fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
+        include_group_memberships = bool(self.group_memberships.exists())
+
         if self.search:
-            contacts, _ = Contact.search(self.org, self.search, group)
+            search_object, _ = contact_es_search(self.org, self.search, group)
+
+            es_search = search_object.source(include=["id"]).using(ES).scan()
+            contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
         else:
             contacts = group.contacts.all()
-
-        contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
+            contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
+        exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])
 
         current_contact = 0
         start = time.time()
@@ -2735,7 +3124,9 @@ class ExportContactsTask(BaseExportTask):
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
             # fetch all the contacts for our batch
-            batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+            batch_contacts = (
+                Contact.objects.filter(id__in=batch_ids).prefetch_related("all_groups").select_related("org")
+            )
 
             # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
             contact_by_id = {c.id: c for c in batch_contacts}
@@ -2747,43 +3138,51 @@ class ExportContactsTask(BaseExportTask):
                 contact = contact_by_id[contact_id]
 
                 values = []
+                group_values = []
                 for col in range(len(fields)):
                     field = fields[col]
 
-                    if field['key'] == Contact.NAME:
+                    if field["key"] == Contact.NAME:
                         field_value = contact.name
-                    elif field['key'] == Contact.UUID:
+                    elif field["key"] == Contact.UUID:
                         field_value = contact.uuid
-                    elif field['key'] == Contact.LANGUAGE:
+                    elif field["key"] == Contact.LANGUAGE:
                         field_value = contact.language
-                    elif field['key'] == Contact.ID:
-                        field_value = six.text_type(contact.id)
-                    elif field['urn_scheme'] is not None:
+                    elif field["key"] == Contact.CREATED_ON:
+                        field_value = contact.created_on
+                    elif field["key"] == Contact.ID:
+                        field_value = str(contact.id)
+                    elif field["urn_scheme"] is not None:
                         contact_urns = contact.get_urns()
                         scheme_urns = []
                         for urn in contact_urns:
-                            if urn.scheme == field['urn_scheme']:
+                            if urn.scheme == field["urn_scheme"]:
                                 scheme_urns.append(urn)
-                        position = field['position']
+                        position = field["position"]
                         if len(scheme_urns) > position:
                             urn_obj = scheme_urns[position]
-                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
+                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
                         else:
-                            field_value = ''
+                            field_value = ""
                     else:
-                        value = contact.get_field(field['key'])
-                        field_value = Contact.get_field_display_for_value(field['field'], value)
+                        field_value = contact.get_field_display(field["field"])
 
                     if field_value is None:
-                        field_value = ''
+                        field_value = ""
 
                     if field_value:
-                        field_value = six.text_type(clean_string(field_value))
+                        field_value = self.prepare_value(field_value)
 
                     values.append(field_value)
 
+                if include_group_memberships:
+                    contact_groups_ids = [g.id for g in contact.all_groups.all()]
+                    for col in range(len(group_fields)):
+                        field = group_fields[col]
+                        group_values.append(field["group_id"] in contact_groups_ids)
+
                 # write this contact's values
-                exporter.write_row(values)
+                exporter.write_row(values + group_values)
                 current_contact += 1
 
                 # output some status information every 10,000 contacts
@@ -2791,10 +3190,17 @@ class ExportContactsTask(BaseExportTask):
                     elapsed = time.time() - start
                     predicted = elapsed // (current_contact / len(contact_ids))
 
-                    print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                          (self.org.name, current_contact * 100 // len(contact_ids),
-                           "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                           time.time() - start, predicted))
+                    logger.info(
+                        "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
+                        % (
+                            self.org.name,
+                            current_contact * 100 // len(contact_ids),
+                            "{:,}".format(current_contact),
+                            "{:,}".format(len(contact_ids)),
+                            time.time() - start,
+                            predicted,
+                        )
+                    )
 
         return exporter.save_file()
 
@@ -2802,7 +3208,7 @@ class ExportContactsTask(BaseExportTask):
 @register_asset_store
 class ContactExportAssetStore(BaseExportAssetStore):
     model = ExportContactsTask
-    key = 'contact_export'
-    directory = 'contact_exports'
-    permission = 'contacts.contact_export'
-    extensions = ('xlsx', 'csv')
+    key = "contact_export"
+    directory = "contact_exports"
+    permission = "contacts.contact_export"
+    extensions = ("xlsx", "csv")

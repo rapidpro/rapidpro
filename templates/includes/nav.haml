@@ -42,14 +42,14 @@
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
       %li.nav-groups
-        %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+        %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
           .title
             -trans "users"
 
   -if request.user.is_superuser or perms.orgs.org_manage
     -if not user_org
       %li.nav-orgs
-        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=", class:"{% active request 'org' %}"}
+        %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
           .title
             -trans "orgs"
 
@@ -91,4 +91,4 @@
   .nav-alert
     %a{href:'{% url "orgs.org_home" %}'}
       .icon-warning
-      -trans "Your phone is having difficulty relaying messages"
+      -trans "Your phone is having difficulty relaying messages"            

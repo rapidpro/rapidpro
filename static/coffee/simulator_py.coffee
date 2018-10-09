@@ -109,6 +109,6 @@ window.updateResultsLegacy = (data) ->
 
   $(".btn.quick-reply").on "click", (event) ->
     payload = event.target.innerText
-    sendMessage(payload)
+    window.sendSimulationMessage(payload)
 
   window.updateActivity(data)

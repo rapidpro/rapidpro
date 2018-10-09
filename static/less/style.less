@@ -3,6 +3,11 @@
 @import "legacy";
 @import "formax";
 
+
+.btn-alert {
+  .btn-colored(@color-alert-error, @color-font-white);
+}
+
 .page-content {
   margin: 0 10px;
 }
@@ -188,4 +193,56 @@ td.created_on {
   margin-top: 5px;
   border: 1px solid @color-bg-lightgrey - #111;
   background: #fff;
+}
+
+// Policies
+.policy {
+  margin-top: 20px;
+  font-size: 12px;
+
+
+  h1, h2, h3, h4, h5, h6 {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 300;
+    margin-bottom: 16px;
+    color: @color-navbar;
+  }
+
+  h3 {
+
+  }
+
+  p {
+    letter-spacing: 0.10em;
+    line-height: 17px;
+  }
+
+  ul {
+    list-style-type: disc;
+    list-style-position: inside;
+  }
+
+  li {
+    list-style-type: inherit;
+  }
+}
+
+#addendum {
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 1px solid #e6e6e6;
+  font-size: 11px;
+  color: #999;
+
+  dt {
+    font-weight: 400;
+  }
 }

@@ -36,6 +36,7 @@ window.simStart = ->
     window.updateResults(results)
 
 window.sendUpdate = (postData) ->
+
   request = getRequest()
   request['session'] = window.session
   request['events'] = [{
@@ -73,10 +74,8 @@ window.updateResults = (data) ->
       else if event.type == "run_result_changed"
         slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
         window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
-      else if event.type == "contact_language_changed"
-        window.addMessage("Updated language to \"" + event.language + "\"", "log")
-      else if event.type == "contact_name_changed"
-        window.addMessage("Updated name to \"" + event.name + "\"", "log")
+      else if event.type == "contact_property_changed"
+        window.addMessage("Updated " + event.property + " to \"" + event.value + "\"", "log")
       else if event.type == "contact_field_changed"
         window.addMessage("Updated " + event.field.label + " to \"" + event.value + "\"", "log")
       else if event.type == "contact_group_added"

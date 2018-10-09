@@ -2822,7 +2822,7 @@ td.created_on .log-icon a {
 }
 #splash {
   margin-top: -30px;
-  background: url('/brands/rapidpro/splash.jpg') 0px 0px !important;
+  background: url('/sitestatic/brands/rapidpro/splash.jpg') 0px 0px !important;
   background-size: cover !important;
   width: 100%;
   height: 0px;
