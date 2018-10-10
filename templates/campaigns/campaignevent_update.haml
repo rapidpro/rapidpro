@@ -1,6 +1,6 @@
 -extends "smartmin/form.html"
 
--load smartmin temba
+-load smartmin temba i18n
 
 -block extra-script
   {{ block.super }}
@@ -160,8 +160,15 @@
 
     #flow-section {
       display:none;
-      margin-top:8px;
-      margin-bottom:10px;
+      padding-top:5px;
+    }
+
+    #schedule-section {
+      padding-top: 5px;
+    }
+
+    #event-flow-start-mode {
+      padding-top: 5px;
     }
 
     .schedule-label {
@@ -213,7 +220,7 @@
 
     #event-message-start-mode
       .start-mode-help
-        If the contact is already in a flow
+        - trans "If the contact is already active in a flow"
       -render_field 'message_start_mode'
 
   #flow-section
@@ -221,7 +228,7 @@
 
     #event-flow-start-mode
       .start-mode-help
-        If the contact is already in a flow    
+        -trans "If the contact is already active in a flow"
       -render_field 'flow_start_mode'
 
   #schedule-section
@@ -232,6 +239,6 @@
 
   #send-at.hide
     .delivered
-      Delivered
+      -trans "Delivered"
     -render_field 'delivery_hour'
 
