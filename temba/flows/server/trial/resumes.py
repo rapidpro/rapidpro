@@ -262,6 +262,7 @@ def serialize_run(run):
         "uuid": str(run.uuid),
         "status": "completed" if run.exited_on else "active",
         "created_on": run.created_on.isoformat(),
+        "modified_on": run.modified_on.isoformat(),
         "exited_on": run.exited_on.isoformat() if run.exited_on else None,
         "expires_on": run.expires_on.isoformat() if run.expires_on else None,
         "flow": {"uuid": str(run.flow.uuid), "name": run.flow.name},

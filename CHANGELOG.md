@@ -1,3 +1,13 @@
+v4.9.2
+----------
+ * Fix flowserver resume tests by including modified_on on runs sent to goflow
+
+v4.9.1
+----------
+ * Dont set preferred channels if they can't send or call
+ * Don't assume events from goflow have step_uuid
+ * Add indexes for flow node and category count squashing
+
 v4.9.0
 ----------
  * Delete event fires in bulk for inactive events
