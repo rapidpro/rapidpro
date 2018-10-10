@@ -53,7 +53,9 @@ from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
+from temba.utils.es import ES
 from temba.utils.expressions import get_function_listing
+from temba.utils.models import mapEStoDB
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
 
@@ -1337,7 +1339,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             org = self.derive_org()
 
-            context["rulesets"] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by("y"))
+            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
             for ruleset in context["rulesets"]:
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
@@ -1349,19 +1351,16 @@ class FlowCRUDL(SmartCRUDL):
             contact_ids = []
             if query:
                 query = query.strip()
-                contact_ids = list(
-                    Contact.objects.filter(org=flow.org, name__icontains=query)
-                    .exclude(id__in=test_contacts)
-                    .values_list("id", flat=True)
-                )
-                query = query.replace("-", "")
-                contact_ids += list(
-                    ContactURN.objects.filter(org=flow.org, path__icontains=query)
-                    .exclude(contact__in=test_contacts)
-                    .order_by("contact__id")
-                    .distinct("contact__id")
-                    .values_list("contact__id", flat=True)
-                )
+                from temba.contacts.search import contact_es_search, SearchException
+
+                # query elastic search for contact ids based on name or telephone
+                try:
+                    search_object, _ = contact_es_search(org, f"name ~ {query} OR tel ~ {query}")
+                    es_search = search_object.source(include=["id"]).using(ES).scan()
+                    contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
+                except SearchException:
+                    pass
+
                 runs = runs.filter(contact__in=contact_ids)
 
             # paginate
@@ -1419,7 +1418,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            context["rulesets"] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by("y"))
+            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
             for ruleset in context["rulesets"]:
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
