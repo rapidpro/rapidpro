@@ -566,6 +566,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
+            flow_server_enabled=org.flow_server_enabled,
             **kwargs,
         )
 
