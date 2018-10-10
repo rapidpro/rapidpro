@@ -1,3 +1,7 @@
+v4.9.2
+----------
+ * Fix flowserver resume tests by including modified_on on runs sent to goflow
+
 v4.9.1
 ----------
  * Dont set preferred channels if they can't send or call
