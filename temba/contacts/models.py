@@ -22,6 +22,7 @@ from django.db import IntegrityError, connection, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from django.contrib.auth.models import User
 
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
