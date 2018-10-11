@@ -354,11 +354,12 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session["runs"]:
-            run_events = [
-                e
-                for e in output.events
-                if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run["uuid"]
-            ]
+            run_events = []
+            for e in output.events:
+                step_uuid = e.get(FlowRun.EVENT_STEP_UUID)
+                if step_uuid and step_to_run[step_uuid] == run["uuid"]:
+                    run_events.append(e)
+
             wait = output.session["wait"] if run["status"] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
