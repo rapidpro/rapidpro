@@ -180,6 +180,9 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    # only set by mailroom managed sessions
+    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
+
     current_flow = models.ForeignKey(
         "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
     )
