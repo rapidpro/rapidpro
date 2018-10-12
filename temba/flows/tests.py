@@ -6884,7 +6884,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(2, counts[0]["total"])
 
             # test a search on our runs
-            with patch.object(Contact, "search_for_contact_ids", return_value=[pete.id]):
+            with patch.object(Contact, "query_elasticsearch_for_ids", return_value=[pete.id]):
                 response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
                 self.assertEqual(len(response.context["runs"]), 1)
                 self.assertContains(response, "Pete")
