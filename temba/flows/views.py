@@ -53,9 +53,7 @@ from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
-from temba.utils.es import ES
 from temba.utils.expressions import get_function_listing
-from temba.utils.models import mapEStoDB
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
 
@@ -1350,17 +1348,14 @@ class FlowCRUDL(SmartCRUDL):
             query = self.request.GET.get("q", None)
             contact_ids = []
             if query:
-                query = query.strip()
-                from temba.contacts.search import contact_es_search, SearchException
-
-                # query elastic search for contact ids based on name or telephone
                 try:
-                    search_object, _ = contact_es_search(org, f"name ~ {query} OR tel ~ {query}")
-                    es_search = search_object.source(include=["id"]).using(ES).scan()
-                    contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
-                except SearchException:
+                    # search for contact ids based on name or telephone
+                    query = query.strip()
+                    query = f"name ~ {query} OR tel ~ {query}"
+                    contact_ids = Contact.query_elasticsearch_for_ids(org, query)
+                except:
+                    # if we cant parse it, then no matches
                     pass
-
                 runs = runs.filter(contact__in=contact_ids)
 
             # paginate

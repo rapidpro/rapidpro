@@ -6869,24 +6869,6 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, "green", contact=kobe)
             self.send_message(favorites, "skol", contact=kobe)
 
-            import subprocess
-
-            db_config = settings.DATABASES["default"]
-            database_url = (
-                f"postgres://{db_config['USER']}:{db_config['PASSWORD']}@{db_config['HOST']}:{db_config['PORT']}/"
-                f"{db_config['NAME']}?sslmode=disable"
-            )
-
-            result = subprocess.run(
-                ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-            # give ES some time to publish the results
-            time.sleep(5)
-
             self.login(self.admin)
             response = self.client.get(reverse("flows.flow_results", args=[favorites.uuid]))
 
@@ -6902,15 +6884,11 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(2, counts[0]["total"])
 
             # test a search on our runs
-            response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Pete")
-            self.assertNotContains(response, "Jimmy")
-
-            response = self.client.get("%s?q=555-3026" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Jimmy")
-            self.assertNotContains(response, "Pete")
+            with patch.object(Contact, "search_for_contact_ids", return_value=[pete.id]):
+                response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
+                self.assertEqual(len(response.context["runs"]), 1)
+                self.assertContains(response, "Pete")
+                self.assertNotContains(response, "Jimmy")
 
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]))

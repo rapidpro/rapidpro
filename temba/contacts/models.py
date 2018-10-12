@@ -735,6 +735,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return ", ".join(groups_name_list)
 
     @classmethod
+    def query_elasticsearch_for_ids(cls, org, query, group=None):
+        from .search import contact_es_search, SearchException
+        from temba.utils.es import ES
+
+        try:
+            search_object, _ = contact_es_search(org, query, group)
+            es_search = search_object.source(include=["id"]).using(ES).scan()
+            return set(mapEStoDB(Contact, es_search, only_ids=True))
+        except SearchException:
+            logger.exception("Error evaluating query", exc_info=True)
+            raise  # reraise the exception
+
+    @classmethod
     def set_simulation(cls, simulation):
         cls.simulation = simulation
 
@@ -2984,7 +2997,7 @@ class ContactGroup(TembaModel):
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        from .search import contact_es_search, SearchException, evaluate_query
+        from .search import evaluate_query
         from temba.utils.es import ES, ModelESSearch
 
         # get the modified_on of the last synced contact
@@ -3003,15 +3016,8 @@ class ContactGroup(TembaModel):
             # there are no contacts for this org in the ES index
             last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
 
-        # search the ES
-        try:
-            search_object, _ = contact_es_search(self.org, self.query, None)
-
-            es_search = search_object.source(include=["id"]).using(ES).scan()
-            contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
-        except SearchException:
-            logger.exception("Error evaluating query", exc_info=True)
-            raise  # reraise the exception
+        # search ES
+        contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.query)
 
         # search the database for any new contacts that have been modified after the modified_on
         db_contacts = Contact.objects.filter(
@@ -3239,9 +3245,6 @@ class ExportContactsTask(BaseExportTask):
         return fields, scheme_counts, group_fields
 
     def write_export(self):
-        from .search import contact_es_search
-        from temba.utils.es import ES
-
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
@@ -3249,10 +3252,7 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            search_object, _ = contact_es_search(self.org, self.search, group)
-
-            es_search = search_object.source(include=["id"]).using(ES).scan()
-            contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
+            contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.search, group)
         else:
             contacts = group.contacts.all()
             contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
