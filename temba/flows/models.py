@@ -29,6 +29,8 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
+from celery import current_app
+
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -2023,6 +2025,8 @@ class Flow(TembaModel):
     def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
 
+        there_are_calls_to_start = False
+
         runs = []
         channel = self.org.get_call_channel()
 
@@ -2057,7 +2061,7 @@ class Flow(TembaModel):
 
             if not parent_run or not parent_run.connection:
                 # trigger the call to start (in the background)
-                IVRCall.objects.get(id=call.id).start_call()
+                there_are_calls_to_start = True
 
             # no start msgs in call flows but we want the variable there
             run.start_msgs = []
@@ -2066,6 +2070,10 @@ class Flow(TembaModel):
 
         if flow_start:  # pragma: needs cover
             flow_start.update_status()
+
+        # eagerly enqueue calls
+        if there_are_calls_to_start:
+            current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
 
         return runs
 
