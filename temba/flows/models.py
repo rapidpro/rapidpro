@@ -29,6 +29,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelSession
@@ -77,7 +78,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server.trial import campaigns as trial_campaigns, resumes as trial_resumes
+from .server.trial import resumes as trial_resumes
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +180,13 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    # only set by mailroom managed sessions
+    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
+
+    current_flow = models.ForeignKey(
+        "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
+    )
+
     @classmethod
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
@@ -213,15 +221,13 @@ class FlowSession(models.Model):
                 # TODO find a way to run an assets server during testing?
                 request.include_all()
 
-            # only include message if it's a real message
-            if msg_in and msg_in.created_on:
-                request.add_msg_received(msg_in)
-
             try:
                 if parent_run_summary:
                     output = request.start_by_flow_action(contact, flow, parent_run_summary)
                 elif campaign_event:
                     output = request.start_by_campaign(contact, flow, campaign_event)
+                elif msg_in and msg_in.created_on:
+                    output = request.start_by_msg(contact, flow, msg_in)
                 else:
                     output = request.start_manual(contact, flow, params)
 
@@ -230,6 +236,16 @@ class FlowSession(models.Model):
 
             status = FlowSession.GOFLOW_STATUSES[output.session["status"]]
 
+            if status == FlowSession.STATUS_WAITING:
+                current_run = cls._find_waiting_run(output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=flow.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
+
             # create our session
             session = cls.objects.create(
                 org=contact.org,
@@ -237,7 +253,8 @@ class FlowSession(models.Model):
                 status=status,
                 output=output.session,
                 responded=bool(msg_in and msg_in.created_on),
-                ended_on=timezone.now() if status != FlowSession.STATUS_WAITING else None,
+                current_flow=current_flow,
+                ended_on=ended_on,
             )
 
             contact_runs = session.sync_runs(output, msg_in)
@@ -262,12 +279,7 @@ class FlowSession(models.Model):
         Resumes an existing flow session
         """
         # find the run that was waiting for input
-        waiting_run = None
-        for run in self.output["runs"]:
-            if run["status"] == "waiting":
-                waiting_run = run
-                break
-
+        waiting_run = self._find_waiting_run(self.output)
         if not waiting_run:  # pragma: no cover
             raise ValueError("Can't resume a session with no waiting run")
 
@@ -280,28 +292,36 @@ class FlowSession(models.Model):
             # TODO find a way to run an assets server during testing?
             request.include_all()
 
-        # only include message if it's a real message
-        if msg_in and msg_in.created_on:
-            request.add_msg_received(msg_in)
-        elif expired_run:  # pragma: needs cover
-            request.add_run_expired(expired_run)
-        elif timeout:
-            request.add_wait_timed_out()
-
-        # TODO determine if contact or environment has changed
-        request = request.add_contact_changed(self.contact)
-        # request = request.add_environment_changed()
-
         try:
-            new_output = request.resume(self.output)
+            # only resume by message if it's a real message
+            if msg_in and msg_in.created_on:
+                new_output = request.resume_by_msg(self.output, msg_in, contact=self.contact)
+            elif expired_run:  # pragma: needs cover
+                new_output = request.resume_by_run_expiration(self.output, expired_run, contact=self.contact)
+            elif timeout:
+                new_output = request.resume_by_wait_timeout(self.output, contact=self.contact)
+            else:  # pragma: needs cover
+                raise ValueError("need something to resume session with")
+
             status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
+
+            if status == FlowSession.STATUS_WAITING:
+                current_run = self._find_waiting_run(new_output.session)
+                current_flow_uuid = current_run["flow"]["uuid"]
+
+                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=self.org)
+                ended_on = None
+            else:
+                current_flow = None
+                ended_on = timezone.now()
 
             # update our output
             self.output = new_output.session
             self.responded = bool(msg_in and msg_in.created_on)
             self.status = status
-            self.ended_on = timezone.now() if status != FlowSession.STATUS_WAITING else None
-            self.save(update_fields=("output", "responded", "status", "ended_on"))
+            self.current_flow = current_flow
+            self.ended_on = ended_on
+            self.save(update_fields=("output", "responded", "status", "current_flow", "ended_on"))
 
             # update our session
             self.sync_runs(new_output, msg_in, waiting_run)
@@ -337,11 +357,12 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session["runs"]:
-            run_events = [
-                e
-                for e in output.events
-                if e[FlowRun.EVENT_STEP_UUID] and step_to_run[e[FlowRun.EVENT_STEP_UUID]] == run["uuid"]
-            ]
+            run_events = []
+            for e in output.events:
+                step_uuid = e.get(FlowRun.EVENT_STEP_UUID)
+                if step_uuid and step_to_run[step_uuid] == run["uuid"]:
+                    run_events.append(e)
+
             wait = output.session["wait"] if run["status"] == "waiting" else None
 
             # currently outgoing messages can only have response_to set if sent from same run
@@ -364,6 +385,13 @@ class FlowSession(models.Model):
             self.org.trigger_send(msgs_to_send)
 
         return runs
+
+    @staticmethod
+    def _find_waiting_run(output):
+        for run in output.get("runs", []):
+            if run["status"] == "waiting":
+                return run
+        return None  # pragma: no cover
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
@@ -542,6 +570,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
+            flow_server_enabled=org.flow_server_enabled,
             **kwargs,
         )
 
@@ -774,9 +803,13 @@ class Flow(TembaModel):
             return None
 
         if destination_type == Flow.NODE_TYPE_RULESET:
-            return RuleSet.get(flow, uuid)
+            node = RuleSet.get(flow, uuid)
         else:
-            return ActionSet.get(flow, uuid)
+            node = ActionSet.get(flow, uuid)
+
+        if node:
+            node.flow = flow
+        return node
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
@@ -1266,7 +1299,7 @@ class Flow(TembaModel):
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
-        ruleset.save_run_value(run, result_rule, result_value, result_input)
+        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
 
         # output the new value if in the simulator
         if run.contact.is_test:
@@ -1529,7 +1562,7 @@ class Flow(TembaModel):
         """
         return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
 
-    def get_localized_text(self, text_translations, contact=None, default_text=""):
+    def get_localized_text(self, text_translations, contact=None):
         """
         Given a language dict and a preferred language, return the best possible text match
         :param text_translations: The text in all supported languages, or string (which will just return immediately)
@@ -1554,7 +1587,7 @@ class Flow(TembaModel):
 
         preferred_languages.append(self.base_language)
 
-        return Language.get_localized_text(text_translations, preferred_languages, default_text)
+        return Language.get_localized_text(text_translations, preferred_languages)
 
     def import_definition(self, flow_json):
         """
@@ -1776,7 +1809,10 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
+        if self.flow_server_enabled:
+            on_transaction_commit(lambda: flow_start.start_in_mailroom())
+        else:
+            on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(
         self,
@@ -2097,14 +2133,7 @@ class Flow(TembaModel):
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-
-            # if this is a campaign event flow to one contact, let's trial it in the flowserver
-            if self.is_system and len(all_contact_ids) == 1:
-                trial = trial_campaigns.maybe_start(self, all_contact_ids[0], campaign_event)
-            else:
-                trial = None
-
-            runs = self.start_msg_flow_batch(
+            return self.start_msg_flow_batch(
                 all_contact_ids,
                 broadcasts=broadcasts,
                 started_flows=started_flows,
@@ -2114,11 +2143,6 @@ class Flow(TembaModel):
                 parent_run=parent_run,
                 parent_context=parent_context,
             )
-
-            if trial and len(runs) == 1:
-                trial_campaigns.end(trial, runs[0])
-
-            return runs
 
         # otherwise, create batches instead
         else:
@@ -3764,7 +3788,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
                     if rule:
                         ruleset_obj = RuleSet(uuid=node_uuid, label=node_json.get("label"))
-                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input)
+                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input, org=self.org)
                 else:
                     self.path.append(
                         {
@@ -4830,12 +4854,15 @@ class RuleSet(models.Model):
                 return rule, value
         return None, None
 
-    def save_run_value(self, run, rule, raw_value, raw_input):
+    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
+        org = org or self.flow.org
+        contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
+
         run.save_run_result(
             name=self.label,
             node_uuid=self.uuid,
             category=rule.get_category_name(run.flow.base_language),
-            category_localized=rule.get_category_name(run.flow.base_language, run.contact.language),
+            category_localized=rule.get_category_name(run.flow.base_language, contact_language),
             raw_value=raw_value,
             raw_input=raw_input,
         )
@@ -5651,7 +5678,11 @@ class ExportFlowResultsTask(BaseExportTask):
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
             # get this run's results by node UUID
-            results_by_node = {result["node"]: result for result in run["values"].values()}
+            run_values = run["values"]
+            if isinstance(run_values, list):
+                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+            else:
+                results_by_node = {result["node"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [
@@ -5949,6 +5980,28 @@ class FlowStart(SmartModel):
         if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=["status"])
+
+    def start_in_mailroom(self):
+        """
+        Starts this flow start in mailroom
+        """
+        org_id = self.flow.org_id
+
+        # build our task
+        task = dict(
+            start_id=self.id,
+            org_id=org_id,
+            flow_id=self.flow_id,
+            group_ids=[g.id for g in self.groups.all()],
+            contact_ids=[c.id for c in self.contacts.all()],
+            restart_participants=self.restart_participants,
+            include_active=self.include_active,
+        )
+
+        # queue to mailroom
+        mailroom.queue_mailroom_task(
+            org_id, mailroom.BATCH_QUEUE, mailroom.START_FLOW_TASK, task, mailroom.HIGH_PRIORITY
+        )
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
@@ -6651,9 +6704,8 @@ class ReplyAction(Action):
         Gets the appropriate metadata translation for the given contact
         """
         language_metadata = []
-        preferred_languages = [run.contact.language, run.flow.base_language]
         for item in metadata:
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
+            text = run.flow.get_localized_text(text_translations=item, contact=run.contact)
             language_metadata.append(text)
 
         return language_metadata

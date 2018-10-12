@@ -28,21 +28,24 @@ def check_campaigns_task():
 
     unfired = EventFire.objects.filter(
         fired=None, scheduled__lte=timezone.now(), event__flow__flow_server_enabled=False
-    )
-    unfired = unfired.values("id", "event__flow_id")
+    ).select_related("event")
+    unfired = unfired.values("id", "event_id", "event__flow_id")
 
-    # group fire events by flow so they can be batched
-    fire_ids_by_flow_id = defaultdict(list)
+    # group fire events by event so they can be batched
+    fire_ids_by_event_id = defaultdict(list)
+    event_flow_map = dict()
     for fire in unfired:
-        fire_ids_by_flow_id[fire["event__flow_id"]].append(fire["id"])
+        event_flow_map[fire["event_id"]] = fire["event__flow_id"]
+        fire_ids_by_event_id[fire["event_id"]].append(fire["id"])
 
     # fetch the flows used by all these event fires
-    flows_by_id = {flow.id: flow for flow in Flow.objects.filter(id__in=fire_ids_by_flow_id.keys())}
+    flows_by_id = {flow.id: flow for flow in Flow.objects.filter(id__in=event_flow_map.values())}
 
     queued_fires = QueueRecord("queued_event_fires")
 
     # create queued tasks
-    for flow_id, fire_ids in fire_ids_by_flow_id.items():
+    for ev_id, fire_ids in fire_ids_by_event_id.items():
+        flow_id = event_flow_map[ev_id]
         flow = flows_by_id[flow_id]
 
         # create sub-batches no no single task is too big
@@ -63,8 +66,8 @@ def check_campaigns_task():
                     logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
-@task(track_started=True, name="update_event_fires_task")  # pragma: no cover
-def update_event_fires(event_id):
+@task(track_started=True, name="create_event_fires_task")  # pragma: no cover
+def create_event_fires(event_id):
 
     # get a lock
     r = get_redis_connection()
@@ -76,11 +79,11 @@ def update_event_fires(event_id):
             with transaction.atomic():
                 event = CampaignEvent.objects.filter(pk=event_id).first()
                 if event:
-                    EventFire.do_update_eventfires_for_event(event)
+                    EventFire.do_create_eventfires_for_event(event)
 
         except Exception as e:  # pragma: no cover
             # requeue our task to try again in five minutes
-            update_event_fires(event_id).delay(countdown=60 * 5)
+            create_event_fires(event_id).delay(countdown=60 * 5)
 
             # bubble up the exception so sentry sees it
             raise e

@@ -1,3 +1,44 @@
+v4.9.2
+----------
+ * Fix flowserver resume tests by including modified_on on runs sent to goflow
+
+v4.9.1
+----------
+ * Dont set preferred channels if they can't send or call
+ * Don't assume events from goflow have step_uuid
+ * Add indexes for flow node and category count squashing
+
+v4.9.0
+----------
+ * Delete event fires in bulk for inactive events
+ * Fix using contact language for categories when it's not a valid org language
+ * Fix translation of quick replies
+ * Add FlowSession.current_flow and start populating
+ * Refresh contacts list page after managing fields
+ * Update to latest goflow (no more caller events, resumes, etc)
+ * Fix flow results export to read old archive format
+ * Batch event fires by event ID and not by flow ID
+ * Make campaign events immutable
+
+v4.8.1
+----------
+ * Add novo channel
+
+v4.8.0
+----------
+ * Remove trialing of campaign events
+ * Remove no longer used ruleset_analytis.haml
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+ * Optimize group releases
+ * Add created_on/ended_on to FlowSession
+
+v4.7.0
+----------
+ * Bump Smartmin and Django versions
+ * Expose @contact.created_on in expressions
+ * Make Contact.modified_by nullable and stop writing to it
+
 v4.6.0
 ----------
  * Latest goflow
