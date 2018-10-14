@@ -78,6 +78,7 @@ def serialize_contact(contact):
         "urns": urn_values,
         "groups": [serialize_ref(group) for group in contact.user_groups.filter(is_active=True)],
         "fields": field_values,
+        "created_on": contact.created_on.isoformat(),
     }
 
 
