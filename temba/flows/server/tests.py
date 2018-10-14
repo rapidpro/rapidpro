@@ -166,6 +166,7 @@ class ClientTest(TembaTest):
                             "urns": ["twitterid:123456785?channel=%s#bobby" % str(twitter.uuid), "tel:+12345670987"],
                             "fields": {"gender": {"text": "M"}, "age": {"text": "36", "number": "36"}},
                             "groups": [{"uuid": str(self.testers.uuid), "name": "Testers"}],
+                            "created_on": self.contact.created_on.isoformat(),
                         },
                         "msg": {
                             "uuid": str(msg.uuid),
