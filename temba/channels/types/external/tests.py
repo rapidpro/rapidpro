@@ -56,6 +56,7 @@ class ExternalTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "delivered"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "failed"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "receive"]))
+        self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "stopped"]))
 
         # test substitution in our url
         self.assertEqual(
