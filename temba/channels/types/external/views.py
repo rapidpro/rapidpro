@@ -87,6 +87,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"),
         )
 
+        response_content = forms.CharField(
+            max_length=2048,
+            label=_("Response content"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The content that must be in the response to consider the request succeded."),
+        )
+
     class SendClaimForm(ClaimViewMixin.Form):
         url = forms.URLField(
             max_length=1024,
@@ -158,6 +166,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         if "body" in data:
             config[Channel.CONFIG_SEND_BODY] = data["body"]
+
+        if "response_content" in data:
+            config[Channel.CONFIG_RESPONSE_CONTENT] = data["response_content"]
 
         self.object = Channel.add_config_external_channel(
             org, self.request.user, country, address, self.channel_type, config, role, [scheme], parent=channel
