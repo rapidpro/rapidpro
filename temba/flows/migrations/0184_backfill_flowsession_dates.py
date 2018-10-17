@@ -45,7 +45,7 @@ def backfill_flowsession_dates(apps, schema_editor):
 
                 session.created_on = created_on
                 session.ended_on = ended_on
-                session.update(update_fields=("created_on", "ended_on"))
+                session.save(update_fields=("created_on", "ended_on"))
 
         max_id = sessions[-1].id
         print(f" > Updated {num_updated} of {total_count} sessions")
