@@ -180,6 +180,9 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    # only set by mailroom managed sessions
+    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
+
     current_flow = models.ForeignKey(
         "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
     )
@@ -567,6 +570,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
+            flow_server_enabled=org.flow_server_enabled,
             **kwargs,
         )
 
@@ -3231,6 +3235,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
+
+    parent_uuid = models.UUIDField(null=True)
 
     child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
 
