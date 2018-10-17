@@ -53,6 +53,6 @@ def backfill_flowsession_dates(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0181_flowsession_timeout_on")]
+    dependencies = [("flows", "0183_run_timeout_index")]
 
     operations = [migrations.RunPython(backfill_flowsession_dates)]
