@@ -92,7 +92,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("Response content"),
             required=False,
             widget=forms.Textarea,
-            help_text=_("The content that must be in the response to consider the request succeded."),
+            help_text=_("The content that must be in the response to consider the request successful"),
         )
 
     class SendClaimForm(ClaimViewMixin.Form):
