@@ -3229,6 +3229,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
 
+    parent_uuid = models.UUIDField(null=True)
+
     child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
 
     results = JSONAsTextField(
