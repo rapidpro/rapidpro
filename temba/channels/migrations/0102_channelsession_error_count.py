@@ -12,9 +12,7 @@ class Migration(migrations.Migration):
             model_name="channelsession",
             name="error_count",
             field=models.IntegerField(
-                default=0,
-                help_text="The number of times this call has errored",
-                verbose_name="Error Count",
+                default=0, help_text="The number of times this call has errored", verbose_name="Error Count"
             ),
         )
     ]
