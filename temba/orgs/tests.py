@@ -3604,23 +3604,11 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
     def test_import_group_remapping(self):
-        def get_groups(definition):
-            groups = {}
-            for actionset in definition["action_sets"]:
-                for action in actionset["actions"]:
-                    for group in action.get("groups", []):
-                        groups[group["uuid"]] = group["name"]
-
-            for ruleset in definition["rule_sets"]:
-                for rule in ruleset.get("rules", []):
-                    if rule["test"]["type"] == "in_group":
-                        group = rule["test"]["test"]
-                        groups[group["uuid"]] = group["name"]
-            return groups
-
         self.import_file("cataclysm")
         flow = Flow.objects.get(name="Cataclysmic")
         rev = flow.revisions.all().first()
+
+        from temba.flows.tests import get_groups
 
         definition_groups = get_groups(rev.get_definition_json())
 

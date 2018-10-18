@@ -3,11 +3,12 @@ from uuid import uuid4
 
 import regex
 
-from temba.contacts.models import ContactField
+from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import (
     ContainsAnyTest,
     ContainsTest,
     Flow,
+    InGroupTest,
     RegexTest,
     ReplyAction,
     RuleSet,
@@ -18,6 +19,39 @@ from temba.flows.models import (
 from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_to_version_11_6(json_flow, flow=None):
+    """
+    Versions before 11.6 maintained uuid mismatches on imported flows. This updates
+    the flow definition with accurate group uuids
+    """
+
+    # this migration only matters for existing flows
+    if not flow:
+        return json_flow
+
+    # only look up group once per flow migration
+    uuid_map = {}
+
+    def remap_group(group):
+        if group["uuid"] not in uuid_map:
+            group_instance = ContactGroup.get_or_create(flow.org, flow.created_by, group["name"], group["uuid"])
+            uuid_map[group["uuid"]] = group_instance.uuid
+        group["uuid"] = uuid_map[group["uuid"]]
+
+    for actionset in json_flow[Flow.ACTION_SETS]:
+        for action in actionset[Flow.ACTIONS]:
+            for group in action.get("groups", []):
+                remap_group(group)
+
+    for ruleset in json_flow[Flow.RULE_SETS]:
+        for rule in ruleset.get(Flow.RULES, []):
+            if rule["test"]["type"] == InGroupTest.TYPE:
+                group = rule["test"]["test"]
+                remap_group(group)
+
+    return json_flow
 
 
 def migrate_to_version_11_5(json_flow, flow=None):

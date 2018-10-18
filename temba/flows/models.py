@@ -473,6 +473,7 @@ class Flow(TembaModel):
         "11.3",
         "11.4",
         "11.5",
+        "11.6",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -1623,10 +1624,19 @@ class Flow(TembaModel):
                 json[attribute] = new_uuid
 
         def remap_group(group):
-            if group["uuid"] not in uuid_map:
-                group_instance = ContactGroup.get_or_create(self.org, self.created_by, group["name"], group["uuid"])
-                uuid_map[group["uuid"]] = group_instance.uuid
-            remap_uuid(group, "uuid")
+            # groups can be single string expressions
+            if type(group) is dict:
+
+                if "uuid" not in group or group["uuid"] not in uuid_map:
+                    group_instance = ContactGroup.get_or_create(
+                        self.org, self.created_by, group["name"], group.get("uuid", None)
+                    )
+
+                    # group references only have a name
+                    if "uuid" in group:
+                        uuid_map[group["uuid"]] = group_instance.uuid
+
+                    group["uuid"] = group_instance.uuid
 
         remap_uuid(flow_json, "entry")
         for actionset in flow_json[Flow.ACTION_SETS]:
