@@ -1869,11 +1869,9 @@ class Flow(TembaModel):
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
         if not include_active:
-            # exclude anybody who has an active flow run and are not for system flow
+            # exclude anybody who has an active flow run
             already_active = set(
-                FlowRun.objects.filter(is_active=True, org=self.org)
-                .exclude(flow__is_system=True)
-                .values_list("contact_id", flat=True)
+                FlowRun.objects.filter(is_active=True, org=self.org).values_list("contact_id", flat=True)
             )
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
 
