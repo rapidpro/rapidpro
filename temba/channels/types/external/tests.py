@@ -32,6 +32,7 @@ class ExternalTypeTest(TembaTest):
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
         post_data["encoding"] = Channel.ENCODING_SMART
+        post_data["mt_response_check"] = "SENT"
 
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
@@ -45,6 +46,8 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
+        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
@@ -56,6 +59,7 @@ class ExternalTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "delivered"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "failed"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "receive"]))
+        self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "stopped"]))
 
         # test substitution in our url
         self.assertEqual(
