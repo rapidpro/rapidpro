@@ -194,14 +194,8 @@ class CampaignTest(TembaTest):
         # schedule our events to fire
         check_campaigns_task()
 
-        run2 = FlowRun.objects.filter(contact=self.farmer1).order_by("-created_on").first()
-        msg = run2.get_messages().get()
-        self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
-        self.assertEqual(run2.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-
-        # run1 should not have an exit type
-        run1.refresh_from_db()
-        self.assertIsNone(run1.exit_type)
+        # should have failed, can't run passive flows in old engine
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.farmer1).count())
 
     def test_message_event_start_mode_skip(self):
         # create a campaign with a message event 1 day after planting date
@@ -612,35 +606,10 @@ class CampaignTest(TembaTest):
             message_start_mode="P",
         )
         response = self.client.post(url, post_data)
-        self.assertEqual(302, response.status_code)
-        flow.refresh_from_db()
-
-        # we should retain 'base' as our base language
-        self.assertEqual("base", flow.base_language)
-
-        # now we can remove our primary language
-        self.org.primary_language = None
-        self.org.save()
-
-        # and still get the same settings, (it should use the base of the flow instead of just base here)
-        event = CampaignEvent.objects.all().order_by("-pk").first()
-        url = reverse("campaigns.campaignevent_update", args=[event.id])
-        response = self.client.get(url)
-        self.assertIn("base", response.context["form"].fields)
-        self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
-        self.assertEqual("", response.context["form"].fields["ace"].initial)
-
-        # our single message flow should have a dependency on planting_date
-        event.refresh_from_db()
-        self.assertEqual(1, event.flow.field_dependencies.all().count())
-        self.assertEqual("P", event.start_mode)
-
-        # delete the event
-        self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
-
-        # our single message flow should be released and take its dependencies with it
-        self.assertEqual(0, event.flow.field_dependencies.all().count())
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(
+            response, "form", "message_start_mode", ["Select a valid choice. P is not one of the available choices."]
+        )
 
     def test_views(self):
         # update the planting date for our contacts

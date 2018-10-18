@@ -1834,6 +1834,10 @@ class Flow(TembaModel):
         """
         from temba.campaigns.models import CampaignEvent
 
+        # old engine can't start flows in passive mode
+        if campaign_event and campaign_event.start_mode == CampaignEvent.MODE_PASSIVE:
+            raise Exception(f"Attempt to start flow {self.id} in passive mode")
+
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
@@ -1889,20 +1893,19 @@ class Flow(TembaModel):
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
-        if campaign_event is None or campaign_event.start_mode == CampaignEvent.MODE_INTERRUPT:
-            # for the contacts that will be started, exit any existing flow runs except system flow runs
-            for contact_batch in chunk_list(all_contact_ids, 1000):
-                active_runs = (
-                    FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch)
-                    .exclude(id__in=ancestor_ids)
-                    .exclude(flow__is_system=True)
-                )
-                FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        # for the contacts that will be started, exit any existing flow runs except system flow runs
+        for contact_batch in chunk_list(all_contact_ids, 1000):
+            active_runs = (
+                FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch)
+                .exclude(id__in=ancestor_ids)
+                .exclude(flow__is_system=True)
+            )
+            FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
-            # if we are interrupting parent flow runs, mark them as completed
-            if ancestor_ids and interrupt:
-                ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
-                FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
+        # if we are interrupting parent flow runs, mark them as completed
+        if ancestor_ids and interrupt:
+            ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
+            FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
         contact_count = len(all_contact_ids)
 
