@@ -1632,7 +1632,7 @@ class Flow(TembaModel):
                         self.org, self.created_by, group["name"], group.get("uuid", None)
                     )
 
-                    # group references only have a name
+                    # group references can have only a name
                     if "uuid" in group:
                         uuid_map[group["uuid"]] = group_instance.uuid
 

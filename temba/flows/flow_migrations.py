@@ -35,17 +35,24 @@ def migrate_to_version_11_6(json_flow, flow=None):
     uuid_map = {}
 
     def remap_group(group):
-        if group["uuid"] not in uuid_map:
-            group_instance = ContactGroup.get_or_create(flow.org, flow.created_by, group["name"], group["uuid"])
-            uuid_map[group["uuid"]] = group_instance.uuid
-        group["uuid"] = uuid_map[group["uuid"]]
+        if type(group) is dict:
+            if "uuid" not in group or group["uuid"] not in uuid_map:
+                group_instance = ContactGroup.get_or_create(
+                    flow.org, flow.created_by, group["name"], group.get("uuid", None)
+                )
 
-    for actionset in json_flow[Flow.ACTION_SETS]:
+                # group references can have only a name
+                if "uuid" in group:
+                    uuid_map[group["uuid"]] = group_instance.uuid
+
+                group["uuid"] = group_instance.uuid
+
+    for actionset in json_flow.get(Flow.ACTION_SETS, []):
         for action in actionset[Flow.ACTIONS]:
             for group in action.get("groups", []):
                 remap_group(group)
 
-    for ruleset in json_flow[Flow.RULE_SETS]:
+    for ruleset in json_flow.get(Flow.RULE_SETS, []):
         for rule in ruleset.get(Flow.RULES, []):
             if rule["test"]["type"] == InGroupTest.TYPE:
                 group = rule["test"]["test"]
