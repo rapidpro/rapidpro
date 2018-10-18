@@ -1,3 +1,8 @@
+v4.10.1
+----------
+ * Add config to specify content that should be present in the response of the request, if not mark that as msg failed
+ * Allow campaign events to be skipped if contacts already active in flows
+
 v4.10.0
 ----------
  * Add FlowRun.parent_uuid
