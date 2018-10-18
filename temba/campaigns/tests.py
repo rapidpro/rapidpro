@@ -603,13 +603,36 @@ class CampaignTest(TembaTest):
             unit="W",
             flow_to_start="",
             delivery_hour=13,
-            message_start_mode="P",
         )
         response = self.client.post(url, post_data)
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(
-            response, "form", "message_start_mode", ["Select a valid choice. P is not one of the available choices."]
-        )
+        self.assertEqual(302, response.status_code)
+        flow.refresh_from_db()
+
+        # we should retain 'base' as our base language
+        self.assertEqual("base", flow.base_language)
+
+        # now we can remove our primary language
+        self.org.primary_language = None
+        self.org.save()
+
+        # and still get the same settings, (it should use the base of the flow instead of just base here)
+        event = CampaignEvent.objects.all().order_by("-pk").first()
+        url = reverse("campaigns.campaignevent_update", args=[event.id])
+        response = self.client.get(url)
+        self.assertIn("base", response.context["form"].fields)
+        self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
+        self.assertEqual("", response.context["form"].fields["ace"].initial)
+
+        # our single message flow should have a dependency on planting_date
+        event.flow.refresh_from_db()
+        self.assertEqual(1, event.flow.field_dependencies.all().count())
+
+        # delete the event
+        self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
+
+        # our single message flow should be released and take its dependencies with it
+        self.assertEqual(0, event.flow.field_dependencies.all().count())
 
     def test_views(self):
         # update the planting date for our contacts
