@@ -2299,9 +2299,7 @@ class ChannelSession(SmartModel):
         default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
     )
     error_count = models.IntegerField(
-        default=0,
-        verbose_name=_("Failed Retry Count"),
-        help_text="The number of times this call has been retried from a failed state",
+        default=0, verbose_name=_("Error Count"), help_text="The number of times this call has errored"
     )
     next_attempt = models.DateTimeField(
         verbose_name=_("Next Attempt"), help_text="When we should next attempt to make this call", null=True
