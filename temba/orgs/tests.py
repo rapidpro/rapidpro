@@ -675,6 +675,20 @@ class OrgTest(TembaTest):
             {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
         )
 
+    def test_enable_flow_server(self):
+        update_url = reverse("orgs.org_update", args=[self.org.pk])
+
+        # create a flow on this org
+        flow = self.create_flow()
+
+        # now update the org to be flow server enabled
+        self.login(self.superuser)
+        form = dict(brand="rapidpro.io", name="Test Org", flow_server_enabled=1)
+        self.client.post(update_url, data=form, follow=True)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.flow_server_enabled)
+
     def test_org_administration(self):
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
