@@ -1353,7 +1353,7 @@ class FlowCRUDL(SmartCRUDL):
                     query = query.strip()
                     query = f"name ~ {query} OR tel ~ {query}"
                     contact_ids = Contact.query_elasticsearch_for_ids(org, query)
-                except:
+                except:  # pragma: no cover
                     # if we cant parse it, then no matches
                     pass
                 runs = runs.filter(contact__in=contact_ids)
