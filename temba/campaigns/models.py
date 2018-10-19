@@ -106,6 +106,7 @@ class Campaign(TembaModel):
                         label=event_spec["relative_to"]["label"],
                         value_type="D",
                     )
+                    start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                     # create our message flow for message events
                     if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
@@ -131,6 +132,7 @@ class Campaign(TembaModel):
                             message,
                             event_spec["delivery_hour"],
                             base_language=base_language,
+                            start_mode=start_mode,
                         )
                         event.update_flow_name()
                     else:
@@ -147,6 +149,7 @@ class Campaign(TembaModel):
                                 event_spec["unit"],
                                 flow,
                                 event_spec["delivery_hour"],
+                                start_mode=start_mode,
                             )
 
                 # update our scheduled events for this campaign
@@ -203,6 +206,7 @@ class Campaign(TembaModel):
                 delivery_hour=event.delivery_hour,
                 message=event.message,
                 relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
+                start_mode=event.start_mode,
             )
 
             # only include the flow definition for standalone flows
@@ -261,6 +265,12 @@ class CampaignEvent(TembaModel):
 
     UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
+    MODE_INTERRUPT = "I"
+    MODE_SKIP = "S"
+    MODE_PASSIVE = "P"
+
+    START_MODES_CHOICES = ((MODE_INTERRUPT, _("Interrupt")), (MODE_SKIP, _("Skip")), (MODE_PASSIVE, _("Passive")))
+
     campaign = models.ForeignKey(
         Campaign, on_delete=models.PROTECT, related_name="events", help_text="The campaign this event is part of"
     )
@@ -281,6 +291,10 @@ class CampaignEvent(TembaModel):
         Flow, on_delete=models.PROTECT, related_name="events", help_text="The flow that will be triggered"
     )
 
+    start_mode = models.CharField(
+        max_length=1, choices=START_MODES_CHOICES, default=MODE_INTERRUPT, help_text="The start mode of this event"
+    )
+
     event_type = models.CharField(
         max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW, help_text="The type of this event"
     )
@@ -292,7 +306,17 @@ class CampaignEvent(TembaModel):
 
     @classmethod
     def create_message_event(
-        cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None
+        cls,
+        org,
+        user,
+        campaign,
+        relative_to,
+        offset,
+        unit,
+        message,
+        delivery_hour=-1,
+        base_language=None,
+        start_mode=MODE_INTERRUPT,
     ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
@@ -317,12 +341,15 @@ class CampaignEvent(TembaModel):
             message=message,
             flow=flow,
             delivery_hour=delivery_hour,
+            start_mode=start_mode,
             created_by=user,
             modified_by=user,
         )
 
     @classmethod
-    def create_flow_event(cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1):
+    def create_flow_event(
+        cls, org, user, campaign, relative_to, offset, unit, flow, delivery_hour=-1, start_mode=MODE_INTERRUPT
+    ):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
@@ -338,6 +365,7 @@ class CampaignEvent(TembaModel):
             unit=unit,
             event_type=cls.TYPE_FLOW,
             flow=flow,
+            start_mode=start_mode,
             delivery_hour=delivery_hour,
             created_by=user,
             modified_by=user,
@@ -360,10 +388,14 @@ class CampaignEvent(TembaModel):
         if not self.message:
             return None
 
+        message = None
         if contact and contact.language and contact.language in self.message:
-            return self.message[contact.language]
+            message = self.message[contact.language]
 
-        return self.message[self.flow.base_language]
+        if not message:
+            message = self.message[self.flow.base_language]
+
+        return message
 
     def update_flow_name(self):
         """
@@ -451,17 +483,46 @@ class CampaignEvent(TembaModel):
 
         return None  # pragma: no cover
 
+    def deactivate_and_copy(self):
+
+        self.release()
+
+        # clone our event into a new event
+        if self.event_type == CampaignEvent.TYPE_FLOW:
+            return CampaignEvent.create_flow_event(
+                self.campaign.org,
+                self.created_by,
+                self.campaign,
+                self.relative_to,
+                self.offset,
+                self.unit,
+                self.flow,
+                self.delivery_hour,
+                self.start_mode,
+            )
+
+        elif self.event_type == CampaignEvent.TYPE_MESSAGE:
+            return CampaignEvent.create_message_event(
+                self.campaign.org,
+                self.created_by,
+                self.campaign,
+                self.relative_to,
+                self.offset,
+                self.unit,
+                self.message,
+                self.delivery_hour,
+                self.flow.base_language,
+                self.start_mode,
+            )
+
     def release(self):
         """
-        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        Marks the event inactive and releases flows for single message flows
         """
 
-        # we need to be inactive so our message flows don't try to circle back and release us
+        # we need to be inactive so our fires are noops
         self.is_active = False
         self.save(update_fields=("is_active",))
-
-        # delete any event fires
-        self.event_fires.all().delete()
 
         # detach any associated flow starts
         self.flow_starts.all().update(campaign_event=None)
@@ -503,20 +564,6 @@ class EventFire(Model):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
 
-    def fire(self):
-        """
-        Actually fires this event for the passed in contact and flow
-        """
-        self.fired = timezone.now()
-        self.event.flow.start([], [self.contact], restart_participants=True)
-        self.save(update_fields=("fired",))
-
-    def release(self):
-        """
-        Deletes this fire
-        """
-        self.delete()
-
     @classmethod
     def batch_fire(cls, fires, flow):
         """
@@ -526,12 +573,22 @@ class EventFire(Model):
         contacts = [f.contact for f in fires]
         event = fires[0].event
 
-        if len(contacts) == 1:
-            flow.start([], contacts, restart_participants=True, campaign_event=event)
+        include_active = not (
+            event.event_type == CampaignEvent.TYPE_MESSAGE and event.start_mode == CampaignEvent.MODE_SKIP
+        )
+        if event.is_active and not event.campaign.is_archived:
+            if len(contacts) == 1:
+                flow.start(
+                    [], contacts, restart_participants=True, include_active=include_active, campaign_event=event
+                )
+            else:
+                start = FlowStart.create(
+                    flow, flow.created_by, contacts=contacts, include_active=include_active, campaign_event=event
+                )
+                start.async_start()
+            EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
         else:
-            start = FlowStart.create(flow, flow.created_by, contacts=contacts, campaign_event=event)
-            start.async_start()
-        EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
+            EventFire.objects.filter(id__in=[f.id for f in fires]).delete()
 
     @classmethod
     def update_campaign_events(cls, campaign):
@@ -549,20 +606,21 @@ class EventFire(Model):
             cls.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_eventfires_for_event(cls, event):
-        from temba.campaigns.tasks import update_event_fires
+    def create_eventfires_for_event(cls, event):
+        from temba.campaigns.tasks import create_event_fires
 
-        on_transaction_commit(lambda: update_event_fires.delay(event.pk))
+        on_transaction_commit(lambda: create_event_fires.delay(event.pk))
 
     @classmethod
-    def do_update_eventfires_for_event(cls, event):
-        # unschedule any fires
-        EventFire.objects.filter(event=event, fired=None).delete()
+    def do_create_eventfires_for_event(cls, event):
 
-        # add new ones if this event exists and the campaign is active
+        if EventFire.objects.filter(event=event).exists():
+            return
+
         if event.is_active and not event.campaign.is_archived:
-            field = event.relative_to
 
+            # create fires for our event
+            field = event.relative_to
             if field.field_type == ContactField.FIELD_TYPE_USER:
                 field_uuid = str(field.uuid)
 
