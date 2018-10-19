@@ -1,3 +1,7 @@
+v4.10.3
+----------
+ * Show all split types on run results, use elastic for searching
+
 v4.10.2
 ----------
  * Flow migration for mismatched group uuids in existing flows
