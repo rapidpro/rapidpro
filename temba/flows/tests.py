@@ -6901,15 +6901,11 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(2, counts[0]["total"])
 
             # test a search on our runs
-            response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Pete")
-            self.assertNotContains(response, "Jimmy")
-
-            response = self.client.get("%s?q=555-3026" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Jimmy")
-            self.assertNotContains(response, "Pete")
+            with patch.object(Contact, "query_elasticsearch_for_ids", return_value=[pete.id]):
+                response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
+                self.assertEqual(len(response.context["runs"]), 1)
+                self.assertContains(response, "Pete")
+                self.assertNotContains(response, "Jimmy")
 
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]))
