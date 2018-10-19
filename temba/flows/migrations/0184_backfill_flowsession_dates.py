@@ -5,10 +5,7 @@ from django.db.models import Prefetch
 from django.utils import timezone
 
 
-def backfill_flowsession_dates(apps, schema_editor):
-    FlowSession = apps.get_model("flows", "FlowSession")
-    FlowRun = apps.get_model("flows", "FlowRun")
-
+def backfill_flowsession_dates(FlowSession, FlowRun):
     total_count = FlowSession.objects.filter(created_on=None).count()
     if not total_count:
         return
@@ -46,13 +43,26 @@ def backfill_flowsession_dates(apps, schema_editor):
                 session.created_on = created_on
                 session.ended_on = ended_on
                 session.save(update_fields=("created_on", "ended_on"))
+                num_updated += 1
 
         max_id = sessions[-1].id
         print(f" > Updated {num_updated} of {total_count} sessions")
+
+
+def apply_migration(apps, schema_editor):
+    FlowSession = apps.get_model("flows", "FlowSession")
+    FlowRun = apps.get_model("flows", "FlowRun")
+    backfill_flowsession_dates(FlowSession, FlowRun)
+
+
+def apply_manual():
+    from temba.flows.models import FlowSession, FlowRun
+
+    backfill_flowsession_dates(FlowSession, FlowRun)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [("flows", "0183_run_timeout_index")]
 
-    operations = [migrations.RunPython(backfill_flowsession_dates)]
+    operations = [migrations.RunPython(apply_migration)]
