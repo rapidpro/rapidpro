@@ -36,16 +36,22 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
     def remap_group(group):
         if type(group) is dict:
+
+            # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map:
                 group_instance = ContactGroup.get_or_create(
                     flow.org, flow.created_by, group["name"], group.get("uuid", None)
                 )
 
-                # group references can have only a name
+                # map group references that started with a uuid
                 if "uuid" in group:
                     uuid_map[group["uuid"]] = group_instance.uuid
 
                 group["uuid"] = group_instance.uuid
+
+            # we were already mapped
+            elif group["uuid"] in uuid_map:
+                group["uuid"] = uuid_map[group["uuid"]]
 
     for actionset in json_flow.get(Flow.ACTION_SETS, []):
         for action in actionset[Flow.ACTIONS]:

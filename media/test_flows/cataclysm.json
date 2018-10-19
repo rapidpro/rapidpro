@@ -22,6 +22,16 @@
               ]
             },
             {
+              "type": "add_group",
+              "uuid": "ca82f0e0-43ca-426c-a77c-93cf297b8e7c",
+              "groups": [
+                 {
+                  "uuid": "bc4d7100-60ac-44f0-aa78-0ec9373d2c2f",
+                  "name": "Catnado"
+                }
+              ]
+            },
+            {
               "type": "reply",
               "uuid": "d57e9e9f-ada4-4a22-99ef-b8bf3dbcdcae",
               "msg": {

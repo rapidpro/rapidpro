@@ -1627,16 +1627,21 @@ class Flow(TembaModel):
             # groups can be single string expressions
             if type(group) is dict:
 
+                # we haven't been mapped yet (also, non-uuid groups can't be mapped)
                 if "uuid" not in group or group["uuid"] not in uuid_map:
                     group_instance = ContactGroup.get_or_create(
                         self.org, self.created_by, group["name"], group.get("uuid", None)
                     )
 
-                    # group references can have only a name
+                    # map group references that started with a uuid
                     if "uuid" in group:
                         uuid_map[group["uuid"]] = group_instance.uuid
 
                     group["uuid"] = group_instance.uuid
+
+                # we were already mapped
+                elif group["uuid"] in uuid_map:
+                    group["uuid"] = uuid_map[group["uuid"]]
 
         remap_uuid(flow_json, "entry")
         for actionset in flow_json[Flow.ACTION_SETS]:
