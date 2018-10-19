@@ -220,6 +220,21 @@ class CampaignEventForm(forms.ModelForm):
 
     delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
 
+    flow_start_mode = forms.ChoiceField(
+        choices=(
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and start this event")),
+            (CampaignEvent.MODE_SKIP, _("Skip this event")),
+        ),
+        required=False,
+    )
+    message_start_mode = forms.ChoiceField(
+        choices=(
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and send the message")),
+            (CampaignEvent.MODE_SKIP, _("Skip this message")),
+        ),
+        required=False,
+    )
+
     def clean(self):
         data = super().clean()
         if self.data["event_type"] == CampaignEvent.TYPE_MESSAGE and self.languages:
@@ -275,10 +290,12 @@ class CampaignEventForm(forms.ModelForm):
 
             obj.message = translations
             obj.full_clean()
+            obj.start_mode = self.cleaned_data["message_start_mode"]
 
         # otherwise, it's an event that runs an existing flow
         else:
             obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
+            obj.start_mode = self.cleaned_data["flow_start_mode"]
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
@@ -431,7 +448,17 @@ class CampaignEventCRUDL(SmartCRUDL):
         success_message = ""
         form_class = CampaignEventForm
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "message_start_mode",
+            "flow_start_mode",
+        ]
 
         def pre_process(self, request, *args, **kwargs):
             event = self.get_object()
@@ -476,6 +503,9 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             if self.object.event_type == "F":
                 initial["flow_to_start"] = self.object.flow
+                initial["flow_start_mode"] = self.object.start_mode
+            else:
+                initial["message_start_mode"] = self.object.start_mode
 
             return initial
 
@@ -490,7 +520,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             self.form.pre_save(self.request, obj)
 
             prev = CampaignEvent.objects.get(pk=obj.pk)
-            if prev.event_type == "M" and obj.event_type == "F" and prev.flow:  # pragma: needs cover
+            if prev.event_type == "M" and (obj.event_type == "F" and prev.flow):  # pragma: needs cover
                 flow = prev.flow
                 flow.is_active = False
                 flow.save()
@@ -504,6 +534,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.delivery_hour != obj.delivery_hour
                 or prev.message != obj.message
                 or prev.flow != obj.flow
+                or prev.start_mode != obj.start_mode
             ):
                 obj = obj.deactivate_and_copy()
                 EventFire.create_eventfires_for_event(obj)
@@ -515,7 +546,17 @@ class CampaignEventCRUDL(SmartCRUDL):
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "message_start_mode",
+            "flow_start_mode",
+        ]
         form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"

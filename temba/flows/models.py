@@ -180,6 +180,9 @@ class FlowSession(models.Model):
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 
+    # only set by mailroom managed sessions
+    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
+
     current_flow = models.ForeignKey(
         "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
     )
@@ -567,6 +570,7 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
+            flow_server_enabled=org.flow_server_enabled,
             **kwargs,
         )
 
@@ -1828,6 +1832,12 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        from temba.campaigns.models import CampaignEvent
+
+        # old engine can't start flows in passive mode
+        if campaign_event and campaign_event.start_mode == CampaignEvent.MODE_PASSIVE:
+            raise Exception(f"Attempt to start flow {self.id} in passive mode")
+
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
@@ -1883,10 +1893,12 @@ class Flow(TembaModel):
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
-        # for the contacts that will be started, exit any existing flow runs
+        # for the contacts that will be started, exit any existing flow runs except system flow runs
         for contact_batch in chunk_list(all_contact_ids, 1000):
-            active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch).exclude(
-                id__in=ancestor_ids
+            active_runs = (
+                FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch)
+                .exclude(id__in=ancestor_ids)
+                .exclude(flow__is_system=True)
             )
             FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
@@ -3224,6 +3236,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
+
+    parent_uuid = models.UUIDField(null=True)
 
     child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
 

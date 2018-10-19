@@ -1,3 +1,15 @@
+v4.10.1
+----------
+ * Add config to specify content that should be present in the response of the request, if not mark that as msg failed
+ * Allow campaign events to be skipped if contacts already active in flows
+
+v4.10.0
+----------
+ * Add FlowRun.parent_uuid
+ * Add FlowSession.timeout_on
+ * Create new flows with flow_server_enabled when org is enabled
+ * Add flow-server-enabled to org, dont deal with flow server enabled timeouts or expirations on rapidpro
+
 v4.9.2
 ----------
  * Fix flowserver resume tests by including modified_on on runs sent to goflow
