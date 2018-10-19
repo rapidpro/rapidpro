@@ -742,7 +742,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         try:
             search_object, _ = contact_es_search(org, query, group)
             es_search = search_object.source(include=["id"]).using(ES).scan()
-            return set(mapEStoDB(Contact, es_search, only_ids=True))
+            return mapEStoDB(Contact, es_search, only_ids=True)
         except SearchException:
             logger.exception("Error evaluating query", exc_info=True)
             raise  # reraise the exception
@@ -3017,7 +3017,7 @@ class ContactGroup(TembaModel):
             last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
 
         # search ES
-        contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.query)
+        contact_ids = set(Contact.query_elasticsearch_for_ids(self.org, self.query))
 
         # search the database for any new contacts that have been modified after the modified_on
         db_contacts = Contact.objects.filter(
