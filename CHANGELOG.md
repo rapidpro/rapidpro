@@ -1,3 +1,9 @@
+v4.10.2
+----------
+ * Flow migration for mismatched group uuids in existing flows
+ * Remap group uuids on flow import
+ * Migration to backfill FlowSession.created_on / ended_on
+
 v4.10.1
 ----------
  * Add config to specify content that should be present in the response of the request, if not mark that as msg failed
