@@ -3603,6 +3603,25 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
+    def test_import_group_remapping(self):
+        self.import_file("cataclysm")
+        flow = Flow.objects.get(name="Cataclysmic")
+        rev = flow.revisions.all().first()
+
+        from temba.flows.tests import get_groups
+
+        definition_groups = get_groups(rev.get_definition_json())
+
+        # we should have 5 groups
+        self.assertEqual(5, len(definition_groups))
+        self.assertEqual(5, ContactGroup.user_groups.all().count())
+
+        for uuid, name in definition_groups.items():
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
+                msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
+            )
+
     def test_export_import(self):
         def assert_object_counts():
             # the regular flows

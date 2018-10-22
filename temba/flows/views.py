@@ -514,6 +514,9 @@ class FlowCRUDL(SmartCRUDL):
                 initial=60,
                 choices=IVR_RETRY_CHOICES,
             )
+            ivr_retry_failed_events = forms.BooleanField(
+                label=_("Retry failed calls"), help_text=_("Retry failed calls"), required=False
+            )
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
@@ -536,6 +539,10 @@ class FlowCRUDL(SmartCRUDL):
                 ivr_retry = self.fields["ivr_retry"]
                 ivr_retry.initial = metadata.get("ivr_retry", self.fields["ivr_retry"].initial)
 
+                # IVR retry failed calls
+                ivr_retry_failed_events = self.fields["ivr_retry_failed_events"]
+                ivr_retry_failed_events.initial = metadata.get("ivr_retry_failed_events", False)
+
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org,
                     flow=self.instance,
@@ -549,7 +556,14 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
+                fields = (
+                    "name",
+                    "keyword_triggers",
+                    "expires_after_minutes",
+                    "ignore_triggers",
+                    "ivr_retry",
+                    "ivr_retry_failed_events",
+                )
 
         class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             keyword_triggers = forms.CharField(
@@ -610,6 +624,8 @@ class FlowCRUDL(SmartCRUDL):
 
             if "ivr_retry" in self.form.cleaned_data:
                 metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+
+            metadata["ivr_retry_failed_events"] = self.form.cleaned_data.get("ivr_retry_failed_events")
 
             obj.metadata = metadata
             return obj
@@ -1337,7 +1353,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             org = self.derive_org()
 
-            context["rulesets"] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by("y"))
+            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
             for ruleset in context["rulesets"]:
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
@@ -1348,20 +1364,14 @@ class FlowCRUDL(SmartCRUDL):
             query = self.request.GET.get("q", None)
             contact_ids = []
             if query:
-                query = query.strip()
-                contact_ids = list(
-                    Contact.objects.filter(org=flow.org, name__icontains=query)
-                    .exclude(id__in=test_contacts)
-                    .values_list("id", flat=True)
-                )
-                query = query.replace("-", "")
-                contact_ids += list(
-                    ContactURN.objects.filter(org=flow.org, path__icontains=query)
-                    .exclude(contact__in=test_contacts)
-                    .order_by("contact__id")
-                    .distinct("contact__id")
-                    .values_list("contact__id", flat=True)
-                )
+                try:
+                    # search for contact ids based on name or telephone
+                    query = query.strip()
+                    query = f"name ~ {query} OR tel ~ {query}"
+                    contact_ids = Contact.query_elasticsearch_for_ids(org, query)
+                except:  # pragma: no cover
+                    # if we cant parse it, then no matches
+                    pass
                 runs = runs.filter(contact__in=contact_ids)
 
             # paginate
@@ -1419,7 +1429,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            context["rulesets"] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by("y"))
+            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
             for ruleset in context["rulesets"]:
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
