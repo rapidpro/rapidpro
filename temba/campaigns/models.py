@@ -696,15 +696,11 @@ class EventFire(Model):
                 EventFire.objects.bulk_create(events)
 
     @classmethod
-    def update_events_for_contact(cls, contact, groups=None):
+    def update_events_for_contact_groups(cls, contact, groups):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
-
-        # update for all groups if they aren't specified
-        if not groups:
-            groups = contact.user_groups.all()
 
         # for each campaign that might affect us
         for campaign in Campaign.objects.filter(

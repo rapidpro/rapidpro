@@ -1143,7 +1143,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 delattr(self, "_user_groups")
 
             # ensure our campaigns are up to date
-            EventFire.update_events_for_contact(self, groups=changed_groups)
+            EventFire.update_events_for_contact_groups(self, changed_groups)
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
@@ -2291,7 +2291,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # blocked, stopped or test contacts can't be in dynamic groups
         if self.is_blocked or self.is_stopped or self.is_test:
-            return ()
+            return set()
 
         # cache contact search json
         contact_search_json = self.as_search_json()
