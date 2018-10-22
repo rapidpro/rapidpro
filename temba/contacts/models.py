@@ -1112,11 +1112,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
           2. A change to the specified contact field
           3. A manual change to a group membership
         """
-        dynamic_group_change = False
+        changed_groups = set([group]) if group else set()
 
         if fields or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(for_fields=fields, urns=urns)
+            changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -1124,13 +1124,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if fields:
             EventFire.update_events_for_contact_fields(contact=self, keys=fields)
 
-        if group or dynamic_group_change:
+        if changed_groups:
             # delete any cached groups
             if hasattr(self, "_user_groups"):
                 delattr(self, "_user_groups")
 
             # ensure our campaigns are up to date
-            EventFire.update_events_for_contact(self)
+            EventFire.update_events_for_contact(self, groups=changed_groups)
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
@@ -2271,13 +2271,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field.
+        performed for those groups which reference that field. Returns the set of groups that were affected.
         """
         from .search import evaluate_query
 
         # blocked, stopped or test contacts can't be in dynamic groups
         if self.is_blocked or self.is_stopped or self.is_test:
-            return False
+            return ()
 
         # cache contact search json
         contact_search_json = self.as_search_json()
@@ -2289,7 +2289,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not urns and for_fields:
             affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
 
-        changed = False
+        changed_set = set()
 
         for dynamic_group in affected_dynamic_groups:
             dynamic_group.org = self.org
@@ -2300,12 +2300,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 should_add = False
                 logger.exception("Error evaluating query", exc_info=True)
 
-            changed_set = dynamic_group._update_contacts(user, [self], add=should_add)
+            changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
 
-            if changed_set and not changed:
-                changed = True
-
-        return changed
+        return changed_set
 
     def clear_all_groups(self, user):
         """

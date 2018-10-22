@@ -253,6 +253,7 @@ td.clickable a {
 
 .nav > li > a {
 
+  display: inline-block;
   text-shadow: none;
 
   &:hover {
@@ -276,6 +277,23 @@ td.clickable a {
         text-shadow: none;
       }
     }
+
+  }
+
+  .count {
+    display: inline-block;
+    float: right;
+    color: #666;
+    font-size: 90%;
+
+    .icon-loop {
+      color: #ccc;
+      height: inherit;
+      width: inherit;
+      line-height: 12px;
+      font-size: 10px;
+
+    }
   }
 }
 
@@ -288,6 +306,7 @@ td.clickable a {
 }
 
 li {
+  border-top: 0px solid #efefef;
   list-style-type: none;
 }
 

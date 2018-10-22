@@ -90,10 +90,10 @@ GROUPS = (
     {"name": "Drivers", "query": None, "member": 0.2},
     {"name": "Testers", "query": None, "member": 0.1},
     {"name": "Empty", "query": None, "member": 0.0},
-    {"name": "Youth (Dynamic)", "query": "age <= 18", "member": lambda c: c["age"] and c["age"] <= 18},
-    {"name": "Unregistered (Dynamic)", "query": 'joined = ""', "member": lambda c: not c["joined"]},
+    {"name": "Youth", "query": "age <= 18", "member": lambda c: c["age"] and c["age"] <= 18},
+    {"name": "Unregistered", "query": 'joined = ""', "member": lambda c: not c["joined"]},
     {
-        "name": "Districts (Dynamic)",
+        "name": "Districts",
         "query": "district=Faskari or district=Zuru or district=Anka",
         "member": lambda c: c["district"] and c["district"].name in ("Faskari", "Zuru", "Anka"),
     },
