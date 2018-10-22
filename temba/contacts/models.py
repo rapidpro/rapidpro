@@ -2271,7 +2271,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field. Returns the set of groups that were affected.
+        performed for those groups which reference that field.
+        :returns: the set of groups that were affected
         """
         from .search import evaluate_query
 

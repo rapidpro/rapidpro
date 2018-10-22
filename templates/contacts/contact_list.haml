@@ -48,13 +48,10 @@
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
                   %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                    {{group.label}}
-
-                  -if group.is_ready
-                    .count
-                      {{ group.count | intcomma }}
-                  -else
-                    .count
+                    -if group.is_ready
+                      {{group.label}} ({{ group.count | intcomma }})
+                    -else
+                      {{group.label}}
                       %i.spin.icon-loop
 
           %div{style:"margin-top: 10px"}
