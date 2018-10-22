@@ -39,6 +39,7 @@ class TwimlAPITypeTest(TembaTest):
                 role="SR",
                 account_sid="abcd1234",
                 account_token="abcd1234",
+                max_concurrent_events=30,
             ),
         )
         channel = self.org.channels.all().first()
@@ -50,6 +51,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd1234",
                 send_url="https://twilio.com",
                 account_sid="abcd1234",
+                max_concurrent_events=30,
                 callback_domain=channel.callback_domain,
             ),
         )
@@ -74,6 +76,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd4321",
                 send_url="https://twilio.com",
                 account_sid="abcd4321",
+                max_concurrent_events=None,
                 callback_domain=channel.callback_domain,
             ),
         )
@@ -100,6 +103,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd1234",
                 send_url="https://twilio.com",
                 account_sid="abcd1234",
+                max_concurrent_events=None,
                 callback_domain=channel.callback_domain,
             ),
         )

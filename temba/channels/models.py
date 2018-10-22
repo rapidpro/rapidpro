@@ -265,6 +265,12 @@ class ChannelType(metaclass=ABCMeta):
 
 
 class Channel(TembaModel):
+    """
+    Notes:
+        - we want to reuse keys as much as possible (2018-10-11)
+        - prefixed keys are legacy and should be avoided (2018-10-11)
+    """
+
     TYPE_ANDROID = "A"
 
     # keys for various config options stored in the channel config dict
@@ -301,6 +307,7 @@ class Channel(TembaModel):
     CONFIG_APPLICATION_SID = "application_sid"
     CONFIG_NUMBER_SID = "number_sid"
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
+    CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
@@ -512,7 +519,7 @@ class Channel(TembaModel):
         config=None,
         role=DEFAULT_ROLE,
         schemes=None,
-        **kwargs
+        **kwargs,
     ):
         if isinstance(channel_type, str):
             channel_type = cls.get_type_from_code(channel_type)
@@ -1256,7 +1263,7 @@ class Channel(TembaModel):
         for event in events:
             # write to our log file
             print(
-                u'[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
+                '[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
                 % (
                     msg.id,
                     request_time,
@@ -1479,6 +1486,10 @@ class Channel(TembaModel):
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
+
+    @staticmethod
+    def redis_active_events_key(channel_id):
+        return f"channel_active_events_{channel_id}"
 
     class Meta:
         ordering = ("-last_seen", "-pk")
@@ -1763,7 +1774,7 @@ class ChannelLog(models.Model):
 
         for event in e.events:
             print(
-                u'[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
+                '[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
                 % (
                     msg.id,
                     request_time,
@@ -1796,7 +1807,7 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_error(cls, msg, description):
-        print(u"[%d] ERROR - %s" % (msg.id, description))
+        print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
         )
@@ -2285,10 +2296,13 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
 
     retry_count = models.IntegerField(
-        default=0, verbose_name=_("Retry Count"), help_text=_("The number of times this call has been retried")
+        default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
+    )
+    error_count = models.IntegerField(
+        default=0, verbose_name=_("Error Count"), help_text="The number of times this call has errored"
     )
     next_attempt = models.DateTimeField(
-        verbose_name=_("Next Attempt"), help_text=_("When we should next attempt to make this call"), null=True
+        verbose_name=_("Next Attempt"), help_text="When we should next attempt to make this call", null=True
     )
 
     def __init__(self, *args, **kwargs):
