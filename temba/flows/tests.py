@@ -57,6 +57,7 @@ from .flow_migrations import (
     migrate_to_version_10_4,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
+    migrate_to_version_11_6,
 )
 from .models import (
     Action,
@@ -100,6 +101,7 @@ from .models import (
     HasEmailTest,
     HasStateTest,
     HasWardTest,
+    InGroupTest,
     InterruptTest,
     LteTest,
     LtTest,
@@ -134,6 +136,21 @@ from .tasks import (
     update_run_expirations_task,
 )
 from .views import FlowCRUDL
+
+
+def get_groups(definition):
+    groups = {}
+    for actionset in definition[Flow.ACTION_SETS]:
+        for action in actionset[Flow.ACTIONS]:
+            for group in action.get("groups", []):
+                groups[group["uuid"]] = group["name"]
+
+    for ruleset in definition[Flow.RULE_SETS]:
+        for rule in ruleset.get(Flow.RULES, []):
+            if rule["test"]["type"] == InGroupTest.TYPE:
+                group = rule["test"]["test"]
+                groups[group["uuid"]] = group["name"]
+    return groups
 
 
 class FlowTest(TembaTest):
@@ -6905,15 +6922,11 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(2, counts[0]["total"])
 
             # test a search on our runs
-            response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Pete")
-            self.assertNotContains(response, "Jimmy")
-
-            response = self.client.get("%s?q=555-3026" % reverse("flows.flow_run_table", args=[favorites.pk]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertContains(response, "Jimmy")
-            self.assertNotContains(response, "Pete")
+            with patch.object(Contact, "query_elasticsearch_for_ids", return_value=[pete.id]):
+                response = self.client.get("%s?q=pete" % reverse("flows.flow_run_table", args=[favorites.pk]))
+                self.assertEqual(len(response.context["runs"]), 1)
+                self.assertContains(response, "Pete")
+                self.assertNotContains(response, "Jimmy")
 
             # fetch our intercooler rows for the run table
             response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]))
@@ -9590,6 +9603,27 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_6(self):
+        flow_json = self.get_flow_json("migrate_to_11_6")
+        flow = Flow.create_instance(
+            dict(
+                name="Flow Container",
+                org=self.org,
+                created_by=self.admin,
+                modified_by=self.admin,
+                saved_by=self.admin,
+                version_number="11.6",
+            )
+        )
+
+        self.assertEqual(0, ContactGroup.user_groups.all().count())
+        migrated = migrate_to_version_11_6(flow_json, flow)
+        self.assertEqual(5, ContactGroup.user_groups.all().count())
+
+        migrated_groups = get_groups(migrated)
+        for uuid, name in migrated_groups.items():
+            self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
     def test_migrate_to_11_5(self):
         flow = self.get_flow("migrate_to_11_5")

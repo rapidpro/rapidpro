@@ -1,3 +1,18 @@
+v4.10.3
+----------
+ * Show all split types on run results, use elastic for searching
+
+v4.10.2
+----------
+ * Flow migration for mismatched group uuids in existing flows
+ * Remap group uuids on flow import
+ * Migration to backfill FlowSession.created_on / ended_on
+
+v4.10.1
+----------
+ * Add config to specify content that should be present in the response of the request, if not mark that as msg failed
+ * Allow campaign events to be skipped if contacts already active in flows
+
 v4.10.0
 ----------
  * Add FlowRun.parent_uuid

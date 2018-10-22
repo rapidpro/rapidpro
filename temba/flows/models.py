@@ -475,6 +475,7 @@ class Flow(TembaModel):
         "11.3",
         "11.4",
         "11.5",
+        "11.6",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -685,7 +686,7 @@ class Flow(TembaModel):
         """
         version = float(exported_json.get("version", 0))
         created_flows = []
-        flow_uuid_map = dict()
+        uuid_map = dict()
 
         # create all the flow containers first
         for flow_spec in exported_json["flows"]:
@@ -739,13 +740,13 @@ class Flow(TembaModel):
             created_flows.append(dict(flow=flow, flow_spec=flow_spec))
 
             if "uuid" in flow_spec["metadata"]:
-                flow_uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
+                uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
         def remap_flow(element):
             # first map our id accordingly
-            if element["uuid"] in flow_uuid_map:
-                element["uuid"] = flow_uuid_map[element["uuid"]]
+            if element["uuid"] in uuid_map:
+                element["uuid"] = uuid_map[element["uuid"]]
 
             existing_flow = Flow.objects.filter(uuid=element["uuid"], org=org, is_active=True).first()
             if not existing_flow:
@@ -763,7 +764,7 @@ class Flow(TembaModel):
                     if action["type"] in ["flow", "trigger-flow"]:
                         remap_flow(action["flow"])
             remap_flow(created["flow_spec"]["metadata"])
-            created["flow"].import_definition(created["flow_spec"])
+            created["flow"].import_definition(created["flow_spec"], uuid_map)
 
         # remap our flow ids according to how they were resolved
         if "campaigns" in exported_json:
@@ -771,15 +772,15 @@ class Flow(TembaModel):
                 for event in campaign["events"]:
                     if "flow" in event:
                         flow_uuid = event["flow"]["uuid"]
-                        if flow_uuid in flow_uuid_map:
-                            event["flow"]["uuid"] = flow_uuid_map[flow_uuid]
+                        if flow_uuid in uuid_map:
+                            event["flow"]["uuid"] = uuid_map[flow_uuid]
 
         if "triggers" in exported_json:
             for trigger in exported_json["triggers"]:
                 if "flow" in trigger:
                     flow_uuid = trigger["flow"]["uuid"]
-                    if flow_uuid in flow_uuid_map:
-                        trigger["flow"]["uuid"] = flow_uuid_map[flow_uuid]
+                    if flow_uuid in uuid_map:
+                        trigger["flow"]["uuid"] = uuid_map[flow_uuid]
 
         return exported_json
 
@@ -1591,13 +1592,14 @@ class Flow(TembaModel):
 
         return Language.get_localized_text(text_translations, preferred_languages)
 
-    def import_definition(self, flow_json):
+    def import_definition(self, flow_json, uuid_map=None):
         """
         Allows setting the definition for a flow from another definition.  All uuid's will be
         remmaped accordingly.
         """
         # uuid mappings
-        uuid_map = dict()
+        if not uuid_map:
+            uuid_map = {}
 
         def copy_recording(url, path):
             if not url:
@@ -1623,6 +1625,26 @@ class Flow(TembaModel):
 
                 json[attribute] = new_uuid
 
+        def remap_group(group):
+            # groups can be single string expressions
+            if type(group) is dict:
+
+                # we haven't been mapped yet (also, non-uuid groups can't be mapped)
+                if "uuid" not in group or group["uuid"] not in uuid_map:
+                    group_instance = ContactGroup.get_or_create(
+                        self.org, self.created_by, group["name"], group.get("uuid", None)
+                    )
+
+                    # map group references that started with a uuid
+                    if "uuid" in group:
+                        uuid_map[group["uuid"]] = group_instance.uuid
+
+                    group["uuid"] = group_instance.uuid
+
+                # we were already mapped
+                elif group["uuid"] in uuid_map:
+                    group["uuid"] = uuid_map[group["uuid"]]
+
         remap_uuid(flow_json, "entry")
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, "uuid")
@@ -1631,6 +1653,10 @@ class Flow(TembaModel):
 
             # for all of our recordings, pull them down and remap
             for action in actionset["actions"]:
+
+                for group in action.get("groups", []):
+                    remap_group(group)
+
                 if "recording" in action:
                     # if its a localized
                     if isinstance(action["recording"], dict):
@@ -1648,9 +1674,13 @@ class Flow(TembaModel):
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
-            for rule in ruleset.get("rules", []):
+            for rule in ruleset.get(Flow.RULES, []):
                 remap_uuid(rule, "uuid")
                 remap_uuid(rule, "destination")
+
+                if rule["test"]["type"] == InGroupTest.TYPE:
+                    group = rule["test"]["test"]
+                    remap_group(group)
 
         # now update with our remapped values
         self.update(flow_json)
@@ -1834,6 +1864,12 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+        from temba.campaigns.models import CampaignEvent
+
+        # old engine can't start flows in passive mode
+        if campaign_event and campaign_event.start_mode == CampaignEvent.MODE_PASSIVE:
+            raise Exception(f"Attempt to start flow {self.id} in passive mode")
+
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
@@ -1889,10 +1925,12 @@ class Flow(TembaModel):
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
-        # for the contacts that will be started, exit any existing flow runs
+        # for the contacts that will be started, exit any existing flow runs except system flow runs
         for contact_batch in chunk_list(all_contact_ids, 1000):
-            active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch).exclude(
-                id__in=ancestor_ids
+            active_runs = (
+                FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch)
+                .exclude(id__in=ancestor_ids)
+                .exclude(flow__is_system=True)
             )
             FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
