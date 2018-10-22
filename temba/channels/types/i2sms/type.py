@@ -20,7 +20,7 @@ class I2SMSType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _(
-        """If you have a long number or shortcode with I2SMS (https://www.i2sms.com/) you can connect it in a few
+        """If you have a long number or shortcode with <a href="https://www.i2sms.com/">I2SMS</a> you can connect it in a few
         easy steps."""
     )
     claim_view = ClaimView

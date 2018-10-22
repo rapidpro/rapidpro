@@ -34,8 +34,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = dict(username=data["username"], password=data["password"], channel_hash=data["channel_hash"])
 
-        self.object = Channel.create(
-            org, user, data["country"], "I2", name="I2SMS: %s" % data["number"], address=data["number"], config=config
-        )
+        self.object = Channel.create(org, user, data["country"], "I2", address=data["number"], config=config)
 
         return super().form_valid(form)
