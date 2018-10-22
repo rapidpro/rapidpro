@@ -5,26 +5,21 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import Channel
-from ...views import ClaimViewMixin
+from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        shortcode = forms.CharField(max_length=6, min_length=1, help_text=_("Your short code on Africa's Talking"))
+        number = forms.CharField(max_length=12, min_length=1, help_text=_("Your number or short code"))
         country = forms.ChoiceField(
-            choices=(
-                ("KE", _("Kenya")),
-                ("UG", _("Uganda")),
-                ("MW", _("Malawi")),
-                ("RW", _("Rwanda")),
-                ("NG", _("Nigeria")),
-            )
+            choices=ALL_COUNTRIES,
+            label=_("Country"),
+            required=False,
+            help_text=_("The country this number is used in"),
         )
-        is_shared = forms.BooleanField(
-            initial=False, required=False, help_text=_("Whether this short code is shared with others")
-        )
-        username = forms.CharField(max_length=32, help_text=_("Your username on Africa's Talking"))
-        api_key = forms.CharField(max_length=64, help_text=_("Your api key, should be 64 characters"))
+        channel_hash = forms.CharField(max_length=42, help_text=_("The hash of your i2SMS channel"))
+        username = forms.CharField(max_length=32, help_text=_("Your i2SMS username"))
+        password = forms.CharField(max_length=32, help_text=_("Your i2SMS password"))
 
     form_class = Form
 
@@ -37,16 +32,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        config = dict(username=data["username"], api_key=data["api_key"], is_shared=data["is_shared"])
+        config = dict(username=data["username"], password=data["password"], channel_hash=data["channel_hash"])
 
         self.object = Channel.create(
-            org,
-            user,
-            data["country"],
-            "AT",
-            name="Africa's Talking: %s" % data["shortcode"],
-            address=data["shortcode"],
-            config=config,
+            org, user, data["country"], "I2", name="I2SMS: %s" % data["number"], address=data["number"], config=config
         )
 
         return super().form_valid(form)
