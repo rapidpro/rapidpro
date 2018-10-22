@@ -10,7 +10,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -776,10 +776,9 @@ class Org(SmartModel):
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
-        smtp_config = {SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"}
 
         config = self.config
-        config.update(smtp_config)
+        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password)}@{host}:{port}/?{query}"})
         self.config = config
         self.modified_by = user
         self.save()
@@ -806,8 +805,8 @@ class Org(SmartModel):
 
             smtp_host = parsed_smtp_server.hostname
             smtp_port = parsed_smtp_server.port
-            smtp_username = parsed_smtp_server.username
-            smtp_password = parsed_smtp_server.password
+            smtp_username = unquote(parsed_smtp_server.username)
+            smtp_password = unquote(parsed_smtp_server.password)
 
             send_custom_smtp_email(
                 recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls

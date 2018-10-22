@@ -36,4 +36,4 @@ class Migration(migrations.Migration):
 
     dependencies = [("orgs", "0049_org_flow_server_enabled")]
 
-    operations = []
+    operations = [migrations.RunPython(populate_smtp_server_config)]

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
 from functools import cmp_to_key
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import nexmo
 import requests
@@ -1029,11 +1029,17 @@ class OrgCRUDL(SmartCRUDL):
             config = org.config
             smtp_server = config.get(SMTP_SERVER, None)
             parsed_smtp_server = urlparse(smtp_server)
+            smtp_username = ""
+            if parsed_smtp_server.username:
+                smtp_username = unquote(parsed_smtp_server.username)
+            smtp_password = ""
+            if parsed_smtp_server.password:
+                smtp_password = unquote(parsed_smtp_server.password)
 
             initial["smtp_from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
             initial["smtp_host"] = parsed_smtp_server.hostname
-            initial["smtp_username"] = parsed_smtp_server.username
-            initial["smtp_password"] = parsed_smtp_server.password
+            initial["smtp_username"] = smtp_username
+            initial["smtp_password"] = smtp_password
             initial["smtp_port"] = parsed_smtp_server.port
             initial["disconnect"] = "false"
             return initial
