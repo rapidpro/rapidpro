@@ -748,7 +748,7 @@ class EventFire(Model):
         EventFire.objects.filter(event__campaign=campaign, contact=contact, fired=None).delete()
 
         # if we aren't archived and still in our campaign's group
-        if not campaign.is_archived and contact.user_groups.filter(id__in=[campaign.group.id]):
+        if not campaign.is_archived and contact.user_groups.filter(id__in=[campaign.group.id]).exists():
             # then scheduled all our events
             for event in campaign.get_events():
                 # calculate our scheduled date
