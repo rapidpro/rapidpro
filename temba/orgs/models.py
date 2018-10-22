@@ -10,7 +10,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -106,12 +106,7 @@ TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
 TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
 TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
 
-SMTP_FROM_EMAIL = "SMTP_FROM_EMAIL"
-SMTP_HOST = "SMTP_HOST"
-SMTP_USERNAME = "SMTP_USERNAME"
-SMTP_PASSWORD = "SMTP_PASSWORD"
-SMTP_PORT = "SMTP_PORT"
-SMTP_ENCRYPTION = "SMTP_ENCRYPTION"
+SMTP_SERVER = "smtp_server"
 
 CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
 CHATBASE_API_KEY = "CHATBASE_API_KEY"
@@ -779,15 +774,9 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
-        smtp_config = {
-            SMTP_FROM_EMAIL: from_email.strip(),
-            SMTP_HOST: host,
-            SMTP_USERNAME: username,
-            SMTP_PASSWORD: password,
-            SMTP_PORT: port,
-            SMTP_ENCRYPTION: encryption,
-        }
+    def add_smtp_config(self, from_email, host, username, password, port, user):
+        query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
+        smtp_config = {SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"}
 
         config = self.config
         config.update(smtp_config)
@@ -797,36 +786,28 @@ class Org(SmartModel):
 
     def remove_smtp_config(self, user):
         if self.config:
-
-            self.config.pop(SMTP_FROM_EMAIL)
-            self.config.pop(SMTP_HOST)
-            self.config.pop(SMTP_USERNAME)
-            self.config.pop(SMTP_PASSWORD)
-            self.config.pop(SMTP_PORT)
-            self.config.pop(SMTP_ENCRYPTION)
+            self.config.pop(SMTP_SERVER)
             self.modified_by = user
             self.save()
 
     def has_smtp_config(self):
         if self.config:
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-
-            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            return bool(smtp_server)
         else:
             return False
 
     def email_action_send(self, recipients, subject, body):
         if self.has_smtp_config():
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            use_tls = self.config.get(SMTP_ENCRYPTION, None) == "T" or None
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            parsed_smtp_server = urlparse(smtp_server)
+            smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
+            use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
+
+            smtp_host = parsed_smtp_server.hostname
+            smtp_port = parsed_smtp_server.port
+            smtp_username = parsed_smtp_server.username
+            smtp_password = parsed_smtp_server.password
 
             send_custom_smtp_email(
                 recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
