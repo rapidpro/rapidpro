@@ -540,21 +540,34 @@ class CampaignEvent(TembaModel):
 
 
 class EventFire(Model):
+    FIRED = "F"
+    SKIPPED = "S"
+
+    FIRED_RESULTS_CHOICES = ((FIRED, _("Fired")), (SKIPPED, _("Skipped")))
+
     event = models.ForeignKey(
         "campaigns.CampaignEvent",
         on_delete=models.PROTECT,
         related_name="event_fires",
-        help_text="The event that will be fired",
+        help_text=_("The event that will be fired"),
     )
     contact = models.ForeignKey(
         Contact,
         on_delete=models.PROTECT,
         related_name="fire_events",
-        help_text="The contact that is scheduled to have an event run",
+        help_text=_("The contact that is scheduled to have an event run"),
     )
-    scheduled = models.DateTimeField(help_text="When this event is scheduled to run")
+    scheduled = models.DateTimeField(help_text=_("When this event is scheduled to run"))
     fired = models.DateTimeField(
-        null=True, blank=True, help_text="When this event actually fired, null if not yet fired"
+        null=True, blank=True, help_text=_("When this event actually fired, null if not yet fired")
+    )
+
+    fired_result = models.CharField(
+        max_length=1,
+        choices=FIRED_RESULTS_CHOICES,
+        null=True,
+        blank=True,
+        help_text=_("Whether the event is fired or skipped, null if not yet fired"),
     )
 
     def is_firing_soon(self):
