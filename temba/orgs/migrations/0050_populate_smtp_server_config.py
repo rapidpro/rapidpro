@@ -19,19 +19,19 @@ def populate_smtp_server_config(apps, schema_editor):
         smtp_port = config.get("SMTP_PORT", "")
         use_tls = config.get("SMTP_ENCRYPTION", "") == "T"
 
+        if not smtp_host:
+            continue
+
         query = urlencode({"from": smtp_from_email, "tls": str(use_tls).lower()})
+        url = f"smtp://{quote(smtp_username)}:{quote(smtp_password)}@{smtp_host}:{smtp_port}/?{query}"
+        org.config["smtp_server"] = url
 
-        org.config[
-            "smtp_server"
-        ] = f"smtp://{quote(smtp_username)}:{quote(smtp_password)}@{smtp_host}:{smtp_port}/?{query}"
-        del org.config["SMTP_ENCRYPTION"]
-        del org.config["SMTP_FROM_EMAIL"]
-        del org.config["SMTP_HOST"]
-        del org.config["SMTP_PORT"]
-        del org.config["SMTP_USERNAME"]
-        del org.config["SMTP_PASSWORD"]
+        # clear out old keys
+        for key in ("SMTP_ENCRYPTION", "SMTP_FROM_EMAIL", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD"):
+            if key in org.config:
+                del org.config[key]
 
-        org.save()
+        org.save(update_fields=("config",))
 
 
 class Migration(migrations.Migration):
