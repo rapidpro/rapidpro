@@ -2023,7 +2023,6 @@ class OrgTest(TembaTest):
                 smtp_username="support@example.com",
                 smtp_password="secret",
                 smtp_port="465",
-                smtp_encryption="",
                 disconnect="false",
             ),
             follow=True,
@@ -2031,12 +2030,11 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config["SMTP_FROM_EMAIL"], "foo@bar.com")
-        self.assertEqual(self.org.config["SMTP_HOST"], "smtp.example.com")
-        self.assertEqual(self.org.config["SMTP_USERNAME"], "support@example.com")
-        self.assertEqual(self.org.config["SMTP_PASSWORD"], "secret")
-        self.assertEqual(self.org.config["SMTP_PORT"], "465")
-        self.assertEqual(self.org.config["SMTP_ENCRYPTION"], "")
+
+        self.assertEqual(
+            self.org.config["smtp_server"],
+            "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
+        )
 
         response = self.client.get(smtp_server_url)
         self.assertEqual("foo@bar.com", response.context["flow_from_email"])
@@ -2049,7 +2047,6 @@ class OrgTest(TembaTest):
                 smtp_username="support@example.com",
                 smtp_password="secret",
                 smtp_port="465",
-                smtp_encryption="T",
                 name="DO NOT CHANGE ME",
                 disconnect="false",
             ),
@@ -2069,7 +2066,6 @@ class OrgTest(TembaTest):
                 smtp_username="support@example.com",
                 smtp_password="",
                 smtp_port="465",
-                smtp_encryption="T",
                 disconnect="false",
             ),
             follow=True,
@@ -2078,7 +2074,10 @@ class OrgTest(TembaTest):
         # password shouldn't change
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config["SMTP_PASSWORD"], "secret")
+        self.assertEqual(
+            self.org.config["smtp_server"],
+            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
 
         response = self.client.post(
             smtp_server_url,
@@ -2088,7 +2087,6 @@ class OrgTest(TembaTest):
                 smtp_username="help@example.com",
                 smtp_password="",
                 smtp_port="465",
-                smtp_encryption="T",
                 disconnect="false",
             ),
             follow=True,
@@ -2113,7 +2111,6 @@ class OrgTest(TembaTest):
                 smtp_username=" support@example.com ",
                 smtp_password="secret ",
                 smtp_port="465 ",
-                smtp_encryption="T",
                 disconnect="false",
             ),
             follow=True,
@@ -2121,12 +2118,10 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(self.org.config["SMTP_FROM_EMAIL"], "support@example.com")
-        self.assertEqual(self.org.config["SMTP_HOST"], "smtp.example.com")
-        self.assertEqual(self.org.config["SMTP_USERNAME"], "support@example.com")
-        self.assertEqual(self.org.config["SMTP_PASSWORD"], "secret")
-        self.assertEqual(self.org.config["SMTP_PORT"], "465")
-        self.assertEqual(self.org.config["SMTP_ENCRYPTION"], "T")
+        self.assertEqual(
+            self.org.config["smtp_server"],
+            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
 
     @patch("nexmo.Client.create_application")
     def test_connect_nexmo(self, mock_create_application):
