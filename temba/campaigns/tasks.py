@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import CampaignEvent, EventFire
 from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK
 from temba.utils import chunk_list
 from temba.utils.cache import QueueRecord
@@ -84,32 +84,6 @@ def create_event_fires(event_id):
         except Exception as e:  # pragma: no cover
             # requeue our task to try again in five minutes
             create_event_fires(event_id).delay(countdown=60 * 5)
-
-            # bubble up the exception so sentry sees it
-            raise e
-
-
-@task(track_started=True, name="update_event_fires_for_campaign_task")  # pragma: no cover
-def update_event_fires_for_campaign(campaign_id):
-
-    # get a lock
-    r = get_redis_connection()
-    key = "event_fires_campaign_%d" % campaign_id
-
-    with r.lock(key, timeout=300):
-        try:
-            with transaction.atomic():
-                campaign = Campaign.objects.filter(pk=campaign_id).first()
-                if campaign:
-                    EventFire.do_update_campaign_events(campaign)
-
-        except Exception as e:  # pragma: no cover
-            import traceback
-
-            traceback.print_exc()
-
-            # requeue our task to try again in five minutes
-            update_event_fires_for_campaign(campaign_id).delay(countdown=60 * 5)
 
             # bubble up the exception so sentry sees it
             raise e

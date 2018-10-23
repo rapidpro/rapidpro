@@ -596,14 +596,10 @@ class EventFire(Model):
         Updates all the scheduled events for each user for the passed in campaign.
         Should be called anytime a campaign changes.
         """
-        from temba.campaigns.tasks import update_event_fires_for_campaign
-
-        on_transaction_commit(lambda: update_event_fires_for_campaign.delay(campaign.pk))
-
-    @classmethod
-    def do_update_campaign_events(cls, campaign):
-        for contact in campaign.group.contacts.exclude(is_test=True):
-            cls.update_campaign_events_for_contact(campaign, contact)
+        for event in campaign.get_events():
+            if EventFire.objects.filter(event=event).exists():
+                event = event.deactivate_and_copy()
+            EventFire.create_eventfires_for_event(event)
 
     @classmethod
     def create_eventfires_for_event(cls, event):

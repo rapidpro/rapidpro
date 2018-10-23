@@ -10706,7 +10706,7 @@ class ExitTest(FlowFileTest):
 
         # update our campaign events
         EventFire.update_campaign_events(campaign)
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.get(event__is_active=True)
 
         # fire it, this will start our second flow
         EventFire.batch_fire([fire], fire.event.flow)
