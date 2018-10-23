@@ -1,9 +1,5 @@
 v4.10.8
 ----------
- * Fix SMTP settings migration
-
-v4.10.7
-----------
  * Deactivate events when updating campaigns
  * Less aggressive event fire recreation
  * Use SMTP SERVER org config and migrate old config keys
