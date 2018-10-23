@@ -98,8 +98,7 @@ class CampaignCRUDL(SmartCRUDL):
             self.save(self.object)
 
             # if our group changed, create our new fires
-            group_changed = new_group != previous_group
-            if group_changed:
+            if new_group != previous_group:
                 EventFire.update_campaign_events(self.object)
 
             response = self.render_to_response(
