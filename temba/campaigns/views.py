@@ -93,19 +93,12 @@ class CampaignCRUDL(SmartCRUDL):
             previous_group = self.get_object().group
             new_group = form.cleaned_data["group"]
 
-            group_changed = new_group != previous_group
-            if group_changed:
-                fires = EventFire.objects.filter(
-                    event__campaign=self.object, event__campaign__group=previous_group, fired=None
-                )
-                fires.delete()
-
             # save our campaign
             self.object = form.save(commit=False)
             self.save(self.object)
 
             # if our group changed, create our new fires
-            if group_changed:
+            if new_group != previous_group:
                 EventFire.update_campaign_events(self.object)
 
             response = self.render_to_response(

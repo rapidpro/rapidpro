@@ -3693,7 +3693,7 @@ class ContactTest(TembaTest):
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
-        self.assertEqual(7, EventFire.objects.all().count())
+        self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
 
         # visit a contact detail page as a user but not belonging to this organization
         self.login(self.user1)
