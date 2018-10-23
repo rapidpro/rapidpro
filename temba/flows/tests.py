@@ -4124,7 +4124,7 @@ class ActionPackedTest(FlowFileTest):
 
         # same thing, but with a custom smtp server
         self.org.add_smtp_config(
-            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", "T", self.admin
+            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", self.admin
         )
         self.start_flow()
         self.send("email")
@@ -4895,7 +4895,7 @@ class ActionTest(TembaTest):
 
         # same thing, but with a custom smtp server
         self.org.add_smtp_config(
-            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", "T", self.admin
+            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", self.admin
         )
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
         self.execute_action(action, run, msg)
