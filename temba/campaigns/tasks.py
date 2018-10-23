@@ -18,6 +18,8 @@ from temba.utils.queues import Queue, nonoverlapping_task, push_task
 
 logger = logging.getLogger(__name__)
 
+EVENT_FIRES_TO_TRIM = 100000
+
 
 @nonoverlapping_task(track_started=True, name="check_campaigns_task", lock_key="check_campaigns")
 def check_campaigns_task():
@@ -93,7 +95,20 @@ def create_event_fires(event_id):
 def trim_event_fires_task():
     start = timezone.now()
     boundary = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS)
-    trim_ids = EventFire.objects.filter(fired__lt=boundary).values_list("id", flat=True).order_by("fired")[:100000]
+
+    # first look for unfired fires that belong to inactive events
+    trim_ids = list(
+        EventFire.objects.filter(fired=None, event__is_active=False).values_list("id", flat=True)[:EVENT_FIRES_TO_TRIM]
+    )
+
+    # if we have trimmed all of our unfired inactive fires, look for old fired ones
+    if len(trim_ids) < EVENT_FIRES_TO_TRIM:
+        trim_ids += list(
+            EventFire.objects.filter(fired__lt=boundary)
+            .values_list("id", flat=True)
+            .order_by("fired")[: EVENT_FIRES_TO_TRIM - len(trim_ids)]
+        )
+
     for batch in chunk_list(trim_ids, 100):
         # use a bulk delete for performance reasons, nothing references EventFire
         EventFire.objects.filter(id__in=batch).delete()

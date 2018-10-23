@@ -339,6 +339,11 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
         )
 
+        # create a reminder for our first planting event
+        second_event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=5, unit="D", flow=self.reminder_flow
+        )
+
         trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
 
         # manually create two event fires
@@ -347,7 +352,11 @@ class CampaignTest(TembaTest):
             event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now()
         )
 
-        # trim our events
+        # create an unfired fire and release its event
+        EventFire.objects.create(event=second_event, contact=self.farmer1, scheduled=trimDate)
+        second_event.release()
+
+        # trim our events, one fired and one inactive onfired
         trim_event_fires_task()
 
         # should now have only one event, e2
@@ -929,7 +938,7 @@ class CampaignTest(TembaTest):
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
-        # should have no event fires
+        # shouldn't have any active event fires
         self.assertFalse(EventFire.objects.filter(event__is_active=True).exists())
 
         # restore the campaign
@@ -937,7 +946,7 @@ class CampaignTest(TembaTest):
         self.client.post(reverse("campaigns.campaign_archived"), post_data)
 
         # EventFire should be back
-        self.assertTrue(EventFire.objects.all())
+        self.assertTrue(EventFire.objects.all().exists())
 
         # set a planting date on our other farmer
         self.farmer2.set_field(self.user, "planting_date", "1/6/2022")
