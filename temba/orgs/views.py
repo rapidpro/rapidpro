@@ -991,9 +991,11 @@ class OrgCRUDL(SmartCRUDL):
 
                     config = self.instance.config
                     existing_smtp_server = urlparse(config.get("smtp_server", ""))
-                    existing_username = existing_smtp_server.username
+                    existing_username = ""
+                    if existing_smtp_server.username:
+                        existing_username = unquote(existing_smtp_server.username)
                     if not smtp_password and existing_username == smtp_username:
-                        smtp_password = existing_smtp_server.password
+                        smtp_password = unquote(existing_smtp_server.password)
 
                     if not smtp_from_email:
                         raise ValidationError(_("You must enter a from email"))
