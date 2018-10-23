@@ -994,7 +994,7 @@ class OrgCRUDL(SmartCRUDL):
                     existing_username = ""
                     if existing_smtp_server.username:
                         existing_username = unquote(existing_smtp_server.username)
-                    if not smtp_password and existing_username == smtp_username:
+                    if not smtp_password and existing_username == smtp_username and existing_smtp_server.password:
                         smtp_password = unquote(existing_smtp_server.password)
 
                     if not smtp_from_email:
