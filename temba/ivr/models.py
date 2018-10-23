@@ -24,6 +24,7 @@ class IVRCall(ChannelSession):
     RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
     MAX_ERROR_COUNT = 5
+    IGNORE_PENDING_CALLS_OLDER_THAN_DAYS = 7  # calls with modified_on older than 7 days are going to be ignored
 
     objects = IVRManager()
 
@@ -94,7 +95,7 @@ class IVRCall(ChannelSession):
         from temba.ivr.clients import IVRException
         from temba.flows.models import ActionLog, FlowRun
 
-        if client:
+        if client and domain:
             try:
                 url = "https://%s%s" % (domain, reverse("ivr.ivrcall_handle", args=[self.pk]))
                 if qs:  # pragma: no cover
@@ -135,11 +136,22 @@ class IVRCall(ChannelSession):
                 )
 
                 self.status = self.FAILED
-                self.save()
+                self.save(update_fields=("status",))
 
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended.")
+
+        # client or domain are not known
+        else:
+            ChannelLog.log_ivr_interaction(
+                self,
+                "Unknown client or domain",
+                HttpEvent(method="INTERNAL", url=None, response_body=f"client={client} domain={domain}"),
+            )
+
+            self.status = self.FAILED
+            self.save(update_fields=("status",))
 
     def schedule_call_retry(self, backoff_minutes: int):
         # retry the call if it has not been retried maximum number of times
