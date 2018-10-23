@@ -584,6 +584,12 @@ class CampaignEventCRUDL(SmartCRUDL):
             initial["unit"] = "D"
             initial["offset"] = "15"
             initial["direction"] = "A"
+
+            # default to our first date field
+            initial["relative_to"] = ContactField.all_fields.filter(
+                org=self.request.user.get_org(), is_active=True, value_type=Value.TYPE_DATETIME
+            ).first()
+
             return initial
 
         def post_save(self, obj):
