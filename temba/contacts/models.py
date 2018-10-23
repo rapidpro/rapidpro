@@ -3100,6 +3100,11 @@ class ContactGroup(TembaModel):
 
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
 
+        # deactivate any campaigns that are related to this group
+        from temba.campaigns.models import Campaign
+
+        Campaign.objects.filter(is_active=True, group=self).update(is_active=False, is_archived=True)
+
     @property
     def is_dynamic(self):
         return self.query is not None

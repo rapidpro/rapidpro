@@ -66,7 +66,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
 class CampaignCRUDL(SmartCRUDL):
     model = Campaign
-    actions = ("create", "read", "update", "list", "archived")
+    actions = ("create", "read", "update", "list", "archived", "archive", "activate")
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
@@ -80,6 +80,14 @@ class CampaignCRUDL(SmartCRUDL):
         fields = ("name", "group")
         success_message = ""
         form_class = UpdateCampaignForm
+
+        def pre_process(self, request, *args, **kwargs):
+            campaign_id = kwargs.get("pk")
+            if campaign_id:
+                campaign = Campaign.objects.filter(id=campaign_id, is_active=True, is_archived=False)
+
+                if not campaign.exists():
+                    raise Http404("Campaign not found")
 
         def get_success_url(self):
             return reverse("campaigns.campaign_read", args=[self.object.pk])
@@ -112,11 +120,31 @@ class CampaignCRUDL(SmartCRUDL):
     class Read(OrgMixin, SmartReadView):
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("campaigns.campaignevent_create"):
-                links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
 
-            if self.has_org_perm("campaigns.campaign_update"):
-                links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+            if self.object.is_archived:
+                if self.has_org_perm("campaigns.campaign_activate"):
+                    links.append(
+                        dict(
+                            title="Activate",
+                            js_class="posterize activate-campaign",
+                            href=reverse("campaigns.campaign_activate", args=[self.object.id]),
+                        )
+                    )
+            else:
+                if self.has_org_perm("campaigns.campaignevent_create"):
+                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
+
+                if self.has_org_perm("campaigns.campaign_update"):
+                    links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+
+                if self.has_org_perm("campaigns.campaign_archive"):
+                    links.append(
+                        dict(
+                            title="Archive",
+                            js_class="posterize archive-campaign",
+                            href=reverse("campaigns.campaign_archive", args=[self.object.id]),
+                        )
+                    )
 
             return links
 
@@ -196,6 +224,25 @@ class CampaignCRUDL(SmartCRUDL):
             qs = super().get_queryset(*args, **kwargs)
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
+
+    class Archive(OrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        fields = ()
+        success_url = "id@campaigns.campaign_read"
+        success_message = _("Campaign archived")
+
+        def save(self, obj):
+            obj.apply_action_archive(self.request.user, Campaign.objects.filter(id=obj.id))
+            return obj
+
+    class Activate(OrgMixin, OrgPermsMixin, SmartUpdateView):
+        fields = ()
+        success_url = "id@campaigns.campaign_read"
+        success_message = _("Campaign activated")
+
+        def save(self, obj):
+            obj.apply_action_restore(self.request.user, Campaign.objects.filter(id=obj.id))
+            return obj
 
 
 class CampaignEventForm(forms.ModelForm):
@@ -402,7 +449,10 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("campaigns.campaignevent_update"):
+
+            campaign_event = self.get_object()
+
+            if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
                 links.append(dict(title="Edit", js_class="update-event", href="#"))
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
@@ -410,8 +460,8 @@ class CampaignEventCRUDL(SmartCRUDL):
                     dict(
                         title="Delete",
                         delete=True,
-                        success_url=reverse("campaigns.campaign_read", args=[self.get_object().campaign.pk]),
-                        href=reverse("campaigns.campaignevent_delete", args=[self.get_object().id]),
+                        success_url=reverse("campaigns.campaign_read", args=[campaign_event.campaign.pk]),
+                        href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
                     )
                 )
 
@@ -455,7 +505,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             event = self.get_object()
-            if not event.is_active or not event.campaign.is_active:
+            if not event.is_active or not event.campaign.is_active or event.campaign.is_archived:
                 raise Http404("Event not found")
 
         def get_form_kwargs(self):
@@ -553,6 +603,14 @@ class CampaignEventCRUDL(SmartCRUDL):
         form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
+
+        def pre_process(self, request, *args, **kwargs):
+            campaign_id = request.GET.get("campaign", None)
+            if campaign_id:
+                campaign = Campaign.objects.filter(id=campaign_id, is_active=True, is_archived=False)
+
+                if not campaign.exists():
+                    raise Http404("Campaign not found")
 
         def derive_fields(self):
 

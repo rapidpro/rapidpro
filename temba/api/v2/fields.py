@@ -169,6 +169,10 @@ class TembaModelField(serializers.RelatedField):
 class CampaignField(TembaModelField):
     model = Campaign
 
+    def get_queryset(self):
+        manager = getattr(self.model, self.model_manager)
+        return manager.filter(org=self.context["org"], is_active=True, is_archived=False)
+
 
 class CampaignEventField(TembaModelField):
     model = CampaignEvent
