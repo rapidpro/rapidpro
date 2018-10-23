@@ -146,7 +146,7 @@ class ContactGroupForm(forms.ModelForm):
             raise forms.ValidationError(str(e))
 
     class Meta:
-        fields = "__all__"
+        fields = ("name", "query")
         model = ContactGroup
 
 
