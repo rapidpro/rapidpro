@@ -2953,14 +2953,20 @@ class ContactGroup(TembaModel):
             to_add_ids = new_group_members.difference(existing_member_ids)
             to_remove_ids = existing_member_ids.difference(new_group_members)
 
+            from temba.campaigns.models import Campaign
+
+            has_campaigns = Campaign.objects.filter(org=self.org, group=self).exists()
+
             # add new contacts to the group
             for members_chunk in chunk_list(to_add_ids, 1000):
                 to_add = Contact.objects.filter(id__in=members_chunk)
 
                 self.contacts.add(*to_add)
 
-                for changed_contact in to_add:
-                    changed_contact.handle_update(group=self)
+                # if our group is used in a campaign, our contacts need updating
+                if has_campaigns:
+                    for changed_contact in to_add:
+                        changed_contact.handle_update(group=self)
 
                 # update group updated_at
                 self.modified_on = datetime.datetime.now()
