@@ -11,7 +11,7 @@ WHERE ended_on IS NOT NULL;
 
 class Migration(migrations.Migration):
 
-    atomic = True
+    atomic = False
 
     dependencies = [("flows", "0185_auto_20181024_1430")]
 

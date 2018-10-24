@@ -809,10 +809,13 @@ class Channel(TembaModel):
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
         callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
-        if callback_domain is None:
-            callback_domain = self.org.get_brand_domain()
 
-        return callback_domain
+        if callback_domain:
+            return callback_domain
+        elif self.org:
+            return self.org.get_brand_domain()
+        else:
+            return None
 
     def get_ussd_delegate(self):
         return self.get_delegate(Channel.ROLE_USSD)

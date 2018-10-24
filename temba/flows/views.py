@@ -890,6 +890,7 @@ class FlowCRUDL(SmartCRUDL):
 
             contact_variables = [
                 dict(name="contact", display=str(_("Contact Name"))),
+                dict(name="contact.created_on", display=str(_("Contact Creation Date"))),
                 dict(name="contact.first_name", display=str(_("Contact First Name"))),
                 dict(name="contact.groups", display=str(_("Contact Groups"))),
                 dict(name="contact.language", display=str(_("Contact Language"))),

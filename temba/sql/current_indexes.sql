@@ -22,7 +22,7 @@ CREATE INDEX channels_channellog_channel_created_on
 ON channels_channellog(channel_id, created_on desc);
 
 CREATE INDEX IF NOT EXISTS channels_channelsession_pending_events
-  ON channels_channelsession (created_on ASC NULLS LAST) WHERE status = 'P' and direction = 'O' and is_active = True;
+  ON channels_channelsession (modified_on ASC NULLS LAST) WHERE status = 'P' and direction = 'O' and is_active = True;
 
 CREATE INDEX IF NOT EXISTS contact_fields_keys_idx ON contacts_contact USING GIN(extract_jsonb_keys(fields));
 
