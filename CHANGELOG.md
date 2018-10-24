@@ -1,3 +1,8 @@
+v4.10.9
+----------
+ * Log and fail calls that cannot be started
+ * Allow contact.created_on in flows, init new event
+
 v4.10.8
 ----------
  * Deactivate events when updating campaigns
