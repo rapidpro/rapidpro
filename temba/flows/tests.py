@@ -5572,6 +5572,9 @@ class FlowRunTest(TembaTest):
         self.assertIsNone(run4.session)
         self.assertIsNotNone(run4.connection)  # channel session unaffected
 
+        # only sessions for run2 and run3 are left
+        self.assertEqual(FlowSession.objects.count(), 2)
+
 
 class FlowLabelTest(FlowFileTest):
     def test_label_model(self):

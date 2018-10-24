@@ -198,7 +198,7 @@ def trim_flow_sessions():
     threshold = timezone.now() - timedelta(days=settings.FLOW_SESSION_TRIM_DAYS)
 
     while True:
-        session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold)[:1000].values_list("id", flat=True))
+        session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold).values_list("id", flat=True)[:1000])
         if not session_ids:
             break
 
