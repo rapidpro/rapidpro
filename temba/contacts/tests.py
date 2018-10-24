@@ -3630,7 +3630,7 @@ class ContactTest(TembaTest):
 
         event_fire.fired_result = EventFire.SKIPPED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
-        self.assertEqual(history_class(item), "non-msg warning")
+        self.assertEqual(history_class(item), "non-msg skipped")
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])

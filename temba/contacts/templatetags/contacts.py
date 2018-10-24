@@ -167,7 +167,7 @@ def history_class(item):
             classes.append("warning")
 
         if item["type"] == "event-fire" and obj.fired_result == EventFire.SKIPPED:
-            classes.append("warning")
+            classes.append("skipped")
     return " ".join(classes)
 
 
