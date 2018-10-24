@@ -4,11 +4,13 @@ import time
 
 import iso8601
 
+from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
+from datetime import timedelta
 
-from temba.flows.models import FLOW_BATCH
+from temba.channels.models import ChannelSession
 from temba.msgs.models import BROADCAST_BATCH, HANDLE_EVENT_TASK, TIMEOUT_EVENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
@@ -24,8 +26,10 @@ from .models import (
     FlowPathRecentRun,
     FlowRun,
     FlowRunCount,
+    FlowSession,
     FlowStart,
     FlowStartCount,
+    FLOW_BATCH,
 )
 
 FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
@@ -185,3 +189,21 @@ def squash_flowruncounts():
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
+
+
+@nonoverlapping_task(track_started=True, name="trim_flow_sessions")
+def trim_flow_sessions():
+    """
+    Cleanup old flow sessions
+    """
+    threshold = timezone.now() - timedelta(days=settings.FLOW_SESSION_TRIM_DAYS)
+
+    while True:
+        session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold)[:1000].values_list('id'))
+        if not session_ids:
+            break
+
+        # detach any flows runs that belong to these sessions
+        FlowRun.objects.filter(session_id__in=session_ids).update(session_id=None)
+
+        FlowSession.objects.filter(id__in=session_ids).delete()
