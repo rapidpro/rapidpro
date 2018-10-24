@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django_redis import get_redis_connection
 
 from django.utils import timezone
@@ -14,7 +16,7 @@ from .models import IVRCall
 
 @task(bind=True, name="start_call_task", max_retries=3)
 def start_call_task(self, call_pk):
-    call = IVRCall.objects.get(pk=call_pk)
+    call = IVRCall.objects.select_related("channel").get(pk=call_pk)
 
     lock_key = f"ivr_call_start_task_contact_{call.contact_id}"
     with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=60) as lock:
@@ -37,6 +39,7 @@ def check_calls_task():
     calls_to_retry = (
         IVRCall.objects.filter(next_attempt__lte=now, retry_count__lte=IVRCall.MAX_RETRY_ATTEMPTS)
         .filter(status__in=IVRCall.RETRY_CALL)
+        .filter(modified_on__gt=now - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
         .filter(direction=IVRCall.OUTGOING, is_active=True)
     )
 
@@ -65,6 +68,7 @@ def check_failed_calls_task():
     failed_calls_to_retry = (
         IVRCall.objects.filter(error_count__gte=1, error_count__lte=IVRCall.MAX_ERROR_COUNT)
         .filter(status__in=IVRCall.FAILED)
+        .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
         .filter(direction=IVRCall.OUTGOING, is_active=True)
     )
 
@@ -93,8 +97,10 @@ def task_enqueue_call_events():
     pending_call_events = (
         IVRCall.objects.filter(status=IVRCall.PENDING)
         .filter(direction=IVRCall.OUTGOING, is_active=True)
+        .filter(channel__is_active=True)
+        .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
         .select_related("channel")
-        .order_by("created_on")[:1000]
+        .order_by("modified_on")[:1000]
     )
 
     for call in pending_call_events:
