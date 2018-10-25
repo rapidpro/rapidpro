@@ -2,12 +2,19 @@
 
 from django.db import migrations
 
-SQL = """
+SQL1 = """
+-- for removing ended sessions
 CREATE INDEX CONCURRENTLY flows_flowsession_ended_on_not_null
 ON flows_flowsession(ended_on ASC)
 WHERE ended_on IS NOT NULL;
 """
 
+SQL2 = """
+-- for finding the waiting session for a contact
+CREATE INDEX CONCURRENTLY flows_flowsession_waiting
+ON flows_flowsession(contact_id)
+WHERE status = 'W';
+"""
 
 class Migration(migrations.Migration):
 
@@ -15,4 +22,7 @@ class Migration(migrations.Migration):
 
     dependencies = [("flows", "0185_auto_20181024_1430")]
 
-    operations = [migrations.RunSQL(SQL)]
+    operations = [
+        migrations.RunSQL(SQL1),
+        migrations.RunSQL(SQL2),
+    ]

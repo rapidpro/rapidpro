@@ -195,6 +195,7 @@ class FlowSession(models.Model):
 
     @classmethod
     def get_waiting(cls, contact):
+        breakpoint()
         return cls.objects.filter(contact=contact, status=FlowSession.STATUS_WAITING).first()
 
     @classmethod
