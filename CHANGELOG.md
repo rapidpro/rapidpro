@@ -1,3 +1,12 @@
+v4.11.0
+----------
+ * Add index for fetching waiting sessions by contact
+ * Ensure test_db users have same username and email
+ * Add index to FlowSession.ended_on
+ * Make FlowSession.created_on non-null
+ * Add warning class to skipped campaigns event fire on contact history
+ * Add fired_result field to campaign event fires
+
 v4.10.9
 ----------
  * Log and fail calls that cannot be started
