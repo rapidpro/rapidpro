@@ -836,6 +836,7 @@ CELERYBEAT_SCHEDULE = {
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
+    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
     "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
     "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
@@ -1080,6 +1081,12 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # 90 days which fits in nicely with the default archiving behavior.
 # -----------------------------------------------------------------------------------
 EVENT_FIRE_TRIM_DAYS = 90
+
+# -----------------------------------------------------------------------------------
+# Installs can also choose how long to keep FlowSessions around. These are
+# potentially big but really helpful for debugging. Default is 7 days.
+# -----------------------------------------------------------------------------------
+FLOW_SESSION_TRIM_DAYS = 7
 
 # -----------------------------------------------------------------------------------
 # Flowserver - disabled by default. GoFlow defaults to http://localhost:8800

@@ -178,7 +178,7 @@ class FlowSession(models.Model):
 
     output = JSONAsTextField(null=True, default=dict)
 
-    created_on = models.DateTimeField(null=True, default=timezone.now, help_text=_("When this session was created"))
+    created_on = models.DateTimeField(default=timezone.now, help_text=_("When this session was created"))
 
     ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
 

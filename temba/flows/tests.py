@@ -91,6 +91,7 @@ from .models import (
     FlowRevision,
     FlowRun,
     FlowRunCount,
+    FlowSession,
     FlowStart,
     FlowStartCount,
     FlowUserConflictException,
@@ -133,6 +134,7 @@ from .tasks import (
     squash_flowpathcounts,
     squash_flowruncounts,
     start_flow_task,
+    trim_flow_sessions,
     update_run_expirations_task,
 )
 from .views import FlowCRUDL
@@ -5531,6 +5533,47 @@ class FlowRunTest(TembaTest):
         # our run go bye bye
         run.release()
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
+
+    @skip_if_no_flowserver
+    @override_settings(FLOW_SERVER_AUTH_TOKEN="1234", FLOW_SERVER_FORCE=True)
+    def test_session_release(self):
+        # create some runs that have sessions
+        run1, = self.flow.start([], [self.contact])
+        run2, = self.flow.start([], [self.contact], restart_participants=True)
+        run3, = self.flow.start([], [self.contact], restart_participants=True)
+
+        # create an IVR run and session
+        connection = IVRCall.create_outgoing(self.channel, self.contact, self.contact.urns.get(), self.admin)
+        session = FlowSession.create(self.contact, connection)
+        run4 = FlowRun.create(self.flow, self.contact, connection=connection, session=session)
+
+        self.assertIsNotNone(run1.session)
+        self.assertIsNotNone(run2.session)
+        self.assertIsNotNone(run3.session)
+        self.assertIsNotNone(run4.session)
+
+        # end run1 and run4's sessions in the past
+        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.save(update_fields=("ended_on",))
+        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.save(update_fields=("ended_on",))
+
+        # end run2's session now
+        run2.session.ended_on = timezone.now()
+        run2.session.save(update_fields=("ended_on",))
+
+        trim_flow_sessions()
+
+        run1, run2, run3, run4 = FlowRun.objects.order_by("id")
+
+        self.assertIsNone(run1.session)
+        self.assertIsNotNone(run2.session)  # ended too recently to be deleted
+        self.assertIsNotNone(run3.session)  # never ended
+        self.assertIsNone(run4.session)
+        self.assertIsNotNone(run4.connection)  # channel session unaffected
+
+        # only sessions for run2 and run3 are left
+        self.assertEqual(FlowSession.objects.count(), 2)
 
 
 class FlowLabelTest(FlowFileTest):
