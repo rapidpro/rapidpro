@@ -47,7 +47,7 @@ from temba.values.constants import Value
 # maximum age in days of database content
 CONTENT_AGE = 3 * 365
 
-# every user will have this password including the superuser
+# by default every user will have this password including the superuser
 USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
@@ -64,10 +64,10 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"username": "admin%d", "email": "org%d_admin@example.com", "role": "administrators"},
-    {"username": "editor%d", "email": "org%d_editor@example.com", "role": "editors"},
-    {"username": "viewer%d", "email": "org%d_viewer@example.com", "role": "viewers"},
-    {"username": "surveyor%d", "email": "org%d_surveyor@example.com", "role": "surveyors"},
+    {"email": "org%d.admin@nyaruka.com", "role": "administrators"},
+    {"email": "org%d.editor@nyaruka.com", "role": "editors"},
+    {"email": "org%d.viewer@nyaruka.com", "role": "viewers"},
+    {"email": "org%d.surveyor@nyaruka.com", "role": "surveyors"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": Channel.TYPE_ANDROID, "scheme": "tel", "address": "1234"},
@@ -169,6 +169,7 @@ class Command(BaseCommand):
         gen_parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
         gen_parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
         gen_parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
+        gen_parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
 
         sim_parser = subparsers.add_parser("simulate", help="Simulates activity on an existing database")
         sim_parser.add_argument("--org", type=int, action="store", dest="org_id", default=None)
@@ -180,14 +181,14 @@ class Command(BaseCommand):
         start = time.time()
 
         if command == self.COMMAND_GENERATE:
-            self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"])
+            self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"], kwargs["password"])
         else:
             self.handle_simulate(kwargs["num_runs"], kwargs["org_id"], kwargs["flow_name"], kwargs["seed"])
 
         time_taken = time.time() - start
         self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
 
-    def handle_generate(self, num_orgs, num_contacts, seed):
+    def handle_generate(self, num_orgs, num_contacts, seed, password):
         """
         Creates a clean database
         """
@@ -214,11 +215,11 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        superuser = User.objects.create_superuser("root", "root@example.com", USER_PASSWORD)
+        superuser = User.objects.create_superuser("root", "root@nyaruka.com", password)
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
         orgs = self.create_orgs(superuser, country, num_orgs)
-        self.create_users(orgs)
+        self.create_users(orgs, password)
         self.create_channels(orgs)
         self.create_fields(orgs)
         self.create_groups(orgs)
@@ -361,7 +362,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
         return orgs
 
-    def create_users(self, orgs):
+    def create_users(self, orgs, password):
         """
         Creates a user of each type for each org
         """
@@ -370,7 +371,7 @@ class Command(BaseCommand):
         # create users for each org
         for org in orgs:
             for u in USERS:
-                user = User.objects.create_user(u["username"] % org.id, u["email"] % org.id, USER_PASSWORD)
+                user = User.objects.create_user(u["email"] % org.id, u["email"] % org.id, password)
                 getattr(org, u["role"]).add(user)
                 user.set_org(org)
                 org.cache["users"].append(user)
