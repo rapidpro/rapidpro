@@ -16,13 +16,11 @@ ON flows_flowsession(contact_id)
 WHERE status = 'W';
 """
 
+
 class Migration(migrations.Migration):
 
     atomic = False
 
     dependencies = [("flows", "0185_auto_20181024_1430")]
 
-    operations = [
-        migrations.RunSQL(SQL1),
-        migrations.RunSQL(SQL2),
-    ]
+    operations = [migrations.RunSQL(SQL1), migrations.RunSQL(SQL2)]
