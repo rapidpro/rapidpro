@@ -231,7 +231,61 @@ class Campaign(TembaModel):
     def __str__(self):
         return self.name
 
+    # BEGIN MX abierto change
+    @classmethod
+    def apply_action_send_notification(cls, user, campaigns):
+        from temba.notificacions.models import Notification
+        changed = []
+        event_string = "relative_to:{r}|offset:{o}|action:{a}"
+        for campaign in campaigns:
+            #Revisar si solo se queda la ultima notificacion
+            user_org = user.get_org()
+            if user_org.parent:
+                new_events = campaign.events.filter(is_active=True)
+                new_events_l = []
+                for e in new_events:
+                    if e.message:
+                        new_events_l.append(event_string.format(r = e.relative_to.label,
+                                                                o = str(e.offset)+e.unit,
+                                                                a = e.message))
+                    else:
+                        new_events_l.append(event_string.format(r = e.relative_to.label,
+                                                                o = str(e.offset)+e.unit,
+                                                                a = e.flow))
+                old_campaign = Campaign.objects.filter(org = user_org.parent,
+                                                       name = campaign.name)
+                changes = {"deleted":["New Campaign"], "added":new_events_l}
+                if old_campaign:
+                    old_events = old_campaign.first().events.filter(is_active=True)
+                    old_events_l = []
+                    for e in old_events:
+                        if e.message:
+                            old_events_l.append(event_string.format(r = e.relative_to.label,
+                                                                    o = str(e.offset)+e.unit,
+                                                                    a = e.message))
+                        else:
+                            old_events_l.append(event_string.format(r = e.relative_to.label,
+                                                                    o = str(e.offset)+e.unit,
+                                                                    a = e.flow))
+                    old_events_l = set(old_events_l)
+                    new_events_l = set(new_events_l)
+                    deleted = old_events_l - new_events_l
+                    added = new_events_l - old_events_l
+                    changes = {"deleted":list(deleted), "added":list(added)}
+                Notification.create_from_staging(user=user,
+                                                 org_orig=user_org,
+                                                 org_dest=user_org.parent,
+                                                 item_type = Notification.CAMPAIGN_TYPE,
+                                                 item_id = campaign.id,
+                                                 item_name = campaign.name,
+                                                 history=None,
+                                                 auto_migrated=user_org.apply_notification,
+                                                 history_dump = json.dumps(changes))
 
+            changed.append(campaign.pk)
+        return changed
+
+    # END MX abierto change 
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow

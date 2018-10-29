@@ -18,7 +18,8 @@ from .models import Campaign, CampaignEvent, EventFire
 
 
 class CampaignActionForm(BaseActionForm):
-    allowed_actions = (("archive", "Archive Campaigns"), ("restore", "Restore Campaigns"))
+    #  MX abierto change: add-notification
+    allowed_actions = (("archive", "Archive Campaigns"), ("restore", "Restore Campaigns"),("send-notification", "Send notification") )
 
     model = Campaign
     has_is_active = True
@@ -186,7 +187,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class List(BaseList):
         fields = ("name", "group")
-        actions = ("archive",)
+        actions = ("archive","send_to_production")
         search_fields = ("name__icontains", "group__name__icontains")
 
         def get_queryset(self, *args, **kwargs):

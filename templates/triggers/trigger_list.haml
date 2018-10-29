@@ -3,7 +3,7 @@
 -load i18n
 -block page-title
   -trans "Triggers"
-  
+
 -block title-icon
   .title-icon
     %span.glyph.icon-feed
@@ -66,6 +66,11 @@
                           %a.object-btn-archive{'href':'#'}
                             %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
                               .glyph.icon-box
+                      - if 'send_to_production' in actions
+                        %span.btn-group
+                          %a.object-btn-send-notification{href:'#'}
+                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send to production" %}'}
+                              .glyph.icon-upload
 
               %table.list-table.trigger-list.object-list.table.table-condensed{style: '{% if not org_perms.triggers.trigger_update %}margin-top:10px{% endif %}'}
                 %tbody
@@ -237,4 +242,3 @@
        modal.setRedirectOnSuccess(true);
        modal.show();
     });
-    

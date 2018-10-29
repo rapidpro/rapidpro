@@ -569,6 +569,7 @@ class OrgCRUDL(SmartCRUDL):
         "transfer_credits",
         "transfer_to_account",
         "smtp_server",
+        "notification"
     )
 
     model = Org
@@ -1077,14 +1078,174 @@ class OrgCRUDL(SmartCRUDL):
             context["flow_from_email"] = parseaddr(from_email)[1]
 
             return context
+        # BEGIN MX abierto change
+
+    class Notification(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        """
+        Class to render notification history and active by org
+        Used by admin user.
+        """
+
+        def post(self, request, *args, **kwargs):
+            from temba.notifications.models import Notification
+            from temba.flows.models import  FlowRevision, Flow
+            """
+            Override post method to catch 'accept', 'reject' and
+            'auto_update' buttons
+            """
+            if 'reject'in request.POST or \
+               'accept' in request.POST:
+                ids = []
+                archived_ids = []
+                for k in request.POST.keys():
+                    if request.POST[k] == 'on':
+                        if 'archive' in k:
+                            archived_ids.append(
+                                int(k.split('-')[0]))
+                        else:
+                            ids.append(k)
+                notifications = Notification.objects.filter(id__in = ids)
+                is_accepted = 'accept' in request.POST
+                for notification in notifications:
+                    notification.set_accepted(is_accepted)
+                    notification.mark_desactive()
+                    archived = notification.id in archived_ids
+                    notification.set_archived(archived)
+
+            elif 'stop_auto_update' in request.POST or \
+                 'allow_auto_update' in request.POST:
+                org_id = int(self.request.GET.get('org_id', 0))
+                orgs = Org.objects.filter(id=org_id)
+                if orgs:
+                    org = orgs[0]
+                    status = 'allow_auto_update' in request.POST
+                    org.is_autoaccepted_flow = status
+                    org.save()
+
+            return HttpResponseRedirect(request.get_full_path())
+
+
+        def get_context_data(self, **kwargs):
+            from temba.flows.models import Notification, FlowRevision, Flow
+            """
+            Override method to add list of active notifications
+            history notifications and auto_accept value
+            """
+            context = super(OrgCRUDL.Notification, self).get_context_data(**kwargs)
+            org_id = int(self.request.GET.get('org_id', 0))
+            orgs = Org.objects.filter(id=org_id)
+            if not orgs:
+                return context
+            org = orgs[0]
+            org_notifications = Notification.objects.filter( org_orig = org)
+            notifications = org_notifications.filter(is_active = True).order_by('-created_on')
+            history = org_notifications.filter(is_active = False).order_by('-created_on')
+            valid_types = []
+            all_types = [Notification.FLOW_TYPE, Notification.CAMPAIGN_TYPE,
+                         Notification.TRIGGER_TYPE]
+            for type_notification in all_types:
+                if notifications.filter(item_type = type_notification):
+                    valid_types.append(type_notification)
+
+            context['notifications'] = notifications
+            context['active_types'] = valid_types
+            context['history'] = history
+            context['types'] = all_types
+            context['auto_accept'] = org.is_autoaccepted_flow
+            context['has_parent'] = org.parent
+            context['FLOW_TYPE'] = Notification.FLOW_TYPE
+            context['CAMPAIGN_TYPE'] = Notification.CAMPAIGN_TYPE
+            context['TRIGGER_TYPE'] = Notification.TRIGGER_TYPE
+
+            return context
+
+    # END MX abierto change
+
 
     class Manage(SmartListView):
-        fields = ("credits", "used", "name", "owner", "service", "created_on")
-        field_config = {"service": {"label": ""}}
+        # MX abierto change: Change values of the table and field_config
+        fields = ("name", "history_msgs_in","history_msgs_out","per_msgs_in","per_msgs_out","contacts" ,"owner", "created_on","service","notification")
+        field_config = {"service": {"label": ""},
+                        "notification": {"label": "Notifications"},
+                        "per_msgs_out":{"label":"Msgs Out (%) Last 30 days"},
+                        "per_msgs_in" :{"label":"Msgs In  (%) Last 30 days"},
+                        "history_msgs_out":{"label":"All Msgs Out"},
+                        "history_msgs_in":{"label":"All Msgs In"},
+                        }
         default_order = ("-credits", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         title = "Organizations"
+        # BEGIN MX abierto change
+        #                            Auxiliar funtions                         #
+        def get_total_msgs_by_type(self, type_selection, org):
+            if not type_selection in (ChannelCount.INCOMING_MSG_TYPE,
+                                      ChannelCount.OUTGOING_MSG_TYPE):
+                return 0
+            else:
+                daily_counts = ChannelCount.objects.filter(count_type=type_selection,
+                                                           channel__org=org)
+                daily_counts = daily_counts.filter(day__gt='2013-02-01')
+                daily_counts = daily_counts.filter(day__lte=timezone.now())
+                sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
+                return sum_value
+
+
+        def get_total_msgs_general(self, org = None, type_selection= None):
+            result = {}
+            last_month = timezone.now() -timedelta(days=30)
+            if type_selection:
+                list_type = [type_selection]
+            else:
+                list_type = [ChannelCount.INCOMING_MSG_TYPE,
+                            ChannelCount.OUTGOING_MSG_TYPE]
+            for type_selection in list_type:
+                daily_counts= ChannelCount.objects.filter(count_type=type_selection)
+                if org:
+                    daily_counts = daily_counts.filter(channel__org=org)
+                daily_counts = daily_counts.filter(day__gt=last_month)
+                daily_counts = daily_counts.filter(day__lte=timezone.now())
+                sum_value = sum([count_d['count'] for count_d in list(daily_counts.values('count'))])
+                result[type_selection] = sum_value
+            return result
+
+
+        def get_percentage_msgs(self, type_selection,org):
+            all_msgs  = self.get_total_msgs_general(type_selection = type_selection)
+            org_msgs  = self.get_total_msgs_general(org= org,
+                                                    type_selection=type_selection)
+            if all_msgs[type_selection]==0:
+                return "0%"
+            total = str(int(100*org_msgs[type_selection]/all_msgs[type_selection]))+"%"
+            return total
+
+
+        #                               View funtions                          #
+
+        def get_history_msgs_in(self, obj):
+            sum_value = self.get_total_msgs_by_type(ChannelCount.INCOMING_MSG_TYPE, obj)
+            return mark_safe("<div>%d</div>" % (sum_value))
+
+
+        def get_history_msgs_out(self, obj):
+            sum_value = self.get_total_msgs_by_type(ChannelCount.OUTGOING_MSG_TYPE, obj)
+            return mark_safe("<div>%d</div>" % (sum_value))
+
+
+        def get_per_msgs_in(self, obj):
+            total = self.get_percentage_msgs(ChannelCount.INCOMING_MSG_TYPE, obj)
+            return mark_safe("<div>%s</div>" % (total))
+
+
+        def get_per_msgs_out(self, obj):
+            total = self.get_percentage_msgs(ChannelCount.OUTGOING_MSG_TYPE, obj)
+            return mark_safe("<div>%s</div>" % (total))
+
+        def get_notification(self, obj):
+            url = reverse('orgs.org_notification')
+            return mark_safe("<a href='%s?org_id=%d' class='service btn'>Notifications</a>"
+                             % (url, obj.id))
+        # END MX abierto change
 
         def get_used(self, obj):
             if not obj.credits:  # pragma: needs cover
@@ -1146,10 +1307,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return queryset
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["searches"] = ["Nyaruka"]
-            return context
 
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
@@ -1159,21 +1316,79 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
+        # BEGIN MX abierto change
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
+            context["create_org_form"] = CreateOrgForm()
+            total_msgs = self.get_total_msgs_general()
+            context["total_received"] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
+            context["total_sent"] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
+            return context
+
+        def post (self, request, *args, **kwargs):
+            form = CreateOrgForm(self.request.POST or None)
+            MAX_TOPUP = 100000000
+            if form and form.is_valid():
+                parent_org = form.save(commit = False)
+                base_name = parent_org.name
+                parent_org.name = base_name+"_produccion"
+                parent_org.created_by = request.user
+                parent_org.modified_by = request.user
+                parent_org.timezone = settings.USER_TIME_ZONE
+                parent_org.webhook  = {}
+                parent_org.config = {"STATUS": "whitelisted"}
+                parent_org.slug = Org.get_unique_slug(parent_org.name)
+                parent_org.brand = settings.DEFAULT_BRAND
+                parent_org.save()
+                form.save_m2m()
+                parent_org.initialize(branding=parent_org.get_branding(), topup_size=MAX_TOPUP)
+                #Now create child
+                child_name = base_name+"_desarrollo"
+                child_org = parent_org.create_sub_org(child_name,
+                                                      parent_org.timezone,
+                                                      parent_org.administrators.first())
+                child_org.create_welcome_topup(MAX_TOPUP)
+                #Now add same administrator
+                for administrator in parent_org.administrators.all():
+                    child_org.administrators.add(administrator)
+            else:
+                print (form.errors)
+            return HttpResponseRedirect('/org/manage/')
+
+        # END MX abierto change
 
     class Update(SmartUpdateView):
         fields = ("name", "brand", "parent", "is_anon")
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
+            # MX abierto change: add values to manager
+            viewers = forms.ModelMultipleChoiceField(
+                User.objects.all(),
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={'size':'300'}))
+            editors = forms.ModelMultipleChoiceField(
+                User.objects.all(),
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={'size':'300'}))
+            surveyors = forms.ModelMultipleChoiceField(
+                User.objects.all(),
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={'size':'300'}))
+            administrators = forms.ModelMultipleChoiceField(
+                User.objects.all(),
+                required=False,
+                widget=forms.CheckboxSelectMultiple(attrs={'size':'300'}))
 
             def clean_parent(self):
-                parent = self.cleaned_data.get("parent")
+                parent = self.cleaned_data.get('parent')
                 if parent:
                     return Org.objects.filter(pk=parent).first()
 
             class Meta:
                 model = Org
-                fields = ("name", "slug", "stripe_customer", "is_active", "is_anon", "brand", "parent")
+                fields = ('name', 'slug', 'administrators','viewers','editors','surveyors','stripe_customer', 'is_active', 'is_anon', 'brand', 'parent')
 
         form_class = OrgUpdateForm
 

@@ -59,6 +59,12 @@
         .title
           -trans "dashboard"
 
+  -if org_perms.flows.flow_list and not request.user.is_superuser
+    %li.nav-notification
+      %a.icon-nav-notification{href:"{% url 'flows.notification_list' %}"}
+        .title
+          -trans "notification"
+
   -if not request.user.is_anonymous
     %li.more
       %a.icon-menu-4{href:""}
@@ -91,4 +97,4 @@
   .nav-alert
     %a{href:'{% url "orgs.org_home" %}'}
       .icon-warning
-      -trans "Your phone is having difficulty relaying messages"            
+      -trans "Your phone is having difficulty relaying messages"

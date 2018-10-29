@@ -1300,6 +1300,33 @@ class Flow(TembaModel):
                 pass
         return changed
 
+    # BEGIN MX abierto change
+    @classmethod
+    def apply_action_send_notification(cls, user, flows):
+        changed = []
+        from temba.notifications.models import Notification
+
+        for flow in flows:
+            #Revisar si solo se queda la ultima notificacion
+            history = FlowRevision.objects.filter(flow=flow).last()
+            user_org = user.get_org()
+            if user_org.parent:
+                notification = Notification.create_from_staging(
+                    user=user,
+                    org_orig=user_org,
+                    org_dest=user_org.parent,
+                    item_type = Notification.FLOW_TYPE,
+                    item_id = flow.id,
+                    item_name = flow.name,
+                    history=history,
+                    auto_migrated=user_org.apply_notification)
+                if user_org.apply_notification:
+                    on_transaction_commit(lambda: migrate_one_flow.delay(notification))
+            changed.append(flow.pk)
+        return changed
+
+    # END MX abierto change
+
     @classmethod
     def get_versions_before(cls, version_number):
         versions = []

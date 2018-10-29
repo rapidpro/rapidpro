@@ -417,7 +417,8 @@ class UssdTriggerForm(BaseTriggerForm):
 
 
 class TriggerActionForm(BaseActionForm):
-    allowed_actions = (("archive", _("Archive Triggers")), ("restore", _("Restore Triggers")))
+    # MX abierto change: add send notification
+    allowed_actions = (("archive", _("Archive Triggers")), ("restore", _("Restore Triggers")),("send-notification",_("Send notification")))
 
     model = Trigger
     has_is_active = True
@@ -640,7 +641,8 @@ class TriggerCRUDL(SmartCRUDL):
     class List(BaseList):
         fields = ("keyword", "flow", "trigger_count")
         link_fields = ("keyword", "flow")
-        actions = ("archive",)
+        # MX abierto change: add send to production
+        actions = ("archive","send_to_production")
         title = _("Triggers")
 
         def pre_process(self, request, *args, **kwargs):

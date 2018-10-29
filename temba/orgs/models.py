@@ -298,6 +298,10 @@ class Org(SmartModel):
         blank=True,
         help_text=_("The parent org that manages this org"),
     )
+    # MX abierto change: add field, apply_notification
+    apply_notification = models.BooleanField(
+        default=False, help_text=_("Whether this organization auto_accepted the migration of staging to production")
+    )
 
     @classmethod
     def get_unique_slug(cls, name):

@@ -52,6 +52,12 @@
                             %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Archive'}
                               .glyph.icon-box
 
+                      - if 'send_to_production' in actions
+                        %span.btn-group
+                          %a.object-btn-send-notification{href:'#'}
+                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send to production" %}'}
+                              .glyph.icon-upload
+
               %table.list-table.campaign-list.object-list.table.table-condensed{style: '{% if not org_perms.campaigns.campaign_update %}margin-top:10px{% endif %}'}
                 <tbody>
                 {% for obj in object_list %}

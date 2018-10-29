@@ -103,6 +103,12 @@
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
                             .glyph.icon-box
 
+                    - if 'send_to_production' in actions and org_perms.flows.flow_update
+                      %span.btn-group
+                        %a.object-btn-send-notification{href:'#'}
+                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send to production" %}'}
+                            .glyph.icon-upload
+
                     - if 'label' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         %button.btn.dropdown-toggle{data-toggle:"dropdown", data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Labels" %}'}

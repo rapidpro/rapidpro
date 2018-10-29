@@ -804,3 +804,14 @@
 .icon-nav-docs-inverted:before {
   content: "\f15c";
 }
+/* BEGIN Mx abierto change */
+.icon-bubble-notification:before {
+  content: "\e062";
+}
+.icon-nav-notification-inverted:before {
+  content: "\e0bf";
+}
+.icon-nav-notification:before {
+  content: "\e0c0";
+}
+/* END Mx abierto change */

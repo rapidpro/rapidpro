@@ -132,6 +132,10 @@ class BaseActionForm(forms.Form):
             changed = self.model.apply_action_resend(self.user, objects)
             return dict(changed=changed)
 
+        elif action == 'send-notification':
+            changed = self.model.apply_action_send_notification(self.user, objects)
+            return dict(changed=changed)
+
         else:  # pragma: no cover
             return dict(error=_("Oops, so sorry. Something went wrong!"))
 

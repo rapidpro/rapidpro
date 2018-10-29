@@ -59,6 +59,7 @@ from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
+from temba.notifications.models import Notification
 
 from .models import (
     ActionLog,
@@ -160,6 +161,8 @@ class FlowActionForm(BaseActionForm):
         ("archive", _("Archive Flows")),
         ("label", _("Label Messages")),
         ("restore", _("Restore Flows")),
+        # MX abierto change: add send notification
+        ("send-notification",_("Send notification"))
     )
 
     model = Flow
@@ -790,7 +793,8 @@ class FlowCRUDL(SmartCRUDL):
 
     class List(BaseList):
         title = _("Flows")
-        actions = ("archive", "label")
+        # MX abierto change: add send_to_production
+        actions = ("archive", "label","send_to_production")
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
