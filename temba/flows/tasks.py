@@ -213,7 +213,7 @@ def trim_flow_sessions():
         FlowSession.objects.filter(id__in=session_ids).delete()
         num_deleted += len(session_ids)
 
-        if num_deleted % 10000 == 0:
+        if num_deleted % 10000 == 0:  # pragma: no cover
             print(f" > Deleted {num_deleted} flow sessions")
 
     elapsed = timesince(start)
