@@ -33,7 +33,7 @@ class WhatsAppType(ChannelType):
 
     schemes = [WHATSAPP_SCHEME]
     max_length = 4096
-    attachment_support = False
+    attachment_support = True
 
     def is_available_to(self, user):
         return user.groups.filter(name="Beta")
