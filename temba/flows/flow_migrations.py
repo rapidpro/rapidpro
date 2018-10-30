@@ -39,15 +39,12 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map:
-                group_instance = ContactGroup.get_or_create(
-                    flow.org, flow.created_by, group["name"], group.get("uuid", None)
-                )
-
-                # map group references that started with a uuid
-                if "uuid" in group:
-                    uuid_map[group["uuid"]] = group_instance.uuid
-
-                group["uuid"] = group_instance.uuid
+                group_instance = ContactGroup.get_user_group(flow.org, group["name"])
+                if group_instance:
+                    # map group references that started with a uuid
+                    if "uuid" in group:
+                        uuid_map[group["uuid"]] = group_instance.uuid
+                    group["uuid"] = group_instance.uuid
 
             # we were already mapped
             elif group["uuid"] in uuid_map:
