@@ -685,6 +685,9 @@ class OrgTest(TembaTest):
             {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
         )
 
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, update_url)
+
     def test_enable_flow_server(self):
         update_url = reverse("orgs.org_update", args=[self.org.pk])
 
