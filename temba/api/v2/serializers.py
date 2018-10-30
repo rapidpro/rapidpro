@@ -715,12 +715,23 @@ class ContactBulkActionSerializer(WriteSerializer):
 
 
 class FlowReadSerializer(ReadSerializer):
+    FLOW_TYPES = {
+        Flow.TYPE_MESSAGE: "message",
+        Flow.TYPE_VOICE: "voice",
+        Flow.TYPE_USSD: "ussd",
+        Flow.TYPE_SURVEY: "survey",
+    }
+
+    type = serializers.SerializerMethodField()
     archived = serializers.ReadOnlyField(source="is_archived")
     labels = serializers.SerializerMethodField()
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
         return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
@@ -736,7 +747,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ("uuid", "name", "archived", "labels", "expires", "runs", "created_on", "modified_on")
+        fields = ("uuid", "name", "type", "archived", "labels", "expires", "runs", "created_on", "modified_on")
 
 
 class FlowRunReadSerializer(ReadSerializer):

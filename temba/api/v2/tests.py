@@ -2126,8 +2126,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        registration = self.create_flow(name="Registration")
+        survey = self.get_flow("media_survey")
         color = self.get_flow("color")
+        archived = self.get_flow("favorites")
+        archived.archive()
 
         # add a campaign message flow that should be filtered out
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")
@@ -2144,7 +2146,7 @@ class APITest(TembaTest):
         self.create_flow(org=self.org2, name="Other")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -2154,8 +2156,20 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
+                    "uuid": archived.uuid,
+                    "name": "Favorites",
+                    "type": "message",
+                    "archived": True,
+                    "labels": [],
+                    "expires": 720,
+                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "created_on": format_datetime(archived.created_on),
+                    "modified_on": format_datetime(archived.modified_on),
+                },
+                {
                     "uuid": color.uuid,
                     "name": "Color Flow",
+                    "type": "message",
                     "archived": False,
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
                     "expires": 720,
@@ -2164,14 +2178,15 @@ class APITest(TembaTest):
                     "modified_on": format_datetime(color.modified_on),
                 },
                 {
-                    "uuid": registration.uuid,
-                    "name": "Registration",
+                    "uuid": survey.uuid,
+                    "name": "Media Survey",
+                    "type": "survey",
                     "archived": False,
                     "labels": [],
-                    "expires": 720,
+                    "expires": 10080,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
-                    "created_on": format_datetime(registration.created_on),
-                    "modified_on": format_datetime(registration.modified_on),
+                    "created_on": format_datetime(survey.created_on),
+                    "modified_on": format_datetime(survey.modified_on),
                 },
             ],
         )
@@ -2180,37 +2195,34 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "uuid=%s" % color.uuid)
         self.assertResultsByUUID(response, [color])
 
+        # filter by type
+        response = self.fetchJSON(url, "type=message")
+        self.assertResultsByUUID(response, [archived, color])
+
+        response = self.fetchJSON(url, "type=survey")
+        self.assertResultsByUUID(response, [survey])
+
+        # filter by archived
+        response = self.fetchJSON(url, "archived=1")
+        self.assertResultsByUUID(response, [archived])
+
+        response = self.fetchJSON(url, "archived=0")
+        self.assertResultsByUUID(response, [color, survey])
+
         # filter by before
-        response = self.fetchJSON(url, "before=%s" % format_datetime(registration.modified_on))
-        self.assertResultsByUUID(response, [registration])
+        response = self.fetchJSON(url, "before=%s" % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color, survey])
 
         # filter by after
         response = self.fetchJSON(url, "after=%s" % format_datetime(color.modified_on))
-        self.assertResultsByUUID(response, [color])
+        self.assertResultsByUUID(response, [archived, color])
 
-        # Inactive flows hidden
-        registration.is_active = False
-        registration.save()
+        # inactive flows are never returned
+        archived.is_active = False
+        archived.save()
 
         response = self.fetchJSON(url)
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
-                {
-                    "uuid": color.uuid,
-                    "name": "Color Flow",
-                    "archived": False,
-                    "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
-                    "expires": 720,
-                    "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
-                    "created_on": format_datetime(color.created_on),
-                    "modified_on": format_datetime(color.modified_on),
-                }
-            ],
-        )
+        self.assertResultsByUUID(response, [color, survey])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
