@@ -2942,6 +2942,7 @@ class OrgCRUDLTest(TembaTest):
         # simulate old webhook config was set
         org = Org.objects.get(name="Relieves World")
         org.webhook = dict(url="SET")
+        org.save()
 
         # try setting our webhook and subscribe to one of the events
         response = self.client.post(
