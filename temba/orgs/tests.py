@@ -656,6 +656,16 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get(update_url)
+        self.assertEqual(302, response.status_code)
+
+        self.assertRedirect(response, reverse("orgs.org_token"))
+
+        # simulate an org that had the old config set
+        org = Org.objects.get(pk=self.org.pk)
+        org.webhook = dict(url="Set")
+        org.save()
+
+        response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
         # set a webhook with headers
@@ -2928,6 +2938,10 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertEqual(200, response.status_code)
+
+        # simulate old webhook config was set
+        org = Org.objects.get(name="Relieves World")
+        org.webhook = dict(url="SET")
 
         # try setting our webhook and subscribe to one of the events
         response = self.client.post(
