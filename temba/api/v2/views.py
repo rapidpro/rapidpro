@@ -1962,7 +1962,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the flow (string), filterable as `uuid`
      * **name** - the name of the flow (string)
-     * **archived** - whether this flow is archived (boolean)
+     * **type** - the type of the flow (one of "message", "voice", "ussd", "survey"), filterable as `type`
+     * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
      * **created_on** - when this flow was created (datetime)
@@ -1982,6 +1983,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Survey",
+                    "type": "message",
                     "archived": false,
                     "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                     "expires": 600,
@@ -2004,6 +2006,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
 
+    FLOW_TYPES = {v: k for k, v in FlowReadSerializer.FLOW_TYPES.items()}
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
@@ -2013,6 +2017,16 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by type (optional)
+        flow_type = params.get("type")
+        if flow_type:
+            queryset = queryset.filter(flow_type=self.FLOW_TYPES.get(flow_type))
+
+        # filter by archived (optional)
+        archived = params.get("archived")
+        if archived:
+            queryset = queryset.filter(is_archived=archived)
 
         queryset = queryset.prefetch_related("labels")
 
