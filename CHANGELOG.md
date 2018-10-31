@@ -1,3 +1,12 @@
+v4.11.1
+----------
+ * Turn on the attachment support for VP channels
+ * Tweak 11.6 flow migration so that we remap groups, but never create them
+ * Flows API endpoint should support filtering by archived and type
+ * Log how many flow sessions are deleted and the time taken
+ * Turn on the attachment support for WA channels
+ * Adjust UI for adding quick replies and attachment in random order
+
 v4.11.0
 ----------
  * Add index for fetching waiting sessions by contact
