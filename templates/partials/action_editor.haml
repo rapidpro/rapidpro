@@ -72,7 +72,7 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
-        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !quickReplies.length'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media'}
           .attach-button{ng-show:'!showAttachOptions'}
             .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
@@ -105,7 +105,7 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-        .icon-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="M"'}
+        .icon-quick-reply{ng-click: 'addNewQuickReply();', ng-show: 'showQuickReplyButton && flow.flow_type=="M"'}
 
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header

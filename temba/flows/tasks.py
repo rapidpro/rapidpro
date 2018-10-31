@@ -7,6 +7,7 @@ import iso8601
 
 from django.conf import settings
 from django.utils import timezone
+from django.utils.timesince import timesince
 
 from celery.task import task
 
@@ -196,6 +197,10 @@ def trim_flow_sessions():
     Cleanup old flow sessions
     """
     threshold = timezone.now() - timedelta(days=settings.FLOW_SESSION_TRIM_DAYS)
+    num_deleted = 0
+    start = timezone.now()
+
+    print(f"Deleting flow sessions which ended before {threshold.isoformat()}...")
 
     while True:
         session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold).values_list("id", flat=True)[:1000])
@@ -206,3 +211,10 @@ def trim_flow_sessions():
         FlowRun.objects.filter(session_id__in=session_ids).update(session_id=None)
 
         FlowSession.objects.filter(id__in=session_ids).delete()
+        num_deleted += len(session_ids)
+
+        if num_deleted % 10000 == 0:  # pragma: no cover
+            print(f" > Deleted {num_deleted} flow sessions")
+
+    elapsed = timesince(start)
+    print(f"Deleted {num_deleted} flow sessions which ended before {threshold.isoformat()} in {elapsed}")
