@@ -1,7 +1,7 @@
 window.simulation = false
 window.moving_sim = false
 window.level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
-window.legacy = true
+window.legacy = !window.flowServerEnabled
 
 $ ->
   $(window).scroll (evt) ->

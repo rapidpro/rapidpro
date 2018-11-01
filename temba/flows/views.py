@@ -1470,8 +1470,6 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
-
-            # try to parse our body
             try:
                 json_dict = json.loads(request.body)
             except Exception as e:  # pragma: needs cover
@@ -1494,8 +1492,6 @@ class FlowCRUDL(SmartCRUDL):
                 # build our request body to mailroom
                 body = dict(org_id=flow.org_id)
 
-                print(json.dumps(json_dict, indent=2))
-
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
                     body["trigger"] = json_dict["trigger"]
@@ -1504,7 +1500,6 @@ class FlowCRUDL(SmartCRUDL):
                     if response.status_code != 200:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-                    print(json.dumps(response.json(), indent=2))
                     return JsonResponse(response.json())
 
                 # otherwise we are resuming
@@ -1516,7 +1511,6 @@ class FlowCRUDL(SmartCRUDL):
                     if response.status_code != 200:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-                    print(json.dumps(response.json(), indent=2))
                     return JsonResponse(response.json())
 
         def handle_legacy(self, request, json_dict):
