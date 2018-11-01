@@ -3861,6 +3861,37 @@ class FlowTest(TembaTest):
         self.assertEqual(results["color"]["value"], "blue")
         self.assertEqual(results["color"]["input"], incoming.text)
 
+    def test_session_json(self):
+        self.flow.start([], [self.contact])
+
+        # create a fake session for this run
+        session = FlowSession.objects.create(
+            org=self.org,
+            contact=self.contact,
+            status=FlowSession.STATUS_WAITING,
+            responded=False,
+            output=dict(),
+            created_on=timezone.now(),
+        )
+
+        # normal users can't see session json
+        url = reverse("flows.flowsession_json", args=[session.id])
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        # but logged in as a CS rep we can
+        self.login(self.customer_support)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+
+        response_json = json.loads(response.content)
+        self.assertEqual("Temba", response_json["_metadata"]["org"])
+
     def test_ignore_keyword_triggers(self):
         self.flow.start([], [self.contact])
 

@@ -231,7 +231,9 @@ class FlowSessionCRUDL(SmartCRUDL):
     actions = ("json",)
     model = FlowSession
 
-    class Json(OrgObjPermsMixin, SmartReadView):
+    class Json(SmartReadView):
+        permission = "flows.flowsession_json"
+
         def get(self, request, *args, **kwargs):
             session = self.get_object()
             output = session.output
