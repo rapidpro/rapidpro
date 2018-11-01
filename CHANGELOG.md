@@ -1,3 +1,8 @@
+v4.11.3
+----------
+ * Add session log links to contact history for staff users
+ * Hide old webhook config page if not yet set
+
 v4.11.2
 ----------
  * Fix passing false/true to archived param of flows API endpoint
