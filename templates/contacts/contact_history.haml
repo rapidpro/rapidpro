@@ -110,9 +110,10 @@
             {% channel_log_link item.obj %}
 
           -if perms.flows.flowsession_json
-            -if item.type == 'run-start' or item.type == 'run-exit' and item.obj.session_id
-              %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
-                .icon-docs-2
+            -if item.type == 'run-start' or item.type == 'run-exit'
+              -if item.obj.session_id
+                %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
+                  .icon-docs-2
 
           -if item.type == 'webhook-result'
             -with item.obj.event as event
