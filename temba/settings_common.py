@@ -1102,6 +1102,12 @@ FLOW_SERVER_FORCE = False
 FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
 
 # -----------------------------------------------------------------------------------
+# Mailroom - disabled by default, but is where simulation happens
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
+
+# -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:
 #   * TT is our old Twitter integration, will be removed ~June 2018
 #   * JNU is junebug USSD, which may be removed depending on future of USSD

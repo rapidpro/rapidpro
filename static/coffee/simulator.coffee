@@ -73,11 +73,6 @@ sendMessage = (newMessage) ->
     if newMessage == "/v1" or newMessage == "/v2"
       window.legacy = newMessage == "/v1"
 
-      if newMessage == "/v2"
-        # document.location.href =
-        document.location.href = document.location.href.replace(/\/editor\//g, '/editor_next/');
-        return
-
       # style our content slightly differently to let us know we are on the new engine
       resetForm()
 
