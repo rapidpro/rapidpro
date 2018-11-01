@@ -40,7 +40,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.server import get_client
 from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
@@ -225,6 +225,22 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
     def get_template_names(self):
         return "partials/%s.html" % self.template
+
+
+class FlowSessionCRUDL(SmartCRUDL):
+    actions = ("json",)
+    model = FlowSession
+
+    class Json(SmartReadView):
+        permission = "flows.flowsession_json"
+
+        def get(self, request, *args, **kwargs):
+            session = self.get_object()
+            output = session.output
+            output["_metadata"] = dict(
+                session_id=session.id, org=session.org.name, org_id=session.org_id, site=self.request.branding["link"]
+            )
+            return JsonResponse(output, json_dumps_params=dict(indent=2))
 
 
 class FlowRunCRUDL(SmartCRUDL):

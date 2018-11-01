@@ -10661,6 +10661,41 @@ class SendActionTest(FlowFileTest):
         self.assertEqual(migrated["action_sets"][0]["actions"][0]["contacts"][1]["uuid"], contact2.uuid)
 
 
+class FlowSessionCRUDLTest(TembaTest):
+    def test_session_json(self):
+        contact = self.create_contact("Bob", number="+1234567890")
+        flow = self.get_flow("color")
+        flow.start([], [contact])
+
+        # create a fake session for this run
+        session = FlowSession.objects.create(
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            responded=False,
+            output=dict(),
+            created_on=timezone.now(),
+        )
+
+        # normal users can't see session json
+        url = reverse("flows.flowsession_json", args=[session.id])
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        # but logged in as a CS rep we can
+        self.login(self.customer_support)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+
+        response_json = json.loads(response.content)
+        self.assertEqual("Temba", response_json["_metadata"]["org"])
+
+
 class ExitTest(FlowFileTest):
     def test_exit_via_start(self):
         # start contact in one flow

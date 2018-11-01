@@ -422,6 +422,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
     ),
+    "flows.flowsession": ("json",),
     "msgs.msg": (
         "api",
         "archive",
@@ -482,6 +483,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
+        "flows.flowsession_json",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_grant",
