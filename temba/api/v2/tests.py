@@ -2209,6 +2209,9 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "archived=0")
         self.assertResultsByUUID(response, [color, survey])
 
+        response = self.fetchJSON(url, "archived=false")
+        self.assertResultsByUUID(response, [color, survey])
+
         # filter by before
         response = self.fetchJSON(url, "before=%s" % format_datetime(color.modified_on))
         self.assertResultsByUUID(response, [color, survey])

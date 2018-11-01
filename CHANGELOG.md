@@ -1,3 +1,7 @@
+v4.11.2
+----------
+ * Fix passing false/true to archived param of flows API endpoint
+
 v4.11.1
 ----------
  * Turn on the attachment support for VP channels
