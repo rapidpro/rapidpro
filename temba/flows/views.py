@@ -243,7 +243,7 @@ class FlowSessionCRUDL(SmartCRUDL):
                 org_id=session.org_id,
                 domain=self.request.branding["domain"],
             )
-            return JsonResponse(session.output)
+            return JsonResponse(output, json_dumps_params=dict(indent=2))
 
 
 class FlowRunCRUDL(SmartCRUDL):
