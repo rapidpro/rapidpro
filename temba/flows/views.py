@@ -1478,7 +1478,7 @@ class FlowCRUDL(SmartCRUDL):
             if json_dict.get("version", None) == "1":
                 return self.handle_legacy(request, json_dict)
             else:
-                if not settings.MAILROOM_URL:
+                if not settings.MAILROOM_URL:  # pragma: no cover
                     return JsonResponse(
                         dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                     )
