@@ -1,3 +1,7 @@
+v4.11.5
+----------
+ * simulate flow_server_enabled flows in mailroom
+
 v4.11.3
 ----------
  * Add session log links to contact history for staff users
