@@ -10663,13 +10663,14 @@ class SendActionTest(FlowFileTest):
 
 class FlowSessionCRUDLTest(TembaTest):
     def test_session_json(self):
+        contact = self.create_contact("Bob", number="+1234567890")
         flow = self.get_flow("color")
-        flow.start([], [self.contact])
+        flow.start([], [contact])
 
         # create a fake session for this run
         session = FlowSession.objects.create(
             org=self.org,
-            contact=self.contact,
+            contact=contact,
             status=FlowSession.STATUS_WAITING,
             responded=False,
             output=dict(),
