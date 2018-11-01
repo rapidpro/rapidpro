@@ -238,10 +238,7 @@ class FlowSessionCRUDL(SmartCRUDL):
             session = self.get_object()
             output = session.output
             output["_metadata"] = dict(
-                session_id=session.id,
-                org=session.org.name,
-                org_id=session.org_id,
-                domain=self.request.branding["domain"],
+                session_id=session.id, org=session.org.name, org_id=session.org_id, site=self.request.branding["link"]
             )
             return JsonResponse(output, json_dumps_params=dict(indent=2))
 
