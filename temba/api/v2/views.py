@@ -2026,7 +2026,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by archived (optional)
         archived = params.get("archived")
         if archived:
-            queryset = queryset.filter(is_archived=archived)
+            queryset = queryset.filter(is_archived=str_to_bool(archived))
 
         queryset = queryset.prefetch_related("labels")
 
