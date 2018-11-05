@@ -127,7 +127,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
         old_actionset = nodes_by_uuid[actionset_uuid]
 
         # if we're replacing a single actionset with multiple nodes, need to spread them out vertically
-        if len(new_nodes) > 0:
+        if len(new_nodes) > 1:
             old_y = old_actionset.get("y", 0)
             extra_y = sum([estimate_node_height(n) for n in new_nodes])
 
