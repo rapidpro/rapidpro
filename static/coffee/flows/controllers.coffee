@@ -2070,27 +2070,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-  # save a webhook action
-  $scope.saveWebhook = (method, url) ->
-
-    if $scope.hasInvalidFields([url])
-      return
-
-    # don't include headers without name
-    webhook_headers = []
-    if $scope.action.webhook_headers
-      for header in $scope.action.webhook_headers
-        if header.name
-          webhook_headers.push(header)
-
-    $scope.action.type = 'api'
-    $scope.action.action = method
-    $scope.action.webhook = url
-    $scope.action.webhook_headers = webhook_headers
-
-    Flow.saveAction(actionset, $scope.action)
-    $modalInstance.close()
-
   $scope.saveEmail = (addresses) ->
 
     if $scope.hasInvalidFields([$scope.action.subject, $scope.action.msg])

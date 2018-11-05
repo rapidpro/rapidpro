@@ -58,6 +58,7 @@ from .flow_migrations import (
     migrate_to_version_11_1,
     migrate_to_version_11_2,
     migrate_to_version_11_6,
+    migrate_to_version_11_7,
 )
 from .models import (
     Action,
@@ -9646,6 +9647,13 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_7(self):
+        original = self.get_flow_json("migrate_to_11_7")
+        migrated = migrate_to_version_11_7(original)
+
+        self.assertEqual(len(migrated["action_sets"]), 3)
+        self.assertEqual(len(migrated["rule_sets"]), 6)
 
     def test_migrate_to_11_6(self):
 

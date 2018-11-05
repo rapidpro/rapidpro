@@ -1,4 +1,5 @@
 import copy
+from collections import defaultdict
 from uuid import uuid4
 
 import regex
@@ -19,6 +20,123 @@ from temba.flows.models import (
 from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_to_version_11_7(json_flow, flow=None):
+    """
+    Replaces webhook actions with rulesets. Requires splitting up nodes where the action sits alongside other actions.
+    """
+
+    # need a lookup of all nodes to resolve destinations
+    nodes_by_uuid = {}
+    for node in json_flow.get(Flow.ACTION_SETS, []) + json_flow.get(Flow.RULE_SETS, []):
+        nodes_by_uuid[node["uuid"]] = node
+
+    # map of actionset UUIDs to a list of the nodes replacing it
+    node_replacements = defaultdict(list)
+
+    for actionset in json_flow.get(Flow.ACTION_SETS, []):
+        # split actions into a list of 1) single webhook actions 2) lists of non-webhook actions
+        new_sets = []
+        has_webooks = False
+        for action in actionset[Flow.ACTIONS]:
+            if action["type"] == "api":
+                new_sets.append(action)
+                has_webooks = True
+            else:
+                if len(new_sets) == 0 or not isinstance(new_sets[-1], list):
+                    new_sets.append([])
+                new_sets[-1].append(action)
+
+        if not has_webooks:
+            continue
+
+        destination = nodes_by_uuid[actionset["destination"]] if actionset.get("destination") else None
+
+        for (i, new_set) in reversed(list(enumerate(new_sets))):
+            # if this is first new node, it gets the UUID of the actionset being
+            # replaced so that nodes pointing to this actionset will now point to it
+            new_node_uuid = actionset["uuid"] if i == 0 else str(uuid4())
+
+            if destination:
+                destination_uuid = destination["uuid"]
+                destination_type = "A" if "actions" in destination else "R"
+            else:
+                destination_uuid = None
+                destination_type = None
+
+            if isinstance(new_set, dict):
+                old_action = new_set
+
+                new_node = {
+                    "uuid": new_node_uuid,
+                    "x": actionset.get("x", 0),
+                    "y": actionset.get("y", 0),
+                    "label": "Webhook",
+                    "rules": [
+                        {
+                            "uuid": str(uuid4()),
+                            "category": {"eng": "Success"},
+                            "destination": destination_uuid,
+                            "destination_type": destination_type,
+                            "test": {"type": "webhook_status", "status": "success"},
+                            "label": None,
+                        },
+                        {
+                            "uuid": str(uuid4()),
+                            "category": {"eng": "Failure"},
+                            "destination": destination_uuid,
+                            "destination_type": destination_type,
+                            "test": {"type": "webhook_status", "status": "failure"},
+                            "label": None,
+                        },
+                    ],
+                    "finished_key": None,
+                    "ruleset_type": "webhook",
+                    "response_type": "",
+                    "operand": "@step.value",
+                    "config": {
+                        "webhook": old_action["webhook"],
+                        "webhook_action": old_action["action"],
+                        "webhook_headers": old_action["webhook_headers"],
+                    },
+                }
+
+                if Flow.RULE_SETS not in json_flow:
+                    json_flow[Flow.RULE_SETS] = []
+
+                json_flow[Flow.RULE_SETS].append(new_node)
+            else:
+                new_node = {
+                    "uuid": new_node_uuid,
+                    "x": actionset.get("x", 0),
+                    "y": actionset.get("y", 0),
+                    "actions": new_set,
+                    "exit_uuid": str(uuid4()),
+                    "destination": destination_uuid,
+                }
+                json_flow[Flow.ACTION_SETS].append(new_node)
+
+            node_replacements[actionset["uuid"]].insert(0, new_node)  # so they're top to bottom
+            destination = new_node
+
+    for actionset_uuid, new_nodes in node_replacements.items():
+        old_actionset = nodes_by_uuid[actionset_uuid]
+
+        # TODO
+        current_y = old_actionset.get("y", 0)
+        node_height = 0
+        for new_node in new_nodes:
+            # move_nodes_down(json_flow, current_y, node_height)
+            # new_node["y"] = current_y
+
+            node_height = (len(new_node["actions"]) * 300) if ("actions" in new_node) else 300
+            current_y += node_height
+
+        # delete old actionset from flow
+        json_flow[Flow.ACTION_SETS].remove(old_actionset)
+
+    return json_flow
 
 
 def migrate_to_version_11_6(json_flow, flow=None):
@@ -969,17 +1087,11 @@ def insert_node(flow, node, _next):
     update_destination(node, _next["uuid"])
 
     # bump everybody down
-    for actionset in flow.get("action_sets"):
-        if actionset.get("y") >= node.get("y"):
-            actionset["y"] += 100
-
-    for ruleset in flow.get("rule_sets"):
-        if ruleset.get("y") >= node.get("y"):
-            ruleset["y"] += 100
+    move_nodes_down(flow, node.get("y"))
 
     # we are an actionset
     if node.get("actions", []):  # pragma: needs cover
-        node.destination = _next.uuid
+        node.destination = _next["uuid"]
         flow["action_sets"].append(node)
 
     # otherwise point all rules to the same place
@@ -987,6 +1099,21 @@ def insert_node(flow, node, _next):
         for rule in node.get("rules", []):
             rule["destination"] = _next["uuid"]
         flow["rule_sets"].append(node)
+
+
+def move_nodes_down(flow, below, delta=100):
+    """
+    Move any node below the given Y value down by delta
+    """
+
+    # bump everybody down
+    for actionset in flow.get("action_sets"):
+        if actionset.get("y") >= below:
+            actionset["y"] += delta
+
+    for ruleset in flow.get("rule_sets"):
+        if ruleset.get("y") >= below:
+            ruleset["y"] += delta
 
 
 def replace_templates(json_flow, replace_func):
