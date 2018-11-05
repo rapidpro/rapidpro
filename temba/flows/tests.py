@@ -9649,12 +9649,29 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_11_7(self):
         original = self.get_flow_json("migrate_to_11_7")
         migrated = migrate_to_version_11_7(original)
 
         self.assertEqual(len(migrated["action_sets"]), 3)
         self.assertEqual(len(migrated["rule_sets"]), 6)
+
+        # run the flow to make sure the nodes are connected correctly
+        flow = self.get_flow("migrate_to_11_7")
+        with patch("requests.api.request") as mock_request:
+            mock_request.return_value = MockResponse(200, "success")
+
+            run, = flow.start([], [self.contact])
+            Msg.create_incoming(self.channel, self.contact.get_urn().urn, "Ok")
+
+        self.assertEqual(len(mock_request.mock_calls), 5)
+        self.assertEqual(mock_request.mock_calls[0][1], ("get", "http://example.com/hook1"))
+        self.assertEqual(mock_request.mock_calls[0][2]["headers"], {"Header1": "Value1", "User-agent": "RapidPro"})
+        self.assertEqual(mock_request.mock_calls[1][1], ("post", "http://example.com/hook2"))
+        self.assertEqual(mock_request.mock_calls[2][1], ("get", "http://example.com/hook3"))
+        self.assertEqual(mock_request.mock_calls[3][1], ("get", "http://example.com/hook4"))
+        self.assertEqual(mock_request.mock_calls[4][1], ("get", "http://example.com/hook5"))
 
     def test_migrate_to_11_6(self):
 
