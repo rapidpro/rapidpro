@@ -587,7 +587,6 @@ describe 'Controllers:', ->
         # ivr only
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
-        expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # pretend we are a voice flow
@@ -595,7 +594,6 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(true)
-        expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # now try a survey
@@ -603,7 +601,6 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
-        expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # USSD flow
@@ -611,7 +608,6 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
-        expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(true)
 
       $timeout.flush()
