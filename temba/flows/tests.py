@@ -57,6 +57,7 @@ from .flow_migrations import (
     migrate_to_version_10_4,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
+    migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
 )
@@ -9666,8 +9667,8 @@ class FlowMigrationTest(FlowFileTest):
             self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
     def test_migrate_to_11_5(self):
-        flow = self.get_flow("migrate_to_11_5")
-        flow_json = flow.as_json()
+        flow_json = self.get_flow_json("migrate_to_11_5")
+        flow_json = migrate_to_version_11_5(flow_json)
 
         # check text was updated in the reply action
         expected_msg = "\n".join(

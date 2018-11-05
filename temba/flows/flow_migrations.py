@@ -76,7 +76,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     "rules": [
                         {
                             "uuid": str(uuid4()),
-                            "category": {"eng": "Success"},
+                            "category": {json_flow["base_language"]: "Success"},
                             "destination": destination_uuid,
                             "destination_type": destination_type,
                             "test": {"type": "webhook_status", "status": "success"},
@@ -84,7 +84,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                         },
                         {
                             "uuid": str(uuid4()),
-                            "category": {"eng": "Failure"},
+                            "category": {json_flow["base_language"]: "Failure"},
                             "destination": destination_uuid,
                             "destination_type": destination_type,
                             "test": {"type": "webhook_status", "status": "failure"},
@@ -97,8 +97,8 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     "operand": "@step.value",
                     "config": {
                         "webhook": old_action["webhook"],
-                        "webhook_action": old_action["action"],
-                        "webhook_headers": old_action["webhook_headers"],
+                        "webhook_action": old_action.get("action", "POST"),
+                        "webhook_headers": old_action.get("webhook_headers", []),
                     },
                 }
 
@@ -120,18 +120,24 @@ def migrate_to_version_11_7(json_flow, flow=None):
             node_replacements[actionset["uuid"]].insert(0, new_node)  # so they're top to bottom
             destination = new_node
 
+    def estimate_node_height(node):
+        return (len(node["actions"]) * 75) + 75 if ("actions" in node) else 100
+
     for actionset_uuid, new_nodes in node_replacements.items():
         old_actionset = nodes_by_uuid[actionset_uuid]
 
-        # TODO
-        current_y = old_actionset.get("y", 0)
-        node_height = 0
-        for new_node in new_nodes:
-            # move_nodes_down(json_flow, current_y, node_height)
-            # new_node["y"] = current_y
+        # if we're replacing a single actionset with multiple nodes, need to spread them out vertically
+        if len(new_nodes) > 0:
+            old_y = old_actionset.get("y", 0)
+            extra_y = sum([estimate_node_height(n) for n in new_nodes])
 
-            node_height = (len(new_node["actions"]) * 300) if ("actions" in new_node) else 300
-            current_y += node_height
+            # move rest of the flow down to make room
+            move_nodes_down(json_flow, old_y + 1, extra_y)
+
+            extra_y = estimate_node_height(new_nodes[0])
+            for new_node in new_nodes[1:]:
+                new_node["y"] += extra_y
+                extra_y += estimate_node_height(new_node)
 
         # delete old actionset from flow
         json_flow[Flow.ACTION_SETS].remove(old_actionset)
@@ -1107,11 +1113,11 @@ def move_nodes_down(flow, below, delta=100):
     """
 
     # bump everybody down
-    for actionset in flow.get("action_sets"):
+    for actionset in flow.get("action_sets", []):
         if actionset.get("y") >= below:
             actionset["y"] += delta
 
-    for ruleset in flow.get("rule_sets"):
+    for ruleset in flow.get("rule_sets", []):
         if ruleset.get("y") >= below:
             ruleset["y"] += delta
 
