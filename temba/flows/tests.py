@@ -6657,7 +6657,7 @@ class FlowsTest(FlowFileTest):
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
-        assert_payload(action_post.data, 7, 3, dict(send_action="yes"))
+        assert_payload(action_post.data, 8, 3, dict(send_action="yes"))
 
         # gets shouldn't have payloads
         self.assertIsNone(action_get.data)
