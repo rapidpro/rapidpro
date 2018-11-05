@@ -42,7 +42,9 @@ class PlayMobileType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.pm' channel.uuid 'receive' %}",
-            description=_("To receive incoming messages, you need to set the receive URL for your Play Mobile account."),
+            description=_(
+                "To receive incoming messages, you need to set the receive URL for your Play Mobile account."
+            ),
         ),
     )
 
