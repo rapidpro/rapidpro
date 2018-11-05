@@ -134,7 +134,8 @@ class ClientTest(TembaTest):
         self.testers = self.create_group("Testers", [self.contact])
         self.client = get_client()
 
-    def test_add_contact_changed(self):
+    @patch("temba.flows.server.client.FlowServerClient.resume")
+    def test_resume_by_msg(self, mock_resume):
         twitter = Channel.create(
             self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=["twitter", "twitterid"]
         )
@@ -146,12 +147,17 @@ class ClientTest(TembaTest):
             self.contact.set_field(self.admin, "gender", "M")
             self.contact.set_field(self.admin, "age", 36)
 
-            self.assertEqual(
-                self.client.request_builder(self.org).add_contact_changed(self.contact).request["events"],
-                [
-                    {
-                        "type": "contact_changed",
-                        "created_on": "2018-01-18T14:24:30+00:00",
+            msg = self.create_msg(direction="I", text="hello", contact=self.contact, channel=twitter)
+
+            self.client.request_builder(self.org).resume_by_msg({}, msg, self.contact)
+
+            mock_resume.assert_called_once_with(
+                {
+                    "assets": [],
+                    "config": {},
+                    "resume": {
+                        "type": "msg",
+                        "resumed_on": "2018-01-18T14:24:30+00:00",
                         "contact": {
                             "uuid": str(self.contact.uuid),
                             "id": self.contact.id,
@@ -160,40 +166,36 @@ class ClientTest(TembaTest):
                             "urns": ["twitterid:123456785?channel=%s#bobby" % str(twitter.uuid), "tel:+12345670987"],
                             "fields": {"gender": {"text": "M"}, "age": {"text": "36", "number": "36"}},
                             "groups": [{"uuid": str(self.testers.uuid), "name": "Testers"}],
+                            "created_on": self.contact.created_on.isoformat(),
                         },
-                    }
-                ],
+                        "msg": {
+                            "uuid": str(msg.uuid),
+                            "text": "hello",
+                            "urn": "twitterid:123456785#bobby",
+                            "channel": {"uuid": str(twitter.uuid), "name": "Twitter"},
+                        },
+                    },
+                    "session": {},
+                }
             )
 
-    def test_add_environment_changed(self):
-        with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
-            self.assertEqual(
-                self.client.request_builder(self.org).add_environment_changed().request["events"],
-                [
-                    {
-                        "type": "environment_changed",
-                        "created_on": "2018-01-18T14:24:30+00:00",
-                        "environment": {
-                            "date_format": "DD-MM-YYYY",
-                            "languages": [],
-                            "time_format": "tt:mm",
-                            "timezone": "Africa/Kigali",
-                            "redaction_policy": "none",
-                        },
-                    }
-                ],
-            )
-
-    def test_add_run_expired(self):
+    @patch("temba.flows.server.client.FlowServerClient.resume")
+    def test_resume_by_run_expiration(self, mock_resume):
         flow = self.get_flow("color")
         run, = flow.start([], [self.contact])
-        run.set_interrupted()
 
         with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
+            run.set_interrupted()
 
-            self.assertEqual(
-                self.client.request_builder(self.org).add_run_expired(run).request["events"],
-                [{"type": "run_expired", "created_on": run.exited_on.isoformat(), "run_uuid": str(run.uuid)}],
+            self.client.request_builder(self.org).resume_by_run_expiration({}, run)
+
+            mock_resume.assert_called_once_with(
+                {
+                    "assets": [],
+                    "config": {},
+                    "resume": {"type": "run_expiration", "resumed_on": "2018-01-18T14:24:30+00:00"},
+                    "session": {},
+                }
             )
 
     @patch("requests.post")

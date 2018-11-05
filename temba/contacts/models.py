@@ -2010,8 +2010,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 run.release()
 
             # and any event fire history
-            for fire in self.fire_events.all():
-                fire.release()
+            self.fire_events.all().delete()
 
             # take us out of broadcast addressed contacts
             for broadcast in self.addressed_broadcasts.all():
@@ -2118,7 +2117,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Sets the preferred channel for communicating with this Contact
         """
-        if channel is None:
+        if channel is None or (Channel.ROLE_SEND not in channel.role and Channel.ROLE_CALL not in channel.role):
             return
 
         # don't set preferred channels for test contacts

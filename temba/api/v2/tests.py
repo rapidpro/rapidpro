@@ -1129,7 +1129,8 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 200)
 
-        event1.refresh_from_db()
+        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
+
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_FLOW)
         self.assertIsNone(event1.message)
         self.assertEqual(event1.flow, flow)
@@ -1149,7 +1150,7 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 200)
 
-        event2.refresh_from_db()
+        event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord"})
 
@@ -1168,7 +1169,7 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 200)
 
-        event2.refresh_from_db()
+        event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord", "kin": "Sawa"})
 

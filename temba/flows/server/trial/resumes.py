@@ -168,11 +168,13 @@ def resume(trial, msg_in=None, expired_child_run=None):
 
     # only include message if it's a real message
     if msg_in and msg_in.created_on:
-        request.add_msg_received(msg_in)
-    if expired_child_run:
-        request.add_run_expired(expired_child_run)
+        output = request.resume_by_msg(session, msg_in)
+    elif expired_child_run:
+        output = request.resume_by_run_expiration(session, expired_child_run)
+    else:  # pragma: no cover
+        raise ValueError("need something to resume session with")
 
-    return request.resume(session).session
+    return output.session
 
 
 def create_webhook_mocks(trial):
@@ -260,6 +262,7 @@ def serialize_run(run):
         "uuid": str(run.uuid),
         "status": "completed" if run.exited_on else "active",
         "created_on": run.created_on.isoformat(),
+        "modified_on": run.modified_on.isoformat(),
         "exited_on": run.exited_on.isoformat() if run.exited_on else None,
         "expires_on": run.expires_on.isoformat() if run.expires_on else None,
         "flow": {"uuid": str(run.flow.uuid), "name": run.flow.name},

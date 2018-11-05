@@ -78,17 +78,17 @@ def serialize_contact(contact):
         "urns": urn_values,
         "groups": [serialize_ref(group) for group in contact.user_groups.filter(is_active=True)],
         "fields": field_values,
+        "created_on": contact.created_on.isoformat(),
     }
 
 
 def serialize_environment(org):
-    languages = [org.primary_language.iso_code] if org.primary_language else []
-
     return {
         "date_format": "DD-MM-YYYY" if org.date_format == "D" else "MM-DD-YYYY",
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
-        "languages": languages,
+        "default_language": org.primary_language.iso_code if org.primary_language else None,
+        "allowed_languages": list(org.get_language_codes()),
         "redaction_policy": "urns" if org.is_anon else "none",
     }
 
