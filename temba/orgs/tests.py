@@ -656,6 +656,16 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.get(update_url)
+        self.assertEqual(302, response.status_code)
+
+        self.assertRedirect(response, reverse("orgs.org_token"))
+
+        # simulate an org that had the old config set
+        org = Org.objects.get(pk=self.org.pk)
+        org.webhook = dict(url="Set")
+        org.save()
+
+        response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
         # set a webhook with headers
@@ -674,6 +684,9 @@ class OrgTest(TembaTest):
         self.assertDictEqual(
             {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
         )
+
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, update_url)
 
     def test_enable_flow_server(self):
         update_url = reverse("orgs.org_update", args=[self.org.pk])
@@ -2928,6 +2941,11 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertEqual(200, response.status_code)
+
+        # simulate old webhook config was set
+        org = Org.objects.get(name="Relieves World")
+        org.webhook = dict(url="SET")
+        org.save()
 
         # try setting our webhook and subscribe to one of the events
         response = self.client.post(

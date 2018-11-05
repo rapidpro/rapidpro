@@ -1,3 +1,25 @@
+v4.11.5
+----------
+ * simulate flow_server_enabled flows in mailroom
+
+v4.11.3
+----------
+ * Add session log links to contact history for staff users
+ * Hide old webhook config page if not yet set
+
+v4.11.2
+----------
+ * Fix passing false/true to archived param of flows API endpoint
+
+v4.11.1
+----------
+ * Turn on the attachment support for VP channels
+ * Tweak 11.6 flow migration so that we remap groups, but never create them
+ * Flows API endpoint should support filtering by archived and type
+ * Log how many flow sessions are deleted and the time taken
+ * Turn on the attachment support for WA channels
+ * Adjust UI for adding quick replies and attachment in random order
+
 v4.11.0
 ----------
  * Add index for fetching waiting sessions by contact
