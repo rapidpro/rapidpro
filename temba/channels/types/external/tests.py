@@ -92,9 +92,6 @@ class ExternalTypeTest(TembaTest):
         )
 
         response = self.client.get(url + "?role=S")
-        import pdb
-
-        pdb.set_trace()
         self.assertEqual(
             set(response.context["form"].fields.keys()),
             set(["url", "method", "encoding", "content_type", "max_length", "body", "mt_response_check", "loc"]),
