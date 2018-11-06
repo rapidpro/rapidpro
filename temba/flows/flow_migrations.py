@@ -133,7 +133,8 @@ def migrate_to_version_11_7(json_flow, flow=None):
         # if we're replacing a single actionset with multiple nodes, need to spread them out vertically
         if len(new_nodes) > 1:
             old_y = old_actionset.get("y", 0)
-            extra_y = sum([estimate_node_height(n) for n in new_nodes])
+            old_height = len(old_actionset["actions"]) * 60
+            extra_y = sum([estimate_node_height(n) for n in new_nodes]) - old_height
 
             # move rest of the flow down to make room
             move_nodes_down(json_flow, old_y + 1, extra_y)
