@@ -177,12 +177,16 @@ def start_msg_flow_batch_task():
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts", lock_timeout=7200
+)
 def squash_flowpathcounts():
     FlowPathCount.squash()
 
 
-@nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key="squash_flowruncounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_flowruncounts", lock_key="squash_flowruncounts", lock_timeout=7200
+)
 def squash_flowruncounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()

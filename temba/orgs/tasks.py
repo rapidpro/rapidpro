@@ -29,6 +29,6 @@ def apply_topups_task(org_id):
     org.trigger_send()
 
 
-@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits")
+@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
 def squash_topupcredits():
     TopUpCredits.squash()
