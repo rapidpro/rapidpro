@@ -841,12 +841,12 @@ CELERYBEAT_SCHEDULE = {
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
     "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
-    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
-    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
-    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=300)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=300)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=300)},
+    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
+    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
+    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
+    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
+    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
@@ -1100,6 +1100,12 @@ FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
 FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
+
+# -----------------------------------------------------------------------------------
+# Mailroom - disabled by default, but is where simulation happens
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:
