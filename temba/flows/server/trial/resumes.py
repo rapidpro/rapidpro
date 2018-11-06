@@ -50,14 +50,14 @@ def is_flow_suitable(flow):
 
 
 def is_flow_simple(flow):
-    from temba.flows.models import RuleSet, StartFlowAction, TriggerFlowAction, WebhookAction
+    from temba.flows.models import RuleSet, StartFlowAction, TriggerFlowAction
 
     for rule_set in flow.rule_sets.all():
         if rule_set.ruleset_type in (RuleSet.TYPE_SUBFLOW, RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
             return False
     for action_set in flow.action_sets.all():
         for action in action_set.actions:
-            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction, WebhookAction.TYPE):  # pragma: no cover
+            if action["type"] in (StartFlowAction.TYPE, TriggerFlowAction):  # pragma: no cover
                 return False
 
     return True
