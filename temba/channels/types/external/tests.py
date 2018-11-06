@@ -129,3 +129,4 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
         self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
         self.assertEqual(channel.role, "S")
+        self.assertEqual(channel.parent, self.channel)
