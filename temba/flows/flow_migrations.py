@@ -35,6 +35,9 @@ def migrate_to_version_11_7(json_flow, flow=None):
     # map of actionset UUIDs to a list of the nodes replacing it
     node_replacements = defaultdict(list)
 
+    # for creating unique ruleset labels
+    num_new_rulesets = 0
+
     for actionset in json_flow.get(Flow.ACTION_SETS, []):
         # split actions into a list of 1) single webhook actions 2) lists of non-webhook actions
         new_sets = []
@@ -67,12 +70,13 @@ def migrate_to_version_11_7(json_flow, flow=None):
 
             if isinstance(new_set, dict):
                 old_action = new_set
+                num_new_rulesets += 1
 
                 new_node = {
                     "uuid": new_node_uuid,
                     "x": actionset.get("x", 0),
                     "y": actionset.get("y", 0),
-                    "label": "Webhook",
+                    "label": f"Migrated Webhook {num_new_rulesets}",
                     "rules": [
                         {
                             "uuid": str(uuid4()),

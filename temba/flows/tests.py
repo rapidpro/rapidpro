@@ -6657,7 +6657,7 @@ class FlowsTest(FlowFileTest):
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
-        assert_payload(action_post.data, 8, 3, dict(send_action="yes"))
+        assert_payload(action_post.data, 8, 4, dict(send_action="yes"))
 
         # gets shouldn't have payloads
         self.assertIsNone(action_get.data)
@@ -9665,6 +9665,7 @@ class FlowMigrationTest(FlowFileTest):
             run, = flow.start([], [self.contact])
             Msg.create_incoming(self.channel, self.contact.get_urn().urn, "Ok")
 
+        # check webhook calls made in correct order
         self.assertEqual(len(mock_request.mock_calls), 5)
         self.assertEqual(mock_request.mock_calls[0][1], ("get", "http://example.com/hook1"))
         self.assertEqual(mock_request.mock_calls[0][2]["headers"], {"Header1": "Value1", "User-agent": "RapidPro"})
@@ -9672,6 +9673,31 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(mock_request.mock_calls[2][1], ("get", "http://example.com/hook3"))
         self.assertEqual(mock_request.mock_calls[3][1], ("get", "http://example.com/hook4"))
         self.assertEqual(mock_request.mock_calls[4][1], ("get", "http://example.com/hook5"))
+
+        # all migrated actions create a unique result value
+        run.refresh_from_db()
+        self.assertEqual(
+            set(run.results.keys()),
+            {
+                "response_1",
+                "migrated_webhook_1",
+                "migrated_webhook_2",
+                "migrated_webhook_3",
+                "migrated_webhook_4",
+                "migrated_webhook_5",
+            },
+        )
+        self.assertEqual(
+            run.results["migrated_webhook_5"],
+            {
+                "category": "Success",
+                "created_on": matchers.ISODate(),
+                "input": "GET http://example.com/hook5",
+                "name": "Migrated Webhook 5",
+                "node_uuid": matchers.UUID4String(),
+                "value": "200",
+            },
+        )
 
     def test_migrate_to_11_6(self):
 
