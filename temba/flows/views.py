@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import iso8601
 import regex
+import requests
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -40,8 +41,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount
-from temba.flows.server import get_client
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
@@ -225,6 +225,22 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
     def get_template_names(self):
         return "partials/%s.html" % self.template
+
+
+class FlowSessionCRUDL(SmartCRUDL):
+    actions = ("json",)
+    model = FlowSession
+
+    class Json(SmartReadView):
+        permission = "flows.flowsession_json"
+
+        def get(self, request, *args, **kwargs):
+            session = self.get_object()
+            output = session.output
+            output["_metadata"] = dict(
+                session_id=session.id, org=session.org.name, org_id=session.org_id, site=self.request.branding["link"]
+            )
+            return JsonResponse(output, json_dumps_params=dict(indent=2))
 
 
 class FlowRunCRUDL(SmartCRUDL):
@@ -1454,8 +1470,6 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
-
-            # try to parse our body
             try:
                 json_dict = json.loads(request.body)
             except Exception as e:  # pragma: needs cover
@@ -1464,33 +1478,40 @@ class FlowCRUDL(SmartCRUDL):
             if json_dict.get("version", None) == "1":
                 return self.handle_legacy(request, json_dict)
             else:
+                if not settings.MAILROOM_URL:  # pragma: no cover
+                    return JsonResponse(
+                        dict(status="error", description="mailroom not configured, cannot simulate"), status=500
+                    )
 
-                # handle via the new engine
-                client = get_client()
+                headers = {}
+                if settings.MAILROOM_AUTH_TOKEN:
+                    headers["Authorization"] = "Token " + settings.MAILROOM_AUTH_TOKEN
 
-                flow = self.get_object(self.get_queryset())
+                flow = self.get_object()
 
-                # we control the pointers to ourselves and environment ignoring what the client might send
-                flow_request = client.request_builder(flow.org)
-                flow_request.request["asset_server"] = json_dict.get("asset_server")
-                flow_request.request["assets"] = json_dict.get("assets")
-
-                # when testing, we need to include all of our assets
-                if settings.TESTING:
-                    flow_request.include_all(simulator=True)
+                # build our request body to mailroom
+                body = dict(org_id=flow.org_id)
 
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
-                    flow_request.request["trigger"] = json_dict.get("trigger")
-                    output = client.start(flow_request.request)
-                    return JsonResponse(output.as_json())
+                    body["trigger"] = json_dict["trigger"]
+
+                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/start", json=body, headers=headers)
+                    if response.status_code != 200:
+                        return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+                    return JsonResponse(response.json())
 
                 # otherwise we are resuming
-                else:
-                    flow_request.request["resume"] = json_dict.get("resume")
-                    flow_request.request["session"] = json_dict.get("session")
-                    output = client.resume(flow_request.request)
-                    return JsonResponse(output.as_json())
+                elif "resume" in json_dict:
+                    body["resume"] = json_dict["resume"]
+                    body["session"] = json_dict["session"]
+
+                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/resume", json=body, headers=headers)
+                    if response.status_code != 200:
+                        return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+                    return JsonResponse(response.json())
 
         def handle_legacy(self, request, json_dict):
 

@@ -128,7 +128,7 @@ from .models import (
     WebhookAction,
     get_flow_user,
 )
-from .server import FlowServerException, get_client, serialize_contact
+from .server import FlowServerException
 from .tasks import (
     check_flow_timeouts_task,
     squash_flowpathcounts,
@@ -5988,40 +5988,46 @@ class SimulationTest(FlowFileTest):
                 replies.append(event["msg"]["text"])
         return replies
 
-    @skip_if_no_flowserver
-    @override_settings(FLOW_SERVER_AUTH_TOKEN="1234", FLOW_SERVER_FORCE=True)
-    def test_simulation(self):
+    @override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io")
+    def test_mailroom_simulation(self):
+        self.login(self.admin)
         flow = self.get_flow("favorites")
 
-        client = get_client()
+        # create our payload
+        payload = dict(version=2, trigger={})
+        url = reverse("flows.flow_simulate", args=[flow.pk])
 
-        builder = client.request_builder(self.org)
-        builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
-        payload = builder.request
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"session": {}}')
+            response = self.client.post(url, json.dumps(payload), content_type="application/json")
+            self.assertEqual(500, response.status_code)
 
-        # add a manual trigger
-        payload["trigger"] = {
-            "type": "manual",
-            "flow": {"uuid": str(flow.uuid), "name": flow.name},
-            "contact": serialize_contact(self.contact),
-            "triggered_on": timezone.now().isoformat(),
-        }
+        # start a flow
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"session": {}}')
+            response = self.client.post(url, json.dumps(payload), content_type="application/json")
+            self.assertEqual(200, response.status_code)
+            self.assertEqual({}, response.json()["session"])
+            self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
+            self.assertEqual("https://mailroom.temba.io/mr/sim/start", mock_post.call_args_list[0][0][0])
+            self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
 
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json")
+        # try a resume
+        payload = dict(version=2, session={}, resume={})
 
-        # create a new payload based on the session we get back
-        builder = client.request_builder(self.org)
-        builder = builder.asset_server(True).include_flow(flow).include_channels(True).include_fields()
-        payload = builder.request
-        payload["session"] = response.json()["session"]
-        self.add_message(payload, "blue")
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"session": {}}')
+            response = self.client.post(url, json.dumps(payload), content_type="application/json")
+            self.assertEqual(500, response.status_code)
 
-        response = self.client.post(simulate_url, json.dumps(payload), content_type="application/json").json()
-        replies = self.get_replies(response)
-        self.assertEqual(1, len(replies))
-        self.assertEqual("Good choice, I like Blue too! What is your favorite beer?", replies[0])
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"session": {}}')
+            response = self.client.post(url, json.dumps(payload), content_type="application/json")
+            self.assertEqual(200, response.status_code)
+            self.assertEqual({}, response.json()["session"])
+            self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
+            self.assertEqual("https://mailroom.temba.io/mr/sim/resume", mock_post.call_args_list[0][0][0])
+            self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
 
     def test_release_action_logs(self):
         flow = self.get_flow("group_split")
@@ -9648,22 +9654,11 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
     def test_migrate_to_11_6(self):
+
+        flow = self.get_flow("migrate_to_11_6")
         flow_json = self.get_flow_json("migrate_to_11_6")
-        flow = Flow.create_instance(
-            dict(
-                name="Flow Container",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number="11.6",
-            )
-        )
 
-        self.assertEqual(0, ContactGroup.user_groups.all().count())
         migrated = migrate_to_version_11_6(flow_json, flow)
-        self.assertEqual(5, ContactGroup.user_groups.all().count())
-
         migrated_groups = get_groups(migrated)
         for uuid, name in migrated_groups.items():
             self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
@@ -10670,6 +10665,41 @@ class SendActionTest(FlowFileTest):
         # assert our contacts have valid uuids now
         self.assertEqual(migrated["action_sets"][0]["actions"][0]["contacts"][0]["uuid"], contact1.uuid)
         self.assertEqual(migrated["action_sets"][0]["actions"][0]["contacts"][1]["uuid"], contact2.uuid)
+
+
+class FlowSessionCRUDLTest(TembaTest):
+    def test_session_json(self):
+        contact = self.create_contact("Bob", number="+1234567890")
+        flow = self.get_flow("color")
+        flow.start([], [contact])
+
+        # create a fake session for this run
+        session = FlowSession.objects.create(
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            responded=False,
+            output=dict(),
+            created_on=timezone.now(),
+        )
+
+        # normal users can't see session json
+        url = reverse("flows.flowsession_json", args=[session.id])
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        # but logged in as a CS rep we can
+        self.login(self.customer_support)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+
+        response_json = json.loads(response.content)
+        self.assertEqual("Temba", response_json["_metadata"]["org"])
 
 
 class ExitTest(FlowFileTest):

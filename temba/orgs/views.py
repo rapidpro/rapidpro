@@ -542,6 +542,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
         "home",
+        "token",
         "webhook",
         "edit",
         "edit_sub_org",
@@ -2116,6 +2117,23 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().pre_save(obj)
 
+    class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class TokenForm(forms.ModelForm):
+            class Meta:
+                model = Org
+                fields = ("id",)
+
+        form_class = TokenForm
+        success_url = "@orgs.org_home"
+        success_message = ""
+
+        def get_context_data(self, **kwargs):
+            from temba.api.models import WebHookEvent
+
+            context = super().get_context_data(**kwargs)
+            context["failed_webhooks"] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
+            return context
+
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class WebhookForm(forms.ModelForm):
             webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
@@ -2149,6 +2167,12 @@ class OrgCRUDL(SmartCRUDL):
         form_class = WebhookForm
         success_url = "@orgs.org_home"
         success_message = ""
+
+        def pre_process(self, request, *args, **kwargs):
+            org = self.get_object()
+            if not org.get_webhook_url():
+                return HttpResponseRedirect(reverse("orgs.org_token"))
+            return None
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
@@ -2372,8 +2396,10 @@ class OrgCRUDL(SmartCRUDL):
                         nobutton=True,
                     )
 
-            if self.has_org_perm("orgs.org_webhook"):
+            if self.has_org_perm("orgs.org_webhook") and org.get_webhook_url():
                 formax.add_section("webhook", reverse("orgs.org_webhook"), icon="icon-cloud-upload")
+            elif self.has_org_perm("orgs.org_token"):
+                formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(

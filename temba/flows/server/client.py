@@ -194,9 +194,6 @@ class Output:
         self.session = session
         self.events = events
 
-    def as_json(self):
-        return dict(session=self.session, events=self.events)
-
 
 class FlowServerException(Exception):
     def __init__(self, endpoint, request, response):

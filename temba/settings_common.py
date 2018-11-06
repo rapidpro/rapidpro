@@ -377,6 +377,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
+        "token",
         "webhook",
     ),
     "orgs.usersettings": ("phone",),
@@ -421,6 +422,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
     ),
+    "flows.flowsession": ("json",),
     "msgs.msg": (
         "api",
         "archive",
@@ -481,6 +483,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
+        "flows.flowsession_json",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_grant",
@@ -563,6 +566,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_transfer_to_account",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
+        "orgs.org_token",
         "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
@@ -1096,6 +1100,12 @@ FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
 FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
+
+# -----------------------------------------------------------------------------------
+# Mailroom - disabled by default, but is where simulation happens
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:
