@@ -106,7 +106,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     },
                 }
 
-                if Flow.RULE_SETS not in json_flow:
+                if Flow.RULE_SETS not in json_flow:  # pragma: no cover
                     json_flow[Flow.RULE_SETS] = []
 
                 json_flow[Flow.RULE_SETS].append(new_node)

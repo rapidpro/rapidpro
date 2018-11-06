@@ -383,7 +383,7 @@ class WebHookEvent(SmartModel):
             )
 
             # if this is a test contact, add an entry to our action log
-            if run.contact.is_test:
+            if run.contact.is_test:  # pragma: no cover
                 log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (
                     reverse("api.log_read", args=[webhook_event.pk]),
                     status_code,
