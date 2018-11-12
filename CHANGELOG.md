@@ -1,3 +1,8 @@
+v4.11.7
+----------
+ * Interrupt old IVR calls and related flow sessions
+ * Move webhook docs button from the token view to the webhook view
+
 v4.11.6
 ----------
  * Faster squashing
