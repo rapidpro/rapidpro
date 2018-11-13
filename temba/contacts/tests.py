@@ -2012,6 +2012,13 @@ class ContactTest(TembaTest):
         query = parse_query('district="Kayônza"')
         self.assertEqual(query.as_text(), 'district = "Kayônza"')
 
+        # query that has @ sign
+        query = parse_query('email ~ "user@example.com"')
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
+        query = parse_query("email ~ user@example.com")
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
