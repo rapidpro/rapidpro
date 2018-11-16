@@ -28,7 +28,7 @@ class PlayMobileTypeTest(TembaTest):
         response = self.client.get(url)
         post_data = response.context["form"].initial
 
-        post_data["phone_sender"] = "1234"
+        post_data["shortcode"] = "1122"
         post_data["username"] = "unicef"
         post_data["password"] = "HmGWbdCFiJBj5bui"
 
@@ -39,9 +39,9 @@ class PlayMobileTypeTest(TembaTest):
         from .type import PlayMobileType
 
         self.assertEqual("UZ", channel.country)
-        self.assertEqual("unicef", channel.config[PlayMobileType.CONFIG_AUTH_USERNAME])
-        self.assertEqual("HmGWbdCFiJBj5bui", channel.config[PlayMobileType.CONFIG_AUTH_PASSWORD])
-        self.assertEqual(post_data["phone_sender"], channel.address)
+        self.assertEqual("unicef", channel.config[PlayMobileType.CONFIG_USERNAME])
+        self.assertEqual("HmGWbdCFiJBj5bui", channel.config[PlayMobileType.CONFIG_PASSWORD])
+        self.assertEqual(post_data["shortcode"], channel.address)
         self.assertEqual("PM", channel.channel_type)
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])

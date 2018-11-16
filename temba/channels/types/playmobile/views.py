@@ -10,7 +10,7 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class PMClaimForm(ClaimViewMixin.Form):
-        phone_sender = forms.CharField(max_length=15, min_length=1, help_text=_("The Phone Number Sender"))
+        shortcode = forms.CharField(max_length=15, min_length=1, help_text=_("The short code you are connecting"))
         username = forms.CharField(label=_("Username"), help_text=_("The username for your API account"))
         password = forms.CharField(label=_("Password"), help_text=_("The password for your API account"))
 
@@ -27,13 +27,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         from .type import PlayMobileType
 
         config = {
-            PlayMobileType.CONFIG_PHONE_SENDER: data["phone_sender"],
-            PlayMobileType.CONFIG_AUTH_USERNAME: data["username"],
-            PlayMobileType.CONFIG_AUTH_PASSWORD: data["password"],
+            PlayMobileType.CONFIG_SHORTCODE: data["shortcode"],
+            PlayMobileType.CONFIG_USERNAME: data["username"],
+            PlayMobileType.CONFIG_PASSWORD: data["password"],
         }
 
         self.object = Channel.create(
-            org, user, "UZ", "PM", name=data["phone_sender"], address=data["phone_sender"], config=config
+            org, user, "UZ", "PM", name=data["shortcode"], address=data["shortcode"], config=config
         )
 
         return super(ClaimView, self).form_valid(form)

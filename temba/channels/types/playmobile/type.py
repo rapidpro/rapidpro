@@ -11,9 +11,9 @@ class PlayMobileType(ChannelType):
     A Play Mobile channel (http://playmobile.uz/)
     """
 
-    CONFIG_PHONE_SENDER = "phone_sender"
-    CONFIG_AUTH_USERNAME = "auth_basic_username"
-    CONFIG_AUTH_PASSWORD = "auth_basic_password"
+    CONFIG_SHORTCODE = "shortcode"
+    CONFIG_USERNAME = "username"
+    CONFIG_PASSWORD = "password"
 
     courier_url = r"^pm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
