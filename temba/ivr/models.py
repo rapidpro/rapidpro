@@ -219,9 +219,10 @@ class IVRCall(ChannelSession):
             self.IN_PROGRESS,
             self.RINGING,
         ):
-            runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
+            runs = FlowRun.objects.filter(connection=self, is_active=True)
             for run in runs:
-                run.update_expiration()
+                if run.expires_on - run.created_on > timedelta(days=2):
+                    run.update_expiration()
 
         if self.status == ChannelSession.FAILED:
             flow = self.get_flow()

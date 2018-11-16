@@ -2022,6 +2022,9 @@ class Flow(TembaModel):
             run.connection = connection
             run.save(update_fields=["session", "connection"])
 
+            # update our expiration date on our run
+            run.update_expiration(timezone.now())
+
             # if we were started by other connection, save that off
             if parent_run and parent_run.connection:  # pragma: needs cover
                 connection.parent = parent_run.connection
@@ -2096,6 +2099,10 @@ class Flow(TembaModel):
             run.session = session
             run.connection = call
             run.save(update_fields=["connection"])
+
+            # update our expiration date on our run initially to 7 days for IVR, that will be adjusted when the call is answered
+            next_week = timezone.now() + timedelta(days=7)
+            run.update_expiration(next_week)
 
             if not parent_run or not parent_run.connection:
                 # trigger the call to start (in the background)
