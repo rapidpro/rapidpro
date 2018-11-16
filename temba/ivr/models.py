@@ -221,7 +221,7 @@ class IVRCall(ChannelSession):
         ):
             runs = FlowRun.objects.filter(connection=self, is_active=True)
             for run in runs:
-                if run.expires_on - run.created_on > timedelta(days=2):
+                if not run.expires_on or (run.expires_on - run.created_on > timedelta(days=2)):
                     run.update_expiration()
 
         if self.status == ChannelSession.FAILED:
