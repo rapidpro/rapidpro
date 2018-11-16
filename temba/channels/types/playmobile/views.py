@@ -10,7 +10,8 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class PMClaimForm(ClaimViewMixin.Form):
-        shortcode = forms.CharField(max_length=15, min_length=1, help_text=_("The short code you are connecting"))
+        base_url = forms.URLField(label=_("Base URL"), help_text=_("The base URL for PlayMobile"))
+        shortcode = forms.CharField(label=_("Shortcode"), max_length=15, min_length=1, help_text=_("The short code you are connecting"))
         username = forms.CharField(label=_("Username"), help_text=_("The username for your API account"))
         password = forms.CharField(label=_("Password"), help_text=_("The password for your API account"))
 
@@ -27,7 +28,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         from .type import PlayMobileType
 
         config = {
-            PlayMobileType.CONFIG_SHORTCODE: data["shortcode"],
+            PlayMobileType.CONFIG_BASEURL: data["base_url"],
             PlayMobileType.CONFIG_USERNAME: data["username"],
             PlayMobileType.CONFIG_PASSWORD: data["password"],
         }

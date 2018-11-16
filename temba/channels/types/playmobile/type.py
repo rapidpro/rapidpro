@@ -11,7 +11,7 @@ class PlayMobileType(ChannelType):
     A Play Mobile channel (http://playmobile.uz/)
     """
 
-    CONFIG_SHORTCODE = "shortcode"
+    CONFIG_BASEURL = "base_url"
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
 
