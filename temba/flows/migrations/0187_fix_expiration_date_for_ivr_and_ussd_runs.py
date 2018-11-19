@@ -25,7 +25,17 @@ def update_expiration(run, point_in_time=None):
             run.modified_on = now
             run.child_context = None
             run.parent_context = None
-            run.save()
+            run.save(
+                update_fields=[
+                    "expires_on",
+                    "is_active",
+                    "exited_on",
+                    "exit_type",
+                    "modified_on",
+                    "child_context",
+                    "parent_context",
+                ]
+            )
         else:
             # save our updated fields
             run.save(update_fields=["expires_on", "modified_on"])
