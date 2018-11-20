@@ -1936,8 +1936,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 surveyors_group = Group.objects.get(name="Surveyors")
                 token = APIToken.get_or_create(org, user, role=surveyors_group)
-                response = dict(url=self.get_success_url(), token=token, user=username, org=org.name)
-                return HttpResponseRedirect("%(url)s?org=%(org)s&token=%(token)s&user=%(user)s" % response)
+
+                org_name = urlquote(org.name)
+
+                return HttpResponseRedirect(
+                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={username}"
+                )
 
         def form_invalid(self, form):
             return super().form_invalid(form)
