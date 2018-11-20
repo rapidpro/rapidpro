@@ -1829,7 +1829,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # do not add blocked or stopped contacts
             if not contact.is_stopped and not contact.is_blocked:
-                group.update_contacts(user, [contact], add=True)
+                group.contacts.add(contact)
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():
