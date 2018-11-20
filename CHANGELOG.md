@@ -1,3 +1,11 @@
+v4.12.0
+----------
+ * Fix importing campaign events based on created_om
+ * Fix event fires creation for immutable fields
+ * Remove WA status endpoint
+ * Fix IVR runs expiration date initialization
+ * Add UUID field to org
+
 v4.11.7
 ----------
  * Interrupt old IVR calls and related flow sessions
