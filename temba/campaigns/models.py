@@ -724,17 +724,26 @@ class EventFire(Model):
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
-        # get all events which are in one of these groups and on this field
-        events = CampaignEvent.objects.filter(
-            campaign__group__in=contact.user_groups,
-            relative_to__key__in=keys,
-            campaign__is_archived=False,
-            is_active=True,
-        ).prefetch_related("relative_to")
 
-        if is_new is False:
-            # only new contacts can trigger campaign event reevaluation that are relative to immutable fields
-            events.exclude(relative_to__key__in=ContactField.IMMUTABLE_FIELDS)
+        if is_new is True:
+            # make sure we consider creae
+            keys.extend(list(ContactField.IMMUTABLE_FIELDS))
+            events = CampaignEvent.objects.filter(
+                campaign__org=contact.org, relative_to__key__in=keys, campaign__is_archived=False, is_active=True
+            ).prefetch_related("relative_to")
+
+        else:
+            # get all events which are in one of these groups and on this field
+            events = (
+                CampaignEvent.objects.filter(
+                    campaign__org=contact.org, relative_to__key__in=keys, campaign__is_archived=False, is_active=True
+                )
+                .exclude(relative_to__key__in=ContactField.IMMUTABLE_FIELDS)
+                .prefetch_related("relative_to")
+            )
+
+        if contact.user_groups.exists():
+            events = events.filter(Campaign__group__in=contact.user_groups)
 
         for event in events:
             # remove any unfired events, they will get recreated below

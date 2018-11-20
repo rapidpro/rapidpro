@@ -1135,7 +1135,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.campaigns.models import EventFire
 
         if fields:
-            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
+            EventFire.update_events_for_contact_fields(contact=self, keys=fields, is_new=is_new)
 
         if changed_groups:
             # delete any cached groups
