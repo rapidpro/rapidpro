@@ -725,7 +725,7 @@ class EventFire(Model):
         Should be called anytime a contact field or contact group membership changes.
         """
 
-        if is_new is True:
+        if is_new:
             # make sure we consider creae
             keys.extend(list(ContactField.IMMUTABLE_FIELDS))
             events = CampaignEvent.objects.filter(
@@ -743,7 +743,7 @@ class EventFire(Model):
             )
 
         if contact.user_groups.exists():
-            events = events.filter(Campaign__group__in=contact.user_groups)
+            events = events.filter(campaign__group__in=contact.user_groups)
 
         for event in events:
             # remove any unfired events, they will get recreated below
