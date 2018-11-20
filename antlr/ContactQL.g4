@@ -1,6 +1,6 @@
 grammar ContactQL;
 
-// rebuild with % antlr4 -Dlanguage=Python2 ContactQL.g4 -o ../temba/contacts/search/gen -visitor -no-listener
+// rebuild with % antlr4 -Dlanguage=Python3 ContactQL.g4 -o ../temba/contacts/search/gen -visitor -no-listener
 
 import LexUnicode;
 
@@ -12,7 +12,7 @@ RPAREN     : ')';
 AND        : [Aa][Nn][Dd];
 OR         : [Oo][Rr];
 COMPARATOR : ('=' | '!=' | '~' | '>=' | '<=' | '>' | '<' | HAS | IS);
-TEXT       : (UnicodeLetter | UnicodeDigit | '_' | '.' | '-' | '+' | '/')+;
+TEXT       : (UnicodeLetter | UnicodeDigit | '_' | '.' | '-' | '+' | '/' | '@')+;
 STRING     : '"' (~["] | '""')* '"';
 
 WS         : [ \t\n\r]+ -> skip;        // ignore whitespace
