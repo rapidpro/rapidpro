@@ -298,6 +298,8 @@ class NexmoCallHandler(BaseChannelHandler):
 
                 FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
+                channel_type = channel.channel_type
+                call.update_status("answered", None, channel_type)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                 ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)

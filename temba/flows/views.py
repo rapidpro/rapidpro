@@ -89,19 +89,6 @@ EXPIRES_CHOICES = (
 )
 
 
-IVR_EXPIRES_CHOICES = (
-    (1, _("After 1 minute")),
-    (2, _("After 2 minutes")),
-    (3, _("After 3 minutes")),
-    (4, _("After 4 minutes")),
-    (5, _("After 5 minutes")),
-    (10, _("After 10 minutes")),
-    (15, _("After 15 minutes")),
-)
-
-IVR_RETRY_CHOICES = ((30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
-
-
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
@@ -528,7 +515,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Retry call on busy/no answer"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
-                choices=IVR_RETRY_CHOICES,
+                choices=IVRCall.IVR_RETRY_CHOICES,
             )
             ivr_retry_failed_events = forms.BooleanField(
                 label=_("Retry failed calls"), help_text=_("Retry failed calls"), required=False
@@ -537,7 +524,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=5,
-                choices=IVR_EXPIRES_CHOICES,
+                choices=IVRCall.IVR_EXPIRES_CHOICES,
             )
             keyword_triggers = forms.CharField(
                 required=False,
