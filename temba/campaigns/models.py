@@ -726,7 +726,7 @@ class EventFire(Model):
         """
 
         if is_new:
-            # make sure we consider creae
+            # make sure we consider immutable fields(created_on)
             keys.extend(list(ContactField.IMMUTABLE_FIELDS))
             events = CampaignEvent.objects.filter(
                 campaign__org=contact.org, relative_to__key__in=keys, campaign__is_archived=False, is_active=True
