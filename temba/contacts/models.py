@@ -1135,7 +1135,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.campaigns.models import EventFire
 
         if fields:
-            EventFire.update_events_for_contact_fields(contact=self, keys=fields, is_new=is_new)
+            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
 
         if changed_groups:
             # delete any cached groups
@@ -1829,7 +1829,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # do not add blocked or stopped contacts
             if not contact.is_stopped and not contact.is_blocked:
-                group.contacts.add(contact)
+                group.update_contacts(user, [contact], add=True)
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():

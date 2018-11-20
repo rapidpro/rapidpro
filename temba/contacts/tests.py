@@ -5524,9 +5524,14 @@ class ContactTest(TembaTest):
         start_date = ContactField.get_by_key(self.org, "startdate")
         self.assertEqual(contact1.get_field_serialized(start_date), "2014-12-31T10:00:00+02:00")
 
-    def test_new_contact_handle_update(self):
+    def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
         self.login(self.admin)
         self.create_campaign()
+
+        ballers = self.create_group("Ballers")
+
+        self.campaign.group = ballers
+        self.campaign.save()
 
         field_created_on = self.org.contactfields.get(key="created_on")
 
@@ -5544,6 +5549,11 @@ class ContactTest(TembaTest):
         self.assertEqual(event_fires.count(), 0)
 
         contact, urn = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 0)
+
+        ballers.update_contacts(self.admin, [contact], add=True)
 
         event_fires = EventFire.objects.filter(event=self.created_on_event)
         self.assertEqual(event_fires.count(), 1)

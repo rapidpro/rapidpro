@@ -719,31 +719,22 @@ class EventFire(Model):
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_contact_fields(cls, contact, keys, is_new=False):
+    def update_events_for_contact_fields(cls, contact, keys):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
+        # make sure we consider immutable fields(created_on)
+        keys = list(keys)
+        keys.extend(list(ContactField.IMMUTABLE_FIELDS))
 
-        if is_new:
-            # make sure we consider immutable fields(created_on)
-            keys.extend(list(ContactField.IMMUTABLE_FIELDS))
-            events = CampaignEvent.objects.filter(
-                campaign__org=contact.org, relative_to__key__in=keys, campaign__is_archived=False, is_active=True
-            ).prefetch_related("relative_to")
-
-        else:
-            # get all events which are in one of these groups and on this field
-            events = (
-                CampaignEvent.objects.filter(
-                    campaign__org=contact.org, relative_to__key__in=keys, campaign__is_archived=False, is_active=True
-                )
-                .exclude(relative_to__key__in=ContactField.IMMUTABLE_FIELDS)
-                .prefetch_related("relative_to")
-            )
-
-        if contact.user_groups.exists():
-            events = events.filter(campaign__group__in=contact.user_groups)
+        events = CampaignEvent.objects.filter(
+            campaign__group__in=contact.user_groups,
+            campaign__org=contact.org,
+            relative_to__key__in=keys,
+            campaign__is_archived=False,
+            is_active=True,
+        ).prefetch_related("relative_to")
 
         for event in events:
             # remove any unfired events, they will get recreated below
