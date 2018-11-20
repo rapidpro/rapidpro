@@ -99,13 +99,15 @@ class Campaign(TembaModel):
 
                 # fill our campaign with events
                 for event_spec in campaign_spec["events"]:
-                    relative_to = ContactField.get_or_create(
-                        org,
-                        user,
-                        key=event_spec["relative_to"]["key"],
-                        label=event_spec["relative_to"]["label"],
-                        value_type="D",
-                    )
+                    field_key = event_spec["relative_to"]["key"]
+
+                    if field_key == "created_on":
+                        relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                    else:
+                        relative_to = ContactField.get_or_create(
+                            org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
+                        )
+
                     start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                     # create our message flow for message events
