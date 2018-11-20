@@ -6,50 +6,43 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def update_expiration(run, point_in_time=None):
+def update_expiration(run):
     """
     Set our expiration according to the flow settings
     """
-    if run.flow.expires_after_minutes:
-        now = timezone.now()
-        run.expires_on = point_in_time + timedelta(minutes=run.flow.expires_after_minutes)
+    if not run.flow.expires_after_minutes:
+        return
 
-        # if it's in the past, just expire us now
-        if run.expires_on < now:
-            connection = run.connection.get()
-            connection.close()
+    now = timezone.now()
+    run.expires_on = run.modified_on + timedelta(minutes=run.flow.expires_after_minutes)
 
-            run.is_active = False
-            run.exited_on = now
-            run.exit_type = "E"
-            run.modified_on = now
-            run.child_context = None
-            run.parent_context = None
-            run.save(
-                update_fields=[
-                    "expires_on",
-                    "is_active",
-                    "exited_on",
-                    "exit_type",
-                    "modified_on",
-                    "child_context",
-                    "parent_context",
-                ]
-            )
-        else:
-            # save our updated fields
-            run.save(update_fields=["expires_on", "modified_on"])
-
-    # parent should always have a later expiration than the children
-    if run.parent:
-        update_expiration(run.parent, run.expires_on)
+    # if it's in the past, just expire us now
+    if run.expires_on < now:
+        run.is_active = False
+        run.exited_on = now
+        run.exit_type = "E"
+        run.child_context = None
+        run.parent_context = None
+        run.save(
+            update_fields=[
+                "expires_on",
+                "is_active",
+                "exited_on",
+                "exit_type",
+                "modified_on",
+                "child_context",
+                "parent_context",
+            ]
+        )
+    else:
+        # save our updated fields
+        run.save(update_fields=["expires_on", "modified_on"])
 
 
 def fix_ivr_and_ussd_runs_expiration_date(FlowRun):
-    runs = FlowRun.objects.filter(is_active=True, expires_on=None).exclude(connection=None)
+    runs = FlowRun.objects.filter(is_active=True, expires_on=None).exclude(connection=None).select_related("flow")
     for run in runs:
-        max_expiration = run.created_on + timedelta(days=7)
-        update_expiration(run, max_expiration)
+        update_expiration(run)
 
 
 def apply_migration(apps, schema_editor):
