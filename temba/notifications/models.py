@@ -11,8 +11,10 @@ class Notification(SmartModel):
     CAMPAIGN_TYPE = "C"
     FLOW_TYPE = "F"
     TRIGGER_TYPE = "T"
+    EVENT_TYPE = "E"
     TYPE_CHOICES = ((CAMPAIGN_TYPE, "Campaign_type"),
                     (FLOW_TYPE, "Flow_type"),
+                    (EVENT_TYPE, "EventCampaign_type"),
                     (TRIGGER_TYPE, "Trigger_type"))
     """
     An Notification to send flow from staging organization to production.
@@ -35,23 +37,22 @@ class Notification(SmartModel):
                                  help_text="Type of item")
     item_name = models.CharField(max_length=200, verbose_name ="Name of item", null = True, blank=True,
                                  help_text ="Name of item")
-    history    = models.ForeignKey(FlowRevision, verbose_name="FlowRevision",
-                                    null=True, blank=True, on_delete=models.SET_NULL,
-                                    help_text="Snapshot of the flow edition")
+    history = models.CharField(max_length=90000, verbose_name = "Version of item", null = True, blank=True,
+                                 help_text ="Version of item")
     accepted = models.BooleanField(default=False,
                                   help_text="Whether this notification was accepted by administrator")
     auto_migrated = models.BooleanField(default=False,
                                   help_text="Whether the notification is auto_migrated")
-    read = models.BooleanField(default=False,
-                                  help_text="Whether the notification was read by user")
-    migrated = models.BooleanField(default=False,
-                                  help_text="Whether the notification was migrated")
+    reviewed = models.BooleanField(default=False,
+                                  help_text="Whether the item was reviewed")
+    to_archive = models.BooleanField(default=False,
+                                  help_text="Whether the item has to be archive")
     archived = models.BooleanField(default=False,
-                                  help_text="Whether the flow most to be archived")
+                                  help_text="Notification already archived")
     history_dump = models.CharField(max_length=2000, verbose_name = "History of changes", null = True, blank=True,
                                  help_text ="History of changes")
-    is_automigrated = models.BooleanField(default=False,
-                                          help_text="Whether the notification was migrated")
+    migrated = models.BooleanField(default=False,
+                              help_text="Whether this notification was migrated")
 
     @classmethod
     def create_from_staging(cls, user, org_orig, org_dest, item_type,
@@ -79,28 +80,10 @@ class Notification(SmartModel):
                                   history=history,
                                   created_by=user,
                                   modified_by=user,
+                                  note_orig = note,
                                   auto_migrated = auto_migrated,
                                   history_dump = history_dump)
 
-
-    def mark_read(self):
-        """
-        Method to mark as read by user this notification
-
-        :param self: Instance of class
-        """
-        self.read = True
-        self.save()
-
-
-    def mark_migrated(self):
-        """
-        Method to mark as migrated this notification
-
-        :param self: Instance of class
-        """
-        self.migrated = True
-        self.save()
 
     def set_accepted(self, status):
         """
@@ -112,30 +95,40 @@ class Notification(SmartModel):
         self.accepted = status
         self.save()
 
-    def mark_desactive(self):
+    def set_to_archive(self, status):
+        """
+        Method to mark as accepted this notification
+
+        :param self: Instance of class
+        :param status: Boolean value of accepted
+        """
+        self.to_archive = status
+        self.save()
+
+    def mark_migrated(self):
         """
         Method to mark as desactive this notification
 
         :param self: Instance of class
         """
-        self.is_active = False
+        self.migrated = True
         self.save()
 
-    def set_archived(self, status):
+    def set_reviewed(self, status):
         """
-        Method to set archived this notification
+        Method to set reviewed this notification
 
         :param self: Instance of class
-        :param status: Boolean value of archived
+        :param status: Boolean value of reviewed
         """
-        self.archived = status
+        self.reviewed = status
         self.save()
 
-    def mark_automigrated(self):
+    def mark_archived(self):
         """
-        Method to mark as desactive this notification
+        Method to mark as archived this notification
 
         :param self: Instance of class
         """
-        self.is_automigrated = True
+        self.archived = True
         self.save()

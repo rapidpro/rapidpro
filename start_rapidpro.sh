@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ldconfig
-npm install --only=dev
+#npm install --only=dev
 bower install --allow-root
 python3 manage.py collectstatic --noinput --no-post-process
 python3 manage.py compress --extension=".haml" --force -v0

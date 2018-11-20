@@ -1,0 +1,199 @@
+.span_notification {
+  line-height: 40px !important;
+  vertical-align: middle !important;
+  width: 50% !important;
+  font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
+  letter-spacing: 1px;
+  padding: 0;
+  text-transform: none;
+  font-weight: 100;
+  color: #666;
+  font-size: 22px;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  line-height: 20px;
+  vertical-align: middle;
+}
+.switch input {
+  display: none;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
+}
+input:checked + .slider {
+  background-color: #0C6596;
+}
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+.select-section {
+  margin-top: -80px;
+  margin-right: -20px;
+}
+h3 {
+  margin-top: 30px;
+}
+.exportables {
+  border-top: 1px solid #ccc;
+  padding: 0px 20px;
+}
+.exportables .exportable {
+  vertical-align: top;
+  width: 350px;
+  display: inline-block;
+  padding-left: 23px;
+  margin-bottom: 10px;
+}
+.exportables h4 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #999;
+  padding-top: 10px;
+}
+.exportables input[type=checkbox] {
+  display: inline-block;
+  margin-top: 3px;
+  margin-right: 5px;
+  vertical-align: top;
+}
+.exportables label {
+  display: inline-block;
+  width: 290px;
+}
+.dependencies {
+  color: #9ba1a5;
+  margin-left: 25px;
+  font-size: 12px;
+}
+.dependencies p {
+  display: inline;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+.dependencies .list {
+  display: inline;
+  margin-right: 2px;
+  margin-left: 2px;
+}
+.action_type {
+  padding-left: 5px;
+  padding-right: 5px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  color: white;
+}
+.reply_action {
+  background-color: #5AA6D9;
+}
+.send_action {
+  background-color: #95819F;
+}
+.label_action {
+  background-color: #96C1F3;
+}
+.contact_action {
+  background-color: #3CB7AA;
+}
+.webhook_action {
+  background-color: #E29952;
+}
+.delete_action {
+  background-color: #C66D69;
+}
+.add_action {
+  background-color: #7BB484;
+}
+.flow_action {
+  background-color: #C571A3;
+}
+.undefine_action {
+  background-color: #0C6596;
+}
+.action_text {
+  color: black;
+  font-size: 14px;
+  line-height: 20px;
+}
+#central_table thead th {
+  text-align: center;
+}
+#central_table tbody td {
+  text-align: center;
+}
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+}
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+  height: 600px;
+  overflow: auto;
+}
+.small-field {
+  width: 30px;
+}
+.medium-field {
+  width: 140px;
+}
+.big-field {
+  max-width: 460px;
+}

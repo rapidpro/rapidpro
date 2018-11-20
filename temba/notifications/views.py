@@ -1,25 +1,34 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import json
+import re
 from django.shortcuts import render
+from django import forms
+from django.core.urlresolvers import reverse
 
+from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from smartmin.views import (
+    SmartListView,
+    SmartUpdateView,
+    SmartReadView)
+
+from .models import Notification
 # Create your views here.
 
 class NotificationViews(OrgObjPermsMixin):
 
-
     class NotificationBaseList(SmartListView):
         model = Notification
-        title = _("Notifications")
+        title = "Notifications"
         default_order = ('-created_on',)
-        refresh = 10000
+        refresh = 100000
         fields = ('flow', '')
-        default_template = 'flows/notification_list.html'
+        default_template = 'notifications/notification_list.html'
         search_fields = ('flow__name__icontains',)
         actions = ('archive', 'label')
 
         def derive_queryset(self, *args, **kwargs):
-            org = self.request.user.get_org()
             return super(NotificationViews.NotificationBaseList, self).derive_queryset(*args, **kwargs)
 
         def get_context_data(self, **kwargs):
@@ -28,6 +37,7 @@ class NotificationViews(OrgObjPermsMixin):
                 context['object_list'] = self.derive_queryset()
                 context['is_validating'] = False
                 context['CAMPAIGN_TYPE'] = Notification.CAMPAIGN_TYPE
+                context['EVENT_TYPE'] = Notification.EVENT_TYPE
                 context['FLOW_TYPE'] = Notification.FLOW_TYPE
                 context['TRIGGER_TYPE'] = Notification.TRIGGER_TYPE
                 return context
@@ -35,40 +45,57 @@ class NotificationViews(OrgObjPermsMixin):
         def get_folders(self):
             org = self.request.user.get_org()
             return [
-                dict(label="In process to validate", url=reverse('flows.notification_list'),
-                     count=Notification.objects.filter(is_active = True, org_orig=org).count()),
-                dict(label="Accepted", url=reverse('flows.notification_accepted'),
-                     count=Notification.objects.filter(is_active = False,
-                                                       read = False,
+                dict(label="In process to validate", url=reverse('notifications.notification_list'),
+                     count=Notification.objects.filter(reviewed = False, org_orig=org, auto_migrated = False).count()),
+                dict(label="Automatic Accepted", url=reverse('notifications.notification_autoaccepted'),
+                     count=Notification.objects.filter(reviewed = False,
+                                                       org_orig=org,
+                                                       auto_migrated=True).count()),
+                dict(label="Accepted", url=reverse('notifications.notification_accepted'),
+                     count=Notification.objects.filter(reviewed = True,
                                                        org_orig=org,
                                                        accepted=True).count()),
-                dict(label="Rejected", url=reverse('flows.notification_rejected'),
-                     count=Notification.objects.filter(is_active = False,
-                                                       read = False,
+                dict(label="Rejected", url=reverse('notifications.notification_rejected'),
+                     count=Notification.objects.filter(reviewed = True,
                                                        org_orig=org,
                                                        accepted=False).count())
             ]
 
+
     class NotificationList(NotificationBaseList):
-        title = _("Notifications")
-        def derive_queryset(self, *args, **kwargs):
-            org = self.request.user.get_org()
-            return super(NotificationViews.NotificationList, self).derive_queryset(*args, **kwargs).filter(is_active = True,
-                                                                                                           org_orig=org)
+        title = "Notifications"
+
         def get_context_data(self, **kwargs):
             context = super(NotificationViews.NotificationList, self).get_context_data(**kwargs)
             context['is_validating'] = True
             return context
+
+        def derive_queryset(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            return super(NotificationViews.NotificationList, self).derive_queryset(*args, **kwargs).filter(
+                        reviewed = False,
+                        org_orig=org,
+                        auto_migrated = False).order_by("created_on")
+
 
     class NotificationAccepted(NotificationBaseList):
         default_order = ('-created_on',)
 
         def derive_queryset(self, *args, **kwargs):
             org = self.request.user.get_org()
-            return super(NotificationViews.NotificationAccepted, self).derive_queryset(*args, **kwargs).filter(is_active = False,
-                                                                                                               read = False,
-                                                                                                               org_orig=org,
-                                                                                                               accepted=True)
+            return super(NotificationViews.NotificationAccepted, self).derive_queryset(*args, **kwargs).filter(reviewed = True,
+                            org_orig=org,
+                            accepted=True).order_by("created_on")
+
+
+    class NotificationAutoaccepted(NotificationBaseList):
+        default_order = ('-created_on',)
+
+        def derive_queryset(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            return super(NotificationViews.NotificationAutoaccepted, self).derive_queryset(*args, **kwargs).filter(reviewed = False,
+                             org_orig=org,
+                             auto_migrated=True).order_by("created_on")
 
 
     class NotificationRejected(NotificationBaseList):
@@ -76,24 +103,25 @@ class NotificationViews(OrgObjPermsMixin):
 
         def derive_queryset(self, *args, **kwargs):
             org = self.request.user.get_org()
-            return super(NotificationViews.NotificationRejected, self).derive_queryset(*args, **kwargs).filter(is_active = False,
-                                                                                                               read = False,
-                                                                                                               org_orig=org,
-                                                                                                               accepted=False)
+            return super(NotificationViews.NotificationRejected, self).derive_queryset(*args, **kwargs).filter(reviewed = True,
+                            org_orig=org,
+                            accepted=False).order_by("created_on")
+
+
     class AddNoteToAdmin(ModalMixin, SmartUpdateView):
         class NoteForm(forms.ModelForm):
             class Meta:
                 model = Notification
                 fields = ('id','note_orig',)
                 widgets = {'note_orig':
-                           forms.Textarea(
-                               attrs ={'style':"height: 150px"})
-                }
+                            forms.Textarea(attrs ={'style':"height: 150px"})
+                          }
 
         form_class = NoteForm
-        success_url = '@flows.notification_list'
-        success_message = ''
+        success_url = '@notifications.notification_list'
+        success_message = 'Nota agregada o modificada'
         model = Notification
+
 
     class AddNoteToUser(ModalMixin, SmartUpdateView):
         class NoteForm(forms.ModelForm):
@@ -101,24 +129,56 @@ class NotificationViews(OrgObjPermsMixin):
                 model = Notification
                 fields = ('id','note_dest',)
                 widgets = {'note_dest':
-                           forms.Textarea(
-                               attrs ={'style':"height: 150px"})
-                }
-
+                            forms.Textarea(attrs ={'style':"height: 150px"})
+                          }
         form_class = NoteForm
-        success_url = '@flows.notification_list'
+        success_url = '@notifications.notification_list'
         success_message = ''
         model = Notification
 
 
+    class ValidChanges(SmartListView):
+        model = Notification
+        default_template = "notifications/notification_valid.haml"
+
+        def get_context_data(self, **kwargs):
+            from temba.flows.models import Flow
+            from temba.triggers.models import Trigger
+            from temba.campaigns.models import CampaignEvent
+            context = super(NotificationViews.ValidChanges, self).get_context_data(**kwargs)
+            flows_to_check = context["url_params"]
+            flows_to_check = flows_to_check.replace("%2C","&")
+            flows_to_check = flows_to_check.split("=")
+            if len(flows_to_check)<=1:
+                return context
+            flows_to_check = flows_to_check[1].split("&")
+            flows_to_check = [flow for flow in flows_to_check if flow]
+            invalid = []
+            valid = []
+            for flow_id in flows_to_check:
+                c_event = CampaignEvent.objects.filter(flow__pk = flow_id).first()
+                trigger = Trigger.objects.filter(flow__pk = flow_id).first()
+                flow = Flow.objects.filter(pk=flow_id).first()
+                if not flow:
+                    continue
+                if (not c_event or c_event.campaign.is_archived) and \
+                   (not trigger or trigger.is_archived):
+                    invalid.append(flow.name)
+                else:
+                    valid.append(flow.name)
+
+            context["invalid"] = invalid
+            context["valid"] = valid
+            return context
+
+
     class CampaignChanges(SmartReadView):
         model = Notification
-        default_template = 'flows/notification_campaign.html'
+        default_template = 'notifications/notification_campaign.html'
 
         def get_context_data(self, **kwargs):
             from temba.campaigns.models import Campaign
             context = super(NotificationViews.CampaignChanges, self).get_context_data(**kwargs)
-
             this_notification = self.model.objects.get(
                 pk=self.kwargs['pk'])
             changes = {"added":[], "deleted":[]}
@@ -127,33 +187,17 @@ class NotificationViews(OrgObjPermsMixin):
                     changes = json.loads(this_notification.history_dump)
                 except ValueError as e:
                     pass
-            added = self.parse_events(changes["added"])
-            deleted = self.parse_events(changes["deleted"])
+            added = [c.split("|") for c in changes["added"]]
+            deleted = [c.split("|") for c in changes["deleted"]]
             context['added_actions'] = added
             context['deleted_actions'] = deleted
+            context["with_changes"] = added or deleted
             return context
 
-        def parse_events(self, list_work):
-            result = []
-            for c in list_work:
-                items = c.split("|")
-                r = ""
-                o = ""
-                a = ""
-                for item in items:
-                    tmp=":".join(item.split(":")[1:])
-                    if "relative_to" in item:
-                        r = tmp
-                    elif "offset"  in item:
-                        o = tmp
-                    elif "action" in item:
-                        a = tmp
-                result.append((r,o,a))
-            return result
 
     class TriggerChanges(SmartReadView):
         model = Notification
-        default_template = 'flows/notification_trigger.html'
+        default_template = 'notifications/notification_trigger.html'
 
         def get_context_data(self, **kwargs):
             from temba.triggers.models import Trigger
@@ -166,40 +210,16 @@ class NotificationViews(OrgObjPermsMixin):
                     changes = json.loads(this_notification.history_dump)
                     print(changes)
                 except ValueError as e:
-                    print ("Error")
                     pass
-            print (changes)
-            added = self.parse_events(changes["added"])
-            deleted = self.parse_events(changes["deleted"])
+            added = [c.split("|") for c in changes["added"]]
+            deleted = [c.split("|") for c in changes["deleted"]]
             context['added_actions'] = added
             context['deleted_actions'] = deleted
             return context
 
-        def parse_events(self, list_work):
-            result = []
-            for c in list_work:
-                items = c.split("|")
-                k = ""
-                t = ""
-                f = ""
-                g = ""
-                for item in items:
-                    tmp=":".join(item.split(":")[1:])
-                    if "Keyword" in item:
-                        k = tmp
-                    elif "Type"  in item:
-                        t = tmp
-                    elif "Flow" in item:
-                        f = tmp
-                    elif "Group" in item:
-                        g = tmp
-                result.append((k,t,f,g))
-            return result
-
-
     class FlowChanges(SmartReadView):
         model = Notification
-        default_template = 'flows/notification_flow.html'
+        default_template = 'notifications/notification_flow.html'
 
         def get_context_data(self, **kwargs):
             context = super(NotificationViews.FlowChanges, self).get_context_data(**kwargs)

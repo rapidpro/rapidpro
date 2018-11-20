@@ -1,0 +1,104 @@
+-extends "smartmin/read.html"
+{% load smartmin i18n flow_tags%}
+
+-block title-text
+  %h1= org.name
+
+-block content
+ #pjax
+   -block pjax
+    %h3
+      Production Flow status:
+    - if flow_is_archived
+      %h4 Archive
+    - else
+      %h4 Active
+    %h3
+     Change List
+    %div
+       %table.list-table.object-list.table.alert-success
+        %thead
+          %th{"style":"background:white"}
+            Added Actions
+        %tbody
+          - for action in added_actions
+            %tr
+              %td
+                {{action|render_action|safe}}
+          -empty
+            %tr
+              %td
+                -trans "No Actions"
+
+     %div
+      %table.list-table.object-list.table.alert-danger
+        %thead
+          %th{"style":"background:white"}
+            Deleted Actions
+        %tbody
+          - for action in deleted_actions
+            %tr
+              %td
+                {{action|render_action|safe}}
+          -empty
+            %tr
+              %td
+                -trans "No Actions"
+
+{%block form-buttons%} {%endblock%}
+-block extra-style
+  {{block.super}}
+  :css
+    .form-horizontal .controls {
+      margin-left: 180px;
+    }
+
+    .form-horizontal .smartmin-form-buttons {
+      padding-left: 180px;
+      margin-bottom: 20px;
+    }
+
+    .form-horizontal .control-label {
+      width: 160px;
+    }
+
+    .action_type {
+      padding-left: 5px;
+      padding-right: 5px;
+      padding-top: 2px;
+      padding-bottom: 2px;
+      color: white;
+    }
+    .reply_action {
+      background-color: #5AA6D9;
+    }
+    .send_action {
+     background-color: #95819F;
+    }
+    .label_action {
+     background-color: #96C1F3;
+    }
+    .contact_action {
+     background-color: #3CB7AA;
+    }
+
+    .webhook_action {
+     background-color: #E29952;
+    }
+    .delete_action {
+     background-color: #C66D69;
+    }
+    .add_action {
+     background-color: #7BB484;
+    }
+    .flow_action {
+     background-color: #C571A3;
+    }
+    .undefine_action {
+     background-color: #0C6596;
+    }
+    .action_text {
+     color: #999999;
+     font-size: 14px;
+     line-height: 20px;
+    }

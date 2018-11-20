@@ -80,13 +80,45 @@
           padding:10px;
           .rounded-corners(5px);
         }
+        .total-messages {
+          margin-bottom: 80px;
+          padding:10px;
+          .rounded-corners(5px);
+        }
+        .header-per_msgs_out {
+            max-width: 100px;
+        }
+        .header-per_msgs_in {
+            max-width: 100px;
+        }
+        .table thead th {
+          vertical-align: top;
+        }
 
     {% endlessblock %}
 
 -block extra-script
   {{block.super}}
 
+  :javascript
+      $("#create-org").live('click', function(){
+        var modal = new Modax('Create Org','{% url "orgs.org_create" %}');
+        modal.setIcon('icon-instant');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
+
 -block pre-table
+  .total-messages
+    .span9
+      %h4
+        %strong Total msgs sent:     {{total_sent}} (last 30 days)
+      %h4
+        %strong Total msgs received: {{total_received}} (last 30 days)
+    .span3
+      %a#create-org.btn.btn-primary.btn-block{ href:"#" } Create Org
+
   .quick-searches
     -if search == ""
       %span{class:'quick'}
@@ -104,4 +136,3 @@
           {{ s }}
       -else
         %a{class:'quick', href:'?search={{s}}'}= s
-

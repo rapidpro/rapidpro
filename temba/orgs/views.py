@@ -45,7 +45,7 @@ from django.views.generic import View
 
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, languages
@@ -569,7 +569,8 @@ class OrgCRUDL(SmartCRUDL):
         "transfer_credits",
         "transfer_to_account",
         "smtp_server",
-        "notification"
+        "notification",
+        "create"
     )
 
     model = Org
@@ -1078,7 +1079,8 @@ class OrgCRUDL(SmartCRUDL):
             context["flow_from_email"] = parseaddr(from_email)[1]
 
             return context
-        # BEGIN MX abierto change
+
+    # BEGIN MX abierto change
 
     class Notification(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         """
@@ -1087,8 +1089,8 @@ class OrgCRUDL(SmartCRUDL):
         """
 
         def post(self, request, *args, **kwargs):
-            from temba.notifications.models import Notification
             from temba.flows.models import  FlowRevision, Flow
+            from temba.notifications.models import Notification
             """
             Override post method to catch 'accept', 'reject' and
             'auto_update' buttons
@@ -1108,9 +1110,9 @@ class OrgCRUDL(SmartCRUDL):
                 is_accepted = 'accept' in request.POST
                 for notification in notifications:
                     notification.set_accepted(is_accepted)
-                    notification.mark_desactive()
+                    notification.set_reviewed(True)
                     archived = notification.id in archived_ids
-                    notification.set_archived(archived)
+                    notification.set_to_archive(archived)
 
             elif 'stop_auto_update' in request.POST or \
                  'allow_auto_update' in request.POST:
@@ -1119,14 +1121,15 @@ class OrgCRUDL(SmartCRUDL):
                 if orgs:
                     org = orgs[0]
                     status = 'allow_auto_update' in request.POST
-                    org.is_autoaccepted_flow = status
+                    org.apply_notification = status
                     org.save()
 
             return HttpResponseRedirect(request.get_full_path())
 
 
         def get_context_data(self, **kwargs):
-            from temba.flows.models import Notification, FlowRevision, Flow
+            from temba.flows.models import FlowRevision, Flow
+            from temba.notifications.models import Notification
             """
             Override method to add list of active notifications
             history notifications and auto_accept value
@@ -1138,11 +1141,12 @@ class OrgCRUDL(SmartCRUDL):
                 return context
             org = orgs[0]
             org_notifications = Notification.objects.filter( org_orig = org)
-            notifications = org_notifications.filter(is_active = True).order_by('-created_on')
-            history = org_notifications.filter(is_active = False).order_by('-created_on')
+            notifications = org_notifications.filter(reviewed = False).order_by('created_on')
+            history = org_notifications.filter(reviewed = True).order_by('-created_on')
+
             valid_types = []
             all_types = [Notification.FLOW_TYPE, Notification.CAMPAIGN_TYPE,
-                         Notification.TRIGGER_TYPE]
+                         Notification.TRIGGER_TYPE, Notification.EVENT_TYPE]
             for type_notification in all_types:
                 if notifications.filter(item_type = type_notification):
                     valid_types.append(type_notification)
@@ -1151,11 +1155,14 @@ class OrgCRUDL(SmartCRUDL):
             context['active_types'] = valid_types
             context['history'] = history
             context['types'] = all_types
-            context['auto_accept'] = org.is_autoaccepted_flow
+            context['auto_accept'] = org.apply_notification
             context['has_parent'] = org.parent
+            context['org_name'] = org.name
             context['FLOW_TYPE'] = Notification.FLOW_TYPE
             context['CAMPAIGN_TYPE'] = Notification.CAMPAIGN_TYPE
             context['TRIGGER_TYPE'] = Notification.TRIGGER_TYPE
+            context['EVENT_TYPE'] = Notification.EVENT_TYPE
+
 
             return context
 
@@ -1164,7 +1171,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Manage(SmartListView):
         # MX abierto change: Change values of the table and field_config
-        fields = ("name", "history_msgs_in","history_msgs_out","per_msgs_in","per_msgs_out","contacts" ,"owner", "created_on","service","notification")
+        fields = ("notification_unread","name", "history_msgs_in","history_msgs_out","per_msgs_in","per_msgs_out","owner", "created_on","service","notification")
         field_config = {"service": {"label": ""},
                         "notification": {"label": "Notifications"},
                         "per_msgs_out":{"label":"Msgs Out (%) Last 30 days"},
@@ -1243,8 +1250,17 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_notification(self, obj):
             url = reverse('orgs.org_notification')
-            return mark_safe("<a href='%s?org_id=%d' class='service btn'>Notifications</a>"
+            from temba.notifications.models import Notification
+            n = Notification.objects.filter(org_orig__id=obj.id).count()
+            return mark_safe("<a href='%s?org_id=%d' class='btn'>Notifications</a>"
                              % (url, obj.id))
+
+        def get_notification_unread(self, obj):
+            from temba.notifications.models import Notification
+            n = Notification.objects.filter(org_orig__id=obj.id).count()
+            color = "black" if n == 0 else "red"
+            font_size = 14 if n== 0 else 30
+            return mark_safe("<span style='color:%s;font-size:%d px'>%d</span>" % (color,font_size,n))
         # END MX abierto change
 
         def get_used(self, obj):
@@ -1320,49 +1336,17 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
-            context["create_org_form"] = CreateOrgForm()
             total_msgs = self.get_total_msgs_general()
             context["total_received"] = total_msgs[ChannelCount.INCOMING_MSG_TYPE]
             context["total_sent"] = total_msgs[ChannelCount.OUTGOING_MSG_TYPE]
             return context
-
-        def post (self, request, *args, **kwargs):
-            form = CreateOrgForm(self.request.POST or None)
-            MAX_TOPUP = 100000000
-            if form and form.is_valid():
-                parent_org = form.save(commit = False)
-                base_name = parent_org.name
-                parent_org.name = base_name+"_produccion"
-                parent_org.created_by = request.user
-                parent_org.modified_by = request.user
-                parent_org.timezone = settings.USER_TIME_ZONE
-                parent_org.webhook  = {}
-                parent_org.config = {"STATUS": "whitelisted"}
-                parent_org.slug = Org.get_unique_slug(parent_org.name)
-                parent_org.brand = settings.DEFAULT_BRAND
-                parent_org.save()
-                form.save_m2m()
-                parent_org.initialize(branding=parent_org.get_branding(), topup_size=MAX_TOPUP)
-                #Now create child
-                child_name = base_name+"_desarrollo"
-                child_org = parent_org.create_sub_org(child_name,
-                                                      parent_org.timezone,
-                                                      parent_org.administrators.first())
-                child_org.create_welcome_topup(MAX_TOPUP)
-                #Now add same administrator
-                for administrator in parent_org.administrators.all():
-                    child_org.administrators.add(administrator)
-            else:
-                print (form.errors)
-            return HttpResponseRedirect('/org/manage/')
-
         # END MX abierto change
 
     class Update(SmartUpdateView):
-        fields = ("name", "brand", "parent", "is_anon")
+        fields = ("name", "brand", "parent", "is_anon","administrators","editors", "surveyors", "viewers")
 
         class OrgUpdateForm(forms.ModelForm):
-            parent = forms.IntegerField(required=False)
+            parent = forms.ModelChoiceField(queryset=Org.objects.filter(is_active=True))
             # MX abierto change: add values to manager
             viewers = forms.ModelMultipleChoiceField(
                 User.objects.all(),
@@ -1384,7 +1368,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean_parent(self):
                 parent = self.cleaned_data.get('parent')
                 if parent:
-                    return Org.objects.filter(pk=parent).first()
+                    return Org.objects.filter(pk=parent.id).first()
 
             class Meta:
                 model = Org
@@ -1796,6 +1780,54 @@ class OrgCRUDL(SmartCRUDL):
                 response["Temba-Success"] = self.get_success_url()
                 return response
 
+    # BEGIN MX abierto change
+    class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
+        class CreateOrgForm(forms.ModelForm):
+            class Meta:
+                model = Org
+                fields = ('name', 'plan','administrators', 'language' )
+
+        fields = ('name', 'plan','administrators', 'language')
+        form_class = CreateOrgForm
+        success_url = '@orgs.org_manage'
+        def save(self, obj):
+            pass #We save object on post, because we create two
+
+
+        def post(self, request, *args, **kwargs):
+            form = OrgCRUDL.Create.CreateOrgForm(self.request.POST or None)
+            MAX_TOPUP = 100000000
+            if form and form.is_valid():
+                print("Entro")
+                parent_org = form.save(commit = False)
+                base_name = parent_org.name
+                parent_org.name = base_name+"_produccion"
+                parent_org.created_by = request.user
+                parent_org.modified_by = request.user
+                parent_org.timezone = settings.USER_TIME_ZONE
+                parent_org.webhook  = {}
+                parent_org.config = {"STATUS": "whitelisted"}
+                parent_org.slug = Org.get_unique_slug(parent_org.name)
+                parent_org.brand = settings.DEFAULT_BRAND
+                parent_org.use_customize = False
+                parent_org.save()
+                form.save_m2m()
+                parent_org.initialize(branding=parent_org.get_branding(), topup_size=MAX_TOPUP)
+                #Now create child
+                child_name = base_name+"_desarrollo"
+                child_org = parent_org.create_sub_org(child_name,
+                                                      parent_org.timezone,
+                                                      parent_org.administrators.first())
+                child_org.create_welcome_topup(MAX_TOPUP)
+                #Now add same administrator
+                for administrator in parent_org.administrators.all():
+                    child_org.administrators.add(administrator)
+            else:
+                print (form.errors)
+            return super().post(request, *args, **kwargs)
+    # END MX abierto change
+
+
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
@@ -1993,6 +2025,18 @@ class OrgCRUDL(SmartCRUDL):
                 # set the active org on this user
                 self.request.user.set_org(org)
                 self.request.session["org_id"] = org.pk
+                # BEGIN MX abierto change
+                if org.parent:
+                    org.parent.viewers.add(self.request.user)
+                else:
+                    #Search for their sons
+                    org_children = Org.objects.filter(parent=org)
+                    for org_child in org_children:
+                        if org_child:
+                            org_child.administrators.add(self.request.user)
+                # END MX abierto change
+
+
 
         def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == "S":

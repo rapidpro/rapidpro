@@ -1305,12 +1305,18 @@ class Flow(TembaModel):
     def apply_action_send_notification(cls, user, flows):
         changed = []
         from temba.notifications.models import Notification
+        from temba.campaigns.models import CampaignEvent
+        from temba.triggers.models import Trigger
 
         for flow in flows:
-            #Revisar si solo se queda la ultima notificacion
             history = FlowRevision.objects.filter(flow=flow).last()
             user_org = user.get_org()
             if user_org.parent:
+                c_event = CampaignEvent.objects.filter(flow = flow).first()
+                trigger = Trigger.objects.filter(flow= flow).first()
+                if (not c_event or c_event.campaign.is_archived) and \
+                   (not trigger or trigger.is_archived):
+                        continue
                 notification = Notification.create_from_staging(
                     user=user,
                     org_orig=user_org,
@@ -1318,10 +1324,35 @@ class Flow(TembaModel):
                     item_type = Notification.FLOW_TYPE,
                     item_id = flow.id,
                     item_name = flow.name,
-                    history=history,
+                    history=json.dumps(history.definition),
                     auto_migrated=user_org.apply_notification)
+
+                if c_event:
+                    notification = Notification.create_from_staging(
+                        user=user,
+                        org_orig=user_org,
+                        org_dest=user_org.parent,
+                        item_type = Notification.EVENT_TYPE,
+                        item_id = c_event.id,
+                        item_name = c_event.flow.name,
+                        note= "Notification auto_generated linked to flow:[%s]" %(flow.name),
+                        history=c_event.get_history(),
+                        auto_migrated=user_org.apply_notification)
+                if trigger:
+                    notification = Notification.create_from_staging(
+                        user=user,
+                        org_orig=user_org,
+                        org_dest=user_org.parent,
+                        item_type = Notification.TRIGGER_TYPE,
+                        item_id = trigger.id,
+                        item_name = trigger.keyword,
+                        note= "Notification auto_generated linked to flow:[%s]" %(flow.name),
+                        history=trigger.as_json(),
+                        auto_migrated=user_org.apply_notification)
+
                 if user_org.apply_notification:
-                    on_transaction_commit(lambda: migrate_one_flow.delay(notification))
+                    pass
+                    #on_transaction_commit(lambda: migrate_trigger_to_production.delay(notification))
             changed.append(flow.pk)
         return changed
 

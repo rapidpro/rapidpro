@@ -1,0 +1,50 @@
+-block title-text
+  %h1= org.name
+
+-block content
+ #pjax
+   -block pjax
+     %div
+      -if invalid
+        %h4
+          Invalid flows to send to production
+          (Your org only can send to production
+          flows with a trigger or campaign related)
+        %table.list-table.object-list.table.alert-danger
+          %thead
+            %th{"style":"background:white; font-size:18px;text-align: center"}
+              Name of invalid flow
+          %tbody
+            - for r in invalid
+              %tr
+                %td{"style":"text-align: center"}
+                  {{r}}
+      -else
+        %h4
+          All flows are valid, and the notifications were sent
+    -if valid
+      %table.list-table.object-list.table.alert-success
+       %thead
+          %th{"style":"background:white; font-size:18px;text-align: center"}
+           Notifications created related to a flow name
+       %tbody
+         - for r in valid
+           %tr
+             %td{"style":"text-align: center"}
+               {{r}}
+
+{%block form-buttons%} {%endblock%}
+-block extra-style
+  :css
+    .form-horizontal .controls {
+      margin-left: 180px;
+    }
+
+    .form-horizontal .smartmin-form-buttons {
+      padding-left: 180px;
+      margin-bottom: 20px;
+    }
+
+    .form-horizontal .control-label {
+      width: 160px;
+    }

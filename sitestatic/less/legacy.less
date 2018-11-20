@@ -1088,7 +1088,16 @@ table.list-table {
           content: "\e0c8";
         }
       }
-
+      /* BEGIN Mx abierto change */
+      &.icon-nav-notification {
+        &.active:before {
+          content: "\e0c0";
+        }
+        &:hover:before {
+          content: "\e0bf";
+        }
+      }
+      /* END Mx abierto change */
     }
   }
 

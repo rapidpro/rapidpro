@@ -1,0 +1,9 @@
+.small-field {
+  width: 30px;
+}
+.medium-field {
+  width: 140px;
+}
+.big-field {
+  max-width: 460px;
+}

@@ -105,7 +105,7 @@
 
                     - if 'send_to_production' in actions and org_perms.flows.flow_update
                       %span.btn-group
-                        %a.object-btn-send-notification{href:'#'}
+                        %a.object-btn-send-notification.notifications
                           %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send to production" %}'}
                             .glyph.icon-upload
 
@@ -254,5 +254,14 @@
         modal.show();
       });
       {% endif %}
+      $('.page-content').on('click', ".notifications", function() {
+        lastChecked = getCheckedIds();
+        var modal = new Modax('{% trans "Notification status" %}', "{% url 'notifications.notification_checkflowvalid' %}"+"?active="+lastChecked);
+        modal.setListeners({
+          onPrimary: function() { modal.dismiss(); },
+          onCompleted: function() { refresh(function() { recheckIds(); }, true);}
+        });
+        modal.show();
+      });
 
     });

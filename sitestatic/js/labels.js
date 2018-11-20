@@ -1,6 +1,6 @@
 function getCheckedIds(){
     var checkedIds = Array();
-    
+
     var checks = $(".object-row.checked");
     for (var i=0; i<checks.length; i++){
         checkedIds.push(parseInt($(checks[i]).data("object-id")));
@@ -48,7 +48,7 @@ function getObjectRowLabels(objectId){
     for (var i=0; i<labels.length; i++){
         labelIds.push(parseInt($(labels[i]).data("id")));
     }
-      
+
     return labelIds.sort(numericComparator);
 }
 
@@ -90,12 +90,12 @@ function labelObjectRows(labelId, forceRemove){
             break;
         }
     }
-    
+
     var checkbox = $('.lbl-menu[data-id="' + labelId + '"] .glyph');
     if (checkbox.hasClass("checked-child")) {
         addLabel = true;
     }
-    
+
     if (checkbox.hasClass("checked")) {
         addLabel = false;
     }
@@ -103,15 +103,15 @@ function labelObjectRows(labelId, forceRemove){
     if (forceRemove) {
         addLabel = false;
     }
-    
+
     jQuery.ajaxSettings.traditional = true;
     lastChecked = getCheckedIds();
-    
+
     if (objectRowsIds.length==0) {
         showWarning('{% trans "No rows selected" %}', '{% trans "Please select one or more rows before continuing." %}');
         return;
     }
-    
+
     postLabelChanges(objectRowsIds, labelId, addLabel);
 }
 
@@ -145,13 +145,13 @@ function clearLabelMenu(){
 // updates our label menu according to the currently selected set
 function updateLabelMenu(){
     clearLabelMenu();
-    
+
     var objectRowsIds = getCheckedIds();
     var updatedLabels = Object()
 
     for (var i=0; i<objectRowsIds.length; i++){
         var labelIds = getObjectRowLabels(objectRowsIds[i]);
-	
+
         for (var j=0; j<labelIds.length; j++){
             var labelId = labelIds[j];
 
@@ -162,7 +162,7 @@ function updateLabelMenu(){
 		var label = $('.lbl-menu[data-id="' + labelId + '"] .glyph');
 
 		if (objectRowIdsWithLabel.length == objectRowsIds.length){
-		    
+
 		    label.addClass("checked");
 		    label.removeClass("partial");
 
@@ -173,7 +173,7 @@ function updateLabelMenu(){
 			    parentBox.addClass('checked-child');
 			}
 		    }
-		    
+
 		} else {
 
 		    label.addClass("partial");
@@ -188,8 +188,8 @@ function updateLabelMenu(){
 		}
 		updatedLabels[labelId] = true;
             }
-        }        
-    }      
+        }
+    }
 }
 
 $(document)
@@ -242,4 +242,9 @@ $(document).ready(function() {
     $(".page-content").on('click', ".object-btn-resend", function() {
 	runActionOnObjectRows("resend");
     });
+    /* BEGIN Mx abierto change */
+    $(".page-content").on('click', ".object-btn-send-notification", function() {
+      runActionOnObjectRows("send-notification");
+    });
+    /* END Mx abierto change */
 });

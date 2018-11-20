@@ -1,4 +1,5 @@
 import regex
+import json
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 
@@ -497,19 +498,19 @@ class Trigger(SmartModel):
     # BEGIN MX abierto change
     @classmethod
     def apply_action_send_notification(cls, user, triggers):
-        from temba.flows.models import Notification
+        from temba.notifications.models import Notification
         import json
         changed = []
-        trigger_string = "Keyword:{k}|Type:{t}|Flow:{f}|Groups:{g}"
+        trigger_string = "{k}|{t}|{f}|{g}"
         for trigger in triggers:
             #Now search on parent
             user_org = user.get_org()
             if user_org.parent:
                 production_t = Trigger.objects.filter(
-                    org=user_org.parent,
-                    keyword = trigger.keyword,
-                    trigger_type = trigger.trigger_type
-                ).first()
+                                    org=user_org.parent,
+                                    keyword = trigger.keyword,
+                                    trigger_type = trigger.trigger_type
+                                ).first()
                 changes = {
                     "added":[trigger_string.format(
                         k=trigger.keyword,
@@ -539,8 +540,8 @@ class Trigger(SmartModel):
                 item_type = Notification.TRIGGER_TYPE,
                 item_id = trigger.id,
                 item_name = trigger.keyword,
-                history=None,
-                auto_migrated=user_org.is_autoaccepted_flow,
+                history=trigger.as_json(),
+                auto_migrated=user_org.apply_notification,
                 history_dump = json.dumps(changes))
             changed.append(trigger.pk)
         return changed

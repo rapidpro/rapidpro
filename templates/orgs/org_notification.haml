@@ -1,0 +1,487 @@
+-extends "smartmin/read.haml"
+
+-load temba compress i18n humanize
+
+-block title
+  %h1
+    Manage Notification
+  %h3 {{org_name}}
+
+-block top-form
+  -if has_parent
+    %div{style:"width:380px"}
+      - block search-form
+        %form{method:'POST', id:"updates_form"}
+          {%csrf_token%}
+          %span{class:"span_notification"}
+            Allow Autoupdate:
+          - if auto_accept
+            %label{"class":"switch"}
+              %input.btn.btn-failed.submit{type:'checkbox', value:'1',checked,onclick:'this.form.submit();'}
+                %span{"class":"slider round"}
+            %input{"name":"stop_auto_update",value:"True", type:"hidden" }
+          - else
+            %label{"class":"switch"}
+              %input.btn.btn-success.submit{type:'checkbox', value:'1', name:'allow_auto_update', onclick:'this.form.submit();n'}
+                %span{"class":"slider round"}
+
+
+
+
+-block page-top
+  {{ block.super }}
+
+-block content
+
+  -blocktrans
+   %div{style:""}
+    This notification panel lets you keep track of everything changes in flows, triggers and campaigns from staging organization to production organization.
+    When you reject a flow change, you can archive this flow, and when you accept a change automatically it is unarchived.
+  -if notifications
+    - for type in active_types
+      %form{method:'POST'}
+        {%csrf_token%}
+        %table.list-table.object-list.table.table-striped{id:"{{type}}_table", style:"width:100%"}
+          %thead
+            %th{style:"width:7%"}
+            %th{style:"width:7%"}
+              -if type == FLOW_TYPE
+                Flow to check
+              -elif type == CAMPAIGN_TYPE
+                Campaign to check
+              -elif type == TRIGGER_TYPE
+                Trigger to check
+              -elif type == EVENT_TYPE
+                Event to check
+            %th{style:"width:7%"}
+              Automatic accepted
+            %th{style:"width:7%"}
+              Request time
+            %th{style:"width:7%"}
+              -if type == FLOW_TYPE
+                Archive flow
+              -elif type == CAMPAIGN_TYPE
+                Archive campaign
+              -elif type == TRIGGER_TYPE
+                Archive trigger
+              -elif type == EVENT_TYPE
+                Delete event
+            %th{style:"width:21%"}
+              Notes from user
+            %th{style:"width:21%"}
+              Notes to user
+            %th{style:"width:11%"}
+            %th{style:"width:11%"}
+          %tbody
+              - for notification in notifications
+                -if notification.item_type == type
+                  %tr
+                    %td
+                      %h4
+                        %input.toggle-all{type:'checkbox', id:'{{notification.id}}', name:'{{notification.id}}'}
+                    %td
+                      {{ notification.item_name }}
+                    %td
+                      {{ notification.auto_migrated}}
+                    %td
+                      {{ notification.created_on|date:'d/m/Y (H:i)'}}
+                    %td
+                      - if notification.to_archive
+                        %input.toggle-all{type:'checkbox', id:'{{notification.id}}-archive', name:'{{notification.id}}-archive', checked}
+                      - else
+                        %input.toggle-all{type:'checkbox', id:'{{notification.id}}-archive', name:'{{notification.id}}-archive'}
+                    %td
+                      - if notification.note_orig
+                        {{ notification.note_orig}}
+                    %td
+                      - if notification.note_dest
+                        {{notification.note_dest}}
+                    %td
+                      %a.btn.btn-primary.add_note_front{'href':'#', onclick:"createNote({{notification.id}})"}
+                        - if notification.note_dest
+                          -trans "Change note"
+                        - else
+                          -trans "Add note"
+                    %td
+                      -if type == FLOW_TYPE
+                        %a.btn.btn-primary.add_note_front{'href':'#', onclick:"showFlowDetails({{notification.id}})"}
+                          -trans "Show details"
+                      -elif type == CAMPAIGN_TYPE
+                        %a.btn.btn-primary.add_note_front{'href':'#', onclick:"showCampaignDetails({{notification.id}})"}
+                          -trans "Show details"
+                      -elif type == TRIGGER_TYPE
+                        %a.btn.btn-primary.add_note_front{'href':'#', onclick:"showTriggerDetails({{notification.id}})"}
+                          -trans "Show details"
+              -empty
+        - if notifications
+          %input.btn.select-all{type:'submit', value:'Reject', name:'reject'}
+            %input.btn.btn-success.submit{type:'submit', value:'Accept', name:'accept'}
+        - else
+          %div
+            %h4
+              No request notifications to show
+
+  %div{"style":"height:100px"}
+  - if history
+    %h2
+      History Notification
+    %div{class:"tab"}
+      %button{class:"tablinks", onclick:"openHistory(event, F_tab)"} Flows History
+      %button{class:"tablinks", onclick:"openHistory(event, C_tab)"} Campaigns History
+      %button{class:"tablinks", onclick:"openHistory(event, T_tab)"} Triggers History
+      %button{class:"tablinks", onclick:"openHistory(event, E_tab)"} Event History
+    -for t in types
+      %div{id:"{{t}}_tab", class:"tabcontent"}
+        %input{type:"text",id:"myInput_{{t}}",onkeyup:"searchFunction(\"{{t}}\")", placeholder:"Busca por nombre", title:"Type in a name"}
+        %table.list-table.object-list.table.table-striped{id:'myTable_{{t}}'}
+          %thead
+            %th{style:"width:10%"}
+              -if t == FLOW_TYPE
+                Flow checked
+              -elif t == CAMPAIGN_TYPE
+                Campaign checked
+              -elif t == TRIGGER_TYPE
+                Trigger checked
+              -elif t == EVENT_TYPE
+                Event checked
+            %th{style:"width:10%"}
+              Acepted
+            %th{style:"width:10%"}
+              Request time
+            %th{style:"width:10%"}
+              -if t == FLOW_TYPE
+                Flow archived
+              -elif t == CAMPAIGN_TYPE
+                Campaign archived
+              -elif t == TRIGGER_TYPE
+                Trigger archived
+              -elif t == EVENT_TYPE
+                Event archived
+            %th{style:"width:30%"}
+              Notes from user
+            %th{style:"width:30%"}
+              Notes to user
+          %tbody
+            - for notification in history
+              -if notification.item_type == t
+                %tr
+                  %td
+                    {{ notification.item_name }}
+                  %td
+                    {{ notification.accepted}}
+                  %td
+                    {{ notification.created_on|date:'d-m-Y (H:i)' }}
+                  %td
+                    {{ notification.to_archive }}
+                  %td
+                    - if notification.note_orig
+                      {{ notification.note_orig}}
+                  %td
+                    - if notification.note_dest
+                      {{notification.note_dest}}
+  - else
+    %div
+      %h4
+        No history to show
+
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    var window_width       = $(window).width();
+    $(".big-field").css("width", parseInt(window_width/6));
+    function createNote(notification_id){
+      var modal = new Modax('{% trans "Add note" %}', '{% url "notifications.notification_add_note_to_user" %}' +notification_id);
+      modal.setListeners({
+        onCompleted: function() { window.location.reload();}
+      });
+      modal.show();
+    }
+
+    function showFlowDetails(notification_id){
+      var modal = new Modax('{% trans "Details" %}', '{% url "notifications.notification_flow_changes" %}' +notification_id);
+      modal.setListeners({
+      onPrimary: function() { modal.dismiss(); }
+      })
+      modal.show();
+
+    }
+    function showCampaignDetails(notification_id){
+      var modal = new Modax('{% trans "Details" %}', '{% url "notifications.notification_campaign_changes" %}' +notification_id);
+      modal.setListeners({
+      onPrimary: function() { modal.dismiss(); }
+      })
+      modal.show();
+
+    }
+    function showTriggerDetails(notification_id){
+      var modal = new Modax('{% trans "Details" %}', '{% url "notifications.notification_trigger_changes" %}' +notification_id);
+      modal.setListeners({
+      onPrimary: function() { modal.dismiss(); }
+      })
+      modal.show();
+
+    }
+
+    function openHistory(evt, item_type) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+       tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+        item_type.style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+
+    function searchFunction(table_id) {
+      var input, filter, table, tr, td, i;
+      input = document.getElementById("myInput_"+table_id);
+      filter = input.value.toUpperCase();
+      table = document.getElementById("myTable_"+table_id);
+      tr = table.getElementsByTagName("tr");
+      for (i = 0; i < tr.length; i++) {
+          td_name= tr[i].getElementsByTagName("td")[0];
+          if (td_name) {
+            if (td_name.innerHTML.toUpperCase().indexOf(filter) > -1) {
+               tr[i].style.display = "";
+            }else {
+              tr[i].style.display = "None";
+            }
+          }
+        }
+      }
+
+-block extra-less
+  -compress css
+    {% lessblock %}
+      :plain
+
+        .span_notification{
+         line-height: 40px !important;
+         vertical-align: middle !important;
+         width: 50% !important;
+         font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
+         letter-spacing: 1px;
+         padding: 0;
+         text-transform: none;
+         font-weight: 100;
+         color: #666;
+         font-size: 22px;
+        }
+        .switch {
+         position: relative;
+         display: inline-block;
+         width: 60px;
+         height: 34px;
+         line-height: 20px;
+         vertical-align: middle;
+         }
+
+         .switch input {display:none;}
+
+         .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          -webkit-transition: .4s;
+          transition: .4s;
+         }
+
+         .slider:before {
+          position: absolute;
+          content: "";
+          height: 26px;
+          width: 26px;
+          left: 4px;
+          bottom: 4px;
+          background-color: white;
+          -webkit-transition: .4s;
+          transition: .4s;
+         }
+
+         input:checked + .slider {
+          background-color: #0C6596;
+         }
+
+         input:focus + .slider {
+          box-shadow: 0 0 1px #2196F3;
+         }
+
+         input:checked + .slider:before {
+          -webkit-transform: translateX(26px);
+          -ms-transform: translateX(26px);
+          transform: translateX(26px);
+         }
+
+         .slider.round {
+          border-radius: 34px;
+         }
+
+         .slider.round:before {
+          border-radius: 50%;
+         }
+        .select-section {
+          margin-top: -80px;
+          margin-right: -20px;
+        }
+
+        h3 {
+          margin-top:30px;
+        }
+
+        .exportables {
+          border-top: 1px solid #ccc;
+          padding:0px 20px;
+          .exportable {
+            vertical-align:top;
+            width: 350px;
+            display:inline-block;
+            padding-left:23px;
+            margin-bottom:10px;
+          }
+
+          h4 {
+            font-size:13px;
+            font-weight:500;
+            color: #999;
+            padding-top:10px;
+          }
+
+          input[type=checkbox] {
+            display: inline-block;
+            margin-top:3px;
+            margin-right: 5px;
+            vertical-align:top;
+
+          }
+
+          label {
+            display: inline-block;
+            width: 290px;
+          }
+
+          .icon {
+
+          }
+        }
+        .dependencies {
+          color: @flat-darkwhite - #222;
+          margin-left: 25px;
+          font-size:12px;
+          p {
+            display: inline;
+            font-weight: 500;
+            margin: 0;
+            padding: 0;
+           }
+           .icon {
+           }
+           .list {
+            display: inline;
+            margin-right: 2px;
+            margin-left: 2px;
+          }
+        }
+        .action_type {
+            padding-left: 5px;
+            padding-right: 5px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            color: white;
+          }
+          .reply_action {
+            background-color: #5AA6D9;
+          }
+          .send_action {
+           background-color: #95819F;
+          }
+          .label_action {
+           background-color: #96C1F3;
+          }
+          .contact_action {
+           background-color: #3CB7AA;
+          }
+
+          .webhook_action {
+           background-color: #E29952;
+          }
+          .delete_action {
+           background-color: #C66D69;
+          }
+          .add_action {
+           background-color: #7BB484;
+          }
+          .flow_action {
+           background-color: #C571A3;
+          }
+          .undefine_action {
+           background-color: #0C6596;
+          }
+          .action_text {
+           color: black;
+           font-size: 14px;
+           line-height: 20px;
+         }
+         #central_table thead th {
+           text-align:center;
+         }
+         #central_table tbody td {
+           text-align:center;
+         }
+         /* Style the tab */
+         .tab {
+          overflow: hidden;
+          border: 1px solid #ccc;
+          background-color: #f1f1f1;
+         }
+
+         /* Style the buttons inside the tab */
+         .tab button {
+          background-color: inherit;
+          float: left;
+          border: none;
+          outline: none;
+           cursor: pointer;
+          padding: 14px 16px;
+          transition: 0.3s;
+         }
+
+         /* Change background color of buttons on hover */
+         .tab button:hover {
+          background-color: #ddd;
+         }
+
+         /* Create an active/current tablink class */
+         .tab button.active {
+          background-color: #ccc;
+         }
+
+         /* Style the tab content */
+         .tabcontent {
+          display: none;
+          padding: 6px 12px;
+          border: 1px solid #ccc;
+          border-top: none;
+          height:600px;
+          overflow:auto;
+         }
+         .small-field {
+             width: 30px;
+         }
+         .medium-field {
+             width: 140px;
+         }
+         .big-field {
+           max-width: 460px;
+         }
+    {% endlessblock %}
