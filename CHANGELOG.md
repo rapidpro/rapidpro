@@ -1,9 +1,5 @@
 v4.12.1
 ----------
- * Fix migration for unexpired IVR runs
-
-v4.12.0
-----------
  * Fix importing campaign events based on created_om
  * Fix event fires creation for immutable fields
  * Remove WA status endpoint
