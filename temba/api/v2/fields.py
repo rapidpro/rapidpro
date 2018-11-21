@@ -13,6 +13,12 @@ DEFAULT_MAX_LIST_ITEMS = 100
 DEFAULT_MAX_DICT_ITEMS = 100
 
 
+def validate_no_null_chars(value):
+    # loosely based on django.core.validators.ProhibitNullCharactersValidator
+    if value and "\x00" in str(value):
+        raise serializers.ValidationError(f"Null characters are not allowed.", code="null_characters_not_allowed")
+
+
 def validate_size(value, max_size):
     if hasattr(value, "__len__") and len(value) > max_size:
         raise serializers.ValidationError("This field can only contain up to %d items." % max_size)
@@ -96,6 +102,15 @@ class LimitedDictField(serializers.DictField):
         validate_size(data, DEFAULT_MAX_DICT_ITEMS)
 
         return super().to_internal_value(data)
+
+
+class NoNullCharsField(serializers.CharField):
+    default_validators = [validate_no_null_chars]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.allow_blank = True
+        self.allow_null = True
 
 
 class URNField(serializers.CharField):

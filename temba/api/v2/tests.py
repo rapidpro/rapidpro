@@ -1837,6 +1837,50 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % hans.uuid)
         self.assert404(response)
 
+    def test_prevent_modifying_contacts_with_fields_that_have_null_chars(self):
+        """
+        Verifies fix for: https://sentry.io/nyaruka/textit/issues/770220071/
+        """
+
+        url = reverse("api.v2.contacts")
+        self.assertEndpointAccess(url)
+
+        ContactField.get_or_create(self.org, self.admin, "string_field")
+        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=Value.TYPE_NUMBER)
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "name": "Jean",
+                "language": "fra",
+                "urns": ["tel:+250783333334"],
+                "groups": [],
+                "fields": {"string_field": "crayons on the wall \u0000, pudding on the wall \x00, yeah \0"},
+            },
+        )
+        response_json = response.json()
+        self.assertTrue("string_field" in response_json["fields"])
+        self.assertEqual(response_json["fields"]["string_field"], ["Null characters are not allowed."])
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "name": "Jean",
+                "language": "fra",
+                "urns": ["tel:+250783333334"],
+                "groups": [],
+                "fields": {"number_field": "123\u0000"},
+            },
+        )
+
+        response_json = response.json()
+        self.assertTrue("number_field" in response_json["fields"])
+        self.assertEqual(response_json["fields"]["number_field"], ["Null characters are not allowed."])
+
     def test_contact_action_update_datetime_field(self):
         url = reverse("api.v2.contacts")
 
