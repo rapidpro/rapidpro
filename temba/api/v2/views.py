@@ -280,7 +280,8 @@ class AuthenticateView(SmartFormView):
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role)
-                    tokens.append({"org": {"id": org.pk, "name": org.name}, "token": token.key})
+                    serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
+                    tokens.append({"org": serialized, "token": token.key})
             else:  # pragma: needs cover
                 return HttpResponse(status=404)
 
@@ -2642,6 +2643,7 @@ class OrgEndpoint(BaseAPIView):
     Response containing your organization:
 
         {
+            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
             "name": "Nyaruka",
             "country": "RW",
             "languages": ["eng", "fra"],
@@ -2659,6 +2661,7 @@ class OrgEndpoint(BaseAPIView):
         org = request.user.get_org()
 
         data = {
+            "uuid": str(org.uuid),
             "name": org.name,
             "country": org.get_country_code(),
             "languages": [l.iso_code for l in org.languages.order_by("iso_code")],

@@ -25,6 +25,19 @@ class IVRCall(ChannelSession):
     MAX_RETRY_ATTEMPTS = 3
     MAX_ERROR_COUNT = 5
     IGNORE_PENDING_CALLS_OLDER_THAN_DAYS = 7  # calls with modified_on older than 7 days are going to be ignored
+    DEFAULT_MAX_IVR_EXPIRATION_WINDOW_DAYS = 7
+
+    IVR_EXPIRES_CHOICES = (
+        (1, _("After 1 minute")),
+        (2, _("After 2 minutes")),
+        (3, _("After 3 minutes")),
+        (4, _("After 4 minutes")),
+        (5, _("After 5 minutes")),
+        (10, _("After 10 minutes")),
+        (15, _("After 15 minutes")),
+    )
+
+    IVR_RETRY_CHOICES = ((30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
 
     objects = IVRManager()
 
@@ -219,9 +232,12 @@ class IVRCall(ChannelSession):
             self.IN_PROGRESS,
             self.RINGING,
         ):
-            runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
+            runs = FlowRun.objects.filter(connection=self, is_active=True)
             for run in runs:
-                run.update_expiration()
+                if not run.expires_on or (
+                    run.expires_on - run.modified_on > timedelta(minutes=self.IVR_EXPIRES_CHOICES[-1][0])
+                ):
+                    run.update_expiration()
 
         if self.status == ChannelSession.FAILED:
             flow = self.get_flow()

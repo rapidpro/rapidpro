@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import logging
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -44,6 +45,8 @@ from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+
+logger = logging.getLogger(__name__)
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")
@@ -1488,9 +1491,8 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
             except Exception as e:  # pragma: no cover
-                import traceback
+                logger.error("Error removing a channel", exc_info=True)
 
-                traceback.print_exc()
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
                 return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 

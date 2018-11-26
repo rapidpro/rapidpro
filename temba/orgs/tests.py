@@ -1210,7 +1210,8 @@ class OrgTest(TembaTest):
             response, "Invalid surveyor password, please check with your project leader and try again."
         )
 
-        # save a surveyor password
+        # put a space in the org name to test URL encoding and set a surveyor password
+        self.org.name = "Temba Org"
         self.org.surveyor_password = "nyaruka"
         self.org.save()
 
@@ -1237,7 +1238,7 @@ class OrgTest(TembaTest):
         response = self.client.post(url, post_data)
         self.assertIn("token", response.url)
         self.assertIn("beastmode", response.url)
-        self.assertIn("Temba", response.url)
+        self.assertIn("Temba%20Org", response.url)
 
         # try with a login that already exists
         post_data = dict(
