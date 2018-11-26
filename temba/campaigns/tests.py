@@ -1068,6 +1068,23 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
 
+    def test_import_created_on_event(self):
+        campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
+        created_on = ContactField.system_fields.get(org=self.org, key="created_on")
+
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("orgs.org_export"), {"flows": [self.reminder_flow.id], "campaigns": [campaign.id]}
+        )
+        exported = response.json()
+
+        self.org.import_app(exported, self.admin)
+
     def test_deleting_reimport_contact_groups(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 

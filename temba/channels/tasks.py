@@ -118,6 +118,8 @@ def trim_channel_log_task():  # pragma: needs cover
         ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
 
 
-@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200
+)
 def squash_channelcounts():
     ChannelCount.squash()

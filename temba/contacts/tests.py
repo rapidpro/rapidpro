@@ -2012,6 +2012,13 @@ class ContactTest(TembaTest):
         query = parse_query('district="Kayônza"')
         self.assertEqual(query.as_text(), 'district = "Kayônza"')
 
+        # query that has @ sign
+        query = parse_query('email ~ "user@example.com"')
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
+        query = parse_query("email ~ user@example.com")
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
@@ -5516,6 +5523,44 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by("name")[0]
         start_date = ContactField.get_by_key(self.org, "startdate")
         self.assertEqual(contact1.get_field_serialized(start_date), "2014-12-31T10:00:00+02:00")
+
+    def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
+        self.login(self.admin)
+        self.create_campaign()
+
+        ballers = self.create_group("Ballers")
+
+        self.campaign.group = ballers
+        self.campaign.save()
+
+        field_created_on = self.org.contactfields.get(key="created_on")
+
+        self.created_on_event = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            self.campaign,
+            relative_to=field_created_on,
+            offset=5,
+            unit="M",
+            flow=self.reminder_flow,
+        )
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 0)
+
+        contact, urn = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 0)
+
+        ballers.update_contacts(self.admin, [contact], add=True)
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 1)
+
+        event_fire = EventFire.objects.filter(event=self.created_on_event).first()
+        contact_created_on = contact.created_on.replace(second=0, microsecond=0)
+        self.assertEqual(event_fire.scheduled, contact_created_on + timedelta(minutes=5))
 
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)

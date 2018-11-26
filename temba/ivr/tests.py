@@ -822,15 +822,18 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        # our run shouldn't have an initial expiration yet
-        self.assertIsNone(FlowRun.objects.filter(connection=call).first().expires_on)
+        expiration = call.runs.all().first().expires_on
+        next3days = timezone.now() + timedelta(days=3)
+        # our run should have a initial expiration for the max 7 days
+        self.assertTrue(expiration > next3days)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid="CallSid", CallStatus="in-progress", CallDuration=20)
         response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), post_data)
 
-        # once the call is handled, it should have one
-        self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
+        # once the call is handled, it should have an expiration as the configured for the IVR flow
+        expiration = call.runs.all().first().expires_on
+        self.assertTrue(expiration < next3days)
 
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
@@ -841,11 +844,11 @@ class IVRTests(FlowFileTest):
         # only have our initial outbound message
         self.assertEqual(1, Msg.objects.all().count())
 
+        expiration = call.runs.all().first().expires_on
+
         # simulate a gather timeout
         post_data["Digits"] = ""
         response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]) + "?empty=1", post_data)
-
-        expiration = call.runs.all().first().expires_on
 
         # we should be routed through 'other' case
         self.assertContains(response, "Please enter a number")
@@ -937,11 +940,12 @@ class IVRTests(FlowFileTest):
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
         flow.start([], [eric])
 
-        # since it hasn't started, our call should be pending and run should have no expiration
+        # since it hasn't started, our call should be pending and run should have an expiration for the max 7 days
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         run = FlowRun.objects.get()
         self.assertEqual(ChannelSession.WIRED, call.status)
-        self.assertIsNone(run.expires_on)
+        next3days = timezone.now() + timedelta(days=3)
+        self.assertTrue(run.expires_on > next3days)
 
         # trigger a status update to show the call was answered
         callback_url = reverse("ivr.ivrcall_handle", args=[call.pk])
@@ -1631,6 +1635,7 @@ class IVRTests(FlowFileTest):
         channel_log = ChannelLog.objects.first()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
+        self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
 
         flow.refresh_from_db()
         self.assertEqual(get_current_export_version(), flow.version_number)
