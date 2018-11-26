@@ -609,11 +609,23 @@ class MsgTest(TembaTest):
         broadcast2.send()
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
+        broadcast3 = Broadcast.create(
+            self.channel.org, self.admin, "Pending broadcast", contacts=[self.kevin], status=QUEUED
+        )
+
+        broadcast4 = Broadcast.create(
+            self.channel.org, self.admin, "Scheduled broadcast", contacts=[self.kevin], status=QUEUED
+        )
+
+        broadcast4.schedule = Schedule.create_schedule(timezone.now(), "D", self.admin)
+        broadcast4.save(update_fields=["schedule"])
+
         with self.assertNumQueries(40):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertContains(response, "Outbox (4)")
+        self.assertContains(response, "Outbox (5)")
         self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2, msg1])
+        self.assertEqual(list(response.context_data["pending_broadcasts"]), [broadcast3])
 
         response = self.client.get("%s?search=kevin" % reverse("msgs.msg_outbox"))
         self.assertEqual(list(response.context_data["object_list"]), [Msg.objects.get(contact=self.kevin)])
