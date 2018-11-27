@@ -316,7 +316,7 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
         "api",

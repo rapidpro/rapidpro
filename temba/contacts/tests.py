@@ -553,6 +553,35 @@ class ContactGroupTest(TembaTest):
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
+    def test_group_release_deactivates_campaign(self):
+        a_group = self.create_group("one")
+        delete_url = reverse("contacts.contactgroup_delete", args=[a_group.pk])
+
+        self.get_flow("favorites")
+
+        self.login(self.admin)
+
+        post_data = dict(name="YAC - Yet another campaign", group=a_group.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        a_campaign = Campaign.objects.first()
+
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "There is an active campaign using this group.")
+
+        # archive the campaign
+        self.client.post(reverse("campaigns.campaign_archive", args=(a_campaign.pk,)))
+
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "Are you sure?")
+
+        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "document.location.href = '/contact/';")
+
+        # group and campaign are no longer active
+        self.assertFalse(ContactGroup.all_groups.get(pk=a_group.pk).is_active)
+        self.assertFalse(Campaign.objects.get(pk=a_campaign.pk).is_active)
+
     def test_delete_fail_with_dependencies(self):
         self.login(self.admin)
 
@@ -583,6 +612,25 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
         self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
+
+    def test_delete_with_campaign_dependencies(self):
+        block_group = self.create_group("one that blocks")
+
+        self.login(self.admin)
+
+        post_data = dict(name="Don't forget to ...", group=block_group.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        delete_url = reverse("contacts.contactgroup_delete", args=[block_group.pk])
+
+        # users are notified that a group cannot be deleted
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "There is an active campaign using this group")
+
+        # can't delete if it is a dependency
+        response = self.client.post(delete_url, dict())
+        self.assertRedirect(response, f"/contact/filter/{block_group.uuid}/")
+        self.assertTrue(ContactGroup.user_groups.get(id=block_group.id).is_active)
 
 
 class ElasticSearchLagTest(TembaTest):
