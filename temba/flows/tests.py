@@ -2463,10 +2463,6 @@ class FlowTest(TembaTest):
         sms.text = "My answer is a4rwf"
         self.assertTest(False, None, test)
 
-        test = BetweenTest("10", "50")
-        sms.text = "My answer is lO"
-        self.assertTest(True, Decimal("10"), test)
-
         test = BetweenTest("1000", "5000")
         sms.text = "My answer is 4,000rwf"
         self.assertTest(True, Decimal("4000"), test)

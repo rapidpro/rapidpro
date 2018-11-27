@@ -8338,22 +8338,14 @@ class NumericTest(Test):
 
     @classmethod
     def convert_to_decimal(cls, word):
-        # common substitutions
-        original_word = word
-        word = word.replace("l", "1").replace("o", "0").replace("O", "0")
-
         try:
             return (word, Decimal(word))
         except Exception as e:
-            # we only try this hard if we haven't already substituted characters
-            if original_word == word:
-                # does this start with a number?  just use that part if so
-                match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+            # does this start with a number?  just use that part if so
+            match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
 
-                if match:
-                    return (match.group(1), Decimal(match.group(1)))
-                else:
-                    raise e
+            if match:
+                return (match.group(1), Decimal(match.group(1)))
             else:
                 raise e
 
