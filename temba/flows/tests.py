@@ -9634,6 +9634,10 @@ class FlowMigrationTest(FlowFileTest):
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_11_7(self):
         original = self.get_flow_json("migrate_to_11_7")
+
+        self.assertEqual(len(original["action_sets"]), 5)
+        self.assertEqual(len(original["rule_sets"]), 1)
+
         migrated = migrate_to_version_11_7(original)
 
         self.assertEqual(len(migrated["action_sets"]), 3)
