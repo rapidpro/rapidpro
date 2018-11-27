@@ -89,6 +89,20 @@
               "type": "reply"
             }
           ]
+        },
+        {
+          "uuid": "ba96d1c6-c721-470a-a04c-74015b1fdd35",
+          "x": 752,
+          "y": 1278,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "msg": {
+                "base": "Sorry you can't participate right now, I'll try again later."
+              }
+            }
+          ]
         }
       ],
       "last_saved": "2015-09-15T02:37:08.805578Z",
@@ -179,6 +193,18 @@
               "destination": "f9adf38f-ab18-49d3-a8ac-db2fe8f1e77f",
               "uuid": "df4455c2-806b-4af4-8ea9-f40278ec10e4",
               "destination_type": "A"
+            },
+            {
+              "uuid": "1023e76b-bd81-4720-a95e-a54a8fc3c328",
+              "category": {
+                "base": "No Response"
+              },
+              "destination": "ba96d1c6-c721-470a-a04c-74015b1fdd35",
+              "destination_type": "A",
+              "test": {
+                "type": "timeout",
+                "minutes": 5
+              }
             }
           ],
           "webhook": null,

@@ -7141,9 +7141,9 @@ class FlowsTest(FlowFileTest):
 
         color_prompt = ActionSet.objects.filter(flow=flow, y=0).first()
         color_ruleset = RuleSet.objects.filter(flow=flow, label="Color").first()
-        blue_rule = color_ruleset.get_rules()[-4]
-        navy_rule = color_ruleset.get_rules()[-3]
-        other_rule = color_ruleset.get_rules()[-1]
+        blue_rule = color_ruleset.get_rules()[-5]
+        navy_rule = color_ruleset.get_rules()[-4]
+        other_rule = color_ruleset.get_rules()[-2]
 
         # URL params for different flow path segments
         entry_params = "?exits=%s,%s&to=%s" % (color_prompt.exit_uuid, color_prompt.uuid, color_ruleset.uuid)
@@ -7320,8 +7320,8 @@ class FlowsTest(FlowFileTest):
         name = RuleSet.objects.get(label="Name", flow=flow)
 
         rules = color.get_rules()
-        color_other_uuid = rules[-1].uuid
-        color_blue_uuid = rules[-4].uuid
+        color_other_uuid = rules[-2].uuid
+        color_blue_uuid = rules[-5].uuid
 
         # we don't know this shade of green, it should route us to the beginning again
         run1, = flow.start([], [self.contact])
@@ -7758,7 +7758,7 @@ class FlowsTest(FlowFileTest):
 
         other_action = ActionSet.objects.get(y=8, flow=flow)
         color_ruleset = RuleSet.objects.get(label="Color", flow=flow)
-        other_rule = color_ruleset.get_rules()[-1]
+        other_rule = color_ruleset.get_rules()[-2]
 
         # send 12 invalid color responses (must be from different contacts to avoid loop detection at 10 messages)
         bob = self.create_contact("Bob", number="+260964151234")
@@ -9349,7 +9349,7 @@ class FlowsTest(FlowFileTest):
         colorPrompt = ActionSet.objects.get(uuid=flow.entry_uuid)
         colorRuleSet = RuleSet.objects.get(uuid=colorPrompt.destination)
         redRule = colorRuleSet.get_rules()[0]
-        otherRule = colorRuleSet.get_rules()[-1]
+        otherRule = colorRuleSet.get_rules()[-2]
         tryAgainPrompt = ActionSet.objects.get(uuid=otherRule.destination)
         beerPrompt = ActionSet.objects.get(uuid=redRule.destination)
         beerRuleSet = RuleSet.objects.get(uuid=beerPrompt.destination)
