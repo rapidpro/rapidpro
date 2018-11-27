@@ -692,7 +692,7 @@ class MsgCRUDL(SmartCRUDL):
 
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = Broadcast.objects.filter(
-                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING]
+                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
             ).order_by("-created_on")
             return context
 

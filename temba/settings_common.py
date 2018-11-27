@@ -316,7 +316,7 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
         "api",
@@ -466,6 +466,7 @@ GROUP_PERMISSIONS = {
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
+        "contacts.contactgroup_api",
         "contacts.contactfield_api",
         "flows.flow_api",
         "locations.adminboundary_api",

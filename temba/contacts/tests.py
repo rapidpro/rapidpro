@@ -553,6 +553,35 @@ class ContactGroupTest(TembaTest):
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
+    def test_group_release_deactivates_campaign(self):
+        a_group = self.create_group("one")
+        delete_url = reverse("contacts.contactgroup_delete", args=[a_group.pk])
+
+        self.get_flow("favorites")
+
+        self.login(self.admin)
+
+        post_data = dict(name="YAC - Yet another campaign", group=a_group.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        a_campaign = Campaign.objects.first()
+
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "There is an active campaign using this group.")
+
+        # archive the campaign
+        self.client.post(reverse("campaigns.campaign_archive", args=(a_campaign.pk,)))
+
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "Are you sure?")
+
+        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "document.location.href = '/contact/';")
+
+        # group and campaign are no longer active
+        self.assertFalse(ContactGroup.all_groups.get(pk=a_group.pk).is_active)
+        self.assertFalse(Campaign.objects.get(pk=a_campaign.pk).is_active)
+
     def test_delete_fail_with_dependencies(self):
         self.login(self.admin)
 
@@ -583,6 +612,25 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
         self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
+
+    def test_delete_with_campaign_dependencies(self):
+        block_group = self.create_group("one that blocks")
+
+        self.login(self.admin)
+
+        post_data = dict(name="Don't forget to ...", group=block_group.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        delete_url = reverse("contacts.contactgroup_delete", args=[block_group.pk])
+
+        # users are notified that a group cannot be deleted
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "There is an active campaign using this group")
+
+        # can't delete if it is a dependency
+        response = self.client.post(delete_url, dict())
+        self.assertRedirect(response, f"/contact/filter/{block_group.uuid}/")
+        self.assertTrue(ContactGroup.user_groups.get(id=block_group.id).is_active)
 
 
 class ElasticSearchLagTest(TembaTest):
@@ -2011,6 +2059,13 @@ class ContactTest(TembaTest):
         # query with UTF-8 characters (non-ascii)
         query = parse_query('district="Kayônza"')
         self.assertEqual(query.as_text(), 'district = "Kayônza"')
+
+        # query that has @ sign
+        query = parse_query('email ~ "user@example.com"')
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
+
+        query = parse_query("email ~ user@example.com")
+        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
 
     def test_contact_elastic_search(self):
         gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
@@ -5516,6 +5571,44 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by("name")[0]
         start_date = ContactField.get_by_key(self.org, "startdate")
         self.assertEqual(contact1.get_field_serialized(start_date), "2014-12-31T10:00:00+02:00")
+
+    def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
+        self.login(self.admin)
+        self.create_campaign()
+
+        ballers = self.create_group("Ballers")
+
+        self.campaign.group = ballers
+        self.campaign.save()
+
+        field_created_on = self.org.contactfields.get(key="created_on")
+
+        self.created_on_event = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            self.campaign,
+            relative_to=field_created_on,
+            offset=5,
+            unit="M",
+            flow=self.reminder_flow,
+        )
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 0)
+
+        contact, urn = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 0)
+
+        ballers.update_contacts(self.admin, [contact], add=True)
+
+        event_fires = EventFire.objects.filter(event=self.created_on_event)
+        self.assertEqual(event_fires.count(), 1)
+
+        event_fire = EventFire.objects.filter(event=self.created_on_event).first()
+        contact_created_on = contact.created_on.replace(second=0, microsecond=0)
+        self.assertEqual(event_fire.scheduled, contact_created_on + timedelta(minutes=5))
 
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)

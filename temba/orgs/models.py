@@ -170,6 +170,8 @@ class Org(SmartModel):
     each country where they are deploying messaging applications.
     """
 
+    uuid = models.UUIDField(unique=True, default=uuid4)
+
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
         verbose_name=_("Plan"),
