@@ -1,0 +1,246 @@
+{
+  "version": "11.6",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "eb59aed8-2eeb-43cd-adfc-9c44721436a2",
+      "action_sets": [
+        {
+          "uuid": "eb59aed8-2eeb-43cd-adfc-9c44721436a2",
+          "x": 102,
+          "y": 0,
+          "destination": "cd2d8a3e-c267-40ef-8481-37d4076a57d3",
+          "actions": [
+            {
+              "type": "api",
+              "uuid": "82d23a8c-af4b-4a33-8d56-03139b1168cc",
+              "webhook": "http://example.com/hook1",
+              "action": "GET",
+              "webhook_headers": [
+                {
+                  "name": "Header1",
+                  "value": "Value1"
+                }
+              ]
+            }
+          ],
+          "exit_uuid": "787517ce-9a6d-479e-bc81-c3f4dcbb3d1d"
+        },
+        {
+          "uuid": "cd2d8a3e-c267-40ef-8481-37d4076a57d3",
+          "x": 149,
+          "y": 107,
+          "destination": "efe05d14-7a96-4ec5-870c-5183408821ae",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "544fd45b-f9a9-4543-b352-06b67dc0c32c",
+              "msg": {
+                "eng": "Action before 1"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "reply",
+              "uuid": "252b59b0-3664-4a36-8b9f-9317e78011da",
+              "msg": {
+                "eng": "Action before 2"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "api",
+              "uuid": "55c868c0-f6f7-49a8-856c-809bd082ae3b",
+              "webhook": "http://example.com/hook2",
+              "action": "POST",
+              "webhook_headers": []
+            },
+            {
+              "type": "reply",
+              "uuid": "f7ec546c-9adf-4d51-ab8e-8a1cbde8d910",
+              "msg": {
+                "eng": "Action after 1"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "reply",
+              "uuid": "a44ec0b8-085d-4e80-b361-7529e659e5e6",
+              "msg": {
+                "eng": "Action after 2"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "32c5dba9-17d1-4d5d-a992-19c1ec6cf825"
+        },
+        {
+          "uuid": "efe05d14-7a96-4ec5-870c-5183408821ae",
+          "x": 199,
+          "y": 446,
+          "destination": "b5ea564c-4acd-4ce4-aeff-37e5c73047e7",
+          "actions": [
+            {
+              "type": "api",
+              "uuid": "05377f3c-d9b0-428d-ae14-219d2f3d0f9a",
+              "webhook": "http://example.com/hook3",
+              "action": "GET",
+              "webhook_headers": []
+            },
+            {
+              "type": "api",
+              "uuid": "61fadf6d-d2ba-4bbb-b312-1db3e336a661",
+              "webhook": "http://example.com/hook4",
+              "action": "GET",
+              "webhook_headers": []
+            }
+          ],
+          "exit_uuid": "c2236afe-c3cb-43a5-9fa0-ee6cbfb92f42"
+        },
+        {
+          "uuid": "b5ea564c-4acd-4ce4-aeff-37e5c73047e7",
+          "x": 245,
+          "y": 608,
+          "destination": "64d8b8a5-aca0-4406-b417-5827262e67e2",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "be4dbed8-7334-4700-a94d-50275015c048",
+              "msg": {
+                "eng": "Actionset without webhook"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "40b890ab-8fab-459f-8d5e-48d2ea57f7ce"
+        },
+        {
+          "uuid": "d6da8268-0c61-4154-8659-dd073878541c",
+          "x": 1036,
+          "y": 265,
+          "destination": null,
+          "actions": [
+            {
+              "type": "api",
+              "uuid": "b8a8715b-0fb5-4dde-a1fe-4fef045bb16c",
+              "webhook": "http://example.com/hook5",
+              "action": "GET",
+              "webhook_headers": []
+            }
+          ],
+          "exit_uuid": "15170baf-8b15-4104-990c-13635f0bafbb"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "64d8b8a5-aca0-4406-b417-5827262e67e2",
+          "x": 673,
+          "y": 54,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "4bc64a60-b848-4f07-bbe8-8b82e72b6dea",
+              "category": {
+                "eng": "1"
+              },
+              "destination": "eb59aed8-2eeb-43cd-adfc-9c44721436a2",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "1"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "2faff885-6ac4-4cef-bd11-53802be22508",
+              "category": {
+                "eng": "2"
+              },
+              "destination": "cd2d8a3e-c267-40ef-8481-37d4076a57d3",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "2"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "05efb767-1319-4f93-ba3f-8d3860a915af",
+              "category": {
+                "eng": "3"
+              },
+              "destination": "efe05d14-7a96-4ec5-870c-5183408821ae",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "3"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "2bfbb15e-fb54-41a5-ba43-c67c219e8c57",
+              "category": {
+                "eng": "4"
+              },
+              "destination": "b5ea564c-4acd-4ce4-aeff-37e5c73047e7",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "4"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "d091ea29-07b9-48b8-bc52-1de00687af1b",
+              "category": {
+                "eng": "Other"
+              },
+              "destination": "d6da8268-0c61-4154-8659-dd073878541c",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.6",
+      "metadata": {
+        "name": "Webhook Action Migration",
+        "saved_on": "2018-11-05T19:21:37.062932Z",
+        "revision": 61,
+        "uuid": "c9b9d79a-93b4-41e5-8ca3-f0b09faa2457",
+        "expires": 10080,
+        "notes": []
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

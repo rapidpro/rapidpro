@@ -476,6 +476,7 @@ class Flow(TembaModel):
         "11.4",
         "11.5",
         "11.6",
+        "11.7",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -6234,7 +6235,6 @@ class Action(object):
                 DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
                 AddLabelAction.TYPE: AddLabelAction,
                 EmailAction.TYPE: EmailAction,
-                WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
                 SetChannelAction.TYPE: SetChannelAction,
@@ -6332,56 +6332,6 @@ class EmailAction(Action):
             if invalid_addresses:
                 invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
-        return []
-
-
-class WebhookAction(Action):
-    """
-    Forwards the steps in this flow to the webhook (if any)
-    """
-
-    TYPE = "api"
-    ACTION = "action"
-
-    def __init__(self, uuid, webhook, action="POST", webhook_headers=None):
-        super().__init__(uuid)
-
-        self.webhook = webhook
-        self.action = action
-        self.webhook_headers = webhook_headers
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(
-            json_obj.get(cls.UUID),
-            json_obj.get("webhook", org.get_webhook_url()),
-            json_obj.get("action", "POST"),
-            json_obj.get("webhook_headers", []),
-        )
-
-    def as_json(self):
-        return dict(
-            type=self.TYPE,
-            uuid=self.uuid,
-            webhook=self.webhook,
-            action=self.action,
-            webhook_headers=self.webhook_headers,
-        )
-
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
-        from temba.api.models import WebHookEvent
-
-        (value, errors) = Msg.evaluate_template(self.webhook, context, org=run.flow.org, url_encode=True)
-
-        if errors and run.contact.is_test:
-            ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
-
-        headers = {}
-        if self.webhook_headers:
-            for item in self.webhook_headers:
-                headers[item.get("name")] = item.get("value")
-
-        WebHookEvent.trigger_flow_webhook(run, value, None, msg, self.action, headers=headers)
         return []
 
 

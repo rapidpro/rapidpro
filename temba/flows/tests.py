@@ -57,7 +57,9 @@ from .flow_migrations import (
     migrate_to_version_10_4,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
+    migrate_to_version_11_5,
     migrate_to_version_11_6,
+    migrate_to_version_11_7,
 )
 from .models import (
     Action,
@@ -125,7 +127,6 @@ from .models import (
     TrueTest,
     UssdAction,
     VariableContactAction,
-    WebhookAction,
     get_flow_user,
 )
 from .server import FlowServerException
@@ -5371,29 +5372,6 @@ class ActionTest(TembaTest):
         self.assertEqual(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
         self.assertEqual(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
 
-    @override_settings(SEND_WEBHOOKS=True)
-    def test_webhook_action_simulator(self):
-        # check simulator warns of webhook URL errors
-        action = WebhookAction(str(uuid4()), "http://localhost:49999/token?xyz=@contact.xyz")
-        test_contact = Contact.get_test_contact(self.user)
-        test_run = FlowRun.create(self.flow, test_contact)
-
-        self.mockRequest("POST", "/token?xyz=@contact.xyz", '{"coupon":"NEXUS4"}', content_type="application_json")
-        self.execute_action(action, test_run, None)
-
-        event = WebHookEvent.objects.order_by("-pk").first()
-
-        logs = list(ActionLog.objects.order_by("pk"))
-        self.assertEqual(logs[0].level, ActionLog.LEVEL_WARN)
-        self.assertEqual(logs[0].text, "URL appears to contain errors: Undefined variable: contact.xyz")
-        self.assertEqual(logs[1].level, ActionLog.LEVEL_INFO)
-        self.assertEqual(
-            logs[1].text, "Triggered <a href='/webhooks/log/%d/' target='_log'>webhook event</a> - 200" % event.pk
-        )
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
 
 class FlowRunTest(TembaTest):
     def setUp(self):
@@ -6661,7 +6639,7 @@ class FlowsTest(FlowFileTest):
 
         # we arrived at our ruleset webhook first
         assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
-        assert_payload(action_post.data, 7, 3, dict(send_action="yes"))
+        assert_payload(action_post.data, 8, 4, dict(send_action="yes"))
 
         # gets shouldn't have payloads
         self.assertIsNone(action_get.data)
@@ -9653,6 +9631,60 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_migrate_to_11_7(self):
+        original = self.get_flow_json("migrate_to_11_7")
+
+        self.assertEqual(len(original["action_sets"]), 5)
+        self.assertEqual(len(original["rule_sets"]), 1)
+
+        migrated = migrate_to_version_11_7(original)
+
+        self.assertEqual(len(migrated["action_sets"]), 3)
+        self.assertEqual(len(migrated["rule_sets"]), 6)
+
+        # run the flow to make sure the nodes are connected correctly
+        flow = self.get_flow("migrate_to_11_7")
+        with patch("requests.api.request") as mock_request:
+            mock_request.return_value = MockResponse(200, "success")
+
+            run, = flow.start([], [self.contact])
+            Msg.create_incoming(self.channel, self.contact.get_urn().urn, "Ok")
+
+        # check webhook calls made in correct order
+        self.assertEqual(len(mock_request.mock_calls), 5)
+        self.assertEqual(mock_request.mock_calls[0][1], ("get", "http://example.com/hook1"))
+        self.assertEqual(mock_request.mock_calls[0][2]["headers"], {"Header1": "Value1", "User-agent": "RapidPro"})
+        self.assertEqual(mock_request.mock_calls[1][1], ("post", "http://example.com/hook2"))
+        self.assertEqual(mock_request.mock_calls[2][1], ("get", "http://example.com/hook3"))
+        self.assertEqual(mock_request.mock_calls[3][1], ("get", "http://example.com/hook4"))
+        self.assertEqual(mock_request.mock_calls[4][1], ("get", "http://example.com/hook5"))
+
+        # all migrated actions create a unique result value
+        run.refresh_from_db()
+        self.assertEqual(
+            set(run.results.keys()),
+            {
+                "response_1",
+                "migrated_webhook_1",
+                "migrated_webhook_2",
+                "migrated_webhook_3",
+                "migrated_webhook_4",
+                "migrated_webhook_5",
+            },
+        )
+        self.assertEqual(
+            run.results["migrated_webhook_5"],
+            {
+                "category": "Success",
+                "created_on": matchers.ISODate(),
+                "input": "GET http://example.com/hook5",
+                "name": "Migrated Webhook 5",
+                "node_uuid": matchers.UUID4String(),
+                "value": "200",
+            },
+        )
+
     def test_migrate_to_11_6(self):
 
         flow = self.get_flow("migrate_to_11_6")
@@ -9664,8 +9696,8 @@ class FlowMigrationTest(FlowFileTest):
             self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
     def test_migrate_to_11_5(self):
-        flow = self.get_flow("migrate_to_11_5")
-        flow_json = flow.as_json()
+        flow_json = self.get_flow_json("migrate_to_11_5")
+        flow_json = migrate_to_version_11_5(flow_json)
 
         # check text was updated in the reply action
         expected_msg = "\n".join(
