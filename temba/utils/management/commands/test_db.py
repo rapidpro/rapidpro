@@ -102,7 +102,7 @@ LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Tr
 FLOWS = (
     {
         "name": "Favorites",
-        "file": "favorites.json",
+        "file": "favorites_timeout.json",
         "templates": (
             ["blue", "mutzig", "bob"],
             ["orange", "green", "primus", "jeb"],
