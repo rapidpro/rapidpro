@@ -1198,18 +1198,15 @@ class Channel(TembaModel):
     @classmethod
     def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
         push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+        fcm_failed = False
         try:
             result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
-
             if not result.get("success", 0):
-                valid_registration_ids = push_service.clean_registration_ids([registration_id])
-                if registration_id not in valid_registration_ids:
-                    # this fcm id is invalid now, clear it out
-                    config = channel.config
-                    config.pop(Channel.CONFIG_FCM_ID, None)
-                    channel.config = config
-                    channel.save()
+                fcm_failed = True
         except Exception:
+            fcm_failed = True
+
+        if fcm_failed:
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
