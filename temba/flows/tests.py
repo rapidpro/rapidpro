@@ -9591,6 +9591,32 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(flow.version_number, get_current_export_version())
 
+    def test_update_with_node_type_change(self):
+        flow = self.get_flow("favorites")
+        flow_json = flow.as_json()
+
+        # remove first ruleset
+        ruleset1 = flow_json["rule_sets"][0]
+        flow_json["rule_sets"] = flow_json["rule_sets"][1:]
+
+        # create actionset in its place with same uuid etc
+        flow_json["action_sets"].append(
+            {
+                "uuid": ruleset1["uuid"],
+                "actions": [{"type": "lang", "language": "fra"}],
+                "x": ruleset1["x"],
+                "y": ruleset1["y"],
+                "destination": ruleset1["rules"][0]["destination"],
+                "destination_type": ruleset1["rules"][0]["destination_type"],
+                "exit_uuid": str(uuid4()),
+            }
+        )
+
+        flow.update(flow_json)
+
+        self.assertFalse(RuleSet.objects.filter(flow=flow, uuid=ruleset1["uuid"]).exists())
+        self.assertTrue(ActionSet.objects.filter(flow=flow, uuid=ruleset1["uuid"]).exists())
+
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
         flow = Flow.create_instance(
@@ -9646,6 +9672,8 @@ class FlowMigrationTest(FlowFileTest):
 
             run, = flow.start([], [self.contact])
             Msg.create_incoming(self.channel, self.contact.get_urn().urn, "Ok")
+
+        self.assertEqual(flow.action_sets.count(), 3)
 
         # check webhook calls made in correct order
         self.assertEqual(len(mock_request.mock_calls), 5)
