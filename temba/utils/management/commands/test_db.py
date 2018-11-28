@@ -160,9 +160,8 @@ class Command(BaseCommand):
     stealth_options = ("num_orgs", "num_contacts", "seed", "org_id", "num_runs", "flow_name", "seed")
 
     def add_arguments(self, parser):
-        cmd = self
         subparsers = parser.add_subparsers(
-            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(cmd, **kw)
+            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(**kw)
         )
 
         gen_parser = subparsers.add_parser("generate", help="Generates a clean testing database")
