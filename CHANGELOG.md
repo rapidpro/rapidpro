@@ -1,3 +1,7 @@
+v4.12.4
+----------
+ * Fix Flow.update not deleting nodes properly when they change type
+
 v4.12.3
 ----------
  * Add try/except block on FCM sync
