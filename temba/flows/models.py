@@ -2796,7 +2796,8 @@ class Flow(TembaModel):
             existing_rulesets = {ruleset.uuid: ruleset for ruleset in self.rule_sets.all()}
 
             # set of uuids which we've seen, we use this set to remove objects no longer used in this flow
-            seen = set()
+            seen_rulesets = set()
+            seen_actionsets = set()
             destinations = set()
 
             # our steps in our current update submission
@@ -2817,7 +2818,7 @@ class Flow(TembaModel):
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
-                seen.add(uuid)
+                seen_rulesets.add(uuid)
 
             # create all our rule sets
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
@@ -2857,7 +2858,7 @@ class Flow(TembaModel):
                     if "destination" in rule:
                         # if the destination was excluded for not having any actions
                         # remove the connection for our rule too
-                        if rule["destination"] not in current_actionsets and rule["destination"] not in seen:
+                        if rule["destination"] not in current_actionsets and rule["destination"] not in seen_rulesets:
                             rule["destination"] = None
                         else:
                             destination_uuid = rule.get("destination", None)
@@ -2914,7 +2915,7 @@ class Flow(TembaModel):
                     continue
 
                 actions = current_actionsets[uuid]
-                seen.add(uuid)
+                seen_actionsets.add(uuid)
 
                 (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
 
@@ -2961,7 +2962,7 @@ class Flow(TembaModel):
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for uuid, actionset in existing_actionsets.items():
-                if uuid not in seen:
+                if uuid not in seen_actionsets:
                     existing_actionsets_to_delete.add(uuid)
                 else:
                     seen_existing_actionsets[uuid] = actionset
@@ -2975,7 +2976,7 @@ class Flow(TembaModel):
             seen_existing_rulesets = {}
 
             for uuid, ruleset in existing_rulesets.items():
-                if uuid not in seen:
+                if uuid not in seen_rulesets:
                     existing_rulesets_to_delete.add(uuid)
 
                     # instead of deleting it, make it a phantom ruleset until we do away with values_value
