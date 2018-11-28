@@ -1,3 +1,8 @@
+v4.12.3
+----------
+ * Add try/except block on FCM sync
+ * Issue #828, remove numbers replace
+
 v4.12.2
 ----------
  * Dont show queued scheduled broadcasts in outbox
