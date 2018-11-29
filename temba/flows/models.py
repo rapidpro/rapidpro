@@ -3033,6 +3033,11 @@ class Flow(TembaModel):
             # clear property cache
             self.clear_props_cache()
 
+            # in case rulesets/actionsets were prefetched, clear those cached values
+            # TODO https://code.djangoproject.com/ticket/29625
+            self.action_sets._remove_prefetched_objects()
+            self.rule_sets._remove_prefetched_objects()
+
             # create a version of our flow for posterity
             if user is None:
                 user = self.created_by

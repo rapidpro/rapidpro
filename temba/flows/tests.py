@@ -9591,8 +9591,12 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(flow.version_number, get_current_export_version())
 
-    def test_update_with_node_type_change(self):
+    def test_update_with_ruleset_to_actionset_change(self):
         flow = self.get_flow("favorites")
+
+        # so that we check clearing of prefetched nodes that might be deleted in .update()
+        flow = Flow.objects.prefetch_related("action_sets", "rule_sets").get(id=flow.id)
+
         flow_json = flow.as_json()
 
         # remove first ruleset
@@ -9616,6 +9620,41 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertFalse(RuleSet.objects.filter(flow=flow, uuid=ruleset1["uuid"]).exists())
         self.assertTrue(ActionSet.objects.filter(flow=flow, uuid=ruleset1["uuid"]).exists())
+
+    def test_update_with_actionset_to_ruleset_change(self):
+        flow = self.get_flow("favorites")
+
+        # so that we check clearing of prefetched nodes that might be deleted in .update()
+        flow = Flow.objects.prefetch_related("action_sets", "rule_sets").get(id=flow.id)
+
+        flow_json = flow.as_json()
+
+        # remove first actionset
+        actionset1 = flow_json["action_sets"][0]
+        flow_json["action_sets"] = flow_json["action_sets"][1:]
+
+        # create ruleset in its place with same uuid etc
+        flow_json["rule_sets"].append(
+            {
+                "uuid": actionset1["uuid"],
+                "rules": [
+                    {
+                        "uuid": actionset1["exit_uuid"],
+                        "test": {"type": "true"},
+                        "category": {"eng": "All Responses"},
+                        "destination": actionset1["destination"],
+                        "destination_type": "R",
+                    }
+                ],
+                "x": actionset1["x"],
+                "y": actionset1["y"],
+            }
+        )
+
+        flow.update(flow_json)
+
+        self.assertTrue(RuleSet.objects.filter(flow=flow, uuid=actionset1["uuid"]).exists())
+        self.assertFalse(ActionSet.objects.filter(flow=flow, uuid=actionset1["uuid"]).exists())
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
