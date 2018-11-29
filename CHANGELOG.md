@@ -1,3 +1,7 @@
+v4.12.5
+----------
+ * Make sure Flow.update clears prefetched nodes after potentialy deleting them
+
 v4.12.4
 ----------
  * Fix Flow.update not deleting nodes properly when they change type
