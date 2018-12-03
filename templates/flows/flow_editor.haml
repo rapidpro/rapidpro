@@ -52,7 +52,6 @@
   :javascript
     window.orgId = {{object.org.id}};
     window.flowId = {{object.id}};
-    window.flowServerEnabled = {{object.flow_server_enabled|lower}};
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
@@ -60,6 +59,7 @@
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';
+    window.useMailroom = {{has_mailroom|lower}} && '{{object.flow_type}}' == 'M';
     window.has_ussd_channel = {{has_ussd_channel|lower}};
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
