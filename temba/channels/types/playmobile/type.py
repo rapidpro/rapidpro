@@ -17,6 +17,7 @@ class PlayMobileType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Play Mobile"
+    available_timezones = ["Asia/Tashkent", "Asia/Samarkand"]
 
     claim_blurb = _(
         """If you are based in Uzbekistan, you can purchase a short code from <a href="http://playmobile.uz/">Play Mobile</a> and connect it in a few simple steps."""
@@ -43,7 +44,3 @@ class PlayMobileType(ChannelType):
             ),
         ),
     )
-
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["Asia/Tashkent", "Asia/Samarkand"]
