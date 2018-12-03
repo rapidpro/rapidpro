@@ -14,7 +14,6 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
-from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
 
@@ -31,6 +30,7 @@ from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
 from celery import current_app
 
+from smartmin.models import SmartModel
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -3214,7 +3214,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 

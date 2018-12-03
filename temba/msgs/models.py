@@ -748,7 +748,7 @@ class Msg(models.Model):
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -815,7 +815,9 @@ class Msg(models.Model):
 
     text = models.TextField(verbose_name=_("Text"), help_text=_("The actual message content that was sent"))
 
-    high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
+    high_priority = models.BooleanField(
+        null=True, help_text=_("Give this message higher priority than other messages")
+    )
 
     created_on = models.DateTimeField(
         verbose_name=_("Created On"), db_index=True, help_text=_("When this message was created")

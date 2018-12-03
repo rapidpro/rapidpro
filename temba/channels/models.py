@@ -264,6 +264,10 @@ class ChannelType(metaclass=ABCMeta):
         return self.name
 
 
+def _get_default_channel_scheme():
+    return ["tel"]
+
+
 class Channel(TembaModel):
     """
     Notes:
@@ -479,7 +483,7 @@ class Channel(TembaModel):
 
     schemes = ArrayField(
         models.CharField(max_length=16),
-        default=["tel"],
+        default=_get_default_channel_scheme,
         verbose_name="URN Schemes",
         help_text=_("The URN schemes this channel supports"),
     )
