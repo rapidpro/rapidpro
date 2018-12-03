@@ -27,12 +27,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if not org:  # pragma: no cover
             raise Exception(_("No org for this user, cannot claim"))
 
-        from .type import PlayMobileType
-
         config = {
-            PlayMobileType.CONFIG_BASEURL: data["base_url"],
-            PlayMobileType.CONFIG_USERNAME: data["username"],
-            PlayMobileType.CONFIG_PASSWORD: data["password"],
+            Channel.CONFIG_BASE_URL: data["base_url"],
+            Channel.CONFIG_USERNAME: data["username"],
+            Channel.CONFIG_PASSWORD: data["password"],
         }
 
         self.object = Channel.create(

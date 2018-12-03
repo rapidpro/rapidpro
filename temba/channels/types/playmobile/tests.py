@@ -37,12 +37,10 @@ class PlayMobileTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        from .type import PlayMobileType
-
         self.assertEqual("UZ", channel.country)
-        self.assertEqual("http://91.204.239.42:8083", channel.config[PlayMobileType.CONFIG_BASEURL])
-        self.assertEqual("unicef", channel.config[PlayMobileType.CONFIG_USERNAME])
-        self.assertEqual("HmGWbdCFiJBj5bui", channel.config[PlayMobileType.CONFIG_PASSWORD])
+        self.assertEqual("http://91.204.239.42:8083", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("unicef", channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual("HmGWbdCFiJBj5bui", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual(post_data["shortcode"], channel.address)
         self.assertEqual("PM", channel.channel_type)
 
