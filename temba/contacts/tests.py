@@ -7690,7 +7690,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         for i in range(90):
             name = names[i % len(names)]
 
-            number = "0788382%s" % str(i).zfill(3)
+            number = "0188382%s" % str(i).zfill(3)
             twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
             contact = self.create_contact(name=name, number=number, twitter=twitter)
             join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
@@ -7731,8 +7731,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("trey"), 15)
         self.assertEqual(q("MIKE"), 15)
         self.assertEqual(q("  paige  "), 15)
-        self.assertEqual(q("0788382011"), 1)
-        self.assertEqual(q("trey 0788382"), 15)
+        self.assertEqual(q("0188382011"), 1)
+        self.assertEqual(q("trey 0188382"), 15)
 
         # name as property
         self.assertEqual(q('name is "trey"'), 15)
@@ -7743,8 +7743,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("name ~ Mi"), 15)
 
         # URN as property
-        self.assertEqual(q("tel is +250788382011"), 1)
-        self.assertEqual(q("tel has 0788382011"), 1)
+        self.assertEqual(q("tel is +250188382011"), 1)
+        self.assertEqual(q("tel has 0188382011"), 1)
         self.assertEqual(q("twitter = tweep_13"), 1)
         self.assertEqual(q('twitter = ""'), 60)
         self.assertEqual(q('twitter != ""'), 30)
@@ -7797,8 +7797,21 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # create contact with no phone number, we'll try searching for it by id
         contact = self.create_contact(name="Id Contact")
 
-        # non-anon orgs can't search by id (because they never see ids)
-        self.assertEqual(q("%d" % contact.pk), 0)  # others may match by id on tel
+        # a new contact was created, execute the rp-indexer again
+        result = subprocess.run(
+            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
+
+        # give ES some time to publish the results
+        time.sleep(5)
+
+        # NOTE: when this fails with `AssertionError: 90 != 0`, check if contact phone numbers might match
+        # NOTE: for example id=2507, tel=250788382011 ... will match
+        # non-anon orgs can't search by id (because they never see ids), but they match on tel
+        self.assertEqual(q("%d" % contact.pk), 0)
 
         with AnonymousOrg(self.org):
             # still allow name and field searches
@@ -7807,14 +7820,14 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             self.assertEqual(q("age > 30"), 69)
 
             # don't allow matching on URNs
-            self.assertEqual(q("0788382011"), 0)
-            self.assertEqual(q("tel is +250788382011"), 0)
+            self.assertEqual(q("0188382011"), 0)
+            self.assertEqual(q("tel is +250188382011"), 0)
             self.assertEqual(q("twitter has tweep"), 0)
             self.assertEqual(q('twitter = ""'), 0)
 
             # anon orgs can search by id, with or without zero padding
-            self.assertEqual(q("%d" % contact.pk), 0)
-            self.assertEqual(q("%010d" % contact.pk), 0)
+            self.assertEqual(q("%d" % contact.pk), 1)
+            self.assertEqual(q("%010d" % contact.pk), 1)
 
         # invalid queries
         self.assertRaises(SearchException, q, "((")
@@ -7829,7 +7842,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertRaises(SearchException, q, "join_date > xxxxx")  # unparseable date-field comparison
         self.assertRaises(SearchException, q, "home > kigali")  # unrecognized location-field operator
         self.assertRaises(SearchException, q, "credits > 10")  # non-existent field or attribute
-        self.assertRaises(SearchException, q, "tel < +250788382011")  # unsupported comparator for a URN   # ValueError
+        self.assertRaises(SearchException, q, "tel < +250188382011")  # unsupported comparator for a URN   # ValueError
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
         self.assertRaises(SearchException, q, "data=“not empty”")  # unicode “,” are not accepted characters
 
@@ -7842,8 +7855,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(response.context["contacts"][0].fields[str(age.uuid)], {"text": "10", "number": "10"})
 
         response = self.client.get("%s?sort_on=-%s" % (url, "created_on"))
-        self.assertEqual(response.context["contacts"][0].name, None)  # last contact in the set
-        self.assertEqual(response.context["contacts"][0].fields[str(age.uuid)], {"text": "99", "number": "99"})
+        self.assertEqual(response.context["contacts"][0].name, "Id Contact")  # last contact in the set
+        self.assertEqual(response.context["contacts"][0].fields, None)
 
         response = self.client.get("%s?sort_on=-%s" % (url, str(ward.uuid)))
         self.assertEqual(
