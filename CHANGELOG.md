@@ -1,3 +1,11 @@
+v4.12.6
+----------
+ * Remove flow server trialling
+ * Replace tab characters for GSM7
+ * Use mailroom on messaging flows for simulation
+ * Raise ValidationError for ContactFields with null chars
+ * upgrade to Django 2.1
+
 v4.12.5
 ----------
  * Make sure Flow.update clears prefetched nodes after potentialy deleting them
