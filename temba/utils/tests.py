@@ -1196,6 +1196,11 @@ class GSM7Test(TembaTest):
         self.assertEqual("Pour chercher du boulot, comment fais-tu ?", replaced)
         self.assertTrue(is_gsm7(replaced))
 
+        # no tabs
+        replaced = replace_non_gsm7_accents("I am followed by a\x09tab")
+        self.assertEqual("I am followed by a tab", replaced)
+        self.assertTrue(is_gsm7(replaced))
+
     def test_num_segments(self):
         ten_chars = "1234567890"
 
