@@ -1100,7 +1100,6 @@ FLOW_SERVER_URL = None
 FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
 FLOW_SERVER_FORCE = False
-FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
 
 # -----------------------------------------------------------------------------------
 # Mailroom - disabled by default, but is where simulation happens

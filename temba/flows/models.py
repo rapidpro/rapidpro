@@ -14,6 +14,7 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
+from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
 
@@ -30,7 +31,6 @@ from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 
 from celery import current_app
 
-from smartmin.models import SmartModel
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -80,7 +80,6 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
-from .server.trial import resumes as trial_resumes
 
 logger = logging.getLogger(__name__)
 
@@ -1008,7 +1007,6 @@ class Flow(TembaModel):
         msg,
         started_flows=None,
         voice_response=None,
-        allow_trial=False,
         triggered_start=False,
         resume_parent_run=False,
         expired_child_run=None,
@@ -1047,8 +1045,6 @@ class Flow(TembaModel):
                 Msg.mark_handled(msg)
                 return True, []
 
-            trial = trial_resumes.maybe_start(run) if allow_trial else None
-
             (handled, msgs) = Flow.handle_destination(
                 destination,
                 run,
@@ -1064,13 +1060,6 @@ class Flow(TembaModel):
 
             if handled:
                 analytics.gauge("temba.run_resumes")
-
-                if trial:
-                    if expired_child_run:
-                        trial_resumes.end(trial, expired_child_run=expired_child_run)
-                    elif msg and msg.id:
-                        trial_resumes.end(trial, msg_in=msg)
-
                 return True, msgs
 
         return False, []
@@ -4203,10 +4192,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             msg.contact = run.contact
 
         if run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
-            allow_trial = True
             expired_child_run = run
         else:
-            allow_trial = False
             expired_child_run = None
 
         run.parent.child_context = run.build_expressions_context(contact_context=str(run.contact.uuid))
@@ -4221,7 +4208,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             trigger_send=trigger_send,
             continue_parent=continue_parent,
             expired_child_run=expired_child_run,
-            allow_trial=allow_trial,
         )
 
         return msgs

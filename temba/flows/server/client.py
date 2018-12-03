@@ -100,10 +100,6 @@ class RequestBuilder:
         self.request["asset_server"] = {"type_urls": get_asset_urls(self.org, simulator)}
         return self
 
-    def set_config(self, name, value):
-        self.request["config"][name] = value
-        return self
-
     def start_manual(self, contact, flow, params=None):
         """
         User is manually starting this session
