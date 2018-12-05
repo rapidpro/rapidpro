@@ -85,7 +85,7 @@ def check_channels_task():
 
 
 @nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
-def sync_old_seen_channels_task():
+def sync_old_seen_channels_task():  # pragma: needs cover
     now = timezone.now()
     window_end = now - timedelta(min=15)
     window_start = now - timedelta(days=7)
