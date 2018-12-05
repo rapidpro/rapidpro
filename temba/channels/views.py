@@ -668,28 +668,16 @@ def sync(request, channel_id):
                                 pass
                         handled = True
 
-                    elif keyword == "gcm":
-                        gcm_id = cmd.get("gcm_id", None)
-                        uuid = cmd.get("uuid", None)
-                        if channel.gcm_id != gcm_id or channel.uuid != uuid:
-                            channel.gcm_id = gcm_id
-                            channel.uuid = uuid
-                            channel.save(update_fields=["gcm_id", "uuid"])
-
-                        # no acking the gcm
-                        handled = False
-
                     elif keyword == "fcm":
                         # update our fcm and uuid
 
-                        channel.gcm_id = None
                         config = channel.config
                         config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
                         channel.config = config
                         channel.uuid = cmd.get("uuid", None)
-                        channel.save(update_fields=["uuid", "config", "gcm_id"])
+                        channel.save(update_fields=["uuid", "config"])
 
-                        # no acking the gcm
+                        # no acking the fcm
                         handled = False
 
                     elif keyword == "reset":
@@ -1179,7 +1167,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
-        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on", "gcm_id")
+        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)

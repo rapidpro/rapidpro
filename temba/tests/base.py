@@ -607,7 +607,7 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
             address="+250785551212",
             device="Nexus 5X",
             secret="12345",
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         # don't cache anon user between tests
@@ -906,7 +906,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
             address="0785551212",
             claim_code="AAABBBCCC",
             secret="12345",
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         # and claim it

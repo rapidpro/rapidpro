@@ -485,7 +485,7 @@ class MsgTest(TembaTest):
 
         # can't create outgoing messages against an unassigned channel
         unassigned_channel = Channel.create(
-            None, self.admin, None, "A", None, secret=Channel.generate_secret(), gcm_id="456"
+            None, self.admin, None, "A", None, secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "456"}
         )
 
         with self.assertRaises(Exception):
@@ -2354,8 +2354,12 @@ class BroadcastTest(TembaTest):
         Broadcast.objects.all()[0].release()
 
         # test when we have many channels
-        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="1234")
-        Channel.create(self.org, self.user, None, "A", secret=Channel.generate_secret(), gcm_id="123")
+        Channel.create(
+            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
+        )
+        Channel.create(
+            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
+        )
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
@@ -2378,7 +2382,15 @@ class BroadcastTest(TembaTest):
         for channel in Channel.objects.all():
             channel.release()
 
-        Channel.create(self.org, self.user, None, "A", None, secret=Channel.generate_secret(), gcm_id="123")
+        Channel.create(
+            self.org,
+            self.user,
+            None,
+            "A",
+            None,
+            secret=Channel.generate_secret(),
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
 
         response = self.client.get(send_url)
         self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
