@@ -60,7 +60,7 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import Queue, push_task
 
 from .models import CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, ChannelSession, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts
+from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task
 
 
 class ChannelTest(TembaTest):
@@ -2197,6 +2197,28 @@ class ChannelAlertTest(TembaTest):
         check_channels_task()
 
         self.assertTrue(len(mail.outbox) == 0)
+
+
+class ChannelSyncTest(TembaTest):
+    @patch("temba.channels.models.Channel.trigger_sync")
+    def test_sync_old_seen_chaanels(self, mock_trigger_sync):
+        self.channel.last_seen = timezone.now() - timedelta(days=40)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertFalse(mock_trigger_sync.called)
+
+        self.channel.last_seen = timezone.now() - timedelta(minutes=5)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertFalse(mock_trigger_sync.called)
+
+        self.channel.last_seen = timezone.now() - timedelta(hours=3)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertTrue(mock_trigger_sync.called)
 
 
 class ChannelClaimTest(TembaTest):
