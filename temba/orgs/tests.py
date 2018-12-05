@@ -212,7 +212,7 @@ class OrgDeleteTest(TembaTest):
             address="+250785551212",
             device="Nexus 5X",
             secret="54321",
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         # our user is a member of two orgs
@@ -418,7 +418,9 @@ class OrgTest(TembaTest):
             [dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF")],
         )
 
-        Channel.create(self.org, self.user, "US", "A", None, "+12001112222", gcm_id="asdf", secret="asdf")
+        Channel.create(
+            self.org, self.user, "US", "A", None, "+12001112222", secret="asdf", config={Channel.CONFIG_FCM_ID: "1234"}
+        )
 
         self.assertEqual(
             self.org.get_channel_countries(),
@@ -438,7 +440,9 @@ class OrgTest(TembaTest):
             ],
         )
 
-        Channel.create(self.org, self.user, "US", "A", None, "+12001113333", gcm_id="qwer", secret="qwer")
+        Channel.create(
+            self.org, self.user, "US", "A", None, "+12001113333", secret="qwer", config={Channel.CONFIG_FCM_ID: "qwer"}
+        )
 
         self.assertEqual(
             self.org.get_channel_countries(),
@@ -2399,7 +2403,7 @@ class OrgTest(TembaTest):
             address="+250785551212",
             device="Nexus 5X",
             secret="12355",
-            gcm_id="145",
+            config={Channel.CONFIG_FCM_ID: "145"},
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
         msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
@@ -3035,14 +3039,34 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, "RW", "T", "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "T",
+            "Nexmo",
+            "0785551212",
+            role="R",
+            secret="45678",
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
 
         self.org = Org.objects.get(pk=self.org.pk)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, "RW", "T", "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "T",
+            "Twilio",
+            "0785553434",
+            role="SR",
+            secret="56789",
+            config={Channel.CONFIG_FCM_ID: "456"},
+        )
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
