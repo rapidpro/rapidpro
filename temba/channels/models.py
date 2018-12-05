@@ -10,7 +10,6 @@ from xml.sax.saxutils import escape
 import phonenumbers
 from django_countries.fields import CountryField
 from django_redis import get_redis_connection
-from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
@@ -421,14 +420,6 @@ class Channel(TembaModel):
         help_text=_("Organization using this channel"),
     )
 
-    gcm_id = models.CharField(
-        verbose_name=_("GCM ID"),
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text=_("The registration id for using Google Cloud Messaging"),
-    )
-
     claim_code = models.CharField(
         verbose_name=_("Claim Code"),
         max_length=16,
@@ -697,20 +688,15 @@ class Channel(TembaModel):
     @classmethod
     def get_or_create_android(cls, registration_data, status):
         """
-        Creates a new Android channel from the gcm and status commands sent during device registration
+        Creates a new Android channel from the fcm and status commands sent during device registration
         """
-        gcm_id = registration_data.get("gcm_id")
         fcm_id = registration_data.get("fcm_id")
         uuid = registration_data.get("uuid")
         country = status.get("cc")
         device = status.get("dev")
 
-        if (not gcm_id and not fcm_id) or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID, FCM ID and GCM ID")
-
-        # Clear and Ignore the GCM ID if we have the FCM ID
-        if fcm_id:
-            gcm_id = None
+        if not fcm_id or not uuid:  # pragma: no cover
+            raise ValueError("Can't create Android channel without UUID or FCM ID")
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
@@ -720,12 +706,11 @@ class Channel(TembaModel):
             config = existing.config
             config.update({Channel.CONFIG_FCM_ID: fcm_id})
             existing.config = config
-            existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
             existing.country = country
             existing.device = device
-            existing.save(update_fields=("gcm_id", "secret", "claim_code", "country", "device"))
+            existing.save(update_fields=("config", "secret", "claim_code", "country", "device"))
 
             return existing
 
@@ -747,7 +732,6 @@ class Channel(TembaModel):
             Channel.TYPE_ANDROID,
             None,
             None,
-            gcm_id=gcm_id,
             config=config,
             uuid=uuid,
             device=device,
@@ -1129,14 +1113,12 @@ class Channel(TembaModel):
             for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
                 call.close()
 
-        # save off our org and gcm id before nullifying
+        # save off our org and fcm id before nullifying
         org = self.org
         fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
             registration_id = fcm_id
-        else:
-            registration_id = self.gcm_id
 
         # make the channel inactive
         self.is_active = False
@@ -1171,9 +1153,9 @@ class Channel(TembaModel):
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
-        Sends a GCM command to trigger a sync on the client
+        Sends a FCM command to trigger a sync on the client
         """
-        # androids sync via FCM or GCM(for old apps installs)
+        # androids sync via FCM
         if self.channel_type == Channel.TYPE_ANDROID:
             fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
@@ -1185,15 +1167,6 @@ class Channel(TembaModel):
                         registration_id = fcm_id
                     if registration_id:
                         on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
-
-            elif self.gcm_id:
-                if getattr(settings, "GCM_API_KEY", None):
-                    from .tasks import sync_channel_gcm_task
-
-                    if not registration_id:
-                        registration_id = self.gcm_id
-                    if registration_id:
-                        on_transaction_commit(lambda: sync_channel_gcm_task.delay(registration_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
@@ -1217,17 +1190,6 @@ class Channel(TembaModel):
                 config = channel.config
                 config.pop(Channel.CONFIG_FCM_ID, None)
                 channel.config = config
-                channel.save()
-
-    @classmethod
-    def sync_channel_gcm(cls, registration_id, channel=None):  # pragma: no cover
-        try:
-            gcm = GCM(settings.GCM_API_KEY)
-            gcm.plaintext_request(registration_id=registration_id, data=dict(msg="sync"))
-        except GCMNotRegisteredException:
-            if channel:
-                # this gcm id is invalid now, clear it out
-                channel.gcm_id = None
                 channel.save()
 
     @classmethod
