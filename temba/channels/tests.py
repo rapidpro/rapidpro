@@ -1299,7 +1299,7 @@ class ChannelTest(TembaTest):
 
         # register another device with country as US
         reg_data = dict(
-            cmds=[dict(cmd="fcm", gcm_id="FCM444", uuid="uuid4"), dict(cmd="status", cc="US", dev="Nexus 6P")]
+            cmds=[dict(cmd="fcm", fcm_id="FCM444", uuid="uuid4"), dict(cmd="status", cc="US", dev="Nexus 6P")]
         )
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
@@ -1962,7 +1962,6 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
 
         self.tel_channel.refresh_from_db()
-        self.assertIsNone(self.tel_channel.config["FCM_ID"])
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
         self.assertEqual(self.tel_channel.config[Channel.CONFIG_FCM_ID], "12345")
 
