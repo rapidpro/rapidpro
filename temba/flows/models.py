@@ -5559,10 +5559,7 @@ class ExportFlowResultsTask(BaseExportTask):
         sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
-        if self.org.is_anon:
-            headers = ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"]
-        else:
-            headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
 
         self.append_row(sheet, headers)
         return sheet
@@ -5783,7 +5780,7 @@ class ExportFlowResultsTask(BaseExportTask):
             self.append_row(book.current_runs_sheet, runs_sheet_row)
 
             # write out any message associated with this run
-            if include_msgs:
+            if include_msgs and not self.org.is_anon:
                 self._write_run_messages(book, run, contact)
 
     def _write_run_messages(self, book, run, contact):
@@ -5803,9 +5800,7 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_created_on = iso8601.parse_date(event["created_on"])
             msg_channel = msg.get("channel")
 
-            if self.org.is_anon:
-                msg_urn = f"{contact.id:010d}"
-            elif "urn" in msg:
+            if "urn" in msg:
                 msg_urn = URN.format(msg["urn"], formatted=False)
             else:
                 msg_urn = ""
