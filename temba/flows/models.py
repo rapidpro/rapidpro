@@ -5613,7 +5613,8 @@ class ExportFlowResultsTask(BaseExportTask):
         book.current_msgs_sheet = None
 
         # for tracking performance
-        runs_exported = 0
+        total_runs_exported = 0
+        temp_runs_exported = 0
         start = time.time()
 
         for batch in self._get_run_batches(flows, responded_only):
@@ -5629,12 +5630,15 @@ class ExportFlowResultsTask(BaseExportTask):
                 result_nodes,
             )
 
-            runs_exported += len(batch)
-            if runs_exported % 10000 == 0:  # pragma: no cover
+            total_runs_exported += len(batch)
+
+            if (total_runs_exported - temp_runs_exported) > ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS:
                 mins = (time.time() - start) / 60
                 logger.info(
-                    f"Results export #{self.id} for org #{self.org.id}: exported {runs_exported} in {mins:.1f} mins"
+                    f"Results export #{self.id} for org #{self.org.id}: exported {total_runs_exported} in {mins:.1f} mins"
                 )
+
+                temp_runs_exported = total_runs_exported
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)

@@ -5,6 +5,7 @@ import re
 import time
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import iso8601
@@ -1206,8 +1207,20 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(44):
-            workbook = self.export_flow_results(self.flow, group_memberships=[devs])
+        with self.assertLogs("temba.flows.models", level="INFO") as captured_logger:
+            with patch(
+                "temba.flows.models.ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
+            ) as log_info_threshold:
+                # make sure that we trigger logger
+                log_info_threshold.return_value = 1
+
+                with self.assertNumQueries(44):
+                    workbook = self.export_flow_results(self.flow, group_memberships=[devs])
+
+                self.assertEqual(len(captured_logger.output), 3)
+                self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
+                self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
+                self.assertTrue("exported 5 in" in captured_logger.output[2])
 
         tz = self.org.timezone
 
