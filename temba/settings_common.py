@@ -1,4 +1,3 @@
-
 import os
 import socket
 import sys
@@ -826,6 +825,7 @@ DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}  # disable redirect traps
 CELERYBEAT_SCHEDULE = {
     "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
+    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
     "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
     "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},

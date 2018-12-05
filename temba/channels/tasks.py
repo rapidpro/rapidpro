@@ -1,4 +1,3 @@
-
 import logging
 import time
 from datetime import timedelta
@@ -89,6 +88,14 @@ def check_channels_task():
     time.  Triggers alert in that case
     """
     Alert.check_alerts()
+
+
+@nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
+def sync_old_seen_channels_task():
+    start = timezone.now() - timedelta(min=15)
+    old_seen_channels = Channel.objects.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, last_seen__lte=start)
+    for channel in old_seen_channels:
+        channel.trigger_sync()
 
 
 @task(track_started=True, name="send_alert_task")
