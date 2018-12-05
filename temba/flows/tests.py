@@ -844,7 +844,8 @@ class FlowTest(TembaTest):
         run1.refresh_from_db()
 
         workbook = self.export_flow_results(self.flow)
-        sheet_runs, sheet_msgs = workbook.worksheets
+        self.assertEqual(len(workbook.worksheets), 1)
+        sheet_runs = workbook.worksheets[0]
         self.assertExcelRow(
             sheet_runs,
             0,
@@ -875,14 +876,6 @@ class FlowTest(TembaTest):
                 "orange",
                 "orange",
             ],
-            self.org.timezone,
-        )
-
-        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"])
-        self.assertExcelRow(
-            sheet_msgs,
-            2,
-            [self.contact.uuid, f"{self.contact.id:010d}", "Eric", msg.created_on, "IN", "orange", "Test Channel"],
             self.org.timezone,
         )
 

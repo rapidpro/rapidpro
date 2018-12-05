@@ -5780,7 +5780,7 @@ class ExportFlowResultsTask(BaseExportTask):
             self.append_row(book.current_runs_sheet, runs_sheet_row)
 
             # write out any message associated with this run
-            if include_msgs:
+            if include_msgs and not self.org.is_anon:
                 self._write_run_messages(book, run, contact)
 
     def _write_run_messages(self, book, run, contact):
