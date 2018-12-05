@@ -1,3 +1,11 @@
+v4.13.0
+----------
+ * Add index for fast Android channel fetch by last seen
+ * Remove gcm_id field
+ * No messages sheet for flow results export on anon orgs
+ * Add periodic task to sync channels we have not seen for a while
+ * Add wait_started_on field to flow session
+
 v4.12.6
 ----------
  * Remove flow server trialling
