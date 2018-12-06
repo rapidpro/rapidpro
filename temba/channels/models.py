@@ -1115,12 +1115,12 @@ class Channel(TembaModel):
 
         # save off our org and fcm id before nullifying
         org = self.org
-        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
-
-        if fcm_id is not None:
-            registration_id = fcm_id
+        registration_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         # make the channel inactive
+        config = self.config
+        config.pop(Channel.CONFIG_FCM_ID, None)
+        self.config = config
         self.is_active = False
         self.save()
 
@@ -1132,7 +1132,7 @@ class Channel(TembaModel):
         )
 
         # trigger the orphaned channel
-        if trigger_sync and self.channel_type == Channel.TYPE_ANDROID:  # pragma: no cover
+        if trigger_sync and self.channel_type == Channel.TYPE_ANDROID and registration_id:
             self.trigger_sync(registration_id)
 
         # clear our cache for this channel

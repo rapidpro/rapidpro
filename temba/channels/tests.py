@@ -1476,8 +1476,9 @@ class ChannelTest(TembaTest):
 
         android.release()
 
-        # check that some details are cleared and channel is now in active
+        # check that some details are cleared and channel is now inactive
         self.assertFalse(android.is_active)
+        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
@@ -1492,11 +1493,17 @@ class ChannelTest(TembaTest):
             reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
         )
         android.refresh_from_db()
+        # simulate no FCM ID
+        config = android.config
+        config.pop(Channel.CONFIG_FCM_ID, None)
+        android.config = config
+        android.save()
 
         android.release()
 
         # check that some details are cleared and channel is now in active
         self.assertFalse(android.is_active)
+        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
