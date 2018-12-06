@@ -1120,7 +1120,7 @@ class Channel(TembaModel):
         # make the channel inactive
         self.config.pop(Channel.CONFIG_FCM_ID, None)
         self.is_active = False
-        self.save()
+        self.save(update_fields=["is_active", "config", "modified_on"])
 
         # mark any messages in sending mode as failed for this channel
         from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
@@ -1186,7 +1186,7 @@ class Channel(TembaModel):
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
                 channel.config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.save()
+                channel.save(update_fields=["config"])
 
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
