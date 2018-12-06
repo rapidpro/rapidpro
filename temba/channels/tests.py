@@ -1494,9 +1494,7 @@ class ChannelTest(TembaTest):
         )
         android.refresh_from_db()
         # simulate no FCM ID
-        config = android.config
-        config.pop(Channel.CONFIG_FCM_ID, None)
-        android.config = config
+        android.config.pop(Channel.CONFIG_FCM_ID, None)
         android.save()
 
         android.release()

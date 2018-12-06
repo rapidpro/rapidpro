@@ -1118,9 +1118,7 @@ class Channel(TembaModel):
         registration_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         # make the channel inactive
-        config = self.config
-        config.pop(Channel.CONFIG_FCM_ID, None)
-        self.config = config
+        self.config.pop(Channel.CONFIG_FCM_ID, None)
         self.is_active = False
         self.save()
 
@@ -1187,9 +1185,7 @@ class Channel(TembaModel):
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                config = channel.config
-                config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.config = config
+                channel.config.pop(Channel.CONFIG_FCM_ID, None)
                 channel.save()
 
     @classmethod
