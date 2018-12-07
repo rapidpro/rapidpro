@@ -1013,6 +1013,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.mblox.MbloxType",
     "temba.channels.types.messangi.MessangiType",
     "temba.channels.types.novo.NovoType",
+    "temba.channels.types.playmobile.PlayMobileType",
     "temba.channels.types.plivo.PlivoType",
     "temba.channels.types.redrabbit.RedRabbitType",
     "temba.channels.types.shaqodoon.ShaqodoonType",
