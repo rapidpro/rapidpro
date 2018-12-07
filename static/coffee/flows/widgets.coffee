@@ -563,11 +563,11 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
     variables = []
 
     for item in data
-      if item.id[0] == 'g'
+      if item.id.startsWith('g-')
         groups.push({id:item.id.slice(2), name:item.text})
-      else if item.id[0] == 'c'
+      else if item.id.startsWith('c-')
         contacts.push({id:item.id.slice(2), name:item.text})
-      else if item.id[0] == '@'
+      else if item.id.startsWith('@')
         variables.push({id:item.id, name:item.id})
       else
         # New groups can be created
