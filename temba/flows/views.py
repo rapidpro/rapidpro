@@ -1483,6 +1483,7 @@ class FlowCRUDL(SmartCRUDL):
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
                     body["trigger"] = json_dict["trigger"]
+                    body["trigger"]["environment"] = serialize_environment(flow.org)
 
                     response = requests.post(settings.MAILROOM_URL + "/mr/sim/start", json=body, headers=headers)
                     if response.status_code != 200:
@@ -1493,6 +1494,7 @@ class FlowCRUDL(SmartCRUDL):
                 # otherwise we are resuming
                 elif "resume" in json_dict:
                     body["resume"] = json_dict["resume"]
+                    body["resume"]["environment"] = serialize_environment(flow.org)
                     body["session"] = json_dict["session"]
 
                     response = requests.post(settings.MAILROOM_URL + "/mr/sim/resume", json=body, headers=headers)

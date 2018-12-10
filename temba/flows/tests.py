@@ -5976,6 +5976,9 @@ class SimulationTest(FlowFileTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual({}, response.json()["session"])
             self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
+            self.assertEqual(
+                "DD-MM-YYYY", mock_post.call_args_list[0][1]["json"]["trigger"]["environment"]["date_format"]
+            )
             self.assertEqual("https://mailroom.temba.io/mr/sim/start", mock_post.call_args_list[0][0][0])
             self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
 
@@ -5993,6 +5996,9 @@ class SimulationTest(FlowFileTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual({}, response.json()["session"])
             self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
+            self.assertEqual(
+                "DD-MM-YYYY", mock_post.call_args_list[0][1]["json"]["resume"]["environment"]["date_format"]
+            )
             self.assertEqual("https://mailroom.temba.io/mr/sim/resume", mock_post.call_args_list[0][0][0])
             self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
 
