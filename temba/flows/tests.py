@@ -53,6 +53,7 @@ from .flow_migrations import (
     migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
+    migrate_to_version_11_8,
 )
 from .models import (
     Action,
@@ -427,6 +428,47 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, self.flow.name)
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
+
+    def test_flow_select2_response(self):
+        self.login(self.admin)
+
+        self.get_flow("no_ruleset_flow")
+
+        url = f"{reverse('flows.flow_list')}?_format=select2&search="
+        response = self.client.get(url, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        json_payload = response.json()
+
+        self.assertEqual(len(json_payload["results"]), 2)
+        self.assertEqual([res["text"] for res in json_payload["results"]], ["No ruleset flow", "Color Flow"])
+
+    def test_flow_select2_response_with_exclude_flow_uuid(self):
+        self.login(self.admin)
+        self.get_flow("no_ruleset_flow")
+
+        # empty exclude_flow_uuid
+        url = f"{reverse('flows.flow_list')}?_format=select2&search=&exclude_flow_uuid="
+        response = self.client.get(url, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        json_payload = response.json()
+
+        self.assertEqual(len(json_payload["results"]), 2)
+        self.assertEqual([res["text"] for res in json_payload["results"]], ["No ruleset flow", "Color Flow"])
+
+        # valid flow uuid
+        url = f"{reverse('flows.flow_list')}?_format=select2&search=&exclude_flow_uuid={self.flow.uuid}"
+        response = self.client.get(url, content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        json_payload = response.json()
+
+        self.assertEqual(len(json_payload["results"]), 1)
+        self.assertEqual([res["text"] for res in json_payload["results"]], ["No ruleset flow"])
 
     def test_campaign_filter(self):
         self.login(self.admin)
@@ -8122,6 +8164,36 @@ class FlowsTest(FlowFileTest):
         # now we no longer depend on it
         self.assertIsNone(flow.flow_dependencies.filter(name="Child Flow").first())
 
+    def test_update_dependencies_with_actiontype_flow(self):
+        self.get_flow("dependencies")
+
+        flow = Flow.objects.filter(name="Dependencies").first()
+        dep_flow = Flow.objects.filter(name="Child Flow").first()
+
+        update_json = flow.as_json()
+
+        # remove existing flow dependency
+        actionsets = update_json["action_sets"]
+        actionsets[-1]["actions"] = actionsets[-1]["actions"][0:-1]
+        update_json["action_sets"] = actionsets
+        flow.update(update_json)
+
+        self.assertEqual(flow.flow_dependencies.count(), 0)
+
+        # add a new start another flow action
+        start_new_flow_action = {
+            "type": "flow",
+            "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247",
+            "flow": {"uuid": f"{dep_flow.uuid}", "name": "Child Flow"},
+        }
+
+        actionsets[-1]["actions"].append(start_new_flow_action)
+        update_json["action_sets"] = actionsets
+
+        flow.update(update_json)
+
+        self.assertEqual(flow.flow_dependencies.count(), 1)
+
     def test_group_uuid_mapping(self):
         flow = self.get_flow("group_split")
 
@@ -9772,6 +9844,29 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_8(self):
+        self.get_flow("migrate_to_11_8")
+
+        invalid1 = Flow.objects.get(name="Invalid1")
+        invalid1.is_archived = True
+        invalid1.save()
+
+        invalid2 = Flow.objects.get(name="Invalid2")
+        invalid2.is_active = False
+        invalid2.save()
+
+        flow = Flow.objects.get(name="Master")
+        flow_json = flow.as_json()
+
+        self.assertEqual(len(flow_json["rule_sets"]), 4)
+        self.assertEqual(sum(len(action_set["actions"]) for action_set in flow_json["action_sets"]), 8)
+
+        migrated = migrate_to_version_11_8(flow_json, flow)
+
+        # expected to remove 1 ruleset and 3 actions referencing invalid flows
+        self.assertEqual(len(migrated["rule_sets"]), 3)
+        self.assertEqual(sum(len(action_set["actions"]) for action_set in migrated["action_sets"]), 5)
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_11_7(self):

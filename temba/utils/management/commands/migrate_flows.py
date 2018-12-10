@@ -31,8 +31,8 @@ def migrate_flows(min_version=None):  # pragma: no cover
             try:
                 flow.ensure_current_version(min_version=to_version)
                 num_updated += 1
-            except Exception:
-                print("Unable to migrate flow '%s' (#%d)" % (flow.name, flow.id))
+            except Exception as e:
+                print("Unable to migrate flow '%s' (#%d), %s" % (flow.name, flow.id, str(e)))
                 errored.append(flow)
 
         print(" > Flows migrated: %d of %d (%d errored)" % (num_updated, total, len(errored)))
