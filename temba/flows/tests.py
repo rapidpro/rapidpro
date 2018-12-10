@@ -5,6 +5,7 @@ import re
 import time
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import iso8601
@@ -313,6 +314,30 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.pk]))
         self.assertEqual(0, len(response.json()))
 
+    def test_revision_history_of_inactive_flow(self):
+        self.flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_flow_activity_of_inactive_flow(self):
+        self.flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_activity", args=[self.flow.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_flow_json_of_inactive_flow(self):
+        self.flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_json", args=[self.flow.id]))
+
+        self.assertEqual(response.status_code, 404)
+
     def test_get_localized_text(self):
 
         text_translations = dict(eng="Hello", spa="Hola", fra="Salut")
@@ -551,6 +576,48 @@ class FlowTest(TembaTest):
             f"/org/service/?organization={self.flow.org_id}&redirect_url=/flow/editor/{self.flow.uuid}/",
         )
         self.assertTrue(gear_links[-2]["divider"])
+
+        self.assertListEqual(
+            [link.get("title") for link in gear_links],
+            [
+                "Start Flow",
+                "Results",
+                None,
+                "Edit",
+                "Copy",
+                "Export",
+                None,
+                "Revision History",
+                "Delete",
+                None,
+                "Service",
+            ],
+        )
+
+    def test_flow_editor_for_archived_flow(self):
+        self.flow.archive()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+
+        gear_links = response.context["view"].get_gear_links()
+
+        self.assertFalse(response.context["mutable"])
+        self.assertFalse(response.context["can_start"])
+
+        # cannot 'Edit' an archived Flow
+        self.assertListEqual(
+            [link.get("title") for link in gear_links],
+            ["Results", "Copy", "Export", None, "Revision History", "Delete"],
+        )
+
+    def test_flow_editor_for_inactive_flow(self):
+        self.flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_states(self):
         # set our flow
@@ -1199,8 +1266,20 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(44):
-            workbook = self.export_flow_results(self.flow, group_memberships=[devs])
+        with self.assertLogs("temba.flows.models", level="INFO") as captured_logger:
+            with patch(
+                "temba.flows.models.ExportFlowResultsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
+            ) as log_info_threshold:
+                # make sure that we trigger logger
+                log_info_threshold.return_value = 1
+
+                with self.assertNumQueries(44):
+                    workbook = self.export_flow_results(self.flow, group_memberships=[devs])
+
+                self.assertEqual(len(captured_logger.output), 3)
+                self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
+                self.assertTrue("found 5 runs in database to export" in captured_logger.output[1])
+                self.assertTrue("exported 5 in" in captured_logger.output[2])
 
         tz = self.org.timezone
 
@@ -3593,6 +3672,29 @@ class FlowTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
+
+    def test_flow_update_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+        # release the flow
+        flow.release()
+
+        post_data = {"name": "Flow that does not exist"}
+
+        self.login(self.admin)
+        response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data)
+
+        # can't delete already released flow
+        self.assertEqual(response.status_code, 404)
+
+    def test_flow_results_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+        # release the flow
+        flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_mailroom_starts(self):
         self.login(self.admin)
@@ -7055,6 +7157,36 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(24, len(response.context["hod"]))
         self.assertEqual(7, len(response.context["dow"]))
 
+    def test_flow_activity_chart_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+        # release the flow
+        flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_flow_run_table_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+        # release the flow
+        flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_run_table", args=[flow.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_flow_category_counts_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+        # release the flow
+        flow.release()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
+
+        self.assertEqual(response.status_code, 404)
+
     def test_send_all_replies(self):
         flow = self.get_flow("send_all")
 
@@ -8275,6 +8407,18 @@ class FlowsTest(FlowFileTest):
         chw = self.contact
         sms = Msg.objects.filter(contact=chw).order_by("-created_on")[0]
         self.assertEqual("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
+
+    def test_flow_delete_of_inactive_flow(self):
+        flow = self.get_flow("favorites")
+
+        # release the flow
+        flow.release()
+
+        self.login(self.admin)
+        response = self.client.post(reverse("flows.flow_delete", args=[flow.pk]))
+
+        # can't delete already released flow
+        self.assertEqual(response.status_code, 404)
 
     def test_flow_delete(self):
         from temba.campaigns.models import Campaign, CampaignEvent

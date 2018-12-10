@@ -274,6 +274,11 @@ class FlowCRUDL(SmartCRUDL):
 
     model = Flow
 
+    class AllowOnlyActiveFlowMixin(object):
+        def get_queryset(self):
+            initial_queryset = super().get_queryset()
+            return initial_queryset.filter(is_active=True)
+
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
             exit_uuids = request.GET.get("exits", "").split(",")
@@ -289,7 +294,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse(recent_messages, safe=False)
 
-    class Revisions(OrgObjPermsMixin, SmartReadView):
+    class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
@@ -430,7 +435,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return obj
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    class Delete(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("id",)
         cancel_url = "uuid@flows.flow_editor"
         success_message = ""
@@ -470,7 +475,7 @@ class FlowCRUDL(SmartCRUDL):
             # redirect to the newly created flow
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BaseUpdateFlowFormMixin:
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -965,7 +970,7 @@ class FlowCRUDL(SmartCRUDL):
                 dict(message_completions=messages_completions, function_completions=function_completions)
             )
 
-    class Editor(OrgObjPermsMixin, SmartReadView):
+    class Editor(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def derive_title(self):
@@ -977,7 +982,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
-            flow = self.get_object(self.get_queryset())
+            flow = self.object
             org = self.request.user.get_org()
 
             # hangup any test calls if we have them
@@ -989,23 +994,28 @@ class FlowCRUDL(SmartCRUDL):
             if org:
                 languages = org.languages.all().order_by("orgs")
                 for lang in languages:
-                    if self.get_object().base_language == lang.iso_code:
+                    if flow.base_language == lang.iso_code:
                         context["base_language"] = lang
 
                 context["languages"] = languages
 
+            if flow.is_archived:
+                context["mutable"] = False
+                context["can_start"] = False
+            else:
+                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+
             context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
             context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
             context["is_starting"] = flow.is_starting()
-            context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
             context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
             return context
 
         def get_gear_links(self):
             links = []
-            flow = self.get_object()
+            flow = self.object
 
             if (
                 flow.flow_type not in [Flow.TYPE_SURVEY, Flow.TYPE_USSD]
@@ -1023,7 +1033,7 @@ class FlowCRUDL(SmartCRUDL):
             if len(links) > 1:
                 links.append(dict(divider=True))
 
-            if self.has_org_perm("flows.flow_update"):
+            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
                 links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
 
             if self.has_org_perm("flows.flow_copy"):
@@ -1224,7 +1234,7 @@ class FlowCRUDL(SmartCRUDL):
                 response["REDIRECT"] = self.get_success_url()
                 return response
 
-    class ActivityChart(OrgObjPermsMixin, SmartReadView):
+    class ActivityChart(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
         Intercooler helper that renders a chart of activity by a given period
         """
@@ -1346,7 +1356,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return context
 
-    class RunTable(OrgObjPermsMixin, SmartReadView):
+    class RunTable(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
         Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
         """
@@ -1405,13 +1415,13 @@ class FlowCRUDL(SmartCRUDL):
             context["paginate_by"] = self.paginate_by
             return context
 
-    class CategoryCounts(OrgObjPermsMixin, SmartReadView):
+    class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
             return JsonResponse(self.get_object().get_category_counts())
 
-    class Results(OrgObjPermsMixin, SmartReadView):
+    class Results(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_gear_links(self):
@@ -1442,7 +1452,7 @@ class FlowCRUDL(SmartCRUDL):
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
-    class Activity(OrgObjPermsMixin, SmartReadView):
+    class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
             (active, visited) = flow.get_activity()
@@ -1636,7 +1646,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return JsonResponse(dict(status="success", description="Message sent to Flow", **response))
 
-    class Json(OrgObjPermsMixin, SmartUpdateView):
+    class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
 
         def get(self, request, *args, **kwargs):

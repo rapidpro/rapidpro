@@ -50,6 +50,9 @@ class BaseExportTask(TembaModel):
         (STATUS_FAILED, _("Failed")),
     )
 
+    # log progress after this number of exported objects have been exported
+    LOG_PROGRESS_PER_ROWS = 10000
+
     org = models.ForeignKey(
         "orgs.Org", on_delete=models.PROTECT, related_name="%(class)ss", help_text=_("The organization of the user.")
     )
