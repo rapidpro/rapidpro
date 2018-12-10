@@ -2467,7 +2467,9 @@ class ExportMessagesTask(BaseExportTask):
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
-        msgs_exported = 0
+        total_msgs_exported = 0
+        temp_msgs_exported = 0
+
         start = time.time()
 
         contact_uuids = set()
@@ -2487,12 +2489,15 @@ class ExportMessagesTask(BaseExportTask):
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
 
-            msgs_exported += len(batch)
-            if msgs_exported % 10000 == 0:  # pragma: needs cover
+            total_msgs_exported += len(batch)
+
+            # start logging
+            if (total_msgs_exported - temp_msgs_exported) > ExportMessagesTask.LOG_PROGRESS_PER_ROWS:
                 mins = (time.time() - start) / 60
                 logger.info(
-                    f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins"
+                    f"Msgs export #{self.id} for org #{self.org.id}: exported {total_msgs_exported} in {mins:.1f} mins"
                 )
+                temp_msgs_exported = total_msgs_exported
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)

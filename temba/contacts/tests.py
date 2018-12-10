@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 import pytz
-from mock import patch
+from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError
@@ -6931,58 +6931,69 @@ class ContactFieldTest(TembaTest):
             {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact2.id}},
             {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact3.id}},
         ]
-        with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(47):
-                self.assertExcelSheet(
-                    request_export("?s=name+has+adam+or+name+has+deng")[0],
-                    [
-                        [
-                            "Contact UUID",
-                            "Name",
-                            "Language",
-                            "Created On",
-                            "URN:Mailto",
-                            "URN:Tel",
-                            "URN:Tel",
-                            "URN:Telegram",
-                            "URN:Twitter",
-                            "Field:Third",
-                            "Field:Second",
-                            "Field:First",
-                        ],
-                        [
-                            contact2.uuid,
-                            "Adam Sumner",
-                            "eng",
-                            contact2.created_on,
-                            "adam@sumner.com",
-                            "+12067799191",
-                            "",
-                            "1234",
-                            "adam",
-                            "",
-                            "",
-                            "",
-                        ],
-                        [
-                            contact3.uuid,
-                            "Luol Deng",
-                            "",
-                            contact3.created_on,
-                            "",
-                            "+12078776655",
-                            "",
-                            "",
-                            "deng",
-                            "",
-                            "",
-                            "",
-                        ],
-                    ],
-                    tz=self.org.timezone,
-                )
+        with self.assertLogs("temba.contacts.models", level="INFO") as captured_logger:
+            with patch(
+                "temba.contacts.models.ExportContactsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
+            ) as log_info_threshold:
+                # make sure that we trigger logger
+                log_info_threshold.return_value = 1
 
-            assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
+                with ESMockWithScroll(data=mock_es_data):
+                    with self.assertNumQueries(47):
+                        self.assertExcelSheet(
+                            request_export("?s=name+has+adam+or+name+has+deng")[0],
+                            [
+                                [
+                                    "Contact UUID",
+                                    "Name",
+                                    "Language",
+                                    "Created On",
+                                    "URN:Mailto",
+                                    "URN:Tel",
+                                    "URN:Tel",
+                                    "URN:Telegram",
+                                    "URN:Twitter",
+                                    "Field:Third",
+                                    "Field:Second",
+                                    "Field:First",
+                                ],
+                                [
+                                    contact2.uuid,
+                                    "Adam Sumner",
+                                    "eng",
+                                    contact2.created_on,
+                                    "adam@sumner.com",
+                                    "+12067799191",
+                                    "",
+                                    "1234",
+                                    "adam",
+                                    "",
+                                    "",
+                                    "",
+                                ],
+                                [
+                                    contact3.uuid,
+                                    "Luol Deng",
+                                    "",
+                                    contact3.created_on,
+                                    "",
+                                    "+12078776655",
+                                    "",
+                                    "",
+                                    "deng",
+                                    "",
+                                    "",
+                                    "",
+                                ],
+                            ],
+                            tz=self.org.timezone,
+                        )
+
+                    self.assertEqual(len(captured_logger.output), 2)
+                    self.assertTrue("contacts - 50% (1/2)" in captured_logger.output[0])
+                    self.assertTrue("contacts - 100% (2/2)" in captured_logger.output[1])
+
+                    assertImportExportedFile("?s=name+has+adam+or+name+has+deng")
 
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]

@@ -3261,7 +3261,8 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.search, group)
+            # cache contact ids
+            contact_ids = list(Contact.query_elasticsearch_for_ids(self.org, self.search, group))
         else:
             contacts = group.contacts.all()
             contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
@@ -3269,7 +3270,7 @@ class ExportContactsTask(BaseExportTask):
         # create our exporter
         exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])
 
-        current_contact = 0
+        total_exported_contacts = 0
         start = time.time()
 
         # write out contacts in batches to limit memory usage
@@ -3334,19 +3335,19 @@ class ExportContactsTask(BaseExportTask):
 
                 # write this contact's values
                 exporter.write_row(values + group_values)
-                current_contact += 1
+                total_exported_contacts += 1
 
                 # output some status information every 10,000 contacts
-                if current_contact % 10000 == 0:  # pragma: no cover
+                if total_exported_contacts % ExportContactsTask.LOG_PROGRESS_PER_ROWS == 0:
                     elapsed = time.time() - start
-                    predicted = elapsed // (current_contact / len(contact_ids))
+                    predicted = elapsed // (total_exported_contacts / len(contact_ids))
 
                     logger.info(
                         "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
                         % (
                             self.org.name,
-                            current_contact * 100 // len(contact_ids),
-                            "{:,}".format(current_contact),
+                            total_exported_contacts * 100 // len(contact_ids),
+                            "{:,}".format(total_exported_contacts),
                             "{:,}".format(len(contact_ids)),
                             time.time() - start,
                             predicted,
