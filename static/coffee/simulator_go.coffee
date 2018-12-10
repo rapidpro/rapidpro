@@ -105,6 +105,12 @@ window.updateResults = (data) ->
         window.addMessage(msg, "log")
       else if event.type == "msg_created"
         window.addMessage(event.msg.text, "MT")
+        if event.msg.quick_replies?
+          quick_replies = "<div class=\"quick-replies\">"
+          for reply in event.msg.quick_replies
+            quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
+          quick_replies += "</div>"
+          $(".simulator-body").append(quick_replies)
       else if event.type == "run_result_changed"
         slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
         window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
@@ -117,7 +123,6 @@ window.updateResults = (data) ->
           modal.setListeners({}, true)
           modal.hideSecondaryButton()
         )
-
       else if event.type == "error"
         window.addMessage(event.text, 'error')
         if (event.fatal)
@@ -125,6 +130,10 @@ window.updateResults = (data) ->
 
   $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
   $("#simulator textarea").val("")
+
+  $(".btn.quick-reply").on "click", (event) ->
+    payload = event.target.innerText
+    window.sendSimulationMessage(payload)
 
   if data.session
     if data.session.status == 'completed'
