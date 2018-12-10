@@ -1,3 +1,10 @@
+v4.13.1
+----------
+ * populate simulator environment for triggers and resumes
+ * honour Flow.is_active on the Web view
+ * fix android channel release to not throw if no FCM ID
+ * add Play Mobile aggregator
+
 v4.13.0
 ----------
  * Add index for fast Android channel fetch by last seen
