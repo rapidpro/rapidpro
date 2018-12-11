@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def apply_migration(apps, schema_editor):
+def create_revisions(apps, schema_editor):
     from temba.flows.models import Flow
 
     # for each flow without a revision
@@ -16,4 +16,4 @@ class Migration(migrations.Migration):
 
     dependencies = [("flows", "0189_flowsession_wait_started_on")]
 
-    operations = []
+    operations = [migrations.RunPython(create_revisions)]
