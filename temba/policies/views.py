@@ -65,6 +65,7 @@ class PolicyCRUDL(SmartCRUDL):
     class List(SmartListView):
         title = _("Your Privacy")
         permission = None
+        link_fields = ()
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
