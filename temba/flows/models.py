@@ -565,6 +565,7 @@ class Flow(TembaModel):
         flow_type=TYPE_MESSAGE,
         expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
         base_language=None,
+        create_revision=False,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -579,6 +580,9 @@ class Flow(TembaModel):
             flow_server_enabled=org.flow_server_enabled,
             **kwargs,
         )
+
+        if create_revision:
+            flow.update(flow.as_json())
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
         return flow

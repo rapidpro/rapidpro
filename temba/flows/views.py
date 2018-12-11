@@ -421,6 +421,7 @@ class FlowCRUDL(SmartCRUDL):
                 flow_type=obj.flow_type,
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
+                create_revision=True,
             )
 
         def post_save(self, obj):
