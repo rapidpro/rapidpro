@@ -1,3 +1,10 @@
+v4.13.2
+----------
+ * create empty revisions for empty flows
+ * proper handle of empty errors on index page
+ * fix error for policy read URL failing
+ * add quick replies to mailroom simulator
+
 v4.13.1
 ----------
  * populate simulator environment for triggers and resumes
