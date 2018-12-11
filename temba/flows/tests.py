@@ -3208,6 +3208,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_create"), dict(name="Flow", flow_type=Flow.TYPE_MESSAGE), follow=True
         )
         flow1 = Flow.objects.get(org=self.org, name="Flow")
+        self.assertEqual(1, flow1.revisions.all().count())
         # add a trigger on this flow
         Trigger.objects.create(
             org=self.org, keyword="unique", flow=flow1, created_by=self.admin, modified_by=self.admin
