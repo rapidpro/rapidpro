@@ -30,12 +30,8 @@ class IndexView(SmartTemplateView):
         context["errors"] = "errors" in self.request.GET
         if context["errors"]:
             errors = parse_qs(context["url_params"][1:]).get("errors")
-            if not isinstance(errors, list) or len(errors) < 1:
-                error_msg = "Unknown error"
-            else:
-                error_msg = errors[0]
-
-            context["error_msg"] = error_msg
+            if isinstance(errors, list) and len(errors) > 0:
+                context["error_msg"] = errors[0]
 
         return context
 
