@@ -543,6 +543,8 @@ class Channel(TembaModel):
             config=config,
             role=role,
             schemes=schemes,
+            created_by=user,	
+            modified_by=user,
         )
         create_args.update(kwargs)
 
