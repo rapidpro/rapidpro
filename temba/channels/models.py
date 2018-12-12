@@ -2193,7 +2193,7 @@ def get_alert_user():
         return user
 
 
-class ChannelSession(models.Model):
+class ChannelSession(SmartModel):
     PENDING = "P"  # initial state for all sessions
     QUEUED = "Q"  # the session is queued internally
     WIRED = "W"  # the API provider has confirmed that it successfully received the API request
