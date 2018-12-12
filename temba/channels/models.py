@@ -536,8 +536,6 @@ class Channel(TembaModel):
 
         create_args = dict(
             org=org,
-            created_by=user,
-            modified_by=user,
             country=country,
             channel_type=channel_type.code,
             name=name,
@@ -2193,7 +2191,7 @@ def get_alert_user():
         return user
 
 
-class ChannelSession(SmartModel):
+class ChannelSession(models.Model):
     PENDING = "P"  # initial state for all sessions
     QUEUED = "Q"  # the session is queued internally
     WIRED = "W"  # the API provider has confirmed that it successfully received the API request
@@ -2241,6 +2239,34 @@ class ChannelSession(SmartModel):
         (TRIGGERED, "Triggered"),
         (INITIATED, "Initiated"),
         (ENDING, "Ending"),
+    )
+
+    is_active = models.BooleanField(
+        default=True, help_text="Whether this item is active, use this instead of deleting"
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
+        null=True,
+    )
+
+    created_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
+    )
+
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
+        null=True,
+    )
+
+    modified_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
     )
 
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
