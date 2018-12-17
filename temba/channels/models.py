@@ -2243,10 +2243,6 @@ class ChannelSession(SmartModel):
         (ENDING, "Ending"),
     )
 
-    is_active = models.BooleanField(
-        default=True, help_text="Whether this item is active, use this instead of deleting"
-    )
-
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -2255,20 +2251,12 @@ class ChannelSession(SmartModel):
         null=True,
     )
 
-    created_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
-    )
-
     modified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="%(app_label)s_%(class)s_modifications",
         help_text="The user which last modified this item",
         null=True,
-    )
-
-    modified_on = models.DateTimeField(
-        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
     )
 
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
