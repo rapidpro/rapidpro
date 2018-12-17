@@ -1,10 +1,14 @@
+from unittest.mock import patch
+
 from temba.channels.models import Channel
+from temba.contacts.models import ContactGroup
 from temba.msgs.models import Label
-from temba.tests import TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
-from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_label
+from .client import FlowServerException
+from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_group, serialize_label
 
 TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
 
@@ -83,6 +87,10 @@ class SerializationTest(TembaTest):
         self.assertEqual(migrated_json["name"], flow.name)
         self.assertEqual(len(migrated_json["nodes"]), 9)
 
+    def test_serialize_group(self):
+        spammers = ContactGroup.create_static(self.org, self.admin, "Spammers")
+        self.assertEqual(serialize_group(spammers), {"uuid": str(spammers.uuid), "name": "Spammers", "query": None})
+
     def test_serialize_label(self):
         spam = Label.get_or_create(self.org, self.admin, "Spam")
         self.assertEqual(serialize_label(spam), {"uuid": str(spam.uuid), "name": "Spam"})
@@ -122,4 +130,20 @@ class SerializationTest(TembaTest):
                 "schemes": ["tel"],
                 "country": "RW",
             },
+        )
+
+
+class ClientTest(TembaTest):
+    @patch("requests.post")
+    def test_request_failure(self, mock_post):
+        mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
+
+        flow = self.get_flow("color")
+
+        with self.assertRaises(FlowServerException) as e:
+            serialize_flow(flow)
+
+        self.assertEqual(
+            e.exception.as_json(),
+            {"endpoint": "migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
         )
