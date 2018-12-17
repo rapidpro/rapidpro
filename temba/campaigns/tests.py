@@ -12,7 +12,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTas
 from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart, RuleSet
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org, get_current_export_version
-from temba.tests import ESMockWithScroll, TembaTest, also_in_flowserver
+from temba.tests import ESMockWithScroll, TembaTest
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -240,8 +240,7 @@ class CampaignTest(TembaTest):
         run1.refresh_from_db()
         self.assertIsNone(run1.exit_type)
 
-    @also_in_flowserver
-    def test_message_event(self, in_flowserver):
+    def test_message_event(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         event = CampaignEvent.create_message_event(
@@ -273,14 +272,6 @@ class CampaignTest(TembaTest):
         msg = run.get_messages().get()
 
         self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
-
-        if in_flowserver:
-            session_json = run.session.output
-            self.assertEqual(session_json["trigger"]["type"], "campaign")
-            self.assertEqual(
-                session_json["trigger"]["event"],
-                {"uuid": str(event.uuid), "campaign": {"uuid": str(campaign.uuid), "name": "Planting Reminders"}},
-            )
 
         # deleting a message campaign event should clean up the flow/runs/starts created by it
         event.release()

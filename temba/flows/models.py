@@ -80,6 +80,7 @@ from temba.utils.text import slugify_with
 from temba.values.constants import Value
 
 from . import server
+from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
 
@@ -205,197 +206,13 @@ class FlowSession(models.Model):
             status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
         )
 
-    @classmethod
-    def bulk_start(cls, contacts, flow, parent_run_summary=None, msg_in=None, campaign_event=None, params=None):
-        """
-        Starts a contact in the given flow
-        """
-        cls.interrupt_waiting(contacts)
-
-        Contact.bulk_cache_initialize(flow.org, contacts)
-
-        client = server.get_client()
-
-        runs = []
-        for contact in contacts:
-            # build request to flow server
-            request = client.request_builder(flow.org).asset_server()
-
-            if settings.TESTING:
-                # TODO find a way to run an assets server during testing?
-                request.include_all()
-
-            try:
-                if parent_run_summary:
-                    output = request.start_by_flow_action(contact, flow, parent_run_summary)
-                elif campaign_event:
-                    output = request.start_by_campaign(contact, flow, campaign_event)
-                elif msg_in and msg_in.created_on:
-                    output = request.start_by_msg(contact, flow, msg_in)
-                else:
-                    output = request.start_manual(contact, flow, params)
-
-            except server.FlowServerException:
-                continue
-
-            status = FlowSession.GOFLOW_STATUSES[output.session["status"]]
-
-            if status == FlowSession.STATUS_WAITING:
-                current_run = cls._find_waiting_run(output.session)
-                current_flow_uuid = current_run["flow"]["uuid"]
-
-                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=flow.org)
-                ended_on = None
-            else:
-                current_flow = None
-                ended_on = timezone.now()
-
-            # create our session
-            session = cls.objects.create(
-                org=contact.org,
-                contact=contact,
-                status=status,
-                output=output.session,
-                responded=bool(msg_in and msg_in.created_on),
-                current_flow=current_flow,
-                ended_on=ended_on,
-            )
-
-            contact_runs = session.sync_runs(output, msg_in)
-            runs.append(contact_runs[0])
-
-        return runs
-
     def release(self):
         self.delete()
-
-    def resume_by_input(self, msg_in):
-        return self._resume(msg_in=msg_in)
-
-    def resume_by_expired_run(self, expired_run):  # pragma: needs cover
-        return self._resume(expired_run=expired_run)
-
-    def resume_by_timeout(self):
-        return self._resume(timeout=True)
-
-    def _resume(self, msg_in=None, expired_run=None, timeout=False):
-        """
-        Resumes an existing flow session
-        """
-        # find the run that was waiting for input
-        waiting_run = self._find_waiting_run(self.output)
-        if not waiting_run:  # pragma: no cover
-            raise ValueError("Can't resume a session with no waiting run")
-
-        client = server.get_client()
-
-        # build request to flow server
-        request = client.request_builder(self.org).asset_server()
-
-        if settings.TESTING:
-            # TODO find a way to run an assets server during testing?
-            request.include_all()
-
-        try:
-            # only resume by message if it's a real message
-            if msg_in and msg_in.created_on:
-                new_output = request.resume_by_msg(self.output, msg_in, contact=self.contact)
-            elif expired_run:  # pragma: needs cover
-                new_output = request.resume_by_run_expiration(self.output, expired_run, contact=self.contact)
-            elif timeout:
-                new_output = request.resume_by_wait_timeout(self.output, contact=self.contact)
-            else:  # pragma: needs cover
-                raise ValueError("need something to resume session with")
-
-            status = FlowSession.GOFLOW_STATUSES[new_output.session["status"]]
-
-            if status == FlowSession.STATUS_WAITING:
-                current_run = self._find_waiting_run(new_output.session)
-                current_flow_uuid = current_run["flow"]["uuid"]
-
-                current_flow = Flow.objects.get(uuid=current_flow_uuid, org=self.org)
-                ended_on = None
-            else:
-                current_flow = None
-                ended_on = timezone.now()
-
-            # update our output
-            self.output = new_output.session
-            self.responded = bool(msg_in and msg_in.created_on)
-            self.status = status
-            self.current_flow = current_flow
-            self.ended_on = ended_on
-            self.save(update_fields=("output", "responded", "status", "current_flow", "ended_on"))
-
-            # update our session
-            self.sync_runs(new_output, msg_in, waiting_run)
-
-        except server.FlowServerException:
-            # something has gone wrong so this session is over
-            self.end(FlowSession.STATUS_FAILED)
-
-            self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
-
-        return True, []
 
     def end(self, status):
         self.status = status
         self.ended_on = timezone.now()
         self.save(update_fields=("status", "ended_on"))
-
-    def sync_runs(self, output, msg_in, prev_waiting_run=None):
-        """
-        Update our runs with the session output
-        """
-        # make a map of steps to runs
-        step_to_run = {}
-        for run in output.session["runs"]:
-            for step in run["path"]:
-                if step["uuid"]:
-                    step_to_run[step["uuid"]] = run["uuid"]
-
-        run_receiving_input = prev_waiting_run or output.session["runs"][0]
-
-        # update each of our runs
-        runs = []
-        msgs_to_send = []
-        first_run = None
-        for run in output.session["runs"]:
-            run_events = []
-            for e in output.events:
-                step_uuid = e.get(FlowRun.EVENT_STEP_UUID)
-                if step_uuid and step_to_run[step_uuid] == run["uuid"]:
-                    run_events.append(e)
-
-            wait = output.session["wait"] if run["status"] == "waiting" else None
-
-            # currently outgoing messages can only have response_to set if sent from same run
-            run_input = msg_in if run["uuid"] == run_receiving_input["uuid"] else None
-
-            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, wait, run_input)
-            runs.append(run)
-            msgs_to_send += msgs
-
-            if not first_run:
-                first_run = run
-
-        # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
-        if self.contact.is_test and not self.status == FlowSession.STATUS_WAITING:  # pragma: no cover
-            ActionLog.create(first_run, "%s has exited this flow" % self.contact.get_display(self.org, short=True))
-
-        # trigger message sending
-        if msgs_to_send:
-            msgs_to_send = sorted(msgs_to_send, key=lambda m: m.created_on)
-            self.org.trigger_send(msgs_to_send)
-
-        return runs
-
-    @staticmethod
-    def _find_waiting_run(output):
-        for run in output.get("runs", []):
-            if run["status"] == "waiting":
-                return run
-        return None  # pragma: no cover
 
     def __str__(self):  # pragma: no cover
         return str(self.contact)
@@ -653,16 +470,6 @@ class Flow(TembaModel):
         return flow
 
     def use_flow_server(self):
-        """
-        For now we manually switch flows to using the flow server, though in the settings we can override this for some
-        flow types.
-        """
-        if not settings.FLOW_SERVER_URL:  # pragma: no cover
-            return False
-
-        if settings.FLOW_SERVER_FORCE and self.flow_type not in (Flow.TYPE_VOICE, Flow.TYPE_USSD, Flow.TYPE_SURVEY):
-            return True
-
         return self.flow_server_enabled
 
     @classmethod
@@ -4079,7 +3886,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                     else server.Events.msg_created.name,
                     FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
                     FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
-                    "msg": server.serialize_message(msg),
+                    "msg": serialize_message(msg),
                 }
             )
 

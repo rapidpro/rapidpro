@@ -1852,19 +1852,6 @@ class FlowCRUDL(SmartCRUDL):
                 self.org = Org.objects.get(id=self.kwargs["org"])
             return self.org
 
-        def has_permission(self, request, *args, **kwargs):
-            # allow requests from the flowserver using token authentication
-            if request.user.is_anonymous and settings.FLOW_SERVER_AUTH_TOKEN:
-                authorization = request.META.get("HTTP_AUTHORIZATION", "").split(" ")
-                if (
-                    len(authorization) == 2
-                    and authorization[0] == "Token"
-                    and authorization[1] == settings.FLOW_SERVER_AUTH_TOKEN
-                ):
-                    return True
-
-            return super().has_permission(request, *args, **kwargs)
-
         def get(self, *args, **kwargs):
             org = self.derive_org()
             asset_type_name = kwargs["type"]
