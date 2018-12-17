@@ -536,8 +536,6 @@ class Channel(TembaModel):
 
         create_args = dict(
             org=org,
-            created_by=user,
-            modified_by=user,
             country=country,
             channel_type=channel_type.code,
             name=name,
@@ -545,6 +543,8 @@ class Channel(TembaModel):
             config=config,
             role=role,
             schemes=schemes,
+            created_by=user,
+            modified_by=user,
         )
         create_args.update(kwargs)
 
@@ -2241,6 +2241,22 @@ class ChannelSession(SmartModel):
         (TRIGGERED, "Triggered"),
         (INITIATED, "Initiated"),
         (ENDING, "Ending"),
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
+        null=True,
+    )
+
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
+        null=True,
     )
 
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
