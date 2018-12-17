@@ -1098,7 +1098,7 @@ FLOW_SESSION_TRIM_DAYS = 7
 # Flowserver - disabled by default and only used for migrating flows.
 # GoFlow defaults to http://localhost:8800
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = "http://localhost:8800"
+FLOW_SERVER_URL = None
 FLOW_SERVER_DEBUG = False
 
 # -----------------------------------------------------------------------------------

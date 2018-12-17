@@ -1,16 +1,10 @@
-from datetime import datetime
-
-import pytz
-from mock import patch
-
 from temba.channels.models import Channel
 from temba.msgs.models import Label
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import TembaTest, matchers
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
-from .client import FlowServerException, get_client
-from .serialize import serialize_channel, serialize_field, serialize_label
+from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_label
 
 TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
 
@@ -82,6 +76,13 @@ class SerializationTest(TembaTest):
         self.assertEqual(serialize_field(gender), {"key": "gender", "name": "Gender", "value_type": "text"})
         self.assertEqual(serialize_field(age), {"key": "age", "name": "Age", "value_type": "number"})
 
+    def test_serialize_flow(self):
+        flow = self.get_flow("favorites")
+        migrated_json = serialize_flow(flow)
+        self.assertEqual(migrated_json["uuid"], str(flow.uuid))
+        self.assertEqual(migrated_json["name"], flow.name)
+        self.assertEqual(len(migrated_json["nodes"]), 9)
+
     def test_serialize_label(self):
         spam = Label.get_or_create(self.org, self.admin, "Spam")
         self.assertEqual(serialize_label(spam), {"uuid": str(spam.uuid), "name": "Spam"})
@@ -121,94 +122,4 @@ class SerializationTest(TembaTest):
                 "schemes": ["tel"],
                 "country": "RW",
             },
-        )
-
-
-class ClientTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.gender = self.create_field("gender", "Gender", Value.TYPE_TEXT)
-        self.age = self.create_field("age", "Age", Value.TYPE_NUMBER)
-        self.contact = self.create_contact("Bob", number="+12345670987", urn="twitterid:123456785#bobby")
-        self.testers = self.create_group("Testers", [self.contact])
-        self.client = get_client()
-
-    @patch("temba.flows.server.client.FlowServerClient.resume")
-    def test_resume_by_msg(self, mock_resume):
-        twitter = Channel.create(
-            self.org, self.admin, None, "TT", "Twitter", "nyaruka", schemes=["twitter", "twitterid"]
-        )
-        self.contact.set_preferred_channel(twitter)
-        self.contact.urns.filter(scheme="twitterid").update(channel=twitter)
-        self.contact.clear_urn_cache()
-
-        with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
-            self.contact.set_field(self.admin, "gender", "M")
-            self.contact.set_field(self.admin, "age", 36)
-
-            msg = self.create_msg(direction="I", text="hello", contact=self.contact, channel=twitter)
-
-            self.client.request_builder(self.org).resume_by_msg({}, msg, self.contact)
-
-            mock_resume.assert_called_once_with(
-                {
-                    "assets": [],
-                    "config": {},
-                    "resume": {
-                        "type": "msg",
-                        "resumed_on": "2018-01-18T14:24:30+00:00",
-                        "contact": {
-                            "uuid": str(self.contact.uuid),
-                            "id": self.contact.id,
-                            "name": "Bob",
-                            "language": None,
-                            "urns": ["twitterid:123456785?channel=%s#bobby" % str(twitter.uuid), "tel:+12345670987"],
-                            "fields": {"gender": {"text": "M"}, "age": {"text": "36", "number": "36"}},
-                            "groups": [{"uuid": str(self.testers.uuid), "name": "Testers"}],
-                            "created_on": self.contact.created_on.isoformat(),
-                        },
-                        "msg": {
-                            "uuid": str(msg.uuid),
-                            "text": "hello",
-                            "urn": "twitterid:123456785#bobby",
-                            "channel": {"uuid": str(twitter.uuid), "name": "Twitter"},
-                        },
-                    },
-                    "session": {},
-                }
-            )
-
-    @patch("temba.flows.server.client.FlowServerClient.resume")
-    def test_resume_by_run_expiration(self, mock_resume):
-        flow = self.get_flow("color")
-        run, = flow.start([], [self.contact])
-
-        with patch("django.utils.timezone.now", return_value=datetime(2018, 1, 18, 14, 24, 30, 0, tzinfo=pytz.UTC)):
-            run.set_interrupted()
-
-            self.client.request_builder(self.org).resume_by_run_expiration({}, run)
-
-            mock_resume.assert_called_once_with(
-                {
-                    "assets": [],
-                    "config": {},
-                    "resume": {"type": "run_expiration", "resumed_on": "2018-01-18T14:24:30+00:00"},
-                    "session": {},
-                }
-            )
-
-    @patch("requests.post")
-    def test_request_failure(self, mock_post):
-        mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
-
-        flow = self.get_flow("color")
-        contact = self.create_contact("Joe", number="+29638356667")
-
-        with self.assertRaises(FlowServerException) as e:
-            self.client.request_builder(self.org).start_manual(contact, flow)
-
-        self.assertEqual(
-            e.exception.as_json(),
-            {"endpoint": "start", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
         )
