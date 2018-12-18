@@ -195,10 +195,6 @@ class FlowSession(models.Model):
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
 
-    @classmethod
-    def get_waiting(cls, contact):
-        return cls.objects.filter(contact=contact, status=FlowSession.STATUS_WAITING).first()
-
     def release(self):
         self.delete()
 
@@ -461,9 +457,6 @@ class Flow(TembaModel):
 
         flow.update(FlowRevision.migrate_definition(definition, flow))
         return flow
-
-    def use_flow_server(self):
-        return self.flow_server_enabled
 
     @classmethod
     def is_before_version(cls, to_check, version):
