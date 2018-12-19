@@ -383,7 +383,7 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_msgcounts")
+@nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)
 def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()

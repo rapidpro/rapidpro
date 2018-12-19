@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from mptt.utils import get_cached_trees
 
 from django.db.models import Prefetch
@@ -49,37 +47,6 @@ def serialize_channel(channel):
         serialized["match_prefixes"] = match_prefixes
 
     return serialized
-
-
-def serialize_contact(contact):
-    from temba.contacts.models import URN
-
-    field_values = {}
-    for field in contact.org.cached_contact_fields.values():
-        field_values[field.key] = contact.get_field_json(field)
-
-    # augment URN values with preferred channel UUID as a parameter
-    urn_values = []
-    for u in contact.urns.order_by("-priority", "id"):
-        # for each URN we include the preferred channel as a query param if there is one
-        if u.channel and u.channel.is_active:
-            scheme, path, query, display = URN.to_parts(u.urn)
-            urn_str = URN.from_parts(scheme, path, query=urlencode({"channel": str(u.channel.uuid)}), display=display)
-        else:
-            urn_str = u.urn
-
-        urn_values.append(urn_str)
-
-    return {
-        "uuid": contact.uuid,
-        "id": contact.id,
-        "name": contact.name,
-        "language": contact.language,
-        "urns": urn_values,
-        "groups": [serialize_ref(group) for group in contact.user_groups.filter(is_active=True)],
-        "fields": field_values,
-        "created_on": contact.created_on.isoformat(),
-    }
 
 
 def serialize_environment(org):

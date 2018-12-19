@@ -1,7 +1,7 @@
 window.simulation = false
 window.moving_sim = false
 window.level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
-window.legacy = true
+window.legacy = !window.useMailroom
 
 $ ->
   $(window).scroll (evt) ->
@@ -72,11 +72,6 @@ sendMessage = (newMessage) ->
     # handle commands
     if newMessage == "/v1" or newMessage == "/v2"
       window.legacy = newMessage == "/v1"
-
-      if newMessage == "/v2"
-        # document.location.href =
-        document.location.href = document.location.href.replace(/\/editor\//g, '/editor_next/');
-        return
 
       # style our content slightly differently to let us know we are on the new engine
       resetForm()

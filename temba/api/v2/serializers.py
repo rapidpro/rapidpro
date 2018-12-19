@@ -3,6 +3,7 @@ import pytz
 from rest_framework import serializers
 
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
+from temba.api.v2.fields import NoNullCharsField
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
@@ -448,7 +449,7 @@ class ContactWriteSerializer(WriteSerializer):
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = fields.LimitedDictField(required=False)
+    fields = fields.LimitedDictField(required=False, child=NoNullCharsField())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -465,7 +466,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         for field_key, field_val in value.items():
             if field_key not in valid_keys:
-                raise serializers.ValidationError("Invalid contact field key: %s" % field_key)
+                raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
         return value
 
@@ -715,12 +716,23 @@ class ContactBulkActionSerializer(WriteSerializer):
 
 
 class FlowReadSerializer(ReadSerializer):
+    FLOW_TYPES = {
+        Flow.TYPE_MESSAGE: "message",
+        Flow.TYPE_VOICE: "voice",
+        Flow.TYPE_USSD: "ussd",
+        Flow.TYPE_SURVEY: "survey",
+    }
+
+    type = serializers.SerializerMethodField()
     archived = serializers.ReadOnlyField(source="is_archived")
     labels = serializers.SerializerMethodField()
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_type(self, obj):
+        return self.FLOW_TYPES.get(obj.flow_type)
 
     def get_labels(self, obj):
         return [{"uuid": l.uuid, "name": l.name} for l in obj.labels.all()]
@@ -736,7 +748,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ("uuid", "name", "archived", "labels", "expires", "runs", "created_on", "modified_on")
+        fields = ("uuid", "name", "type", "archived", "labels", "expires", "runs", "created_on", "modified_on")
 
 
 class FlowRunReadSerializer(ReadSerializer):

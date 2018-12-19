@@ -6,7 +6,7 @@
 
   -with flows=object.dependent_flows.all
 
-    -if flows or triggers
+    -if flows or triggers or campaigns
       -blocktrans with group_name=object.name
         Sorry, {{group_name}} cannot be deleted quite yet.
       %p
@@ -41,6 +41,21 @@
         flow.
       -plural
         flows.
+
+    -if campaigns
+      -blocktrans count counter=campaigns|length
+        There is an active campaign using this group. It cannot be deleted until it is removed from the
+
+        -plural
+          There are {{counter}} campaigns using this group. It cannot be deleted until it is removed from the
+
+      -for campaign in campaigns
+        <a href="{%url 'campaigns.campaign_read' campaign.id%}">{{campaign.name}}</a>{{forloop|oxford}}
+
+      -blocktrans count counter=campaigns|length
+        campaign.
+      -plural
+        campaigns.
 
       :javascript
         $(".modal-footer .btn.primary").hide();

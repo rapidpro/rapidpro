@@ -10,7 +10,6 @@ from xml.sax.saxutils import escape
 import phonenumbers
 from django_countries.fields import CountryField
 from django_redis import get_redis_connection
-from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
@@ -264,7 +263,17 @@ class ChannelType(metaclass=ABCMeta):
         return self.name
 
 
+def _get_default_channel_scheme():
+    return ["tel"]
+
+
 class Channel(TembaModel):
+    """
+    Notes:
+        - we want to reuse keys as much as possible (2018-10-11)
+        - prefixed keys are legacy and should be avoided (2018-10-11)
+    """
+
     TYPE_ANDROID = "A"
 
     # keys for various config options stored in the channel config dict
@@ -301,6 +310,7 @@ class Channel(TembaModel):
     CONFIG_APPLICATION_SID = "application_sid"
     CONFIG_NUMBER_SID = "number_sid"
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
+    CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
 
     CONFIG_NEXMO_API_KEY = "nexmo_api_key"
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
@@ -410,14 +420,6 @@ class Channel(TembaModel):
         help_text=_("Organization using this channel"),
     )
 
-    gcm_id = models.CharField(
-        verbose_name=_("GCM ID"),
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text=_("The registration id for using Google Cloud Messaging"),
-    )
-
     claim_code = models.CharField(
         verbose_name=_("Claim Code"),
         max_length=16,
@@ -472,7 +474,7 @@ class Channel(TembaModel):
 
     schemes = ArrayField(
         models.CharField(max_length=16),
-        default=["tel"],
+        default=_get_default_channel_scheme,
         verbose_name="URN Schemes",
         help_text=_("The URN schemes this channel supports"),
     )
@@ -512,7 +514,7 @@ class Channel(TembaModel):
         config=None,
         role=DEFAULT_ROLE,
         schemes=None,
-        **kwargs
+        **kwargs,
     ):
         if isinstance(channel_type, str):
             channel_type = cls.get_type_from_code(channel_type)
@@ -534,8 +536,6 @@ class Channel(TembaModel):
 
         create_args = dict(
             org=org,
-            created_by=user,
-            modified_by=user,
             country=country,
             channel_type=channel_type.code,
             name=name,
@@ -543,6 +543,8 @@ class Channel(TembaModel):
             config=config,
             role=role,
             schemes=schemes,
+            created_by=user,
+            modified_by=user,
         )
         create_args.update(kwargs)
 
@@ -686,20 +688,15 @@ class Channel(TembaModel):
     @classmethod
     def get_or_create_android(cls, registration_data, status):
         """
-        Creates a new Android channel from the gcm and status commands sent during device registration
+        Creates a new Android channel from the fcm and status commands sent during device registration
         """
-        gcm_id = registration_data.get("gcm_id")
         fcm_id = registration_data.get("fcm_id")
         uuid = registration_data.get("uuid")
         country = status.get("cc")
         device = status.get("dev")
 
-        if (not gcm_id and not fcm_id) or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID, FCM ID and GCM ID")
-
-        # Clear and Ignore the GCM ID if we have the FCM ID
-        if fcm_id:
-            gcm_id = None
+        if not fcm_id or not uuid:  # pragma: no cover
+            raise ValueError("Can't create Android channel without UUID or FCM ID")
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
@@ -709,12 +706,11 @@ class Channel(TembaModel):
             config = existing.config
             config.update({Channel.CONFIG_FCM_ID: fcm_id})
             existing.config = config
-            existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
             existing.country = country
             existing.device = device
-            existing.save(update_fields=("gcm_id", "secret", "claim_code", "country", "device"))
+            existing.save(update_fields=("config", "secret", "claim_code", "country", "device"))
 
             return existing
 
@@ -736,7 +732,6 @@ class Channel(TembaModel):
             Channel.TYPE_ANDROID,
             None,
             None,
-            gcm_id=gcm_id,
             config=config,
             uuid=uuid,
             device=device,
@@ -802,10 +797,13 @@ class Channel(TembaModel):
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
         callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
-        if callback_domain is None:
-            callback_domain = self.org.get_brand_domain()
 
-        return callback_domain
+        if callback_domain:
+            return callback_domain
+        elif self.org:
+            return self.org.get_brand_domain()
+        else:
+            return None
 
     def get_ussd_delegate(self):
         return self.get_delegate(Channel.ROLE_USSD)
@@ -1115,18 +1113,14 @@ class Channel(TembaModel):
             for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
                 call.close()
 
-        # save off our org and gcm id before nullifying
+        # save off our org and fcm id before nullifying
         org = self.org
-        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
-
-        if fcm_id is not None:
-            registration_id = fcm_id
-        else:
-            registration_id = self.gcm_id
+        registration_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         # make the channel inactive
+        self.config.pop(Channel.CONFIG_FCM_ID, None)
         self.is_active = False
-        self.save()
+        self.save(update_fields=["is_active", "config", "modified_on"])
 
         # mark any messages in sending mode as failed for this channel
         from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
@@ -1136,7 +1130,7 @@ class Channel(TembaModel):
         )
 
         # trigger the orphaned channel
-        if trigger_sync and self.channel_type == Channel.TYPE_ANDROID:  # pragma: no cover
+        if trigger_sync and self.channel_type == Channel.TYPE_ANDROID and registration_id:
             self.trigger_sync(registration_id)
 
         # clear our cache for this channel
@@ -1157,9 +1151,9 @@ class Channel(TembaModel):
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
-        Sends a GCM command to trigger a sync on the client
+        Sends a FCM command to trigger a sync on the client
         """
-        # androids sync via FCM or GCM(for old apps installs)
+        # androids sync via FCM
         if self.channel_type == Channel.TYPE_ANDROID:
             fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
@@ -1172,15 +1166,6 @@ class Channel(TembaModel):
                     if registration_id:
                         on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
 
-            elif self.gcm_id:
-                if getattr(settings, "GCM_API_KEY", None):
-                    from .tasks import sync_channel_gcm_task
-
-                    if not registration_id:
-                        registration_id = self.gcm_id
-                    if registration_id:
-                        on_transaction_commit(lambda: sync_channel_gcm_task.delay(registration_id, channel_id=self.pk))
-
         # otherwise this is an aggregator, no-op
         else:
             raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
@@ -1188,27 +1173,20 @@ class Channel(TembaModel):
     @classmethod
     def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
         push_service = FCMNotification(api_key=settings.FCM_API_KEY)
-        result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
+        fcm_failed = False
+        try:
+            result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
+            if not result.get("success", 0):
+                fcm_failed = True
+        except Exception:
+            fcm_failed = True
 
-        if not result.get("success", 0):
+        if fcm_failed:
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                config = channel.config
-                config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.config = config
-                channel.save()
-
-    @classmethod
-    def sync_channel_gcm(cls, registration_id, channel=None):  # pragma: no cover
-        try:
-            gcm = GCM(settings.GCM_API_KEY)
-            gcm.plaintext_request(registration_id=registration_id, data=dict(msg="sync"))
-        except GCMNotRegisteredException:
-            if channel:
-                # this gcm id is invalid now, clear it out
-                channel.gcm_id = None
-                channel.save()
+                channel.config.pop(Channel.CONFIG_FCM_ID, None)
+                channel.save(update_fields=["config"])
 
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
@@ -1256,7 +1234,7 @@ class Channel(TembaModel):
         for event in events:
             # write to our log file
             print(
-                u'[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
+                '[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
                 % (
                     msg.id,
                     request_time,
@@ -1479,6 +1457,10 @@ class Channel(TembaModel):
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
+
+    @staticmethod
+    def redis_active_events_key(channel_id):
+        return f"channel_active_events_{channel_id}"
 
     class Meta:
         ordering = ("-last_seen", "-pk")
@@ -1763,7 +1745,7 @@ class ChannelLog(models.Model):
 
         for event in e.events:
             print(
-                u'[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
+                '[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
                 % (
                     msg.id,
                     request_time,
@@ -1796,7 +1778,7 @@ class ChannelLog(models.Model):
 
     @classmethod
     def log_error(cls, msg, description):
-        print(u"[%d] ERROR - %s" % (msg.id, description))
+        print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
         )
@@ -2261,6 +2243,22 @@ class ChannelSession(SmartModel):
         (ENDING, "Ending"),
     )
 
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
+        null=True,
+    )
+
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
+        null=True,
+    )
+
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
     status = models.CharField(
         max_length=1, choices=STATUS_CHOICES, default=PENDING, help_text="The status of this session"
@@ -2285,10 +2283,13 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
 
     retry_count = models.IntegerField(
-        default=0, verbose_name=_("Retry Count"), help_text=_("The number of times this call has been retried")
+        default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
+    )
+    error_count = models.IntegerField(
+        default=0, verbose_name=_("Error Count"), help_text="The number of times this call has errored"
     )
     next_attempt = models.DateTimeField(
-        verbose_name=_("Next Attempt"), help_text=_("When we should next attempt to make this call"), null=True
+        verbose_name=_("Next Attempt"), help_text="When we should next attempt to make this call", null=True
     )
 
     def __init__(self, *args, **kwargs):

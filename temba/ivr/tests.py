@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.utils.encoding import force_text
 
 import celery.exceptions
+from celery import current_app
 
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
@@ -61,6 +62,10 @@ class IVRTests(FlowFileTest):
         mock_create_call.return_value = dict(uuid="12345")
         mock_update_call.return_value = dict(uuid="12345")
 
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
         flow = self.get_flow("call_me_maybe")
 
         # start our flow
@@ -68,7 +73,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact])
 
         call = IVRCall.objects.get()
-        self.assertEqual(IVRCall.QUEUED, call.status)
+        self.assertEqual(IVRCall.WIRED, call.status)
 
         # call should be on a Twilio channel since that's all we have
         self.assertEqual("T", call.channel.channel_type)
@@ -95,7 +100,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact], restart_participants=True)
 
         call = IVRCall.objects.all().last()
-        self.assertEqual(IVRCall.QUEUED, call.status)
+        self.assertEqual(IVRCall.WIRED, call.status)
         self.assertEqual("T", call.channel.channel_type)
 
         # switch back to Nexmo being the preferred channel
@@ -120,6 +125,7 @@ class IVRTests(FlowFileTest):
 
             raise TwilioRestException(403, "http://twilio.com", code=20003)
 
+        original_mock_calls_create = MockTwilioClient.MockCalls.create
         MockTwilioClient.MockCalls.create = create
 
         # connect it and check our client is configured
@@ -142,6 +148,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(
             log.text, "Call ended. Could not authenticate with your Twilio account. " "Check your token and try again."
         )
+
+        # restore old mock_calls_create
+        MockTwilioClient.MockCalls.create = original_mock_calls_create
 
     def test_twiml_client(self):
         # no twiml api config yet
@@ -585,7 +594,7 @@ class IVRTests(FlowFileTest):
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_ivr_subflow(self):
 
-        with patch("temba.ivr.models.IVRCall.start_call") as start_call:
+        with patch("temba.flows.models.current_app.send_task") as start_call:
             self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
             self.org.save()
 
@@ -813,15 +822,18 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        # our run shouldn't have an initial expiration yet
-        self.assertIsNone(FlowRun.objects.filter(connection=call).first().expires_on)
+        expiration = call.runs.all().first().expires_on
+        next3days = timezone.now() + timedelta(days=3)
+        # our run should have a initial expiration for the max 7 days
+        self.assertTrue(expiration > next3days)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid="CallSid", CallStatus="in-progress", CallDuration=20)
         response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]), post_data)
 
-        # once the call is handled, it should have one
-        self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
+        # once the call is handled, it should have an expiration as the configured for the IVR flow
+        expiration = call.runs.all().first().expires_on
+        self.assertTrue(expiration < next3days)
 
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
@@ -832,11 +844,11 @@ class IVRTests(FlowFileTest):
         # only have our initial outbound message
         self.assertEqual(1, Msg.objects.all().count())
 
+        expiration = call.runs.all().first().expires_on
+
         # simulate a gather timeout
         post_data["Digits"] = ""
         response = self.client.post(reverse("ivr.ivrcall_handle", args=[call.pk]) + "?empty=1", post_data)
-
-        expiration = call.runs.all().first().expires_on
 
         # we should be routed through 'other' case
         self.assertContains(response, "Please enter a number")
@@ -928,11 +940,12 @@ class IVRTests(FlowFileTest):
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
         flow.start([], [eric])
 
-        # since it hasn't started, our call should be pending and run should have no expiration
+        # since it hasn't started, our call should be pending and run should have an expiration for the max 7 days
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         run = FlowRun.objects.get()
         self.assertEqual(ChannelSession.WIRED, call.status)
-        self.assertIsNone(run.expires_on)
+        next3days = timezone.now() + timedelta(days=3)
+        self.assertTrue(run.expires_on > next3days)
 
         # trigger a status update to show the call was answered
         callback_url = reverse("ivr.ivrcall_handle", args=[call.pk])
@@ -1622,6 +1635,7 @@ class IVRTests(FlowFileTest):
         channel_log = ChannelLog.objects.first()
         self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
+        self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
 
         flow.refresh_from_db()
         self.assertEqual(get_current_export_version(), flow.version_number)
@@ -2034,7 +2048,30 @@ class IVRTests(FlowFileTest):
             ended_on=None,
         )
 
-        self.assertTrue(all((call1.next_attempt, call2.next_attempt, call3.next_attempt, call4.next_attempt)))
+        # call that will be ignored because it was last modified before allowed period
+        call5 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+            is_active=True,
+            retry_count=0,
+            next_attempt=timezone.now() - timedelta(days=180),
+            status=IVRCall.NO_ANSWER,
+            duration=10,
+            started_on=timezone.now() - timedelta(minutes=1),
+            ended_on=timezone.now(),
+        )
+
+        call5.modified_on = timezone.now() - timedelta(IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS + 14)
+        call5.save(update_fields=("modified_on",), preserve_modified_on=True)
+
+        self.assertTrue(
+            all((call1.next_attempt, call2.next_attempt, call3.next_attempt, call4.next_attempt, call5.next_attempt))
+        )
 
         # expect only two new tasks, third one is over MAX_RETRY_ATTEMPTS
         check_calls_task()
@@ -2044,6 +2081,7 @@ class IVRTests(FlowFileTest):
         call2.refresh_from_db()
         call3.refresh_from_db()
         call4.refresh_from_db()
+        call5.refresh_from_db()
 
         # these calls have been rescheduled
         self.assertIsNone(call1.next_attempt)
@@ -2064,6 +2102,9 @@ class IVRTests(FlowFileTest):
 
         self.assertIsNotNone(call4.next_attempt)
         self.assertEqual(call4.status, IVRCall.IN_PROGRESS)
+
+        self.assertIsNotNone(call5.next_attempt)
+        self.assertEqual(call5.status, IVRCall.NO_ANSWER)
 
     def test_schedule_call_retry(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
@@ -2337,3 +2378,435 @@ class IVRTests(FlowFileTest):
         with NonBlockingLock(redis=get_redis_connection(), name=lock_key, timeout=60):
 
             self.assertRaises(celery.exceptions.Retry, start_call_task, call1.id)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_ivr_limit_max_concurrent_events(self):
+        r = get_redis_connection()
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # twiml api config
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+            Channel.CONFIG_MAX_CONCURRENT_EVENTS: 1,
+        }
+        channel = Channel.create(
+            self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC"
+        )
+
+        # import an ivr flow
+        self.import_file("call_me_maybe")
+        flow = Flow.objects.filter(name="Call me maybe").first()
+
+        # create contacts
+        eric = self.create_contact("Eric Newcomer", number="+13603621737")
+        not_eric = self.create_contact("Not Eric Newcomer", number="+13603621738")
+        also_not_eric = self.create_contact("Also Not Eric Newcomer", number="+13603621739")
+        Contact.set_simulation(False)
+
+        channel_key = Channel.redis_active_events_key(channel.id)
+
+        tracked_active_calls = r.get(channel_key)
+        self.assertIsNone(tracked_active_calls)
+
+        # start the flow
+        flow.start([], [eric, not_eric, also_not_eric])
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        # we should have an wired ivr call now
+        self.assertEqual(started_calls.count(), 1)
+        # and, we should have two calls in pending state
+        self.assertEqual(pending_calls.count(), 2)
+
+        tracked_active_calls = r.get(channel_key)
+        self.assertEqual(int(tracked_active_calls), 1)
+
+        # finish started call
+        started_call = started_calls.first()
+        self.client.post(reverse("ivr.ivrcall_handle", args=[started_call.pk]), dict(CallStatus="completed"))
+
+        tracked_active_calls = r.get(channel_key)
+        self.assertEqual(int(tracked_active_calls), 0)
+
+        # simulate task_enqueue_call_events
+        current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        # one of the calls terminated, so we can enqueue another call
+        self.assertEqual(started_calls.count(), 1)
+        self.assertEqual(pending_calls.count(), 1)
+
+        tracked_active_calls = r.get(channel_key)
+        self.assertEqual(int(tracked_active_calls), 1)
+
+        # move started call to ringing
+        started_call = started_calls.first()
+        self.client.post(reverse("ivr.ivrcall_handle", args=[started_call.pk]), dict(CallStatus="ringing"))
+
+        # simulate task_enqueue_call_events
+        current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        # call is still in progress so we can't enqueue a new call
+        self.assertEqual(started_calls.count(), 0)
+        self.assertEqual(pending_calls.count(), 1)
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 1)
+
+        # close active call (interrupt)
+        started_call.close()
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 0)
+
+        # simulate task_enqueue_call_events
+        current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        # enqueue a new call
+        self.assertEqual(started_calls.count(), 1)
+        self.assertEqual(pending_calls.count(), 0)
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 1)
+
+        # release the channel, removes active calls
+        with self.settings(IS_PROD=True):
+            channel.release()
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 0)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_failed_call_retry(self):
+        def _get_disabled_retry_flow():
+            class FlowStub:
+                metadata = {"ivr_retry_failed_events": False}
+
+            return FlowStub()
+
+        def _get_enabled_retry_flow():
+            class FlowStub:
+                metadata = {"ivr_retry_failed_events": True}
+
+            return FlowStub()
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+        )
+        call2 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+        )
+
+        # flow does has not enabled failed call retry
+        call1.get_flow = _get_disabled_retry_flow
+        call2.get_flow = _get_disabled_retry_flow
+
+        # a call failed
+        call1.update_status("failed", 0, "T")
+        call1.save()
+
+        # there should be a failed call
+        failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(failed_calls.count(), 1)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+        self.assertEqual(pending_calls.count(), 1)
+
+        # but we are not trying to retry it
+        self.assertEqual(call1.error_count, 0)
+
+        # simulate async task to enqueue pending failed calls
+        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+
+        # failed call retry is not active, and there are no queued calls
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.QUEUED)
+        self.assertEqual(started_calls.count(), 0)
+
+        # enable failed call retry on the channel
+        call1.get_flow = _get_enabled_retry_flow
+        call2.get_flow = _get_enabled_retry_flow
+
+        call1.update_status("failed", 0, "T")
+        call1.save()
+        call2.update_status("failed", 0, "T")
+        call2.save()
+
+        # failed retry count
+        self.assertEqual(call1.error_count, 1)
+
+        # there should be a failed call
+        failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(failed_calls.count(), 2)
+
+        # simulate async task to enqueue pending failed calls
+        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+
+        # there are no failed calls
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(pending_calls.count(), 0)
+
+        # and there is one queued call
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        self.assertEqual(started_calls.count(), 2)
+
+        # should not be able to retry a call that has failed too many times
+        call1.error_count = IVRCall.MAX_ERROR_COUNT + 1
+        call1.save()
+
+        call1.update_status("failed", 0, "T")
+        call1.save()
+
+        failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(failed_calls.count(), 1)
+
+        # simulate async task to enqueue pending failed calls
+        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+
+        # the call is still in failed state because we are over the failed_call_retry limit
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(pending_calls.count(), 1)
+
+        # and there is still one queued call
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        self.assertEqual(started_calls.count(), 1)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_do_not_retry_calls_older_than_days(self):
+        def _get_enabled_retry_flow():
+            class FlowStub:
+                metadata = {"ivr_retry_failed_events": True}
+
+            return FlowStub()
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
+
+        call1 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+        )
+        call2 = IVRCall.objects.create(
+            channel=self.channel,
+            org=self.org,
+            contact=a_contact,
+            contact_urn=a_contact.urns.first(),
+            created_by=self.admin,
+            modified_by=self.admin,
+            direction=IVRCall.OUTGOING,
+        )
+
+        # enable failed call retry on the channel
+        call1.get_flow = _get_enabled_retry_flow
+        call2.get_flow = _get_enabled_retry_flow
+
+        call1.update_status("failed", 0, "T")
+        call1.save()
+        call2.update_status("failed", 0, "T")
+        call2.save()
+        call2.modified_on = call2.modified_on - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS + 14)
+        call2.save(update_fields=("modified_on",), preserve_modified_on=True)
+
+        # failed retry count
+        self.assertEqual(call1.error_count, 1)
+        self.assertEqual(call2.error_count, 1)
+
+        # there should be a failed call
+        failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(failed_calls.count(), 2)
+
+        # simulate async task to enqueue pending failed calls
+        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+
+        # there is a failed call older than desired working window
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.FAILED)
+        self.assertEqual(pending_calls.count(), 1)
+
+        call2.refresh_from_db()
+        self.assertEqual(call2.status, IVRCall.FAILED)
+
+        # and there is one queued call
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        self.assertEqual(started_calls.count(), 1)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_pending_calls_on_inactive_channels_should_not_be_queued(self):
+        r = get_redis_connection()
+
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # twiml api config
+        config = {
+            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+            Channel.CONFIG_MAX_CONCURRENT_EVENTS: 1,
+        }
+        channel = Channel.create(
+            self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC"
+        )
+
+        # import an ivr flow
+        self.import_file("call_me_maybe")
+        flow = Flow.objects.filter(name="Call me maybe").first()
+
+        # create contacts
+        eric = self.create_contact("Eric Newcomer", number="+13603621737")
+        not_eric = self.create_contact("Not Eric Newcomer", number="+13603621738")
+        Contact.set_simulation(False)
+
+        channel_key = Channel.redis_active_events_key(channel.id)
+
+        tracked_active_calls = r.get(channel_key)
+        self.assertIsNone(tracked_active_calls)
+
+        # start the flow
+        flow.start([], [eric, not_eric])
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        self.assertEqual(started_calls.count(), 1)
+        self.assertEqual(pending_calls.count(), 1)
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 1)
+
+        started_call = started_calls.first()
+        self.client.post(reverse("ivr.ivrcall_handle", args=[started_call.pk]), dict(CallStatus="completed"))
+
+        # deactivate the channel
+        channel.is_active = False
+        channel.save(update_fields=("is_active",))
+
+        current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
+
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.WIRED)
+        queued_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.QUEUED)
+        pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelSession.PENDING)
+
+        # will not enqueue a call if the channel is not active
+        self.assertEqual(started_calls.count(), 0)
+        self.assertEqual(queued_calls.count(), 0)
+        self.assertEqual(pending_calls.count(), 1)
+
+        tracked_active_calls = int(r.get(channel_key))
+        self.assertEqual(tracked_active_calls, 0)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_unknown_client(self):
+
+        flow = self.get_flow("call_me_maybe")
+
+        # start our flow
+        contact = self.create_contact("Branko Brokula", number="+38521342513")
+        flow.start([], [contact])
+
+        call = IVRCall.objects.get()
+        self.assertEqual(IVRCall.FAILED, call.status)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_logs = ChannelLog.objects.order_by("id").all()
+        self.assertListEqual(
+            [channel_log.description for channel_log in channel_logs],
+            ["Call queued internally", "Unknown client or domain"],
+        )
+        self.assertListEqual(
+            [channel_log.response for channel_log in channel_logs], ["None", "client=None domain=app.rapidpro.io"]
+        )
+
+        call.refresh_from_db()
+        self.assertEqual(call.status, IVRCall.FAILED)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_unknown_domain(self):
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # import an ivr flow
+        self.import_file("call_me_maybe")
+        flow = Flow.objects.filter(name="Call me maybe").first()
+
+        # create contact
+        eric = self.create_contact("Eric Newcomer", number="+13603621737")
+        Contact.set_simulation(False)
+
+        # start the flow
+        flow.start([], [eric])
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        channel_logs = ChannelLog.objects.order_by("id").all()
+        self.assertListEqual([channel_log.description for channel_log in channel_logs], ["Call queued internally"])
+
+        call = IVRCall.objects.get()
+
+        call.status = IVRCall.QUEUED
+        call.save(update_fields=("status",))
+
+        # while the call was queued, someone released the org
+        self.channel.org = None
+        self.channel.save(update_fields=("org",))
+
+        current_app.send_task("start_call_task", args=[call.pk], kwargs={})
+
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_logs = ChannelLog.objects.order_by("id").all()
+        self.assertListEqual(
+            [channel_log.description for channel_log in channel_logs],
+            ["Call queued internally", "Unknown client or domain"],
+        )
+
+        self.assertListEqual(
+            [channel_log.response for channel_log in channel_logs], ["None", "client=None domain=None"]
+        )
+
+        call.refresh_from_db()
+
+        self.assertEqual(call.status, IVRCall.FAILED)

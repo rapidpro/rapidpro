@@ -42,7 +42,14 @@ class APITest(TembaTest):
         self.joe = self.create_contact("Joe Blow", "0788123123")
 
         self.channel2 = Channel.create(
-            None, self.admin, "RW", "A", "Unclaimed Channel", claim_code="123123123", secret="123456", gcm_id="1234"
+            None,
+            self.admin,
+            "RW",
+            "A",
+            "Unclaimed Channel",
+            claim_code="123123123",
+            secret="123456",
+            config={"FCM_ID": "1234"},
         )
 
         self.call1 = ChannelEvent.objects.create(
