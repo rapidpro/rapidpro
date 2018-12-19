@@ -6425,7 +6425,7 @@ class ContactTest(TembaTest):
             created_on=timezone.now(),
         )
 
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             process_message_task(dict(id=msg.id, new_message=True, new_contact=False))
 
         # twitter should be preferred outgoing again
@@ -6441,7 +6441,7 @@ class ContactTest(TembaTest):
             created_on=timezone.now(),
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(19):
             process_message_task(dict(id=msg.id, new_message=True, new_contact=True))
 
         self.assertCountEqual(

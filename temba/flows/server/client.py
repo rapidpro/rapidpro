@@ -4,22 +4,8 @@ from enum import Enum
 import requests
 
 from django.conf import settings
-from django.utils import timezone
 
 from temba.utils import json
-
-from .assets import (
-    ChannelType,
-    FieldType,
-    FlowType,
-    GroupType,
-    LabelType,
-    LocationHierarchyType,
-    ResthookType,
-    get_asset_type,
-    get_asset_urls,
-)
-from .serialize import serialize_contact, serialize_environment, serialize_message, serialize_ref
 
 
 class Events(Enum):
@@ -48,149 +34,6 @@ class Events(Enum):
     webhook_called = 23
 
 
-class RequestBuilder:
-    def __init__(self, client, org, base_assets_url):
-        self.client = client
-        self.org = org
-        self.base_assets_url = base_assets_url
-        self.request = {"assets": [], "config": {}}
-
-    def include_all(self, simulator=False):
-        request = self
-        for f in self.org.flows.filter(is_active=True, is_archived=False):
-            request = request.include_flow(f)
-
-        request = (
-            request.include_fields().include_groups().include_labels().include_channels(simulator).include_resthooks()
-        )
-        if self.org.country_id:
-            request = request.include_country()
-
-        return request
-
-    def include_channels(self, simulator):
-        self.request["assets"].append(get_asset_type(ChannelType).bundle_set(self.org, simulator))
-        return self
-
-    def include_fields(self):
-        self.request["assets"].append(get_asset_type(FieldType).bundle_set(self.org))
-        return self
-
-    def include_flow(self, flow):
-        self.request["assets"].append(get_asset_type(FlowType).bundle_item(flow.org, str(flow.uuid)))
-        return self
-
-    def include_groups(self):
-        self.request["assets"].append(get_asset_type(GroupType).bundle_set(self.org))
-        return self
-
-    def include_labels(self):
-        self.request["assets"].append(get_asset_type(LabelType).bundle_set(self.org))
-        return self
-
-    def include_country(self):
-        self.request["assets"].append(get_asset_type(LocationHierarchyType).bundle_set(self.org))
-        return self
-
-    def include_resthooks(self):
-        self.request["assets"].append(get_asset_type(ResthookType).bundle_set(self.org))
-        return self
-
-    def asset_server(self, simulator=False):
-        self.request["asset_server"] = {"type_urls": get_asset_urls(self.org, simulator)}
-        return self
-
-    def start_manual(self, contact, flow, params=None):
-        """
-        User is manually starting this session
-        """
-        self.request["trigger"] = self._base_trigger("manual", timezone.now().isoformat(), contact, flow)
-        self.request["trigger"]["params"] = params
-
-        return self.client.start(self.request)
-
-    def start_by_msg(self, contact, flow, msg):
-        """
-        New session was triggered by a new message from the contact
-        """
-        self.request["trigger"] = self._base_trigger("msg", timezone.now().isoformat(), contact, flow)
-        self.request["trigger"]["msg"] = serialize_message(msg)
-
-        return self.client.start(self.request)
-
-    def start_by_flow_action(self, contact, flow, parent_run_summary):
-        """
-        New session was triggered by a flow action in a different run
-        """
-        self.request["trigger"] = self._base_trigger("flow_action", timezone.now().isoformat(), contact, flow)
-        self.request["trigger"]["run"] = parent_run_summary
-
-        return self.client.start(self.request)
-
-    def start_by_campaign(self, contact, flow, event):
-        """
-        New session was triggered by a campaign event
-        """
-        self.request["trigger"] = self._base_trigger("campaign", timezone.now().isoformat(), contact, flow)
-        self.request["trigger"]["event"] = {"uuid": str(event.uuid), "campaign": serialize_ref(event.campaign)}
-
-        return self.client.start(self.request)
-
-    def resume_by_msg(self, session, msg, contact=None):
-        """
-        Resume an existing session because of a new message
-        """
-        self.request["resume"] = self._base_resume("msg", msg.created_on.isoformat(), contact)
-        self.request["resume"]["msg"] = serialize_message(msg)
-        self.request["session"] = session
-
-        return self.client.resume(self.request)
-
-    def resume_by_run_expiration(self, session, run, contact=None):
-        """
-        Resume an existing session because of a run expiration
-        """
-        self.request["resume"] = self._base_resume("run_expiration", run.exited_on.isoformat(), contact)
-        self.request["session"] = session
-
-        return self.client.resume(self.request)
-
-    def resume_by_wait_timeout(self, session, contact=None):
-        """
-        Resume an existing session because of a wait timeout
-        """
-        self.request["resume"] = self._base_resume("wait_timeout", timezone.now().isoformat(), contact)
-        self.request["session"] = session
-
-        return self.client.resume(self.request)
-
-    def _base_trigger(self, type_name, triggered_on, contact, flow):
-        return {
-            "type": type_name,
-            "triggered_on": triggered_on,
-            "contact": serialize_contact(contact),
-            "environment": serialize_environment(self.org),
-            "flow": {"uuid": str(flow.uuid), "name": flow.name},
-        }
-
-    @staticmethod
-    def _base_resume(type_name, resumed_on, contact=None):
-        resume = {"type": type_name, "resumed_on": resumed_on}
-        if contact:
-            resume["contact"] = serialize_contact(contact)
-        return resume
-
-
-class Output:
-    @classmethod
-    def from_json(cls, output_json):
-        return cls(output_json["session"], output_json.get("events", []))
-
-    def __init__(self, session, events):
-        self.session = session
-        self.events = events
-
-
 class FlowServerException(Exception):
     def __init__(self, endpoint, request, response):
         self.endpoint = endpoint
@@ -211,18 +54,6 @@ class FlowServerClient:
     def __init__(self, base_url, debug=False):
         self.base_url = base_url
         self.debug = debug
-
-    def request_builder(self, org):
-        assets_host = "http://localhost:8000" if settings.TESTING else ("https://%s" % settings.HOSTNAME)
-        base_assets_url = "%s/flow/assets/%d" % (assets_host, org.id)
-
-        return RequestBuilder(self, org, base_assets_url)
-
-    def start(self, flow_start):
-        return Output.from_json(self._request("start", flow_start))
-
-    def resume(self, flow_resume):
-        return Output.from_json(self._request("resume", flow_resume))
 
     def migrate(self, flow_migrate):
         return self._request("migrate", flow_migrate)

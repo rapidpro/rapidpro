@@ -1095,12 +1095,11 @@ EVENT_FIRE_TRIM_DAYS = 90
 FLOW_SESSION_TRIM_DAYS = 7
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
+# Flowserver - disabled by default and only used for migrating flows.
+# GoFlow defaults to http://localhost:8800
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
-FLOW_SERVER_AUTH_TOKEN = None
 FLOW_SERVER_DEBUG = False
-FLOW_SERVER_FORCE = False
 
 # -----------------------------------------------------------------------------------
 # Mailroom - disabled by default, but is where simulation happens

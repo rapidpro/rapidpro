@@ -5,7 +5,6 @@ import string
 import sys
 import time
 from datetime import datetime, timedelta
-from functools import wraps
 from io import StringIO
 from unittest import skipIf
 from uuid import uuid4
@@ -23,7 +22,7 @@ from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import LiveServerTestCase, override_settings
+from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.urls import reverse
 from django.utils import timezone
@@ -81,57 +80,6 @@ def skip_if_no_flowserver(test):
     Skip a test if flow server isn't configured
     """
     return skipIf(settings.FLOW_SERVER_URL is None, "this test can't be run without a flowserver instance")(test)
-
-
-def also_in_flowserver(test_func):
-    """
-    Decorator to mark a test function as one that should also be run with the flow server
-    """
-    test_func._also_in_flowserver = True
-    return test_func
-
-
-class AddFlowServerTestsMeta(type):
-    """
-    Metaclass with adds new flowserver-based tests based on existing tests decorated with @also_in_flowserver. For
-    example a test method called test_foo will become two test methods - the original test_foo which runs in the old
-    engine, and a new one called test_foo_flowserver with is run using the flowserver.
-    """
-
-    def __new__(mcs, name, bases, dct):
-        new_tests = {}
-        for key, test_func in dct.items():
-            if key.startswith("test_") and getattr(test_func, "_also_in_flowserver", False):
-                test_without, test_with = mcs._split_test(test_func)
-
-                new_tests[key] = test_without
-                if settings.FLOW_SERVER_URL:
-                    new_tests[key + "_flowserver"] = test_with
-
-        dct.update(new_tests)
-
-        return super().__new__(mcs, name, bases, dct)
-
-    @staticmethod
-    def _split_test(test_func):
-        """
-        Takes a given test function and returns two test functions - one that will run without the flowserver, and one
-        that will run with the flowserver
-        """
-        old_func = test_func
-        new_func = override_settings(FLOW_SERVER_AUTH_TOKEN="1234", FLOW_SERVER_FORCE=True)(test_func)
-
-        @wraps(old_func)
-        def old_wrapper(*args, **kwargs):
-            kwargs["in_flowserver"] = False
-            return old_func(*args, **kwargs)
-
-        @wraps(new_func)
-        def new_wrapper(*args, **kwargs):
-            kwargs["in_flowserver"] = True
-            return new_func(*args, **kwargs)
-
-        return old_wrapper, new_wrapper
 
 
 class ESMockWithScroll:
@@ -528,7 +476,7 @@ class TembaTestMixin(object):
         return indexes
 
 
-class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
+class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server
