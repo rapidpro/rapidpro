@@ -476,8 +476,10 @@
             .recent-messages{ng-show:'action_set._showMessages'}
               .title
                 -trans "Recent Messages"
-              .loading{ng-show:'!action_set._messages.length'}
+              .loading{ng-show:'!action_set._messages.length && !action_set._messagesLoaded'}
                 %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+              .empty-messages{ng-show:'!action_set._messages.length && action_set._messagesLoaded'}
+                -trans "No recent messages to show"
               .message{ng-repeat:'message in action_set._messages'}
                 .text
                   [[message.text]]
@@ -603,8 +605,10 @@
                   .recent-messages{ng-show:'category._showMessages'}
                     .title
                       -trans "Recent Messages"
-                    .loading{ng-show:'!category._messages.length'}
+                    .loading{ng-show:'!category._messages.length && !category._messagesLoaded'}
                       %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+                    .empty-messages{ng-show:'!category._messages.length && category._messagesLoaded'}
+                      -trans "No recent messages to show"
                     .message{ng-repeat:'message in category._messages'}
                       .text
                         [[message.text]]

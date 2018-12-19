@@ -840,9 +840,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if hovered.action_set
         action_set = hovered.action_set
         action_set._showMessages = true
+        action_set._messagesLoaded = false
 
         Flow.fetchRecentMessages([action_set.exit_uuid], action_set.destination).then (response) ->
-          action_set._messages = response.data
+          action_set._messages = [] # response.data
+          action_set._messagesLoaded = true
 
       if hovered.category
 
@@ -853,10 +855,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         # our node and rule should be marked as showing messages
         ruleset._showMessages = true
         category._showMessages = true
+        category._messagesLoaded = false
 
         # get all recent messages for all rules that make up this category
         Flow.fetchRecentMessages(category.sources, category.target).then (response) ->
-          category._messages = response.data
+          category._messages = [] #response.data
+          category._messagesLoaded = true
     , 500
 
   $scope.clickShowActionMedia = ->
