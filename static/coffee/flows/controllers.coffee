@@ -843,7 +843,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action_set._messagesLoaded = false
 
         Flow.fetchRecentMessages([action_set.exit_uuid], action_set.destination).then (response) ->
-          action_set._messages = [] # response.data
+          action_set._messages = response.data
           action_set._messagesLoaded = true
 
       if hovered.category
@@ -859,7 +859,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         # get all recent messages for all rules that make up this category
         Flow.fetchRecentMessages(category.sources, category.target).then (response) ->
-          category._messages = [] #response.data
+          category._messages = response.data
           category._messagesLoaded = true
     , 500
 
