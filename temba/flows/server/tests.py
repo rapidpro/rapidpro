@@ -3,7 +3,7 @@ from unittest.mock import patch
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.msgs.models import Label
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
@@ -80,6 +80,7 @@ class SerializationTest(TembaTest):
         self.assertEqual(serialize_field(gender), {"key": "gender", "name": "Gender", "value_type": "text"})
         self.assertEqual(serialize_field(age), {"key": "age", "name": "Age", "value_type": "number"})
 
+    @skip_if_no_flowserver
     def test_serialize_flow(self):
         flow = self.get_flow("favorites")
         migrated_json = serialize_flow(flow)
