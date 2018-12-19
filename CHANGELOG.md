@@ -1,3 +1,9 @@
+v4.14.0
+----------
+ * Fix recent messages rollover with 0 messages
+ * Use flowserver only for flow migration
+ * Make created_by and modified_by optional on channel session
+
 v4.13.2
 ----------
  * create empty revisions for empty flows
