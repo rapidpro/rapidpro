@@ -2162,8 +2162,12 @@ class OrgTest(TembaTest):
         with patch("requests.get") as nexmo_get:
             with patch("requests.post") as nexmo_post:
                 # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+                nexmo_get.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
+                nexmo_post.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
                 response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
                 self.assertEqual(response.status_code, 302)
 
