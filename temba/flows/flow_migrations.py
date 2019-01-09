@@ -453,6 +453,10 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                 if action["type"] in ["reply", "send", "say"]:
                     msg = action["msg"]
                     for lang, text in msg.items():
+                        # some single message flows erroneously ended up with dicts inside dicts
+                        if isinstance(text, dict):
+                            text = next(iter(text.values()))
+
                         migrated_text = text
                         for pattern, replacement in replacements:
                             migrated_text = regex.sub(
