@@ -60,11 +60,11 @@ pysocks
 pip-tools
 
 ########################## testing ##########################
-black
+black==18.6b4
 coverage
 flake8
 flake8-deprecated
-flake8-print
+flake8-print==2.0.2
 isort
 mock
 openpyxl

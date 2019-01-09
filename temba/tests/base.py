@@ -467,7 +467,7 @@ class TembaTestMixin(object):
         cursor.execute("explain %s" % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in regex.finditer("Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
+        for match in regex.finditer(r"Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))

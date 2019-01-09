@@ -1863,7 +1863,7 @@ class Org(SmartModel):
         except ValidationError as e:
             raise e
 
-        except Exception as e:
+        except Exception:
             logger = logging.getLogger(__name__)
             logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(
