@@ -99,7 +99,7 @@ python-dateutil==2.2
 python-gcm==0.4
 python-intercom==3.1.0
 python-magic==0.4.15
-python-telegram-bot==6.1.0
+python-telegram-bot==11.1.0
 pytz==2017.2
 rapidpro-expressions==1.7
 raven==6.9.0
