@@ -53,6 +53,7 @@ from .flow_migrations import (
     migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
+    migrate_to_version_11_8,
 )
 from .models import (
     Action,
@@ -9772,6 +9773,27 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_8(self):
+        def get_rule_uuids(f):
+            uuids = []
+            for rs in f.get(Flow.RULE_SETS, []):
+                for rule in rs.get("rules"):
+                    uuids.append(rule["uuid"])
+            return uuids
+
+        original = self.get_flow_json("migrate_to_11_8")
+        original_uuids = get_rule_uuids(original)
+
+        self.assertEqual(len(original_uuids), 9)
+        self.assertEqual(len(set(original_uuids)), 7)
+
+        migrated = migrate_to_version_11_8(original)
+        migrated_uuids = get_rule_uuids(migrated)
+
+        # check that all rule UUIDs are now unique and only two new ones were added
+        self.assertEqual(len(set(migrated_uuids)), 9)
+        self.assertEqual(len(set(migrated_uuids).difference(original_uuids)), 2)
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_11_7(self):
