@@ -1714,7 +1714,7 @@ class ChannelLog(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.Connection",
         on_delete=models.PROTECT,
         related_name="channel_logs",
         null=True,
@@ -2193,7 +2193,7 @@ def get_alert_user():
         return user
 
 
-class ChannelSession(SmartModel):
+class Connection(SmartModel):
     PENDING = "P"  # initial state for all sessions
     QUEUED = "Q"  # the session is queued internally
     WIRED = "W"  # the API provider has confirmed that it successfully received the API request
@@ -2296,11 +2296,11 @@ class ChannelSession(SmartModel):
         super().__init__(*args, **kwargs)
 
         """ This is needed when referencing `session` from `FlowRun`. Since
-        the FK is bound to ChannelSession, when it initializes an instance from
+        the FK is bound to Connection, when it initializes an instance from
         DB we need to specify the class based on `session_type` so we can access
         all the methods the proxy model implements. """
 
-        if type(self) is ChannelSession:
+        if type(self) is Connection:
             if self.session_type == self.USSD:
                 from temba.ussd.models import USSDSession
 
@@ -2361,3 +2361,6 @@ class ChannelSession(SmartModel):
             msg.release()
 
         self.delete()
+
+    class Meta:
+        db_table = "channels_channelsession"

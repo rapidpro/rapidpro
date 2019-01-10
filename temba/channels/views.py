@@ -35,7 +35,7 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.channels.models import ChannelSession
+from temba.channels.models import Connection
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
@@ -1977,10 +1977,10 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .exclude(connection=None)
                     .values_list("connection_id", flat=True)
                 )
-                events = ChannelSession.objects.filter(id__in=logs).order_by("-created_on")
+                events = Connection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelSession.FAILED)
+                    events = events.filter(status=Connection.FAILED)
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
@@ -2002,7 +2002,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return context
 
     class Session(AnonMixin, OrgPermsMixin, SmartReadView):
-        model = ChannelSession
+        model = Connection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):
         fields = ("description", "created_on")
