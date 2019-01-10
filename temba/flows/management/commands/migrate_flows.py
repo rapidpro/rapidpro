@@ -1,3 +1,4 @@
+import traceback
 
 from django.core.management.base import BaseCommand
 
@@ -21,26 +22,24 @@ def migrate_flows(min_version=None):  # pragma: no cover
         print("All flows up to date")
         return True
 
-    print("Found %d flows to migrate to %s..." % (len(flow_ids), to_version))
+    print(f"Found {len(flow_ids)} flows to migrate to {to_version}...")
 
     num_updated = 0
-    errored = []
+    num_errored = 0
 
     for id_batch in chunk_list(flow_ids, 1000):
         for flow in Flow.objects.filter(id__in=id_batch):
             try:
                 flow.ensure_current_version(min_version=to_version)
                 num_updated += 1
-            except Exception as e:
-                print("Unable to migrate flow '%s' (#%d), %s" % (flow.name, flow.id, str(e)))
-                errored.append(flow)
+            except Exception:
+                print(f"Unable to migrate flow '{flow.name}' ({str(flow.uuid)}):")
+                print(traceback.format_exc())
+                num_errored += 1
 
-        print(" > Flows migrated: %d of %d (%d errored)" % (num_updated, total, len(errored)))
+        print(f" > Flows migrated: {num_updated} of {total} ({num_errored} errored)")
 
-    if errored:
-        print(" > Errored flows: %s" % (", ".join([str(e.id) for e in errored])))
-
-    return len(errored) == 0
+    return num_errored == 0
 
 
 class Command(BaseCommand):  # pragma: no cover

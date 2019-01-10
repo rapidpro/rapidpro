@@ -73,7 +73,7 @@ markdown==2.6.8
 mccabe==0.6.1             # via flake8
 microsofttranslator==0.8  # via django-rosetta
 mock==2.0.0
-nexmo==2.2.0
+nexmo==2.3.0
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.3
 pbr==3.1.0                # via mock
@@ -99,7 +99,7 @@ python-dateutil==2.2
 python-gcm==0.4
 python-intercom==3.1.0
 python-magic==0.4.15
-python-telegram-bot==6.1.0
+python-telegram-bot==11.1.0
 pytz==2017.2
 rapidpro-expressions==1.7
 raven==6.9.0
