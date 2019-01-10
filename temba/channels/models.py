@@ -2250,7 +2250,7 @@ class ChannelSession(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="%(class)ss",
+        related_name="connections",
         help_text="The user which originally created this connection",
         null=True,
     )

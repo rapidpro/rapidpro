@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 help_text="The user which originally created this connection",
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                related_name="channelsessions",
+                related_name="connections",
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
