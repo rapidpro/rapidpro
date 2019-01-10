@@ -180,7 +180,13 @@ def format_time(dtime, org):
     if dtime.tzinfo is None:
         dtime = dtime.replace(tzinfo=pytz.utc)
 
-    dtime = dtime.astimezone(org.timezone)
+    tz = pytz.UTC
+    month_first = False
+    if org:
+        month_first = org.date_format == "M"
+        tz = org.timezone
+
+    dtime = dtime.astimezone(tz)
 
     now = timezone.now()
     twelve_hours_ago = now - timedelta(hours=12)
@@ -190,6 +196,6 @@ def format_time(dtime, org):
     elif now.year == dtime.year:
         return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
     else:
-        if org.date_format == "M":
+        if month_first:
             return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
         return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))
