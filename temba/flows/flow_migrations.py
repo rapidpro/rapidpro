@@ -24,7 +24,7 @@ from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
 
 
-def migrate_to_version_11_8(json_flow, flow=None):
+def migrate_to_version_11_9(json_flow, flow=None):
     """
     Remove actions and rulesets that have references to invalid flows (is_active=False, is_archived=True)
     """
@@ -101,6 +101,21 @@ def migrate_to_version_11_8(json_flow, flow=None):
         print(f"Flow {main_flow_uuid}: removed {total_removed_actions} actions and {total_removed_rulesets} rulesets")
 
     return new_flow_json
+
+
+def migrate_to_version_11_8(json_flow, flow=None):
+    """
+    Fixes duplicate rule UUIDs
+    """
+    seen_uuids = set()
+
+    for rs in json_flow.get(Flow.RULE_SETS, []):
+        for rule in rs.get("rules"):
+            if rule.get("uuid") in seen_uuids or not rule.get("uuid"):
+                rule["uuid"] = str(uuid4())
+            seen_uuids.add(rule["uuid"])
+
+    return json_flow
 
 
 def migrate_to_version_11_7(json_flow, flow=None):
