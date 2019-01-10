@@ -444,6 +444,11 @@ class TemplateTagTest(TembaTest):
             self.org.date_format = "D"
             self.org.save()
 
+            # date without timezone
+            test_date = datetime.datetime.now()
+            modified_now = test_date.replace(hour=17, minute=5)
+            self.assertEqual("7:05 pm", format_time(modified_now, self.org))
+
             # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
             now = timezone.now()
             modified_now = now.replace(hour=17, minute=5)
