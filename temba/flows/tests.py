@@ -54,6 +54,7 @@ from .flow_migrations import (
     migrate_to_version_11_6,
     migrate_to_version_11_7,
     migrate_to_version_11_8,
+    migrate_to_version_11_9,
 )
 from .models import (
     Action,
@@ -9862,7 +9863,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(len(flow_json["rule_sets"]), 4)
         self.assertEqual(sum(len(action_set["actions"]) for action_set in flow_json["action_sets"]), 8)
 
-        migrated = migrate_to_version_11_8(flow_json, flow)
+        migrated = migrate_to_version_11_9(flow_json, flow)
 
         # expected to remove 1 ruleset and 3 actions referencing invalid flows
         self.assertEqual(len(migrated["rule_sets"]), 3)
