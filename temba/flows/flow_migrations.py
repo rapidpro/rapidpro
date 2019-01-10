@@ -69,7 +69,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
         if not has_webooks:
             continue
 
-        destination = nodes_by_uuid[actionset["destination"]] if actionset.get("destination") else None
+        destination = nodes_by_uuid.get(actionset["destination"]) if actionset.get("destination") else None
 
         for (i, new_set) in reversed(list(enumerate(new_sets))):
             # if this is first new node, it gets the UUID of the actionset being
@@ -182,7 +182,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
         if type(group) is dict:
 
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
-            if "uuid" not in group or group["uuid"] not in uuid_map:
+            if "uuid" not in group or group["uuid"] not in uuid_map and group.get("name"):
                 group_instance = ContactGroup.get_user_group(flow.org, group["name"])
                 if group_instance:
                     # map group references that started with a uuid
@@ -468,6 +468,10 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                 if action["type"] in ["reply", "send", "say"]:
                     msg = action["msg"]
                     for lang, text in msg.items():
+                        # some single message flows erroneously ended up with dicts inside dicts
+                        if isinstance(text, dict):
+                            text = next(iter(text.values()))
+
                         migrated_text = text
                         for pattern, replacement in replacements:
                             migrated_text = regex.sub(

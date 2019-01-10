@@ -10163,6 +10163,14 @@ class FlowMigrationTest(FlowFileTest):
             ],
         )
 
+    def test_migrate_to_11_0_with_broken_localization(self):
+        migrated = self.get_flow("migrate_to_11_0").as_json()
+
+        self.assertEqual(
+            migrated["action_sets"][0]["actions"][0]["msg"],
+            {"base": "@(format_date(date)) Something went wrong once. I shouldn't be a dict inside a dict."},
+        )
+
     def test_migrate_to_10_4(self):
         definition = {
             "action_sets": [
