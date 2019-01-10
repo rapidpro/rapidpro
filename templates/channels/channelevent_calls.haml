@@ -45,7 +45,7 @@
               %span.glyph.icon-phone
           %td.value-received.field_time
             %nobr
-              {{ object.occurred_on|gmail_time }}
+              {{ object.occurred_on|format_time:user_org }}
 
         -empty
           %tr

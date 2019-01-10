@@ -100,7 +100,7 @@
     %td.created_on
       %span.time
         %span.short
-          {{item.time|gmail_time}}
+          {{item.time|format_time:user_org}}
         %span.long.hide
           {{item.time}}
 

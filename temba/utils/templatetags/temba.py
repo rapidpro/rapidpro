@@ -1,8 +1,13 @@
+from datetime import timedelta
+
+import pytz
+
 from django import template
 from django.conf import settings
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
@@ -168,3 +173,23 @@ def to_json(value):
     escaped_output = escapejs(value)
 
     return mark_safe(f'JSON.parse("{escaped_output}")')
+
+
+@register.filter
+def format_time(dtime, org):
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+
+    dtime = dtime.astimezone(org.timezone)
+
+    now = timezone.now()
+    twelve_hours_ago = now - timedelta(hours=12)
+
+    if dtime > twelve_hours_ago:
+        return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+    elif now.year == dtime.year:
+        return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
+    else:
+        if org.date_format == "M":
+            return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
+        return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))

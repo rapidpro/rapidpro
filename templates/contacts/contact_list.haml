@@ -213,7 +213,7 @@
 
                         %td.value-received.field_received
                           %nobr
-                            {{ object.created_on|gmail_time }}
+                            {{ object.created_on|format_time:user_org }}
 
                         // This is needed for action buttons
                         %td.hide

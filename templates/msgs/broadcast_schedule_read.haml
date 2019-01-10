@@ -40,7 +40,7 @@
                   {{ object.get_default_text }}
                 %td
                   %nobr
-                    {{ object.created_on|gmail_time }}
+                    {{ object.created_on|format_time:user_org }}
 
         -block paginator
           = block.super
