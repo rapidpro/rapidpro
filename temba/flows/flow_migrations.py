@@ -115,7 +115,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     "response_type": "",
                     "operand": "@step.value",
                     "config": {
-                        "webhook": old_action["webhook"],
+                        "webhook": old_action.get("webhook", ""),
                         "webhook_action": old_action.get("action", "POST"),
                         "webhook_headers": old_action.get("webhook_headers", []),
                     },
