@@ -9,48 +9,50 @@ class RenameBaseModel(migrations.RenameModel):
     """
 
     def state_forwards(self, app_label, state):
-        apps = state.apps
-        model = apps.get_model(app_label, self.old_name)
-        model._meta.apps = apps
-        # Get all of the related objects we need to repoint
-        all_related_objects = (
-            f
-            for f in model._meta.get_fields(include_hidden=True)
-            if f.auto_created and not f.concrete and (not f.hidden or f.many_to_many)
-        )
-        # Rename the model
-        state.models[app_label, self.new_name_lower] = state.models[app_label, self.old_name_lower]
-        state.models[app_label, self.new_name_lower].name = self.new_name
-        state.remove_model(app_label, self.old_name_lower)
-        # Repoint bases, this needs to be done before reloading any model
+        # Add a new model.
+        renamed_model = state.models[app_label, self.old_name_lower].clone()
+        renamed_model.name = self.new_name
+        state.models[app_label, self.new_name_lower] = renamed_model
+
+        # repoint bases, this needs to be done before reloading any model
         full_old_name = "%s.%s" % (app_label, self.old_name_lower)
         full_new_name = "%s.%s" % (app_label, self.new_name_lower)
         for state_model in state.models.values():
             if full_old_name in state_model.bases:
+                print(f"=== Repointing base model of {state_model.name}")
                 state_model.bases = tuple(full_new_name if b == full_old_name else b for b in state_model.bases)
-        # Repoint the FKs and M2Ms pointing to us
-        for related_object in all_related_objects:
-            if related_object.model is not model:
-                # The model being renamed does not participate in this relation
-                # directly. Rather, a superclass does.
-                continue
-            # Use the new related key for self referential related objects.
-            if related_object.related_model == model:
-                related_key = (app_label, self.new_name_lower)
-            else:
-                related_key = (
-                    related_object.related_model._meta.app_label,
-                    related_object.related_model._meta.model_name,
-                )
-            new_fields = []
-            for name, field in state.models[related_key].fields:
-                if name == related_object.field.name:
-                    field = field.clone()
-                    field.remote_field.model = "%s.%s" % (app_label, self.new_name)
-                new_fields.append((name, field))
-            state.models[related_key].fields = new_fields
-            state.reload_model(*related_key)
-        state.reload_model(app_label, self.new_name_lower)
+
+        # Repoint all fields pointing to the old model to the new one.
+        old_model_tuple = app_label, self.old_name_lower
+        new_remote_model = "%s.%s" % (app_label, self.new_name)
+        to_reload = []
+        for (model_app_label, model_name), model_state in state.models.items():
+            model_changed = False
+            for index, (name, field) in enumerate(model_state.fields):
+                changed_field = None
+                remote_field = field.remote_field
+                if remote_field:
+                    remote_model_tuple = self._get_model_tuple(remote_field.model, model_app_label, model_name)
+                    if remote_model_tuple == old_model_tuple:
+                        changed_field = field.clone()
+                        changed_field.remote_field.model = new_remote_model
+                    through_model = getattr(remote_field, "through", None)
+                    if through_model:
+                        through_model_tuple = self._get_model_tuple(through_model, model_app_label, model_name)
+                        if through_model_tuple == old_model_tuple:
+                            if changed_field is None:
+                                changed_field = field.clone()
+                            changed_field.remote_field.through = new_remote_model
+                if changed_field:
+                    model_state.fields[index] = name, changed_field
+                    model_changed = True
+            if model_changed:
+                to_reload.append((model_app_label, model_name))
+        # Reload models related to old model before removing the old model.
+        state.reload_models(to_reload, delay=True)
+        # Remove the old model.
+        state.remove_model(app_label, self.old_name_lower)
+        state.reload_model(app_label, self.new_name_lower, delay=True)
 
 
 class Migration(migrations.Migration):
