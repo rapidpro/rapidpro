@@ -3,7 +3,6 @@ django
 django-compressor
 django-countries
 django-debug-toolbar
-django-extensions
 django-hamlpy
 django-mptt
 django-redis
