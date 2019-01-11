@@ -2271,15 +2271,21 @@ class Connection(models.Model):
     status = models.CharField(
         max_length=1, choices=STATUS_CHOICES, default=PENDING, help_text="The status of this session"
     )
-    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, help_text="The channel that created this session")
+    channel = models.ForeignKey(
+        "Channel", on_delete=models.PROTECT, related_name="connections", help_text="The channel we're connected to"
+    )
     contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, related_name="sessions", help_text="Who this session is with"
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="connections",
+        help_text="Who this connection is with",
     )
     contact_urn = models.ForeignKey(
         "contacts.ContactURN",
         on_delete=models.PROTECT,
+        related_name="connections",
         verbose_name=_("Contact URN"),
-        help_text=_("The URN this session is communicating with"),
+        help_text="The URN we're communicating with",
     )
     direction = models.CharField(
         max_length=1, choices=DIRECTION_CHOICES, help_text="The direction of this session, either incoming or outgoing"

@@ -19,7 +19,6 @@ class RenameBaseModel(migrations.RenameModel):
         full_new_name = "%s.%s" % (app_label, self.new_name_lower)
         for state_model in state.models.values():
             if full_old_name in state_model.bases:
-                print(f"=== Repointing base model of {state_model.name}")
                 state_model.bases = tuple(full_new_name if b == full_old_name else b for b in state_model.bases)
 
         # Repoint all fields pointing to the old model to the new one.
