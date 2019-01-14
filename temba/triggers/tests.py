@@ -1006,7 +1006,7 @@ class TriggerTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN! ")
         self.assertTrue(Trigger.find_and_handle(incoming))
 
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="\WHEN")
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="\\WHEN")
         self.assertTrue(Trigger.find_and_handle(incoming))
 
         # change match type back to 'first'

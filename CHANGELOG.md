@@ -1,3 +1,10 @@
+v4.15.0
+----------
+ * Fix nexmo claim
+ * Tweak 11.7 migration to not blow up if webhook action has empty URL
+ * Bump module minor versions and remove unused modules
+ * Remove ChannelSession.modified_by
+
 v4.14.1
 ----------
  * Make older flow migrations more fault tolerant

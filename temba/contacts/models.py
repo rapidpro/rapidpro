@@ -256,7 +256,7 @@ class URN(object):
             number = number[0:-4].replace(".", "")
 
         # remove other characters
-        number = regex.sub("[^0-9a-z\+]", "", number.lower(), regex.V0)
+        number = regex.sub(r"[^0-9a-z\+]", "", number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
         if len(number) >= 11 and number[0] not in ["+", "0"]:
@@ -2844,7 +2844,7 @@ class ContactGroup(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def update_contacts(self, user, contacts, add):
         """

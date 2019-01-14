@@ -1477,7 +1477,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
-            except Exception as e:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 logger.error("Error removing a channel", exc_info=True)
 
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))

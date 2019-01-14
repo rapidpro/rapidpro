@@ -2244,7 +2244,7 @@ class Label(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():

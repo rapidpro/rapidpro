@@ -38,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, json, languages
+from temba.utils import analytics, chunk_list, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -891,9 +891,8 @@ class Org(SmartModel):
         )
 
         response = client.create_application(params=params)
-        response_json = json.loads(response)
-        app_id = response_json.get("id", None)
-        private_key = response_json.get("keys", dict()).get("private_key", None)
+        app_id = response.get("id", None)
+        private_key = response.get("keys", dict()).get("private_key", None)
 
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
@@ -1863,7 +1862,7 @@ class Org(SmartModel):
         except ValidationError as e:
             raise e
 
-        except Exception as e:
+        except Exception:
             logger = logging.getLogger(__name__)
             logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(
