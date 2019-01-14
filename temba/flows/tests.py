@@ -2616,7 +2616,7 @@ class FlowTest(TembaTest):
         test = ContainsAnyTest(test=dict(base="لا يسمح هذه البداية"))
         self.assertTest(False, None, test)
 
-        test = RegexTest(dict(base="(?P<first_name>\w+) (\w+)"))
+        test = RegexTest(dict(base=r"(?P<first_name>\w+) (\w+)"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.fields
@@ -2633,7 +2633,7 @@ class FlowTest(TembaTest):
         self.assertEqual("العالم", extra["2"])
 
         # no matching groups, should return whole string as match
-        test = RegexTest(dict(base="\w+ \w+"))
+        test = RegexTest(dict(base=r"\w+ \w+"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.fields

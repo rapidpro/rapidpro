@@ -231,7 +231,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
         return json_flow
 
     # make a regex that matches a context reference to these (see https://regex101.com/r/65b2ZT/3)
-    replace_pattern = r"flow\.(" + "|".join(slugs) + ")(\.value)?(?!\.\w)"
+    replace_pattern = r"flow\.(" + "|".join(slugs) + r")(\.value)?(?!\.\w)"
     replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
     replace_with = r"extra.\1"
 
@@ -250,7 +250,7 @@ def migrate_to_version_11_4(json_flow, flow=None):
     non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
 
     # make a regex that matches a context reference to the .text on any result from these
-    replace_pattern = r"flow\.(" + "|".join(non_waiting) + ")\.text"
+    replace_pattern = r"flow\.(" + "|".join(non_waiting) + r")\.text"
     replace_regex = regex.compile(replace_pattern, flags=regex.UNICODE | regex.IGNORECASE | regex.MULTILINE)
     replace_with = "step.value"
 
@@ -623,12 +623,12 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     exported_string = json.dumps(exported_json)
 
     # any references to @extra.flow are now just @parent
-    exported_string = replace(exported_string, "@(extra\.flow)", "@parent")
-    exported_string = replace(exported_string, "(@\(.*?)extra\.flow(.*?\))", r"\1parent\2")
+    exported_string = replace(exported_string, r"@(extra\.flow)", "@parent")
+    exported_string = replace(exported_string, r"(@\(.*?)extra\.flow(.*?\))", r"\1parent\2")
 
     # any references to @extra.contact are now @parent.contact
-    exported_string = replace(exported_string, "@(extra\.contact)", "@parent.contact")
-    exported_string = replace(exported_string, "(@\(.*?)extra\.contact(.*?\))", r"\1parent.contact\2")
+    exported_string = replace(exported_string, r"@(extra\.contact)", "@parent.contact")
+    exported_string = replace(exported_string, r"(@\(.*?)extra\.contact(.*?\))", r"\1parent.contact\2")
 
     exported_json = json.loads(exported_string)
 
