@@ -1,3 +1,11 @@
+v4.14.1
+----------
+ * Make older flow migrations more fault tolerant
+ * Tweaks to migrate_flows command to make error reporting more useful
+ * Add flow migration to fix duplicate rule UUIDs
+ * Update python-telegram-bot to 11.1.0
+ * Update nexmo to 2.3.0
+
 v4.14.0
 ----------
  * Fix recent messages rollover with 0 messages
