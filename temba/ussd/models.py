@@ -5,7 +5,6 @@ from temba.channels.models import ChannelSession
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
-from temba.utils import get_anonymous_user
 
 
 class USSDQuerySet(models.QuerySet):
@@ -14,12 +13,7 @@ class USSDQuerySet(models.QuerySet):
         return super().get(*args, **kwargs)
 
     def create(self, **kwargs):
-        if kwargs.get("channel"):
-            user = kwargs.get("channel").created_by
-        else:  # testing purposes (eg. simulator)
-            user = get_anonymous_user()
-
-        kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
+        kwargs.update(dict(session_type=USSDSession.USSD))
         return super().create(**kwargs)
 
     def get_initiated_push(self, contact):
