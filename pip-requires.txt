@@ -59,11 +59,11 @@ pysocks
 pip-tools
 
 ########################## testing ##########################
-black==18.6b4
+black==18.6b4  # pinned temporary, a lot of updates === new PR
 coverage
 flake8
 flake8-deprecated
-flake8-print==2.0.2
+flake8-print==2.0.2  # pinned temporary, a lot of updates === new PR
 isort
 mock
 openpyxl
