@@ -1714,7 +1714,7 @@ class ChannelLog(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.Connection",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="channel_logs",
         null=True,
@@ -2193,7 +2193,7 @@ def get_alert_user():
         return user
 
 
-class Connection(models.Model):
+class ChannelConnection(models.Model):
     """
     Base for IVR and USSD sessions which require a connection to specific channel
     """
@@ -2310,11 +2310,11 @@ class Connection(models.Model):
         super().__init__(*args, **kwargs)
 
         """ This is needed when referencing `session` from `FlowRun`. Since
-        the FK is bound to Connection, when it initializes an instance from
+        the FK is bound to ChannelConnection, when it initializes an instance from
         DB we need to specify the class based on `session_type` so we can access
         all the methods the proxy model implements. """
 
-        if type(self) is Connection:
+        if type(self) is ChannelConnection:
             if self.session_type == self.USSD:
                 from temba.ussd.models import USSDSession
 

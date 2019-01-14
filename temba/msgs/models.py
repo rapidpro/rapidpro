@@ -927,7 +927,7 @@ class Msg(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.Connection",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="msgs",
         null=True,

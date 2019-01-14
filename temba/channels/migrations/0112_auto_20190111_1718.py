@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name="connection",
+            model_name="channelconnection",
             name="channel",
             field=models.ForeignKey(
                 help_text="The channel we're connected to",
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="connection",
+            model_name="channelconnection",
             name="contact",
             field=models.ForeignKey(
                 help_text="Who this connection is with",
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="connection",
+            model_name="channelconnection",
             name="contact_urn",
             field=models.ForeignKey(
                 help_text="The URN we're communicating with",

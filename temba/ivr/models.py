@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelLog, ChannelType, Connection
+from temba.channels.models import Channel, ChannelConnection, ChannelLog, ChannelType
 from temba.utils.http import HttpEvent
 
 
@@ -20,7 +20,7 @@ class IVRManager(models.Manager):
         return super().get_queryset().filter(session_type=IVRCall.IVR)
 
 
-class IVRCall(Connection):
+class IVRCall(ChannelConnection):
     RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
     MAX_ERROR_COUNT = 5
@@ -86,7 +86,7 @@ class IVRCall(Connection):
 
         if not self.is_done():
             # mark us as interrupted
-            self.status = Connection.INTERRUPTED
+            self.status = ChannelConnection.INTERRUPTED
             self.ended_on = timezone.now()
             self.save(update_fields=("status", "ended_on"))
 
@@ -201,7 +201,7 @@ class IVRCall(Connection):
             self.started_on = timezone.now()
 
         # if we are done, mark our ended time
-        if self.status in Connection.DONE:
+        if self.status in ChannelConnection.DONE:
             self.ended_on = timezone.now()
 
             self.unregister_active_event()
@@ -216,7 +216,7 @@ class IVRCall(Connection):
                 if run:
                     ActionLog.create(run[0], _("Call ended."))
 
-        if self.status in Connection.RETRY_CALL and previous_status not in Connection.RETRY_CALL:
+        if self.status in ChannelConnection.RETRY_CALL and previous_status not in ChannelConnection.RETRY_CALL:
             flow = self.get_flow()
             backoff_minutes = flow.metadata.get("ivr_retry", IVRCall.RETRY_BACKOFF_MINUTES)
 
@@ -237,7 +237,7 @@ class IVRCall(Connection):
                 ):
                     run.update_expiration()
 
-        if self.status == Connection.FAILED:
+        if self.status == ChannelConnection.FAILED:
             flow = self.get_flow()
             if flow.metadata.get("ivr_retry_failed_events"):
                 self.schedule_failed_call_retry()

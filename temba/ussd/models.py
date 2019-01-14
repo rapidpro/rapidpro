@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from temba.channels.models import Connection
+from temba.channels.models import ChannelConnection
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
@@ -23,7 +23,7 @@ class USSDQuerySet(models.QuerySet):
         return self.only("status").filter(id=session_id).first()
 
 
-class USSDSession(Connection):
+class USSDSession(ChannelConnection):
     USSD_PULL = INCOMING = "I"
     USSD_PUSH = OUTGOING = "O"
 
@@ -142,7 +142,9 @@ class USSDSession(Connection):
         if not connection:
             try:
                 connection = (
-                    cls.objects.select_for_update().exclude(status__in=Connection.DONE).get(external_id=external_id)
+                    cls.objects.select_for_update()
+                    .exclude(status__in=ChannelConnection.DONE)
+                    .get(external_id=external_id)
                 )
                 created = False
                 for k, v in defaults.items():

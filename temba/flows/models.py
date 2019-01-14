@@ -34,7 +34,7 @@ from celery import current_app
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, Connection
+from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import (
     NEW_CONTACT_VARIABLE,
     TEL_SCHEME,
@@ -164,7 +164,7 @@ class FlowSession(models.Model):
     )
 
     connection = models.OneToOneField(
-        "channels.Connection",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         null=True,
         related_name="session",
@@ -3004,7 +3004,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.Connection",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="runs",
         null=True,
@@ -3305,7 +3305,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     @property
     def connection_interrupted(self):
-        return self.connection and self.connection.status == Connection.INTERRUPTED
+        return self.connection and self.connection.status == ChannelConnection.INTERRUPTED
 
     @classmethod
     def normalize_field_key(cls, key):
@@ -7923,5 +7923,7 @@ class InterruptTest(Test):
 
     def evaluate(self, run, msg, context, text):
         return (
-            (True, self.TYPE) if run.connection and run.connection.status == Connection.INTERRUPTED else (False, None)
+            (True, self.TYPE)
+            if run.connection and run.connection.status == ChannelConnection.INTERRUPTED
+            else (False, None)
         )
