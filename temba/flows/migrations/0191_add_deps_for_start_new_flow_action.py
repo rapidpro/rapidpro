@@ -9,9 +9,11 @@ from temba.utils import chunk_list
 
 
 def add_deps(Flow, ActionSet, RuleSet):
-    from temba.flows.models import StartFlowAction, TriggerFlowAction
-
+    # constants
     FlowFlowDeps = Flow.flow_dependencies.through
+    startFlowActionType = "flow"
+    triggerFlowActionType = "trigger-flow"
+    rulesetTypeSubflow = "subflow"
 
     start_time = time.monotonic()
     print("Collecting flows and dependencies...")
@@ -49,14 +51,14 @@ def add_deps(Flow, ActionSet, RuleSet):
             for action_list in actionset_actions:
                 for action in action_list:
                     #
-                    if action["type"] == StartFlowAction.TYPE:
+                    if action["type"] == startFlowActionType:
                         flow_uuid = action["flow"]["uuid"]
 
                         # there might be some inactive flows listed as dependencies, ignore
                         if flow_uuid in valid_flow_map:
                             expected_flow_deps[flow_id].add(valid_flow_map[flow_uuid])
 
-                    if action["type"] == TriggerFlowAction.TYPE:
+                    if action["type"] == triggerFlowActionType:
                         flow_uuid = action["flow"]["uuid"]
 
                         # there might be some inactive flows listed as dependencies, ignore
@@ -64,7 +66,7 @@ def add_deps(Flow, ActionSet, RuleSet):
                             expected_flow_deps[flow_id].add(valid_flow_map[flow_uuid])
 
         rulesets = (
-            RuleSet.objects.filter(flow_id__in=flow_ids_chunk, ruleset_type=RuleSet.TYPE_SUBFLOW)
+            RuleSet.objects.filter(flow_id__in=flow_ids_chunk, ruleset_type=rulesetTypeSubflow)
             .values("flow_id")
             .annotate(configs=ArrayAgg("config"))
         )
@@ -90,27 +92,27 @@ def add_deps(Flow, ActionSet, RuleSet):
     flow_dep_ids = list(expected_flow_deps.keys())
     total_added_deps = 0
 
-    for flow_ids_chunk in chunk_list(flow_dep_ids, 1000):
+    bulk_deps_to_add = list()
 
-        bulk_deps_to_add = list()
-
-        actual_flow_deps = (
-            FlowFlowDeps.objects.filter(from_flow_id__in=flow_ids_chunk)
+    for from_flow_id in flow_dep_ids:
+        actual_flow_dep = (
+            FlowFlowDeps.objects.filter(from_flow_id=from_flow_id)
             .values("from_flow_id")
             .annotate(deps=ArrayAgg("to_flow_id"))
-        )
+        ).first()
 
-        for actual_flow_dep in actual_flow_deps:
-            from_flow_id = actual_flow_dep["from_flow_id"]
+        if actual_flow_dep:
             actual_deps = set(actual_flow_dep["deps"])
+        else:
+            actual_deps = set()
 
-            deps_to_add = expected_flow_deps[from_flow_id].difference(actual_deps)
-            total_added_deps += len(deps_to_add)
+        deps_to_add = expected_flow_deps[from_flow_id].difference(actual_deps)
+        total_added_deps += len(deps_to_add)
 
-            for dep in deps_to_add:
-                bulk_deps_to_add.append(FlowFlowDeps(from_flow_id=from_flow_id, to_flow_id=dep))
+        for dep in deps_to_add:
+            bulk_deps_to_add.append(FlowFlowDeps(from_flow_id=from_flow_id, to_flow_id=dep))
 
-        FlowFlowDeps.objects.bulk_create(bulk_deps_to_add)
+    FlowFlowDeps.objects.bulk_create(bulk_deps_to_add)
 
     print(f"Total added missing deps: {total_added_deps}")
 
@@ -135,4 +137,4 @@ class Migration(migrations.Migration):
 
     dependencies = [("flows", "0190_make_empty_revisions")]
 
-    operations = [migrations.RunPython(apply_migration)]
+    operations = [migrations.RunPython(apply_migration, migrations.RunPython.noop)]
