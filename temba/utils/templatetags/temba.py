@@ -190,13 +190,12 @@ def pretty_datetime(context, dtime):
     dtime = dtime.astimezone(tz)
 
     if org_format == "D":
-        return "%d %s %s %d:%s %s" % (
+        return "%d %s %s %s:%s" % (
             int(dtime.strftime("%d")),
             dtime.strftime("%B"),
             dtime.strftime("%Y"),
-            int(dtime.strftime("%I")),
+            dtime.strftime("%H"),
             dtime.strftime("%M"),
-            dtime.strftime("%p").lower(),
         )
     else:
         return "%s %d, %s %d:%s %s" % (
@@ -228,7 +227,7 @@ def short_datetime(context, dtime):
 
     if org_format == "D":
         if dtime > twelve_hours_ago:
-            return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+            return "%s:%s" % (int(dtime.strftime("%H")), dtime.strftime("%M"))
         elif now.year == dtime.year:
             return "%d %s" % (int(dtime.strftime("%d")), dtime.strftime("%b"))
         else:

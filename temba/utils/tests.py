@@ -448,10 +448,10 @@ class TemplateTagTest(TembaTest):
 
             # date without timezone
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("20 July 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("20 July 2012 7:05 pm", pretty_datetime(context, test_date))
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
 
             # the org has month first configured
             self.org.date_format = "M"
@@ -477,12 +477,12 @@ class TemplateTagTest(TembaTest):
             # date without timezone
             test_date = datetime.datetime.now()
             modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
+            self.assertEqual("19:05", short_datetime(context, modified_now))
 
             # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
             now = timezone.now()
             modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
+            self.assertEqual("19:05", short_datetime(context, modified_now))
 
             # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
             test_date = now.replace(day=2)
