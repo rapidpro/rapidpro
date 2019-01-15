@@ -43,7 +43,7 @@
                 -ifequal broadcast.status 'F'
                   .glyph.icon-bubble-notification.failed
               %td.created
-                {{ broadcast.created_on|gmail_time }}
+                {% short_datetime broadcast.created_on %}
 
 {% block extra-style %}
 :css
