@@ -286,6 +286,7 @@ class Flow(TembaModel):
         "11.6",
         "11.7",
         "11.8",
+        "11.9",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -2841,7 +2842,6 @@ class Flow(TembaModel):
         return revision
 
     def update_dependencies(self):
-
         # if we are an older version, induce a system rev which will update our dependencies
         if Flow.is_before_version(self.version_number, get_current_export_version()):
             self.ensure_current_version()
@@ -2864,6 +2864,9 @@ class Flow(TembaModel):
                         else:
                             # group names can be an expression
                             fields.update(collector.get_contact_fields(group))
+
+                if action.TYPE == StartFlowAction.TYPE:
+                    flows.add(action.flow)
 
                 if action.TYPE == TriggerFlowAction.TYPE:
                     flows.add(action.flow)

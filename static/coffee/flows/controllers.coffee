@@ -1229,8 +1229,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.isRuleVisible = (rule) ->
     return flow.flow_type in rule._config.filter
 
-  $scope.getFlowsUrl = (flow) ->
+  $scope.getFlowsUrl = (exclude_current_flow) ->
     url = "/flow/?_format=select2"
+
+    if exclude_current_flow
+        url += '&exclude_flow_uuid='+ Flow.flow.metadata.uuid;
+
     if Flow.flow.flow_type == 'S'
       return url + "&flow_type=S"
     if Flow.flow.flow_type == 'M'

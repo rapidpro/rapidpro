@@ -191,11 +191,15 @@ app.directive "selectServer", ["$timeout", "$http", ($timeout, $http) ->
     if attrs.search
       minimumResultsForSearch = 0
 
+    excludeFlowParam = '';
+    if attrs.excludeCurrentFlow
+        excludeFlowParam = '&exclude_flow_uuid='+ window.flowUUID;
+
     element.select2
       placeholder: attrs.placeholder
       minimumResultsForSearch: minimumResultsForSearch
       ajax:
-        url: attrs.selectServer
+        url: attrs.selectServer + excludeFlowParam
         dataType: "json"
         data: (term, page) ->
           search: term
