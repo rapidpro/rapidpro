@@ -213,7 +213,7 @@
 
                         %td.value-received.field_received
                           %nobr
-                            {{ object.created_on|format_time:user_org }}
+                            {% short_datetime object.created_on %}
 
                         // This is needed for action buttons
                         %td.hide

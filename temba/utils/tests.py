@@ -436,35 +436,65 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
-    def test_format_time(self):
+    def test_pretty_datetime(self):
         import pytz
-        from temba.utils.templatetags.temba import format_time
+        from temba.utils.templatetags.temba import pretty_datetime
 
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
 
+            context = dict(user_org=self.org)
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20 July 2012 7:05 pm", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20 July 2012 7:05 pm", pretty_datetime(context, test_date))
+
+            # the org has month first configured
+            self.org.date_format = "M"
+            self.org.save()
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+    def test_short_datetime(self):
+        import pytz
+        from temba.utils.templatetags.temba import short_datetime
+
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.org.date_format = "D"
+            self.org.save()
+
+            context = dict(user_org=self.org)
+
             # date without timezone
             test_date = datetime.datetime.now()
             modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", format_time(modified_now, self.org))
+            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
 
             # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
             now = timezone.now()
             modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", format_time(modified_now, self.org))
+            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
 
             # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
             test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", format_time(test_date, self.org))
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
             # last month should still be pretty
             test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", format_time(test_date, self.org))
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
             # but a different year is different
             jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("20/7/12", format_time(jan_2, self.org))
+            self.assertEqual("20/7/12", short_datetime(context, jan_2))
 
             # the org has month first configured
             self.org.date_format = "M"
@@ -473,19 +503,19 @@ class TemplateTagTest(TembaTest):
             # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
             now = timezone.now()
             modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", format_time(modified_now, self.org))
+            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
 
             # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
             test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", format_time(test_date, self.org))
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # last month should still be pretty
             test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", format_time(test_date, self.org))
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
             jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
-            self.assertEqual("7/20/12", format_time(jan_2, self.org))
+            self.assertEqual("7/20/12", short_datetime(context, jan_2))
 
 
 class TemplateTagTestSimple(TestCase):

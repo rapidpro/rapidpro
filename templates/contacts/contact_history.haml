@@ -100,9 +100,9 @@
     %td.created_on
       %span.time
         %span.short
-          {{item.time|format_time:user_org}}
+          {% short_datetime item.time %}
         %span.long.hide
-          {{item.time}}
+          {% pretty_datetime item.time %}
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon

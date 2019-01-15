@@ -175,15 +175,50 @@ def to_json(value):
     return mark_safe(f'JSON.parse("{escaped_output}")')
 
 
-@register.filter
-def format_time(dtime, org):
+@register.simple_tag(takes_context=True)
+def pretty_datetime(context, dtime):
+
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+    org_format = "D"
+    tz = pytz.UTC
+    org = context["user_org"]
+    if org:
+        org_format = org.date_format
+        tz = org.timezone
+
+    dtime = dtime.astimezone(tz)
+
+    if org_format == "D":
+        return "%d %s %s %d:%s %s" % (
+            int(dtime.strftime("%d")),
+            dtime.strftime("%B"),
+            dtime.strftime("%Y"),
+            int(dtime.strftime("%I")),
+            dtime.strftime("%M"),
+            dtime.strftime("%p").lower(),
+        )
+    else:
+        return "%s %d, %s %d:%s %s" % (
+            dtime.strftime("%B"),
+            int(dtime.strftime("%d")),
+            dtime.strftime("%Y"),
+            int(dtime.strftime("%I")),
+            dtime.strftime("%M"),
+            dtime.strftime("%p").lower(),
+        )
+
+
+@register.simple_tag(takes_context=True)
+def short_datetime(context, dtime):
     if dtime.tzinfo is None:
         dtime = dtime.replace(tzinfo=pytz.utc)
 
+    org_format = "D"
     tz = pytz.UTC
-    month_first = False
+    org = context["user_org"]
     if org:
-        month_first = org.date_format == "M"
+        org_format = org.date_format
         tz = org.timezone
 
     dtime = dtime.astimezone(tz)
@@ -191,11 +226,17 @@ def format_time(dtime, org):
     now = timezone.now()
     twelve_hours_ago = now - timedelta(hours=12)
 
-    if dtime > twelve_hours_ago:
-        return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
-    elif now.year == dtime.year:
-        return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
+    if org_format == "D":
+        if dtime > twelve_hours_ago:
+            return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+        elif now.year == dtime.year:
+            return "%d %s" % (int(dtime.strftime("%d")), dtime.strftime("%b"))
+        else:
+            return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))
     else:
-        if month_first:
+        if dtime > twelve_hours_ago:
+            return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+        elif now.year == dtime.year:
+            return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
+        else:
             return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
-        return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))
