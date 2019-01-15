@@ -813,20 +813,28 @@ class QueueTest(TembaTest):
 
         self.create_secondary_org()
 
-        args = [dict(task=i) for i in range(6)]
+        org1_tasks = [dict(task=0), dict(task=2), dict(task=4)]
+        org2_tasks = [dict(task=1), dict(task=3), dict(task=5)]
 
-        push_task(self.org, None, "test", args[4], LOW_PRIORITY)
-        push_task(self.org, None, "test", args[2])
-        push_task(self.org, None, "test", args[0], HIGH_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[2], LOW_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[1])
+        push_task(self.org, None, "test", org1_tasks[0], HIGH_PRIORITY)
 
-        push_task(self.org2, None, "test", args[3])
-        push_task(self.org2, None, "test", args[1], HIGH_PRIORITY)
-        push_task(self.org2, None, "test", args[5], LOW_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[1])
+        push_task(self.org2, None, "test", org2_tasks[0], HIGH_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[2], LOW_PRIORITY)
+
+        started_tasks = [start_task("test")[1]["task"] for _ in org1_tasks + org2_tasks]
+
+        # creates groups of started tasks, each group has tasks started on different orgs
+        actual_start_order = list(set(task_group) for task_group in zip(*[iter(started_tasks)] * 2))
 
         # order should alternate between the two orgs (based on # of active workers)
-        for i in range(6):
-            task = start_task("test")[1]["task"]
-            self.assertEqual(i, task)
+        expected_start_order = [{0, 1}, {2, 3}, {4, 5}]
+
+        # check if actual start order pairs, are the same as expected start order pairs
+        for idx, pair in enumerate(actual_start_order):
+            self.assertSetEqual(pair, expected_start_order[idx])
 
         # each org should show 3 active works
         self.assertEqual(r.zscore("test:active", self.org.id), 3)
