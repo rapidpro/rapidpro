@@ -11865,6 +11865,7 @@ class AssetServerTest(TembaTest):
                 "timezone": "Africa/Kigali",
                 "default_language": None,
                 "allowed_languages": [],
+                "default_country": "RW",
                 "redaction_policy": "none",
             },
         )
