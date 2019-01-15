@@ -1,2 +1,2 @@
 
-from .client import *  # noqa
+from .mailroom import *  # noqa

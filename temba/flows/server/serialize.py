@@ -17,7 +17,7 @@ def serialize_flow(flow):
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
-    from .client import get_mailroom_client
+    from .mailroom import get_mailroom_client
 
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)

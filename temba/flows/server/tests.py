@@ -7,7 +7,7 @@ from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
-from .client import MailroomException
+from .mailroom import MailroomException
 from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_group, serialize_label
 
 TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
