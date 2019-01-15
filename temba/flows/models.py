@@ -5635,7 +5635,7 @@ class EmailAction(Action):
         (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
 
         # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-        subject = regex.sub("\s+", " ", subject, regex.V0)
+        subject = regex.sub(r"\s+", " ", subject, regex.V0)
 
         valid_addresses = []
         invalid_addresses = []

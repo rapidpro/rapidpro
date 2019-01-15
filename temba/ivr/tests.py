@@ -56,9 +56,7 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_preferred_channel(self, mock_update_call, mock_create_call, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
         mock_update_call.return_value = dict(uuid="12345")
 
@@ -230,9 +228,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_disable_calls_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
 
         with self.settings(SEND_CALLS=False):
@@ -417,9 +413,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("requests.post")
     def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application, mock_jwt):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
         mock_jwt.return_value = b"Encoded data"
 
@@ -863,9 +857,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -913,9 +905,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("requests.post")
     def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid="12345"))))
         mock_jwt.return_value = b"Encoded data"
 
@@ -973,9 +963,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_ivr_subflow_with_nexmo(self, mock_create_call, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1511,9 +1499,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")
     def test_incoming_start_nexmo(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_update_call.return_value = dict(uuid="12345")
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1562,9 +1548,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_incoming_call_nexmo(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.org.connect_nexmo("123", "456", self.admin)
         self.org.save()
@@ -1685,9 +1669,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_nexmo_config_empty_callbacks(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.org.connect_nexmo("123", "456", self.admin)
         self.org.save()
@@ -1720,9 +1702,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_no_channel_for_call_nexmo(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.org.connect_nexmo("123", "456", self.admin)
         self.org.save()
@@ -1751,9 +1731,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     def test_no_flow_for_incoming_nexmo(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.org.connect_nexmo("123", "456", self.admin)
         self.org.save()
@@ -1865,9 +1843,8 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+
         mock_create_call.return_value = dict(uuid="12345")
         mock_download_recording.side_effect = [
             MockResponse(200, "SOUND BITS"),
@@ -1933,9 +1910,8 @@ class IVRTests(FlowFileTest):
     @patch("jwt.encode")
     @patch("nexmo.Client.create_application")
     def test_temba_utils_nexmo_methods(self, mock_create_application, mock_jwt_encode):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+
         mock_jwt_encode.return_value = b"TOKEN"
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -1986,7 +1962,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=0,
@@ -2002,7 +1977,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS - 1,
@@ -2020,7 +1994,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS + 1,
@@ -2037,7 +2010,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=0,
@@ -2055,7 +2027,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=0,
@@ -2067,7 +2038,7 @@ class IVRTests(FlowFileTest):
         )
 
         call5.modified_on = timezone.now() - timedelta(IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS + 14)
-        call5.save(update_fields=("modified_on",), preserve_modified_on=True)
+        call5.save(update_fields=("modified_on",))
 
         self.assertTrue(
             all((call1.next_attempt, call2.next_attempt, call3.next_attempt, call4.next_attempt, call5.next_attempt))
@@ -2115,7 +2086,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         self.assertIsNone(call1.next_attempt)
@@ -2149,7 +2119,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         def _get_flow():
@@ -2198,7 +2167,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         def _get_flow():
@@ -2280,7 +2248,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         # status is None
@@ -2299,7 +2266,6 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.direction, IVRCall.OUTGOING)
         self.assertEqual(call.org, self.org)
         self.assertEqual(call.created_by, self.admin)
-        self.assertEqual(call.modified_by, self.admin)
         self.assertEqual(call.status, IVRCall.PENDING)
 
     def test_create_incoming_implicit_values(self):
@@ -2316,7 +2282,6 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.direction, IVRCall.INCOMING)
         self.assertEqual(call.org, self.org)
         self.assertEqual(call.created_by, self.admin)
-        self.assertEqual(call.modified_by, self.admin)
         self.assertEqual(call.status, IVRCall.PENDING)
 
     def test_nexmo_derive_ivr_status(self):
@@ -2361,7 +2326,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
             is_active=True,
             retry_count=0,
@@ -2518,7 +2482,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
         call2 = IVRCall.objects.create(
@@ -2527,7 +2490,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
 
@@ -2624,7 +2586,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
         call2 = IVRCall.objects.create(
@@ -2633,7 +2594,6 @@ class IVRTests(FlowFileTest):
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
             created_by=self.admin,
-            modified_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
 
@@ -2646,7 +2606,7 @@ class IVRTests(FlowFileTest):
         call2.update_status("failed", 0, "T")
         call2.save()
         call2.modified_on = call2.modified_on - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS + 14)
-        call2.save(update_fields=("modified_on",), preserve_modified_on=True)
+        call2.save(update_fields=("modified_on",))
 
         # failed retry count
         self.assertEqual(call1.error_count, 1)

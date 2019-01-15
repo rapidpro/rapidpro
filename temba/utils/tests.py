@@ -648,10 +648,10 @@ class EmailTest(TembaTest):
             "{@flow.email}",
             "Abc.example.com",
             "A@b@c@example.com",
-            'a"b(c)d,e:f;g<h>i[j\k]l@example.com'
+            r'a"b(c)d,e:f;g<h>i[j\k]l@example.com'
             'just"not"right@example.com'
             'this is"not\allowed@example.com'
-            'this\ still"not\\allowed@example.com'
+            r'this\ still"not\\allowed@example.com'
             "1234567890123456789012345678901234567890123456789012345678901234+x@example.com"
             "john..doe@example.com"
             "john.doe@example..com"
@@ -1003,7 +1003,7 @@ class ExpressionsTest(TembaTest):
             ("Bonjour world", []), evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))', self.context)
         )  # string arguments
         self.assertRegex(
-            evaluate_template("Today is @(TODAY())", self.context)[0], "Today is \d\d-\d\d-\d\d\d\d"
+            evaluate_template("Today is @(TODAY())", self.context)[0], r"Today is \d\d-\d\d-\d\d\d\d"
         )  # function with no args
         self.assertEqual(
             ("3", []), evaluate_template("@(LEN( 1.2 ))", self.context)
