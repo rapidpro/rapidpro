@@ -1095,17 +1095,11 @@ EVENT_FIRE_TRIM_DAYS = 90
 FLOW_SESSION_TRIM_DAYS = 7
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default and only used for migrating flows.
-# GoFlow defaults to http://localhost:8800
-# -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = None
-FLOW_SERVER_DEBUG = False
-
-# -----------------------------------------------------------------------------------
 # Mailroom - disabled by default, but is where simulation happens
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
+MAILROOM_DEBUG = False
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:
@@ -1128,5 +1122,3 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-MAILROOM_URL = ""

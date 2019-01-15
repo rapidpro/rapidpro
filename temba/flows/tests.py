@@ -37,7 +37,7 @@ from temba.tests import (
     MockResponse,
     TembaTest,
     matchers,
-    skip_if_no_flowserver,
+    skip_if_no_mailroom,
 )
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -5632,7 +5632,6 @@ class FlowRunTest(TembaTest):
         run.release()
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
-    @skip_if_no_flowserver
     def test_session_release(self):
         # create some runs that have sessions
         run1 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
@@ -11934,7 +11933,7 @@ class TypeTest(TembaTest):
 
 
 class AssetServerTest(TembaTest):
-    @skip_if_no_flowserver
+    @skip_if_no_mailroom
     def test_flows(self):
         flow1 = self.get_flow("color")
         flow2 = self.get_flow("favorites")

@@ -3,11 +3,11 @@ from unittest.mock import patch
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.msgs.models import Label
-from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
+from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
-from .client import FlowServerException
+from .client import MailroomException
 from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_group, serialize_label
 
 TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
@@ -80,7 +80,7 @@ class SerializationTest(TembaTest):
         self.assertEqual(serialize_field(gender), {"key": "gender", "name": "Gender", "value_type": "text"})
         self.assertEqual(serialize_field(age), {"key": "age", "name": "Age", "value_type": "number"})
 
-    @skip_if_no_flowserver
+    @skip_if_no_mailroom
     def test_serialize_flow(self):
         flow = self.get_flow("favorites")
         migrated_json = serialize_flow(flow)
@@ -134,17 +134,17 @@ class SerializationTest(TembaTest):
         )
 
 
-class ClientTest(TembaTest):
+class MailroomClientTest(TembaTest):
     @patch("requests.post")
     def test_request_failure(self, mock_post):
         mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
         flow = self.get_flow("color")
 
-        with self.assertRaises(FlowServerException) as e:
+        with self.assertRaises(MailroomException) as e:
             serialize_flow(flow)
 
         self.assertEqual(
             e.exception.as_json(),
-            {"endpoint": "migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
+            {"endpoint": "flow/migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
         )

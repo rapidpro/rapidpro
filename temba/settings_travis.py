@@ -2,9 +2,9 @@
 from .settings import *  # noqa
 
 # -----------------------------------------------------------------------------------
-# Flowserver - on Travis we start a GoFlow instance at http://localhost:8800
+# Mailroom - on Travis we start an instance at http://localhost:8090
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = "http://localhost:8800"
+MAILROOM_URL = "http://localhost:8090"
 
 DATABASES = {
     "default": {

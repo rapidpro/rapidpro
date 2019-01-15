@@ -1,4 +1,3 @@
-
 from enum import Enum
 
 import requests
@@ -34,7 +33,7 @@ class Events(Enum):
     webhook_called = 23
 
 
-class FlowServerException(Exception):
+class MailroomException(Exception):
     def __init__(self, endpoint, request, response):
         self.endpoint = endpoint
         self.request = request
@@ -44,9 +43,9 @@ class FlowServerException(Exception):
         return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
-class FlowServerClient:
+class MailroomClient:
     """
-    Basic client for GoFlow's flow server
+    Basic web client for mailroom
     """
 
     headers = {"User-Agent": "Temba"}
@@ -56,24 +55,24 @@ class FlowServerClient:
         self.debug = debug
 
     def migrate(self, flow_migrate):
-        return self._request("migrate", flow_migrate)
+        return self._request("flow/migrate", flow_migrate)
 
     def _request(self, endpoint, payload):
         if self.debug:
-            print("[GOFLOW]=============== %s request ===============" % endpoint)
+            print("[MAILROOM]=============== %s request ===============" % endpoint)
             print(json.dumps(payload, indent=2))
-            print("[GOFLOW]=============== /%s request ===============" % endpoint)
+            print("[MAILROOM]=============== /%s request ===============" % endpoint)
 
-        response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
+        response = requests.post("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
         if self.debug:
-            print("[GOFLOW]=============== %s response ===============" % endpoint)
+            print("[MAILROOM]=============== %s response ===============" % endpoint)
             print(json.dumps(resp_json, indent=2))
-            print("[GOFLOW]=============== /%s response ===============" % endpoint)
+            print("[MAILROOM]=============== /%s response ===============" % endpoint)
 
         if 400 <= response.status_code < 500:
-            raise FlowServerException(endpoint, payload, resp_json)
+            raise MailroomException(endpoint, payload, resp_json)
 
         response.raise_for_status()
 
@@ -81,4 +80,4 @@ class FlowServerClient:
 
 
 def get_client():
-    return FlowServerClient(settings.FLOW_SERVER_URL, settings.FLOW_SERVER_DEBUG)
+    return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_DEBUG)

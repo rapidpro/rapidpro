@@ -1,8 +1,6 @@
 # use container-based Ubuntu Trusty
-dist:
-  - trusty
-sudo:
-  - false
+dist: trusty
+sudo: false
 
 language: python
 python:
@@ -16,17 +14,26 @@ addons:
 services:
   - redis-server
 
-env:
-  - ES_VERSION=6.3.1 ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
-
 cache:
   directories:
     - "$HOME/.cache/pip"
 
 install:
-  - wget ${ES_DOWNLOAD_URL}
+  # install Elasticsearch
+  - ES_VERSION=6.3.1
+  - wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
   - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
+
+  # install goflow
+  - GOFLOW_VERSION=0.22.0
+  - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+  - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
+
+  # install rp-indexer
+  - RPINDEXER_VERSION=1.0.22
+  - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
+  - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
   # install all Python dependencies
   - travis_retry pip install --upgrade pip
@@ -54,16 +61,6 @@ before_script:
 
   # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
-
-  # setup a goflow server instance
-  - GOFLOW_VERSION=0.22.0
-  - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
-  - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
-
-    # prepare rp-indexer binary
-  - RPINDEXER_VERSION=1.0.22
-  - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
-  - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
 script:
   # any non-zero error code should be treated as an immediate failure
