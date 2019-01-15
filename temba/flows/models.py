@@ -285,6 +285,7 @@ class Flow(TembaModel):
         "11.5",
         "11.6",
         "11.7",
+        "11.8",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -5631,7 +5632,7 @@ class EmailAction(Action):
         (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
 
         # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-        subject = regex.sub("\s+", " ", subject, regex.V0)
+        subject = regex.sub(r"\s+", " ", subject, regex.V0)
 
         valid_addresses = []
         invalid_addresses = []

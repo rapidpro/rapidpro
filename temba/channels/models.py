@@ -201,7 +201,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
-        raise NotImplemented("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
+        raise NotImplementedError("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
@@ -2193,7 +2193,7 @@ def get_alert_user():
         return user
 
 
-class ChannelSession(SmartModel):
+class ChannelSession(models.Model):
     PENDING = "P"  # initial state for all sessions
     QUEUED = "Q"  # the session is queued internally
     WIRED = "W"  # the API provider has confirmed that it successfully received the API request
@@ -2243,20 +2243,24 @@ class ChannelSession(SmartModel):
         (ENDING, "Ending"),
     )
 
+    is_active = models.BooleanField(
+        default=True, help_text="Whether this item is active, use this instead of deleting"
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        help_text="The user which originally created this item",
+        related_name="connections",
+        help_text="The user which originally created this connection",
         null=True,
     )
 
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
-        null=True,
+    created_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
+    )
+
+    modified_on = models.DateTimeField(
+        default=timezone.now, editable=False, blank=True, help_text="When this item was last modified"
     )
 
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")

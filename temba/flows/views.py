@@ -104,7 +104,7 @@ class BaseFlowForm(forms.ModelForm):
                 continue
 
             if (
-                not regex.match("^\w+$", keyword, flags=regex.UNICODE | regex.V0)
+                not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
                 or len(keyword) > Trigger.KEYWORD_MAX_LEN
             ):
                 wrong_format.append(keyword)
@@ -1385,7 +1385,7 @@ class FlowCRUDL(SmartCRUDL):
                     query = query.strip()
                     query = f"name ~ {query} OR tel ~ {query}"
                     contact_ids = Contact.query_elasticsearch_for_ids(org, query)
-                except:  # pragma: no cover
+                except Exception:  # pragma: no cover
                     # if we cant parse it, then no matches
                     pass
                 runs = runs.filter(contact__in=contact_ids)

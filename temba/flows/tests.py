@@ -53,6 +53,7 @@ from .flow_migrations import (
     migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
+    migrate_to_version_11_8,
 )
 from .models import (
     Action,
@@ -2615,7 +2616,7 @@ class FlowTest(TembaTest):
         test = ContainsAnyTest(test=dict(base="لا يسمح هذه البداية"))
         self.assertTest(False, None, test)
 
-        test = RegexTest(dict(base="(?P<first_name>\w+) (\w+)"))
+        test = RegexTest(dict(base=r"(?P<first_name>\w+) (\w+)"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.fields
@@ -2632,7 +2633,7 @@ class FlowTest(TembaTest):
         self.assertEqual("العالم", extra["2"])
 
         # no matching groups, should return whole string as match
-        test = RegexTest(dict(base="\w+ \w+"))
+        test = RegexTest(dict(base=r"\w+ \w+"))
         sms.text = "Isaac Newton"
         run = self.assertTest(True, "Isaac Newton", test)
         extra = run.fields
@@ -9773,6 +9774,27 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    def test_migrate_to_11_8(self):
+        def get_rule_uuids(f):
+            uuids = []
+            for rs in f.get(Flow.RULE_SETS, []):
+                for rule in rs.get("rules"):
+                    uuids.append(rule["uuid"])
+            return uuids
+
+        original = self.get_flow_json("migrate_to_11_8")
+        original_uuids = get_rule_uuids(original)
+
+        self.assertEqual(len(original_uuids), 9)
+        self.assertEqual(len(set(original_uuids)), 7)
+
+        migrated = migrate_to_version_11_8(original)
+        migrated_uuids = get_rule_uuids(migrated)
+
+        # check that all rule UUIDs are now unique and only two new ones were added
+        self.assertEqual(len(set(migrated_uuids)), 9)
+        self.assertEqual(len(set(migrated_uuids).difference(original_uuids)), 2)
+
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_11_7(self):
         original = self.get_flow_json("migrate_to_11_7")
@@ -10139,6 +10161,14 @@ class FlowMigrationTest(FlowFileTest):
                 "Tu as dit @(format_location(flow.ward))",  # flow var followed by end of input
                 "You said @(format_location(flow.ward)).",  # flow var followed by period then end of input
             ],
+        )
+
+    def test_migrate_to_11_0_with_broken_localization(self):
+        migrated = self.get_flow("migrate_to_11_0").as_json()
+
+        self.assertEqual(
+            migrated["action_sets"][0]["actions"][0]["msg"],
+            {"base": "@(format_date(date)) Something went wrong once. I shouldn't be a dict inside a dict."},
         )
 
     def test_migrate_to_10_4(self):

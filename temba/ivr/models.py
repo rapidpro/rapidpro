@@ -53,7 +53,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.OUTGOING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             status=IVRCall.PENDING,
         )
 
@@ -66,7 +65,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.INCOMING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             external_id=external_id,
             status=IVRCall.PENDING,
         )
