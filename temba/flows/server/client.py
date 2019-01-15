@@ -48,14 +48,24 @@ class MailroomClient:
     Basic web client for mailroom
     """
 
-    headers = {"User-Agent": "Temba"}
+    default_headers = {"User-Agent": "Temba"}
 
-    def __init__(self, base_url, debug=False):
+    def __init__(self, base_url, auth_token, debug=False):
         self.base_url = base_url
+        self.headers = self.default_headers.copy()
+        if auth_token:
+            self.headers["Authorization"] = "Token " + auth_token
+
         self.debug = debug
 
-    def migrate(self, flow_migrate):
-        return self._request("flow/migrate", flow_migrate)
+    def flow_migrate(self, payload):
+        return self._request("flow/migrate", payload)
+
+    def sim_start(self, payload):
+        return self._request("sim/start", payload)
+
+    def sim_resume(self, payload):
+        return self._request("sim/resume", payload)
 
     def _request(self, endpoint, payload):
         if self.debug:
@@ -79,5 +89,5 @@ class MailroomClient:
         return resp_json
 
 
-def get_client():
-    return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_DEBUG)
+def get_mailroom_client():
+    return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN, settings.MAILROOM_DEBUG)

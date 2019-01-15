@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import iso8601
 import regex
-import requests
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -42,6 +41,7 @@ from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.flows.server import MailroomException, get_mailroom_client
 from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
@@ -1487,37 +1487,32 @@ class FlowCRUDL(SmartCRUDL):
                         dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                     )
 
-                headers = {}
-                if settings.MAILROOM_AUTH_TOKEN:
-                    headers["Authorization"] = "Token " + settings.MAILROOM_AUTH_TOKEN
-
                 flow = self.get_object()
+                mailroom = get_mailroom_client()
 
                 # build our request body to mailroom
-                body = dict(org_id=flow.org_id)
+                payload = dict(org_id=flow.org_id)
 
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
-                    body["trigger"] = json_dict["trigger"]
-                    body["trigger"]["environment"] = serialize_environment(flow.org)
+                    payload["trigger"] = json_dict["trigger"]
+                    payload["trigger"]["environment"] = serialize_environment(flow.org)
 
-                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/start", json=body, headers=headers)
-                    if response.status_code != 200:
+                    try:
+                        return JsonResponse(mailroom.sim_start(payload))
+                    except MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-                    return JsonResponse(response.json())
 
                 # otherwise we are resuming
                 elif "resume" in json_dict:
-                    body["resume"] = json_dict["resume"]
-                    body["resume"]["environment"] = serialize_environment(flow.org)
-                    body["session"] = json_dict["session"]
+                    payload["resume"] = json_dict["resume"]
+                    payload["resume"]["environment"] = serialize_environment(flow.org)
+                    payload["session"] = json_dict["session"]
 
-                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/resume", json=body, headers=headers)
-                    if response.status_code != 200:
+                    try:
+                        return JsonResponse(mailroom.sim_resume(payload))
+                    except MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-                    return JsonResponse(response.json())
 
         def handle_legacy(self, request, json_dict):
 
