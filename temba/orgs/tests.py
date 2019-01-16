@@ -3019,7 +3019,7 @@ class OrgCRUDLTest(TembaTest):
 
         # Check the message datetime
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
 
         # change the org timezone to "Africa/Nairobi"
         self.org.timezone = pytz.timezone("Africa/Nairobi")
@@ -3028,6 +3028,13 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         # checkout the message should have the datetime changed by timezone
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
+        self.org.date_format = "M"
+        self.org.save()
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 

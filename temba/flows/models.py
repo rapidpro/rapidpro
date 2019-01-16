@@ -78,13 +78,38 @@ from temba.utils.queues import Queue, push_task
 from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
-from . import server
 from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
+
+
+class Events(Enum):
+    broadcast_created = 1
+    contact_channel_changed = 2
+    contact_field_changed = 3
+    contact_groups_changed = 4
+    contact_language_changed = 5
+    contact_name_changed = 6
+    contact_refreshed = 7
+    contact_timezone_changed = 8
+    contact_urns_changed = 9
+    email_created = 10
+    environment_refreshed = 11
+    error = 12
+    flow_entered = 13
+    input_labels_added = 14
+    ivr_created = 15
+    msg_created = 16
+    msg_received = 17
+    msg_wait = 18
+    run_expired = 19
+    run_result_changed = 20
+    session_triggered = 21
+    wait_timed_out = 22
+    webhook_called = 23
 
 
 class FlowException(Exception):
@@ -3419,9 +3444,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.events.append(
                 {
-                    FlowRun.EVENT_TYPE: server.Events.msg_received.name
+                    FlowRun.EVENT_TYPE: Events.msg_received.name
                     if msg.direction == INCOMING
-                    else server.Events.msg_created.name,
+                    else Events.msg_created.name,
                     FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
                     FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
                     "msg": serialize_message(msg),
@@ -3458,7 +3483,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
+        return self.get_events_of_type((Events.msg_received, Events.msg_created))
 
     def get_events_by_step(self, msg_only=False):
         """
@@ -5131,9 +5156,9 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes out any messages associated with the given run
         """
         for event in run["events"] or []:
-            if event["type"] == server.Events.msg_received.name:
+            if event["type"] == Events.msg_received.name:
                 msg_direction = "IN"
-            elif event["type"] == server.Events.msg_created.name:
+            elif event["type"] == Events.msg_created.name:
                 msg_direction = "OUT"
             else:  # pragma: no cover
                 continue
