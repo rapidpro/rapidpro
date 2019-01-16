@@ -46,7 +46,7 @@ class MailroomClient:
         return self._request("sim/resume", payload)
 
     def _request(self, endpoint, payload):
-        if logger.isEnabledFor(logging.DEBUG):
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
             logger.debug("=============== /%s request ===============" % endpoint)
@@ -54,7 +54,7 @@ class MailroomClient:
         response = requests.post("%s/mr/%s" % (self.base_url, endpoint), json=payload, headers=self.headers)
         resp_json = response.json()
 
-        if logger.isEnabledFor(logging.DEBUG):
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s response ===============" % endpoint)
             logger.debug(json.dumps(resp_json, indent=2))
             logger.debug("=============== /%s response ===============" % endpoint)
