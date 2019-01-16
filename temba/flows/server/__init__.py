@@ -1,2 +1,0 @@
-
-from .mailroom import *  # noqa

@@ -36,12 +36,12 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
-from temba.flows.server import MailroomException, get_mailroom_client
 from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
@@ -1488,7 +1488,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                 flow = self.get_object()
-                mailroom = get_mailroom_client()
+                client = mailroom.get_client()
 
                 # build our request body to mailroom
                 payload = dict(org_id=flow.org_id)
@@ -1499,8 +1499,8 @@ class FlowCRUDL(SmartCRUDL):
                     payload["trigger"]["environment"] = serialize_environment(flow.org)
 
                     try:
-                        return JsonResponse(mailroom.sim_start(payload))
-                    except MailroomException:
+                        return JsonResponse(client.sim_start(payload))
+                    except mailroom.MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
                 # otherwise we are resuming
@@ -1510,8 +1510,8 @@ class FlowCRUDL(SmartCRUDL):
                     payload["session"] = json_dict["session"]
 
                     try:
-                        return JsonResponse(mailroom.sim_resume(payload))
-                    except MailroomException:
+                        return JsonResponse(client.sim_resume(payload))
+                    except mailroom.MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
         def handle_legacy(self, request, json_dict):

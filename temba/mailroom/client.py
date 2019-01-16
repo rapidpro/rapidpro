@@ -67,5 +67,5 @@ class MailroomClient:
         return resp_json
 
 
-def get_mailroom_client():
+def get_client():
     return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
