@@ -9,11 +9,11 @@ from temba.triggers.models import Trigger
 
 class USSDQuerySet(models.QuerySet):
     def get(self, *args, **kwargs):
-        kwargs.update(dict(session_type=USSDSession.USSD))
+        kwargs.update(dict(connection_type=USSDSession.USSD))
         return super().get(*args, **kwargs)
 
     def create(self, **kwargs):
-        kwargs.update(dict(session_type=USSDSession.USSD))
+        kwargs.update(dict(connection_type=USSDSession.USSD))
         return super().create(**kwargs)
 
     def get_initiated_push(self, contact):
