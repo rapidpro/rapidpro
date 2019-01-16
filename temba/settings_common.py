@@ -1099,7 +1099,6 @@ FLOW_SESSION_TRIM_DAYS = 7
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-MAILROOM_DEBUG = False
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:
