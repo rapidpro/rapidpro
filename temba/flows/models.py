@@ -5280,12 +5280,32 @@ class FlowStart(SmartModel):
 
     contact_count = models.IntegerField(default=0, help_text=_("How many unique contacts were started down the flow"))
 
+    connections = models.ManyToManyField(
+        ChannelConnection, related_name="starts", help_text="The channel connections created for this start"
+    )
+
     status = models.CharField(
         max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES, help_text=_("The status of this flow start")
     )
 
     extra = JSONAsTextField(
         null=True, default=dict, help_text=_("Any extra parameters to pass to the flow start (json)")
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
+    )
+
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
     )
 
     @classmethod
@@ -5381,6 +5401,7 @@ class FlowStart(SmartModel):
             start_id=self.id,
             org_id=org_id,
             flow_id=self.flow_id,
+            flow_type=self.flow.flow_type,
             group_ids=[g.id for g in self.groups.all()],
             contact_ids=[c.id for c in self.contacts.all()],
             restart_participants=self.restart_participants,
