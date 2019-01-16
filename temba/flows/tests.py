@@ -7148,12 +7148,12 @@ class FlowsTest(FlowFileTest):
             FlowRun.objects.create(org=favorites.org, flow=favorites, contact=pete, responded=False)
 
             # fetch our intercooler rows for the run table
-            response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]))
+            response = self.client.get("%s?responded=bla" % reverse("flows.flow_run_table", args=[favorites.pk]))
             self.assertEqual(len(response.context["runs"]), 1)
             self.assertEqual(200, response.status_code)
 
-            response = self.client.get(reverse("flows.flow_run_table", args=[favorites.pk]) + "/?responded=on")
-            self.assertFalse("runs" in response.context)
+            response = self.client.get("%s?responded=on" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
 
         # make sure we show results for flows with only expression splits
         RuleSet.objects.filter(flow=favorites).update(ruleset_type=RuleSet.TYPE_EXPRESSION)
