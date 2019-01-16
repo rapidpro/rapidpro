@@ -203,7 +203,7 @@
 
                       %td.created_on
                         %span.time
-                          {{object.created_on|gmail_time}}
+                          {% short_datetime object.created_on %}
 
                         .log-icon
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon

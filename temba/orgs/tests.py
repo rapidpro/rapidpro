@@ -2143,9 +2143,7 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_connect_nexmo(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         self.login(self.admin)
 
         # connect nexmo
@@ -2162,8 +2160,12 @@ class OrgTest(TembaTest):
         with patch("requests.get") as nexmo_get:
             with patch("requests.post") as nexmo_post:
                 # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+                nexmo_get.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
+                nexmo_post.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
                 response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
                 self.assertEqual(response.status_code, 302)
 
@@ -2262,9 +2264,7 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_nexmo_configuration(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.login(self.admin)
 
@@ -3019,7 +3019,7 @@ class OrgCRUDLTest(TembaTest):
 
         # Check the message datetime
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
 
         # change the org timezone to "Africa/Nairobi"
         self.org.timezone = pytz.timezone("Africa/Nairobi")
@@ -3028,6 +3028,13 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         # checkout the message should have the datetime changed by timezone
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
+        self.org.date_format = "M"
+        self.org.save()
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 

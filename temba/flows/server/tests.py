@@ -18,13 +18,13 @@ class AssetsTest(TembaTest):
         self.assertEqual(
             get_asset_urls(self.org),
             {
-                "channel": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
-                "field": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
-                "flow": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
-                "group": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
-                "label": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
-                "location_hierarchy": f"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
-                "resthook": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
+                "channel": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "field": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
+                "group": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
+                "label": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
+                "location_hierarchy": fr"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
+                "resthook": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
             },
         )
 
@@ -33,7 +33,7 @@ class AssetsTest(TembaTest):
             get_asset_type(ChannelType).bundle_set(self.org, simulator=True),
             {
                 "type": "channel",
-                "url": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "url": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
                 "content": [
                     {
                         "address": "+250785551212",
@@ -58,7 +58,7 @@ class AssetsTest(TembaTest):
             {
                 "type": "channel",
                 "url": matchers.String(
-                    pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
+                    pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
                 ),
                 "content": {
                     "address": "+250785551212",

@@ -104,7 +104,7 @@ class BaseFlowForm(forms.ModelForm):
                 continue
 
             if (
-                not regex.match("^\w+$", keyword, flags=regex.UNICODE | regex.V0)
+                not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
                 or len(keyword) > Trigger.KEYWORD_MAX_LEN
             ):
                 wrong_format.append(keyword)
@@ -811,6 +811,11 @@ class FlowCRUDL(SmartCRUDL):
             types = self.request.GET.getlist("flow_type")
             if types:
                 queryset = queryset.filter(flow_type__in=types)
+
+            exclude_flow_uuid = self.request.GET.get("exclude_flow_uuid")
+            if exclude_flow_uuid:
+                queryset = queryset.exclude(uuid=exclude_flow_uuid)
+
             return queryset
 
     class Campaign(BaseList):
@@ -1385,7 +1390,7 @@ class FlowCRUDL(SmartCRUDL):
                     query = query.strip()
                     query = f"name ~ {query} OR tel ~ {query}"
                     contact_ids = Contact.query_elasticsearch_for_ids(org, query)
-                except:  # pragma: no cover
+                except Exception:  # pragma: no cover
                     # if we cant parse it, then no matches
                     pass
                 runs = runs.filter(contact__in=contact_ids)

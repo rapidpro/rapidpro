@@ -3374,8 +3374,6 @@ class ContactTest(TembaTest):
             IVRCall.objects.create(
                 contact=self.joe,
                 status=IVRCall.NO_ANSWER,
-                created_by=self.admin,
-                modified_by=self.admin,
                 channel=self.channel,
                 org=self.org,
                 contact_urn=self.joe.urns.all().first(),
