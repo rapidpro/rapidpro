@@ -1381,7 +1381,11 @@ class FlowCRUDL(SmartCRUDL):
 
             test_contacts = Contact.objects.filter(org=org, is_test=True).values_list("id", flat=True)
 
-            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
+            runs = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)
+
+            if self.request.GET.get("responded", "") == "on":
+                runs = runs.filter(responded=True)
+
             query = self.request.GET.get("q", None)
             contact_ids = []
             if query:

@@ -138,6 +138,10 @@
           overflow-x: auto;
         }
 
+        .responded-checkbox {
+          padding: 0px 10px 20px 0px;
+        }
+
         .add-columns {
           margin-left: 8px;
           .text {
@@ -521,6 +525,12 @@
       updateCharts();
     });
 
+    $(function(){
+      $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + $("#only_responded:checked").val();
+      });
+    });
+
 -block content
 
   %ul.nav.nav-tabs
@@ -546,6 +556,17 @@
 
     #runs.tab-pane
       .scroll-x
+        %div.responded-checkbox
+          %input#only_responded{type:"checkbox", name:"responded", checked:true,  style:"margin: 10px 10px 10px 0px;"
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-trigger-on:"change",
+                                      ic-trigger-delay:"500ms",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+
+          -trans "Only Responded"
+
         %table
           %tr
             %td.header.started
@@ -560,6 +581,7 @@
                 %input.contact-search{type:"text", name:"q", placeholder:"Contact",
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty()',
+                                      ic-include: "#only_responded",
                                       ic-trigger-on:"keyup changed",
                                       ic-trigger-delay:"500ms",
                                       ic-target:"#results_run_table",
@@ -575,7 +597,7 @@
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}
-            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-include: "#only_responded", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader
