@@ -3739,7 +3739,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
+    @patch("temba.mailroom.BATCH_QUEUE", "test_batch")
     def test_mailroom_starts(self):
+        """
+        Test flow starts being directed to the mailroom queue - however we need to temporarily change the name
+        of the mailroom queue to prevent a running mailroom instance from picking up the task.
+        """
+
         self.login(self.admin)
 
         # mark our flow as being flow server enabled
@@ -3760,13 +3766,13 @@ class FlowTest(TembaTest):
 
         # should now have our flow start queued
         r = get_redis_connection()
-        self.assertEqual(1, r.zcard("batch:%d" % self.org.id))
-        self.assertEqual(1, r.zcard("batch:active"))
+        self.assertEqual(1, r.zcard("test_batch:%d" % self.org.id))
+        self.assertEqual(1, r.zcard("test_batch:active"))
 
         start = FlowStart.objects.last()
 
         # pop our task off
-        task_json = r.zrange("batch:%d" % self.org.id, 0, 0)
+        task_json = r.zrange("test_batch:%d" % self.org.id, 0, 0)
         task = json.loads(task_json[0].decode("utf8"))
         self.assertEqual("start_flow", task["type"])
         self.assertEqual(self.flow.id, task["task"]["flow_id"])
