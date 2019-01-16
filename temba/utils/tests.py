@@ -436,6 +436,87 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
+    def test_pretty_datetime(self):
+        import pytz
+        from temba.utils.templatetags.temba import pretty_datetime
+
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.org.date_format = "D"
+            self.org.save()
+
+            context = dict(user_org=self.org)
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+
+            # the org has month first configured
+            self.org.date_format = "M"
+            self.org.save()
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+    def test_short_datetime(self):
+        import pytz
+        from temba.utils.templatetags.temba import short_datetime
+
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.org.date_format = "D"
+            self.org.save()
+
+            context = dict(user_org=self.org)
+
+            # date without timezone
+            test_date = datetime.datetime.now()
+            modified_now = test_date.replace(hour=17, minute=5)
+            self.assertEqual("19:05", short_datetime(context, modified_now))
+
+            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
+            now = timezone.now()
+            modified_now = now.replace(hour=17, minute=5)
+            self.assertEqual("19:05", short_datetime(context, modified_now))
+
+            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            test_date = now.replace(day=2)
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
+
+            # last month should still be pretty
+            test_date = test_date.replace(month=2)
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
+
+            # but a different year is different
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20/7/12", short_datetime(context, jan_2))
+
+            # the org has month first configured
+            self.org.date_format = "M"
+            self.org.save()
+
+            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
+            now = timezone.now()
+            modified_now = now.replace(hour=17, minute=5)
+            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
+
+            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            test_date = now.replace(day=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # last month should still be pretty
+            test_date = test_date.replace(month=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # but a different year is different
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("7/20/12", short_datetime(context, jan_2))
+
 
 class TemplateTagTestSimple(TestCase):
     def test_format_seconds(self):
@@ -813,20 +894,28 @@ class QueueTest(TembaTest):
 
         self.create_secondary_org()
 
-        args = [dict(task=i) for i in range(6)]
+        org1_tasks = [dict(task=0), dict(task=2), dict(task=4)]
+        org2_tasks = [dict(task=1), dict(task=3), dict(task=5)]
 
-        push_task(self.org, None, "test", args[4], LOW_PRIORITY)
-        push_task(self.org, None, "test", args[2])
-        push_task(self.org, None, "test", args[0], HIGH_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[2], LOW_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[1])
+        push_task(self.org, None, "test", org1_tasks[0], HIGH_PRIORITY)
 
-        push_task(self.org2, None, "test", args[3])
-        push_task(self.org2, None, "test", args[1], HIGH_PRIORITY)
-        push_task(self.org2, None, "test", args[5], LOW_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[1])
+        push_task(self.org2, None, "test", org2_tasks[0], HIGH_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[2], LOW_PRIORITY)
+
+        started_tasks = [start_task("test")[1]["task"] for _ in org1_tasks + org2_tasks]
+
+        # creates groups of started tasks, each group has tasks started on different orgs
+        actual_start_order = list(set(task_group) for task_group in zip(*[iter(started_tasks)] * 2))
 
         # order should alternate between the two orgs (based on # of active workers)
-        for i in range(6):
-            task = start_task("test")[1]["task"]
-            self.assertEqual(i, task)
+        expected_start_order = [{0, 1}, {2, 3}, {4, 5}]
+
+        # check if actual start order pairs, are the same as expected start order pairs
+        for idx, pair in enumerate(actual_start_order):
+            self.assertSetEqual(pair, expected_start_order[idx])
 
         # each org should show 3 active works
         self.assertEqual(r.zscore("test:active", self.org.id), 3)
