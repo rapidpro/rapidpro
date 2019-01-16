@@ -17,6 +17,7 @@ DATABASES = {
         "ATOMIC_REQUESTS": True,
         "CONN_MAX_AGE": 60,
         "OPTIONS": {},
+        "TEST": {"NAME": "temba"},  # use this same database for unit tests
     }
 }
 

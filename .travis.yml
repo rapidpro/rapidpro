@@ -83,12 +83,15 @@ script:
   - python manage.py collectstatic --noinput --verbosity=0
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
+  # install database schema
+  - python manage.py migrate --settings=temba.settings_travis
+
   # fire up mailroom
-  - ./mailroom -db=postgres://temba:temba@localhost:5432/temba -redis=redis://localhost:6379/10 -log-level=warn &
+  - ./mailroom -db=postgres://temba:temba@localhost:5432/temba -redis=redis://localhost:6379/10 -log-level=info &
   - jobs
 
-  # run our Python tests
-  - coverage run manage.py test --settings=temba.settings_travis --noinput --verbosity=2
+  # run our Python unit tests on same database
+  - coverage run manage.py test --settings=temba.settings_travis --keepdb --noinput --verbosity=2
 
   - set +e
 
