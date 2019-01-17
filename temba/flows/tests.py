@@ -7152,7 +7152,7 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(response.context["runs"]), 1)
             self.assertEqual(200, response.status_code)
 
-            response = self.client.get("%s?responded=on" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            response = self.client.get("%s?responded=true" % reverse("flows.flow_run_table", args=[favorites.pk]))
             self.assertEqual(len(response.context["runs"]), 1)
 
         # make sure we show results for flows with only expression splits

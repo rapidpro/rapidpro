@@ -139,7 +139,12 @@
         }
 
         .responded-checkbox {
-          padding: 0px 10px 20px 0px;
+          padding: 10px 10px 15px 15px;
+
+          label {
+            line-height: 30px;
+            margin-left: 25px;
+          }
         }
 
         .add-columns {
@@ -527,9 +532,31 @@
 
     $(function(){
       $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        ajaxSetup.data = ajaxSetup.data + "&responded=" + $("#only_responded:checked").val();
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + $("#only_responded").prop('checked');
       });
     });
+
+    $(function() {
+        if ($(".responded-checkbox").children().children("input[type='checkbox']").prop('checked')) {
+          $(".responded-checkbox").children('.glyph').addClass("checked");
+        } else {
+          $(".responded-checkbox").children('.glyph').removeClass("checked");
+        }
+      });
+
+    $(function() {
+        $(".responded-checkbox .glyph").on('click', function(){
+          var cell = $(this).parent(".responded-checkbox");
+          var ipt = cell.children().children("input[type='checkbox']");
+
+          if ($(this).hasClass("checked")) {
+            $(this).removeClass("checked");
+          } else {
+            $(this).addClass("checked");
+          }
+          ipt.click() //trigger a click on input so intercooler reloads
+        });
+      });
 
 -block content
 
@@ -556,16 +583,18 @@
 
     #runs.tab-pane
       .scroll-x
-        %div.responded-checkbox
-          %input#only_responded{type:"checkbox", name:"responded", checked:true,  style:"margin: 10px 10px 10px 0px;"
+        .responded-checkbox
+          .hidden-input.hide
+            %input#only_responded{type:"checkbox", name:"responded", value:"true", checked:true,  style:"margin: 10px 10px 10px 0px;"
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
-                                      ic-trigger-on:"change",
+                                      ic-trigger-on:"click",
                                       ic-trigger-delay:"500ms",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
-
-          -trans "Only Responded"
+          .glyph.notif-checkbox.checked
+          %label{ for:'responded' }
+            -trans "Only Responded"
 
         %table
           %tr
