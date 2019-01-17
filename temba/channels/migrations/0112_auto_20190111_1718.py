@@ -13,31 +13,71 @@ class Migration(migrations.Migration):
             model_name="channelconnection",
             name="channel",
             field=models.ForeignKey(
-                help_text="The channel we're connected to",
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="connections",
-                to="channels.Channel",
+                on_delete=django.db.models.deletion.PROTECT, related_name="connections", to="channels.Channel"
             ),
         ),
         migrations.AlterField(
             model_name="channelconnection",
             name="contact",
             field=models.ForeignKey(
-                help_text="Who this connection is with",
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="connections",
-                to="contacts.Contact",
+                on_delete=django.db.models.deletion.PROTECT, related_name="connections", to="contacts.Contact"
             ),
         ),
         migrations.AlterField(
             model_name="channelconnection",
             name="contact_urn",
             field=models.ForeignKey(
-                help_text="The URN we're communicating with",
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="connections",
-                to="contacts.ContactURN",
-                verbose_name="Contact URN",
+                on_delete=django.db.models.deletion.PROTECT, related_name="connections", to="contacts.ContactURN"
+            ),
+        ),
+        migrations.AlterField(
+            model_name="channelconnection",
+            name="direction",
+            field=models.CharField(choices=[("I", "Incoming"), ("O", "Outgoing")], max_length=1),
+        ),
+        migrations.AlterField(
+            model_name="channelconnection",
+            name="duration",
+            field=models.IntegerField(default=0, help_text="The length of this connection in seconds", null=True),
+        ),
+        migrations.AlterField(
+            model_name="channelconnection", name="ended_on", field=models.DateTimeField(blank=True, null=True)
+        ),
+        migrations.AlterField(
+            model_name="channelconnection",
+            name="org",
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="orgs.Org"),
+        ),
+        migrations.AlterField(
+            model_name="channelconnection",
+            name="session_type",
+            field=models.CharField(choices=[("F", "IVR"), ("U", "USSD")], max_length=1),
+        ),
+        migrations.AlterField(
+            model_name="channelconnection", name="started_on", field=models.DateTimeField(blank=True, null=True)
+        ),
+        migrations.AlterField(
+            model_name="channelconnection",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("P", "Pending"),
+                    ("Q", "Queued"),
+                    ("W", "Wired"),
+                    ("R", "Ringing"),
+                    ("I", "In Progress"),
+                    ("D", "Complete"),
+                    ("B", "Busy"),
+                    ("F", "Failed"),
+                    ("N", "No Answer"),
+                    ("C", "Canceled"),
+                    ("X", "Interrupted"),
+                    ("T", "Triggered"),
+                    ("A", "Initiated"),
+                    ("E", "Ending"),
+                ],
+                default="P",
+                max_length=1,
             ),
         ),
     ]

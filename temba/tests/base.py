@@ -75,11 +75,11 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def skip_if_no_flowserver(test):
+def skip_if_no_mailroom(test):
     """
-    Skip a test if flow server isn't configured
+    Skip a test if mailroom isn't configured
     """
-    return skipIf(settings.FLOW_SERVER_URL is None, "this test can't be run without a flowserver instance")(test)
+    return skipIf(not settings.MAILROOM_URL, "this test can't be run without a mailroom instance")(test)
 
 
 class ESMockWithScroll:

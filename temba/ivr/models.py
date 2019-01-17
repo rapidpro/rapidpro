@@ -14,10 +14,10 @@ from temba.utils.http import HttpEvent
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super().create(*args, session_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, connection_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super().get_queryset().filter(session_type=IVRCall.IVR)
+        return super().get_queryset().filter(connection_type=IVRCall.IVR)
 
 
 class IVRCall(ChannelConnection):
