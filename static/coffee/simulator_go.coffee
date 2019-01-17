@@ -64,69 +64,7 @@ window.updateResults = (data) ->
 
   if data.events
     for event in data.events
-      if event.type == "broadcast_created"
-        window.addMessage("Broadcast sent with text \"" + event.translations[event.base_language].text + "\"", "MT")
-      else if event.type == "contact_field_changed"
-        window.addMessage("Updated " + event.field.name + " to \"" + event.value.text + "\"", "log")
-      else if event.type == "contact_groups_changed"
-        if event.groups_added
-          for group in event.groups_added
-            window.addMessage("Added to group \"" + group.name + "\"", "log")
-        if event.groups_removed
-          for group in event.groups_removed
-            window.addMessage("Removed from group \"" + group.name + "\"", "log")
-      else if event.type == "contact_language_changed"
-        window.addMessage("Updated language to \"" + event.language + "\"", "log")
-      else if event.type == "contact_name_changed"
-        window.addMessage("Updated name to \"" + event.name + "\"", "log")
-      else if event.type == "contact_timezone_changed"
-        window.addMessage("Updated timezone to \"" + event.timezone + "\"", "log")
-      else if event.type == "contact_urns_changed"
-        msg = "Updated contact URNs to:\n"
-        for urn in event.urns
-          msg += urn + "\n"
-        window.addMessage(msg, "log")
-      else if event.type == "email_created"
-        msg = "Email sent to "
-        delim = ""
-        for address in event.addresses
-          msg += delim + address
-          delim = ", "
-        msg += "with subject \"" + event.subject + "\""
-        window.addMessage(msg, "log")
-      else if event.type == "flow_triggered" or event.type == "flow_entered"
-        window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
-      else if event.type == "input_labels_added"
-        msg = "Message labeled with "
-        delim = ""
-        for label in event.labels
-          msg += delim + "\"" + label.name + "\""
-          delim = ", "
-        window.addMessage(msg, "log")
-      else if event.type == "msg_created"
-        window.addMessage(event.msg.text, "MT")
-        if event.msg.quick_replies?
-          quick_replies = "<div class=\"quick-replies\">"
-          for reply in event.msg.quick_replies
-            quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
-          quick_replies += "</div>"
-          $(".simulator-body").append(quick_replies)
-      else if event.type == "run_result_changed"
-        slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
-        window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
-      else if event.type == "session_triggered"
-        window.addMessage("Started other contacts in " + event.flow.name, "log")
-      else if event.type == "webhook_called"
-        webhookEvent = event
-        window.addMessage("Called " + event.url + " which returned " + event.status, "log", null, null, () ->
-          modal = showModal("Webhook Result", "<pre>" + webhookEvent.response + "</pre>")
-          modal.setListeners({}, true)
-          modal.hideSecondaryButton()
-        )
-      else if event.type == "error"
-        window.addMessage(event.text, 'error')
-        if (event.fatal)
-          $('#simulator').addClass('disabled')
+      window.renderSimEvent(event)
 
   $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
   $("#simulator textarea").val("")
@@ -166,3 +104,82 @@ window.updateResults = (data) ->
     updateActivity(legacyFormat)
 
 
+window.renderSimEvent = (event) ->
+  switch event.type
+    when "broadcast_created"
+      window.addMessage("Broadcast sent with text \"" + event.translations[event.base_language].text + "\"", "MT")
+
+    when "contact_field_changed"
+      window.addMessage("Updated " + event.field.name + " to \"" + event.value.text + "\"", "log")
+
+    when "contact_groups_changed"
+      if event.groups_added
+        for group in event.groups_added
+          window.addMessage("Added to group \"" + group.name + "\"", "log")
+      if event.groups_removed
+        for group in event.groups_removed
+          window.addMessage("Removed from group \"" + group.name + "\"", "log")
+
+    when "contact_language_changed"
+      window.addMessage("Updated language to \"" + event.language + "\"", "log")
+
+    when "contact_name_changed"
+      window.addMessage("Updated name to \"" + event.name + "\"", "log")
+
+    when "contact_timezone_changed"
+      window.addMessage("Updated timezone to \"" + event.timezone + "\"", "log")
+
+    when "contact_urns_changed"
+      msg = "Updated contact URNs to:\n"
+      for urn in event.urns
+        msg += urn + "\n"
+      window.addMessage(msg, "log")
+
+    when "email_created"
+      msg = "Email sent to "
+      delim = ""
+      for address in event.addresses
+        msg += delim + address
+        delim = ", "
+      msg += "with subject \"" + event.subject + "\""
+      window.addMessage(msg, "log")
+
+    when "error"
+      window.addMessage(event.text, 'error')
+      if (event.fatal)
+        $('#simulator').addClass('disabled')
+
+    when "flow_entered"
+      window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
+
+    when "input_labels_added"
+      msg = "Message labeled with "
+      delim = ""
+      for label in event.labels
+        msg += delim + "\"" + label.name + "\""
+        delim = ", "
+      window.addMessage(msg, "log")
+
+    when "msg_created"
+      window.addMessage(event.msg.text, "MT")
+      if event.msg.quick_replies?
+        quick_replies = "<div class=\"quick-replies\">"
+        for reply in event.msg.quick_replies
+          quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
+        quick_replies += "</div>"
+        $(".simulator-body").append(quick_replies)
+
+    when "run_result_changed"
+      slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
+      window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
+
+    when "session_triggered"
+      window.addMessage("Started other contacts in " + event.flow.name, "log")
+
+    when "webhook_called"
+      webhookEvent = event
+      window.addMessage("Called " + event.url + " which returned " + event.status, "log", null, null, () ->
+        modal = showModal("Webhook Result", "<pre>" + webhookEvent.response + "</pre>")
+        modal.setListeners({}, true)
+        modal.hideSecondaryButton()
+      )
