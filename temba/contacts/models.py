@@ -1996,8 +1996,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 msg.release()
 
             # release any calls or ussd sessions
-            for session in self.sessions.all():
-                session.release()
+            for conn in self.connections.all():
+                conn.release()
 
             # any urns currently owned by us
             for urn in self.urns.all():
@@ -2009,8 +2009,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     msg.release()
 
                 # same thing goes for sessions
-                for session in urn.channelsession_set.all():
-                    session.release()
+                for conn in urn.connections.all():
+                    conn.release()
 
                 urn.release()
 

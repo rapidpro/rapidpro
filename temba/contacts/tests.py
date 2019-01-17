@@ -1156,7 +1156,7 @@ class ContactTest(TembaTest):
         ivr_flow.start([], [contact])
 
         self.assertEqual(1, group.contacts.all().count())
-        self.assertEqual(1, contact.sessions.all().count())
+        self.assertEqual(1, contact.connections.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
@@ -1179,14 +1179,14 @@ class ContactTest(TembaTest):
 
         contact.refresh_from_db()
         self.assertEqual(0, group.contacts.all().count())
-        self.assertEqual(0, contact.sessions.all().count())
+        self.assertEqual(0, contact.connections.all().count())
         self.assertEqual(0, contact.addressed_broadcasts.all().count())
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())
         self.assertEqual(0, contact.msgs.all().count())
 
         # contact who used to own our urn had theirs released too
-        self.assertEqual(0, old_contact.sessions.all().count())
+        self.assertEqual(0, old_contact.connections.all().count())
         self.assertEqual(0, old_contact.msgs.all().count())
 
         self.assertIsNone(contact.fields)

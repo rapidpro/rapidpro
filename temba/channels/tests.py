@@ -59,7 +59,7 @@ from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import Queue, push_task
 
-from .models import CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, ChannelSession, SyncEvent
+from .models import CHANNEL_EVENT, Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task
 
 
@@ -1506,11 +1506,11 @@ class ChannelTest(TembaTest):
         contact = self.create_contact("Bruno Mars", "+252788123123")
         call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME), self.admin)
 
-        self.assertNotEqual(call.status, ChannelSession.INTERRUPTED)
+        self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
         self.tel_channel.release()
 
         call.refresh_from_db()
-        self.assertEqual(call.status, ChannelSession.INTERRUPTED)
+        self.assertEqual(call.status, ChannelConnection.INTERRUPTED)
 
     def test_unclaimed(self):
         response = self.sync(self.unclaimed_channel)
