@@ -1,1 +1,2 @@
-from .queue import *  # noqa # pylint: disable=unused-import
+from .client import *  # noqa
+from .queue import *  # noqa
