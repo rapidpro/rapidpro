@@ -1,3 +1,9 @@
+v4.16.0
+----------
+ * Fix flow_entered event name in simulator
+ * Make created_by, modified_by on FlowStart nullable, add connections M2M on FlowStart
+ * Rename ChannelSession to ChannelConnection
+
 v4.15.2
 ----------
  * Fix for flow dependency migration
