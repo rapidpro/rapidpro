@@ -94,7 +94,7 @@ window.updateResults = (data) ->
           delim = ", "
         msg += "with subject \"" + event.subject + "\""
         window.addMessage(msg, "log")
-      else if event.type == "flow_triggered"
+      else if event.type == "flow_entered"
         window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
       else if event.type == "input_labels_added"
         msg = "Message labeled with "
