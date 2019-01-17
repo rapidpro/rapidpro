@@ -95,11 +95,12 @@ def add_deps(Flow, ActionSet, RuleSet):
     bulk_deps_to_add = list()
 
     for from_flow_id in flow_dep_ids:
-        actual_flow_dep = (
+        actual_flow_dep_results = (
             FlowFlowDeps.objects.filter(from_flow_id=from_flow_id)
             .values("from_flow_id")
             .annotate(deps=ArrayAgg("to_flow_id"))
-        ).first()
+        )
+        actual_flow_dep = next(actual_flow_dep_results.iterator(), None)
 
         if actual_flow_dep:
             actual_deps = set(actual_flow_dep["deps"])
