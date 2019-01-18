@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 from twilio.base.exceptions import TwilioRestException

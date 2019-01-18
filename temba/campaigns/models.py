@@ -234,7 +234,7 @@ class Campaign(TembaModel):
             if evt.flow.is_system:
                 evt.flow.ensure_current_version()
 
-        return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
+        return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
 
     def __str__(self):
         return self.name

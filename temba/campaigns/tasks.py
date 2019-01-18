@@ -18,7 +18,7 @@ from temba.utils.queues import Queue, nonoverlapping_task, push_task
 
 logger = logging.getLogger(__name__)
 
-EVENT_FIRES_TO_TRIM = 100000
+EVENT_FIRES_TO_TRIM = 100_000
 
 
 @nonoverlapping_task(track_started=True, name="check_campaigns_task", lock_key="check_campaigns")

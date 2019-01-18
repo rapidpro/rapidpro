@@ -1,4 +1,3 @@
-
 import os
 import re
 from datetime import timedelta
@@ -262,7 +261,7 @@ class IVRTests(FlowFileTest):
 
         # post to a bogus call id
         post_data = dict(CallSid="CallSid", CallStatus="in-progress", CallDuration=20)
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[999999999]), post_data)
+        response = self.client.post(reverse("ivr.ivrcall_handle", args=[999_999_999]), post_data)
         self.assertEqual(404, response.status_code)
 
         # start a real call

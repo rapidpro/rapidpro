@@ -58,7 +58,7 @@ pysocks
 pip-tools
 
 ########################## testing ##########################
-black==18.6b4  # pinned temporary, a lot of updates === new PR
+black
 coverage
 flake8
 flake8-deprecated
