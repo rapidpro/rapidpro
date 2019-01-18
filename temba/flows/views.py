@@ -1573,7 +1573,7 @@ class FlowCRUDL(SmartCRUDL):
             media_url = "http://%s%simages" % (user.get_org().get_brand_domain(), settings.STATIC_URL)
 
             if "new_photo" in json_dict:  # pragma: needs cover
-                media = "%s/png:%s/simulator/capture.png" % (Msg.MEDIA_IMAGE, media_url)
+                media = "%s/png:%s/simulator/capture.jpg" % (Msg.MEDIA_IMAGE, media_url)
             elif "new_gps" in json_dict:  # pragma: needs cover
                 media = "%s:47.6089533,-122.34177" % Msg.MEDIA_GPS
             elif "new_video" in json_dict:  # pragma: needs cover
