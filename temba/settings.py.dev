@@ -14,6 +14,8 @@ import warnings
 
 from .settings_common import *  # noqa
 
+STORAGE_URL = "http://localhost:8000/media"
+
 # -----------------------------------------------------------------------------------
 # Add a custom brand for development
 # -----------------------------------------------------------------------------------

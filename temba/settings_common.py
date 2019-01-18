@@ -46,7 +46,7 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-STORAGE_URL = "http://localhost:8000/media"
+STORAGE_URL = None  # may be local /media or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # -----------------------------------------------------------------------------------
