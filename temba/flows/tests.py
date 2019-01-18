@@ -5,13 +5,12 @@ import re
 import time
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import iso8601
 import pytz
 from django_redis import get_redis_connection
-from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings

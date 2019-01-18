@@ -1,8 +1,6 @@
 
 import importlib
 
-import debug_toolbar
-
 from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
@@ -44,7 +42,6 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += [url(r"^__debug__/", include(debug_toolbar.urls))]
 
 
 # import any additional urls
