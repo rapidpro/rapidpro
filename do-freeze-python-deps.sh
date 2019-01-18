@@ -27,7 +27,8 @@ CUSTOM_COMPILE_COMMAND="./do-freeze-python-deps.sh" pip-compile --annotate --reb
 
 
 for rolling_package in $ROLLING_VERSION_PACKAGES; do
-
+    # On OSX, you need use the gnu-sed instead of the pre installed sed
+    # brew install gnu-sed --with-default-names
     sed -i "s/$rolling_package==.*/$rolling_package/" $PIP_FREEZE_FILE
 
 done
