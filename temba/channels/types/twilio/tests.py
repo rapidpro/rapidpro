@@ -1,5 +1,6 @@
 
-from mock import patch
+from unittest.mock import patch
+
 from twilio.base.exceptions import TwilioRestException
 
 from django.urls import reverse
