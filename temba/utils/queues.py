@@ -1,4 +1,3 @@
-
 import importlib
 import time
 from functools import wraps
@@ -82,7 +81,11 @@ def start_task(task_name):
     while org_queue:
         # this lua script does both a "zpop" (popping the next highest thing off our sorted set) and
         # a clearing of our active set if there is no value in it as an atomic action
-        lua = "local val = redis.call('zrange', ARGV[2], 0, 0) \n" "if not next(val) then redis.call('zrem', ARGV[1], ARGV[3]) return nil \n" "else redis.call('zincrby', ARGV[1], 1, ARGV[3]); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
+        lua = (
+            "local val = redis.call('zrange', ARGV[2], 0, 0) \n"
+            "if not next(val) then redis.call('zrem', ARGV[1], ARGV[3]) return nil \n"
+            "else redis.call('zincrby', ARGV[1], 1, ARGV[3]); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
+        )
 
         task = r.eval(
             lua, 3, "active_set", "queue", "org", active_set, "%s:%d" % (task_name, int(org_queue[0])), org_queue[0]
@@ -107,7 +110,10 @@ def complete_task(task_name, org):
     active_set = "%s:active" % task_name
     key = "%d" % (org if isinstance(org, int) else org.id)
 
-    lua = "local val = redis.call('zscore', ARGV[1], ARGV[2]) \n" "if val then redis.call('zadd', ARGV[1], math.max(0, val-1), ARGV[2]) end \n"
+    lua = (
+        "local val = redis.call('zscore', ARGV[1], ARGV[2]) \n"
+        "if val then redis.call('zadd', ARGV[1], math.max(0, val-1), ARGV[2]) end \n"
+    )
 
     r.eval(lua, 2, "active_set", "queue", active_set, key)
 

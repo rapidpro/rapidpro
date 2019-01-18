@@ -1,4 +1,3 @@
-
 import pytz
 
 from django.urls import reverse

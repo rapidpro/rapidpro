@@ -106,7 +106,7 @@ class NexmoClient(NexmoCli):
                 break
             else:
                 attempts += 1
-                time.sleep(.250)
+                time.sleep(0.250)
 
         content_type, downloaded = self.org.save_response_media(response)
 
@@ -189,7 +189,7 @@ class TwilioClient(TembaTwilioRestClient):
                 break
             else:
                 attempts += 1
-                time.sleep(.5)
+                time.sleep(0.5)
 
         content_type, downloaded = self.org.save_response_media(response)
         if content_type:
