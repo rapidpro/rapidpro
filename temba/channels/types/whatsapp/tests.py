@@ -1,5 +1,5 @@
 
-from mock import patch
+from unittest.mock import patch
 
 from django.forms import ValidationError
 from django.urls import reverse

@@ -5,14 +5,13 @@ from collections import OrderedDict
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
 import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
-from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
 from temba_expressions.evaluator import DateStyle, EvaluationContext

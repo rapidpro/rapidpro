@@ -64,7 +64,6 @@ flake8
 flake8-deprecated
 flake8-print==2.0.2  # pinned temporary, a lot of updates === new PR
 isort
-mock
 openpyxl
 responses
 beautifulsoup4

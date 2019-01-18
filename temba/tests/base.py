@@ -4,13 +4,13 @@ import sys
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest import skipIf
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
 import redis
 import regex
 from future.moves.html.parser import HTMLParser
-from mock import patch
 from smartmin.tests import SmartminTest
 
 from django.conf import settings

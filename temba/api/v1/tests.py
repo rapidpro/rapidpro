@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
-from mock import patch
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient

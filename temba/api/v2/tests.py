@@ -1,11 +1,11 @@
 import base64
 from datetime import datetime
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import uuid4
 
 import iso8601
 import pytz
-from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
 

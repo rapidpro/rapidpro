@@ -1,7 +1,6 @@
 from datetime import date
+from unittest.mock import patch
 from uuid import uuid4
-
-from mock import patch
 
 from django.urls import reverse
 from django.utils import timezone

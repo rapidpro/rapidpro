@@ -1,6 +1,7 @@
 import io
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import nexmo
@@ -8,7 +9,6 @@ import pytz
 import stripe
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from mock import Mock, patch
 from smartmin.tests import SmartminTest
 
 from django.conf import settings

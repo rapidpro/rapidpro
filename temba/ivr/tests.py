@@ -3,11 +3,11 @@ import os
 import re
 from datetime import timedelta
 from platform import python_version
+from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
 import nexmo
 from django_redis import get_redis_connection
-from mock import MagicMock, patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
