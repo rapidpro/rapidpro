@@ -107,7 +107,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         app_name = "%s/%s" % (callback_domain.lower(), plivo_uuid)
 
         message_url = "https://" + callback_domain + "%s" % reverse("courier.pl", args=[plivo_uuid, "receive"])
-        answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
+        answer_url = settings.STORAGE_URL + "/plivo_voice_unavailable.xml"
 
         headers = http_headers(extra={"Content-Type": "application/json"})
         create_app_url = "https://api.plivo.com/v1/Account/%s/Application/" % auth_id

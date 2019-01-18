@@ -46,19 +46,22 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-# where recordings and exports are stored
+STORAGE_URL = "http://localhost:8000/media"
+STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
+
+# -----------------------------------------------------------------------------------
+# AWS S3 storage used in production
+# -----------------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = "aws_access_key_id"
+AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
+AWS_DEFAULT_ACL = "private"
+
 AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
-STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
+# STORAGE_URL = "https://" + AWS_BUCKET_DOMAIN
 
 # bucket where archives files are stored
 ARCHIVE_BUCKET = "dl-temba-archives"
-
-# keys to access s3
-AWS_ACCESS_KEY_ID = "aws_access_key_id"
-AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-
-AWS_DEFAULT_ACL = "private"
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same

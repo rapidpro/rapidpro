@@ -3339,9 +3339,9 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by("-created_on").first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by("-created_on").first()
 
-        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(":", 1)[1])
-        greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(":", 1)[1])
-        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(":", 1)[1])
+        francois_media_url = f"image/jpeg:{settings.STORAGE_URL}/" + fra_attachment.split(":", 1)[1]
+        greg_media_url = f"image/jpeg:{settings.STORAGE_URL}/" + eng_attachment.split(":", 1)[1]
+        wilbert_media_url = f"image/jpeg:{settings.STORAGE_URL}/" + fra_attachment.split(":", 1)[1]
 
         # assert the right language was used for each contact on both text and media
         self.assertEqual(francois_media.text, fra_msg)
