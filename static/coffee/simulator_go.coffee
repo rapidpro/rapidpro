@@ -31,7 +31,7 @@ window.simStart = ->
 
     # the initial flow doesn't get a flow start event
     scope = $("#ctlr").data('$scope')
-    window.addMessage("Entering the flow \"" + scope.flow.metadata.name + "\"", "log")
+    window.addSimMessage("log", "Entering the flow \"" + scope.flow.metadata.name + "\"")
 
     window.updateResults(results)
 
@@ -77,7 +77,7 @@ window.updateResults = (data) ->
     if data.session.status == 'completed'
       # the initial flow doesn't get a flow exit event
       scope = $("#ctlr").data('$scope')
-      window.addMessage("Exited the flow \"" + scope.flow.metadata.name + "\"", "log")
+      window.addSimMessage("log", "Exited the flow \"" + scope.flow.metadata.name + "\"")
       $('#simulator').addClass('disabled')
 
     # we need to construct the old style activity format
@@ -107,33 +107,33 @@ window.updateResults = (data) ->
 window.renderSimEvent = (event) ->
   switch event.type
     when "broadcast_created"
-      window.addMessage("Broadcast sent with text \"" + event.translations[event.base_language].text + "\"", "MT")
+      window.addSimMessage("MT", "Broadcast sent with text \"" + event.translations[event.base_language].text + "\"")
 
     when "contact_field_changed"
-      window.addMessage("Updated " + event.field.name + " to \"" + event.value.text + "\"", "log")
+      window.addSimMessage("log", "Updated " + event.field.name + " to \"" + event.value.text + "\"")
 
     when "contact_groups_changed"
       if event.groups_added
         for group in event.groups_added
-          window.addMessage("Added to group \"" + group.name + "\"", "log")
+          window.addSimMessage("log", "Added to group \"" + group.name + "\"")
       if event.groups_removed
         for group in event.groups_removed
-          window.addMessage("Removed from group \"" + group.name + "\"", "log")
+          window.addSimMessage("log", "Removed from group \"" + group.name + "\"")
 
     when "contact_language_changed"
-      window.addMessage("Updated language to \"" + event.language + "\"", "log")
+      window.addSimMessage("log", "Updated language to \"" + event.language + "\"")
 
     when "contact_name_changed"
-      window.addMessage("Updated name to \"" + event.name + "\"", "log")
+      window.addSimMessage("log", "Updated name to \"" + event.name + "\"")
 
     when "contact_timezone_changed"
-      window.addMessage("Updated timezone to \"" + event.timezone + "\"", "log")
+      window.addSimMessage("log", "Updated timezone to \"" + event.timezone + "\"")
 
     when "contact_urns_changed"
       msg = "Updated contact URNs to:\n"
       for urn in event.urns
         msg += urn + "\n"
-      window.addMessage(msg, "log")
+      window.addSimMessage("log", msg)
 
     when "email_created"
       msg = "Email sent to "
@@ -142,15 +142,15 @@ window.renderSimEvent = (event) ->
         msg += delim + address
         delim = ", "
       msg += "with subject \"" + event.subject + "\""
-      window.addMessage(msg, "log")
+      window.addSimMessage("log", msg)
 
     when "error"
-      window.addMessage(event.text, 'error')
+      window.addSimMessage("error", event.text)
       if (event.fatal)
         $('#simulator').addClass('disabled')
 
-    when "flow_entered"
-      window.addMessage("Entering the flow \"" + event.flow.name + "\"", "log")
+    when "flow_entered", "flow_triggered"
+      window.addSimMessage("log", "Entering the flow \"" + event.flow.name + "\"")
 
     when "input_labels_added"
       msg = "Message labeled with "
@@ -158,28 +158,80 @@ window.renderSimEvent = (event) ->
       for label in event.labels
         msg += delim + "\"" + label.name + "\""
         delim = ", "
-      window.addMessage(msg, "log")
+      window.addSimMessage("log", msg)
 
     when "msg_created"
-      window.addMessage(event.msg.text, "MT")
+      window.addSimMessage("MT", event.msg.text, event.msg.attachments)
+
       if event.msg.quick_replies?
-        quick_replies = "<div class=\"quick-replies\">"
-        for reply in event.msg.quick_replies
-          quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
-        quick_replies += "</div>"
-        $(".simulator-body").append(quick_replies)
+        window.setSimQuickReplies(event.msg.quick_replies)
 
     when "run_result_changed"
       slugged = event.name.toLowerCase().replace(/([^a-z0-9]+)/g, '_')
-      window.addMessage("Saving @flow." + slugged + " as \"" + event.value + "\"", "log")
+      window.addSimMessage("log", "Saving @flow." + slugged + " as \"" + event.value + "\"")
 
     when "session_triggered"
-      window.addMessage("Started other contacts in " + event.flow.name, "log")
+      window.addSimMessage("log", "Started other contacts in " + event.flow.name)
 
     when "webhook_called"
       webhookEvent = event
-      window.addMessage("Called " + event.url + " which returned " + event.status, "log", null, null, () ->
+      window.addSimMessage("log", "Called " + event.url + " which returned " + event.status, null, () ->
         modal = showModal("Webhook Result", "<pre>" + webhookEvent.response + "</pre>")
         modal.setListeners({}, true)
         modal.hideSecondaryButton()
       )
+
+
+window.addSimMessage = (type, text, attachments=null, onClick=null) ->
+  classes = ["imsg"]
+  media_viewer = null
+
+  if type == "log" or type == "error"
+    classes = ["ilog"]
+
+  if type == "MO"
+    classes.push("to")
+  else if type == "MT"
+    classes.push("from")
+  else if type == "error"
+    classes.push("ierror")
+
+  if onClick
+    classes.push("link")
+
+  if attachments and attachments.length > 0
+      attachment = attachments[0]
+      [media_type, url] = attachment.split(':', 2)
+
+      classes.push("media-msg")
+
+      if media_type != 'geo'
+        media_type = media_type.split('/')[0]
+
+        if not url.startsWith("http")
+          url = window.mediaURL + url
+
+        if media_type == 'image'
+          media_viewer = "<span class=\"media-file\"><img src=\"" + url + "\"></span>"
+        else if media_type == 'video'
+          media_viewer = "<span class=\"media-file\"><video controls src=\"" + url + "\"></span>"
+        else if media_type == 'audio'
+          media_viewer = "<span class=\"media-file\"><audio controls src=\"" + url + "\"></span>"
+
+  ele = '<div class="' + classes.join(" ") + '">' + text + '</div>'
+  if media_viewer
+      ele += media_viewer
+
+  ele = $(ele)
+  if onClick
+    ele.bind("click", onClick)
+
+  ele = $(".simulator-body").append(ele)
+
+
+window.setSimQuickReplies = (replies) ->
+  quick_replies = "<div class=\"quick-replies\">"
+  for reply in replies
+    quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
+  quick_replies += "</div>"
+  $(".simulator-body").append(quick_replies)
