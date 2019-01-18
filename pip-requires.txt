@@ -2,7 +2,6 @@
 django
 django-compressor
 django-countries
-django-debug-toolbar
 django-hamlpy
 django-mptt
 django-redis
@@ -69,4 +68,3 @@ mock
 openpyxl
 responses
 beautifulsoup4
-selenium
