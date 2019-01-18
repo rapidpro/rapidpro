@@ -238,7 +238,7 @@ class SquashableModel(models.Model):
         num_sets = 0
 
         # only distinct across 100000 rows at most
-        unsquashed_query = cls.get_unsquashed().filter(id__in=cls.get_unsquashed().values("id")[:100000])
+        unsquashed_query = cls.get_unsquashed().filter(id__in=cls.get_unsquashed().values("id")[:100_000])
 
         for distinct_set in unsquashed_query.order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER)[:5000]:
             with connection.cursor() as cursor:
