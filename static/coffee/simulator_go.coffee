@@ -79,6 +79,8 @@ window.updateResults = (data) ->
       scope = $("#ctlr").data('$scope')
       window.addSimMessage("log", "Exited the flow \"" + scope.flow.metadata.name + "\"")
       $('#simulator').addClass('disabled')
+    else if data.session.status == 'waiting'
+      window.handleSimWait(data.session.wait)
 
     # we need to construct the old style activity format
     visited = {}
@@ -235,3 +237,25 @@ window.setSimQuickReplies = (replies) ->
     quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply + "\"> " + reply + "</button>"
   quick_replies += "</div>"
   $(".simulator-body").append(quick_replies)
+
+
+window.handleSimWait = (wait) ->
+  $('.simulator-footer .media-button').hide()
+
+  if wait.hint?
+    switch wait.hint.type
+      when "image"
+        $('.simulator-footer .imessage').hide()
+        $('.simulator-footer .photo-button').show()
+      when "video"
+        $('.simulator-footer .imessage').hide()
+        $('.simulator-footer .video-button').show()
+      when "audio"
+        $('.simulator-footer .imessage').hide()
+        $('.simulator-footer .audio-button').show()
+      when "location"
+        $('.simulator-footer .imessage').hide()
+        $('.simulator-footer .gps-button').show()
+
+  else
+    $('.simulator-footer .imessage').show()
