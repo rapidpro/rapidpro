@@ -28,6 +28,6 @@ CUSTOM_COMPILE_COMMAND="./do-freeze-python-deps.sh" pip-compile --annotate --reb
 
 for rolling_package in $ROLLING_VERSION_PACKAGES; do
 
-    sed -i '' -e "s/$rolling_package==.*/$rolling_package/" $PIP_FREEZE_FILE
+    sed -i "s/$rolling_package==.*/$rolling_package/" $PIP_FREEZE_FILE
 
 done
