@@ -4608,9 +4608,7 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction="O")
         self.assertEqual("We love green too!", reply_msg.text)
-        self.assertEqual(
-            reply_msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "path/to/media.jpg")]
-        )
+        self.assertEqual(reply_msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/path/to/media.jpg"])
 
         self.release(Broadcast.objects.all())
         self.release(Msg.objects.all())
@@ -4626,9 +4624,7 @@ class ActionTest(TembaTest):
 
         response = msg.responses.get()
         self.assertEqual("We love green too!", response.text)
-        self.assertEqual(
-            response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "path/to/media.jpg")]
-        )
+        self.assertEqual(response.attachments, [f"image/jpeg:{settings.STORAGE_URL}/path/to/media.jpg"])
         self.assertEqual(self.contact, response.contact)
 
     def test_media_expression(self):
@@ -4925,9 +4921,7 @@ class ActionTest(TembaTest):
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
         self.assertEqual(msg.text, msg_body)
-        self.assertEqual(
-            msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "attachments/picture.jpg")]
-        )
+        self.assertEqual(msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"])
 
         # also send if we have empty message but have an attachment
         action = SendAction(
@@ -8342,10 +8336,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(msg.text, "Hey")
         self.assertEqual(
             msg.attachments,
-            [
-                "image/jpeg:https://%s/%s"
-                % (settings.AWS_BUCKET_DOMAIN, "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg")
-            ],
+            [f"image/jpeg:{settings.STORAGE_URL}/attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"],
         )
 
     def test_substitution(self):

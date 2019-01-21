@@ -3008,11 +3008,7 @@ class APITest(TembaTest):
                 location = response.json().get("location", None)
                 self.assertIsNotNone(location)
 
-                starts_with = "https://%s/%s/%d/media/" % (
-                    settings.AWS_BUCKET_DOMAIN,
-                    settings.STORAGE_ROOT_DIR,
-                    self.org.pk,
-                )
+                starts_with = f"{settings.STORAGE_URL}/{settings.STORAGE_ROOT_DIR}/{self.org.id}/media/"
                 self.assertEqual(starts_with, location[0 : len(starts_with)])
                 self.assertEqual(".%s" % ext, location[-4:])
 

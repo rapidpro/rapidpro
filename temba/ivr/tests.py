@@ -350,13 +350,13 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(outbound_msg.attachments[0].endswith(".wav"))
-        self.assertTrue(outbound_msg.text.startswith("https://"))
+        self.assertTrue(outbound_msg.text.startswith("http://"))
         self.assertTrue(outbound_msg.text.endswith(".wav"))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(media_msg.attachments[0].endswith(".wav"))
         self.assertEqual("Played contact recording", media_msg.text)
 
@@ -529,13 +529,13 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(outbound_msg.attachments[0].endswith(".wav"))
-        self.assertTrue(outbound_msg.text.startswith("https://"))
+        self.assertTrue(outbound_msg.text.startswith("http://"))
         self.assertTrue(outbound_msg.text.endswith(".wav"))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(media_msg.attachments[0].endswith(".wav"))
         self.assertEqual("Played contact recording", media_msg.text)
 
