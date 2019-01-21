@@ -32,7 +32,6 @@ class ChikkaTypeTest(TembaTest):
         post_data["number"] = "5259"
         post_data["username"] = "bongo"
         post_data["password"] = "password"
-        post_data["api_key"] = "api-key"
 
         response = self.client.post(url, post_data)
 
@@ -40,7 +39,6 @@ class ChikkaTypeTest(TembaTest):
 
         self.assertEqual("bongo", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("password", channel.config[Channel.CONFIG_PASSWORD])
-        self.assertEqual("api-key", channel.config[Channel.CONFIG_API_KEY])
         self.assertEqual("5259", channel.address)
         self.assertEqual("TZ", channel.country)
         self.assertEqual("BL", channel.channel_type)
@@ -51,4 +49,5 @@ class ChikkaTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertContains(response, reverse("courier.bl", args=[channel.uuid]))
+        self.assertContains(response, reverse("courier.bl", args=[channel.uuid, "receive"]))
+        self.assertContains(response, reverse("courier.bl", args=[channel.uuid, "status"]))
