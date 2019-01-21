@@ -58,7 +58,6 @@ AWS_DEFAULT_ACL = "private"
 
 AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
-# STORAGE_URL = "https://" + AWS_BUCKET_DOMAIN
 
 # bucket where archives files are stored
 ARCHIVE_BUCKET = "dl-temba-archives"
