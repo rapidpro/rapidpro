@@ -1,4 +1,3 @@
-
 from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioRestException
 

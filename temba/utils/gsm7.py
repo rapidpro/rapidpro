@@ -1,4 +1,7 @@
-GSM7_BASIC = u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>" u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà"
+GSM7_BASIC = (
+    u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
+    u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà"
+)
 
 GSM7_EXTENDED = u"^{}\\[~]|€"
 
@@ -245,7 +248,7 @@ def_replace_encode_dict = {
     u"\u0396": "\x5A",  # GREEK CAPITAL LETTER ZETA
 }
 
-QUESTION_MARK = chr(0x3f)
+QUESTION_MARK = chr(0x3F)
 
 # unicode -> default GSM 03.38
 def_regular_encode_dict = dict((u, g) for g, u in def_regular_decode_dict.items())

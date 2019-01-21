@@ -6115,7 +6115,8 @@ class ReplyAction(Action):
 
                 # if we have a localized media, create the url
                 if media_url and len(media_type.split("/")) > 1:
-                    attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
+                    abs_url = f"{'http' if settings.DEBUG else 'https'}://{settings.AWS_BUCKET_DOMAIN}/{media_url}"
+                    attachments = [f"{media_type}:{abs_url}"]
                 else:
                     attachments = ["%s:%s" % (media_type, media_url)]
 

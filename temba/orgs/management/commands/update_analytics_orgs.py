@@ -26,7 +26,7 @@ class Command(BaseCommand):  # pragma: no cover
             )
 
             analytics.set_orgs(user.email, orgs)
-            time.sleep(.1)
+            time.sleep(0.1)
             count += 1
             if count % 1000 == 0:
                 print(f"Updated {count} of {total} users")

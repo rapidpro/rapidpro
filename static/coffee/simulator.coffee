@@ -233,35 +233,6 @@ window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
 
-window.addMessage = (text, type, metadata=null, level=null, onClick=null) ->
-
-  classes = ["imsg"]
-  if type == "log" or type == "error"
-    classes = ["ilog"]
-
-  if type == "MO"
-    classes.push("to")
-  else if type == "MT"
-    classes.push("from")
-  else if type == "error"
-    classes.push("ierror")
-
-  if level
-    classes.push(level_classes[level])
-
-  if onClick
-    classes.push("link")
-
-  ele = "<div class=\"" + classes.join(" ") + "\">"
-  ele += text
-  ele += "</div>"
-
-  ele = $(ele)
-  if onClick
-    ele.bind("click", onClick)
-
-  ele = $(".simulator-body").append(ele)
-
 appendMessage = (newMessage, ussd=false) ->
   ussd = if ussd then "ussd " else ""
   imsgDiv = '<div class=\"imsg ' + ussd + 'to post-message\"></div>'

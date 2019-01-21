@@ -1,7 +1,6 @@
 from datetime import date
+from unittest.mock import patch
 from uuid import uuid4
-
-from mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
@@ -82,10 +81,10 @@ class ArchiveViewTest(TembaTest):
         archive_hash = uuid4().hex
         return Archive.objects.create(
             archive_type=Archive.TYPE_MSG if idx % 2 == 0 else Archive.TYPE_FLOWRUN,
-            size=100000 * idx,
+            size=100_000 * idx,
             hash=archive_hash,
             url=f"http://s3-bucket.aws.com/my/{archive_hash}.jsonl.gz",
-            record_count=123456789 * idx,
+            record_count=123_456_789 * idx,
             start_date=start_date,
             period=period,
             build_time=idx * 123,

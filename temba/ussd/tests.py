@@ -1,7 +1,5 @@
-
 from datetime import datetime, timedelta
-
-from mock import patch
+from unittest.mock import patch
 
 from django.conf import settings
 from django.urls import reverse

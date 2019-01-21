@@ -27,7 +27,7 @@ class Command(BaseCommand):  # pragma: no cover
                 consented += 1
                 analytics.change_consent(user.email, True)
 
-            time.sleep(.1)
+            time.sleep(0.1)
             count += 1
             if count % 1000 == 0:
                 print(f"Updated {count} of {total} users")
