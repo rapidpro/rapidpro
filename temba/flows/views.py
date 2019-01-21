@@ -1,4 +1,3 @@
-
 import logging
 import traceback
 from datetime import datetime, timedelta
@@ -9,7 +8,6 @@ from uuid import uuid4
 
 import iso8601
 import regex
-import requests
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -37,6 +35,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
@@ -1013,7 +1012,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
 
             context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
-            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
+            context["media_url"] = f"{'http' if settings.DEBUG else 'https'}://{settings.AWS_BUCKET_DOMAIN}/"
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
             context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
@@ -1491,37 +1490,32 @@ class FlowCRUDL(SmartCRUDL):
                         dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                     )
 
-                headers = {}
-                if settings.MAILROOM_AUTH_TOKEN:
-                    headers["Authorization"] = "Token " + settings.MAILROOM_AUTH_TOKEN
-
                 flow = self.get_object()
+                client = mailroom.get_client()
 
                 # build our request body to mailroom
-                body = dict(org_id=flow.org_id)
+                payload = dict(org_id=flow.org_id)
 
                 # check if we are triggering a new session
                 if "trigger" in json_dict:
-                    body["trigger"] = json_dict["trigger"]
-                    body["trigger"]["environment"] = serialize_environment(flow.org)
+                    payload["trigger"] = json_dict["trigger"]
+                    payload["trigger"]["environment"] = serialize_environment(flow.org)
 
-                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/start", json=body, headers=headers)
-                    if response.status_code != 200:
+                    try:
+                        return JsonResponse(client.sim_start(payload))
+                    except mailroom.MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-                    return JsonResponse(response.json())
 
                 # otherwise we are resuming
                 elif "resume" in json_dict:
-                    body["resume"] = json_dict["resume"]
-                    body["resume"]["environment"] = serialize_environment(flow.org)
-                    body["session"] = json_dict["session"]
+                    payload["resume"] = json_dict["resume"]
+                    payload["resume"]["environment"] = serialize_environment(flow.org)
+                    payload["session"] = json_dict["session"]
 
-                    response = requests.post(settings.MAILROOM_URL + "/mr/sim/resume", json=body, headers=headers)
-                    if response.status_code != 200:
+                    try:
+                        return JsonResponse(client.sim_resume(payload))
+                    except mailroom.MailroomException:
                         return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-                    return JsonResponse(response.json())
 
         def handle_legacy(self, request, json_dict):
 

@@ -6,23 +6,25 @@ from django.utils import timezone
 
 
 def interrupt_old_calls(apps, schema_editor):
-    from temba.channels.models import ChannelSession
-    from temba.flows.models import FlowSession
+    ChannelSession = apps.get_model("channels", "ChannelSession")
+    FlowSession = apps.get_model("flows", "FlowSession")
 
     just_about_now = timezone.now()
 
-    old_active_ivr_calls = ChannelSession.objects.exclude(status__in=ChannelSession.DONE).filter(
-        created_on__lt=just_about_now - timedelta(days=7), session_type=ChannelSession.IVR
+    DONE = ("D", "B", "F", "N", "C", "X")
+
+    old_active_ivr_calls = ChannelSession.objects.exclude(status__in=DONE).filter(
+        created_on__lt=just_about_now - timedelta(days=7), session_type="F"
     )
 
     print(f"Interrupting {len(old_active_ivr_calls)} IVR calls that are still active and should not be")
 
     # interrupt ChannelSessions
-    old_active_ivr_calls.update(status=ChannelSession.INTERRUPTED, ended_on=just_about_now)
+    old_active_ivr_calls.update(status="X", ended_on=just_about_now)
 
     # interrupt related flow sessions
     old_flow_sessions = FlowSession.objects.filter(connection_id__in=old_active_ivr_calls)
-    old_flow_sessions.update(status=FlowSession.STATUS_INTERRUPTED, ended_on=just_about_now)
+    old_flow_sessions.update(status="I", ended_on=just_about_now)
 
 
 class Migration(migrations.Migration):

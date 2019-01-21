@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = "12065551212"
-START_TEST_CONTACT_PATH = 12065550100
-END_TEST_CONTACT_PATH = 12065550199
+START_TEST_CONTACT_PATH = 12_065_550_100
+END_TEST_CONTACT_PATH = 12_065_550_199
 
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
@@ -1996,8 +1996,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 msg.release()
 
             # release any calls or ussd sessions
-            for session in self.sessions.all():
-                session.release()
+            for conn in self.connections.all():
+                conn.release()
 
             # any urns currently owned by us
             for urn in self.urns.all():
@@ -2009,8 +2009,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     msg.release()
 
                 # same thing goes for sessions
-                for session in urn.channelsession_set.all():
-                    session.release()
+                for conn in urn.connections.all():
+                    conn.release()
 
                 urn.release()
 

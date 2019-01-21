@@ -1,4 +1,3 @@
-
 import logging
 import time
 from abc import ABCMeta
@@ -1714,7 +1713,7 @@ class ChannelLog(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="channel_logs",
         null=True,
@@ -2193,7 +2192,11 @@ def get_alert_user():
         return user
 
 
-class ChannelSession(models.Model):
+class ChannelConnection(models.Model):
+    """
+    Base for IVR and USSD sessions which require a connection to specific channel
+    """
+
     PENDING = "P"  # initial state for all sessions
     QUEUED = "Q"  # the session is queued internally
     WIRED = "W"  # the API provider has confirmed that it successfully received the API request
@@ -2264,27 +2267,16 @@ class ChannelSession(models.Model):
     )
 
     external_id = models.CharField(max_length=255, help_text="The external id for this session, our twilio id usually")
-    status = models.CharField(
-        max_length=1, choices=STATUS_CHOICES, default=PENDING, help_text="The status of this session"
-    )
-    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, help_text="The channel that created this session")
-    contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, related_name="sessions", help_text="Who this session is with"
-    )
-    contact_urn = models.ForeignKey(
-        "contacts.ContactURN",
-        on_delete=models.PROTECT,
-        verbose_name=_("Contact URN"),
-        help_text=_("The URN this session is communicating with"),
-    )
-    direction = models.CharField(
-        max_length=1, choices=DIRECTION_CHOICES, help_text="The direction of this session, either incoming or outgoing"
-    )
-    started_on = models.DateTimeField(null=True, blank=True, help_text="When this session was connected and started")
-    ended_on = models.DateTimeField(null=True, blank=True, help_text="When this session ended")
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
-    session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="What sort of session this is")
-    duration = models.IntegerField(default=0, null=True, help_text="The length of this session in seconds")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING)
+    channel = models.ForeignKey("Channel", on_delete=models.PROTECT, related_name="connections")
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="connections")
+    contact_urn = models.ForeignKey("contacts.ContactURN", on_delete=models.PROTECT, related_name="connections")
+    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
+    started_on = models.DateTimeField(null=True, blank=True)
+    ended_on = models.DateTimeField(null=True, blank=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    connection_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    duration = models.IntegerField(default=0, null=True, help_text="The length of this connection in seconds")
 
     retry_count = models.IntegerField(
         default=0, verbose_name=_("Retry Count"), help_text="The number of times this call has been retried"
@@ -2299,17 +2291,16 @@ class ChannelSession(models.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        """ This is needed when referencing `session` from `FlowRun`. Since
-        the FK is bound to ChannelSession, when it initializes an instance from
-        DB we need to specify the class based on `session_type` so we can access
+        """ Since the FK is bound to ChannelConnection, when it initializes an instance from
+        DB we need to specify the class based on `connection_type` so we can access
         all the methods the proxy model implements. """
 
-        if type(self) is ChannelSession:
-            if self.session_type == self.USSD:
+        if type(self) is ChannelConnection:
+            if self.connection_type == self.USSD:
                 from temba.ussd.models import USSDSession
 
                 self.__class__ = USSDSession
-            elif self.session_type == self.IVR:
+            elif self.connection_type == self.IVR:
                 from temba.ivr.models import IVRCall
 
                 self.__class__ = IVRCall
@@ -2324,17 +2315,17 @@ class ChannelSession(models.Model):
         return self.status in self.DONE
 
     def is_ivr(self):
-        return self.session_type == self.IVR
+        return self.connection_type == self.IVR
 
     def close(self):  # pragma: no cover
         pass
 
     def get(self):
-        if self.session_type == self.IVR:
+        if self.connection_type == self.IVR:
             from temba.ivr.models import IVRCall
 
             return IVRCall.objects.filter(id=self.id).first()
-        if self.session_type == self.USSD:
+        if self.connection_type == self.USSD:
             from temba.ussd.models import USSDSession
 
             return USSDSession.objects.filter(id=self.id).first()

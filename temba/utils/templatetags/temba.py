@@ -227,7 +227,7 @@ def short_datetime(context, dtime):
 
     if org_format == "D":
         if dtime > twelve_hours_ago:
-            return "%s:%s" % (int(dtime.strftime("%H")), dtime.strftime("%M"))
+            return "%s:%s" % (dtime.strftime("%H"), dtime.strftime("%M"))
         elif now.year == dtime.year:
             return "%d %s" % (int(dtime.strftime("%d")), dtime.strftime("%b"))
         else:

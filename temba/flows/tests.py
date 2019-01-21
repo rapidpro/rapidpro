@@ -5,13 +5,12 @@ import re
 import time
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import iso8601
 import pytz
 from django_redis import get_redis_connection
-from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -37,7 +36,7 @@ from temba.tests import (
     MockResponse,
     TembaTest,
     matchers,
-    skip_if_no_flowserver,
+    skip_if_no_mailroom,
 )
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -3739,7 +3738,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
+    @patch("temba.mailroom.BATCH_QUEUE", "test_batch")
     def test_mailroom_starts(self):
+        """
+        Test flow starts being directed to the mailroom queue - however we need to temporarily change the name
+        of the mailroom queue to prevent a running mailroom instance from picking up the task.
+        """
+
         self.login(self.admin)
 
         # mark our flow as being flow server enabled
@@ -3760,13 +3765,13 @@ class FlowTest(TembaTest):
 
         # should now have our flow start queued
         r = get_redis_connection()
-        self.assertEqual(1, r.zcard("batch:%d" % self.org.id))
-        self.assertEqual(1, r.zcard("batch:active"))
+        self.assertEqual(1, r.zcard("test_batch:%d" % self.org.id))
+        self.assertEqual(1, r.zcard("test_batch:active"))
 
         start = FlowStart.objects.last()
 
         # pop our task off
-        task_json = r.zrange("batch:%d" % self.org.id, 0, 0)
+        task_json = r.zrange("test_batch:%d" % self.org.id, 0, 0)
         task = json.loads(task_json[0].decode("utf8"))
         self.assertEqual("start_flow", task["type"])
         self.assertEqual(self.flow.id, task["task"]["flow_id"])
@@ -5098,7 +5103,11 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(
             self.org, dict(type="save", label="Last Message", value="", field="last_message")
         )
-        test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up " "to 500 some characters long because sometimes people save entire messages to their contact " "fields and we want to enable that for them so that they can do what they want with the platform."
+        test.value = (
+            "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "
+            "to 500 some characters long because sometimes people save entire messages to their contact "
+            "fields and we want to enable that for them so that they can do what they want with the platform."
+        )
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEqual(test.value, contact.get_field_value(ContactField.get_by_key(self.org, "last_message")))
@@ -5632,7 +5641,6 @@ class FlowRunTest(TembaTest):
         run.release()
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
-    @skip_if_no_flowserver
     def test_session_release(self):
         # create some runs that have sessions
         run1 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
@@ -11150,11 +11158,11 @@ class OrderingTest(FlowFileTest):
             # the four messages should have been sent in order
             self.assertEqual(msgs[0].text, "Msg1")
             self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             # send_msg_task should have only been called once
             self.assertEqual(mock_send_msg.call_count, 1)
@@ -11167,11 +11175,11 @@ class OrderingTest(FlowFileTest):
             msgs = Msg.objects.filter(direction=OUTGOING, status=WIRED).order_by("sent_on")[4:]
             self.assertEqual(msgs[0].text, "Ack1")
             self.assertEqual(msgs[1].text, "Ack2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Ack3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Ack4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             # again, only one send_msg
             self.assertEqual(mock_send_msg.call_count, 1)
@@ -11188,21 +11196,21 @@ class OrderingTest(FlowFileTest):
             self.assertEqual(msgs[0].contact, self.contact)
             self.assertEqual(msgs[0].text, "Msg1")
             self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             self.assertEqual(msgs[4].contact, self.contact2)
             self.assertEqual(msgs[4].text, "Msg1")
-            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=.500))
+            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=0.500))
             self.assertEqual(msgs[5].text, "Msg2")
-            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[6].text, "Msg3")
-            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[7].text, "Msg4")
-            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=0.750))
 
             # two batches of messages, one batch for each contact
             self.assertEqual(mock_send_msg.call_count, 2)
@@ -11281,7 +11289,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(0.5)
 
         # ok, change our timeout to the past
         timeout = timezone.now()
@@ -11431,7 +11439,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(0.5)
 
         # run our timeout check task
         check_flow_timeouts_task()
@@ -11947,7 +11955,7 @@ class TypeTest(TembaTest):
 
 
 class AssetServerTest(TembaTest):
-    @skip_if_no_flowserver
+    @skip_if_no_mailroom
     def test_flows(self):
         flow1 = self.get_flow("color")
         flow2 = self.get_flow("favorites")
