@@ -1,3 +1,9 @@
+v4.16.2
+----------
+ * Switch BL channels used API
+ * Fix rendering of attachments for mailroom simulation
+ * Update black to the version 18.9b0
+
 v4.16.0
 ----------
  * Fix flow_entered event name in simulator

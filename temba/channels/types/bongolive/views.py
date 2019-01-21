@@ -14,8 +14,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this channel will be used in")
         )
 
-        api_key = forms.CharField(label=_("User API KEY"), help_text=_("The user API Key as provided by Bongo Live"))
-
         number = forms.CharField(
             max_length=14, min_length=4, label=_("Number"), help_text=_("The number you are connecting.")
         )
@@ -27,11 +25,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
         data = form.cleaned_data
-        config = {
-            Channel.CONFIG_USERNAME: data["username"],
-            Channel.CONFIG_PASSWORD: data["password"],
-            Channel.CONFIG_API_KEY: data["api_key"],
-        }
+        config = {Channel.CONFIG_USERNAME: data["username"], Channel.CONFIG_PASSWORD: data["password"]}
 
         self.object = Channel.create(
             org=org,
