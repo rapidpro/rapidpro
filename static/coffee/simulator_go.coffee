@@ -23,8 +23,8 @@ window.simStart = ->
   window.session = null
   window.resetForm()
   request = getStartRequest()
-  $.post(getSimulateURL(), JSON.stringify(request)).done (results) ->
-    window.session = results.session
+  $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
+    window.session = response.session
 
     # first clear our body
     $(".simulator-body").html ""
@@ -33,7 +33,7 @@ window.simStart = ->
     scope = $("#ctlr").data('$scope')
     window.addSimMessage("log", "Entering the flow \"" + scope.flow.metadata.name + "\"")
 
-    window.updateSimResults(results)
+    window.updateSimResults(response.session, response.events)
 
 window.sendSimUpdate = (postData) ->
   msg = {
@@ -63,10 +63,9 @@ window.sendSimUpdate = (postData) ->
     contact: window.session.contact
   }
 
-  $.post(getSimulateURL(), JSON.stringify(request)).done (results) ->
-    window.session = results.session
-    window.updateSimResults(results)
-    window.resetForm()
+  $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
+    window.session = response.session
+    window.updateSimResults(response.session, response.events)
 
   return msg
 
@@ -75,33 +74,34 @@ window.showModal = (title, body) ->
   modal.show();
   return modal
 
-window.updateSimResults = (data) ->
 
-  if data.events
-    for event in data.events
+window.updateSimResults = (session, events) ->
+  if events
+    for event in events
       window.renderSimEvent(event)
 
   $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
   $("#simulator textarea").val("")
 
-  $(".btn.quick-reply").on "click", (event) ->
+  $(".btn.quick-reply").on("click", (event) ->
     payload = event.target.innerText
     window.sendSimulationMessage(payload)
+  )
 
-  if data.session
-    if data.session.status == 'completed'
+  if session
+    if session.status == 'completed'
       # the initial flow doesn't get a flow exit event
       scope = $("#ctlr").data('$scope')
       window.addSimMessage("log", "Exited the flow \"" + scope.flow.metadata.name + "\"")
       $('#simulator').addClass('disabled')
-    else if data.session.status == 'waiting'
-      window.handleSimWait(data.session.wait)
+    else if session.status == 'waiting'
+      window.handleSimWait(session.wait)
 
     # we need to construct the old style activity format
     visited = {}
 
     lastExit = null
-    for run in data.session.runs
+    for run in session.runs
       for segment in run.path
         if lastExit
           key = lastExit + ':' + segment.node_uuid
@@ -113,12 +113,7 @@ window.updateSimResults = (data) ->
         activity = {}
         activity[segment.node_uuid] = 1
 
-    legacyFormat = {
-      'activity': activity,
-      'visited': visited
-    }
-
-    updateActivity(legacyFormat)
+    updateActivity({'activity': activity, 'visited': visited})
 
 
 window.renderSimEvent = (event) ->
@@ -257,6 +252,7 @@ window.setSimQuickReplies = (replies) ->
 
 
 window.handleSimWait = (wait) ->
+  console.log(wait)
   $('.simulator-footer .media-button').hide()
 
   if wait.hint?
@@ -268,6 +264,7 @@ window.handleSimWait = (wait) ->
         $('.simulator-footer .imessage').hide()
         $('.simulator-footer .video-button').show()
       when "audio"
+        console.log(wait.hint.type)
         $('.simulator-footer .imessage').hide()
         $('.simulator-footer .audio-button').show()
       when "location"

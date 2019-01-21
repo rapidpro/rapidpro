@@ -66,22 +66,12 @@ processForm = (postData) ->
 window.sendSimulationMessage = (new_message) ->
   sendMessage(new_message)
 
+
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
     processForm({new_message: newMessage})
     return true
 
-sendPhoto = ->
-  return processForm({new_photo: true})
-
-sendVideo = ->
-  return processForm({new_video: true})
-
-sendAudio = ->
-  return processForm({new_audio: true})
-
-sendGPS = ->
-  return processForm({new_gps: true})
 
 fitSimToScreen = ->
   top = $(window).scrollTop()
@@ -229,22 +219,22 @@ appendMessage = (newMessage, attachments=null, ussd=false) ->
 #-------------------------------------
 
 $('#simulator .gps-button').on 'click', ->
-  msg = sendGPS();
+  msg = processForm({new_gps: true})
   if msg
     window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .photo-button').on 'click', ->
-  msg = sendPhoto()
+  msg = processForm({new_photo: true})
   if msg
     window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .video-button').on 'click', ->
-  msg = sendVideo()
+  msg = processForm({new_video: true})
   if msg
     window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .audio-button').on 'click', ->
-  msg = sendAudio()
+  msg = processForm({new_audio: true})
   if msg
     window.addSimMessage("MO", msg.text, msg.attachments)
 
