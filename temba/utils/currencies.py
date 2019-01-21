@@ -138,8 +138,11 @@ CURRENCY_EXCEPTIONS = {
 
 def currency_for_country(alpha2):
     country = pycountry.countries.get(alpha_2=str(alpha2))
-    try:
-        return pycountry.currencies.get(numeric=country.numeric)
-    except Exception:
-        currency_code = CURRENCY_EXCEPTIONS.get(str(alpha2))
-        return pycountry.currencies.get(alpha_3=currency_code)
+
+    currency_code = CURRENCY_EXCEPTIONS.get(str(alpha2))
+    default_value = pycountry.currencies.get(alpha_3=currency_code)
+
+    if country:
+        return pycountry.currencies.get(numeric=country.numeric, default=default_value)
+    else:
+        return None

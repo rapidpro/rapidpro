@@ -16,6 +16,7 @@ from uuid import uuid4
 import pycountry
 import regex
 import stripe
+import stripe.error
 from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
 from requests import Session
@@ -1798,7 +1799,7 @@ class Org(SmartModel):
 
                 try:
                     card = customer.cards.create(card=token)
-                except stripe.CardError:
+                except stripe.error.CardError:
                     raise ValidationError(
                         _("Sorry, your card was declined, please contact your provider or try another card.")
                     )
