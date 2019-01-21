@@ -33,34 +33,49 @@ window.simStart = ->
     scope = $("#ctlr").data('$scope')
     window.addSimMessage("log", "Entering the flow \"" + scope.flow.metadata.name + "\"")
 
-    window.updateResults(results)
+    window.updateSimResults(results)
 
-window.sendUpdate = (postData) ->
+window.sendSimUpdate = (postData) ->
+  msg = {
+    text: postData.new_message or "",
+    attachments: [],
+    uuid: uuid(),
+    urn: "tel:+12065551212",
+    created_on: new Date(),
+  }
+  if postData.new_photo
+    msg.attachments.push("image/jpg:" + static_url + "images/simulator/capture.jpg")
+  else if postData.new_audio
+    msg.attachments.push("audio/m4a:" + static_url + "images/simulator/capture.m4a")
+  else if postData.new_video
+    msg.attachments.push("video/mp4:" + static_url + "images/simulator/capture.mp4")
+  else if postData.new_gps
+    msg.attachments.push("geo:????")
+
+  console.log(msg)
+
   request = getRequest()
   request['session'] = window.session
   request['resume'] = {
     type: "msg",
-    msg: {
-      text: postData.new_message,
-      uuid: uuid(),
-      urn: "tel:+12065551212",
-      created_on: new Date(),
-    },
+    msg: msg,
     resumed_on: new Date(),
     contact: window.session.contact
   }
 
   $.post(getSimulateURL(), JSON.stringify(request)).done (results) ->
     window.session = results.session
-    window.updateResults(results)
+    window.updateSimResults(results)
     window.resetForm()
+
+  return msg
 
 window.showModal = (title, body) ->
   modal = new ConfirmationModal(title, body);
   modal.show();
   return modal
 
-window.updateResults = (data) ->
+window.updateSimResults = (data) ->
 
   if data.events
     for event in data.events
@@ -210,19 +225,21 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
       if media_type != 'geo'
         media_type = media_type.split('/')[0]
 
-        if not url.startsWith("http")
+        if not url.startsWith("http") and not url.startsWith("/sitestatic/")
           url = window.mediaURL + url
 
         if media_type == 'image'
-          media_viewer = "<span class=\"media-file\"><img src=\"" + url + "\"></span>"
+          media_viewer = '<div class="media-file"><img src="' + url + '"></div>'
         else if media_type == 'video'
-          media_viewer = "<span class=\"media-file\"><video controls src=\"" + url + "\"></span>"
+          media_viewer = '<div class="media-file"><video controls src="' + url + '"></div>'
         else if media_type == 'audio'
-          media_viewer = "<span class=\"media-file\"><audio controls src=\"" + url + "\"></span>"
+          media_viewer = '<div class="media-file"><audio controls src="' + url + '"></div>'
 
-  ele = '<div class="' + classes.join(" ") + '">' + text + '</div>'
+  ele = '<div class="weeeeeee ' + classes.join(" ") + '">'
+  ele += text
   if media_viewer
       ele += media_viewer
+  ele += '</div>'
 
   ele = $(ele)
   if onClick
