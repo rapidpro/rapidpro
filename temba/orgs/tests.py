@@ -7,6 +7,7 @@ from uuid import uuid4
 import nexmo
 import pytz
 import stripe
+import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from smartmin.tests import SmartminTest
@@ -4183,7 +4184,7 @@ class StripeCreditsTest(TembaTest):
 
             def create(self, card):
                 if self.throw:
-                    raise stripe.CardError("Card declined", None, 400)
+                    raise stripe.error.CardError("Card declined", None, 400)
                 else:
                     return MockCard()
 
