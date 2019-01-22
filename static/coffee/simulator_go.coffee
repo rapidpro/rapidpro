@@ -44,11 +44,11 @@ window.sendSimUpdate = (postData) ->
     created_on: new Date(),
   }
   if postData.new_photo
-    msg.attachments.push("image/jpg:" + static_url + "images/simulator/capture.jpg")
+    msg.attachments.push("image/jpg:" + window.staticURL + "images/simulator/capture.jpg")
   else if postData.new_audio
-    msg.attachments.push("audio/m4a:" + static_url + "images/simulator/capture.m4a")
+    msg.attachments.push("audio/m4a:" + window.staticURL + "images/simulator/capture.m4a")
   else if postData.new_video
-    msg.attachments.push("video/mp4:" + static_url + "images/simulator/capture.mp4")
+    msg.attachments.push("video/mp4:" + window.staticURL + "images/simulator/capture.mp4")
   else if postData.new_gps
     msg.attachments.push("geo:47.6089533,-122.34177")
 
