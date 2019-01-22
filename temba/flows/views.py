@@ -1012,7 +1012,7 @@ class FlowCRUDL(SmartCRUDL):
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
 
             context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
-            context["media_url"] = settings.STORAGE_URL + "/"
+            context["media_url"] = f"{settings.STORAGE_URL}/"
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
             context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
