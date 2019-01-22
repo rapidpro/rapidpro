@@ -1,3 +1,7 @@
+v4.16.3
+----------
+ * Simplify generation of upload URLs with new STORAGE_URL setting
+
 v4.16.2
 ----------
  * Switch BL channels used API
