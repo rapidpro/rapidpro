@@ -1383,7 +1383,7 @@ class FlowCRUDL(SmartCRUDL):
 
             runs = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)
 
-            if self.request.GET.get("responded", "") == "true":
+            if str_to_bool(self.request.GET.get("responded", "false")):
                 runs = runs.filter(responded=True)
 
             query = self.request.GET.get("q", None)
