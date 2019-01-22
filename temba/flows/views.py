@@ -1011,9 +1011,11 @@ class FlowCRUDL(SmartCRUDL):
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
 
+            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
+
             context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
             context["media_url"] = f"{settings.STORAGE_URL}/"
-            context["static_url"] = f"http://{org.get_brand_domain()}{settings.STATIC_URL}"
+            context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
             context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
