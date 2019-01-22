@@ -2,7 +2,6 @@
 django
 django-compressor
 django-countries
-django-debug-toolbar
 django-hamlpy
 django-mptt
 django-redis
@@ -59,14 +58,12 @@ pysocks
 pip-tools
 
 ########################## testing ##########################
-black==18.6b4  # pinned temporary, a lot of updates === new PR
+black
 coverage
 flake8
 flake8-deprecated
 flake8-print==2.0.2  # pinned temporary, a lot of updates === new PR
 isort
-mock
 openpyxl
 responses
 beautifulsoup4
-selenium

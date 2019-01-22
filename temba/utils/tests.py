@@ -5,14 +5,13 @@ from collections import OrderedDict
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
 import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
-from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
 from temba_expressions.evaluator import DateStyle, EvaluationContext
@@ -70,6 +69,7 @@ from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
 from .queues import HIGH_PRIORITY, LOW_PRIORITY, complete_task, nonoverlapping_task, push_task, start_task
+from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
@@ -465,9 +465,6 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
 
     def test_short_datetime(self):
-        import pytz
-        from temba.utils.templatetags.temba import short_datetime
-
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
             self.org.save()
@@ -479,10 +476,10 @@ class TemplateTagTest(TembaTest):
             modified_now = test_date.replace(hour=17, minute=5)
             self.assertEqual("19:05", short_datetime(context, modified_now))
 
-            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
+            # given the time as now, should display as 24 hour time
             now = timezone.now()
-            modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("19:05", short_datetime(context, modified_now))
+            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
+            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
 
             # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
             test_date = now.replace(day=2)

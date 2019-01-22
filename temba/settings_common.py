@@ -812,12 +812,7 @@ DATABASES = {"default": _default_database_config, "direct": _direct_database_con
 if TESTING:
     DATABASES["default"] = _direct_database_config
 
-# -----------------------------------------------------------------------------------
-# Debug Toolbar
-# -----------------------------------------------------------------------------------
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
-
-DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}  # disable redirect traps
 
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
@@ -997,6 +992,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.nexmo.NexmoType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
+    "temba.channels.types.bongolive.BongoLiveType",
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
@@ -1095,13 +1091,6 @@ EVENT_FIRE_TRIM_DAYS = 90
 FLOW_SESSION_TRIM_DAYS = 7
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default and only used for migrating flows.
-# GoFlow defaults to http://localhost:8800
-# -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = None
-FLOW_SERVER_DEBUG = False
-
-# -----------------------------------------------------------------------------------
 # Mailroom - disabled by default, but is where simulation happens
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
@@ -1128,5 +1117,3 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-MAILROOM_URL = ""

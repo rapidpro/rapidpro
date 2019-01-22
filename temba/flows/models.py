@@ -34,7 +34,7 @@ from celery import current_app
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelSession
+from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import (
     NEW_CONTACT_VARIABLE,
     TEL_SCHEME,
@@ -78,13 +78,38 @@ from temba.utils.queues import Queue, push_task
 from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
-from . import server
 from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
+
+
+class Events(Enum):
+    broadcast_created = 1
+    contact_channel_changed = 2
+    contact_field_changed = 3
+    contact_groups_changed = 4
+    contact_language_changed = 5
+    contact_name_changed = 6
+    contact_refreshed = 7
+    contact_timezone_changed = 8
+    contact_urns_changed = 9
+    email_created = 10
+    environment_refreshed = 11
+    error = 12
+    flow_entered = 13
+    input_labels_added = 14
+    ivr_created = 15
+    msg_created = 16
+    msg_received = 17
+    msg_wait = 18
+    run_expired = 19
+    run_result_changed = 20
+    session_triggered = 21
+    wait_timed_out = 22
+    webhook_called = 23
 
 
 class FlowException(Exception):
@@ -164,7 +189,7 @@ class FlowSession(models.Model):
     )
 
     connection = models.OneToOneField(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         null=True,
         related_name="session",
@@ -3007,7 +3032,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="runs",
         null=True,
@@ -3308,7 +3333,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     @property
     def connection_interrupted(self):
-        return self.connection and self.connection.status == ChannelSession.INTERRUPTED
+        return self.connection and self.connection.status == ChannelConnection.INTERRUPTED
 
     @classmethod
     def normalize_field_key(cls, key):
@@ -3419,9 +3444,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.events.append(
                 {
-                    FlowRun.EVENT_TYPE: server.Events.msg_received.name
+                    FlowRun.EVENT_TYPE: Events.msg_received.name
                     if msg.direction == INCOMING
-                    else server.Events.msg_created.name,
+                    else Events.msg_created.name,
                     FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
                     FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
                     "msg": serialize_message(msg),
@@ -3458,7 +3483,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((server.Events.msg_received, server.Events.msg_created))
+        return self.get_events_of_type((Events.msg_received, Events.msg_created))
 
     def get_events_by_step(self, msg_only=False):
         """
@@ -5131,9 +5156,9 @@ class ExportFlowResultsTask(BaseExportTask):
         Writes out any messages associated with the given run
         """
         for event in run["events"] or []:
-            if event["type"] == server.Events.msg_received.name:
+            if event["type"] == Events.msg_received.name:
                 msg_direction = "IN"
-            elif event["type"] == server.Events.msg_created.name:
+            elif event["type"] == Events.msg_created.name:
                 msg_direction = "OUT"
             else:  # pragma: no cover
                 continue
@@ -5280,12 +5305,32 @@ class FlowStart(SmartModel):
 
     contact_count = models.IntegerField(default=0, help_text=_("How many unique contacts were started down the flow"))
 
+    connections = models.ManyToManyField(
+        ChannelConnection, related_name="starts", help_text="The channel connections created for this start"
+    )
+
     status = models.CharField(
         max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES, help_text=_("The status of this flow start")
     )
 
     extra = JSONAsTextField(
         null=True, default=dict, help_text=_("Any extra parameters to pass to the flow start (json)")
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        help_text="The user which originally created this item",
+    )
+
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_modifications",
+        help_text="The user which last modified this item",
     )
 
     @classmethod
@@ -5381,6 +5426,7 @@ class FlowStart(SmartModel):
             start_id=self.id,
             org_id=org_id,
             flow_id=self.flow_id,
+            flow_type=self.flow.flow_type,
             group_ids=[g.id for g in self.groups.all()],
             contact_ids=[c.id for c in self.contacts.all()],
             restart_participants=self.restart_participants,
@@ -6069,7 +6115,8 @@ class ReplyAction(Action):
 
                 # if we have a localized media, create the url
                 if media_url and len(media_type.split("/")) > 1:
-                    attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
+                    abs_url = f"{'http' if settings.DEBUG else 'https'}://{settings.AWS_BUCKET_DOMAIN}/{media_url}"
+                    attachments = [f"{media_type}:{abs_url}"]
                 else:
                     attachments = ["%s:%s" % (media_type, media_url)]
 
@@ -7927,6 +7974,6 @@ class InterruptTest(Test):
     def evaluate(self, run, msg, context, text):
         return (
             (True, self.TYPE)
-            if run.connection and run.connection.status == ChannelSession.INTERRUPTED
+            if run.connection and run.connection.status == ChannelConnection.INTERRUPTED
             else (False, None)
         )
