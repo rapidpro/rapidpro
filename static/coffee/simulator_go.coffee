@@ -14,7 +14,8 @@ getStartRequest = ->
       urns: ["tel:+12065551212"],
       created_on: new Date(),
     }
-    flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name}
+    flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name},
+    connection: {},
     triggered_on: new Date()
   }
   return request
@@ -84,7 +85,7 @@ window.updateSimResults = (session, events) ->
 
   $(".btn.quick-reply").on("click", (event) ->
     payload = event.target.innerText
-    window.sendSimulationMessage(payload)
+    window.sendSimMessage(payload)
   )
 
   if session
@@ -171,7 +172,7 @@ window.renderSimEvent = (event) ->
         delim = ", "
       window.addSimMessage("log", msg)
 
-    when "msg_created"
+    when "ivr_created", "msg_created"
       window.addSimMessage("MT", event.msg.text, event.msg.attachments)
 
       if event.msg.quick_replies?
@@ -252,8 +253,13 @@ window.setSimQuickReplies = (replies) ->
   $(".simulator-body").append(quick_replies)
 
 
+#============================================================================
+# Handles a wait in the current simulator session
+#============================================================================
 window.handleSimWait = (wait) ->
-  console.log(wait)
+  window.currentSimWait = wait
+  window.showSimKeypad(false)
+
   $('.simulator-footer .media-button').hide()
 
   if wait.hint?
@@ -265,12 +271,58 @@ window.handleSimWait = (wait) ->
         $('.simulator-footer .imessage').hide()
         $('.simulator-footer .video-button').show()
       when "audio"
-        console.log(wait.hint.type)
         $('.simulator-footer .imessage').hide()
         $('.simulator-footer .audio-button').show()
       when "location"
         $('.simulator-footer .imessage').hide()
         $('.simulator-footer .gps-button').show()
+      when "digits"
+        $('.simulator-footer .imessage').hide()
+        window.showSimKeypad(true)
 
   else
     $('.simulator-footer .imessage').show()
+
+
+#============================================================================
+# Displays the simulator key pad
+#============================================================================
+window.showSimKeypad = (show) ->
+  console.log("showSimKeypad(" + show + ")")
+
+  normalBodyHeight = 360
+  normalFooterHeight = 35
+  keypadHeight = 145
+
+  if show
+    $('.simulator-body').height(normalBodyHeight - keypadHeight)
+    $('.simulator-footer').height(normalFooterHeight + keypadHeight)
+    $('.simulator-footer .keypad').show()
+  else
+    $('.simulator-body').height(normalBodyHeight)
+    $('.simulator-footer').height(normalFooterHeight)
+    $('.simulator-footer .keypad').hide()
+
+
+#============================================================================
+# Handles button press on simulator keypad
+#============================================================================
+$('#simulator .keypad .btn').on('click', ->
+  keypadDisplay = $('.simulator-footer .keypad .display')
+  keypadDisplay.text(keypadDisplay.text() + $(this).text())
+
+  if window.currentSimWait?
+    wait = window.currentSimWait
+    submit = false
+
+    if wait.hint.count? and keypadDisplay.text().length >= wait.hint.count
+      submit = true
+    else if keypadDisplay.text().endsWith("#")
+      submit = true
+
+    if submit
+      window.showSimKeypad(false)
+      window.sendSimulationMessage(keypadDisplay.text())
+      keypadDisplay.text("")
+)
+
