@@ -1,9 +1,12 @@
+from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask, SystemLabel
 from temba.tests import TembaTest
+
+from .checks import storage_url
 
 
 class AssetTest(TembaTest):
@@ -116,3 +119,14 @@ class AssetTest(TembaTest):
             reverse("assets.stream", kwargs=dict(type="message_export", pk=message_export_task.pk))
         )
         self.assertEqual(response.status_code, 200)
+
+
+class SystemChecksTest(TembaTest):
+    def test_storage_url(self):
+        self.assertEqual(len(storage_url(None)), 0)
+
+        with override_settings(STORAGE_URL=None):
+            self.assertEqual(storage_url(None)[0].msg, "No storage URL set")
+
+        with override_settings(STORAGE_URL="http://example.com/uploads/"):
+            self.assertEqual(storage_url(None)[0].msg, "Storage URL shouldn't end with trailing slash")
