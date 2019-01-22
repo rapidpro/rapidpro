@@ -39,8 +39,6 @@ checkForm = (newMessage) ->
 
 window.resetForm = ->
     # reset our form input
-    $('.simulator-footer .media-button').hide()
-    $('.simulator-footer .imessage').show()
     $("#simulator textarea").val("")
 
     # hide loading first

@@ -50,9 +50,7 @@ window.sendSimUpdate = (postData) ->
   else if postData.new_video
     msg.attachments.push("video/mp4:" + static_url + "images/simulator/capture.mp4")
   else if postData.new_gps
-    msg.attachments.push("geo:????")
-
-  console.log(msg)
+    msg.attachments.push("geo:47.6089533,-122.34177")
 
   request = getRequest()
   request['session'] = window.session
@@ -66,6 +64,7 @@ window.sendSimUpdate = (postData) ->
   $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
     window.session = response.session
     window.updateSimResults(response.session, response.events)
+    window.resetForm()
 
   return msg
 
@@ -217,7 +216,9 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
 
       classes.push("media-msg")
 
-      if media_type != 'geo'
+      if media_type == 'geo'
+        media_viewer = '<div class="media-file">' + url + '</div>'
+      else
         media_type = media_type.split('/')[0]
 
         if not url.startsWith("http") and not url.startsWith("/sitestatic/")
@@ -230,7 +231,7 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
         else if media_type == 'audio'
           media_viewer = '<div class="media-file"><audio controls src="' + url + '"></div>'
 
-  ele = '<div class="weeeeeee ' + classes.join(" ") + '">'
+  ele = '<div class="' + classes.join(" ") + '">'
   ele += text
   if media_viewer
       ele += media_viewer
