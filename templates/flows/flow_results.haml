@@ -139,16 +139,35 @@
         }
 
         .responded-checkbox {
-          padding: 10px 10px 15px 15px;
-
-          label {
-            line-height: 30px;
-            margin-left: 25px;
-          }
+          padding-bottom: 10px;
+          padding-left: 15px;
 
           .input-group {
             display: inline;
             margin-left: 15px;
+          }
+
+          .runs-show-sep {
+            display: inline;
+            margin-left: 5px;
+            margin-right: 5px;
+          }
+
+          .runs-show {
+            display: inline;
+            cursor: pointer;
+            color: @color-primary;
+
+            &:hover{
+              text-decoration: underline;
+            }
+
+            &.active {
+              cursor: default;
+              pointer-events: none;
+              text-decoration: none;
+              color: #555555;
+            }
           }
         }
 
@@ -544,7 +563,7 @@
     });
 
     $(function() {
-        $(".responded-checkbox .show-runs-switch .btn").on('click', function(){
+        $(".responded-checkbox .runs-show").on('click', function(){
           $(this).siblings().not($(this)).removeClass("active");
           $(this).addClass("active");
         });
@@ -576,26 +595,27 @@
     #runs.tab-pane
       .scroll-x
         .responded-checkbox
-          .btn-group.show-runs-switch{data-toggle:"buttons-radio"}
-            %button.btn.btn-secondary#show-all-runs{
+          .runs-show#show-all-runs{
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
                                       ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
                                       ic-trigger-on:"click",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
-              -trans "All"
-             %button.btn.btn-secondary.active{
+            -trans "All"
+          .runs-show-sep
+            |
+          .runs-show.active{
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
                                       ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
                                       ic-trigger-on:"click",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
-              -trans "Responded"
+            -trans "Responded"
             
-            .input-group
-              %input.contact-search{type:"text", name:"q", placeholder:"Contact",
+          .input-group
+            %input.contact-search{type:"text", name:"q", placeholder:"Contact",
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty()',
                                       ic-trigger-on:"keyup changed",
