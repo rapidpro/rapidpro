@@ -4,7 +4,7 @@ from django.db import migrations
 
 
 def deactivate_ussd_channels(apps, schema_editor):
-    Channel = apps.get_model("channel", "Channel")
+    Channel = apps.get_model("channels", "Channel")
 
     num_deactivated = 0
     for channel in Channel.objects.filter(channel_type="JNU"):
