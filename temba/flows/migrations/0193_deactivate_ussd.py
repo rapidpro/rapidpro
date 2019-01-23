@@ -11,6 +11,10 @@ def deactivate_ussd_flows(apps, schema_editor):
         flow.events.update(is_active=False)
         flow.triggers.delete()
 
+        flow.group_dependencies.clear()
+        flow.flow_dependencies.clear()
+        flow.field_dependencies.clear()
+
         flow.is_active = False
         flow.save(update_fields=("is_active",))
         num_deactivated += 1
