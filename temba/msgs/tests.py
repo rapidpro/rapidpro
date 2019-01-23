@@ -591,7 +591,7 @@ class MsgTest(TembaTest):
         broadcast1.send()
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (1)")
@@ -620,7 +620,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(timezone.now(), "D", self.admin)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (5)")
@@ -676,7 +676,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(63):
+        with self.assertNumQueries(62):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
         # make sure that we embed refresh script if View.refresh is set
@@ -757,7 +757,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(54):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 1)
@@ -843,7 +843,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
@@ -897,7 +897,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(66):
+        with self.assertNumQueries(65):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 3)
@@ -3627,18 +3627,6 @@ class CeleryTaskTest(TembaTest):
 
         self.joe = self.create_contact("Joe", "+250788383444")
 
-        self.channel2 = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "JNU",
-            None,
-            "1234",
-            config=dict(username="junebug-user", password="junebug-pass", send_url="http://example.org/"),
-            uuid="00000000-0000-0000-0000-000000001234",
-            role=Channel.ROLE_USSD,
-        )
-
     def _fixture_teardown(self):
 
         self.releaseMessages()
@@ -3703,7 +3691,7 @@ class CeleryTaskTest(TembaTest):
             "temba.msgs.models.push_task", new_push_task
         ), transaction.atomic():
             msg1 = Msg.create_outgoing(
-                self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2
+                self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel
             )
 
             Msg.send_messages([msg1])
