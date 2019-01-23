@@ -785,35 +785,6 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def should_close_connection_graph(cls, start_node):
-        # modified DFS that is looking for nodes with messaging capabilities
-        if start_node.get_step_type() == Flow.NODE_TYPE_RULESET:
-            # keep rules only that have destination
-            rules = [rule for rule in start_node.get_rules() if rule.destination]
-            if not rules:
-                return True
-            else:
-                for rule in rules:
-                    next_node = Flow.get_node(start_node.flow, rule.destination, rule.destination_type)
-                    if next_node.is_messaging:
-                        return False
-                    else:
-                        if Flow.should_close_connection_graph(next_node):
-                            continue
-                        else:
-                            return False
-                return True
-        elif start_node.get_step_type() == Flow.NODE_TYPE_ACTIONSET:
-            if start_node.destination:
-                next_node = Flow.get_node(start_node.flow, start_node.destination, start_node.destination_type)
-                if next_node.is_messaging:
-                    return False
-                else:
-                    return Flow.should_close_connection_graph(next_node)
-            else:
-                return True
-
-    @classmethod
     def find_and_handle(
         cls,
         msg,
@@ -1059,20 +1030,12 @@ class Flow(TembaModel):
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if run.connection_interrupted:  # pragma: no cover
-                ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
-            else:
-                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (result_value, Flow.label_to_slug(ruleset.label)))
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (result_value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not result_rule.destination:
-            if run.connection_interrupted:
-                # run was interrupted and interrupt state not handled (not connected)
-                run.set_interrupted()
-                return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs_out)
-            else:
-                run.set_completed(exit_uuid=result_rule.uuid)
-                return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
+            run.set_completed(exit_uuid=result_rule.uuid)
+            return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         # Create the step for our destination
         destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
@@ -3645,7 +3608,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
-    def is_interrupted(self):
+    def is_interrupted(self):  # pragma: no cover
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
     def create_outgoing_ivr(self, text, recording_url, connection, response_to=None):
@@ -3874,10 +3837,6 @@ class RuleSet(models.Model):
     def get(cls, flow, uuid):
         return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related("flow", "flow__org").first()
 
-    @property
-    def is_messaging(self):
-        return self.ruleset_type in self.TYPE_WAIT_MESSAGE
-
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
 
@@ -4089,15 +4048,6 @@ class RuleSet(models.Model):
 
         return None, None, None  # pragma: no cover
 
-    def find_interrupt_rule(self, run, msg):
-        rules = self.get_rules()
-        for rule in rules:
-            result, value = rule.matches(run, msg, {}, "")
-
-            if result and value == "interrupted_status":
-                return rule, value
-        return None, None
-
     def save_run_value(self, run, rule, raw_value, raw_input, org=None):
         org = org or self.flow.org
         contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
@@ -4168,14 +4118,6 @@ class ActionSet(models.Model):
     @classmethod
     def get(cls, flow, uuid):
         return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related("flow", "flow__org").first()
-
-    @property
-    def is_messaging(self):
-        actions = self.get_actions()
-        for action in actions:
-            if isinstance(action, (ReplyAction, SendAction)):
-                return True
-        return False
 
     def get_step_type(self):
         return Flow.NODE_TYPE_ACTIONSET
@@ -6710,7 +6652,6 @@ class Test(object):
                 HasStateTest.TYPE: HasStateTest,
                 HasWardTest.TYPE: HasWardTest,
                 InGroupTest.TYPE: InGroupTest,
-                InterruptTest.TYPE: InterruptTest,
                 LtTest.TYPE: LtTest,
                 LteTest.TYPE: LteTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
@@ -7688,28 +7629,3 @@ class RegexTest(Test):  # pragma: needs cover
             traceback.print_exc()
 
         return False, None
-
-
-class InterruptTest(Test):
-    """
-    Test if it's an interrupt status message
-    """
-
-    TYPE = "interrupted_status"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):
-        return dict(type=self.TYPE)
-
-    def evaluate(self, run, msg, context, text):
-        return (
-            (True, self.TYPE)
-            if run.connection and run.connection.status == ChannelConnection.INTERRUPTED
-            else (False, None)
-        )

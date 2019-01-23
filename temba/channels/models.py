@@ -584,11 +584,6 @@ class Channel(TembaModel):
 
         return TYPES.values()
 
-    @classmethod
-    def get_by_category(cls, org, category):
-        category_channel_types = [c_type.code for c_type in Channel.get_types() if c_type.category == category]
-        return org.channels.filter(is_active=True, channel_type__in=category_channel_types)
-
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
 
@@ -1205,57 +1200,6 @@ class Channel(TembaModel):
         return text
 
     @classmethod
-    def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
-        request_time = time.time() - start
-
-        from temba.msgs.models import Msg
-
-        Msg.mark_sent(channel.config["r"], msg, msg_status, external_id)
-
-        # record stats for analytics
-        if msg.queued_on:
-            analytics.gauge("temba.sending_latency", (msg.sent_on - msg.queued_on).total_seconds())
-
-        # logs that a message was sent for this channel type if our latency is known
-        if request_time > 0:
-            analytics.gauge("temba.msg_sent_%s" % channel.channel_type.lower(), request_time)
-
-        # log our request time in ms
-        request_time_ms = request_time * 1000
-
-        if events is None and event:
-            events = [event]
-
-        for event in events:
-            # write to our log file
-            print(
-                '[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
-                % (
-                    msg.id,
-                    request_time,
-                    event.method,
-                    event.url,
-                    event.request_body,
-                    event.status_code,
-                    event.response_body,
-                )
-            )
-
-            # lastly store a ChannelLog object for the user
-            ChannelLog.objects.create(
-                channel_id=msg.channel,
-                msg_id=msg.id,
-                is_error=False,
-                description="Successfully delivered",
-                method=event.method,
-                url=event.url,
-                request=event.request_body,
-                response=event.response_body,
-                response_status=event.status_code,
-                request_time=request_time_ms,
-            )
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1366,16 +1310,6 @@ class Channel(TembaModel):
                     print("FAKED SEND for [%d] - %s" % (msg.id, part))
                 else:
                     channel_type.send(channel, msg, part)
-
-            except SendException as e:
-                ChannelLog.log_exception(channel, msg, e)
-
-                import traceback
-
-                traceback.print_exc()
-
-                Msg.mark_error(r, channel, msg, fatal=e.fatal)
-                sent_count -= 1
 
             except Exception as e:
                 ChannelLog.log_error(msg, str(e))
@@ -1683,19 +1617,6 @@ class ChannelEvent(models.Model):
         self.delete()
 
 
-class SendException(Exception):
-    def __init__(self, description, event=None, events=None, fatal=False, start=None):
-        super().__init__(description)
-
-        if events is None and event:
-            events = [event]
-
-        self.description = description
-        self.events = events
-        self.fatal = fatal
-        self.start = start
-
-
 class ChannelLog(models.Model):
     channel = models.ForeignKey(
         Channel, on_delete=models.PROTECT, related_name="logs", help_text=_("The channel the message was sent on")
@@ -1734,62 +1655,10 @@ class ChannelLog(models.Model):
         self.delete()
 
     @classmethod
-    def log_exception(cls, channel, msg, e):
-        # calculate our request time if possible
-        request_time = 0 if not e.start else time.time() - e.start
-
-        for event in e.events:
-            print(
-                '[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
-                % (
-                    msg.id,
-                    request_time,
-                    event.method,
-                    event.url,
-                    event.request_body,
-                    event.status_code,
-                    event.response_body,
-                )
-            )
-
-            # log our request time in ms
-            request_time_ms = request_time * 1000
-
-            ChannelLog.objects.create(
-                channel_id=msg.channel,
-                msg_id=msg.id,
-                is_error=True,
-                description=str(e.description)[:255],
-                method=event.method,
-                url=event.url,
-                request=event.request_body,
-                response=event.response_body,
-                response_status=event.status_code,
-                request_time=request_time_ms,
-            )
-
-        if request_time > 0:
-            analytics.gauge("temba.msg_sent_%s" % channel.channel_type.lower(), request_time)
-
-    @classmethod
     def log_error(cls, msg, description):
         print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
-
-    @classmethod
-    def log_message(cls, msg, description, event, is_error=False):
-        return ChannelLog.objects.create(
-            channel_id=msg.channel_id,
-            msg=msg,
-            request=event.request_body,
-            response=event.response_body,
-            url=event.url,
-            method=event.method,
-            is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
         )
 
     @classmethod
@@ -2292,7 +2161,7 @@ class ChannelConnection(models.Model):
         all the methods the proxy model implements. """
 
         if type(self) is ChannelConnection:
-            if self.connection_type == self.USSD:
+            if self.connection_type == self.USSD:  # pragma: no cover
                 from temba.ussd.models import USSDSession
 
                 self.__class__ = USSDSession
@@ -2303,9 +2172,6 @@ class ChannelConnection(models.Model):
 
     def get_logs(self):
         return self.channel_logs.all().order_by("created_on")
-
-    def get_duration(self):
-        return timedelta(seconds=self.duration)
 
     def is_done(self):
         return self.status in self.DONE
@@ -2321,7 +2187,7 @@ class ChannelConnection(models.Model):
             from temba.ivr.models import IVRCall
 
             return IVRCall.objects.filter(id=self.id).first()
-        if self.connection_type == self.USSD:
+        if self.connection_type == self.USSD:  # pragma: no cover
             from temba.ussd.models import USSDSession
 
             return USSDSession.objects.filter(id=self.id).first()
@@ -2334,7 +2200,7 @@ class ChannelConnection(models.Model):
         """
         try:
             return self.session
-        except ObjectDoesNotExist:
+        except ObjectDoesNotExist:  # pragma: no cover
             return None
 
     def release(self):
