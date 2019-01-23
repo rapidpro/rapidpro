@@ -29,15 +29,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, PENDING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import (
-    ESMockWithScroll,
-    FlowFileTest,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    skip_if_no_mailroom,
-)
+from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
@@ -12077,40 +12069,3 @@ class AssetServerTest(TembaTest):
                 ]
             },
         )
-
-
-class BackfillMissingFlowDepsTest(MigrationTest):
-    migrate_from = "0190_make_empty_revisions"
-    migrate_to = "0191_add_deps_for_start_new_flow_action"
-    app = "flows"
-
-    def setUpBeforeMigration(self, apps):
-
-        self.get_flow("multiple_deps")
-
-        invalid1 = Flow.objects.get(name="Invalid1")
-        invalid1.is_active = False
-        invalid1.save()
-
-        invalid2 = Flow.objects.get(name="Invalid2")
-        invalid2.is_active = False
-        invalid2.save()
-
-        flow = Flow.objects.get(name="multiple_deps")
-
-        # there are 5 deps, 3 valid and 2 invalid
-        self.assertEqual(flow.flow_dependencies.count(), 5)
-
-        # delete all dependencies
-        flow.flow_dependencies.through.objects.all().delete()
-
-    def test_updated_flow_dependencies(self):
-        flow = Flow.objects.get(name="multiple_deps")
-
-        # invalid flows will be removed as deps
-        self.assertEqual(flow.flow_dependencies.count(), 3)
-
-        expected_deps = {"Valid1", "Valid2", "Valid3"}
-        actual_deps = set(flow.flow_dependencies.all().values_list("name", flat=True))
-
-        self.assertSetEqual(expected_deps, actual_deps)
