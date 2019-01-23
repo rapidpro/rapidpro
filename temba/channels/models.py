@@ -8,7 +8,6 @@ from xml.sax.saxutils import escape
 
 import phonenumbers
 from django_countries.fields import CountryField
-from django_redis import get_redis_connection
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
@@ -39,13 +38,6 @@ from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = "http://175.103.48.29:28078/testing/smsmt.php"
-
-# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
-DART_MEDIA_ENDPOINT = "http://202.43.169.11/APIhttpU/receive2waysms.php"
 
 # the event type for channel events in the handler queue
 CHANNEL_EVENT = "channel_event"
@@ -195,12 +187,6 @@ class ChannelType(metaclass=ABCMeta):
         Called when a trigger that is bound to a channel of this type is being released. Note: this will only be called
         if IS_PROD setting is True.
         """
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        """
-        Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
-        """
-        raise NotImplementedError("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
@@ -1288,124 +1274,6 @@ class Channel(TembaModel):
         return pending.order_by("created_on")
 
     @classmethod
-    def send_message(cls, msg):  # pragma: no cover
-        from temba.msgs.models import Msg, Attachment, QUEUED, WIRED, MSG_SENT_KEY
-
-        r = get_redis_connection()
-
-        # check whether this message was already sent somehow
-        pipe = r.pipeline()
-        pipe.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-        pipe.sismember((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
-        (sent_today, sent_yesterday) = pipe.execute()
-
-        # get our cached channel
-        channel = Channel.get_cached_channel(msg.channel)
-
-        if sent_today or sent_yesterday:
-            Msg.mark_sent(r, msg, WIRED, -1)
-            print("!! [%d] prevented duplicate send" % msg.id)
-            return
-
-        # channel can be none in the case where the channel has been removed
-        if not channel:
-            Msg.mark_error(r, None, msg, fatal=True)
-            ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
-            return
-
-        # populate redis in our config
-        channel.config["r"] = r
-
-        channel_type = Channel.get_type_from_code(channel.channel_type)
-
-        # Check whether we need to throttle ourselves
-        # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
-        # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
-        # a rare event, this is an ok stopgap.
-        if channel_type.max_tps:
-            tps_set_name = "channel_tps_%d" % channel.id
-            lock_name = "%s_lock" % tps_set_name
-
-            while True:
-                # only one thread should be messing with the map at once
-                with r.lock(lock_name, timeout=5):
-                    # check how many were sent in the last second
-                    now = time.time()
-                    last_second = time.time() - 1
-
-                    # how many have been sent in the past second?
-                    count = r.zcount(tps_set_name, last_second, now)
-
-                    # we're within our tps, add ourselves to the list and go on our way
-                    if count < channel_type.max_tps:
-                        r.zadd(tps_set_name, now, now)
-                        r.zremrangebyscore(tps_set_name, "-inf", last_second)
-                        r.expire(tps_set_name, 5)
-                        break
-
-                # too many sent in the last second, sleep a bit and try again
-                time.sleep(1 / float(channel_type.max_tps))
-
-        sent_count = 0
-
-        # append media url if our channel doesn't support it
-        text = msg.text
-
-        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
-            # for now we only support sending one attachment per message but this could change in future
-            attachment = Attachment.parse_all(msg.attachments)[0]
-            text = "%s\n%s" % (text, attachment.url)
-
-            # don't send as media
-            msg.attachments = None
-
-        parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, channel_type.max_length))
-
-        for part in parts:
-            sent_count += 1
-            try:
-                # never send in debug unless overridden
-                if not settings.SEND_MESSAGES:
-                    Msg.mark_sent(r, msg, WIRED, -1)
-                    print("FAKED SEND for [%d] - %s" % (msg.id, part))
-                else:
-                    channel_type.send(channel, msg, part)
-
-            except SendException as e:
-                ChannelLog.log_exception(channel, msg, e)
-
-                import traceback
-
-                traceback.print_exc()
-
-                Msg.mark_error(r, channel, msg, fatal=e.fatal)
-                sent_count -= 1
-
-            except Exception as e:
-                ChannelLog.log_error(msg, str(e))
-
-                import traceback
-
-                traceback.print_exc()
-
-                Msg.mark_error(r, channel, msg)
-                sent_count -= 1
-
-            finally:
-                # if we are still in a queued state, mark ourselves as an error
-                if msg.status == QUEUED:
-                    print("!! [%d] marking queued message as error" % msg.id)
-                    Msg.mark_error(r, channel, msg)
-                    sent_count -= 1
-
-                    # make sure media isn't sent more than once
-                    msg.attachments = None
-
-        # update the number of sms it took to send this if it was more than 1
-        if len(parts) > 1:
-            Msg.objects.filter(id=msg.id).update(msg_count=len(parts))
-
-    @classmethod
     def track_status(cls, channel, status):
         if channel:
             # track success, errors and failures
@@ -1685,19 +1553,6 @@ class ChannelEvent(models.Model):
 
     def release(self):
         self.delete()
-
-
-class SendException(Exception):
-    def __init__(self, description, event=None, events=None, fatal=False, start=None):
-        super().__init__(description)
-
-        if events is None and event:
-            events = [event]
-
-        self.description = description
-        self.events = events
-        self.fatal = fatal
-        self.start = start
 
 
 class ChannelLog(models.Model):
