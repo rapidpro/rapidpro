@@ -1011,8 +1011,11 @@ class FlowCRUDL(SmartCRUDL):
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
 
+            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
+
             context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
             context["media_url"] = f"{settings.STORAGE_URL}/"
+            context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
             context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
@@ -1567,20 +1570,8 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to create message
             new_message = json_dict.get("new_message", "")
-            media = None
 
-            media_url = "http://%s%simages" % (user.get_org().get_brand_domain(), settings.STATIC_URL)
-
-            if "new_photo" in json_dict:  # pragma: needs cover
-                media = "%s/png:%s/simulator_photo.png" % (Msg.MEDIA_IMAGE, media_url)
-            elif "new_gps" in json_dict:  # pragma: needs cover
-                media = "%s:47.6089533,-122.34177" % Msg.MEDIA_GPS
-            elif "new_video" in json_dict:  # pragma: needs cover
-                media = "%s/mp4:%s/simulator_video.mp4" % (Msg.MEDIA_VIDEO, media_url)
-            elif "new_audio" in json_dict:  # pragma: needs cover
-                media = "%s/mp4:%s/simulator_audio.m4a" % (Msg.MEDIA_AUDIO, media_url)
-
-            if new_message or media:
+            if new_message:
                 try:
                     if flow.flow_type == Flow.TYPE_USSD:
                         if new_message == "__interrupt__":
@@ -1603,7 +1594,6 @@ class FlowCRUDL(SmartCRUDL):
                             None,
                             str(test_contact.get_urn(TEL_SCHEME)),
                             new_message,
-                            attachments=[media] if media else None,
                             org=user.get_org(),
                             status=PENDING,
                         )
