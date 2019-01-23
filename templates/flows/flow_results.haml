@@ -139,15 +139,41 @@
         }
 
         .responded-checkbox {
-          padding: 10px 10px 15px 15px;
+          padding-bottom: 10px;
+          padding-left: 15px;
 
-          label {
-            line-height: 30px;
-            margin-left: 25px;
+          .input-group {
+            display: inline;
+            margin-left: 15px;
+            margin-right: 15px;
+          }
+
+          .runs-show-sep {
+            display: inline;
+            margin-left: 5px;
+            margin-right: 5px;
+          }
+
+          .runs-show {
+            display: inline;
+            cursor: pointer;
+            color: @color-primary;
+
+            &:hover{
+              text-decoration: underline;
+            }
+
+            &.active {
+              cursor: default;
+              pointer-events: none;
+              text-decoration: none;
+              color: #555555;
+            }
           }
         }
 
         .add-columns {
+          display: inline;
           margin-left: 8px;
           .text {
             display: block;
@@ -163,7 +189,7 @@
             }
 
             .selection {
-              display: block;
+              display: inline;
             }
           }
         }
@@ -528,33 +554,20 @@
 
     $(document).ready(function() {
       updateCharts();
+      localStorage.setItem("responded", "true");
     });
 
     $(function(){
       $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        ajaxSetup.data = ajaxSetup.data + "&responded=" + $("#only_responded").prop('checked');
+        responded = localStorage.getItem("responded");
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
       });
     });
 
     $(function() {
-        if ($(".responded-checkbox").children().children("input[type='checkbox']").prop('checked')) {
-          $(".responded-checkbox").children('.glyph').addClass("checked");
-        } else {
-          $(".responded-checkbox").children('.glyph').removeClass("checked");
-        }
-      });
-
-    $(function() {
-        $(".responded-checkbox .glyph").on('click', function(){
-          var cell = $(this).parent(".responded-checkbox");
-          var ipt = cell.children().children("input[type='checkbox']");
-
-          if ($(this).hasClass("checked")) {
-            $(this).removeClass("checked");
-          } else {
-            $(this).addClass("checked");
-          }
-          ipt.click() //trigger a click on input so intercooler reloads
+        $(".responded-checkbox .runs-show").on('click', function(){
+          $(this).siblings().not($(this)).removeClass("active");
+          $(this).addClass("active");
         });
       });
 
@@ -563,15 +576,15 @@
   %ul.nav.nav-tabs
     %li.active
       %a{href: '#overview', data-toggle:'tab'}
-        Overview
+        -trans "Overview"
 
     %li
       %a{href: '#analytics', data-toggle:'tab'}
-        Analytics
+        -trans "Analytics"
 
     %li
       %a{href: '#runs', data-toggle:'tab'}
-        Runs
+        -trans "Runs"
 
   .tab-content
     #overview.tab-pane.active
@@ -584,37 +597,49 @@
     #runs.tab-pane
       .scroll-x
         .responded-checkbox
-          .hidden-input.hide
-            %input#only_responded{type:"checkbox", name:"responded", value:"true", checked:true,  style:"margin: 10px 10px 10px 0px;"
+          .runs-show#show-all-runs{
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
                                       ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+            -trans "All"
+          .runs-show-sep
+            |
+          .runs-show.active{
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                      ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+            -trans "Responded"
+            
+          .input-group
+            %input.contact-search{type:"text", name:"q", placeholder:"Search Contacts",
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty()',
+                                      ic-trigger-on:"keyup changed",
+                                      ic-local-vars: "responded",
                                       ic-trigger-delay:"500ms",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
-          .glyph.notif-checkbox.checked
-          %label{ for:'responded' }
-            -trans "Only Responded"
+
+          .add-columns.select
+            .selection
+              %input#columns{type:'hidden', style:'width:150px'}
 
         %table
           %tr
             %td.header.started
               .details
-                .add-columns.select
-                  .selection
-                    %input#columns{type:'hidden', style:'width:150px'}
-                  .text
-                    Last Activity
+                .text{style:"margin-left:10px;"}
+                  -trans "Last Activity"
             %td.header
               .details
-                %input.contact-search{type:"text", name:"q", placeholder:"Contact",
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty()',
-                                      ic-include: "#only_responded",
-                                      ic-trigger-on:"keyup changed",
-                                      ic-trigger-delay:"500ms",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
+                .text
+                  -trans "Contact"
 
             -for ruleset in rulesets
               %td.header
@@ -626,7 +651,7 @@
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}
-            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-include: "#only_responded", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader
