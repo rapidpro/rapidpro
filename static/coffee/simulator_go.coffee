@@ -80,7 +80,6 @@ window.updateSimResults = (session, events) ->
     for event in events
       window.renderSimEvent(event)
 
-  $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
   $("#simulator textarea").val("")
 
   $(".btn.quick-reply").on("click", (event) ->
@@ -243,6 +242,7 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
     ele.bind("click", onClick)
 
   ele = $(".simulator-body").append(ele)
+  $(".simulator-body").scrollTop($(".simulator-body")[0].scrollHeight)
 
 
 window.setSimQuickReplies = (replies) ->
