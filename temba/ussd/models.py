@@ -1,25 +1,19 @@
 from django.db import models
 from django.utils import timezone
 
-from temba.channels.models import ChannelSession
+from temba.channels.models import ChannelConnection
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
-from temba.utils import get_anonymous_user
 
 
 class USSDQuerySet(models.QuerySet):
     def get(self, *args, **kwargs):
-        kwargs.update(dict(session_type=USSDSession.USSD))
+        kwargs.update(dict(connection_type=USSDSession.USSD))
         return super().get(*args, **kwargs)
 
     def create(self, **kwargs):
-        if kwargs.get("channel"):
-            user = kwargs.get("channel").created_by
-        else:  # testing purposes (eg. simulator)
-            user = get_anonymous_user()
-
-        kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
+        kwargs.update(dict(connection_type=USSDSession.USSD))
         return super().create(**kwargs)
 
     def get_initiated_push(self, contact):
@@ -29,7 +23,7 @@ class USSDQuerySet(models.QuerySet):
         return self.only("status").filter(id=session_id).first()
 
 
-class USSDSession(ChannelSession):
+class USSDSession(ChannelConnection):
     USSD_PULL = INCOMING = "I"
     USSD_PUSH = OUTGOING = "O"
 
@@ -149,7 +143,7 @@ class USSDSession(ChannelSession):
             try:
                 connection = (
                     cls.objects.select_for_update()
-                    .exclude(status__in=ChannelSession.DONE)
+                    .exclude(status__in=ChannelConnection.DONE)
                     .get(external_id=external_id)
                 )
                 created = False

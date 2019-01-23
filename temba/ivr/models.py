@@ -8,19 +8,19 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelLog, ChannelSession, ChannelType
+from temba.channels.models import Channel, ChannelConnection, ChannelLog, ChannelType
 from temba.utils.http import HttpEvent
 
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super().create(*args, session_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, connection_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super().get_queryset().filter(session_type=IVRCall.IVR)
+        return super().get_queryset().filter(connection_type=IVRCall.IVR)
 
 
-class IVRCall(ChannelSession):
+class IVRCall(ChannelConnection):
     RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
     MAX_ERROR_COUNT = 5
@@ -53,7 +53,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.OUTGOING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             status=IVRCall.PENDING,
         )
 
@@ -66,7 +65,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.INCOMING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             external_id=external_id,
             status=IVRCall.PENDING,
         )
@@ -88,7 +86,7 @@ class IVRCall(ChannelSession):
 
         if not self.is_done():
             # mark us as interrupted
-            self.status = ChannelSession.INTERRUPTED
+            self.status = ChannelConnection.INTERRUPTED
             self.ended_on = timezone.now()
             self.save(update_fields=("status", "ended_on"))
 
@@ -203,7 +201,7 @@ class IVRCall(ChannelSession):
             self.started_on = timezone.now()
 
         # if we are done, mark our ended time
-        if self.status in ChannelSession.DONE:
+        if self.status in ChannelConnection.DONE:
             self.ended_on = timezone.now()
 
             self.unregister_active_event()
@@ -218,7 +216,7 @@ class IVRCall(ChannelSession):
                 if run:
                     ActionLog.create(run[0], _("Call ended."))
 
-        if self.status in ChannelSession.RETRY_CALL and previous_status not in ChannelSession.RETRY_CALL:
+        if self.status in ChannelConnection.RETRY_CALL and previous_status not in ChannelConnection.RETRY_CALL:
             flow = self.get_flow()
             backoff_minutes = flow.metadata.get("ivr_retry", IVRCall.RETRY_BACKOFF_MINUTES)
 
@@ -239,7 +237,7 @@ class IVRCall(ChannelSession):
                 ):
                     run.update_expiration()
 
-        if self.status == ChannelSession.FAILED:
+        if self.status == ChannelConnection.FAILED:
             flow = self.get_flow()
             if flow.metadata.get("ivr_retry_failed_events"):
                 self.schedule_failed_call_retry()

@@ -1,13 +1,10 @@
-from unittest.mock import patch
-
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.msgs.models import Label
-from temba.tests import MockResponse, TembaTest, matchers, skip_if_no_flowserver
+from temba.tests import TembaTest, matchers, skip_if_no_mailroom
 from temba.values.constants import Value
 
 from .assets import ChannelType, get_asset_type, get_asset_urls
-from .client import FlowServerException
 from .serialize import serialize_channel, serialize_field, serialize_flow, serialize_group, serialize_label
 
 TEST_ASSETS_BASE = "http://localhost:8000/flow/assets/"
@@ -18,13 +15,13 @@ class AssetsTest(TembaTest):
         self.assertEqual(
             get_asset_urls(self.org),
             {
-                "channel": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
-                "field": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
-                "flow": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
-                "group": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
-                "label": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
-                "location_hierarchy": f"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
-                "resthook": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
+                "channel": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "field": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/field/"),
+                "flow": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/flow/"),
+                "group": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/group/"),
+                "label": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/label/"),
+                "location_hierarchy": fr"{TEST_ASSETS_BASE}{self.org.id}/1/location_hierarchy/",
+                "resthook": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/resthook/"),
             },
         )
 
@@ -33,7 +30,7 @@ class AssetsTest(TembaTest):
             get_asset_type(ChannelType).bundle_set(self.org, simulator=True),
             {
                 "type": "channel",
-                "url": matchers.String(pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
+                "url": matchers.String(pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/"),
                 "content": [
                     {
                         "address": "+250785551212",
@@ -58,7 +55,7 @@ class AssetsTest(TembaTest):
             {
                 "type": "channel",
                 "url": matchers.String(
-                    pattern=f"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
+                    pattern=fr"{TEST_ASSETS_BASE}{self.org.id}/\d+/channel/{str(self.channel.uuid)}/"
                 ),
                 "content": {
                     "address": "+250785551212",
@@ -80,7 +77,7 @@ class SerializationTest(TembaTest):
         self.assertEqual(serialize_field(gender), {"key": "gender", "name": "Gender", "value_type": "text"})
         self.assertEqual(serialize_field(age), {"key": "age", "name": "Age", "value_type": "number"})
 
-    @skip_if_no_flowserver
+    @skip_if_no_mailroom
     def test_serialize_flow(self):
         flow = self.get_flow("favorites")
         migrated_json = serialize_flow(flow)
@@ -131,20 +128,4 @@ class SerializationTest(TembaTest):
                 "schemes": ["tel"],
                 "country": "RW",
             },
-        )
-
-
-class ClientTest(TembaTest):
-    @patch("requests.post")
-    def test_request_failure(self, mock_post):
-        mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
-
-        flow = self.get_flow("color")
-
-        with self.assertRaises(FlowServerException) as e:
-            serialize_flow(flow)
-
-        self.assertEqual(
-            e.exception.as_json(),
-            {"endpoint": "migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
         )

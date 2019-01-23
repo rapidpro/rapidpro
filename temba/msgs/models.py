@@ -469,7 +469,7 @@ class Broadcast(models.Model):
                 # arbitrary media urls don't have a full content type, so only
                 # make uploads into fully qualified urls
                 if media_url and len(media_type.split("/")) > 1:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    media = f"{media_type}:{settings.STORAGE_URL}/{media_url}"
 
             # build our message specific context
             if expressions_context is not None:
@@ -927,7 +927,7 @@ class Msg(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="msgs",
         null=True,
@@ -2244,7 +2244,7 @@ class Label(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():

@@ -35,7 +35,6 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.channels.models import ChannelSession
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
@@ -44,7 +43,7 @@ from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMi
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 
 logger = logging.getLogger(__name__)
 
@@ -1478,7 +1477,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
-            except Exception as e:  # pragma: no cover
+            except Exception:  # pragma: no cover
                 logger.error("Error removing a channel", exc_info=True)
 
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
@@ -1977,10 +1976,10 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .exclude(connection=None)
                     .values_list("connection_id", flat=True)
                 )
-                events = ChannelSession.objects.filter(id__in=logs).order_by("-created_on")
+                events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelSession.FAILED)
+                    events = events.filter(status=ChannelConnection.FAILED)
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
@@ -2002,7 +2001,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return context
 
     class Session(AnonMixin, OrgPermsMixin, SmartReadView):
-        model = ChannelSession
+        model = ChannelConnection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):
         fields = ("description", "created_on")

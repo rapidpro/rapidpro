@@ -26,7 +26,7 @@
 
           %td.created_on
             %span.time
-              {{ broadcast.created_on|gmail_time }}
+              {% short_datetime broadcast.created_on %}
 
       -for object in object_list
         %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
@@ -51,7 +51,7 @@
 
           %td.created_on
             %span.time
-              {{object.created_on|gmail_time}}
+              {% short_datetime object.created_on %}
 
             .log-icon
               -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon

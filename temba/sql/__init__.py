@@ -1,4 +1,3 @@
-
 import os
 
 from django.db.migrations import RunSQL

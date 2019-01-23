@@ -1,3 +1,47 @@
+v4.16.3
+----------
+ * Simplify generation of upload URLs with new STORAGE_URL setting
+
+v4.16.2
+----------
+ * Switch BL channels used API
+ * Fix rendering of attachments for mailroom simulation
+ * Update black to the version 18.9b0
+
+v4.16.0
+----------
+ * Fix flow_entered event name in simulator
+ * Make created_by, modified_by on FlowStart nullable, add connections M2M on FlowStart
+ * Rename ChannelSession to ChannelConnection
+
+v4.15.2
+----------
+ * Fix for flow dependency migration
+ * Fix rendering of single digit hours in pretty_datetime tag
+ * Use mailroom for flow migration instead of goflow
+ * Add support for Bongo Live channel type
+
+v4.15.1
+----------
+ * Include default country in serialized environments used for simulation
+ * Add short_datetime and pretty_datetime tags which format based on org settings
+ * Prevent users from choosing flow they are editing in some cases
+
+v4.15.0
+----------
+ * Fix nexmo claim
+ * Tweak 11.7 migration to not blow up if webhook action has empty URL
+ * Bump module minor versions and remove unused modules
+ * Remove ChannelSession.modified_by
+
+v4.14.1
+----------
+ * Make older flow migrations more fault tolerant
+ * Tweaks to migrate_flows command to make error reporting more useful
+ * Add flow migration to fix duplicate rule UUIDs
+ * Update python-telegram-bot to 11.1.0
+ * Update nexmo to 2.3.0
+
 v4.14.0
 ----------
  * Fix recent messages rollover with 0 messages

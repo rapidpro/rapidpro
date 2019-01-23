@@ -1,6 +1,7 @@
 import io
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import nexmo
@@ -8,7 +9,6 @@ import pytz
 import stripe
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from mock import Mock, patch
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -1422,7 +1422,7 @@ class OrgTest(TembaTest):
 
     def test_topups(self):
 
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100000, multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
@@ -1517,7 +1517,7 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
-        mega_topup = TopUp.create(self.admin, price=0, credits=100000)
+        mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
@@ -1529,7 +1529,7 @@ class OrgTest(TembaTest):
         self.assertEqual(0, self.org.get_purchased_credits())
         self.assertFalse(self.org.is_multi_user_tier())
 
-        self.assertEqual(100025, self.org.get_credits_total())
+        self.assertEqual(100_025, self.org.get_credits_total())
         self.assertEqual(99995, self.org.get_credits_remaining())
         self.assertEqual(30, self.org.get_credits_used())
 
@@ -1634,13 +1634,13 @@ class OrgTest(TembaTest):
             self.assertEqual(0, self.org.get_low_credits_threshold())
 
         # now buy some credits to make us multi user
-        TopUp.create(self.admin, price=100, credits=100000)
+        TopUp.create(self.admin, price=100, credits=100_000)
         self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
-        TopUp.create(self.admin, price=100, credits=1000000)
+        TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
@@ -2143,9 +2143,7 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_connect_nexmo(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         self.login(self.admin)
 
         # connect nexmo
@@ -2162,8 +2160,12 @@ class OrgTest(TembaTest):
         with patch("requests.get") as nexmo_get:
             with patch("requests.post") as nexmo_post:
                 # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(200, '{"error-code": "200"}')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+                nexmo_get.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
+                nexmo_post.return_value = MockResponse(
+                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+                )
                 response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
                 self.assertEqual(response.status_code, 302)
 
@@ -2262,9 +2264,7 @@ class OrgTest(TembaTest):
 
     @patch("nexmo.Client.create_application")
     def test_nexmo_configuration(self, mock_create_application):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
         self.login(self.admin)
 
@@ -2342,7 +2342,9 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org_tier())
 
         # not enough credits with tiers enabled
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
+            import_flows=1, multi_user=100_000, multi_org=1_000_000
+        )
         self.assertIsNone(self.org.create_sub_org("Sub Org A"))
         self.assertFalse(self.org.is_import_flows_tier())
         self.assertFalse(self.org.is_multi_user_tier())
@@ -2356,8 +2358,10 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org_tier())
 
         # tiers enabled, but enough credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
-        TopUp.create(self.admin, price=100, credits=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
+            import_flows=1, multi_user=100_000, multi_org=1_000_000
+        )
+        TopUp.create(self.admin, price=100, credits=1_000_000)
         self.org.clear_credit_cache()
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
         self.assertTrue(self.org.is_import_flows_tier())
@@ -2368,7 +2372,7 @@ class OrgTest(TembaTest):
 
         from temba.orgs.models import Debit
 
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -2478,7 +2482,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
 
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
 
         # set our org on the session
         session = self.client.session
@@ -2690,7 +2694,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Oculus")
-        self.assertEqual(100000, org.get_credits_remaining())
+        self.assertEqual(100_000, org.get_credits_remaining())
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
@@ -2706,7 +2710,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="id Software")
-        self.assertEqual(100000, org.get_credits_remaining())
+        self.assertEqual(100_000, org.get_credits_remaining())
 
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
@@ -3019,7 +3023,7 @@ class OrgCRUDLTest(TembaTest):
 
         # Check the message datetime
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
 
         # change the org timezone to "Africa/Nairobi"
         self.org.timezone = pytz.timezone("Africa/Nairobi")
@@ -3028,6 +3032,13 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         # checkout the message should have the datetime changed by timezone
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
+        self.org.date_format = "M"
+        self.org.save()
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 
@@ -3544,7 +3555,9 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
 
         # try importing without having purchased credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
+            import_flows=1, multi_user=100_000, multi_org=1_000_000
+        )
         post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
         response = self.client.post(reverse("orgs.org_import"), post_data)
         self.assertFormError(response, "form", "import_file", "Sorry, import is a premium feature")

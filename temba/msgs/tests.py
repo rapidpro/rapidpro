@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import pytz
 from django_redis import get_redis_connection
-from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -2627,20 +2626,20 @@ class BroadcastTest(TembaTest):
         # check date variables
         text, errors = substitute("Today is @date.today", dict())
         self.assertEqual(errors, [])
-        self.assertRegex(text, "Today is \d{2}-\d{2}-\d{4}")
+        self.assertRegex(text, r"Today is \d{2}-\d{2}-\d{4}")
 
         text, errors = substitute("Today is @date.now", dict())
         self.assertEqual(errors, [])
-        self.assertRegex(text, "Today is \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
+        self.assertRegex(text, r"Today is \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
 
         text, errors = substitute("Today is @(format_date(date.now))", dict())
         self.assertEqual(errors, [])
-        self.assertRegex(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
+        self.assertRegex(text, r"Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
         text, errors = substitute("Your DOB is @contact.dob", dict())
         self.assertEqual(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
-        self.assertRegex(text, "Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
+        self.assertRegex(text, r"Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
 
         # unicode tests
         self.joe.name = "شاملیدل عمومی"
@@ -3340,9 +3339,9 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by("-created_on").first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by("-created_on").first()
 
-        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(":", 1)[1])
-        greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(":", 1)[1])
-        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fra_attachment.split(":", 1)[1])
+        francois_media_url = f"image/jpeg:{settings.STORAGE_URL}/{fra_attachment.split(':', 1)[1]}"
+        greg_media_url = f"image/jpeg:{settings.STORAGE_URL}/{eng_attachment.split(':', 1)[1]}"
+        wilbert_media_url = f"image/jpeg:{settings.STORAGE_URL}/{fra_attachment.split(':', 1)[1]}"
 
         # assert the right language was used for each contact on both text and media
         self.assertEqual(francois_media.text, fra_msg)

@@ -1,8 +1,13 @@
+from datetime import timedelta
+
+import pytz
+
 from django import template
 from django.conf import settings
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_lazy
@@ -168,3 +173,69 @@ def to_json(value):
     escaped_output = escapejs(value)
 
     return mark_safe(f'JSON.parse("{escaped_output}")')
+
+
+@register.simple_tag(takes_context=True)
+def pretty_datetime(context, dtime):
+
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+    org_format = "D"
+    tz = pytz.UTC
+    org = context["user_org"]
+    if org:
+        org_format = org.date_format
+        tz = org.timezone
+
+    dtime = dtime.astimezone(tz)
+
+    if org_format == "D":
+        return "%d %s %s %s:%s" % (
+            int(dtime.strftime("%d")),
+            dtime.strftime("%B"),
+            dtime.strftime("%Y"),
+            dtime.strftime("%H"),
+            dtime.strftime("%M"),
+        )
+    else:
+        return "%s %d, %s %d:%s %s" % (
+            dtime.strftime("%B"),
+            int(dtime.strftime("%d")),
+            dtime.strftime("%Y"),
+            int(dtime.strftime("%I")),
+            dtime.strftime("%M"),
+            dtime.strftime("%p").lower(),
+        )
+
+
+@register.simple_tag(takes_context=True)
+def short_datetime(context, dtime):
+    if dtime.tzinfo is None:
+        dtime = dtime.replace(tzinfo=pytz.utc)
+
+    org_format = "D"
+    tz = pytz.UTC
+    org = context["user_org"]
+    if org:
+        org_format = org.date_format
+        tz = org.timezone
+
+    dtime = dtime.astimezone(tz)
+
+    now = timezone.now()
+    twelve_hours_ago = now - timedelta(hours=12)
+
+    if org_format == "D":
+        if dtime > twelve_hours_ago:
+            return "%s:%s" % (dtime.strftime("%H"), dtime.strftime("%M"))
+        elif now.year == dtime.year:
+            return "%d %s" % (int(dtime.strftime("%d")), dtime.strftime("%b"))
+        else:
+            return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))
+    else:
+        if dtime > twelve_hours_ago:
+            return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+        elif now.year == dtime.year:
+            return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
+        else:
+            return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))

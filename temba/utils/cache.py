@@ -1,4 +1,3 @@
-
 from datetime import timedelta
 
 import pytz
@@ -59,7 +58,17 @@ def incrby_existing(key, delta, r=None):
     if not r:
         r = get_redis_connection()
 
-    lua = "local ttl = redis.call('pttl', KEYS[1])\n" "local val = redis.call('get', KEYS[1])\n" "if val ~= false then\n" "  val = tonumber(val) + ARGV[1]\n" "  redis.call('set', KEYS[1], val)\n" "  if ttl > 0 then\n" "    redis.call('pexpire', KEYS[1], ttl)\n" "  end\n" "end"
+    lua = (
+        "local ttl = redis.call('pttl', KEYS[1])\n"
+        "local val = redis.call('get', KEYS[1])\n"
+        "if val ~= false then\n"
+        "  val = tonumber(val) + ARGV[1]\n"
+        "  redis.call('set', KEYS[1], val)\n"
+        "  if ttl > 0 then\n"
+        "    redis.call('pexpire', KEYS[1], ttl)\n"
+        "  end\n"
+        "end"
+    )
     r.eval(lua, 1, key, delta)
 
 

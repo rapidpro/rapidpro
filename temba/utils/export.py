@@ -32,7 +32,7 @@ class BaseExportTask(TembaModel):
     analytics_key = None
     asset_type = None
 
-    MAX_EXCEL_ROWS = 1048576
+    MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
 
     WIDTH_SMALL = 15
