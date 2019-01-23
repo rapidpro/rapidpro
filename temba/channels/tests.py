@@ -95,10 +95,6 @@ class ChannelTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "000"},
         )
 
-        self.ussd_channel = Channel.create(
-            self.org, self.user, None, "JNU", name="Junebug USSD", address="*123#", role=Channel.ROLE_USSD
-        )
-
     def send_message(self, numbers, message, org=None, user=None):
         if not org:
             org = self.org
@@ -167,7 +163,6 @@ class ChannelTest(TembaTest):
 
         channel_types = (
             ("JN", Channel.DEFAULT_ROLE, "Channel Log"),
-            ("JNU", Channel.ROLE_USSD, "USSD Log"),
             ("T", Channel.ROLE_CALL, "Call Log"),
             ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, "Channel Log"),
         )

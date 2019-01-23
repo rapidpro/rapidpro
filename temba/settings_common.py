@@ -290,7 +290,7 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
-        "flow_types": ["M", "V", "S", "U"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, Flow.TYPE_USSD
+        "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -1010,7 +1010,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
-    "temba.channels.types.junebug_ussd.JunebugUSSDType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
     "temba.channels.types.m3tech.M3TechType",
@@ -1097,13 +1096,6 @@ FLOW_SESSION_TRIM_DAYS = 7
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# These legacy channels still send on RapidPro:
-#   * TT is our old Twitter integration, will be removed ~June 2018
-#   * JNU is junebug USSD, which may be removed depending on future of USSD
-# -----------------------------------------------------------------------------------
-LEGACY_CHANNELS = set(["TT", "JNU"])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration

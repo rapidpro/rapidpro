@@ -2194,7 +2194,7 @@ def get_alert_user():
 
 class ChannelConnection(models.Model):
     """
-    Base for IVR and USSD sessions which require a connection to specific channel
+    Base for IVR sessions which require a connection to specific channel
     """
 
     PENDING = "P"  # initial state for all sessions
@@ -2210,13 +2210,7 @@ class ChannelConnection(models.Model):
     CANCELED = "C"  # the call was terminated by platform
     COMPLETED = "D"  # the call was completed successfully
 
-    # valid for USSD sessions
-    TRIGGERED = "T"
-    INTERRUPTED = "X"
-    INITIATED = "A"
-    ENDING = "E"
-
-    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
+    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED)
     RETRY_CALL = (BUSY, NO_ANSWER)
 
     INCOMING = "I"
@@ -2240,10 +2234,6 @@ class ChannelConnection(models.Model):
         (FAILED, "Failed"),
         (NO_ANSWER, "No Answer"),
         (CANCELED, "Canceled"),
-        (INTERRUPTED, "Interrupted"),
-        (TRIGGERED, "Triggered"),
-        (INITIATED, "Initiated"),
-        (ENDING, "Ending"),
     )
 
     is_active = models.BooleanField(

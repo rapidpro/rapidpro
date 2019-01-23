@@ -107,7 +107,6 @@ from .models import (
     HasStateTest,
     HasWardTest,
     InGroupTest,
-    InterruptTest,
     LteTest,
     LtTest,
     NotEmptyTest,
@@ -127,7 +126,6 @@ from .models import (
     Test,
     TriggerFlowAction,
     TrueTest,
-    UssdAction,
     VariableContactAction,
     get_flow_user,
 )
@@ -3228,21 +3226,8 @@ class FlowTest(TembaTest):
 
         # our default brand has all choice types
         response = self.client.get(reverse("flows.flow_create"))
-        choices = [
-            (Flow.TYPE_MESSAGE, "Messaging"),
-            (Flow.TYPE_USSD, "USSD Messaging"),
-            (Flow.TYPE_VOICE, "Phone Call"),
-            (Flow.TYPE_SURVEY, "Surveyor"),
-        ]
-        self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
-
-        # now configure our deployment to ignore USSD
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["flow_types"] = [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY]
         choices = [(Flow.TYPE_MESSAGE, "Messaging"), (Flow.TYPE_VOICE, "Phone Call"), (Flow.TYPE_SURVEY, "Surveyor")]
-        with override_settings(BRANDING=branding):
-            response = self.client.get(reverse("flows.flow_create"))
-            self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
+        self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
         response = self.client.post(
@@ -4032,51 +4017,6 @@ class FlowTest(TembaTest):
         # now we should trigger the other flow as we are at our terminal flow
         self.assertTrue(Trigger.find_and_handle(other_incoming))
 
-    @patch(
-        "temba.flows.models.Flow.handle_ussd_ruleset_action",
-        return_value=dict(handled=True, destination=None, step=None, msgs=[]),
-    )
-    def test_ussd_ruleset_sends_message(self, handle_ussd_ruleset_action):
-        definition = self.flow.as_json()
-
-        # set flow to USSD and have a USSD ruleset
-        definition["flow_type"] = "U"
-        definition["rule_sets"][0]["ruleset_type"] = "wait_menu"
-
-        self.flow.update(definition)
-
-        # start flow
-        self.flow.start([], [self.contact])
-
-        self.assertTrue(handle_ussd_ruleset_action.called)
-        self.assertEqual(handle_ussd_ruleset_action.call_count, 1)
-
-    @patch(
-        "temba.flows.models.Flow.handle_ussd_ruleset_action",
-        return_value=dict(handled=True, destination=None, step=None, msgs=[]),
-    )
-    def test_triggered_start_with_ussd(self, handle_ussd_ruleset_action):
-        definition = self.flow.as_json()
-
-        # set flow to USSD and have a USSD ruleset
-        definition["flow_type"] = "U"
-        definition["rule_sets"][0]["ruleset_type"] = "wait_menu"
-
-        self.flow.update(definition)
-
-        # create a trigger
-        Trigger.objects.create(
-            org=self.org, keyword="derp", flow=self.flow, created_by=self.admin, modified_by=self.admin
-        )
-
-        # create an incoming message
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="derp")
-
-        self.assertTrue(Trigger.find_and_handle(incoming))
-
-        self.assertTrue(handle_ussd_ruleset_action.called)
-        self.assertEqual(handle_ussd_ruleset_action.call_count, 1)
-
 
 class ActionPackedTest(FlowFileTest):
     def setUp(self):
@@ -4662,133 +4602,6 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, msg)
         self.assertEqual(action.msg, dict(base="Are you fine?"))
         self.assertEqual(action.quick_replies, payload)
-
-    def test_ussd_action(self):
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD)
-
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
-        menu_uuid = str(uuid4())
-
-        ussd_ruleset = RuleSet.objects.create(
-            flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU
-        )
-        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, "R", TrueTest()).as_json()]
-        ussd_ruleset.save()
-
-        # without USSD config we only get an empty UssdAction
-        action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = self.execute_action(action, run, msg)
-
-        self.assertIsNone(action.msg)
-        self.assertEqual(execution, [])
-
-        # add menu rules
-        ussd_ruleset.rules = [
-            Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, "R", TrueTest()).as_json(),
-            Rule(str(uuid4()), dict(base="Test1"), None, "R", EqTest(test="1"), dict(base="Test1")).as_json(),
-            Rule(str(uuid4()), dict(base="Test2"), None, "R", EqTest(test="2"), dict(base="Test2")).as_json(),
-        ]
-        ussd_ruleset.save()
-
-        # add ussd message
-        config = {"ussd_message": {"base": "test"}}
-        ussd_ruleset.config = config
-        action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = self.execute_action(action, run, msg)
-
-        self.assertIsNotNone(action.msg)
-        self.assertEqual(action.msg, {"base": "test\n1: Test1\n2: Test2\n"})
-        self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, "test\n1: Test1\n2: Test2")
-
-        Broadcast.objects.all().delete()
-
-    def test_multilanguage_ussd_menu_partly_translated(self):
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD)
-
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
-        menu_uuid = str(uuid4())
-
-        ussd_ruleset = RuleSet.objects.create(
-            flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU
-        )
-        ussd_ruleset.rules = [Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, "R", TrueTest()).as_json()]
-        ussd_ruleset.save()
-
-        english = Language.create(self.org, self.admin, "English", "eng")
-        Language.create(self.org, self.admin, "Hungarian", "hun")
-        Language.create(self.org, self.admin, "Russian", "rus")
-        self.flow.org.primary_language = english
-
-        # add menu rules
-        ussd_ruleset.rules = [
-            Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, "R", TrueTest()).as_json(),
-            Rule(
-                str(uuid4()), dict(base="Test1"), None, "R", EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")
-            ).as_json(),
-            Rule(str(uuid4()), dict(base="Test2"), None, "R", EqTest(test="2"), dict(eng="label2ENG")).as_json(),
-        ]
-        ussd_ruleset.save()
-
-        # add ussd message
-        config = {"ussd_message": {"eng": "testENG", "hun": "testHUN"}}
-
-        ussd_ruleset.config = config
-        action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = self.execute_action(action, run, msg)
-
-        self.assertIsNotNone(action.msg)
-        # we have three languages, although only 2 are (partly) translated
-        self.assertEqual(len(action.msg.keys()), 3)
-        self.assertCountEqual(list(action.msg.keys()), ["rus", "hun", "eng"])
-
-        # we don't have any translation for Russian, so it should be the same as eng
-        self.assertEqual(action.msg["eng"], action.msg["rus"])
-
-        # we have partly translated hungarian labels
-        self.assertNotEqual(action.msg["eng"], action.msg["hun"])
-
-        # the missing translation should be the same as the english label
-        self.assertNotIn("labelENG", action.msg["hun"])
-        self.assertIn("label2ENG", action.msg["hun"])
-
-        self.assertEqual(action.msg["hun"], "testHUN\n1: labelHUN\n2: label2ENG\n")
-
-        # the msg sent out is in english
-        self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
-
-        # now set contact's language to something we don't have in our org languages
-        self.contact.language = "fra"
-        self.contact.save(update_fields=("language",), handle_update=False)
-        run = FlowRun.create(self.flow, self.contact)
-
-        # resend the message to him
-        execution = self.execute_action(action, run, msg)
-
-        # he will still get the english (base language)
-        self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, "testENG\n1: labelENG\n2: label2ENG")
-
-        # now set contact's language to hungarian
-        self.contact.language = "hun"
-        self.contact.save(update_fields=("language",), handle_update=False)
-        run = FlowRun.create(self.flow, self.contact)
-
-        # resend the message to him
-        execution = self.execute_action(action, run, msg)
-
-        # he will get the partly translated hungarian version
-        self.assertIsInstance(execution[0], Msg)
-        self.assertEqual(execution[0].text, "testHUN\n1: labelHUN\n2: label2ENG")
-
-        Broadcast.objects.all().delete()
 
     def test_trigger_flow_action(self):
         flow = self.create_flow()
@@ -5598,26 +5411,6 @@ class FlowRunTest(TembaTest):
         Flow.find_and_handle(incoming)
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
-
-    def test_is_interrupted(self):
-        self.channel.delete()
-        # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD)
-
-        flow = self.get_flow("ussd_example")
-        flow.start([], [self.contact])
-
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        USSDSession.handle_incoming(
-            channel=self.channel,
-            urn=self.contact.get_urn().path,
-            date=timezone.now(),
-            external_id="12341231",
-            status=USSDSession.INTERRUPTED,
-        )
-
-        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
     def test_run_release(self):
         run = FlowRun.create(self.flow, self.contact)
@@ -9273,73 +9066,6 @@ class FlowsTest(FlowFileTest):
             simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
         ).json()
         self.assertEqual("Bleck", response["messages"][1]["text"])
-
-    def test_interrupted_state(self):
-        self.channel.delete()
-        # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD)
-
-        flow = self.get_flow("ussd_interrupt_example")
-
-        # start the flow, check if we are interrupted yet
-        flow.start([], [self.contact])
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        USSDSession.handle_incoming(
-            channel=self.channel,
-            urn=self.contact.get_urn().path,
-            date=timezone.now(),
-            external_id="12341231",
-            status=USSDSession.INTERRUPTED,
-        )
-
-        run = FlowRun.objects.get(contact=self.contact)
-
-        # as the example flow has an interrupt state connected to a valid destination,
-        # the flow will go on and reach the destination
-        self.assertFalse(run.is_interrupted())
-
-        # the contact should have been added to the "Interrupted" group as flow step describes
-        interrupted_group = ContactGroup.user_groups.get(name="Interrupted")
-        self.assertTrue(interrupted_group.contacts.filter(id=run.contact.id).exists())
-
-    def test_empty_interrupt_state(self):
-        self.channel.delete()
-        # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD)
-
-        flow = self.get_flow("ussd_interrupt_example")
-
-        # disconnect action from interrupt state
-        ruleset = flow.rule_sets.first()
-        rules = ruleset.get_rules()
-        interrupt_rule = next(rule for rule in rules if isinstance(rule.test, InterruptTest))
-        interrupt_rule.destination = None
-        interrupt_rule.destination_type = None
-        ruleset.set_rules(rules)
-        ruleset.save()
-
-        # start the flow, check if we are interrupted yet
-        flow.start([], [self.contact])
-
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        USSDSession.handle_incoming(
-            channel=self.channel,
-            urn=self.contact.get_urn().path,
-            date=timezone.now(),
-            external_id="12341231",
-            status=USSDSession.INTERRUPTED,
-        )
-
-        run = FlowRun.objects.get(contact=self.contact)
-
-        # the interrupt state is empty, it should interrupt the flow
-        self.assertTrue(run.is_interrupted())
-
-        # double check that the disconnected action wasn't run
-        interrupted_group = ContactGroup.user_groups.get(name="Interrupted")
-        self.assertFalse(interrupted_group.contacts.filter(id=run.contact.id).exists())
 
     def test_airtime_flow(self):
         flow = self.get_flow("airtime")
