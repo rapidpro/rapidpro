@@ -454,7 +454,6 @@ PERMISSIONS = {
         "referral",
         "register",
         "schedule",
-        "ussd",
     ),
 }
 
@@ -536,7 +535,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -655,7 +653,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
