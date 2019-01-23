@@ -145,6 +145,7 @@
           .input-group {
             display: inline;
             margin-left: 15px;
+            margin-right: 15px;
           }
 
           .runs-show-sep {
@@ -172,6 +173,7 @@
         }
 
         .add-columns {
+          display: inline;
           margin-left: 8px;
           .text {
             display: block;
@@ -187,7 +189,7 @@
             }
 
             .selection {
-              display: block;
+              display: inline;
             }
           }
         }
@@ -624,15 +626,16 @@
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
 
+          .add-columns.select
+            .selection
+              %input#columns{type:'hidden', style:'width:150px'}
+
         %table
           %tr
             %td.header.started
               .details
-                .add-columns.select
-                  .selection
-                    %input#columns{type:'hidden', style:'width:150px'}
-                  .text
-                    Last Activity
+                .text{style:"margin-left:10px;"}
+                  Last Activity
             %td.header
               .details
                 .text
