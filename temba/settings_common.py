@@ -1098,6 +1098,12 @@ MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
+# These legacy channels still send on RapidPro:
+#   * TT is our old Twitter integration, will be removed ~June 2018
+# -----------------------------------------------------------------------------------
+LEGACY_CHANNELS = {"TT"}
+
+# -----------------------------------------------------------------------------------
 # Chatbase integration
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = "https://chatbase.com/api/message"

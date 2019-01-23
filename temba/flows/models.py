@@ -785,20 +785,6 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def should_close_connection(cls, run, current_destination, next_destination):
-        if run.flow.flow_type == Flow.TYPE_USSD:
-            # this might be our last node that sends msg
-            if not next_destination:
-                return True
-            else:
-                if next_destination.is_messaging:
-                    return False
-                else:
-                    return Flow.should_close_connection_graph(next_destination)
-        else:
-            return False
-
-    @classmethod
     def should_close_connection_graph(cls, start_node):
         # modified DFS that is looking for nodes with messaging capabilities
         if start_node.get_step_type() == Flow.NODE_TYPE_RULESET:
@@ -3815,15 +3801,11 @@ class RuleSet(models.Model):
         TYPE_WAIT_RECORDING,
         TYPE_WAIT_DIGIT,
         TYPE_WAIT_DIGITS,
-        TYPE_WAIT_USSD_MENU,
-        TYPE_WAIT_USSD,
         TYPE_WAIT_PHOTO,
         TYPE_WAIT_VIDEO,
         TYPE_WAIT_AUDIO,
         TYPE_WAIT_GPS,
     )
-
-    TYPE_USSD = (TYPE_WAIT_USSD_MENU, TYPE_WAIT_USSD)
 
     TYPE_CHOICES = (
         (TYPE_WAIT_MESSAGE, "Wait for message"),
@@ -3902,7 +3884,7 @@ class RuleSet(models.Model):
 
     @property
     def is_messaging(self):
-        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE,))
+        return self.ruleset_type in self.TYPE_WAIT_MESSAGE
 
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
@@ -3963,9 +3945,6 @@ class RuleSet(models.Model):
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
-
-    def is_ussd(self):
-        return self.ruleset_type in RuleSet.TYPE_USSD
 
     def get_timeout(self):
         for rule in self.get_rules():

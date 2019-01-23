@@ -1670,8 +1670,6 @@ class Msg(models.Model):
         # for IVR messages we need a channel that can call
         if msg_type == IVR:
             role = Channel.ROLE_CALL
-        elif msg_type == USSD:
-            role = Channel.ROLE_USSD
         else:
             role = Channel.ROLE_SEND
 
@@ -1685,8 +1683,6 @@ class Msg(models.Model):
             if not channel:
                 if msg_type == IVR:
                     channel = org.get_call_channel()
-                elif msg_type == USSD:
-                    channel = org.get_ussd_channel(contact_urn=contact_urn)
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 

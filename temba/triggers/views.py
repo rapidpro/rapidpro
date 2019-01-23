@@ -384,7 +384,6 @@ class TriggerCRUDL(SmartCRUDL):
         "catchall",
         "new_conversation",
         "referral",
-        "ussd",
     )
 
     class OrgMixin(OrgPermsMixin):
@@ -415,8 +414,6 @@ class TriggerCRUDL(SmartCRUDL):
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
                 add_section("trigger-referral", "triggers.trigger_referral", "icon-exit")
 
-            if self.org.get_ussd_channels():
-                add_section("trigger-ussd", "triggers.trigger_ussd", "icon-mobile")
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):

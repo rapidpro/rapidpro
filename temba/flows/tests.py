@@ -40,7 +40,6 @@ from temba.tests import (
 )
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
-from temba.ussd.models import USSDSession
 from temba.utils import json
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
@@ -591,7 +590,6 @@ class FlowTest(TembaTest):
         self.assertTrue(response.context["mutable"])
         self.assertFalse(response.context["has_airtime_service"])
         self.assertFalse(response.context["is_starting"])
-        self.assertFalse(response.context["has_ussd_channel"])
 
         # superusers can't edit flows
         self.login(self.superuser)
@@ -6004,99 +6002,6 @@ class SimulationTest(FlowFileTest):
         self.assertEqual("You picked 3!", json_dict["messages"][4]["text"])
         self.assertEqual("Ben Haggerty has exited this flow", json_dict["messages"][5]["text"])
 
-    @patch("temba.ussd.models.USSDSession.handle_incoming")
-    def test_ussd_simulation(self, handle_incoming):
-        self.channel.release()
-        self.channel = Channel.create(
-            self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE
-        )
-        flow = self.get_flow("ussd_example")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-
-        post_data = dict(has_refresh=True, new_message="derp", version="1")
-
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # session should have started now
-        self.assertTrue(handle_incoming.called)
-        self.assertEqual(handle_incoming.call_count, 1)
-
-        self.assertIsNone(handle_incoming.call_args[1]["status"])
-
-        self.channel.release()
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-    @patch("temba.ussd.models.USSDSession.handle_incoming")
-    def test_ussd_simulation_interrupt(self, handle_incoming):
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org, self.user, "RW", "JNU", None, "+250788123123", role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE
-        )
-        flow = self.get_flow("ussd_example")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-
-        post_data = dict(has_refresh=True, new_message="__interrupt__", version="1")
-
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # session should have started now
-        self.assertTrue(handle_incoming.called)
-        self.assertEqual(handle_incoming.call_count, 1)
-
-        self.assertEqual(handle_incoming.call_args[1]["status"], USSDSession.INTERRUPTED)
-
-    def test_ussd_simulation_connection_end(self):
-        self.ussd_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "JNU",
-            None,
-            "*123#",
-            schemes=["tel"],
-            uuid="00000000-0000-0000-0000-000000002222",
-            role=Channel.ROLE_USSD,
-        )
-
-        flow = self.get_flow("ussd_session_end")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-
-        post_data = dict(has_refresh=True, new_message="4", version="1")
-
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        connection = USSDSession.objects.get()
-        self.assertEqual(connection.status, USSDSession.COMPLETED)
-
-    def test_ussd_simulation_without_channel_doesnt_run(self):
-        Channel.objects.all().delete()
-
-        flow = self.get_flow("ussd_session_end")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-
-        post_data = dict(has_refresh=True, new_message="4", version="1")
-
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["status"], "error")
-
-        self.assertEqual(flow.runs.count(), 0)
-
 
 class FlowsTest(FlowFileTest):
     def test_release(self):
@@ -11495,27 +11400,11 @@ class FlowChannelSelectionTest(FlowFileTest):
             uuid="00000000-0000-0000-0000-000000001111",
             role=Channel.DEFAULT_ROLE,
         )
-        self.ussd_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "JNU",
-            None,
-            "*123#",
-            schemes=["tel"],
-            uuid="00000000-0000-0000-0000-000000002222",
-            role=Channel.ROLE_USSD,
-        )
 
     def test_sms_channel_selection(self):
         contact_urn = self.contact.get_urn(TEL_SCHEME)
         channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
         self.assertEqual(channel, self.sms_channel)
-
-    def test_ussd_channel_selection(self):
-        contact_urn = self.contact.get_urn(TEL_SCHEME)
-        channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
-        self.assertEqual(channel, self.ussd_channel)
 
 
 class FlowTriggerTest(TembaTest):

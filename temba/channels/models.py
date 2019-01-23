@@ -65,7 +65,6 @@ class ChannelType(metaclass=ABCMeta):
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
-        USSD = 3
         API = 4
 
     class IVRProtocol(Enum):
@@ -803,9 +802,6 @@ class Channel(TembaModel):
             return self.org.get_brand_domain()
         else:
             return None
-
-    def get_ussd_delegate(self):
-        return self.get_delegate(Channel.ROLE_USSD)
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
@@ -2210,7 +2206,13 @@ class ChannelConnection(models.Model):
     CANCELED = "C"  # the call was terminated by platform
     COMPLETED = "D"  # the call was completed successfully
 
-    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED)
+    # valid for USSD sessions
+    TRIGGERED = "T"
+    INTERRUPTED = "X"
+    INITIATED = "A"
+    ENDING = "E"
+
+    DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
     RETRY_CALL = (BUSY, NO_ANSWER)
 
     INCOMING = "I"
@@ -2234,6 +2236,10 @@ class ChannelConnection(models.Model):
         (FAILED, "Failed"),
         (NO_ANSWER, "No Answer"),
         (CANCELED, "Canceled"),
+        (INTERRUPTED, "Interrupted"),
+        (TRIGGERED, "Triggered"),
+        (INITIATED, "Initiated"),
+        (ENDING, "Ending"),
     )
 
     is_active = models.BooleanField(

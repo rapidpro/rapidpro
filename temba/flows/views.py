@@ -3,7 +3,6 @@ import traceback
 from datetime import datetime, timedelta
 from functools import cmp_to_key
 from itertools import chain
-from random import randint
 from uuid import uuid4
 
 import iso8601
@@ -49,7 +48,6 @@ from temba.msgs.models import PENDING, Msg
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
-from temba.ussd.models import USSDSession
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
 from temba.utils.expressions import get_function_listing
@@ -342,7 +340,6 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Choose the method for your flow"),
                 choices=(
                     (Flow.TYPE_MESSAGE, "Messaging"),
-                    (Flow.TYPE_USSD, "USSD Messaging"),
                     (Flow.TYPE_VOICE, "Phone Call"),
                     (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
@@ -355,9 +352,7 @@ class FlowCRUDL(SmartCRUDL):
                 org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
-                flow_types = branding.get(
-                    "flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, Flow.TYPE_USSD]
-                )
+                flow_types = branding.get("flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY])
 
                 # prune our choices by brand config
                 choices = []
@@ -1013,7 +1008,6 @@ class FlowCRUDL(SmartCRUDL):
 
             static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
 
-            context["has_ussd_channel"] = bool(org and org.get_ussd_channel())
             context["media_url"] = f"{settings.STORAGE_URL}/"
             context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
@@ -1026,7 +1020,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
 
             if (
-                flow.flow_type not in [Flow.TYPE_SURVEY, Flow.TYPE_USSD]
+                flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
@@ -1551,9 +1545,6 @@ class FlowCRUDL(SmartCRUDL):
                 for ivr_call in IVRCall.objects.filter(contact=test_contact):
                     ivr_call.release()
 
-                for session in USSDSession.objects.filter(contact=test_contact):
-                    session.release()
-
                 for run in runs:
                     run.release()
 
@@ -1573,30 +1564,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if new_message:
                 try:
-                    if flow.flow_type == Flow.TYPE_USSD:
-                        if new_message == "__interrupt__":
-                            status = USSDSession.INTERRUPTED
-                        else:
-                            status = None
-                        USSDSession.handle_incoming(
-                            test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
-                            test_contact.get_urn(TEL_SCHEME).path,
-                            content=new_message,
-                            contact=test_contact,
-                            date=timezone.now(),
-                            message_id=str(randint(0, 1000)),
-                            external_id="test",
-                            org=user.get_org(),
-                            status=status,
-                        )
-                    else:
-                        Msg.create_incoming(
-                            None,
-                            str(test_contact.get_urn(TEL_SCHEME)),
-                            new_message,
-                            org=user.get_org(),
-                            status=PENDING,
-                        )
+                    Msg.create_incoming(
+                        None, str(test_contact.get_urn(TEL_SCHEME)), new_message, org=user.get_org(), status=PENDING
+                    )
                 except Exception as e:  # pragma: needs cover
 
                     traceback.print_exc()
@@ -1605,15 +1575,6 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             messages = Msg.objects.filter(contact=test_contact).order_by("pk", "created_on")
-
-            if flow.flow_type == Flow.TYPE_USSD:
-                for msg in messages:
-                    if msg.connection.should_end:
-                        msg.connection.close()
-
-                # don't show the empty closing message on the simulator
-                messages = messages.exclude(text="", direction="O")
-
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by("pk", "created_on")
 
             messages_and_logs = chain(messages, action_logs)
