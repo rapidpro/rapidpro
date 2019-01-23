@@ -576,15 +576,15 @@
   %ul.nav.nav-tabs
     %li.active
       %a{href: '#overview', data-toggle:'tab'}
-        Overview
+        -trans "Overview"
 
     %li
       %a{href: '#analytics', data-toggle:'tab'}
-        Analytics
+        -trans "Analytics"
 
     %li
       %a{href: '#runs', data-toggle:'tab'}
-        Runs
+        -trans "Runs"
 
   .tab-content
     #overview.tab-pane.active
@@ -635,11 +635,11 @@
             %td.header.started
               .details
                 .text{style:"margin-left:10px;"}
-                  Last Activity
+                  -trans "Last Activity"
             %td.header
               .details
                 .text
-                  Contact
+                  -trans "Contact"
 
             -for ruleset in rulesets
               %td.header
