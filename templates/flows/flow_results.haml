@@ -145,6 +145,11 @@
             line-height: 30px;
             margin-left: 25px;
           }
+
+          .input-group {
+            display: inline;
+            margin-left: 15px;
+          }
         }
 
         .add-columns {
@@ -528,33 +533,20 @@
 
     $(document).ready(function() {
       updateCharts();
+      localStorage.setItem("responded", "true");
     });
 
     $(function(){
       $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        ajaxSetup.data = ajaxSetup.data + "&responded=" + $("#only_responded").prop('checked');
+        responded = localStorage.getItem("responded");
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
       });
     });
 
     $(function() {
-        if ($(".responded-checkbox").children().children("input[type='checkbox']").prop('checked')) {
-          $(".responded-checkbox").children('.glyph').addClass("checked");
-        } else {
-          $(".responded-checkbox").children('.glyph').removeClass("checked");
-        }
-      });
-
-    $(function() {
-        $(".responded-checkbox .glyph").on('click', function(){
-          var cell = $(this).parent(".responded-checkbox");
-          var ipt = cell.children().children("input[type='checkbox']");
-
-          if ($(this).hasClass("checked")) {
-            $(this).removeClass("checked");
-          } else {
-            $(this).addClass("checked");
-          }
-          ipt.click() //trigger a click on input so intercooler reloads
+        $(".responded-checkbox .show-runs-switch .btn").on('click', function(){
+          $(this).siblings().not($(this)).removeClass("active");
+          $(this).addClass("active");
         });
       });
 
@@ -584,17 +576,33 @@
     #runs.tab-pane
       .scroll-x
         .responded-checkbox
-          .hidden-input.hide
-            %input#only_responded{type:"checkbox", name:"responded", value:"true", checked:true,  style:"margin: 10px 10px 10px 0px;"
+          .btn-group.show-runs-switch{data-toggle:"buttons-radio"}
+            %button.btn.btn-secondary#show-all-runs{
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
                                       ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+              -trans "All"
+             %button.btn.btn-secondary.active{
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                      ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+              -trans "Responded"
+            
+            .input-group
+              %input.contact-search{type:"text", name:"q", placeholder:"Contact",
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty()',
+                                      ic-trigger-on:"keyup changed",
+                                      ic-local-vars: "responded",
                                       ic-trigger-delay:"500ms",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
-          .glyph.notif-checkbox.checked
-          %label{ for:'responded' }
-            -trans "Only Responded"
 
         %table
           %tr
@@ -607,14 +615,8 @@
                     Last Activity
             %td.header
               .details
-                %input.contact-search{type:"text", name:"q", placeholder:"Contact",
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty()',
-                                      ic-include: "#only_responded",
-                                      ic-trigger-on:"keyup changed",
-                                      ic-trigger-delay:"500ms",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
+                .text
+                  Contact
 
             -for ruleset in rulesets
               %td.header
@@ -626,7 +628,7 @@
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}
-            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-include: "#only_responded", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader
