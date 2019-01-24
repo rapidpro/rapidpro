@@ -1,8 +1,7 @@
 import time
 from datetime import timedelta
+from unittest.mock import patch
 from uuid import uuid4
-
-from mock import patch
 
 from django.test import override_settings
 from django.urls import reverse

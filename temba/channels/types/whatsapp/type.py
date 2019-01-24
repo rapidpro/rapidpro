@@ -1,4 +1,3 @@
-
 import requests
 
 from django.conf.urls import url

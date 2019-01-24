@@ -1,4 +1,3 @@
-
 from django.conf.urls import include, url
 
 from .handlers import get_channel_handlers
