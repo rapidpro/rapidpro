@@ -108,7 +108,7 @@ script:
 after_success:
   - pip install codecov
   - codecov
-  - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
+  - coverage report -i --rcfile .coveragerc_todo
 
 notifications:
   slack:
