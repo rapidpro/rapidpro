@@ -112,7 +112,6 @@ FLOWS = (
     },
     {"name": "SMS Form", "file": "sms_form.json", "templates": (["22 F Seattle"], ["35 M MIAMI"])},
     {"name": "Pick a Number", "file": "pick_a_number.json", "templates": (["1"], ["4"], ["5"], ["7"], ["8"])},
-    {"name": "IVR Flow", "file": "ivr_flow.json", "templates": (["1"], ["2"], ["3"])},
 )
 CAMPAIGNS = (
     {

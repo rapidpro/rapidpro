@@ -53,7 +53,7 @@
             -trans "Followed"
           -elif event.event_type == 'stop_contact'
             -trans "Stopped"
-          -elif event.event_type == 'mt_call':
+          -elif event.event_type == 'mt_call'
             -trans "Outgoing Phone Call"
             ({{event.extra.duration|format_seconds}})
           -elif event.event_type == 'mo_call'

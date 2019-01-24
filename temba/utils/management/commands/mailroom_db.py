@@ -32,16 +32,27 @@ ORG1 = dict(
     sequence_start=10000,
     channels=(
         dict(
-            name="Twilio", channel_type="T", address="1234", scheme="tel", uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8"
+            name="Twilio",
+            channel_type="T",
+            address="+13605551212",
+            scheme="tel",
+            role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
+            uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
         ),
         dict(
-            name="Nexmo", channel_type="NX", address="5789", scheme="tel", uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49"
+            name="Nexmo",
+            channel_type="NX",
+            address="5789",
+            scheme="tel",
+            role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
+            uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
         ),
         dict(
             name="Twitter",
             channel_type="TWT",
             address="ureport",
             scheme="twitter",
+            role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
             uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
         ),
     ),
@@ -125,7 +136,12 @@ ORG2 = dict(
     sequence_start=20000,
     channels=(
         dict(
-            name="Twilio", channel_type="T", address="1234", scheme="tel", uuid="a89bc872-3763-4b95-91d9-31d4e56c6651"
+            name="Twilio",
+            channel_type="T",
+            address="1234",
+            scheme="tel",
+            role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
+            uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
         ),
     ),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
@@ -260,6 +276,7 @@ class Command(BaseCommand):
                 address=c["address"],
                 schemes=[c["scheme"]],
                 uuid=c["uuid"],
+                role=c["role"],
                 created_by=user,
                 modified_by=user,
             )
