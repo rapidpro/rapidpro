@@ -25,6 +25,7 @@ class WavyTypeTest(TembaTest):
 
         response = self.client.get(url)
         self.assertEqual(200, response.status_code)
+        self.assertEqual(response.context["view"].get_country({}), "Brazil")
 
         post_data = response.context["form"].initial
 
