@@ -225,7 +225,7 @@ class Command(BaseCommand):
         )
         org.create_system_groups()
         org.create_system_contact_fields()
-        org.create_welcome_topup(100000)
+        org.create_welcome_topup(100_000)
 
         # set our sequences to make ids stable across orgs
         with connection.cursor() as cursor:
