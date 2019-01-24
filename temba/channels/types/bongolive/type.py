@@ -16,7 +16,7 @@ class BongoLiveType(ChannelType):
     available_timezones = ["Africa/Dar_es_Salaam"]
     category = ChannelType.Category.PHONE
 
-    courier_url = r"^bl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
+    courier_url = r"^bl/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     schemes = [TEL_SCHEME]
     max_length = 160
@@ -40,13 +40,8 @@ class BongoLiveType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{channel.callback_domain}}/c/bl/{{channel.uuid}}/receive",
-            description=_("This URL should be called by Bongo Live when new messages are received."),
-        ),
-        dict(
-            label=_("DLR callback URL"),
-            url="https://{{channel.callback_domain}}/c/bl/{{channel.uuid}}/status",
             description=_(
-                "This URL should be called by Bongo Live when the status of an outgoing message is updated."
+                "This URL should be called by Bongo Live when new messages are received or to report DLR status."
             ),
         ),
     )

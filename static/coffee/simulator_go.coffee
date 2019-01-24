@@ -227,9 +227,9 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
         if media_type == 'image'
           media_viewer = '<div class="media-file"><img src="' + url + '"></div>'
         else if media_type == 'video'
-          media_viewer = '<div class="media-file"><video controls src="' + url + '"></div>'
+          media_viewer = '<div class="media-file"><video controls src="' + url + '" style="width: 150px"></div>'
         else if media_type == 'audio'
-          media_viewer = '<div class="media-file"><audio controls src="' + url + '"></div>'
+          media_viewer = '<div class="media-file"><audio controls src="' + url + '" style="width: 150px"></div>'
 
   ele = '<div class="' + classes.join(" ") + '">'
   ele += text
