@@ -42,7 +42,9 @@
       -elif item.type == 'channel-event'
         -with item.obj as event
           -if event.event_type == 'mt_miss'
-            -trans "Missed call"
+            -trans "Missed outgoing call"
+          -if event.event_type == 'mo_miss'
+            -trans "Missed incoming call"
           -elif event.event_type == 'new_conversation'
             -trans "Started Conversation"
           -elif event.event_type == 'referral'
@@ -51,7 +53,7 @@
             -trans "Followed"
           -elif event.event_type == 'stop_contact'
             -trans "Stopped"
-          -elif event.event_type == 'mt_call' or event.event_type == 'mt_miss' or event.event_type == 'mo_call' or event.event_type == 'mo_miss'
+          -elif event.event_type == 'mt_call' or event.event_type == 'mo_call'
             -trans "Phone call"
             ({{event.extra.duration|format_seconds}})
           -else
