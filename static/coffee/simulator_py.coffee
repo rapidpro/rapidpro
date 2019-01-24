@@ -7,14 +7,6 @@ window.getSimulateURL = ->
 window.simStartLegacy = ->
   $.post(getSimulateURL(), JSON.stringify({ has_refresh:true, version:"1" })).done (results) ->
     window.updateResultsLegacy(results)
-    if window.ivr and window.simulation
-      setTimeout(window.refreshIVRSimulator, 2000)
-
-window.refreshIVRSimulator = ->
-  $.post(getSimulateURL(), JSON.stringify({ has_refresh:false, version:"1" })).done (results) ->
-    window.updateResultsLegacy(results)
-    if window.ivr and window.simulation
-      setTimeout(window.refreshIVRSimulator, 2000)
 
 window.sendUpdateLegacy = (postData) ->
   postData['version'] = "1"
@@ -115,6 +107,6 @@ window.updateResultsLegacy = (data) ->
 
   $(".btn.quick-reply").on "click", (event) ->
     payload = event.target.innerText
-    window.sendSimulationMessage(payload)
+    window.sendSimMessage(payload)
 
   window.updateActivity(data)
