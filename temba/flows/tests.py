@@ -5,13 +5,12 @@ import re
 import time
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import iso8601
 import pytz
 from django_redis import get_redis_connection
-from mock import patch
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -4609,9 +4608,7 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction="O")
         self.assertEqual("We love green too!", reply_msg.text)
-        self.assertEqual(
-            reply_msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "path/to/media.jpg")]
-        )
+        self.assertEqual(reply_msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/path/to/media.jpg"])
 
         self.release(Broadcast.objects.all())
         self.release(Msg.objects.all())
@@ -4627,9 +4624,7 @@ class ActionTest(TembaTest):
 
         response = msg.responses.get()
         self.assertEqual("We love green too!", response.text)
-        self.assertEqual(
-            response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "path/to/media.jpg")]
-        )
+        self.assertEqual(response.attachments, [f"image/jpeg:{settings.STORAGE_URL}/path/to/media.jpg"])
         self.assertEqual(self.contact, response.contact)
 
     def test_media_expression(self):
@@ -4926,9 +4921,7 @@ class ActionTest(TembaTest):
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
         self.assertEqual(msg.text, msg_body)
-        self.assertEqual(
-            msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "attachments/picture.jpg")]
-        )
+        self.assertEqual(msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"])
 
         # also send if we have empty message but have an attachment
         action = SendAction(
@@ -5104,7 +5097,11 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(
             self.org, dict(type="save", label="Last Message", value="", field="last_message")
         )
-        test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up " "to 500 some characters long because sometimes people save entire messages to their contact " "fields and we want to enable that for them so that they can do what they want with the platform."
+        test.value = (
+            "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "
+            "to 500 some characters long because sometimes people save entire messages to their contact "
+            "fields and we want to enable that for them so that they can do what they want with the platform."
+        )
         self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEqual(test.value, contact.get_field_value(ContactField.get_by_key(self.org, "last_message")))
@@ -7147,6 +7144,19 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(response.context["runs"]), 1)
             self.assertEqual(200, response.status_code)
 
+        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
+
+            # create one empty run
+            FlowRun.objects.create(org=favorites.org, flow=favorites, contact=pete, responded=False)
+
+            # fetch our intercooler rows for the run table
+            response = self.client.get("%s?responded=bla" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
+            self.assertEqual(200, response.status_code)
+
+            response = self.client.get("%s?responded=true" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
+
         # make sure we show results for flows with only expression splits
         RuleSet.objects.filter(flow=favorites).update(ruleset_type=RuleSet.TYPE_EXPRESSION)
         response = self.client.get(reverse("flows.flow_activity_chart", args=[favorites.pk]))
@@ -8339,10 +8349,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(msg.text, "Hey")
         self.assertEqual(
             msg.attachments,
-            [
-                "image/jpeg:https://%s/%s"
-                % (settings.AWS_BUCKET_DOMAIN, "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg")
-            ],
+            [f"image/jpeg:{settings.STORAGE_URL}/attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"],
         )
 
     def test_substitution(self):
@@ -11142,11 +11149,11 @@ class OrderingTest(FlowFileTest):
             # the four messages should have been sent in order
             self.assertEqual(msgs[0].text, "Msg1")
             self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             # send_msg_task should have only been called once
             self.assertEqual(mock_send_msg.call_count, 1)
@@ -11159,11 +11166,11 @@ class OrderingTest(FlowFileTest):
             msgs = Msg.objects.filter(direction=OUTGOING, status=WIRED).order_by("sent_on")[4:]
             self.assertEqual(msgs[0].text, "Ack1")
             self.assertEqual(msgs[1].text, "Ack2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Ack3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Ack4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             # again, only one send_msg
             self.assertEqual(mock_send_msg.call_count, 1)
@@ -11180,21 +11187,21 @@ class OrderingTest(FlowFileTest):
             self.assertEqual(msgs[0].contact, self.contact)
             self.assertEqual(msgs[0].text, "Msg1")
             self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
 
             self.assertEqual(msgs[4].contact, self.contact2)
             self.assertEqual(msgs[4].text, "Msg1")
-            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=.500))
+            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=0.500))
             self.assertEqual(msgs[5].text, "Msg2")
-            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[6].text, "Msg3")
-            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=0.750))
             self.assertEqual(msgs[7].text, "Msg4")
-            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=.750))
+            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=0.750))
 
             # two batches of messages, one batch for each contact
             self.assertEqual(mock_send_msg.call_count, 2)
@@ -11273,7 +11280,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(0.5)
 
         # ok, change our timeout to the past
         timeout = timezone.now()
@@ -11423,7 +11430,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(0.5)
 
         # run our timeout check task
         check_flow_timeouts_task()

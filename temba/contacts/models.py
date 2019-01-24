@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = "12065551212"
-START_TEST_CONTACT_PATH = 12065550100
-END_TEST_CONTACT_PATH = 12065550199
+START_TEST_CONTACT_PATH = 12_065_550_100
+END_TEST_CONTACT_PATH = 12_065_550_199
 
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250

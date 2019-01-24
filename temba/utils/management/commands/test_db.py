@@ -405,7 +405,7 @@ class Command(BaseCommand):
         """
         self._log("Creating %d archives... " % (len(orgs) * ARCHIVES * 3))
 
-        MAX_RECORDS_PER_DAY = 3000000
+        MAX_RECORDS_PER_DAY = 3_000_000
 
         def create_archive(max_records, start, period):
             record_count = random.randint(0, max_records)
@@ -413,10 +413,16 @@ class Command(BaseCommand):
             archive_hash = uuid.uuid4().hex
 
             if period == Archive.PERIOD_DAILY:
-                archive_url = f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/" f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
+                archive_url = (
+                    f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/"
+                    f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
+                )
             else:
 
-                archive_url = f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/" f"{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz"
+                archive_url = (
+                    f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/"
+                    f"{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz"
+                )
 
             Archive.objects.create(
                 org=org,

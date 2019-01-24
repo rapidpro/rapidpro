@@ -1,4 +1,3 @@
-
 import requests
 
 from django.urls import reverse

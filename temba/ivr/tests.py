@@ -1,13 +1,12 @@
-
 import os
 import re
 from datetime import timedelta
 from platform import python_version
+from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
 
 import nexmo
 from django_redis import get_redis_connection
-from mock import MagicMock, patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -262,7 +261,7 @@ class IVRTests(FlowFileTest):
 
         # post to a bogus call id
         post_data = dict(CallSid="CallSid", CallStatus="in-progress", CallDuration=20)
-        response = self.client.post(reverse("ivr.ivrcall_handle", args=[999999999]), post_data)
+        response = self.client.post(reverse("ivr.ivrcall_handle", args=[999_999_999]), post_data)
         self.assertEqual(404, response.status_code)
 
         # start a real call
@@ -351,13 +350,13 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(outbound_msg.attachments[0].endswith(".wav"))
-        self.assertTrue(outbound_msg.text.startswith("https://"))
+        self.assertTrue(outbound_msg.text.startswith("http://"))
         self.assertTrue(outbound_msg.text.endswith(".wav"))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(media_msg.attachments[0].endswith(".wav"))
         self.assertEqual("Played contact recording", media_msg.text)
 
@@ -530,13 +529,13 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(outbound_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(outbound_msg.attachments[0].endswith(".wav"))
-        self.assertTrue(outbound_msg.text.startswith("https://"))
+        self.assertTrue(outbound_msg.text.startswith("http://"))
         self.assertTrue(outbound_msg.text.endswith(".wav"))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:https://"))
+        self.assertTrue(media_msg.attachments[0].startswith("audio/x-wav:http://"))
         self.assertTrue(media_msg.attachments[0].endswith(".wav"))
         self.assertEqual("Played contact recording", media_msg.text)
 

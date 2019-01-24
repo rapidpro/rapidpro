@@ -1,4 +1,3 @@
-
 from redis.lock import Lock
 
 

@@ -1,4 +1,3 @@
-
 import phonenumbers
 from smartmin.views import SmartFormView
 

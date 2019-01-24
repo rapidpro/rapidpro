@@ -1,12 +1,11 @@
-
 import copy
 import subprocess
 import time
 import uuid
 from datetime import date, datetime, timedelta
+from unittest.mock import PropertyMock, patch
 
 import pytz
-from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError

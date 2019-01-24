@@ -26,7 +26,7 @@ def percentage(numerator, denominator):
     if not denominator or not numerator:
         return 0
 
-    return int(100.0 * numerator / denominator + .5)
+    return int(100.0 * numerator / denominator + 0.5)
 
 
 def format_number(val):

@@ -1,11 +1,11 @@
 import base64
 from datetime import datetime
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import uuid4
 
 import iso8601
 import pytz
-from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
 
@@ -236,7 +236,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18001234567)  # non-string
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
 
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
@@ -3008,11 +3008,7 @@ class APITest(TembaTest):
                 location = response.json().get("location", None)
                 self.assertIsNotNone(location)
 
-                starts_with = "https://%s/%s/%d/media/" % (
-                    settings.AWS_BUCKET_DOMAIN,
-                    settings.STORAGE_ROOT_DIR,
-                    self.org.pk,
-                )
+                starts_with = f"{settings.STORAGE_URL}/{settings.STORAGE_ROOT_DIR}/{self.org.id}/media/"
                 self.assertEqual(starts_with, location[0 : len(starts_with)])
                 self.assertEqual(".%s" % ext, location[-4:])
 

@@ -1,4 +1,3 @@
-
 import requests
 from smartmin.views import SmartFormView, SmartUpdateView
 

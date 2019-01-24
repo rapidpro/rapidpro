@@ -2142,12 +2142,7 @@ class Org(SmartModel):
         path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = public_file_storage.save(path, file)
 
-        # force http for localhost
-        scheme = "https"
-        if "localhost" in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
-            scheme = "http"
-
-        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
+        return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, *, release_users=True, immediately=False):
 
