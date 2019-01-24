@@ -17,7 +17,7 @@ class IVRManager(models.Manager):
         return super().create(*args, connection_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super().get_queryset().filter(connection_type=IVRCall.IVR)
+        return super().get_queryset().filter(connection_type__in=[IVRCall.IVR, IVRCall.VOICE])
 
 
 class IVRCall(ChannelConnection):
@@ -302,15 +302,6 @@ class IVRCall(ChannelConnection):
             duration = 0
 
         return timedelta(seconds=duration)
-
-    def get_last_log(self):
-        """
-        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
-        """
-        sorted_logs = None
-        if self.channel and self.channel.is_active:
-            sorted_logs = sorted(ChannelLog.objects.filter(connection=self), key=lambda l: l.created_on, reverse=True)
-        return sorted_logs[0] if sorted_logs else None
 
     def get_flow(self):
         from temba.flows.models import FlowRun

@@ -2224,6 +2224,7 @@ class ChannelConnection(models.Model):
 
     IVR = "F"
     USSD = "U"
+    VOICE = "V"
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
 
