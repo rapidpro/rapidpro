@@ -6,7 +6,7 @@ from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.management import BaseCommand, CommandError
+from django.core.management import BaseCommand, CommandError, call_command
 from django.db import connection
 from django.utils import timezone
 
@@ -146,12 +146,23 @@ class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
 
     def handle(self, *args, **kwargs):
-        try:
-            has_data = Org.objects.exists()
-        except Exception:  # pragma: no cover
-            raise CommandError("Run migrate command first to create database tables")
-        if has_data:
-            raise CommandError("Can't generate content in non-empty database.")
+        self._log("Initializing mailroom_test database...\n")
+
+        # drop and recreate the mailroom_test db and user
+        check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
+        check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
+        check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
+        check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
+        check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
+
+        # always use mailroom_test as our db
+        settings.DATABASES["default"]["NAME"] = "mailroom_test"
+        settings.DATABASES["default"]["USER"] = "mailroom_test"
+
+        self._log("Running migrations...\n")
+
+        # run our migrations to put our database in the right state
+        call_command("migrate")
 
         # this is a new database so clear out redis
         self._log("Clearing out Redis cache... ")
@@ -159,13 +170,20 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + "\n")
 
+        self._log("Creating superuser... ")
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
+        self._log(self.style.SUCCESS("OK") + "\n")
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
         # create each of our orgs
         for spec in ORGS:
             self.create_org(spec, superuser, country, locations)
+
+        # dump our file
+        check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
+
+        self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
 
     def load_locations(self, path):
         """
