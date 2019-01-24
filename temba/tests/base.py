@@ -789,7 +789,9 @@ class MigrationTest(TembaTest):
     def setUp(self):
         assert (
             self.migrate_from and self.migrate_to
-        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(type(self).__name__)
+        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(
+            type(self).__name__
+        )
 
         # set up our temba test
         super().setUp()
