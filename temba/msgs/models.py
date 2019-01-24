@@ -1143,29 +1143,6 @@ class Msg(models.Model):
             if channel:
                 analytics.gauge("temba.msg_errored_%s" % channel.channel_type.lower())
 
-    @classmethod
-    def mark_sent(cls, r, msg, status, external_id=None):
-        """
-        Marks an outgoing message as WIRED or SENT
-        :param msg: a JSON representation of the message
-        """
-        msg.status = status
-        msg.sent_on = timezone.now()
-        if external_id:
-            msg.external_id = external_id
-
-        # use redis to mark this message sent
-        pipe = r.pipeline()
-        sent_key = timezone.now().strftime(MSG_SENT_KEY)
-        pipe.sadd(sent_key, str(msg.id))
-        pipe.expire(sent_key, 86400)
-        pipe.execute()
-
-        if external_id:
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
-        else:  # pragma: no cover
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
-
     def as_archive_json(self):
         return {
             "id": self.id,

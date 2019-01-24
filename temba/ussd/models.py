@@ -19,9 +19,6 @@ class USSDQuerySet(models.QuerySet):
     def get_initiated_push(self, contact):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
-    def get_with_status_only(self, session_id):
-        return self.only("status").filter(id=session_id).first()
-
 
 class USSDSession(ChannelConnection):
     USSD_PULL = INCOMING = "I"
