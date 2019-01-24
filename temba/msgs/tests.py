@@ -574,8 +574,10 @@ class MsgTest(TembaTest):
         contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
         broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", contacts=[contact])
 
-        # now send the broadcast so we have messages
+        # now send the broadcast so we have messages, but put them back into pending state
         broadcast1.send()
+        Msg.objects.filter(broadcast=broadcast1).update(status=PENDING)
+
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
         with self.assertNumQueries(46):
@@ -594,6 +596,7 @@ class MsgTest(TembaTest):
 
         # now send the broadcast so we have messages
         broadcast2.send()
+        Msg.objects.filter(broadcast=broadcast2).update(status=PENDING)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
         broadcast3 = Broadcast.create(
@@ -903,7 +906,7 @@ class MsgTest(TembaTest):
 
         # check for the resent message and the new one being resent
         self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
-        self.assertEqual(Msg.objects.filter(status=PENDING).count(), 1)
+        self.assertEqual(Msg.objects.filter(status=WIRED).count(), 1)
 
         # make sure there was a new outgoing message created that got attached to our broadcast
         self.assertEqual(2, broadcast.get_message_count())
@@ -912,7 +915,7 @@ class MsgTest(TembaTest):
         self.assertNotEqual(msg2, resent_msg)
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
-        self.assertEqual(resent_msg.status, PENDING)
+        self.assertEqual(resent_msg.status, WIRED)
         self.assertEqual(resent_msg.metadata, {"quick_replies": ["Yes", "No"]})
 
     @patch("temba.utils.email.send_temba_email")
@@ -3416,6 +3419,7 @@ class SystemLabelTest(TembaTest):
 
         msg3.archive()
         bcast1.send()
+        Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(
@@ -3481,7 +3485,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 27)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 37)
 
         # squash our counts
         squash_msgcounts()
@@ -3492,8 +3496,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
@@ -3512,8 +3516,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
