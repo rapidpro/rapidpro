@@ -1492,62 +1492,10 @@ class ChannelLog(models.Model):
         self.delete()
 
     @classmethod
-    def log_exception(cls, channel, msg, e):
-        # calculate our request time if possible
-        request_time = 0 if not e.start else time.time() - e.start
-
-        for event in e.events:
-            print(
-                '[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
-                % (
-                    msg.id,
-                    request_time,
-                    event.method,
-                    event.url,
-                    event.request_body,
-                    event.status_code,
-                    event.response_body,
-                )
-            )
-
-            # log our request time in ms
-            request_time_ms = request_time * 1000
-
-            ChannelLog.objects.create(
-                channel_id=msg.channel,
-                msg_id=msg.id,
-                is_error=True,
-                description=str(e.description)[:255],
-                method=event.method,
-                url=event.url,
-                request=event.request_body,
-                response=event.response_body,
-                response_status=event.status_code,
-                request_time=request_time_ms,
-            )
-
-        if request_time > 0:
-            analytics.gauge("temba.msg_sent_%s" % channel.channel_type.lower(), request_time)
-
-    @classmethod
     def log_error(cls, msg, description):
         print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
-
-    @classmethod
-    def log_message(cls, msg, description, event, is_error=False):
-        return ChannelLog.objects.create(
-            channel_id=msg.channel_id,
-            msg=msg,
-            request=event.request_body,
-            response=event.response_body,
-            url=event.url,
-            method=event.method,
-            is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
         )
 
     @classmethod
@@ -2061,9 +2009,6 @@ class ChannelConnection(models.Model):
 
     def get_logs(self):
         return self.channel_logs.all().order_by("created_on")
-
-    def get_duration(self):
-        return timedelta(seconds=self.duration)
 
     def is_done(self):
         return self.status in self.DONE
