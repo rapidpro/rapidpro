@@ -106,9 +106,8 @@ script:
   - set +e
 
 after_success:
-  - pip install pyopenssl==17.4.0
-  - coveralls --rcfile .coveragerc_failcheck
-  - coverage report -i --rcfile .coveragerc
+  - pip install codecov
+  - codecov
   - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
 
 notifications:
