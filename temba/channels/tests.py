@@ -14,7 +14,6 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
-from django.core.cache import cache
 from django.template import loader
 from django.test import RequestFactory
 from django.test.utils import override_settings
@@ -292,25 +291,6 @@ class ChannelTest(TembaTest):
         twitter_urn = contact.get_urn(schemes=[TWITTER_SCHEME])
         self.assertEqual(self.twitter_channel, self.org.get_send_channel(contact_urn=twitter_urn))
 
-    def test_message_splitting(self):
-        # external API requires messages to be <= 160 chars
-        self.tel_channel.channel_type = "EX"
-        self.tel_channel.save()
-
-        msg = Msg.create_outgoing(self.org, self.user, "tel:+250738382382", "x" * 400)  # 400 chars long
-        Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-        self.assertEqual(3, Msg.objects.get(pk=msg.id).msg_count)
-
-        # Nexmo limit is 1600
-        self.tel_channel.channel_type = "NX"
-        self.tel_channel.save()
-        cache.clear()  # clear the channel from cache
-
-        msg = Msg.create_outgoing(self.org, self.user, "tel:+250738382382", "y" * 400)
-        Channel.send_message(dict_to_struct("MsgStruct", msg.as_task_json()))
-        self.assertEqual(self.tel_channel, Msg.objects.get(pk=msg.id).channel)
-        self.assertEqual(1, Msg.objects.get(pk=msg.id).msg_count)
-
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"
         self.tel_channel.save()
@@ -388,8 +368,8 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, ChannelEvent.get_all(self.org).count())
         self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
 
-        # start off in the pending state
-        self.assertEqual("P", msg.status)
+        # put messages back into pending state
+        Msg.get_messages(self.org).update(status="P")
 
         response = self.fetch_protected(reverse("channels.channel_delete", args=[self.tel_channel.pk]), self.user)
         self.assertContains(response, "Test Channel")
@@ -2618,6 +2598,7 @@ class FacebookWhitelistTest(TembaTest):
 
 
 class CourierTest(TembaTest):
+    @override_settings(SEND_MESSAGES=True)
     def test_queue_to_courier(self):
         self.channel.channel_type = "T"
         self.channel.save()

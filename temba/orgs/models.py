@@ -890,9 +890,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
-        # clear all our channel configurations
-        self.clear_channel_caches()
-
     def nexmo_uuid(self):
         config = self.config
         return config.get(NEXMO_UUID, None)
@@ -905,9 +902,6 @@ class Org(SmartModel):
         self.config = config
         self.modified_by = user
         self.save()
-
-        # clear all our channel configurations
-        self.clear_channel_caches()
 
     def is_connected_to_nexmo(self):
         if self.config:
@@ -938,9 +932,6 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # clear all our channel configurations
-            self.clear_channel_caches()
-
     def remove_twilio_account(self, user):
         if self.config:
             # release any twilio and twilio messaging sevice channels
@@ -952,9 +943,6 @@ class Org(SmartModel):
             self.config[APPLICATION_SID] = ""
             self.modified_by = user
             self.save()
-
-            # clear all our channel configurations
-            self.clear_channel_caches()
 
     def connect_chatbase(self, agent_name, api_key, version, user):
         chatbase_config = {CHATBASE_AGENT_NAME: agent_name, CHATBASE_API_KEY: api_key, CHATBASE_VERSION: version}
@@ -1019,15 +1007,6 @@ class Org(SmartModel):
                 return NexmoClient(api_key, api_secret, app_id, app_private_key, org=self)
 
         return None
-
-    def clear_channel_caches(self):
-        """
-        Clears any cached configurations we have for any of our channels.
-        """
-        from temba.channels.models import Channel
-
-        for channel in self.channels.exclude(channel_type="A"):
-            Channel.clear_cached_channel(channel.pk)
 
     def get_country_code(self):
         """

@@ -7,26 +7,13 @@ from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.contrib.auth.models import User
-from django.db import connection, transaction
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import (
-    STOP_CONTACT_EVENT,
-    TEL_SCHEME,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactGroupCount,
-    ContactURN,
-)
+from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import RuleSet
-from temba.locations.models import AdminBoundary
-from temba.msgs import models
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -53,14 +40,14 @@ from temba.msgs.models import (
     SystemLabelCount,
     UnreachableException,
 )
-from temba.orgs.models import Language, Org, TopUp, TopUpCredits
+from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_s, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.queues import DEFAULT_PRIORITY, Queue, push_task
+from temba.utils.queues import Queue, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
@@ -587,8 +574,10 @@ class MsgTest(TembaTest):
         contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
         broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", contacts=[contact])
 
-        # now send the broadcast so we have messages
+        # now send the broadcast so we have messages, but put them back into pending state
         broadcast1.send()
+        Msg.objects.filter(broadcast=broadcast1).update(status=PENDING)
+
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
         with self.assertNumQueries(45):
@@ -607,6 +596,7 @@ class MsgTest(TembaTest):
 
         # now send the broadcast so we have messages
         broadcast2.send()
+        Msg.objects.filter(broadcast=broadcast2).update(status=PENDING)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
         broadcast3 = Broadcast.create(
@@ -916,7 +906,7 @@ class MsgTest(TembaTest):
 
         # check for the resent message and the new one being resent
         self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
-        self.assertEqual(Msg.objects.filter(status=PENDING).count(), 1)
+        self.assertEqual(Msg.objects.filter(status=WIRED).count(), 1)
 
         # make sure there was a new outgoing message created that got attached to our broadcast
         self.assertEqual(2, broadcast.get_message_count())
@@ -925,7 +915,7 @@ class MsgTest(TembaTest):
         self.assertNotEqual(msg2, resent_msg)
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
-        self.assertEqual(resent_msg.status, PENDING)
+        self.assertEqual(resent_msg.status, WIRED)
         self.assertEqual(resent_msg.metadata, {"quick_replies": ["Yes", "No"]})
 
     @patch("temba.utils.email.send_temba_email")
@@ -3181,7 +3171,6 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-    @override_settings(LEGACY_CHANNELS=["EX"])
     def test_batch(self):
         # broadcast out to 11 contacts to test our batching
         contacts = []
@@ -3430,6 +3419,7 @@ class SystemLabelTest(TembaTest):
 
         msg3.archive()
         bcast1.send()
+        Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(
@@ -3495,7 +3485,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 27)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 37)
 
         # squash our counts
         squash_msgcounts()
@@ -3506,8 +3496,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
@@ -3526,8 +3516,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
@@ -3617,84 +3607,6 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
-
-
-class CeleryTaskTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.applied_tasks = []
-
-        self.joe = self.create_contact("Joe", "+250788383444")
-
-    def _fixture_teardown(self):
-
-        self.releaseMessages()
-        self.releaseContacts(delete=True)
-        self.releaseContactFields(delete=True)
-        self.releaseChannels(delete=True)
-
-        TopUpCredits.objects.all().delete()
-        TopUp.objects.all().delete()
-
-        SystemLabelCount.objects.all().delete()
-        ContactGroupCount.objects.all().delete()
-        ContactGroup.all_groups.all().delete()
-        ContactField.all_fields.all().delete()
-        Org.objects.all().delete()
-
-        for boundary in AdminBoundary.objects.all():
-            boundary.release()
-
-        User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
-
-    @classmethod
-    def _enter_atomics(cls):
-        return {}
-
-    @classmethod
-    def _rollback_atomics(cls, atomics):
-        pass
-
-    def handle_push_task(self, task_name):
-        self.applied_tasks.append(task_name)
-
-    def assert_task_sent(self, task_name):
-        was_sent = task_name in self.applied_tasks
-        self.assertTrue(was_sent, "Task not called w/class %s" % (task_name))
-
-    def assertInDB(self, obj, msg=None):
-        """Test for obj's presence in the database."""
-        fullmsg = "Object %r unexpectedly not found in the database" % obj
-        fullmsg += ": " + msg if msg else ""
-        try:
-            # close the current connection to the database, so we force it to open a new connection
-            connection.close()
-            type(obj).objects.get(pk=obj.pk)
-        except obj.DoesNotExist:
-            self.fail(fullmsg)
-
-    @override_settings(CELERY_ALWAYS_EAGER=False, SEND_MESSAGES=True)
-    def test_reply_task_added(self):
-        orig_push_task = models.push_task
-
-        def new_send_task(name, args=(), kwargs={}, **opts):
-            self.handle_push_task(name)
-
-        def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
-            orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
-
-            self.assertInDB(msg1)
-            self.assert_task_sent("send_msg_task")
-
-        with patch("celery.current_app.send_task", new_send_task), patch(
-            "temba.msgs.models.push_task", new_push_task
-        ), transaction.atomic():
-            msg1 = Msg.create_outgoing(
-                self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel
-            )
-
-            Msg.send_messages([msg1])
 
 
 class HandleEventTest(TembaTest):

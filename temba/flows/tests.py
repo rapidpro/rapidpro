@@ -27,17 +27,9 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import FAILED, INCOMING, OUTGOING, PENDING, SENT, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import (
-    ESMockWithScroll,
-    FlowFileTest,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    skip_if_no_mailroom,
-)
+from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -689,7 +681,7 @@ class FlowTest(TembaTest):
         # each contact should have received a single message
         contact1_msg = broadcast.msgs.get(contact=self.contact)
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
-        self.assertEqual(contact1_msg.status, PENDING)
+        self.assertEqual(contact1_msg.status, WIRED)
         self.assertFalse(contact1_msg.high_priority)
 
         # should have a flow run for each contact
@@ -2123,7 +2115,7 @@ class FlowTest(TembaTest):
         msg = Msg.objects.all()[0]
         self.assertNotIn("@extra.coupon", msg.text)
         self.assertEqual(msg.text, "text to get NEXUS4")
-        self.assertEqual(PENDING, msg.status)
+        self.assertEqual(WIRED, msg.status)
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
@@ -6455,7 +6447,6 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(ValueError):
             FlowRevision.validate_flow_definition(self.get_flow_json("non_localized_ruleset"))
 
-    @override_settings(LEGACY_CHANNELS=["EX"])
     def test_start_flow_queueing(self):
         self.get_flow("start_flow_queued")
         self.channel.channel_type = "EX"
@@ -10559,7 +10550,7 @@ class FlowBatchTest(FlowFileTest):
         stopped.stop(self.admin)
 
         # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=184, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=204, stack_count=10, skip_unique_queries=True):
             flow.start([], contacts)
 
         # ensure 11 flow runs were created
@@ -10742,100 +10733,6 @@ class ExitTest(FlowFileTest):
         self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertTrue(second_run.is_active)
-
-
-class OrderingTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-
-        self.contact2 = self.create_contact("Ryan Lewis", "+12065552121")
-
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            "KE",
-            "EX",
-            None,
-            "+250788123123",
-            schemes=["tel"],
-            config=dict(send_url="https://google.com"),
-        )
-
-    def tearDown(self):
-        super().tearDown()
-
-    @override_settings(LEGACY_CHANNELS=["EX"])
-    def test_two_in_row(self):
-        flow = self.get_flow("ordering")
-        from temba.channels.tasks import send_msg_task
-
-        # start our flow with a contact
-        with patch("temba.channels.tasks.send_msg_task", wraps=send_msg_task) as mock_send_msg:
-            flow.start([], [self.contact])
-
-            # check the ordering of when the msgs were sent
-            msgs = Msg.objects.filter(status=WIRED).order_by("sent_on")
-
-            # the four messages should have been sent in order
-            self.assertEqual(msgs[0].text, "Msg1")
-            self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
-
-            # send_msg_task should have only been called once
-            self.assertEqual(mock_send_msg.call_count, 1)
-
-        # reply, should get another 4 messages
-        with patch("temba.channels.tasks.send_msg_task", wraps=send_msg_task) as mock_send_msg:
-            msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
-            Flow.find_and_handle(msg)
-
-            msgs = Msg.objects.filter(direction=OUTGOING, status=WIRED).order_by("sent_on")[4:]
-            self.assertEqual(msgs[0].text, "Ack1")
-            self.assertEqual(msgs[1].text, "Ack2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[2].text, "Ack3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[3].text, "Ack4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
-
-            # again, only one send_msg
-            self.assertEqual(mock_send_msg.call_count, 1)
-
-        self.releaseMessages()
-
-        # try with multiple contacts
-        with patch("temba.channels.tasks.send_msg_task", wraps=send_msg_task) as mock_send_msg:
-            flow.start([], [self.contact, self.contact2], restart_participants=True)
-
-            # we should have two batches of messages, for for each contact
-            msgs = Msg.objects.filter(status=WIRED).order_by("sent_on")
-
-            self.assertEqual(msgs[0].contact, self.contact)
-            self.assertEqual(msgs[0].text, "Msg1")
-            self.assertEqual(msgs[1].text, "Msg2")
-            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[2].text, "Msg3")
-            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[3].text, "Msg4")
-            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=0.750))
-
-            self.assertEqual(msgs[4].contact, self.contact2)
-            self.assertEqual(msgs[4].text, "Msg1")
-            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=0.500))
-            self.assertEqual(msgs[5].text, "Msg2")
-            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[6].text, "Msg3")
-            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=0.750))
-            self.assertEqual(msgs[7].text, "Msg4")
-            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=0.750))
-
-            # two batches of messages, one batch for each contact
-            self.assertEqual(mock_send_msg.call_count, 2)
 
 
 class TimeoutTest(FlowFileTest):
@@ -11248,7 +11145,6 @@ class StackedExitsTest(FlowFileTest):
             config=dict(send_url="https://google.com"),
         )
 
-    @override_settings(LEGACY_CHANNELS=["EX"])
     def test_stacked_exits(self):
         self.get_flow("stacked_exits")
         flow = Flow.objects.get(name="Stacked")
@@ -11269,7 +11165,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
 
-    @override_settings(LEGACY_CHANNELS=["EX"])
     def test_stacked_webhook_exits(self):
         self.get_flow("stacked_webhook_exits")
         flow = Flow.objects.get(name="Stacked")
@@ -11291,7 +11186,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
 
-    @override_settings(LEGACY_CHANNELS=["EX"])
     def test_response_exits(self):
         self.get_flow("stacked_response_exits")
         flow = Flow.objects.get(name="Stacked")
@@ -11327,39 +11221,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacked", runs[2].flow.name)
 
 
-class ParentChildOrderingTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            "KE",
-            "EX",
-            None,
-            "+250788123123",
-            schemes=["tel"],
-            config=dict(send_url="https://google.com"),
-        )
-
-    @override_settings(LEGACY_CHANNELS=["EX"])
-    def test_parent_child_ordering(self):
-        from temba.channels.tasks import send_msg_task
-
-        self.get_flow("parent_child_ordering")
-        flow = Flow.objects.get(name="Parent Flow")
-
-        with patch("temba.channels.tasks.send_msg_task", wraps=send_msg_task) as mock_send_msg:
-            flow.start([], [self.contact])
-
-            # get the msgs for our contact
-            msgs = Msg.objects.filter(contact=self.contact).order_by("sent_on")
-            self.assertEqual(msgs[0].text, "Parent 1")
-            self.assertEqual(msgs[1].text, "Child Msg")
-
-            self.assertEqual(mock_send_msg.call_count, 1)
-
-
 class AndroidChildStatus(FlowFileTest):
     def setUp(self):
         super().setUp()
@@ -11373,14 +11234,14 @@ class AndroidChildStatus(FlowFileTest):
         self.assertTrue(Trigger.find_and_handle(incoming))
 
         # get the msgs for our contact
-        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by("created_on")
+        msgs = Msg.objects.filter(contact=self.contact, status=WIRED, direction=OUTGOING).order_by("created_on")
         self.assertEqual(msgs[0].text, "Child Msg 1")
 
         # respond
         msg = self.create_msg(contact=self.contact, direction="I", text="Response")
         Flow.find_and_handle(msg)
 
-        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by("created_on")
+        msgs = Msg.objects.filter(contact=self.contact, status=WIRED, direction=OUTGOING).order_by("created_on")
         self.assertEqual(msgs[0].text, "Child Msg 1")
         self.assertEqual(msgs[1].text, "Child Msg 2")
 
@@ -11394,7 +11255,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=105, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
@@ -11705,40 +11566,3 @@ class AssetServerTest(TembaTest):
                 ]
             },
         )
-
-
-class BackfillMissingFlowDepsTest(MigrationTest):
-    migrate_from = "0190_make_empty_revisions"
-    migrate_to = "0191_add_deps_for_start_new_flow_action"
-    app = "flows"
-
-    def setUpBeforeMigration(self, apps):
-
-        self.get_flow("multiple_deps")
-
-        invalid1 = Flow.objects.get(name="Invalid1")
-        invalid1.is_active = False
-        invalid1.save()
-
-        invalid2 = Flow.objects.get(name="Invalid2")
-        invalid2.is_active = False
-        invalid2.save()
-
-        flow = Flow.objects.get(name="multiple_deps")
-
-        # there are 5 deps, 3 valid and 2 invalid
-        self.assertEqual(flow.flow_dependencies.count(), 5)
-
-        # delete all dependencies
-        flow.flow_dependencies.through.objects.all().delete()
-
-    def test_updated_flow_dependencies(self):
-        flow = Flow.objects.get(name="multiple_deps")
-
-        # invalid flows will be removed as deps
-        self.assertEqual(flow.flow_dependencies.count(), 3)
-
-        expected_deps = {"Valid1", "Valid2", "Valid3"}
-        actual_deps = set(flow.flow_dependencies.all().values_list("name", flat=True))
-
-        self.assertSetEqual(expected_deps, actual_deps)
