@@ -59,7 +59,13 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
             flow_types[flow_uuid] = f.flow_type if f else None
         return flow_types[flow_uuid]
 
-    for action_set in json_flow.get(Flow.ACTION_SETS, []):
+    if Flow.ACTION_SETS not in json_flow:
+        json_flow[Flow.ACTION_SETS] = []
+    if Flow.RULE_SETS not in json_flow:
+        json_flow[Flow.RULE_SETS] = []
+
+    # replace any StartFlowAction pointing to a flow of a different modality
+    for action_set in json_flow[Flow.ACTION_SETS]:
         for action in action_set.get("actions", []):
             if action["type"] == StartFlowAction.TYPE:
                 subflow_type = get_flow_type(action["flow"]["uuid"])
@@ -69,6 +75,39 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
                     action["groups"] = []
                     action["urns"] = []
                     action["variables"] = [{VariableContactAction.ID: "@contact.uuid"}]
+
+    del_rule_sets = []
+
+    # replace any subflow ruleset pointing to a flow of a different modality
+    for rule_set in json_flow.get(Flow.RULE_SETS, []):
+        if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+            subflow_type = get_flow_type(rule_set["config"]["flow"]["uuid"])
+            if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
+
+                # create new action set in same place with same connections
+                json_flow[Flow.ACTION_SETS].append(
+                    {
+                        "uuid": rule_set["uuid"],
+                        "x": rule_set.get("x"),
+                        "y": rule_set.get("y"),
+                        "destination": rule_set.get("destination"),
+                        "actions": [
+                            {
+                                "type": TriggerFlowAction.TYPE,
+                                "contacts": [],
+                                "groups": [],
+                                "urns": [],
+                                "variables": [{VariableContactAction.ID: "@contact.uuid"}],
+                            }
+                        ],
+                        "exit_uuid": rule_set["rules"][0]["uuid"],
+                    }
+                )
+
+                del_rule_sets.append(rule_set["uuid"])
+
+    # remove any rulesets that were replaced
+    json_flow[Flow.RULE_SETS] = [rs for rs in json_flow[Flow.RULE_SETS] if rs["uuid"] not in del_rule_sets]
 
     return json_flow
 
