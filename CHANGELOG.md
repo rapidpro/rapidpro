@@ -1,3 +1,13 @@
+v4.16.5
+----------
+ * Fix quick replies in simulator
+
+v4.16.4
+----------
+ * More teaks to Bongolive channel
+ * Use mailroom simulation for IVR and Surveyor flows
+ * Add a way to see all run on flow results runs table
+
 v4.16.3
 ----------
  * Simplify generation of upload URLs with new STORAGE_URL setting
