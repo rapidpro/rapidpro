@@ -6434,6 +6434,9 @@ class FlowsTest(FlowFileTest):
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):
+            FlowRevision.validate_flow_definition({"flow_type": "U", "nodes": []})
+
+        with self.assertRaises(ValueError):
             FlowRevision.validate_flow_definition(self.get_flow_json("not_fully_localized"))
 
         # base_language of null, but spec version 8
