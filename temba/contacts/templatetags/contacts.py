@@ -46,10 +46,13 @@ ACTIVITY_ICONS = {
     "Call": "icon-phone",
     "IVRCall": "icon-call-outgoing",
     "DTMF": "icon-call-incoming",
+    "MissedIncoming": "icon-call-incoming",
+    "MissedOutgoing": "icon-call-outgoing",
     "Expired": "icon-clock",
     "Interrupted": "icon-warning",
     "Completed": "icon-checkmark",
     "WebHookResult": "icon-cloud-upload",
+    "Unknown": "icon-power",
 }
 
 MISSING_VALUE = "--"
@@ -141,6 +144,13 @@ def activity_icon(item):
             icon = "Interrupted"
         else:
             icon = "Expired"
+    elif item["type"] == "channel-event":
+        if obj.event_type == "mo_miss":
+            icon = "MissedIncoming"
+        elif obj.event_type == "mt_miss":
+            icon = "MissedOutgoing"
+        else:
+            icon = "Icon-Power"
     else:
         icon = type(obj).__name__
 

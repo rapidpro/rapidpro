@@ -1163,6 +1163,7 @@ class Channel(TembaModel):
         # order by date created
         return pending.order_by("created_on")
 
+    @classmethod
     def track_status(cls, channel, status):
         if channel:
             # track success, errors and failures
@@ -1916,6 +1917,7 @@ class ChannelConnection(models.Model):
 
     IVR = "F"
     USSD = "U"
+    VOICE = "V"
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
 
