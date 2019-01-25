@@ -59,7 +59,7 @@ processForm = (postData) ->
     else
       return window.sendSimUpdate(postData)
 
-window.sendSimulationMessage = (new_message) ->
+window.sendSimMessage = (new_message) ->
   sendMessage(new_message)
 
 

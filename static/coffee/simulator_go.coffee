@@ -322,7 +322,7 @@ $('#simulator .keypad .btn').on('click', ->
 
     if submit
       window.showSimKeypad(false)
-      window.sendSimulationMessage(keypadDisplay.text())
+      window.sendSimMessage(keypadDisplay.text())
       keypadDisplay.text("")
 )
 

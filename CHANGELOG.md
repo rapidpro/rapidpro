@@ -1,3 +1,7 @@
+v4.16.5
+----------
+ * Fix quick replies in simulator
+
 v4.16.4
 ----------
  * More teaks to Bongolive channel
