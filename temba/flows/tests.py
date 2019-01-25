@@ -6842,6 +6842,19 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(response.context["runs"]), 1)
             self.assertEqual(200, response.status_code)
 
+        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
+
+            # create one empty run
+            FlowRun.objects.create(org=favorites.org, flow=favorites, contact=pete, responded=False)
+
+            # fetch our intercooler rows for the run table
+            response = self.client.get("%s?responded=bla" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
+            self.assertEqual(200, response.status_code)
+
+            response = self.client.get("%s?responded=true" % reverse("flows.flow_run_table", args=[favorites.pk]))
+            self.assertEqual(len(response.context["runs"]), 1)
+
         # make sure we show results for flows with only expression splits
         RuleSet.objects.filter(flow=favorites).update(ruleset_type=RuleSet.TYPE_EXPRESSION)
         response = self.client.get(reverse("flows.flow_activity_chart", args=[favorites.pk]))
