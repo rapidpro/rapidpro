@@ -61,6 +61,7 @@
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';
     window.useMailroom = {{has_mailroom|lower}} && '{{object.flow_type}}' != 'U';
+    window.has_ussd_channel = false;
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
     window.staticURL = '{{static_url}}';
