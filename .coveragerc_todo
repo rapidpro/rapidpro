@@ -7,9 +7,8 @@ ignore_errors = True
 precision = 0
 show_missing = True
 skip_covered = True
-exclude_lines = 
+exclude_lines =
     pragma: no cover
-    pragma: needs cover
     pragma: can't cover
     def __repr__
     if self.debug:
@@ -26,6 +25,7 @@ omit =
     *__init__*
     *settings*
     temba/perf_tests.py
+    temba/wsgi.py
     temba/flows/management/commands/run_audit.py
     temba/contacts/management/commands/audit_es_group.py
     temba/msgs/management/commands/msg_console.py
