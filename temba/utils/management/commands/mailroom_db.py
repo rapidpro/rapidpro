@@ -158,7 +158,7 @@ ORG2 = dict(
 ORGS = [ORG1, ORG2]
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
 
     def handle(self, *args, **kwargs):

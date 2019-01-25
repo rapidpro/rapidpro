@@ -3325,7 +3325,7 @@ class ContactTest(TembaTest):
             )
 
             # create some messages
-            for i in range(99):
+            for i in range(97):
                 self.create_msg(
                     direction="I",
                     contact=self.joe,
@@ -3364,9 +3364,17 @@ class ContactTest(TembaTest):
                 event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled
             )
 
-            # create a missed call
+            # create missed incoming and outgoing calls
             ChannelEvent.create(
                 self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
+            )
+            ChannelEvent.create(
+                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
+            )
+
+            # and a referral event
+            ChannelEvent.create(
+                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now(), {}
             )
 
             # try adding some failed calls
@@ -3392,13 +3400,15 @@ class ContactTest(TembaTest):
             self.assertEqual(len(activity), 95)
             self.assertIsInstance(activity[0]["obj"], IVRCall)
             self.assertIsInstance(activity[1]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[2]["obj"], WebHookResult)
-            self.assertIsInstance(activity[3]["obj"], Msg)
-            self.assertEqual(activity[3]["obj"].direction, "O")
-            self.assertIsInstance(activity[4]["obj"], FlowRun)
+            self.assertIsInstance(activity[2]["obj"], ChannelEvent)
+            self.assertIsInstance(activity[3]["obj"], ChannelEvent)
+            self.assertIsInstance(activity[4]["obj"], WebHookResult)
             self.assertIsInstance(activity[5]["obj"], Msg)
-            self.assertIsInstance(activity[6]["obj"], Msg)
-            self.assertEqual(activity[6]["obj"].text, "Inbound message 98")
+            self.assertEqual(activity[5]["obj"].direction, "O")
+            self.assertIsInstance(activity[6]["obj"], FlowRun)
+            self.assertIsInstance(activity[7]["obj"], Msg)
+            self.assertIsInstance(activity[8]["obj"], Msg)
+            self.assertEqual(activity[8]["obj"].text, "Inbound message 96")
             self.assertIsInstance(activity[9]["obj"], EventFire)
             self.assertEqual(activity[-1]["obj"].text, "Inbound message 11")
 
@@ -3449,13 +3459,13 @@ class ContactTest(TembaTest):
 
             self.assertEqual(len(activity), 95)
             self.assertIsInstance(
-                activity[4]["obj"], Broadcast
+                activity[6]["obj"], Broadcast
             )  # TODO fix order so initial broadcasts come after their run
             self.assertEqual(
-                activity[4]["obj"].text,
+                activity[6]["obj"].text,
                 {"base": "What is your favorite color?", "fra": "Quelle est votre couleur préférée?"},
             )
-            self.assertEqual(activity[4]["obj"].translated_text, "What is your favorite color?")
+            self.assertEqual(activity[6]["obj"].translated_text, "What is your favorite color?")
 
             # if a new message comes in
             self.create_msg(direction="I", contact=self.joe, text="Newer message")
@@ -3472,7 +3482,7 @@ class ContactTest(TembaTest):
 
             # with our recent flag on, should not see the older messages
             activity = response.context["activity"]
-            self.assertEqual(len(activity), 7)
+            self.assertEqual(len(activity), 9)
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
@@ -3515,8 +3525,10 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[3]["obj"].direction, "I")
             self.assertIsInstance(activity[4]["obj"], IVRCall)
             self.assertIsInstance(activity[5]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[6]["obj"], WebHookResult)
-            self.assertIsInstance(activity[7]["obj"], FlowRun)
+            self.assertIsInstance(activity[6]["obj"], ChannelEvent)
+            self.assertIsInstance(activity[7]["obj"], ChannelEvent)
+            self.assertIsInstance(activity[8]["obj"], WebHookResult)
+            self.assertIsInstance(activity[9]["obj"], FlowRun)
 
         # with a max history of one, we should see this event first
         with patch("temba.contacts.models.MAX_HISTORY", 1):
