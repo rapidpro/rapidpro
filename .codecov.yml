@@ -2,7 +2,7 @@ coverage:
   precision: 2
   round: down
 
-   status:
+  status:
     project:
       default:
         target: 100%
