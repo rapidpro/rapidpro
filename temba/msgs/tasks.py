@@ -300,7 +300,6 @@ def check_messages_task():  # pragma: needs cover
     """
     from .models import INCOMING, PENDING
     from temba.orgs.models import Org
-    from temba.channels.tasks import send_msg_task
     from temba.flows.tasks import start_msg_flow_batch_task
 
     now = timezone.now()
@@ -314,10 +313,9 @@ def check_messages_task():  # pragma: needs cover
         if queued < 1000:
             org.trigger_send()
 
-    # fire a few send msg tasks in case we dropped one somewhere during a restart
+    # fire a few tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
-        send_msg_task.apply_async(queue=Queue.MSGS)
         handle_event_task.apply_async(queue=Queue.HANDLER)
         start_msg_flow_batch_task.apply_async(queue=Queue.FLOWS)
 
