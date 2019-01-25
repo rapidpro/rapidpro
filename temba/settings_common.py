@@ -394,7 +394,7 @@ PERMISSIONS = {
         "search_nexmo",
         "search_numbers",
     ),
-    "channels.channellog": ("session",),
+    "channels.channellog": ("connection",),
     "channels.channelevent": ("api", "calls"),
     "flows.flowstart": ("api",),
     "flows.flow": (
@@ -591,7 +591,7 @@ GROUP_PERMISSIONS = {
         "channels.channelevent.*",
         "channels.channellog_list",
         "channels.channellog_read",
-        "channels.channellog_session",
+        "channels.channellog_connection",
         "flows.flow.*",
         "flows.flowstart_api",
         "flows.flowlabel.*",
