@@ -1100,13 +1100,6 @@ MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
-# These legacy channels still send on RapidPro:
-#   * TT is our old Twitter integration, will be removed ~June 2018
-#   * JNU is junebug USSD, which may be removed depending on future of USSD
-# -----------------------------------------------------------------------------------
-LEGACY_CHANNELS = set(["TT", "JNU"])
-
-# -----------------------------------------------------------------------------------
 # Chatbase integration
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = "https://chatbase.com/api/message"
