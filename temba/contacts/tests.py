@@ -3370,7 +3370,7 @@ class ContactTest(TembaTest):
             )
 
             # try adding some failed calls
-            IVRCall.objects.create(
+            call = IVRCall.objects.create(
                 contact=self.joe,
                 status=IVRCall.NO_ANSWER,
                 channel=self.channel,
@@ -3378,8 +3378,13 @@ class ContactTest(TembaTest):
                 contact_urn=self.joe.urns.all().first(),
             )
 
+            # create a channel log for this call
+            ChannelLog.objects.create(
+                channel=self.channel, description="Its an ivr call", is_error=False, connection=call
+            )
+
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(70):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3405,7 +3410,8 @@ class ContactTest(TembaTest):
                 response,
                 "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
             )
-            self.assertContains(response, "/channels/channellog/read/%d/" % log.id)
+            self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+            self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
 
             # fetch next page
             before = datetime_to_ms(timezone.now() - timedelta(days=90))

@@ -137,6 +137,7 @@ def attachment_button(attachment):
 @register.inclusion_tag("msgs/tags/channel_log_link.haml")
 def channel_log_link(msg_or_call):
     if hasattr(msg_or_call, "connection_type"):
-        return {"connection_id": msg_or_call.id}
+        if msg_or_call.has_logs():
+            return {"connection_id": msg_or_call.id}
     else:
         return {"log": msg_or_call.get_last_log()}

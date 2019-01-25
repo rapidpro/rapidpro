@@ -303,6 +303,12 @@ class IVRCall(ChannelConnection):
 
         return timedelta(seconds=duration)
 
+    def has_logs(self):
+        """
+        Returns whether this IVRCall has any channel logs
+        """
+        return self.channel and self.channel.is_active and ChannelLog.objects.filter(connection=self).count() > 0
+
     def get_flow(self):
         from temba.flows.models import FlowRun
 
