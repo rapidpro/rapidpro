@@ -27,9 +27,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def get_country(self, obj):
         return "Brazil"
 
-    def get_submitted_country(self, data):
-        return "BR"
-
     def form_valid(self, form):
         org = self.request.user.get_org()
         data = form.cleaned_data
