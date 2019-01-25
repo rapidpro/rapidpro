@@ -312,6 +312,7 @@ class Flow(TembaModel):
         "11.7",
         "11.8",
         "11.9",
+        "11.10",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))

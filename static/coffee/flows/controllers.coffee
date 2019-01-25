@@ -1238,7 +1238,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if Flow.flow.flow_type == 'S'
       return url + "&flow_type=S"
     if Flow.flow.flow_type == 'M'
-      return url + "&flow_type=M&flow_type=V"
+      return url + "&flow_type=M"
     if Flow.flow.flow_type == 'V'
       return url + "&flow_type=V"
     return url

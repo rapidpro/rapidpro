@@ -9857,6 +9857,16 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    def test_migrate_to_11_10(self):
+        self.get_flow("migrate_to_11_10")
+
+        parent = Flow.objects.get(name__contains="Parent")
+        parent_json = parent.as_json()
+
+        flow_action = parent_json["action_sets"][0]["actions"][0]
+
+        self.assertEqual(flow_action["type"], "trigger-flow")
+
     def test_migrate_to_11_9(self):
         self.get_flow("migrate_to_11_9")
 
