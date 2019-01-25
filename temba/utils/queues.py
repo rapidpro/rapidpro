@@ -17,7 +17,6 @@ class Queue:
     CELERY = "celery"
     FLOWS = "flows"
     HANDLER = "handler"
-    MSGS = "msgs"
 
 
 LOW_PRIORITY = +10000000  # +10M ~ 110 days

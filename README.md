@@ -1,6 +1,4 @@
-[![Coverage Status](https://coveralls.io/repos/github/rapidpro/rapidpro/badge.svg?branch=master)](https://coveralls.io/github/rapidpro/rapidpro?branch=master)  
-
-# RapidPro     
+# RapidPro [![Build Status](https://travis-ci.org/rapidpro/rapidpro.svg?branch=master)](https://travis-ci.org/rapidpro/rapidpro) [![codecov](https://codecov.io/gh/rapidpro/rapidpro/branch/master/graph/badge.svg)](https://codecov.io/gh/rapidpro/rapidpro)    
 
 RapidPro is a hosted service for visually building interactive messaging applications.
 To learn more, please visit the project site at http://rapidpro.github.io/rapidpro.
