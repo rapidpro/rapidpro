@@ -3130,10 +3130,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return context
 
-    @property
-    def connection_interrupted(self):
-        return self.connection and self.connection.status == ChannelConnection.INTERRUPTED
-
     @classmethod
     def normalize_field_key(cls, key):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
