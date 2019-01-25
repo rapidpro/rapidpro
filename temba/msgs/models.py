@@ -974,7 +974,7 @@ class Msg(models.Model):
                         msg.status = WIRED
                         msg.sent_on = timezone.now()
                         msg.save(update_fields=("status", "sent_on"))
-                        print(f"FAKED SEND for [{msg.id}]")
+                        logger.debug(f"FAKED SEND for [{msg.id}]")
                         continue
 
                     if (
