@@ -1,3 +1,13 @@
+v4.16.6
+----------
+ * Switch to codecov for code coverage
+ * Allow overriding brand domain via env
+ * Add mailroom_db management command for mailroom tests
+ * Start flow_server_enabled ivr flows in mailroom
+ * Remove legacty channel sending code
+ * Remove flow dependencies when deactivating USSD flows
+ * Migrations to deactivate USSD content
+
 v4.16.5
 ----------
  * Fix quick replies in simulator
