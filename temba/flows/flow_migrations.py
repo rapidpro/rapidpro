@@ -45,6 +45,10 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
     Replaces any StartFlowAction which crosses modalities with a TriggerFlowAction
     """
 
+    # some "join group"flows are missing type
+    if not json_flow.get("flow_type"):
+        json_flow["flow_type"] = Flow.TYPE_MESSAGE
+
     # cache of flow uuid to type
     if not flow_types:
         flow_types = {}

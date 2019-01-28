@@ -452,6 +452,7 @@ class Flow(TembaModel):
             "version": flow.version_number,
             "entry": entry_uuid,
             "base_language": base_language,
+            "flow_type": Flow.TYPE_MESSAGE,
             "rule_sets": [],
             "action_sets": [
                 {
