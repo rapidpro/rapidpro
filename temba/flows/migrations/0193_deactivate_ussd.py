@@ -9,7 +9,7 @@ def deactivate_ussd_flows(apps, schema_editor):
     num_deactivated = 0
     for flow in Flow.objects.filter(flow_type="U"):
         flow.events.update(is_active=False)
-        flow.triggers.delete()
+        flow.triggers.all().delete()
 
         flow.group_dependencies.clear()
         flow.flow_dependencies.clear()
