@@ -1,3 +1,7 @@
+v4.16.8
+----------
+ * Fix USSD deactivation migration
+
 v4.16.7
 ----------
  * Add support for Movile/Wavy channels
