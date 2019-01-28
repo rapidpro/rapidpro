@@ -94,6 +94,7 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
                         "actions": [
                             {
                                 "type": TriggerFlowAction.TYPE,
+                                "flow": rule_set["config"]["flow"],
                                 "contacts": [],
                                 "groups": [],
                                 "urns": [],

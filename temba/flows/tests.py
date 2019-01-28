@@ -9862,10 +9862,41 @@ class FlowMigrationTest(FlowFileTest):
 
         parent = Flow.objects.get(name__contains="Parent")
         parent_json = parent.as_json()
+        ivr_child = Flow.objects.get(name__contains="IVR")
 
-        flow_action = parent_json["action_sets"][0]["actions"][0]
+        # the subflow ruleset to a messaging flow remains as the only ruleset
+        self.assertEqual(len(parent_json["rule_sets"]), 1)
+        self.assertEqual(parent_json["rule_sets"][0]["config"]["flow"]["name"], "Migrate to 11.10 SMS Child")
 
-        self.assertEqual(flow_action["type"], "trigger-flow")
+        # whereas the subflow ruleset to an IVR flow has become a new trigger flow action
+        self.assertEqual(len(parent_json["action_sets"]), 4)
+
+        new_trigger1 = parent_json["action_sets"][3]["actions"][0]
+        self.assertEqual(
+            new_trigger1,
+            {
+                "uuid": matchers.UUID4String(),
+                "type": "trigger-flow",
+                "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
+                "variables": [{"id": "@contact.uuid"}],
+                "contacts": [],
+                "groups": [],
+            },
+        )
+
+        # as did the start flow action
+        new_trigger2 = parent_json["action_sets"][1]["actions"][0]
+        self.assertEqual(
+            new_trigger2,
+            {
+                "uuid": matchers.UUID4String(),
+                "type": "trigger-flow",
+                "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
+                "variables": [{"id": "@contact.uuid"}],
+                "contacts": [],
+                "groups": [],
+            },
+        )
 
     def test_migrate_to_11_9(self):
         self.get_flow("migrate_to_11_9")
