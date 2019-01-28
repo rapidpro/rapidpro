@@ -9871,16 +9871,25 @@ class FlowMigrationTest(FlowFileTest):
         # whereas the subflow ruleset to an IVR flow has become a new trigger flow action
         self.assertEqual(len(parent_json["action_sets"]), 4)
 
-        new_trigger1 = parent_json["action_sets"][3]["actions"][0]
+        new_actionset = parent_json["action_sets"][3]
         self.assertEqual(
-            new_trigger1,
+            new_actionset,
             {
                 "uuid": matchers.UUID4String(),
-                "type": "trigger-flow",
-                "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
-                "variables": [{"id": "@contact.uuid"}],
-                "contacts": [],
-                "groups": [],
+                "x": 218,
+                "y": 228,
+                "destination": parent_json["action_sets"][1]["uuid"],
+                "actions": [
+                    {
+                        "uuid": matchers.UUID4String(),
+                        "type": "trigger-flow",
+                        "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
+                        "variables": [{"id": "@contact.uuid"}],
+                        "contacts": [],
+                        "groups": [],
+                    }
+                ],
+                "exit_uuid": matchers.UUID4String(),
             },
         )
 

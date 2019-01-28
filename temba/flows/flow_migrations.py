@@ -63,7 +63,7 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
             flow_types[flow_uuid] = f.flow_type if f else None
         return flow_types[flow_uuid]
 
-    if Flow.ACTION_SETS not in json_flow:
+    if Flow.ACTION_SETS not in json_flow:  # pragma: no cover
         json_flow[Flow.ACTION_SETS] = []
     if Flow.RULE_SETS not in json_flow:
         json_flow[Flow.RULE_SETS] = []
@@ -94,10 +94,11 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
                         "uuid": rule_set["uuid"],
                         "x": rule_set.get("x"),
                         "y": rule_set.get("y"),
-                        "destination": rule_set.get("destination"),
+                        "destination": rule_set["rules"][0].get("destination"),
                         "actions": [
                             {
                                 "type": TriggerFlowAction.TYPE,
+                                "uuid": str(uuid4()),
                                 "flow": rule_set["config"]["flow"],
                                 "contacts": [],
                                 "groups": [],
