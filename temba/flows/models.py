@@ -4193,7 +4193,7 @@ class FlowRevision(SmartModel):
     @classmethod
     def validate_flow_definition(cls, flow_spec):
 
-        if flow_spec["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY):
+        if flow_spec["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError(_("Unsupported flow type"))
 
         non_localized_error = _("Malformed flow, encountered non-localized definition")
