@@ -1,3 +1,7 @@
+v4.16.7
+----------
+ * Add support for Movile/Wavy channels
+
 v4.16.6
 ----------
  * Switch to codecov for code coverage
