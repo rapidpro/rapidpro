@@ -1,13 +1,6 @@
 v4.16.8
 ----------
- * Fix USSD deactivation migration
-
-v4.16.7
-----------
  * Add support for Movile/Wavy channels
-
-v4.16.6
-----------
  * Switch to codecov for code coverage
  * Allow overriding brand domain via env
  * Add mailroom_db management command for mailroom tests
