@@ -166,12 +166,14 @@ def migrate_to_version_11_9(json_flow, flow=None):
                 if action["type"] == StartFlowAction.TYPE:
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
+
                         del new_flow_json[Flow.ACTION_SETS][actionset_index]["actions"][action_index]
                         total_removed_actions += 1
 
                 if action["type"] == TriggerFlowAction.TYPE:
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
+
                         del new_flow_json[Flow.ACTION_SETS][actionset_index]["actions"][action_index]
                         total_removed_actions += 1
 
@@ -180,6 +182,7 @@ def migrate_to_version_11_9(json_flow, flow=None):
                 flow_uuid = rule_set["config"]["flow"]["uuid"]
 
                 if flow_uuid in invalid_flow_uuids:
+
                     del new_flow_json[Flow.RULE_SETS][ruleset_index]
                     total_removed_rulesets += 1
 
