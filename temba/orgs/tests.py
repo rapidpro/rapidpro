@@ -22,7 +22,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import APIToken, Resthook
+from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -299,6 +299,25 @@ class OrgDeleteTest(TembaTest):
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
 
+            # add in some webhook results
+            event = WebHookEvent.objects.create(
+                org=org,
+                event=WebHookEvent.TYPE_RELAYER_ALARM,
+                data=dict(),
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+            WebHookResult.objects.create(
+                org=self.org,
+                url="http://foo.bar",
+                request="GET http://foo.bar",
+                data="zap",
+                status_code=200,
+                created_by=self.admin,
+                modified_by=self.admin,
+                event=event,
+            )
+
             # release our primary org
             org.release(immediately=immediately)
 
@@ -318,6 +337,9 @@ class OrgDeleteTest(TembaTest):
                 # our channels and org are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
                 self.assertFalse(Org.objects.filter(id=org.id).exists())
+
+                # as are our webhook events
+                self.AssertFalse(WebHookEvent.objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()
