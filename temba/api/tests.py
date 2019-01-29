@@ -144,10 +144,8 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Event delivered successfully", result.message)
-            self.assertIn("not JSON", result.message)
             self.assertEqual(200, result.status_code)
-            self.assertEqual("Hello World", result.body)
+            self.assertEqual("Hello World", result.response)
 
             self.assertTrue(mock.called)
             args = mock.call_args_list[0][0]
@@ -205,9 +203,8 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Event delivered successfully", result.message)
             self.assertEqual(200, result.status_code)
-            self.assertEqual("", result.body)
+            self.assertEqual("", result.response)
 
             self.assertTrue(mock.called)
             args = mock.call_args_list[0][0]
@@ -373,13 +370,13 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("No active user", result.message)
             self.assertEqual(0, result.status_code)
 
             self.assertFalse(mock.called)
 
             # what if they send weird json back?
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         # add ad manager back in
         self.org.administrators.add(self.admin)
@@ -397,13 +394,12 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Event delivered successfully", result.message)
-            self.assertIn("not JSON", result.message)
             self.assertEqual(200, result.status_code)
 
             self.assertTrue(mock.called)
 
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.side_effect = [MockResponse(500, "I am error")]
@@ -428,6 +424,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(mock.call_count, 2)
 
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         with patch("requests.Session.send") as mock:
             # valid json, but not our format
@@ -444,12 +441,11 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Event delivered successfully", result.message)
-            self.assertIn("ignoring", result.message)
             self.assertEqual(200, result.status_code)
-            self.assertEqual(bad_json, result.body)
+            self.assertEqual(bad_json, result.response)
 
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
@@ -488,6 +484,7 @@ class WebHookTest(TembaTest):
             self.assertIn("time", data)
 
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         with patch("requests.Session.send") as mock:
             mock.return_value = MockResponse(500, "I am error")
@@ -504,9 +501,8 @@ class WebHookTest(TembaTest):
             self.assertTrue(next_attempt_earliest < event.next_attempt and next_attempt_latest > event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Error", result.message)
             self.assertEqual(500, result.status_code)
-            self.assertEqual("I am error", result.body)
+            self.assertEqual("I am error", result.response)
 
             # make sure things become failures after three retries
             event.try_count = 2
@@ -520,20 +516,28 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Error", result.message)
             self.assertEqual(500, result.status_code)
-            self.assertEqual("I am error", result.body)
+            self.assertEqual("I am error", result.response)
             self.assertEqual("http://fake.com/webhook.php", result.url)
-            self.assertTrue(result.data.find("pop+some+tags") > 0)
+            self.assertTrue(result.request.find("pop+some+tags") > 0)
 
             # check out our api log
-            response = self.client.get(reverse("api.log"))
+            response = self.client.get(reverse("api.webhookresult_list"))
             self.assertRedirect(response, reverse("users.user_login"))
 
-            response = self.client.get(reverse("api.log_read", args=[event.pk]))
+            response = self.client.get(reverse("api.webhookresult_read", args=[event.pk]))
             self.assertRedirect(response, reverse("users.user_login"))
+
+            self.login(self.admin)
+
+            response = self.client.get(reverse("api.webhookresult_list"))
+            self.assertContains(response, "http://fake.com/webhook.php")
+
+            response = self.client.get(reverse("api.webhookresult_read", args=[result.pk]))
+            self.assertContains(response, "http://fake.com/webhook.php")
 
             self.release(WebHookEvent.objects.all())
+            self.release(WebHookResult.objects.all())
 
         # add a webhook header to the org
         self.channel.org.webhook = {

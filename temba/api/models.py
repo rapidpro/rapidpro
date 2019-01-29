@@ -376,8 +376,6 @@ class WebHookEvent(SmartModel):
                 response=body,
                 request=post_data,
                 request_time=request_time,
-                created_by=api_user,
-                modified_by=api_user,
                 org=run.org,
             )
 
@@ -527,7 +525,7 @@ class WebHookEvent(SmartModel):
 
         if not self.org.get_webhook_url():  # pragma: no cover
             result["status_code"] = 0
-            result["message"] = "No webhook registered for this org, ignoring event"
+            result["response"] = "No webhook registered for this org, ignoring event"
             self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
@@ -538,7 +536,7 @@ class WebHookEvent(SmartModel):
         # no user?  we shouldn't be doing webhooks shtuff
         if not user:
             result["status_code"] = 0
-            result["message"] = "No active user for this org, ignoring event"
+            result["response"] = "No active user for this org, ignoring event"
             self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
@@ -564,7 +562,6 @@ class WebHookEvent(SmartModel):
             # any 200 code is ok by us
             self.status = self.STATUS_COMPLETE
             result["request_time"] = (time.time() - start) * 1000
-            result["message"] = "Event delivered successfully."
 
             # read our body if we have one
             if result["body"]:
@@ -574,24 +571,14 @@ class WebHookEvent(SmartModel):
 
                     if serializer.is_valid():
                         result["serializer"] = serializer
-                        result["message"] = "Response body contains message which will be sent"
-                    else:
-                        errors = serializer.errors
-                        result["message"] = (
-                            "Event delivered successfully, ignoring response body, wrong format: %s"
-                            % ",".join("%s: %s" % (_, ",".join(errors[_])) for _ in errors.keys())
-                        )
 
-                except ValueError as e:
-                    # we were unable to make anything of the body, that's ok though because
-                    # get a 200, so just save our error for posterity
-                    result["message"] = "Event delivered successfully, ignoring response body, not JSON: %s" % str(e)
+                except ValueError:
+                    pass
 
-        except Exception as e:
+        except Exception:
             # we had an error, log it
             self.status = self.STATUS_ERRORED
             result["request_time"] = time.time() - start
-            result["message"] = "Error when delivering event - %s" % str(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
         self.try_count += 1
@@ -655,23 +642,12 @@ class WebHookResult(models.Model):
         if serializer and serializer.is_valid():
             serializer.save()
 
-        # little utility to trim a value by length
-        message = result["message"]
-        if message:
-            message = message[:255]
-
-        api_user = get_api_user()
-
-        request_time = result.get("request_time", None)
-
         cls.objects.create(
             url=result["url"],
             request=result.get("request"),
             status_code=result.get("status_code", 503),
             response=result.get("body"),
-            request_time=request_time,
-            created_by=api_user,
-            modified_by=api_user,
+            request_time=result.get("request_time", None),
             org=event.org,
         )
 

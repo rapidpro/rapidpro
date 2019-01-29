@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 
 from temba.channels.models import ChannelEvent
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
 from .models import APIToken, Resthook, WebHookEvent, WebHookResult
 
@@ -93,12 +93,14 @@ class WebHookResultCRUDL(SmartCRUDL):
     model = WebHookResult
     actions = ("list", "read")
 
-    class Read(OrgPermsMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("url", "status_code", "request_time", "created_on")
 
     class List(OrgPermsMixin, SmartListView):
         fields = ("url", "status_code", "request_time", "created_on")
-        default_order = "-created_on"
+
+        def get_queryset(self):
+            return WebHookResult.objects.filter(org=self.request.user.get_org()).order_by("-created_on")
 
 
 class WebHookSimulatorView(SmartTemplateView):
