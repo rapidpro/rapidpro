@@ -1,12 +1,8 @@
 v4.16.10
 ----------
- * Revert redis upgrade
-
-v4.16.9
-----------
  * Add surveyor content in mailroom_db command
  * Fix flows with missing flow_type
- * Update more Python dependencies including Redis
+ * Update more Python dependencies
  * Prevent flows of one modality from starting subflows of a different modality
 
 v4.16.8
