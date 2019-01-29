@@ -218,13 +218,13 @@ class InitTest(TembaTest):
 class DatesTest(TembaTest):
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_ms(d1), 1388631845000)  # from http://unixtimestamp.50x.eu
-        self.assertEqual(ms_to_datetime(1388631845000), d1)
+        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_000)  # from http://unixtimestamp.50x.eu
+        self.assertEqual(ms_to_datetime(1_388_631_845_000), d1)
 
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5))
-        self.assertEqual(datetime_to_ms(d2), 1388624645000)
-        self.assertEqual(ms_to_datetime(1388624645000), d2.astimezone(pytz.utc))
+        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_000)
+        self.assertEqual(ms_to_datetime(1_388_624_645_000), d2.astimezone(pytz.utc))
 
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
@@ -235,7 +235,7 @@ class DatesTest(TembaTest):
 
     def test_datetime_to_epoch(self):
         dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
-        self.assertEqual(1388624645, datetime_to_epoch(dt))
+        self.assertEqual(1_388_624_645, datetime_to_epoch(dt))
 
     def test_str_to_datetime(self):
         tz = pytz.timezone("Asia/Kabul")
@@ -309,24 +309,24 @@ class DatesTest(TembaTest):
             )
 
             self.assertEqual(
-                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000)),
                 str_to_datetime("01-02-2013 07:08:09.100000", tz, dayfirst=True),
             )  # complete time provided
 
             self.assertEqual(
-                datetime.datetime(2013, 2, 1, 7, 8, 9, 100000, tzinfo=pytz.UTC),
+                datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000, tzinfo=pytz.UTC),
                 str_to_datetime("2013-02-01T07:08:09.100000Z", tz, dayfirst=True),
             )  # Z marker
             self.assertEqual(
-                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000)),
                 str_to_datetime("2013-02-01T07:08:09.100000+04:30", tz, dayfirst=True),
             )  # ISO in local tz
             self.assertEqual(
-                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000)),
                 str_to_datetime("2013-02-01T04:38:09.100000+02:00", tz, dayfirst=True),
             )  # ISO in other tz
             self.assertEqual(
-                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000)),
                 str_to_datetime("2013-02-01T00:38:09.100000-02:00", tz, dayfirst=True),
             )  # ISO in other tz
             self.assertEqual(
@@ -334,19 +334,19 @@ class DatesTest(TembaTest):
                 str_to_datetime("2013-02-01T07:08:09Z", tz, dayfirst=True),
             )  # with no second fraction
             self.assertEqual(
-                datetime.datetime(2013, 2, 1, 7, 8, 9, 198000, tzinfo=pytz.UTC),
+                datetime.datetime(2013, 2, 1, 7, 8, 9, 198_000, tzinfo=pytz.UTC),
                 str_to_datetime("2013-02-01T07:08:09.198Z", tz, dayfirst=True),
             )  # with milliseconds
             self.assertEqual(
-                datetime.datetime(2013, 2, 1, 7, 8, 9, 198537, tzinfo=pytz.UTC),
+                datetime.datetime(2013, 2, 1, 7, 8, 9, 198_537, tzinfo=pytz.UTC),
                 str_to_datetime("2013-02-01T07:08:09.198537686Z", tz, dayfirst=True),
             )  # with nanoseconds
             self.assertEqual(
-                datetime.datetime(2013, 2, 1, 7, 8, 9, 198500, tzinfo=pytz.UTC),
+                datetime.datetime(2013, 2, 1, 7, 8, 9, 198_500, tzinfo=pytz.UTC),
                 str_to_datetime("2013-02-01T07:08:09.1985Z", tz, dayfirst=True),
             )  # with 4 second fraction digits
             self.assertEqual(
-                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100000)),
+                tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 9, 100_000)),
                 str_to_datetime("2013-02-01T07:08:09.100000+04:30.", tz, dayfirst=True),
             )  # trailing period
             self.assertEqual(
@@ -370,7 +370,7 @@ class DatesTest(TembaTest):
 
         # deal with datetimes that have timezone info
         self.assertEqual(
-            pytz.utc.localize(datetime.datetime(2016, 11, 21, 20, 36, 51, 215681)).astimezone(tz),
+            pytz.utc.localize(datetime.datetime(2016, 11, 21, 20, 36, 51, 215_681)).astimezone(tz),
             str_to_datetime("2016-11-21T20:36:51.215681Z", tz),
         )
 
@@ -388,8 +388,8 @@ class DatesTest(TembaTest):
             self.assertEqual(str_to_time("01-02-2013 03:04"), datetime.time(3, 4))  # with date
             self.assertEqual(str_to_time("3:04 PM"), datetime.time(15, 4))  # as PM
             self.assertEqual(str_to_time("03:04:30"), datetime.time(3, 4, 30))  # with seconds
-            self.assertEqual(str_to_time("03:04:30.123"), datetime.time(3, 4, 30, 123000))  # with milliseconds
-            self.assertEqual(str_to_time("03:04:30.123000"), datetime.time(3, 4, 30, 123000))  # with microseconds
+            self.assertEqual(str_to_time("03:04:30.123"), datetime.time(3, 4, 30, 123_000))  # with milliseconds
+            self.assertEqual(str_to_time("03:04:30.123000"), datetime.time(3, 4, 30, 123_000))  # with microseconds
 
     def test_date_to_utc_range(self):
         self.assertEqual(
@@ -405,7 +405,7 @@ class TimezonesTest(TembaTest):
     def test_field(self):
         field = TimeZoneFormField(help_text="Test field")
 
-        self.assertEqual(field.choices[0], ("Pacific/Midway", u"(GMT-1100) Pacific/Midway"))
+        self.assertEqual(field.choices[0], ("Pacific/Midway", "(GMT-1100) Pacific/Midway"))
         self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
 
     def test_timezone_country_code(self):
@@ -1360,7 +1360,7 @@ class ExportTest(TembaTest):
         self.assertEqual(self.task.prepare_value(True), True)
         self.assertEqual(self.task.prepare_value(False), False)
 
-        dt = pytz.timezone("Africa/Nairobi").localize(datetime.datetime(2017, 2, 7, 15, 41, 23, 123456))
+        dt = pytz.timezone("Africa/Nairobi").localize(datetime.datetime(2017, 2, 7, 15, 41, 23, 123_456))
         self.assertEqual(self.task.prepare_value(dt), datetime.datetime(2017, 2, 7, 14, 41, 23, 0))
 
     def test_task_status(self):
@@ -1448,10 +1448,13 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country("AF").alpha_3, "AFN")
 
         for country in list(pycountry.countries):
-            try:
-                currency_for_country(country.alpha_2)
-            except KeyError:
-                self.fail("Country missing currency: %s" % country)
+
+            currency = currency_for_country(country.alpha_2)
+            if currency is None:
+                self.fail(f"Country missing currency: {country}")
+
+        # a country that does not exist
+        self.assertIsNone(currency_for_country("XX"))
 
 
 class VoiceXMLTest(TembaTest):
@@ -2130,7 +2133,7 @@ class NonBlockingLockTest(TestCase):
 class JSONTest(TestCase):
     def test_json(self):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
-        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1535402488123))))
+        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1_535_402_488_123))))
 
 
 class AnalyticsTest(TestCase):
