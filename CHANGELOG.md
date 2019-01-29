@@ -1,5 +1,6 @@
-v4.16.6
+v4.16.8
 ----------
+ * Add support for Movile/Wavy channels
  * Switch to codecov for code coverage
  * Allow overriding brand domain via env
  * Add mailroom_db management command for mailroom tests
