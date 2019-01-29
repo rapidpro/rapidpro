@@ -229,7 +229,7 @@
       %p{class:"description"}
         -blocktrans
           This action redirects contacts to a new flow. When they start that flow, they will exit this one.
-      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden", exclude-current-flow: "true"}
+      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden", exclude-current-flow: "true", same-flow-type: "true"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected)",class:"submit hide"}
         -trans "Ok"
 

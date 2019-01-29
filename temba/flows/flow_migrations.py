@@ -18,10 +18,107 @@ from temba.flows.models import (
     StartFlowAction,
     StartsWithTest,
     TriggerFlowAction,
+    VariableContactAction,
 )
 from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_export_to_version_11_10(exported_json, org, same_site=True):
+    """
+    Migrates an export of potentially multiple flows to 11.10
+    """
+
+    # need to provide the types of all flows in this export to migrate_to_version_11_10 which
+    # otherwise can only find types of flows in the database
+    flow_types = {f["metadata"]["uuid"]: f["flow_type"] for f in exported_json.get("flows", [])}
+
+    migrated_flows = []
+    for flow in exported_json.get("flows", []):
+        flow = migrate_to_version_11_10(flow, flow_types=flow_types)
+        migrated_flows.append(flow)
+
+    exported_json["flows"] = migrated_flows
+    return exported_json
+
+
+def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
+    """
+    Replaces any StartFlowAction which crosses modalities with a TriggerFlowAction
+    """
+
+    # some "join group"flows are missing type
+    if not json_flow.get("flow_type"):
+        json_flow["flow_type"] = Flow.TYPE_MESSAGE
+
+    # cache of flow uuid to type
+    if not flow_types:
+        flow_types = {}
+
+    # need to compare flow types with F and M considered equal
+    def flow_types_eq(t1, t2):
+        return (t1 == t2) or (t1 == "F" and t2 == "M") or (t1 == "M" and t2 == "F")
+
+    def get_flow_type(flow_uuid):
+        if flow_uuid not in flow_types:
+            f = Flow.objects.filter(uuid=flow_uuid).only("flow_type").first()
+            flow_types[flow_uuid] = f.flow_type if f else None
+        return flow_types[flow_uuid]
+
+    if Flow.ACTION_SETS not in json_flow:  # pragma: no cover
+        json_flow[Flow.ACTION_SETS] = []
+    if Flow.RULE_SETS not in json_flow:
+        json_flow[Flow.RULE_SETS] = []
+
+    # replace any StartFlowAction pointing to a flow of a different modality
+    for action_set in json_flow[Flow.ACTION_SETS]:
+        for action in action_set.get("actions", []):
+            if action["type"] == StartFlowAction.TYPE:
+                subflow_type = get_flow_type(action["flow"]["uuid"])
+                if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
+                    action["type"] = TriggerFlowAction.TYPE
+                    action["contacts"] = []
+                    action["groups"] = []
+                    action["urns"] = []
+                    action["variables"] = [{VariableContactAction.ID: "@contact.uuid"}]
+
+    del_rule_sets = []
+
+    # replace any subflow ruleset pointing to a flow of a different modality
+    for rule_set in json_flow.get(Flow.RULE_SETS, []):
+        if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+            subflow_type = get_flow_type(rule_set["config"]["flow"]["uuid"])
+            if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
+
+                # create new action set in same place with same connections
+                json_flow[Flow.ACTION_SETS].append(
+                    {
+                        "uuid": rule_set["uuid"],
+                        "x": rule_set.get("x"),
+                        "y": rule_set.get("y"),
+                        "destination": rule_set["rules"][0].get("destination"),
+                        "actions": [
+                            {
+                                "type": TriggerFlowAction.TYPE,
+                                "uuid": str(uuid4()),
+                                "flow": rule_set["config"]["flow"],
+                                "contacts": [],
+                                "groups": [],
+                                "urns": [],
+                                "variables": [{VariableContactAction.ID: "@contact.uuid"}],
+                            }
+                        ],
+                        "exit_uuid": rule_set["rules"][0]["uuid"],
+                    }
+                )
+
+                del_rule_sets.append(rule_set["uuid"])
+
+    # remove any rulesets that were replaced
+    json_flow[Flow.RULE_SETS] = [rs for rs in json_flow[Flow.RULE_SETS] if rs["uuid"] not in del_rule_sets]
+
+    return json_flow
 
 
 def migrate_to_version_11_9(json_flow, flow=None):

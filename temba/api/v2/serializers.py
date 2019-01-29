@@ -3,7 +3,6 @@ import pytz
 from rest_framework import serializers
 
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
-from temba.api.v2.fields import NoNullCharsField
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
@@ -449,7 +448,7 @@ class ContactWriteSerializer(WriteSerializer):
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = fields.LimitedDictField(required=False, child=NoNullCharsField())
+    fields = fields.LimitedDictField(required=False, child=serializers.CharField(allow_blank=True, allow_null=True))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

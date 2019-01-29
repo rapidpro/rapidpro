@@ -1,3 +1,21 @@
+v4.16.9
+----------
+ * Add surveyor content in mailroom_db command
+ * Fix flows with missing flow_type
+ * Update more Python dependencies including Redis
+ * Prevent flows of one modality from starting subflows of a different modality
+
+v4.16.8
+----------
+ * Add support for Movile/Wavy channels
+ * Switch to codecov for code coverage
+ * Allow overriding brand domain via env
+ * Add mailroom_db management command for mailroom tests
+ * Start flow_server_enabled ivr flows in mailroom
+ * Remove legacty channel sending code
+ * Remove flow dependencies when deactivating USSD flows
+ * Migrations to deactivate USSD content
+
 v4.16.5
 ----------
  * Fix quick replies in simulator

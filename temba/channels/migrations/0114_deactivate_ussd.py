@@ -8,7 +8,7 @@ def deactivate_ussd_channels(apps, schema_editor):
 
     num_deactivated = 0
     for channel in Channel.objects.filter(channel_type="JNU"):
-        channel.triggers.delete()
+        channel.triggers.all().delete()
 
         channel.is_active = False
         channel.save(update_fields=("is_active",))

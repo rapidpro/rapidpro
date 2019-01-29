@@ -18,9 +18,11 @@ def get_language_name(iso_code):
 
 
 def _get_language_name_iso6393(iso_code):
-    try:
-        lang_name = pycountry.languages.get(alpha_3=iso_code).name
-    except KeyError:
+    language = pycountry.languages.get(alpha_3=iso_code)
+
+    if language:
+        lang_name = language.name
+    else:
         lang_name = None
     return lang_name
 

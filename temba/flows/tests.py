@@ -9491,6 +9491,56 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
 
+    def test_migrate_to_11_10(self):
+        self.get_flow("migrate_to_11_10")
+
+        parent = Flow.objects.get(name__contains="Parent")
+        parent_json = parent.as_json()
+        ivr_child = Flow.objects.get(name__contains="IVR")
+
+        # the subflow ruleset to a messaging flow remains as the only ruleset
+        self.assertEqual(len(parent_json["rule_sets"]), 1)
+        self.assertEqual(parent_json["rule_sets"][0]["config"]["flow"]["name"], "Migrate to 11.10 SMS Child")
+
+        # whereas the subflow ruleset to an IVR flow has become a new trigger flow action
+        self.assertEqual(len(parent_json["action_sets"]), 4)
+
+        new_actionset = parent_json["action_sets"][3]
+        self.assertEqual(
+            new_actionset,
+            {
+                "uuid": matchers.UUID4String(),
+                "x": 218,
+                "y": 228,
+                "destination": parent_json["action_sets"][1]["uuid"],
+                "actions": [
+                    {
+                        "uuid": matchers.UUID4String(),
+                        "type": "trigger-flow",
+                        "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
+                        "variables": [{"id": "@contact.uuid"}],
+                        "contacts": [],
+                        "groups": [],
+                    }
+                ],
+                "exit_uuid": matchers.UUID4String(),
+            },
+        )
+
+        # as did the start flow action
+        new_trigger2 = parent_json["action_sets"][1]["actions"][0]
+        self.assertEqual(
+            new_trigger2,
+            {
+                "uuid": matchers.UUID4String(),
+                "type": "trigger-flow",
+                "flow": {"uuid": str(ivr_child.uuid), "name": "Migrate to 11.10 IVR Child"},
+                "variables": [{"id": "@contact.uuid"}],
+                "contacts": [],
+                "groups": [],
+            },
+        )
+
     def test_migrate_to_11_9(self):
         self.get_flow("migrate_to_11_9")
 
