@@ -8,7 +8,6 @@ from xml.sax.saxutils import escape
 
 import phonenumbers
 from django_countries.fields import CountryField
-from django_redis import get_redis_connection
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
@@ -19,7 +18,6 @@ from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Max, Q, Sum
@@ -31,7 +29,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
-from temba.utils import analytics, dict_to_struct, get_anonymous_user, json, on_transaction_commit
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -39,14 +37,6 @@ from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = "http://175.103.48.29:28078/testing/smsmt.php"
-
-# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
-DART_MEDIA_ENDPOINT = "http://202.43.169.11/APIhttpU/receive2waysms.php"
-
 # the event type for channel events in the handler queue
 CHANNEL_EVENT = "channel_event"
 
@@ -195,12 +185,6 @@ class ChannelType(metaclass=ABCMeta):
         Called when a trigger that is bound to a channel of this type is being released. Note: this will only be called
         if IS_PROD setting is True.
         """
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        """
-        Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
-        """
-        raise NotImplementedError("Sending for channel type '%s' should be done via Courier" % self.__class__.code)
 
     def has_attachment_support(self, channel):
         """
@@ -913,51 +897,6 @@ class Channel(TembaModel):
 
         return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
 
-    @classmethod
-    def get_cached_channel(cls, channel_id):
-        """
-        Fetches this channel's configuration from our cache, also populating it with the channel uuid
-        """
-        key = "channel_config:%d" % channel_id
-        cached = cache.get(key, None)
-
-        if cached is None:
-            channel = Channel.objects.filter(pk=channel_id, is_active=True).first()
-
-            # channel has been disconnected, ignore
-            if not channel:  # pragma: no cover
-                return None
-            else:
-                cached = channel.as_cached_json()
-                cache.set(key, json.dumps(cached), 900)
-        else:
-            cached = json.loads(cached)
-
-        return dict_to_struct("ChannelStruct", cached)
-
-    @classmethod
-    def clear_cached_channel(cls, channel_id):
-        key = "channel_config:%d" % channel_id
-        cache.delete(key)
-
-    def as_cached_json(self):
-        # also save our org config, as it has twilio and nexmo keys
-        org_config = self.org.config
-
-        return dict(
-            id=self.id,
-            org=self.org_id,
-            country=str(self.country),
-            address=self.address,
-            uuid=self.uuid,
-            secret=self.secret,
-            channel_type=self.channel_type,
-            name=self.name,
-            callback_domain=self.callback_domain,
-            config=self.config,
-            org_config=org_config,
-        )
-
     def build_registration_command(self):
         # create a claim code if we don't have one
         if not self.claim_code:
@@ -1132,9 +1071,6 @@ class Channel(TembaModel):
         if trigger_sync and self.channel_type == Channel.TYPE_ANDROID and registration_id:
             self.trigger_sync(registration_id)
 
-        # clear our cache for this channel
-        Channel.clear_cached_channel(self.id)
-
         from temba.triggers.models import Trigger
 
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1209,57 +1145,6 @@ class Channel(TembaModel):
         return text
 
     @classmethod
-    def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
-        request_time = time.time() - start
-
-        from temba.msgs.models import Msg
-
-        Msg.mark_sent(channel.config["r"], msg, msg_status, external_id)
-
-        # record stats for analytics
-        if msg.queued_on:
-            analytics.gauge("temba.sending_latency", (msg.sent_on - msg.queued_on).total_seconds())
-
-        # logs that a message was sent for this channel type if our latency is known
-        if request_time > 0:
-            analytics.gauge("temba.msg_sent_%s" % channel.channel_type.lower(), request_time)
-
-        # log our request time in ms
-        request_time_ms = request_time * 1000
-
-        if events is None and event:
-            events = [event]
-
-        for event in events:
-            # write to our log file
-            print(
-                '[%d] %0.3fs SENT - %s %s "%s" %s "%s"'
-                % (
-                    msg.id,
-                    request_time,
-                    event.method,
-                    event.url,
-                    event.request_body,
-                    event.status_code,
-                    event.response_body,
-                )
-            )
-
-            # lastly store a ChannelLog object for the user
-            ChannelLog.objects.create(
-                channel_id=msg.channel,
-                msg_id=msg.id,
-                is_error=False,
-                description="Successfully delivered",
-                method=event.method,
-                url=event.url,
-                request=event.request_body,
-                response=event.response_body,
-                response_status=event.status_code,
-                request_time=request_time_ms,
-            )
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -1286,124 +1171,6 @@ class Channel(TembaModel):
 
         # order by date created
         return pending.order_by("created_on")
-
-    @classmethod
-    def send_message(cls, msg):  # pragma: no cover
-        from temba.msgs.models import Msg, Attachment, QUEUED, WIRED, MSG_SENT_KEY
-
-        r = get_redis_connection()
-
-        # check whether this message was already sent somehow
-        pipe = r.pipeline()
-        pipe.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-        pipe.sismember((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
-        (sent_today, sent_yesterday) = pipe.execute()
-
-        # get our cached channel
-        channel = Channel.get_cached_channel(msg.channel)
-
-        if sent_today or sent_yesterday:
-            Msg.mark_sent(r, msg, WIRED, -1)
-            print("!! [%d] prevented duplicate send" % msg.id)
-            return
-
-        # channel can be none in the case where the channel has been removed
-        if not channel:
-            Msg.mark_error(r, None, msg, fatal=True)
-            ChannelLog.log_error(msg, _("Message no longer has a way of being sent, marking as failed."))
-            return
-
-        # populate redis in our config
-        channel.config["r"] = r
-
-        channel_type = Channel.get_type_from_code(channel.channel_type)
-
-        # Check whether we need to throttle ourselves
-        # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
-        # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
-        # a rare event, this is an ok stopgap.
-        if channel_type.max_tps:
-            tps_set_name = "channel_tps_%d" % channel.id
-            lock_name = "%s_lock" % tps_set_name
-
-            while True:
-                # only one thread should be messing with the map at once
-                with r.lock(lock_name, timeout=5):
-                    # check how many were sent in the last second
-                    now = time.time()
-                    last_second = time.time() - 1
-
-                    # how many have been sent in the past second?
-                    count = r.zcount(tps_set_name, last_second, now)
-
-                    # we're within our tps, add ourselves to the list and go on our way
-                    if count < channel_type.max_tps:
-                        r.zadd(tps_set_name, now, now)
-                        r.zremrangebyscore(tps_set_name, "-inf", last_second)
-                        r.expire(tps_set_name, 5)
-                        break
-
-                # too many sent in the last second, sleep a bit and try again
-                time.sleep(1 / float(channel_type.max_tps))
-
-        sent_count = 0
-
-        # append media url if our channel doesn't support it
-        text = msg.text
-
-        if msg.attachments and not Channel.get_type_from_code(channel.channel_type).has_attachment_support(channel):
-            # for now we only support sending one attachment per message but this could change in future
-            attachment = Attachment.parse_all(msg.attachments)[0]
-            text = "%s\n%s" % (text, attachment.url)
-
-            # don't send as media
-            msg.attachments = None
-
-        parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, channel_type.max_length))
-
-        for part in parts:
-            sent_count += 1
-            try:
-                # never send in debug unless overridden
-                if not settings.SEND_MESSAGES:
-                    Msg.mark_sent(r, msg, WIRED, -1)
-                    print("FAKED SEND for [%d] - %s" % (msg.id, part))
-                else:
-                    channel_type.send(channel, msg, part)
-
-            except SendException as e:
-                ChannelLog.log_exception(channel, msg, e)
-
-                import traceback
-
-                traceback.print_exc()
-
-                Msg.mark_error(r, channel, msg, fatal=e.fatal)
-                sent_count -= 1
-
-            except Exception as e:
-                ChannelLog.log_error(msg, str(e))
-
-                import traceback
-
-                traceback.print_exc()
-
-                Msg.mark_error(r, channel, msg)
-                sent_count -= 1
-
-            finally:
-                # if we are still in a queued state, mark ourselves as an error
-                if msg.status == QUEUED:
-                    print("!! [%d] marking queued message as error" % msg.id)
-                    Msg.mark_error(r, channel, msg)
-                    sent_count -= 1
-
-                    # make sure media isn't sent more than once
-                    msg.attachments = None
-
-        # update the number of sms it took to send this if it was more than 1
-        if len(parts) > 1:
-            Msg.objects.filter(id=msg.id).update(msg_count=len(parts))
 
     @classmethod
     def track_status(cls, channel, status):
@@ -1687,19 +1454,6 @@ class ChannelEvent(models.Model):
         self.delete()
 
 
-class SendException(Exception):
-    def __init__(self, description, event=None, events=None, fatal=False, start=None):
-        super().__init__(description)
-
-        if events is None and event:
-            events = [event]
-
-        self.description = description
-        self.events = events
-        self.fatal = fatal
-        self.start = start
-
-
 class ChannelLog(models.Model):
     channel = models.ForeignKey(
         Channel, on_delete=models.PROTECT, related_name="logs", help_text=_("The channel the message was sent on")
@@ -1738,62 +1492,10 @@ class ChannelLog(models.Model):
         self.delete()
 
     @classmethod
-    def log_exception(cls, channel, msg, e):
-        # calculate our request time if possible
-        request_time = 0 if not e.start else time.time() - e.start
-
-        for event in e.events:
-            print(
-                '[%d] %0.3fs ERROR - %s %s "%s" %s "%s"'
-                % (
-                    msg.id,
-                    request_time,
-                    event.method,
-                    event.url,
-                    event.request_body,
-                    event.status_code,
-                    event.response_body,
-                )
-            )
-
-            # log our request time in ms
-            request_time_ms = request_time * 1000
-
-            ChannelLog.objects.create(
-                channel_id=msg.channel,
-                msg_id=msg.id,
-                is_error=True,
-                description=str(e.description)[:255],
-                method=event.method,
-                url=event.url,
-                request=event.request_body,
-                response=event.response_body,
-                response_status=event.status_code,
-                request_time=request_time_ms,
-            )
-
-        if request_time > 0:
-            analytics.gauge("temba.msg_sent_%s" % channel.channel_type.lower(), request_time)
-
-    @classmethod
     def log_error(cls, msg, description):
         print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
-
-    @classmethod
-    def log_message(cls, msg, description, event, is_error=False):
-        return ChannelLog.objects.create(
-            channel_id=msg.channel_id,
-            msg=msg,
-            request=event.request_body,
-            response=event.response_body,
-            url=event.url,
-            method=event.method,
-            is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
         )
 
     @classmethod
@@ -2224,6 +1926,7 @@ class ChannelConnection(models.Model):
 
     IVR = "F"
     USSD = "U"
+    VOICE = "V"
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
 
@@ -2307,9 +2010,6 @@ class ChannelConnection(models.Model):
 
     def get_logs(self):
         return self.channel_logs.all().order_by("created_on")
-
-    def get_duration(self):
-        return timedelta(seconds=self.duration)
 
     def is_done(self):
         return self.status in self.DONE

@@ -99,9 +99,9 @@ def non_ssl_brand_url(context, url_name, args=None):
         hostname = context["brand"].get("domain", settings.HOSTNAME)
 
     path = reverse(url_name, args)
-    if settings.HOSTNAME != "localhost":
+    if settings.HOSTNAME != "localhost":  # pragma: needs cover
         return "http://%s%s" % (hostname, path)
-    return path  # pragma: needs cover
+    return path
 
 
 @register.filter("delta", is_safe=False)

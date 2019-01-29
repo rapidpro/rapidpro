@@ -35,15 +35,13 @@ from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_forma
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
-from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, Queue, push_task
+from temba.utils.queues import HIGH_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
 __message_handlers = None
-
-SEND_MSG_TASK = "send_msg_task"
 
 HANDLE_EVENT_TASK = "handle_event_task"
 MSG_EVENT = "msg"
@@ -947,7 +945,6 @@ class Msg(models.Model):
         queued.
         :return:
         """
-        rapid_batches = []
         courier_batches = []
 
         # we send in chunks of 1,000 to help with contention
@@ -958,11 +955,6 @@ class Msg(models.Model):
             with transaction.atomic():
                 queued_on = timezone.now()
                 courier_msgs = []
-                task_msgs = []
-
-                task_priority = None
-                last_contact = None
-                last_channel = None
 
                 # update them to queued
                 send_messages = (
@@ -976,42 +968,28 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
+
+                    # in development mode, don't actual send any messages
+                    if not settings.SEND_MESSAGES:
+                        msg.status = WIRED
+                        msg.sent_on = timezone.now()
+                        msg.save(update_fields=("status", "sent_on"))
+                        logger.debug(f"FAKED SEND for [{msg.id}]")
+                        continue
+
                     if (
                         (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID)
                         and msg.topup
+                        and msg.uuid
                         and not msg.contact.is_test
                     ):
-                        if msg.channel.channel_type not in settings.LEGACY_CHANNELS and msg.uuid:
-                            courier_msgs.append(msg)
-                            continue
+                        courier_msgs.append(msg)
+                        continue
 
-                        # if this is a different contact than our last, and we have msgs, queue the task
-                        if task_msgs and last_contact != msg.contact_id:
-                            # if no priority was set, default to DEFAULT
-                            task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
-                            rapid_batches.append(dict(org=task_msgs[0]["org"], msgs=task_msgs, priority=task_priority))
-                            task_msgs = []
-                            task_priority = None
-
-                        # serialize the model to a dictionary
-                        msg.queued_on = queued_on
-                        task = msg.as_task_json()
-
-                        # only be low priority if no priority has been set for this task group
-                        if not msg.high_priority and task_priority is None:
-                            task_priority = LOW_PRIORITY
-
-                        task_msgs.append(task)
-                        last_contact = msg.contact_id
-
-                if task_msgs:
-                    task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
-                    rapid_batches.append(dict(org=task_msgs[0]["org"], msgs=task_msgs, priority=task_priority))
-                    task_msgs = []
-
-                # ok, now push our courier msgs
+                # ok, now batch up our courier msgs
                 last_contact = None
                 last_channel = None
+                task_msgs = []
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(
@@ -1032,13 +1010,7 @@ class Msg(models.Model):
                     )
 
         # send our batches
-        on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
         on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
-
-    @classmethod
-    def _send_rapid_msg_batches(cls, batches):
-        for batch in batches:
-            push_task(batch["org"], Queue.MSGS, SEND_MSG_TASK, batch["msgs"], priority=batch["priority"])
 
     @classmethod
     def _send_courier_msg_batches(cls, batches):
@@ -1170,29 +1142,6 @@ class Msg(models.Model):
 
             if channel:
                 analytics.gauge("temba.msg_errored_%s" % channel.channel_type.lower())
-
-    @classmethod
-    def mark_sent(cls, r, msg, status, external_id=None):
-        """
-        Marks an outgoing message as WIRED or SENT
-        :param msg: a JSON representation of the message
-        """
-        msg.status = status
-        msg.sent_on = timezone.now()
-        if external_id:
-            msg.external_id = external_id
-
-        # use redis to mark this message sent
-        pipe = r.pipeline()
-        sent_key = timezone.now().strftime(MSG_SENT_KEY)
-        pipe.sadd(sent_key, str(msg.id))
-        pipe.expire(sent_key, 86400)
-        pipe.execute()
-
-        if external_id:
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
-        else:  # pragma: no cover
-            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_archive_json(self):
         return {
