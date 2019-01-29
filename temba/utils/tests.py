@@ -924,8 +924,8 @@ class QueueTest(TembaTest):
         self.assertIsNone(r.zscore("test:active", self.org.id))
         self.assertIsNone(r.zscore("test:active", self.org2.id))
 
-    @patch("redis.client.Redis.lock")
-    @patch("redis.client.Redis.get")
+    @patch("redis.client.StrictRedis.lock")
+    @patch("redis.client.StrictRedis.get")
     def test_nonoverlapping_task(self, mock_redis_get, mock_redis_lock):
         mock_redis_get.return_value = None
         task_calls = []

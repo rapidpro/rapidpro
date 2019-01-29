@@ -143,7 +143,7 @@ class TembaTestMixin(object):
         if settings.REDIS_HOST != "localhost":
             raise ValueError(f"Expected redis test server host to be: 'localhost', got '{settings.REDIS_HOST}'")
 
-        r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
+        r = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
         r.flushdb()
 
     def clear_storage(self):
