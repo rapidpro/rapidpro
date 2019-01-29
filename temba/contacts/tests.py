@@ -3272,6 +3272,7 @@ class ContactTest(TembaTest):
                     "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
                 },
             ]
+
             with ESMockWithScrollMultiple(data=[mock_es_data, []]):
                 self.assertEqual(
                     omnibox_request(""),
@@ -3285,6 +3286,23 @@ class ContactTest(TembaTest):
                         dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
                         dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
                         dict(id="c-%s" % self.voldemort.uuid, text=self.voldemort.anon_identifier),
+                    ],
+                )
+
+            # same search but with v2 format
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+                self.assertEqual(
+                    omnibox_request("", version="2"),
+                    [
+                        # all 3 groups A-Z
+                        dict(id=joe_and_frank.uuid, name="Joe and Frank", type="group", count=2),
+                        dict(id=men.uuid, name="Men", type="group", count=0),
+                        dict(id=nobody.uuid, name="Nobody", type="group", count=0),
+                        # all 4 contacts A-Z
+                        dict(id=self.billy.uuid, name="Billy Nophone", type="contact"),
+                        dict(id=self.frank.uuid, name="Frank Smith", type="contact"),
+                        dict(id=self.joe.uuid, name="Joe Blow", type="contact"),
+                        dict(id=self.voldemort.uuid, name=self.voldemort.anon_identifier, type="contact"),
                     ],
                 )
 
