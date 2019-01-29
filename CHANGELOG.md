@@ -1,3 +1,10 @@
+v4.16.9
+----------
+ * Add surveyor content in mailroom_db command
+ * Fix flows with missing flow_type
+ * Update more Python dependencies including Redis
+ * Prevent flows of one modality from starting subflows of a different modality
+
 v4.16.8
 ----------
  * Add support for Movile/Wavy channels
