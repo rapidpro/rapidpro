@@ -610,9 +610,6 @@ class WebHookEvent(SmartModel):
         return result
 
     def release(self):
-        for result in self.results.all():
-            result.release()
-
         self.delete()
 
     def __str__(self):  # pragma: needs cover
@@ -624,28 +621,27 @@ class WebHookResult(SmartModel):
     Represents the result of trying to deliver an event to a web hook
     """
 
-    event = models.ForeignKey(
-        WebHookEvent,
-        on_delete=models.PROTECT,
-        related_name="results",
-        help_text="The event that this result is tied to",
-    )
-    url = models.TextField(null=True, blank=True, help_text="The URL the event was delivered to")
-    data = models.TextField(null=True, blank=True, help_text="The data that was posted to the webhook")
-    request = models.TextField(null=True, blank=True, help_text="The request that was posted to the webhook")
-    status_code = models.IntegerField(help_text="The HTTP status as returned by the web hook")
-    message = models.CharField(max_length=255, help_text="A message describing the result, error messages go here")
-    body = models.TextField(
-        null=True, blank=True, help_text="The body of the HTTP response as returned by the web hook"
-    )
-    request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
+    # the url this result is for
+    url = models.TextField(null=True, blank=True)
+
+    # the body of the request
+    request = models.TextField(null=True, blank=True)
+
+    # the status code returned (set to 503 for connection errors)
+    status_code = models.IntegerField()
+
+    # the body of the response
+    response = models.TextField(null=True, blank=True)
+
+    # how long the request took to return
+    request_time = models.IntegerField(null=True)
+
+    # the contact associated with this result (if any)
     contact = models.ForeignKey(
-        "contacts.Contact",
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="webhook_results",
-        help_text="The contact that generated this result",
+        "contacts.Contact", on_delete=models.PROTECT, null=True, related_name="webhook_results"
     )
+
+    # the org this result belongs to
     org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
 
     @classmethod

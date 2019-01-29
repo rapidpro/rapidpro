@@ -1,7 +1,7 @@
 from urllib.parse import parse_qs
 
 import requests
-from smartmin.views import SmartListView, SmartReadView, SmartTemplateView, SmartView
+from smartmin.views import SmartListView, SmartTemplateView, SmartView
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
@@ -35,46 +35,6 @@ class WebHookEventMixin(OrgPermsMixin):  # pragma: needs cover
     def derive_queryset(self, **kwargs):
         org = self.derive_org()
         return WebHookEvent.objects.filter(org=org)
-
-
-class WebHookEventListView(WebHookEventMixin, SmartListView):
-    model = WebHookEvent
-    fields = ("event", "status", "channel", "tries", "created_on")
-    title = _("Recent WebHook Events")
-    template_name = "api/webhookevent_list.html"
-    default_order = ("-created_on",)
-    permission = "api.webhookevent_list"
-
-    def get_context_data(self, *args, **kwargs):  # pragma: needs cover
-        context = super().get_context_data(*args, **kwargs)
-        context["org"] = self.request.user.get_org()
-        return context
-
-
-class WebHookEventReadView(WebHookEventMixin, SmartReadView):
-    model = WebHookEvent
-    fields = ("event", "status", "channel", "tries", "next_attempt")
-    template_name = "api/webhookevent_read.html"
-    permission = "api.webhookevent_read"
-    field_config = {"next_attempt": dict(label=_("Next Delivery")), "tries": dict(label=_("Attempts"))}
-
-    def get_next_attempt(self, obj):  # pragma: no cover
-        if obj.next_attempt:
-            return _("Around %s") % obj.next_attempt
-        else:
-            if obj.try_count == 3:
-                return _("Never, three attempts errored, failed permanently")
-            else:
-                if obj.status == "C":
-                    return _("Never, event delivered successfully")
-                else:
-                    return _("Never, event delivery failed permanently")
-
-    def get_context_data(self, *args, **kwargs):  # pragma: needs cover
-        context = super().get_context_data(*args, **kwargs)
-
-        context["results"] = self.object.results.all()
-        return context
 
 
 class WebHookTunnelView(View):
