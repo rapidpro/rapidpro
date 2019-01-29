@@ -2,24 +2,74 @@
 
 -load compress temba i18n
 
--block page-container
-  #flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/{{fingerprint}}", engine:"/flow/simulate/{{object.id}}/"}
+-block extra-style
+  %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
+  %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor-styles.css"}
+
+  :css
+    body {
+      line-height: inherit;
+    }
+
+    p {
+      display: block;
+      margin-block-start: 1em;
+      margin-block-end: 1em;
+      margin-inline-start: 0px;
+      margin-inline-end: 0px;
+    }
+
+    #footer, .page-wrap:after {
+      height: inherit;
+    }
+
+    input {
+      font-family: 'Roboto', sans-serif;
+      font-size: 14px !important;
+      font-weight: 300 !important;
+    }
+
+    input:focus {
+      box-shadow: none;
+      outline: none;
+      border: none;
+
+    }
+
+    #header {
+      margin: 0;
+    }
 
 -block extra-script
   {{ block.super }}
 
   -compress js
-    %script{type:'text/javascript', src:"{{ STATIC_URL }}js/flow-editor/dist/flow-editor.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}wrapper.js"}
 
--block extra-style
-  -compress css
-    %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor.min.css"}
-  
-  :css
-    #flow-editor {
-      height: 10000px;
-      width: 100%;
-      position: relative;
-      margin-top: -29px;
-    }
+    :javascript
+      var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
+      var config = {
+        flow: '{{object.uuid}}',
+        localStorage: true,
+        endpoints: {
+          attachments: '/flow/upload_media_action/{{object.org.id}}/',
+          resthooks: base + 'resthook',
+          flows: base + 'flow',
+          groups: base + 'group',
+          recipients: '/contact/omnibox?v=2&types=gcu',
+          fields: base + 'field',
+          labels: base + 'label',
+          languages: base + 'language',
+          channels: base + 'channel',
+          environment: base + 'environment',
+          activity: '',
+          simulateStart: '/flow/simulate/{{object.org.id}}/',
+          simulateResume: '/flow/simulate/{{object.org.id}}/'
+        }
+      };
+
+      showFlowEditor(document.getElementById('rp-flow-editor'), config);
+
+-block page-container
+  #rp-flow-editor{uuid:"{{object.uuid}}", base:"/flow/assets/{{object.org.id}}/{{fingerprint}}", engine:"/flow/simulate/{{object.id}}/"}
 
