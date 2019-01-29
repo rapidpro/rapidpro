@@ -22,10 +22,7 @@ class Migration(migrations.Migration):
             model_name="webhookresult",
             name="org",
             field=models.ForeignKey(
-                help_text="The org this result is for",
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="webhook_results",
-                to="orgs.Org",
+                on_delete=django.db.models.deletion.PROTECT, related_name="webhook_results", to="orgs.Org"
             ),
         ),
     ]

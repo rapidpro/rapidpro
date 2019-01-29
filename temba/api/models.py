@@ -646,9 +646,7 @@ class WebHookResult(SmartModel):
         related_name="webhook_results",
         help_text="The contact that generated this result",
     )
-    org = models.ForeignKey(
-        "orgs.Org", on_delete=models.PROTECT, related_name="webhook_results", help_text="The org this result is for"
-    )
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
 
     @classmethod
     def record_result(cls, event, result):
