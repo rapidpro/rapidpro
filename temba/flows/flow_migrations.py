@@ -27,8 +27,11 @@ from temba.utils.languages import iso6392_to_iso6393
 
 def migrate_export_to_version_11_10(exported_json, org, same_site=True):
     """
-    Migrates base_language in flow exports from iso639-2 to iso639-3
+    Migrates an export of potentially multiple flows to 11.10
     """
+
+    # need to provide the types of all flows in this export to migrate_to_version_11_10 which
+    # otherwise can only find types of flows in the database
     flow_types = {f["metadata"]["uuid"]: f["flow_type"] for f in exported_json.get("flows", [])}
 
     migrated_flows = []
