@@ -339,7 +339,7 @@ class OrgDeleteTest(TembaTest):
                 self.assertFalse(Org.objects.filter(id=org.id).exists())
 
                 # as are our webhook events
-                self.AssertFalse(WebHookEvent.objects.filter(org=org).exists())
+                self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()
