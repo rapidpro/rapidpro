@@ -1331,7 +1331,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection("default")
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, {json.dumps(payload): datetime_to_s(queue_time)})
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
 
         # queue up our celery task
         push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)

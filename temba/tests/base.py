@@ -143,7 +143,7 @@ class TembaTestMixin(object):
         if settings.REDIS_HOST != "localhost":
             raise ValueError(f"Expected redis test server host to be: 'localhost', got '{settings.REDIS_HOST}'")
 
-        r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
+        r = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
         r.flushdb()
 
     def clear_storage(self):
@@ -789,7 +789,9 @@ class MigrationTest(TembaTest):
     def setUp(self):
         assert (
             self.migrate_from and self.migrate_to
-        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(type(self).__name__)
+        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(
+            type(self).__name__
+        )
 
         # set up our temba test
         super().setUp()

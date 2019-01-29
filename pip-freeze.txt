@@ -85,7 +85,7 @@ pytz
 rapidpro-expressions==1.7
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
-redis==3.0.1
+redis==2.10.5
 regex==2017.6.7           # via django-hamlpy, rapidpro-expressions
 requests-oauthlib==0.8.0  # via twython
 requests-toolbelt==0.8.0  # via pyfcm
