@@ -1956,7 +1956,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ("list", "read", "session")
+    actions = ("list", "read", "connection")
 
     class List(OrgPermsMixin, SmartListView):
         fields = ("channel", "description", "created_on")
@@ -1970,7 +1970,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.GET["channel"])
 
-            if self.request.GET.get("sessions"):
+            if self.request.GET.get("connections"):
                 logs = (
                     ChannelLog.objects.filter(channel=channel)
                     .exclude(connection=None)
@@ -2000,7 +2000,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["channel"] = Channel.objects.get(pk=self.request.GET["channel"])
             return context
 
-    class Session(AnonMixin, OrgPermsMixin, SmartReadView):
+    class Connection(AnonMixin, OrgPermsMixin, SmartReadView):
         model = ChannelConnection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):

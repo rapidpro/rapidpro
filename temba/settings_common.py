@@ -394,7 +394,7 @@ PERMISSIONS = {
         "search_nexmo",
         "search_numbers",
     ),
-    "channels.channellog": ("session",),
+    "channels.channellog": ("connection",),
     "channels.channelevent": ("api", "calls"),
     "flows.flowstart": ("api",),
     "flows.flow": (
@@ -591,7 +591,7 @@ GROUP_PERMISSIONS = {
         "channels.channelevent.*",
         "channels.channellog_list",
         "channels.channellog_read",
-        "channels.channellog_session",
+        "channels.channellog_connection",
         "flows.flow.*",
         "flows.flowstart_api",
         "flows.flowlabel.*",
@@ -1031,6 +1031,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.twitter_activity.TwitterActivityType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
+    "temba.channels.types.wavy.WavyType",
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
@@ -1097,13 +1098,6 @@ FLOW_SESSION_TRIM_DAYS = 7
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# These legacy channels still send on RapidPro:
-#   * TT is our old Twitter integration, will be removed ~June 2018
-#   * JNU is junebug USSD, which may be removed depending on future of USSD
-# -----------------------------------------------------------------------------------
-LEGACY_CHANNELS = set(["TT", "JNU"])
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
