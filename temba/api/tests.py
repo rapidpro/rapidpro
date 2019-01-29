@@ -267,8 +267,6 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertIn("Event delivered successfully", result.message)
-            self.assertIn("not JSON", result.message)
             self.assertEqual(200, result.status_code)
             self.assertEqual(result.request_time, 5000)
 
@@ -290,6 +288,7 @@ class WebHookTest(TembaTest):
             five_hours_ago = timezone.now() - timedelta(hours=5)
             event.created_on = five_hours_ago
             event.save()
+            WebHookResult.objects.all().update(created_on=five_hours_ago)
 
             with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
                 trim_webhook_event_task()
@@ -313,6 +312,7 @@ class WebHookTest(TembaTest):
             event.created_on = five_hours_ago
             event.status = FAILED
             event.save()
+            WebHookResult.objects.all().update(status_code=401, created_on=five_hours_ago)
 
             with override_settings(ALL_LOGS_TRIM_TIME=0):
                 trim_webhook_event_task()

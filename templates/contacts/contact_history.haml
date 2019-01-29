@@ -122,7 +122,7 @@
 
           -if item.type == 'webhook-result'
             -with item.obj.event as event
-              %a{href:"{%url 'api.log_read' event.id %}"}
+              %a{href:"{%url 'api.webhookresult_read' event.id %}"}
                 .icon-docs-2
 
 -if has_older and not recent_only

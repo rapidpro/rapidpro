@@ -1,7 +1,7 @@
 from urllib.parse import parse_qs
 
 import requests
-from smartmin.views import SmartListView, SmartTemplateView, SmartView
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartTemplateView, SmartView
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
@@ -10,7 +10,7 @@ from django.views.generic import View
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
 
-from .models import APIToken, Resthook, WebHookEvent
+from .models import APIToken, Resthook, WebHookEvent, WebHookResult
 
 
 class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
@@ -87,6 +87,18 @@ class WebHookTunnelView(View):
 
 class WebHookView(SmartTemplateView):
     template_name = "api/webhook.html"
+
+
+class WebHookResultCRUDL(SmartCRUDL):
+    model = WebHookResult
+    actions = ("list", "read")
+
+    class Read(OrgPermsMixin, SmartReadView):
+        fields = ("url", "status_code", "request_time", "created_on")
+
+    class List(OrgPermsMixin, SmartListView):
+        fields = ("url", "status_code", "request_time", "created_on")
+        default_order = "-created_on"
 
 
 class WebHookSimulatorView(SmartTemplateView):

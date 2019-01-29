@@ -370,13 +370,11 @@ class WebHookEvent(SmartModel):
                 contact = webhook_event.run.contact
 
             result = WebHookResult.objects.create(
-                event=webhook_event,
                 contact=contact,
                 url=webhook_url,
                 status_code=status_code,
-                body=body,
-                message=message,
-                data=post_data,
+                response=body,
+                request=post_data,
                 request_time=request_time,
                 created_by=api_user,
                 modified_by=api_user,
@@ -616,7 +614,7 @@ class WebHookEvent(SmartModel):
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
 
-class WebHookResult(SmartModel):
+class WebHookResult(models.Model):
     """
     Represents the result of trying to deliver an event to a web hook
     """
@@ -633,7 +631,7 @@ class WebHookResult(SmartModel):
     # the body of the response
     response = models.TextField(null=True, blank=True)
 
-    # how long the request took to return
+    # how long the request took to return in milliseconds
     request_time = models.IntegerField(null=True)
 
     # the contact associated with this result (if any)
@@ -643,6 +641,9 @@ class WebHookResult(SmartModel):
 
     # the org this result belongs to
     org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
+
+    # when this result was created
+    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
 
     @classmethod
     def record_result(cls, event, result):
@@ -664,13 +665,10 @@ class WebHookResult(SmartModel):
         request_time = result.get("request_time", None)
 
         cls.objects.create(
-            event=event,
             url=result["url"],
-            request=result.get("request"),  # flow webhooks won't have 'request'
-            data=result["data"],
-            message=message,
+            request=result.get("request"),
             status_code=result.get("status_code", 503),
-            body=result.get("body", None),
+            response=result.get("body"),
             request_time=request_time,
             created_by=api_user,
             modified_by=api_user,
