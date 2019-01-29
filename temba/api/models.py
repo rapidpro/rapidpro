@@ -380,6 +380,7 @@ class WebHookEvent(SmartModel):
                 request_time=request_time,
                 created_by=api_user,
                 modified_by=api_user,
+                org=run.org,
             )
 
             # if this is a test contact, add an entry to our action log
@@ -645,7 +646,9 @@ class WebHookResult(SmartModel):
         related_name="webhook_results",
         help_text="The contact that generated this result",
     )
-    org = models.ForeignKey("orgs.Org", null=True, on_delete=models.PROTECT, help_text="The org this result is for")
+    org = models.ForeignKey(
+        "orgs.Org", on_delete=models.PROTECT, related_name="webhook_results", help_text="The org this result is for"
+    )
 
     @classmethod
     def record_result(cls, event, result):

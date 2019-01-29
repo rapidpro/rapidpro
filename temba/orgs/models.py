@@ -2218,6 +2218,9 @@ class Org(SmartModel):
         for topup in self.topups.all():
             topup.release()
 
+        for result in self.webhook_results.all():
+            result.release()
+
         # now what we've all been waiting for
         self.delete()
 
