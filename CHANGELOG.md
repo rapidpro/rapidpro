@@ -1,3 +1,7 @@
+v4.16.10
+----------
+ * Revert redis upgrade
+
 v4.16.9
 ----------
  * Add surveyor content in mailroom_db command
