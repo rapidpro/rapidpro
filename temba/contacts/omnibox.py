@@ -186,7 +186,7 @@ def omnibox_mixed_search(org, search, types):
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
-def omnibox_results_to_dict(org, results, version=1):
+def omnibox_results_to_dict(org, results, version="1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """
@@ -197,12 +197,12 @@ def omnibox_results_to_dict(org, results, version=1):
 
     for obj in results:
         if isinstance(obj, ContactGroup):
-            if version == 1:
+            if version == "1":
                 result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
             else:
                 result = {"id": obj.uuid, "name": obj.name, "type": "group", "count": group_counts[obj]}
         elif isinstance(obj, Contact):
-            if version == 1:
+            if version == "1":
                 if org.is_anon:
                     result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
                 else:
@@ -219,14 +219,21 @@ def omnibox_results_to_dict(org, results, version=1):
                     }
 
         elif isinstance(obj, ContactURN):
-            result = {
-                "id": obj.identity,
-                "name": obj.contact.name or None,
-                "scheme": obj.scheme,
-                "path": obj.path,
-                "display": obj.get_display(org),
-                "type": "urn",
-            }
+            if version == "1":
+                result = {
+                    "id": "u-%d" % obj.id,
+                    "text": obj.get_display(org),
+                    "scheme": obj.scheme,
+                    "extra": obj.contact.name or None,
+                }
+            else:
+                result = {
+                    "id": obj.identity,
+                    "name": obj.get_display(org),
+                    "contact": obj.contact.name or None,
+                    "scheme": obj.scheme,
+                    "type": "urn",
+                }
 
         formatted.append(result)
 
