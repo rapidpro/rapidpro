@@ -1,3 +1,7 @@
+v4.16.13
+----------
+ * better request logging for webhook results
+
 v4.16.12
 ----------
  * further simplication of webhook result model, add new read and list pages
