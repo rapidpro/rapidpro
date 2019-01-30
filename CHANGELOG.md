@@ -1,3 +1,7 @@
+v4.16.12
+----------
+ * further simplication of webhook result model, add new read and list pages
+
 v4.16.11
 ----------
  * add org field to webhook results
