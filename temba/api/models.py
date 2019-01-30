@@ -363,6 +363,9 @@ class WebHookEvent(SmartModel):
             if message:
                 message = message[:255]
 
+            if body is None:
+                body = message
+
             request_time = (time.time() - start) * 1000
 
             contact = None
