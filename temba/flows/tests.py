@@ -5615,12 +5615,8 @@ class FlowRunTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact)
 
         # give our run some webhook data
-        event = WebHookEvent.objects.create(
+        WebHookEvent.objects.create(
             org=self.org, run=run, channel=self.channel, created_by=self.admin, modified_by=self.admin
-        )
-
-        WebHookResult.objects.create(
-            event=event, status_code=200, url="", created_by=self.admin, modified_by=self.admin, org=self.org
         )
 
         # our run go bye bye
@@ -6731,7 +6727,7 @@ class FlowsTest(FlowFileTest):
         # make sure triggering without a url fails properly
         WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, "", msg)
         result = WebHookResult.objects.all().order_by("-id").first()
-        self.assertIn("No webhook_url specified, skipping send", result.message)
+        self.assertIn("No webhook_url specified, skipping send", result.response)
 
     def test_validate_flow_definition(self):
 

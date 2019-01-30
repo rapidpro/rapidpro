@@ -300,7 +300,7 @@ class OrgDeleteTest(TembaTest):
             self.assertEqual(5, len(self.mock_s3.objects))
 
             # add in some webhook results
-            event = WebHookEvent.objects.create(
+            WebHookEvent.objects.create(
                 org=org,
                 event=WebHookEvent.TYPE_RELAYER_ALARM,
                 data=dict(),
@@ -308,14 +308,7 @@ class OrgDeleteTest(TembaTest):
                 modified_by=self.admin,
             )
             WebHookResult.objects.create(
-                org=self.org,
-                url="http://foo.bar",
-                request="GET http://foo.bar",
-                data="zap",
-                status_code=200,
-                created_by=self.admin,
-                modified_by=self.admin,
-                event=event,
+                org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )
 
             # release our primary org

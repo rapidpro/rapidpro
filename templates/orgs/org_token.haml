@@ -13,7 +13,7 @@
     %a.btn{ href: '{% url "api" %}', style:'width: 100px;'}
       -trans "API Docs"
 
-    %a.btn{ href: '{% url "api.log" %}', style:'width: 100px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
+    %a.btn{ href: '{% url "api.webhookresult_list" %}', style:'width: 100px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
       -trans "Webhook Log"
 -block summary
   -blocktrans with token=user.api_token
