@@ -557,7 +557,7 @@ class CampaignTest(TembaTest):
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg
         self.assertEqual(flow.base_language, "base")
-        self.assertEqual(msg, {"base": "This is my message", "spa": "hola", "ace": ""})
+        self.assertEqual(msg, {"base": "This is my message", "spa": "hola"})
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEqual(-1, event.offset)

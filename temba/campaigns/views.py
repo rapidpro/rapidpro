@@ -320,7 +320,8 @@ class CampaignEventForm(forms.ModelForm):
             translations = {}
             for language in self.languages:
                 iso_code = language.language["iso_code"]
-                translations[iso_code] = self.cleaned_data.get(iso_code, "")
+                if iso_code in self.cleaned_data and self.cleaned_data.get(iso_code, "").strip():
+                    translations[iso_code] = self.cleaned_data.get(iso_code, "").strip()
 
             if not obj.flow_id or not obj.flow.is_active or not obj.flow.is_system:
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
@@ -370,17 +371,17 @@ class CampaignEventForm(forms.ModelForm):
             # if it's our primary language, allow use to steal the 'base' message
             if org.primary_language and org.primary_language.iso_code == language.iso_code:
 
-                initial = message.get(language.iso_code)
+                initial = message.get(language.iso_code, "")
 
                 if not initial:
-                    initial = message.get("base")
+                    initial = message.get("base", "")
 
                 # also, let's show it first
                 insert = 0
             else:
 
                 # otherwise, its just a normal language
-                initial = message.get(language.iso_code)
+                initial = message.get(language.iso_code, "")
 
             field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
             self.fields[language.iso_code] = field
