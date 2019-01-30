@@ -3965,7 +3965,11 @@ class RuleSet(models.Model):
                 if url is None:
                     continue
 
-                as_json = {"input": f"{action} {evaled_url}", "status_code": result.status_code, "body": result.body}
+                as_json = {
+                    "input": f"{action} {evaled_url}",
+                    "status_code": result.status_code,
+                    "body": result.response,
+                }
 
                 if 200 <= result.status_code < 300 or result.status_code == 410:
                     last_success = as_json

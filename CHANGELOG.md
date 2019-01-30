@@ -1,8 +1,24 @@
-v4.16.9
+v4.16.14
+----------
+ * fix webhook bodies to be json
+
+v4.16.13
+----------
+ * better request logging for webhook results
+
+v4.16.12
+----------
+ * further simplication of webhook result model, add new read and list pages
+
+v4.16.11
+----------
+ * add org field to webhook results
+
+v4.16.10
 ----------
  * Add surveyor content in mailroom_db command
  * Fix flows with missing flow_type
- * Update more Python dependencies including Redis
+ * Update more Python dependencies
  * Prevent flows of one modality from starting subflows of a different modality
 
 v4.16.8

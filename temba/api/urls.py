@@ -6,8 +6,7 @@ from django.views.generic import RedirectView
 from .views import (
     RefreshAPITokenView,
     ResthookList,
-    WebHookEventListView,
-    WebHookEventReadView,
+    WebHookResultCRUDL,
     WebHookSimulatorView,
     WebHookTunnelView,
     WebHookView,
@@ -22,8 +21,6 @@ urlpatterns = [
         r"^webhooks/",
         include(
             [
-                url(r"^log/$", WebHookEventListView.as_view(), name="api.log"),
-                url(r"^log/(?P<pk>\d+)/$", WebHookEventReadView.as_view(), name="api.log_read"),
                 url(r"^webhook/$", WebHookView.as_view(), name="api.webhook"),
                 url(r"^webhook/simulator/$", WebHookSimulatorView.as_view(), name="api.webhook_simulator"),
                 url(
@@ -36,3 +33,5 @@ urlpatterns = [
     ),
     url(r"^api/resthooks/", include([url(r"^$", ResthookList.as_view(), name="api.resthook_list")])),
 ]
+
+urlpatterns += WebHookResultCRUDL().as_urlpatterns()

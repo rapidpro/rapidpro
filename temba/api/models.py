@@ -291,6 +291,7 @@ class WebHookEvent(SmartModel):
         status_code = -1
         message = "None"
         body = None
+        request = ""
 
         start = time.time()
 
@@ -304,19 +305,24 @@ class WebHookEvent(SmartModel):
             if settings.SEND_WEBHOOKS:
                 requests_headers = http_headers(extra=headers)
 
+                s = requests.Session()
+
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == "GET":
-                    response = requests.get(webhook_url, headers=requests_headers, timeout=10)
+                    prepped = requests.Request("GET", webhook_url, headers=requests_headers).prepare()
                 else:
                     requests_headers["Content-type"] = "application/json"
-                    response = requests.post(
-                        webhook_url, data=json.dumps(post_data), headers=requests_headers, timeout=10
-                    )
+                    prepped = requests.Request(
+                        "POST", webhook_url, data=json.dumps(post_data), headers=requests_headers
+                    ).prepare()
 
+                request = prepped_request_to_str(prepped)
+                response = s.send(prepped, timeout=10)
                 body = response.text
                 if body:
                     body = body.strip()
                 status_code = response.status_code
+
             else:
                 print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
                 body = "Skipped actual send"
@@ -363,6 +369,9 @@ class WebHookEvent(SmartModel):
             if message:
                 message = message[:255]
 
+            if body is None:
+                body = message
+
             request_time = (time.time() - start) * 1000
 
             contact = None
@@ -370,16 +379,13 @@ class WebHookEvent(SmartModel):
                 contact = webhook_event.run.contact
 
             result = WebHookResult.objects.create(
-                event=webhook_event,
                 contact=contact,
                 url=webhook_url,
                 status_code=status_code,
-                body=body,
-                message=message,
-                data=post_data,
+                response=body,
+                request=request,
                 request_time=request_time,
-                created_by=api_user,
-                modified_by=api_user,
+                org=run.org,
             )
 
             # if this is a test contact, add an entry to our action log
@@ -528,7 +534,7 @@ class WebHookEvent(SmartModel):
 
         if not self.org.get_webhook_url():  # pragma: no cover
             result["status_code"] = 0
-            result["message"] = "No webhook registered for this org, ignoring event"
+            result["response"] = "No webhook registered for this org, ignoring event"
             self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
@@ -539,7 +545,7 @@ class WebHookEvent(SmartModel):
         # no user?  we shouldn't be doing webhooks shtuff
         if not user:
             result["status_code"] = 0
-            result["message"] = "No active user for this org, ignoring event"
+            result["response"] = "No active user for this org, ignoring event"
             self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
@@ -565,7 +571,6 @@ class WebHookEvent(SmartModel):
             # any 200 code is ok by us
             self.status = self.STATUS_COMPLETE
             result["request_time"] = (time.time() - start) * 1000
-            result["message"] = "Event delivered successfully."
 
             # read our body if we have one
             if result["body"]:
@@ -575,24 +580,14 @@ class WebHookEvent(SmartModel):
 
                     if serializer.is_valid():
                         result["serializer"] = serializer
-                        result["message"] = "Response body contains message which will be sent"
-                    else:
-                        errors = serializer.errors
-                        result["message"] = (
-                            "Event delivered successfully, ignoring response body, wrong format: %s"
-                            % ",".join("%s: %s" % (_, ",".join(errors[_])) for _ in errors.keys())
-                        )
 
-                except ValueError as e:
-                    # we were unable to make anything of the body, that's ok though because
-                    # get a 200, so just save our error for posterity
-                    result["message"] = "Event delivered successfully, ignoring response body, not JSON: %s" % str(e)
+                except ValueError:
+                    pass
 
-        except Exception as e:
+        except Exception:
             # we had an error, log it
             self.status = self.STATUS_ERRORED
             result["request_time"] = time.time() - start
-            result["message"] = "Error when delivering event - %s" % str(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
         self.try_count += 1
@@ -609,42 +604,42 @@ class WebHookEvent(SmartModel):
         return result
 
     def release(self):
-        for result in self.results.all():
-            result.release()
-
         self.delete()
 
     def __str__(self):  # pragma: needs cover
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
 
-class WebHookResult(SmartModel):
+class WebHookResult(models.Model):
     """
     Represents the result of trying to deliver an event to a web hook
     """
 
-    event = models.ForeignKey(
-        WebHookEvent,
-        on_delete=models.PROTECT,
-        related_name="results",
-        help_text="The event that this result is tied to",
-    )
-    url = models.TextField(null=True, blank=True, help_text="The URL the event was delivered to")
-    data = models.TextField(null=True, blank=True, help_text="The data that was posted to the webhook")
-    request = models.TextField(null=True, blank=True, help_text="The request that was posted to the webhook")
-    status_code = models.IntegerField(help_text="The HTTP status as returned by the web hook")
-    message = models.CharField(max_length=255, help_text="A message describing the result, error messages go here")
-    body = models.TextField(
-        null=True, blank=True, help_text="The body of the HTTP response as returned by the web hook"
-    )
-    request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
+    # the url this result is for
+    url = models.TextField(null=True, blank=True)
+
+    # the body of the request
+    request = models.TextField(null=True, blank=True)
+
+    # the status code returned (set to 503 for connection errors)
+    status_code = models.IntegerField()
+
+    # the body of the response
+    response = models.TextField(null=True, blank=True)
+
+    # how long the request took to return in milliseconds
+    request_time = models.IntegerField(null=True)
+
+    # the contact associated with this result (if any)
     contact = models.ForeignKey(
-        "contacts.Contact",
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="webhook_results",
-        help_text="The contact that generated this result",
+        "contacts.Contact", on_delete=models.PROTECT, null=True, related_name="webhook_results"
     )
+
+    # the org this result belongs to
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
+
+    # when this result was created
+    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
 
     @classmethod
     def record_result(cls, event, result):
@@ -656,26 +651,13 @@ class WebHookResult(SmartModel):
         if serializer and serializer.is_valid():
             serializer.save()
 
-        # little utility to trim a value by length
-        message = result["message"]
-        if message:
-            message = message[:255]
-
-        api_user = get_api_user()
-
-        request_time = result.get("request_time", None)
-
         cls.objects.create(
-            event=event,
             url=result["url"],
-            request=result.get("request"),  # flow webhooks won't have 'request'
-            data=result["data"],
-            message=message,
+            request=result.get("request"),
             status_code=result.get("status_code", 503),
-            body=result.get("body", None),
-            request_time=request_time,
-            created_by=api_user,
-            modified_by=api_user,
+            response=result.get("body"),
+            request_time=result.get("request_time", None),
+            org=event.org,
         )
 
     @property

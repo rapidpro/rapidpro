@@ -446,7 +446,7 @@ class MsgTest(TembaTest):
 
         # even though we already handled it, push it back on our queue to test flushing
         payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
-        r.zadd(contact_queue, {json.dumps(payload): datetime_to_s(timezone.now())})
+        r.zadd(contact_queue, datetime_to_s(timezone.now()), json.dumps(payload))
 
         msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
 

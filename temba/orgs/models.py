@@ -1759,7 +1759,7 @@ class Org(SmartModel):
                 # remove existing cards
                 # TODO: this is all a bit wonky because we are using the Stripe JS widget..
                 # if we instead used on our mechanism to display / edit cards we could be a bit smarter
-                existing_cards = [c for c in customer.cards.all().data]
+                existing_cards = [c for c in customer.cards.list().data]
                 for card in existing_cards:
                     card.delete()
 
@@ -2204,6 +2204,12 @@ class Org(SmartModel):
 
         for topup in self.topups.all():
             topup.release()
+
+        for result in self.webhook_results.all():
+            result.release()
+
+        for event in self.webhookevent_set.all():
+            event.release()
 
         # now what we've all been waiting for
         self.delete()

@@ -31,5 +31,5 @@ def queue_mailroom_task(org_id, queue, task_type, task, priority):
     activeQueue = ACTIVE_PATTERN % queue
 
     # push onto each
-    r.zadd(orgQueue, {payload: score})
-    r.zincrby(activeQueue, 0, org_id)
+    r.zadd(orgQueue, score, payload)
+    r.zincrby(activeQueue, org_id, 0)

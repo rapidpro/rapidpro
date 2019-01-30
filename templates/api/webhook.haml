@@ -64,7 +64,7 @@
 
     Your web service should return a 200 or 201 status code to mark acceptance of the event.  If a 400 or 500 status
     code is returned then {{ brand.name }} will retry delivering the event up to three times.  You can view a log of recent events
-    through your <a href='{% url "api.log" %}'>API Log</a> when logged in.
+    through your <a href='{% url "api.webhookresult_list" %}'>API Log</a> when logged in.
 
     Optionally, your web service can choose to respond to any event by returning a JSON response
     body using the following format:

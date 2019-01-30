@@ -824,7 +824,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         event_fires = event_fires.order_by("-fired").select_related("event__campaign")[:MAX_HISTORY]
 
         webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
-        webhook_results = webhook_results.order_by("-created_on").select_related("event")[:MAX_HISTORY]
+        webhook_results = webhook_results.order_by("-created_on")[:MAX_HISTORY]
 
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(

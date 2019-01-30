@@ -24,12 +24,6 @@ def get_cacheable(cache_key, callable, r=None, force_dirty=False):
             return json.loads(force_text(cached))
 
     (calculated, cache_ttl) = callable()
-
-    # redis expects EX to be a positive integer number, so cannot set cache_ttl to 0, it has to be None
-    # https://github.com/andymccurdy/redis-py/pull/848/files
-    if cache_ttl == 0:
-        cache_ttl = None
-
     r.set(cache_key, json.dumps(calculated), cache_ttl)
 
     return calculated

@@ -44,10 +44,10 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
         org_id = org if isinstance(org, int) else org.id
-        pipe.zadd("%s:%d" % (task_name, org_id), {json.dumps(args): score})
+        pipe.zadd("%s:%d" % (task_name, org_id), score, json.dumps(args))
 
         # and make sure this key is in our list of queues so this job will get worked on
-        pipe.zincrby("%s:active" % task_name, 0, org_id)
+        pipe.zincrby("%s:active" % task_name, org_id, 0)
         pipe.execute()
 
     # if we were given a queue to schedule on, then add this task to celery.
