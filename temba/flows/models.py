@@ -1623,6 +1623,10 @@ class Flow(TembaModel):
             )
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
 
+        # make sure all_contact_ids is iterable
+        if not isinstance(all_contact_ids, list):
+            all_contact_ids = [contact_id for contact_id in all_contact_ids]
+
         # if we have a parent run, find any parents/grandparents that are active, we'll keep these active
         ancestor_ids = []
         ancestor = parent_run
