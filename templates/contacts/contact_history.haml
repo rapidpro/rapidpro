@@ -121,9 +121,8 @@
                   .icon-docs-2
 
           -if item.type == 'webhook-result'
-            -with item.obj.event as event
-              %a{href:"{%url 'api.webhookresult_read' event.id %}"}
-                .icon-docs-2
+            %a{href:"{%url 'api.webhookresult_read' item.obj.id %}"}
+              .icon-docs-2
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
