@@ -5620,7 +5620,7 @@ class FlowRunTest(TembaTest):
         )
 
         WebHookResult.objects.create(
-            event=event, status_code=200, url="", created_by=self.admin, modified_by=self.admin
+            event=event, status_code=200, url="", created_by=self.admin, modified_by=self.admin, org=self.org
         )
 
         # our run go bye bye
