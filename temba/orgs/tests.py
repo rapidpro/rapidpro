@@ -308,7 +308,7 @@ class OrgDeleteTest(TembaTest):
                 modified_by=self.admin,
             )
             WebHookResult.objects.create(
-                org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, respons="zap!"
+                org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )
 
             # release our primary org
