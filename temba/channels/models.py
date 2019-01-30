@@ -55,7 +55,6 @@ class ChannelType(metaclass=ABCMeta):
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
-        USSD = 3
         API = 4
 
     class IVRProtocol(Enum):
@@ -569,11 +568,6 @@ class Channel(TembaModel):
 
         return TYPES.values()
 
-    @classmethod
-    def get_by_category(cls, org, category):
-        category_channel_types = [c_type.code for c_type in Channel.get_types() if c_type.category == category]
-        return org.channels.filter(is_active=True, channel_type__in=category_channel_types)
-
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
 
@@ -787,9 +781,6 @@ class Channel(TembaModel):
             return self.org.get_brand_domain()
         else:
             return None
-
-    def get_ussd_delegate(self):
-        return self.get_delegate(Channel.ROLE_USSD)
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
@@ -1896,7 +1887,7 @@ def get_alert_user():
 
 class ChannelConnection(models.Model):
     """
-    Base for IVR and USSD sessions which require a connection to specific channel
+    Base for IVR sessions which require a connection to specific channel
     """
 
     PENDING = "P"  # initial state for all sessions
@@ -1999,7 +1990,7 @@ class ChannelConnection(models.Model):
         all the methods the proxy model implements. """
 
         if type(self) is ChannelConnection:
-            if self.connection_type == self.USSD:
+            if self.connection_type == self.USSD:  # pragma: no cover
                 from temba.ussd.models import USSDSession
 
                 self.__class__ = USSDSession
@@ -2025,7 +2016,7 @@ class ChannelConnection(models.Model):
             from temba.ivr.models import IVRCall
 
             return IVRCall.objects.filter(id=self.id).first()
-        if self.connection_type == self.USSD:
+        if self.connection_type == self.USSD:  # pragma: no cover
             from temba.ussd.models import USSDSession
 
             return USSDSession.objects.filter(id=self.id).first()
@@ -2038,7 +2029,7 @@ class ChannelConnection(models.Model):
         """
         try:
             return self.session
-        except ObjectDoesNotExist:
+        except ObjectDoesNotExist:  # pragma: no cover
             return None
 
     def release(self):

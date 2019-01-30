@@ -1737,7 +1737,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the flow (string), filterable as `uuid`
      * **name** - the name of the flow (string)
-     * **type** - the type of the flow (one of "message", "voice", "ussd", "survey"), filterable as `type`
+     * **type** - the type of the flow (one of "message", "voice", "survey"), filterable as `type`
      * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)

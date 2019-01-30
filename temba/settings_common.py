@@ -290,7 +290,7 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
-        "flow_types": ["M", "V", "S", "U"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, Flow.TYPE_USSD
+        "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -454,7 +454,6 @@ PERMISSIONS = {
         "referral",
         "register",
         "schedule",
-        "ussd",
     ),
 }
 
@@ -536,7 +535,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -655,7 +653,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -1010,7 +1007,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
-    "temba.channels.types.junebug_ussd.JunebugUSSDType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
     "temba.channels.types.m3tech.M3TechType",
