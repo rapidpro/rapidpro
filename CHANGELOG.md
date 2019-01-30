@@ -1,3 +1,7 @@
+v4.16.15
+----------
+ * Fix Stripe integration
+
 v4.16.14
 ----------
  * fix webhook bodies to be json
