@@ -291,6 +291,7 @@ class WebHookEvent(SmartModel):
         status_code = -1
         message = "None"
         body = None
+        request = ""
 
         start = time.time()
 
@@ -304,19 +305,22 @@ class WebHookEvent(SmartModel):
             if settings.SEND_WEBHOOKS:
                 requests_headers = http_headers(extra=headers)
 
+                s = requests.Session()
+
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == "GET":
-                    response = requests.get(webhook_url, headers=requests_headers, timeout=10)
+                    prepped = requests.Request("GET", webhook_url, headers=requests_headers).prepare()
                 else:
                     requests_headers["Content-type"] = "application/json"
-                    response = requests.post(
-                        webhook_url, data=json.dumps(post_data), headers=requests_headers, timeout=10
-                    )
+                    prepped = requests.Request("POST", webhook_url, data=post_data, headers=requests_headers).prepare()
 
+                request = prepped_request_to_str(prepped)
+                response = s.send(prepped, timeout=5)
                 body = response.text
                 if body:
                     body = body.strip()
                 status_code = response.status_code
+
             else:
                 print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
                 body = "Skipped actual send"
@@ -377,7 +381,7 @@ class WebHookEvent(SmartModel):
                 url=webhook_url,
                 status_code=status_code,
                 response=body,
-                request=post_data,
+                request=request,
                 request_time=request_time,
                 org=run.org,
             )
