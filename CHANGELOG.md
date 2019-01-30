@@ -1,3 +1,7 @@
+v4.16.14
+----------
+ * fix webhook bodies to be json
+
 v4.16.13
 ----------
  * better request logging for webhook results
