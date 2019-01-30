@@ -312,10 +312,12 @@ class WebHookEvent(SmartModel):
                     prepped = requests.Request("GET", webhook_url, headers=requests_headers).prepare()
                 else:
                     requests_headers["Content-type"] = "application/json"
-                    prepped = requests.Request("POST", webhook_url, data=post_data, headers=requests_headers).prepare()
+                    prepped = requests.Request(
+                        "POST", webhook_url, data=json.dumps(post_data), headers=requests_headers
+                    ).prepare()
 
                 request = prepped_request_to_str(prepped)
-                response = s.send(prepped, timeout=5)
+                response = s.send(prepped, timeout=10)
                 body = response.text
                 if body:
                     body = body.strip()
