@@ -9961,7 +9961,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # run the flow to make sure the nodes are connected correctly
         flow = self.get_flow("migrate_to_11_7")
-        with patch("requests.api.request") as mock_request:
+        with patch("requests.Session.send") as mock_request:
             mock_request.return_value = MockResponse(200, "success")
 
             run, = flow.start([], [self.contact])
@@ -9971,12 +9971,12 @@ class FlowMigrationTest(FlowFileTest):
 
         # check webhook calls made in correct order
         self.assertEqual(len(mock_request.mock_calls), 5)
-        self.assertEqual(mock_request.mock_calls[0][1], ("get", "http://example.com/hook1"))
-        self.assertEqual(mock_request.mock_calls[0][2]["headers"], {"Header1": "Value1", "User-agent": "RapidPro"})
-        self.assertEqual(mock_request.mock_calls[1][1], ("post", "http://example.com/hook2"))
-        self.assertEqual(mock_request.mock_calls[2][1], ("get", "http://example.com/hook3"))
-        self.assertEqual(mock_request.mock_calls[3][1], ("get", "http://example.com/hook4"))
-        self.assertEqual(mock_request.mock_calls[4][1], ("get", "http://example.com/hook5"))
+        self.assertEqual(mock_request.mock_calls[0][1][0].url, "http://example.com/hook1")
+        self.assertEqual(mock_request.mock_calls[0][1][0].headers, {"Header1": "Value1", "User-agent": "RapidPro"})
+        self.assertEqual(mock_request.mock_calls[1][1][0].url, "http://example.com/hook2")
+        self.assertEqual(mock_request.mock_calls[2][1][0].url, "http://example.com/hook3")
+        self.assertEqual(mock_request.mock_calls[3][1][0].url, "http://example.com/hook4")
+        self.assertEqual(mock_request.mock_calls[4][1][0].url, "http://example.com/hook5")
 
         # all migrated actions create a unique result value
         run.refresh_from_db()
