@@ -4194,7 +4194,7 @@ class StripeCreditsTest(TembaTest):
             def __init__(self):
                 self.throw = False
 
-            def all(self):
+            def list(self):
                 return dict_to_struct("MockCardData", dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
