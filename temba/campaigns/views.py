@@ -320,8 +320,8 @@ class CampaignEventForm(forms.ModelForm):
             translations = {}
             for language in self.languages:
                 iso_code = language.language["iso_code"]
-                if iso_code in self.cleaned_data and len(self.cleaned_data.get(iso_code, "").strip()) > 0:
-                    translations[iso_code] = self.cleaned_data.get(iso_code, "")
+                if iso_code in self.cleaned_data and self.cleaned_data.get(iso_code, "").strip():
+                    translations[iso_code] = self.cleaned_data.get(iso_code, "").strip()
 
             if not obj.flow_id or not obj.flow.is_active or not obj.flow.is_system:
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
