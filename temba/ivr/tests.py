@@ -19,8 +19,7 @@ import celery.exceptions
 from celery import current_app
 
 from temba.channels.models import Channel, ChannelConnection, ChannelLog
-from temba.contacts.models import Contact
-from temba.flows.models import ActionLog, Flow, FlowRevision, FlowRun
+from temba.flows.models import Flow, FlowRevision, FlowRun
 from temba.ivr.tasks import check_calls_task, start_call_task
 from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
 from temba.orgs.models import get_current_export_version
@@ -1092,11 +1091,6 @@ class IVRTests(FlowFileTest):
         self.assertFalse(FlowRun.objects.filter(connection=call).first().is_active)
         self.assertIsNotNone(call.ended_on)
 
-        # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
-        self.assertFalse(Contact.get_simulation())
-
-        # also shouldn't have any ActionLogs for non-test users
-        self.assertEqual(0, ActionLog.objects.all().count())
         self.assertEqual(flow.get_run_stats()["completed"], 1)
 
         # should still have no active runs

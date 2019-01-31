@@ -6372,10 +6372,6 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, "red", contact=jimmy)
             self.send_message(favorites, "turbo", contact=jimmy)
 
-            kobe = Contact.get_test_contact(self.admin)
-            self.send_message(favorites, "green", contact=kobe)
-            self.send_message(favorites, "skol", contact=kobe)
-
             self.login(self.admin)
             response = self.client.get(reverse("flows.flow_results", args=[favorites.uuid]))
 
@@ -7016,75 +7012,6 @@ class FlowsTest(FlowFileTest):
         # messages to/from deleted contacts shouldn't appear in the recent runs
         recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
         self.assertEqual([r["text"] for r in recent], ["burnt sienna"])
-
-        # test contacts should not affect the counts
-        hammer = Contact.get_test_contact(self.admin)
-
-        # please hammer, don't hurt em
-        self.send_message(flow, "Rose", contact=hammer)
-        self.send_message(flow, "Violet", contact=hammer)
-        self.send_message(flow, "Blue", contact=hammer)
-        self.send_message(flow, "Turbo King", contact=hammer)
-        self.send_message(flow, "MC Hammer", contact=hammer)
-
-        # our flow stats should be unchanged
-        (active, visited) = flow.get_activity()
-        self.assertEqual(active, {})
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 1,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
-        self.assertEqual(
-            flow.get_run_stats(),
-            {"total": 1, "active": 0, "completed": 1, "expired": 0, "interrupted": 0, "completion": 100},
-        )
-
-        # and no recent message entries for this test contact
-        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
-        self.assertEqual([r["text"] for r in recent], ["burnt sienna"])
-
-        # try the same thing after squashing
-        squash_flowpathcounts()
-        visited = flow.get_activity()[1]
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 1,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
-
-        # but hammer should have created some simulation activity
-        (active, visited) = flow.get_activity(hammer)
-        self.assertEqual(active, {})
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 2,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 2,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
 
         # delete our last contact to make sure activity is gone without first expiring, zeros abound
         ryan.release(self.admin)
