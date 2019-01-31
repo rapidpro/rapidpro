@@ -200,7 +200,7 @@ class CampaignTest(TembaTest):
     def test_message_event_start_mode_skip(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        CampaignEvent.create_message_event(
+        event = CampaignEvent.create_message_event(
             self.org,
             self.admin,
             campaign,
@@ -223,7 +223,7 @@ class CampaignTest(TembaTest):
         fire.scheduled = timezone.now() - timedelta(hours=1)
         fire.save(update_fields=("scheduled",))
 
-        # contact is arleady in a another flow
+        # contact is already in a another flow
         flow = self.get_flow("favorites")
         flow.start([], [self.farmer1])
 
@@ -235,6 +235,24 @@ class CampaignTest(TembaTest):
 
         run2 = FlowRun.objects.filter(contact=self.farmer1).order_by("-created_on").first()
         self.assertEqual(run1.pk, run2.pk)  # no other run
+
+        # run1 should not have an exit type
+        run1.refresh_from_db()
+        self.assertIsNone(run1.exit_type)
+
+        # change our event type to not be a message, that should still skip
+        event.event_type = CampaignEvent.TYPE_FLOW
+        event.save(update_fields=["event_type"])
+
+        # update our fire again
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 11:00")
+        fire = EventFire.objects.order_by("id").last()
+        fire.scheduled = timezone.now() - timedelta(hours=1)
+        fire.fired = None
+        fire.save(update_fields=("scheduled", "fired"))
+
+        # have it fire again
+        check_campaigns_task()
 
         # run1 should not have an exit type
         run1.refresh_from_db()
