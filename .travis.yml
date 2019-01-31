@@ -107,6 +107,7 @@ script:
 after_success:
   - pip install codecov
   - codecov
+  - coverage report -i
   - coverage report -i --rcfile .coveragerc_todo
 
 notifications:
