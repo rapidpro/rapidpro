@@ -28,6 +28,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
@@ -1961,12 +1962,19 @@ class ChannelLogCRUDL(SmartCRUDL):
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/(?P<channel_uuid>[^/]+)/$" % path
+
+        def derive_channel(self):
+            return get_object_or_404(Channel, uuid=self.kwargs["channel_uuid"])
+
         def derive_org(self):
-            channel = Channel.objects.get(pk=self.request.GET["channel"])
+            channel = self.derive_channel()
             return channel.org
 
         def derive_queryset(self, **kwargs):
-            channel = Channel.objects.get(pk=self.request.GET["channel"])
+            channel = self.derive_channel()
 
             if self.request.GET.get("connections"):
                 logs = (
@@ -1995,7 +2003,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["channel"] = Channel.objects.get(pk=self.request.GET["channel"])
+            context["channel"] = self.derive_channel()
             return context
 
     class Connection(AnonMixin, OrgPermsMixin, SmartReadView):

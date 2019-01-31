@@ -7,4 +7,4 @@
     -trans "Call Log"
 
 -block above-bar
-  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}&sessions=1' } More Calls
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}?sessions=1' } More Calls

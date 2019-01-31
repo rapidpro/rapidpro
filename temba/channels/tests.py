@@ -2488,7 +2488,7 @@ class ChannelLogTest(TembaTest):
         failed_log.save(update_fields=["request", "response"])
 
         # can't see the view without logging in
-        list_url = reverse("channels.channellog_list") + "?channel=%d" % self.channel.id
+        list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2499,7 +2499,7 @@ class ChannelLogTest(TembaTest):
         # same if logged in as other admin
         self.login(self.admin2)
 
-        list_url = reverse("channels.channellog_list") + "?channel=%d" % self.channel.id
+        list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2509,6 +2509,9 @@ class ChannelLogTest(TembaTest):
 
         # login as real admin
         self.login(self.admin)
+
+        response = self.client.get(reverse("channels.channellog_list", args=["invalid-uuid"]))
+        self.assertEqual(404, response.status_code)
 
         # check our list page has both our channel logs
         response = self.client.get(list_url)
