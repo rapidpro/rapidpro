@@ -489,6 +489,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the contacts that received the broadcast (array of objects)
      * **groups** - the groups that received the broadcast (array of objects)
      * **text** - the message text (string or translations object)
+     * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:

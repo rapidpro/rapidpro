@@ -105,10 +105,15 @@ class ArchiveReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     text = fields.TranslatableField()
+    status = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_status(self, obj):
+        # PENDING and QUEUED are same as far as users are concerned
+        return Msg.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -118,7 +123,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
     class Meta:
         model = Broadcast
-        fields = ("id", "urns", "contacts", "groups", "text", "created_on")
+        fields = ("id", "urns", "contacts", "groups", "text", "status", "created_on")
 
 
 class BroadcastWriteSerializer(WriteSerializer):
