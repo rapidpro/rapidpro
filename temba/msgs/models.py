@@ -1,6 +1,5 @@
 import logging
 import time
-import traceback
 from array import array
 from datetime import date, datetime, timedelta
 from uuid import uuid4
@@ -102,8 +101,8 @@ def get_message_handlers():
             try:
                 cls = MessageHandler.find(handler_class)
                 handlers.append(cls())
-            except Exception:  # pragma: no cover
-                traceback.print_exc()
+            except Exception as e:  # pragma: no cover
+                logger.error(f"Unable to get message handlers: {str(e)}", exc_info=True)
 
         __message_handlers = handlers
 
@@ -1042,10 +1041,7 @@ class Msg(models.Model):
                     if handled:
                         break
                 except Exception as e:  # pragma: no cover
-                    import traceback
-
-                    traceback.print_exc()
-                    logger.exception("Error in message handling: %s" % e)
+                    logger.error(f"Error in message handling: {str(e)}", exc_info=True)
 
         cls.mark_handled(msg)
 

@@ -573,7 +573,7 @@ class FlowTest(TembaTest):
     def test_flow_editor_next(self):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
-        self.assertContains(response, "id='flow-editor'")
+        self.assertContains(response, "id='rp-flow-editor'")
 
     def test_flow_editor(self):
         self.login(self.admin)

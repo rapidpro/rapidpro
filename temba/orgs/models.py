@@ -5,7 +5,6 @@ import mimetypes
 import os
 import random
 import re
-import traceback
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -50,6 +49,9 @@ from temba.utils.text import random_string
 from temba.values.constants import Value
 
 EARLIEST_IMPORT_VERSION = "3"
+
+
+logger = logging.getLogger(__name__)
 
 
 # making this a function allows it to be used as a default for Django fields
@@ -1343,13 +1345,12 @@ class Org(SmartModel):
 
             try:
                 self.import_app(json.loads(org_example), user)
-            except Exception:  # pragma: needs cover
-                import traceback
-
-                logger = logging.getLogger(__name__)
-                msg = "Failed creating sample flows"
-                logger.error(msg, exc_info=True, extra=dict(definition=json.loads(org_example)))
-                traceback.print_exc()
+            except Exception as e:  # pragma: needs cover
+                logger.error(
+                    f"Failed creating sample flows: {str(e)}",
+                    exc_info=True,
+                    extra=dict(definition=json.loads(org_example)),
+                )
 
     def is_notified_of_mt_sms(self):
         return self.webhook_events & MT_SMS_EVENTS > 0
@@ -1687,8 +1688,8 @@ class Org(SmartModel):
             stripe.api_key = get_stripe_credentials()[1]
             customer = stripe.Customer.retrieve(self.stripe_customer)
             return customer
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            logger.error(f"Could not get Stripe customer: {str(e)}", exc_info=True)
             return None
 
     def get_bundles(self):
@@ -1868,8 +1869,8 @@ class Org(SmartModel):
 
                 try:
                     subscription = customer.cancel_subscription(at_period_end=True)
-                except Exception:
-                    traceback.print_exc()
+                except Exception as e:
+                    logger.error(f"Unable to cancel customer plan: {str(e)}", exc_info=True)
                     raise ValidationError(
                         _("Sorry, we are unable to cancel your plan at this time.  Please contact us.")
                     )
@@ -1884,9 +1885,9 @@ class Org(SmartModel):
 
                     analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception:
+                except Exception as e:
                     # can't load it, oh well, we'll try to create one dynamically below
-                    traceback.print_exc()
+                    logger.error(f"Unable to update Stripe customer subscription: {str(e)}", exc_info=True)
                     customer = None
 
             # if we don't have a customer, go create one
@@ -1902,8 +1903,8 @@ class Org(SmartModel):
 
                     analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
 
-                except Exception:
-                    traceback.print_exc()
+                except Exception as e:
+                    logger.error(f"Unable to create Stripe customer: {str(e)}", exc_info=True)
                     raise ValidationError(
                         _("Sorry, we were unable to charge your card, please try again later or contact us.")
                     )
@@ -2671,8 +2672,8 @@ class TopUp(SmartModel):
         try:
             stripe.api_key = get_stripe_credentials()[1]
             return stripe.Charge.retrieve(self.stripe_charge)
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            logger.error(f"Could not get Stripe charge: {str(e)}", exc_info=True)
             return None
 
     def get_used(self):

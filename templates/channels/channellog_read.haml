@@ -19,7 +19,7 @@
     Provider: {{ object.channel.get_channel_type_display }}
 
 -block above-bar
-  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}' } Message Log
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}' } Message Log
 
 -block content
 

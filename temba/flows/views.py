@@ -307,9 +307,11 @@ class FlowCRUDL(SmartCRUDL):
                         # "expected" error in the def, silently cull it
                         pass
 
-                    except Exception:
+                    except Exception as e:
                         # something else, we still cull, but report it to sentry
-                        logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
+                        logger.error(
+                            f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
+                        )
                         pass
 
                 return JsonResponse(revisions, safe=False)

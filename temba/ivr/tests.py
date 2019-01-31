@@ -567,13 +567,13 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelConnection.FAILED, call.status)
 
         # check that our channel logs are there
-        response = self.client.get(reverse("channels.channellog_list") + "?channel=%d&connections=1" % self.channel.id)
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
         self.assertContains(response, "15 seconds")
         self.assertContains(response, "2 results")
 
         # our channel logs with the error flag
         response = self.client.get(
-            reverse("channels.channellog_list") + "?channel=%d&connections=1&errors=1" % self.channel.id
+            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
         )
         self.assertContains(response, "warning")
         self.assertContains(response, "1 result")

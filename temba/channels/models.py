@@ -1034,7 +1034,7 @@ class Channel(TembaModel):
 
             except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
-                logger.exception(str(e))
+                logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
 
             # hangup all its calls
             from temba.ivr.models import IVRCall

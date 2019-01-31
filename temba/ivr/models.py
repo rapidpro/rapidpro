@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django_redis import get_redis_connection
@@ -10,6 +11,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelConnection, ChannelLog, ChannelType
 from temba.utils.http import HttpEvent
+
+logger = logging.getLogger(__name__)
 
 
 class IVRManager(models.Manager):
@@ -116,15 +119,11 @@ class IVRCall(ChannelConnection):
 
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
-            except IVRException:
-                import traceback
-
-                traceback.print_exc()
+            except IVRException as e:
+                logger.error(f"Could not start IVR call: {str(e)}", exc_info=True)
 
             except Exception as e:  # pragma: no cover
-                import traceback
-
-                traceback.print_exc()
+                logger.error(f"Could not start IVR call: {str(e)}", exc_info=True)
 
                 ChannelLog.log_ivr_interaction(
                     self, "Call failed unexpectedly", HttpEvent(method="INTERNAL", url=None, response_body=str(e))

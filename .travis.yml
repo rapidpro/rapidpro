@@ -56,7 +56,6 @@ install:
   - nvm install 6
   - nvm use 6
   - npm install
-  - npm run build
 
 before_script:
   # setup test database

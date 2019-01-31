@@ -1,4 +1,5 @@
 import gc
+import logging
 import os
 import time
 from datetime import datetime, timedelta
@@ -17,6 +18,8 @@ from . import analytics
 from .email import send_template_email
 from .models import TembaModel
 from .text import clean_string
+
+logger = logging.getLogger(__name__)
 
 
 class BaseExportAssetStore(BaseAssetStore):
@@ -93,9 +96,7 @@ class BaseExportTask(TembaModel):
                 os.unlink(temp_file.name)
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Unable to perform export: {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
             print(f"Failed to complete {self.analytics_key} with ID {self.id}")
 
