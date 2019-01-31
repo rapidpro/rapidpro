@@ -628,6 +628,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         help_text="The user which last modified this item",
     )
 
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        null=True,
+        help_text=_("The user which created this item"),
+    )
+
     simulation = False
 
     NAME = "name"
@@ -1169,12 +1177,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # if we don't have an org blow up, this is required
         if not org:
             raise ValueError("Attempt to create contact without org")
-
-        if not channel and not user:
-            raise ValueError("Attempt to create contact without channel and without user")
-
-        if not user:
-            user = channel.created_by
 
         # get country from channel or org
         if channel:
