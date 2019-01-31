@@ -1,7 +1,6 @@
 import logging
 import numbers
 import time
-import traceback
 from array import array
 from collections import OrderedDict, defaultdict
 from datetime import date, datetime, timedelta
@@ -2661,8 +2660,7 @@ class Flow(TembaModel):
             raise e
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
-            logger.exception(str(e))
-            traceback.print_exc()
+            logger.error(str(e), exc_info=True)
             raise e
 
         return revision
@@ -3049,10 +3047,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         try:
             self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
             self.save(update_fields=("path", "current_node_uuid"))
-        except Exception:  # pragma: no cover
-            logger.exception(
-                "unable save path for surveyor run",
+        except Exception as e:  # pragma: no cover
+            logger.error(
+                f"unable save path for surveyor run: {str(e)}",
                 extra={"flow": {"uuid": str(self.flow.uuid), "name": str(self.flow.name)}, "path": self.path},
+                exc_info=True,
             )
 
     @classmethod
@@ -5177,9 +5176,7 @@ class FlowStart(SmartModel):
             )
 
         except Exception as e:  # pragma: no cover
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Unable to start Flow: {str(e)}", exc_info=True)
 
             self.status = FlowStart.STATUS_FAILED
             self.save(update_fields=["status"])
@@ -7628,9 +7625,7 @@ class RegexTest(Test):  # pragma: needs cover
                 # return all matched values
                 return True, return_match
 
-        except Exception:
-            import traceback
-
-            traceback.print_exc()
+        except Exception as e:
+            logger.error(f"Unable to evaluate RegexTest: {str(e)}", exc_info=True)
 
         return False, None

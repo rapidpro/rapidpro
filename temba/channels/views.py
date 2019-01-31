@@ -99,8 +99,8 @@ COUNTRY_CALLING_CODES = {
     "TD": (235,),  # Chad
     "CL": (56,),  # Chile
     "CN": (86,),  # China
-    "CX": (6189164,),  # Christmas Island
-    "CC": (6189162,),  # Cocos (Keeling) Islands
+    "CX": (6_189_164,),  # Christmas Island
+    "CC": (6_189_162,),  # Cocos (Keeling) Islands
     "CO": (57,),  # Colombia
     "KM": (269,),  # Comoros
     "CD": (243,),  # Congo (the Democratic Republic of the)
@@ -144,13 +144,13 @@ COUNTRY_CALLING_CODES = {
     "GP": (590,),  # Guadeloupe
     "GU": (1671,),  # Guam
     "GT": (502,),  # Guatemala
-    "GG": (441481, 447781, 447839, 447911),  # Guernsey
+    "GG": (441_481, 447_781, 447_839, 447_911),  # Guernsey
     "GN": (224,),  # Guinea
     "GW": (245,),  # Guinea-Bissau
     "GY": (592,),  # Guyana
     "HT": (509,),  # Haiti
     "HM": (),  # Heard Island and McDonald Islands
-    "VA": (379, 3906698),  # Holy See
+    "VA": (379, 3_906_698),  # Holy See
     "HN": (504,),  # Honduras
     "HK": (852,),  # Hong Kong
     "HU": (36,),  # Hungary
@@ -160,12 +160,12 @@ COUNTRY_CALLING_CODES = {
     "IR": (98,),  # Iran (Islamic Republic of)
     "IQ": (964,),  # Iraq
     "IE": (353,),  # Ireland
-    "IM": (441624, 447524, 447624, 447924),  # Isle of Man
+    "IM": (441_624, 447_524, 447_624, 447_924),  # Isle of Man
     "IL": (972,),  # Israel
     "IT": (39,),  # Italy
     "JM": (1876,),  # Jamaica
     "JP": (81,),  # Japan
-    "JE": (441534,),  # Jersey
+    "JE": (441_534,),  # Jersey
     "JO": (962,),  # Jordan
     "KZ": (76, 77),  # Kazakhstan
     "KE": (254,),  # Kenya
@@ -195,7 +195,7 @@ COUNTRY_CALLING_CODES = {
     "MQ": (596,),  # Martinique
     "MR": (222,),  # Mauritania
     "MU": (230,),  # Mauritius
-    "YT": (262269, 262639),  # Mayotte
+    "YT": (262_269, 262_639),  # Mayotte
     "MX": (52,),  # Mexico
     "FM": (691,),  # Micronesia (Federated States of)
     "MD": (373,),  # Moldova (the Republic of)
@@ -1041,9 +1041,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
 
             return HttpResponseRedirect("%s?success" % reverse("public.public_welcome"))
         except Exception as e:  # pragma: needs cover
-            import traceback
+            logger.error(f"Unable to claim a number: {str(e)}", exc_info=True)
 
-            traceback.print_exc()
             message = str(e)
             if message:
                 form._errors["phone_number"] = form.error_class([message])

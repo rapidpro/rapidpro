@@ -1,5 +1,4 @@
 import logging
-import traceback
 from datetime import datetime, timedelta
 from functools import cmp_to_key
 from itertools import chain
@@ -312,9 +311,11 @@ class FlowCRUDL(SmartCRUDL):
                         # "expected" error in the def, silently cull it
                         pass
 
-                    except Exception:
+                    except Exception as e:
                         # something else, we still cull, but report it to sentry
-                        logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
+                        logger.error(
+                            f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
+                        )
                         pass
 
                 return JsonResponse(revisions, safe=False)
@@ -1573,7 +1574,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 except Exception as e:  # pragma: needs cover
 
-                    traceback.print_exc()
+                    logger.error(f"Could not create incoming message: {str(e)}", exc_info=True)
                     return JsonResponse(
                         dict(status="error", description="Error creating message: %s" % str(e)), status=400
                     )
