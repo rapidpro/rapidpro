@@ -1940,9 +1940,7 @@ class ChannelConnection(models.Model):
         (ENDING, "Ending"),
     )
 
-    is_active = models.BooleanField(
-        default=True, help_text="Whether this item is active, use this instead of deleting"
-    )
+    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
