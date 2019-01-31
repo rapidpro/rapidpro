@@ -1610,7 +1610,10 @@ class Flow(TembaModel):
             start_msg.save(update_fields=["msg_type"])
 
         all_contact_ids = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
-        all_contact_ids = all_contact_ids.only("is_test").order_by("pk").values_list("pk", flat=True).distinct("pk")
+        all_contact_ids = list(
+            all_contact_ids.only("is_test").order_by("pk").values_list("pk", flat=True).distinct("pk")
+        )
+
         if not restart_participants:
             # exclude anybody who has already participated in the flow
             already_started = set(self.runs.all().values_list("contact_id", flat=True))
@@ -1622,10 +1625,6 @@ class Flow(TembaModel):
                 FlowRun.objects.filter(is_active=True, org=self.org).values_list("contact_id", flat=True)
             )
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
-
-        # make sure all_contact_ids is iterable
-        if not isinstance(all_contact_ids, list):
-            all_contact_ids = [contact_id for contact_id in all_contact_ids]
 
         # if we have a parent run, find any parents/grandparents that are active, we'll keep these active
         ancestor_ids = []
