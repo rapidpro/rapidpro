@@ -752,7 +752,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             es_search = search_object.source(include=["id"]).using(ES).scan()
             return mapEStoDB(Contact, es_search, only_ids=True)
         except SearchException:
-            logger.exception("Error evaluating query", exc_info=True)
+            logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
     @classmethod
@@ -2312,9 +2312,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             try:
                 should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
-            except Exception:  # pragma: no cover
+            except Exception as e:  # pragma: no cover
                 should_add = False
-                logger.exception("Error evaluating query", exc_info=True)
+                logger.error(f"Error evaluating query: {str(e)}", exc_info=True)
 
             changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
 

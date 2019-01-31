@@ -1,4 +1,5 @@
 import hmac
+import logging
 import time
 import uuid
 from datetime import timedelta
@@ -25,6 +26,8 @@ from temba.utils import json, on_transaction_commit, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
 from temba.utils.models import JSONAsTextField
+
+logger = logging.getLogger(__name__)
 
 
 class APIPermission(BasePermission):
@@ -355,9 +358,7 @@ class WebHookEvent(SmartModel):
                 raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Could not trigger flow webhook: {str(e)}", exc_info=True)
 
             webhook_event.status = cls.STATUS_FAILED
             message = "Error calling webhook: %s" % str(e)
