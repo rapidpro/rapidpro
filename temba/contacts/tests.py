@@ -909,8 +909,8 @@ class ContactTest(TembaTest):
         with self.assertRaises(ValueError):
             Contact.get_or_create(None, "tel:+250781111111", self.channel)
 
-        with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, "tel:+250781111111", None)
+        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", None)
+        self.assertEqual(contact.pk, self.joe.pk)
 
         contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel)
         self.assertEqual(contact.pk, self.joe.pk)
