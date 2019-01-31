@@ -663,10 +663,6 @@ class Flow(TembaModel):
 
         run.voice_response = voice_response
 
-        # make sure our test contact is handled by simulation
-        if call.contact.is_test:
-            Contact.set_simulation(True)
-
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
 

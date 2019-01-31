@@ -184,7 +184,6 @@ MIDDLEWARE = (
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
     "temba.middleware.OrgTimezoneMiddleware",
-    "temba.middleware.FlowSimulationMiddleware",
     "temba.middleware.ActivateLanguageMiddleware",
     "temba.middleware.OrgHeaderMiddleware",
 )

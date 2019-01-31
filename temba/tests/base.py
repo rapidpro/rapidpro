@@ -558,9 +558,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         utils._anon_user = None
         clear_flow_users()
 
-        # reset our simulation to False
-        Contact.set_simulation(False)
-
     def tearDown(self):
         if self.get_verbosity() > 2:
             details = []
@@ -652,8 +649,6 @@ class FlowFileTest(TembaTest):
     def send(self, message, contact=None):
         if not contact:
             contact = self.contact
-        if contact.is_test:
-            Contact.set_simulation(True)
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
         # evaluate the inbound message against our triggers first
@@ -678,51 +673,41 @@ class FlowFileTest(TembaTest):
         """
         if not contact:
             contact = self.contact
-        try:
-            if contact.is_test:
-                Contact.set_simulation(True)
 
-            incoming = self.create_msg(
-                direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message
-            )
+        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
-            # start the flow
-            if initiate_flow:
-                flow.start(
-                    groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
-                )
+        # start the flow
+        if initiate_flow:
+            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
+        else:
+            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
+            (handled, msgs) = Flow.find_and_handle(incoming)
+
+            Msg.mark_handled(incoming)
+
+            if assert_handle:
+                self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
             else:
-                flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                (handled, msgs) = Flow.find_and_handle(incoming)
+                self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
 
-                Msg.mark_handled(incoming)
+        # our message should have gotten a reply
+        if assert_reply:
+            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
+            self.assertGreaterEqual(len(replies), 1)
 
-                if assert_handle:
-                    self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
-                else:
-                    self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
+            if len(replies) == 1:
+                self.assertEqual(contact, replies.first().contact)
+                return replies.first().text
 
-            # our message should have gotten a reply
-            if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-                self.assertGreaterEqual(len(replies), 1)
+            # if it's more than one, send back a list of replies
+            return [reply.text for reply in replies]
 
-                if len(replies) == 1:
-                    self.assertEqual(contact, replies.first().contact)
-                    return replies.first().text
+        else:
+            # assert we got no reply
+            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
+            self.assertFalse(replies)
 
-                # if it's more than one, send back a list of replies
-                return [reply.text for reply in replies]
-
-            else:
-                # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-                self.assertFalse(replies)
-
-            return None
-
-        finally:
-            Contact.set_simulation(False)
+        return None
 
 
 class MLStripper(HTMLParser):  # pragma: no cover
