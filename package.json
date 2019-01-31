@@ -2,11 +2,6 @@
   "name": "rapidpro",
   "repository": "git@github.com:rapidpro/rapidpro.git",
   "license": "AGPL-3.0",
-  "scripts": {
-    "start": "webpack-dev-server --config webpack/webpack.config.js --env.NODE_ENV=dev --progress --colors",
-    "build": "webpack --mode production --config webpack/webpack.config.js ./static/js/flow-editor/src/index.jsx --output ./static/js/flow-editor/dist/flow-editor.js",
-    "precommit": "lint-staged"
-  },
   "lint-staged": {
     "*.{js,jsx,css,md}": [
       "prettier --write",
@@ -14,12 +9,12 @@
     ]
   },
   "dependencies": {
+    "@nyaruka/flow-editor": "1.2.0",
     "bower": "1.7.9",
     "coffee-script": "1.9.3",
     "less": "2.7.1"
   },
   "devDependencies": {
-    "@nyaruka/flow-editor": "1.1.8",
     "babel-core": "6.26.3",
     "babel-loader": "7.1.4",
     "babel-preset-env": "1.6.1",

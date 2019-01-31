@@ -64,8 +64,6 @@
                   -trans "Outgoing"
                 -if obj.connection_type == 'F' or obj.connection_type == 'V'
                   -trans "phone call"
-                -else
-                  -trans "USSD session"
 
                 -if obj.is_done
                   -trans "complete"

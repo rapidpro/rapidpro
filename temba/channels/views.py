@@ -503,12 +503,10 @@ def channel_status_processor(request):
         cutoff = timezone.now() - timedelta(hours=1)
         send_channel = org.get_send_channel()
         call_channel = org.get_call_channel()
-        ussd_channel = org.get_ussd_channel()
 
         status["send_channel"] = send_channel
         status["call_channel"] = call_channel
-        status["has_outgoing_channel"] = send_channel or call_channel or ussd_channel
-        status["is_ussd_channel"] = True if ussd_channel else False
+        status["has_outgoing_channel"] = send_channel or call_channel
 
         channels = org.channels.filter(is_active=True)
         for channel in channels:

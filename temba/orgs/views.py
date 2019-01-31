@@ -8,6 +8,7 @@ from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
 import nexmo
+import pytz
 import requests
 from smartmin.views import (
     SmartCreateView,
@@ -63,6 +64,7 @@ from .models import (
     CHATBASE_VERSION,
     MO_CALL_EVENTS,
     MO_SMS_EVENTS,
+    MONTHFIRST,
     MT_CALL_EVENTS,
     MT_SMS_EVENTS,
     NEXMO_KEY,
@@ -2001,6 +2003,10 @@ class OrgCRUDL(SmartCRUDL):
             slug = Org.get_unique_slug(self.form.cleaned_data["name"])
             obj.slug = slug
             obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
+
+            if obj.timezone.zone in pytz.country_timezones("US"):
+                obj.date_format = MONTHFIRST
+
             return obj
 
         def get_welcome_size(self):  # pragma: needs cover

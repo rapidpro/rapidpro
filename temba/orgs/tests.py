@@ -2711,6 +2711,7 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="Oculus")
         self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, DAYFIRST)
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
@@ -2727,9 +2728,21 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="id Software")
         self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, DAYFIRST)
 
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
+
+        # try a new org with US timezone
+        post_data["name"] = "Bulls"
+        post_data["timezone"] = "America/Chicago"
+        response = self.client.post(grant_url, post_data, follow=True)
+
+        self.assertContains(response, "created")
+
+        org = Org.objects.get(name="Bulls")
+        self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, MONTHFIRST)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
@@ -4194,7 +4207,7 @@ class StripeCreditsTest(TembaTest):
             def __init__(self):
                 self.throw = False
 
-            def all(self):
+            def list(self):
                 return dict_to_struct("MockCardData", dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):

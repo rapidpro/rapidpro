@@ -2968,8 +2968,9 @@ class ContactTest(TembaTest):
         self.admin.set_org(self.org)
         self.login(self.admin)
 
-        def omnibox_request(query):
-            response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
+        def omnibox_request(query, version="1"):
+            path = reverse("contacts.contact_omnibox")
+            response = self.client.get(f"{path}?{query}&v={version}")
             return response.json()["results"]
 
         # search with search string that will raise a SearchException, which we ignore
@@ -3019,6 +3020,41 @@ class ContactTest(TembaTest):
                 "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
             },
         ]
+
+        # omnibox v2 format
+        with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
+            actual_result = omnibox_request(query="", version="2")
+            expected_result = [
+                # all 3 groups A-Z
+                {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
+                {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
+                {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                # all 4 contacts A-Z
+                {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
+                {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+                {"id": self.voldemort.uuid, "name": "250768383383", "type": "contact", "urn": "250768383383"},
+                # 3 sendable URNs with contact names
+                {"id": "tel:250768383383", "name": "250768383383", "type": "urn", "contact": None, "scheme": "tel"},
+                {
+                    "id": "tel:250781111111",
+                    "name": "250781111111",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "tel",
+                },
+                {
+                    "id": "tel:250782222222",
+                    "name": "250782222222",
+                    "type": "urn",
+                    "contact": "Frank Smith",
+                    "scheme": "tel",
+                },
+                {"id": "twitter:blow80", "name": "blow80", "type": "urn", "contact": "Joe Blow", "scheme": "twitter"},
+            ]
+
+            self.assertEqual(expected_result, actual_result)
+
         with ESMockWithScrollMultiple(data=[mock_es_data_contact, mock_es_data_urn]):
             with self.assertNumQueries(20):
                 actual_result = omnibox_request("")
@@ -3248,6 +3284,7 @@ class ContactTest(TembaTest):
                     "_source": {"id": self.voldemort.id, "modified_on": self.voldemort.modified_on.isoformat()},
                 },
             ]
+
             with ESMockWithScrollMultiple(data=[mock_es_data, []]):
                 self.assertEqual(
                     omnibox_request(""),
@@ -3261,6 +3298,23 @@ class ContactTest(TembaTest):
                         dict(id="c-%s" % self.frank.uuid, text="Frank Smith"),
                         dict(id="c-%s" % self.joe.uuid, text="Joe Blow"),
                         dict(id="c-%s" % self.voldemort.uuid, text=self.voldemort.anon_identifier),
+                    ],
+                )
+
+            # same search but with v2 format
+            with ESMockWithScrollMultiple(data=[mock_es_data, []]):
+                self.assertEqual(
+                    omnibox_request("", version="2"),
+                    [
+                        # all 3 groups A-Z
+                        {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
+                        {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
+                        {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
+                        # all 4 contacts A-Z
+                        {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
+                        {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact"},
+                        {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact"},
+                        {"id": self.voldemort.uuid, "name": self.voldemort.anon_identifier, "type": "contact"},
                     ],
                 )
 
@@ -3392,7 +3446,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(70):
+            with self.assertNumQueries(69):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run

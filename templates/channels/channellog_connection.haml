@@ -4,10 +4,7 @@
 
 -block titles
   %h2
-    -if object.connection_type == 'F'
-      -trans "Call Log"
-    -else
-      -trans "USSD Log"
+    -trans "Call Log"
 
 -block above-bar
   %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}&sessions=1' } More Calls

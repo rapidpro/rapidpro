@@ -1995,7 +1995,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for msg in self.msgs.all():
                 msg.release()
 
-            # release any calls or ussd sessions
+            # release any channel connections
             for conn in self.connections.all():
                 conn.release()
 
