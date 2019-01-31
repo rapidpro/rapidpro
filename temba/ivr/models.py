@@ -104,7 +104,6 @@ class IVRCall(ChannelConnection):
         domain = self.channel.callback_domain
 
         from temba.ivr.clients import IVRException
-        from temba.flows.models import ActionLog, FlowRun
 
         if client and domain:
             try:
@@ -112,30 +111,15 @@ class IVRCall(ChannelConnection):
                 if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 
-                tel = None
-
-                # if we are working with a test contact, look for user settings
-                if self.contact.is_test:
-                    user_settings = self.created_by.get_settings()
-                    if user_settings.tel:
-                        tel = user_settings.tel
-                        run = FlowRun.objects.filter(connection=self)
-                        if run:
-                            ActionLog.create(run[0], "Placing test call to %s" % user_settings.get_tel_formatted())
-                if not tel:
-                    tel_urn = self.contact_urn
-                    tel = tel_urn.path
+                tel_urn = self.contact_urn
+                tel = tel_urn.path
 
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
-            except IVRException as e:
+            except IVRException:
                 import traceback
 
                 traceback.print_exc()
-
-                if self.contact.is_test:
-                    run = FlowRun.objects.filter(connection=self)
-                    ActionLog.create(run[0], "Call ended. %s" % str(e))
 
             except Exception as e:  # pragma: no cover
                 import traceback
@@ -148,10 +132,6 @@ class IVRCall(ChannelConnection):
 
                 self.status = self.FAILED
                 self.save(update_fields=("status",))
-
-                if self.contact.is_test:
-                    run = FlowRun.objects.filter(connection=self)
-                    ActionLog.create(run[0], "Call ended.")
 
         # client or domain are not known
         else:
@@ -186,7 +166,7 @@ class IVRCall(ChannelConnection):
 
         previous_status = self.status
 
-        from temba.flows.models import FlowRun, ActionLog
+        from temba.flows.models import FlowRun
 
         ivr_protocol = Channel.get_type_from_code(channel_type).ivr_protocol
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
@@ -210,11 +190,6 @@ class IVRCall(ChannelConnection):
 
             if self.has_flow_session():
                 self.session.end(FlowSession.STATUS_COMPLETED)
-
-            if self.contact.is_test:
-                run = FlowRun.objects.filter(connection=self)
-                if run:
-                    ActionLog.create(run[0], _("Call ended."))
 
         if self.status in ChannelConnection.RETRY_CALL and previous_status not in ChannelConnection.RETRY_CALL:
             flow = self.get_flow()
