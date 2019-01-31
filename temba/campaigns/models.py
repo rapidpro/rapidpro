@@ -588,9 +588,7 @@ class EventFire(Model):
         contacts = [f.contact for f in fires]
         event = fires[0].event
 
-        include_active = not (
-            event.event_type == CampaignEvent.TYPE_MESSAGE and event.start_mode == CampaignEvent.MODE_SKIP
-        )
+        include_active = event.start_mode != CampaignEvent.MODE_SKIP
         if event.is_active and not event.campaign.is_archived:
             if len(contacts) == 1:
                 flow.start(
