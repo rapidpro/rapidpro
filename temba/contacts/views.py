@@ -956,7 +956,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             org = self.derive_org()
-
             return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
 
         def render_to_response(self, context, **response_kwargs):
@@ -964,7 +963,7 @@ class ContactCRUDL(SmartCRUDL):
             page = context["page_obj"]
             object_list = context["object_list"]
 
-            results = omnibox_results_to_dict(org, object_list)
+            results = omnibox_results_to_dict(org, object_list, self.request.GET.get("v", "1"))
 
             json_result = {"results": results, "more": page.has_next(), "total": len(results), "err": "nil"}
 

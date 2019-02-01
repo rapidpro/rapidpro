@@ -44,9 +44,9 @@
         -if not user_org.is_anon or perms.contacts.contact_break_anon
           -with channel.get_sender as sender and channel.get_caller as caller
             -if sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Channel Log"%}</a>
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
             - if caller and caller != sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ caller.id }}&sessions=1">{%trans "Call Log"%}</a>
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
       .notice
         -if delayed_sync_event or unsent_msgs_count
           .icon.icon-warning.errored
