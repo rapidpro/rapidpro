@@ -185,18 +185,6 @@ class FlowActionMixin(SmartListView):
         return response
 
 
-def msg_log_cmp(a, b):
-    if a.__class__ == b.__class__:
-        return a.pk - b.pk
-    else:
-        if a.created_on == b.created_on:  # pragma: needs cover
-            return 0
-        elif a.created_on < b.created_on:
-            return -1
-        else:
-            return 1
-
-
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs["template"]
@@ -982,10 +970,6 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
             org = self.request.user.get_org()
 
-            # hangup any test calls if we have them
-            if flow.flow_type == Flow.TYPE_VOICE:
-                IVRCall.hangup_test_call(flow)
-
             flow.ensure_current_version()
 
             if org:
@@ -1467,7 +1451,7 @@ class FlowCRUDL(SmartCRUDL):
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
-        def get(self, request, *args, **kwargs):
+        def get(self, request, *args, **kwargs):  # pragma: needs cover
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):

@@ -22,7 +22,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
+from django.db.models import Max, Prefetch, Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -1210,52 +1210,24 @@ class Flow(TembaModel):
 
         return r.lock(lock_key, lock_ttl)
 
-    def get_node_counts(self, contact=None):
+    def get_node_counts(self):
         """
-        Gets the number of contacts at each node in the flow. For simulator mode this manual counts steps by test
-        contacts as these are not pre-calculated.
+        Gets the number of contacts at each node in the flow
         """
-        if not contact:
-            return FlowNodeCount.get_totals(self)
+        return FlowNodeCount.get_totals(self)
 
-        # count unique values of current_node_uuid for active runs for given contact
-        totals = (
-            self.runs.filter(contact=contact, is_active=True)
-            .values("current_node_uuid")
-            .annotate(total=Count("current_node_uuid"))
-        )
-
-        return {str(t["current_node_uuid"]): t["total"] for t in totals if t["total"]}
-
-    def get_segment_counts(self, contact=None):
+    def get_segment_counts(self):
         """
-        Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
-        contacts as these are not pre-calculated.
+        Gets the number of contacts to have taken each flow segment.
         """
-        if not contact:
-            return FlowPathCount.get_totals(self)
+        return FlowPathCount.get_totals(self)
 
-        simulator_runs = self.runs.filter(contact=contact)
-        path_counts = defaultdict(int)
-
-        for run in simulator_runs:
-            prev_step = None
-            for step in run.path:
-                if prev_step and "exit_uuid" in prev_step:
-                    exit_uuid = prev_step["exit_uuid"]
-                    node_uuid = step["node_uuid"]
-                    path_counts["%s:%s" % (exit_uuid, node_uuid)] += 1
-
-                prev_step = step
-
-        return path_counts
-
-    def get_activity(self, contact=None):
+    def get_activity(self):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        return self.get_node_counts(contact), self.get_segment_counts(contact)
+        return self.get_node_counts(), self.get_segment_counts()
 
     def is_starting(self):
         """
@@ -1455,10 +1427,7 @@ class Flow(TembaModel):
         if msg:
             message_context = msg.build_expressions_context()
 
-            # some fake channel deets for simulation
-            if msg.contact.is_test:
-                channel_context = Channel.SIMULATOR_CONTEXT
-            elif msg.channel:
+            if msg.channel:
                 channel_context = msg.channel.build_expressions_context()
         else:
             message_context = dict(__default__="")
@@ -6198,7 +6167,7 @@ class SaveToContactAction(Action):
             new_urn = None
             if new_value:
                 new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-                if not URN.validate(new_urn, contact.org.get_country_code()):
+                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
                     new_urn = False
 
             if new_urn:

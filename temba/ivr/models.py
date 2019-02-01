@@ -72,18 +72,6 @@ class IVRCall(ChannelConnection):
             status=IVRCall.PENDING,
         )
 
-    @classmethod
-    def hangup_test_call(cls, flow):
-        # if we have an active call, hang it up
-        from temba.flows.models import FlowRun
-
-        runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
-        for run in runs:
-            test_call = IVRCall.objects.filter(id=run.connection.id).first()
-            if test_call.channel.channel_type in ["T", "TW"]:
-                if not test_call.is_done():
-                    test_call.close()
-
     def close(self):
         from temba.flows.models import FlowSession
 
@@ -119,7 +107,7 @@ class IVRCall(ChannelConnection):
 
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
-            except IVRException as e:
+            except IVRException as e:  # pragma: no cover
                 logger.error(f"Could not start IVR call: {str(e)}", exc_info=True)
 
             except Exception as e:  # pragma: no cover
