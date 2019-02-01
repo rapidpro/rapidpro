@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("channels", "0114_deactivate_ussd")]
+    dependencies = [("channels", "0115_auto_20190130_1543")]
 
     operations = [
         migrations.AlterField(
