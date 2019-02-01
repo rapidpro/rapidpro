@@ -1609,9 +1609,13 @@ class Flow(TembaModel):
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=["msg_type"])
 
-        all_contact_ids = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
         all_contact_ids = list(
-            all_contact_ids.only("is_test").order_by("pk").values_list("pk", flat=True).distinct("pk")
+            Contact.all()
+            .filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
+            .only("is_test")
+            .order_by("pk")
+            .values_list("pk", flat=True)
+            .distinct("pk")
         )
 
         if not restart_participants:
