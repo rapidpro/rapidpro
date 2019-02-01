@@ -1911,13 +1911,12 @@ class ChannelConnection(models.Model):
     INCOMING = "I"
     OUTGOING = "O"
 
-    IVR = "F"
-    USSD = "U"
+    IVR = "F"  # deprecated use VOICE
     VOICE = "V"
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
 
-    TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"))
+    TYPE_CHOICES = ((VOICE, "Voice"),)
 
     STATUS_CHOICES = (
         (PENDING, "Pending"),
@@ -1936,9 +1935,7 @@ class ChannelConnection(models.Model):
         (ENDING, "Ending"),
     )
 
-    is_active = models.BooleanField(
-        default=True, help_text="Whether this item is active, use this instead of deleting"
-    )
+    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1986,11 +1983,7 @@ class ChannelConnection(models.Model):
         all the methods the proxy model implements. """
 
         if type(self) is ChannelConnection:
-            if self.connection_type == self.USSD:  # pragma: no cover
-                from temba.ussd.models import USSDSession
-
-                self.__class__ = USSDSession
-            elif self.connection_type == self.IVR:
+            if self.connection_type == self.IVR:
                 from temba.ivr.models import IVRCall
 
                 self.__class__ = IVRCall
@@ -2012,10 +2005,6 @@ class ChannelConnection(models.Model):
             from temba.ivr.models import IVRCall
 
             return IVRCall.objects.filter(id=self.id).first()
-        if self.connection_type == self.USSD:  # pragma: no cover
-            from temba.ussd.models import USSDSession
-
-            return USSDSession.objects.filter(id=self.id).first()
         return self  # pragma: no cover
 
     def get_session(self):
