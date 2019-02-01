@@ -104,6 +104,8 @@ class ArchiveReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
+    STATUS_MAP = {INITIALIZING: QUEUED, PENDING: QUEUED, ERRORED: QUEUED, QUEUED: QUEUED, FAILED: FAILED}
+
     text = fields.TranslatableField()
     status = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
@@ -112,8 +114,7 @@ class BroadcastReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
-        status_map = {INITIALIZING: QUEUED, PENDING: QUEUED, ERRORED: QUEUED, QUEUED: QUEUED, FAILED: FAILED}
-        return Msg.STATUSES.get(status_map.get(obj.status, SENT))
+        return Msg.STATUSES.get(self.STATUS_MAP.get(obj.status, SENT))
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
