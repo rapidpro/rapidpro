@@ -117,9 +117,7 @@ class WeChatTypeTest(TembaTest):
             {"secret": "app-secret", "grant_type": "client_credential", "appid": "app-id"},
         )
         self.login(self.admin)
-        response = self.client.get(
-            reverse("channels.channellog_list") + "?channel=%d&others=1" % channel.id, follow=True
-        )
+        response = self.client.get(reverse("channels.channellog_list", args=[channel.uuid]) + "?others=1", follow=True)
         self.assertEqual(len(response.context["object_list"]), 3)
 
         mock_get.reset_mock()

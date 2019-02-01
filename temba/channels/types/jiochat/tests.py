@@ -103,9 +103,7 @@ class JioChatTypeTest(TembaTest):
             {"client_secret": u"app-secret", "grant_type": "client_credentials", "client_id": u"app-id"},
         )
         self.login(self.admin)
-        response = self.client.get(
-            reverse("channels.channellog_list") + "?channel=%d&others=1" % channel.id, follow=True
-        )
+        response = self.client.get(reverse("channels.channellog_list", args=[channel.uuid]) + "?others=1", follow=True)
         self.assertEqual(len(response.context["object_list"]), 2)
 
         mock_post.reset_mock()
