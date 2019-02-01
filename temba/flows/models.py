@@ -1608,8 +1608,15 @@ class Flow(TembaModel):
             start_msg.msg_type = FLOW
             start_msg.save(update_fields=["msg_type"])
 
-        all_contact_ids = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
-        all_contact_ids = all_contact_ids.only("is_test").order_by("pk").values_list("pk", flat=True).distinct("pk")
+        all_contact_ids = list(
+            Contact.all()
+            .filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
+            .only("is_test")
+            .order_by("pk")
+            .values_list("pk", flat=True)
+            .distinct("pk")
+        )
+
         if not restart_participants:
             # exclude anybody who has already participated in the flow
             already_started = set(self.runs.all().values_list("contact_id", flat=True))
