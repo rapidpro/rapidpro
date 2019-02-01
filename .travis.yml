@@ -56,7 +56,6 @@ install:
   - nvm install 6
   - nvm use 6
   - npm install
-  - npm run build
 
 before_script:
   # setup test database
@@ -108,6 +107,7 @@ script:
 after_success:
   - pip install codecov
   - codecov
+  - coverage report -i
   - coverage report -i --rcfile .coveragerc_todo
 
 notifications:

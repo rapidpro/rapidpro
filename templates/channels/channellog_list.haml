@@ -21,16 +21,16 @@
 
 -block gear-menu
   -if request.GET.connections or request.GET.others
-    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}"}
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}"}
       -trans "Messages"
 
   -if not request.GET.connections
     -if channel.supports_ivr
-      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&connections=1"}
+      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}?connections=1"}
         -trans "Calls"
 
   -if not request.GET.others
-    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&others=1"}
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}?others=1"}
       -trans "Other Interactions"
 
 -block table
