@@ -1499,6 +1499,9 @@ class FlowCRUDL(SmartCRUDL):
                     payload["trigger"] = json_dict["trigger"]
                     payload["trigger"]["environment"] = serialize_environment(flow.org)
 
+                    if "flow" in json_dict:
+                        payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
+
                     try:
                         return JsonResponse(client.sim_start(payload))
                     except mailroom.MailroomException:
@@ -1509,6 +1512,9 @@ class FlowCRUDL(SmartCRUDL):
                     payload["resume"] = json_dict["resume"]
                     payload["resume"]["environment"] = serialize_environment(flow.org)
                     payload["session"] = json_dict["session"]
+
+                    if "flow" in json_dict:
+                        payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
 
                     try:
                         return JsonResponse(client.sim_resume(payload))
