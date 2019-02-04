@@ -17,6 +17,7 @@ class Migration(migrations.Migration):
                 choices=[("M", "Message flow"), ("V", "Phone call flow"), ("S", "Surveyor flow"), ("U", "USSD flow")],
                 default="M",
                 max_length=1,
+                null=True,
             ),
         ),
         migrations.AlterField(
