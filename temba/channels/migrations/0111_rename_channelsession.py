@@ -56,6 +56,6 @@ class RenameBaseModel(migrations.RenameModel):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("channels", "0110_auto_20190110_2100"), ("ivr", "0015_initial"), ("ussd", "0003_initial")]
+    dependencies = [("channels", "0110_auto_20190110_2100"), ("ivr", "0015_initial")]
 
     operations = [RenameBaseModel("ChannelSession", "ChannelConnection")]
