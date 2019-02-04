@@ -5612,7 +5612,8 @@ class SimulationTest(FlowFileTest):
         flow = self.get_flow("favorites")
 
         # create our payload
-        payload = dict(version=2, trigger={})
+        payload = dict(version=2, trigger={}, flow={})
+
         url = reverse("flows.flow_simulate", args=[flow.pk])
 
         with patch("requests.post") as mock_post:
@@ -5632,9 +5633,10 @@ class SimulationTest(FlowFileTest):
             )
             self.assertEqual("https://mailroom.temba.io/mr/sim/start", mock_post.call_args_list[0][0][0])
             self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
+            self.assertEqual(1, len(mock_post.call_args_list[0][1]["json"]["flows"]))
 
         # try a resume
-        payload = dict(version=2, session={}, resume={})
+        payload = dict(version=2, session={}, resume={}, flow={})
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(400, '{"session": {}}')
@@ -5652,6 +5654,7 @@ class SimulationTest(FlowFileTest):
             )
             self.assertEqual("https://mailroom.temba.io/mr/sim/resume", mock_post.call_args_list[0][0][0])
             self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
+            self.assertEqual(1, len(mock_post.call_args_list[0][1]["json"]["flows"]))
 
 
 class FlowsTest(FlowFileTest):

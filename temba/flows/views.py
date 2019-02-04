@@ -1469,7 +1469,10 @@ class FlowCRUDL(SmartCRUDL):
             client = mailroom.get_client()
 
             # build our request body to mailroom
-            payload = dict(org_id=flow.org_id)
+            payload = {"org_id": flow.org_id}
+
+            if "flow" in json_dict:
+                payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
 
             # check if we are triggering a new session
             if "trigger" in json_dict:

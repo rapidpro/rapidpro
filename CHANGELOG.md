@@ -1,3 +1,10 @@
+v4.18.0
+----------
+ * Make ChannelConnection.is_active nullable so it can be eventually removed
+ * Replace traceback.print_exc() with logger.error
+ * Make sure contacts ids are iterable when starting a flow
+ * Remove USSD proxy model
+
 v4.17.0
 ----------
  * Use URL kwargs for channel logs list to pass the channel uuid

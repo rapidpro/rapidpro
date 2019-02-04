@@ -624,6 +624,7 @@ class APITest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
                 "text": {"base": "Hello 4"},
+                "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
         )

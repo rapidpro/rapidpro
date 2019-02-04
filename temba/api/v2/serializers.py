@@ -9,7 +9,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import PENDING, QUEUED, Broadcast, Label, Msg
+from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
@@ -104,11 +104,17 @@ class ArchiveReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
+    STATUS_MAP = {INITIALIZING: QUEUED, PENDING: QUEUED, ERRORED: QUEUED, QUEUED: QUEUED, FAILED: FAILED}
+
     text = fields.TranslatableField()
+    status = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_status(self, obj):
+        return Msg.STATUSES.get(self.STATUS_MAP.get(obj.status, SENT))
 
     def get_urns(self, obj):
         if self.context["org"].is_anon:
@@ -118,7 +124,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
     class Meta:
         model = Broadcast
-        fields = ("id", "urns", "contacts", "groups", "text", "created_on")
+        fields = ("id", "urns", "contacts", "groups", "text", "status", "created_on")
 
 
 class BroadcastWriteSerializer(WriteSerializer):
