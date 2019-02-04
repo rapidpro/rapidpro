@@ -1,3 +1,11 @@
+v4.19.0
+----------
+ * Add session_type field on FlowSession
+ * Use provided flow definition when simulating if provided
+ * Remove USSD app completely
+ * Adjust broadcast status to API endpoint
+ * Remove legacy (non-mailroom) simulation
+
 v4.18.0
 ----------
  * Make ChannelConnection.is_active nullable so it can be eventually removed
