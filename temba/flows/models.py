@@ -159,77 +159,6 @@ class FlowPropsCache(Enum):
     category_nodes = 2
 
 
-class FlowSession(models.Model):
-    """
-    A contact's session with the flow engine
-    """
-
-    STATUS_WAITING = "W"
-    STATUS_COMPLETED = "C"
-    STATUS_INTERRUPTED = "I"
-    STATUS_EXPIRED = "X"
-    STATUS_FAILED = "F"
-
-    STATUS_CHOICES = (
-        (STATUS_WAITING, "Waiting"),
-        (STATUS_COMPLETED, "Completed"),
-        (STATUS_INTERRUPTED, "Interrupted"),
-        (STATUS_EXPIRED, "Expired"),
-        (STATUS_FAILED, "Failed"),
-    )
-
-    GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
-
-    contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, help_text="The contact that this session is with"
-    )
-
-    connection = models.OneToOneField(
-        "channels.ChannelConnection",
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="session",
-        help_text=_("The channel connection used for flow sessions over IVR or USSD"),
-    )
-
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True, help_text="The status of this session")
-
-    responded = models.BooleanField(default=False, help_text="Whether the contact has responded in this session")
-
-    output = JSONAsTextField(null=True, default=dict)
-
-    created_on = models.DateTimeField(default=timezone.now, help_text=_("When this session was created"))
-
-    ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
-
-    # only set by mailroom managed sessions
-    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
-
-    # only set by mailroom managed sessions
-    wait_started_on = models.DateTimeField(null=True, help_text=_("When this session started waiting (if at all)"))
-
-    current_flow = models.ForeignKey(
-        "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
-    )
-
-    @classmethod
-    def create(cls, contact, connection):
-        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
-
-    def release(self):
-        self.delete()
-
-    def end(self, status):
-        self.status = status
-        self.ended_on = timezone.now()
-        self.save(update_fields=("status", "ended_on"))
-
-    def __str__(self):  # pragma: no cover
-        return str(self.contact)
-
-
 class Flow(TembaModel):
     UUID = "uuid"
     ENTRY = "entry"
@@ -2782,6 +2711,81 @@ class Flow(TembaModel):
 
     class Meta:
         ordering = ("-modified_on",)
+
+
+class FlowSession(models.Model):
+    """
+    A contact's session with the flow engine
+    """
+
+    STATUS_WAITING = "W"
+    STATUS_COMPLETED = "C"
+    STATUS_INTERRUPTED = "I"
+    STATUS_EXPIRED = "X"
+    STATUS_FAILED = "F"
+
+    STATUS_CHOICES = (
+        (STATUS_WAITING, "Waiting"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_INTERRUPTED, "Interrupted"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
+
+    # the modality of this session
+    session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
+
+    # the organization this session belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+
+    # the contact that this session is with
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT)
+
+    # the channel connection used for flow sessions over IVR or USSD"),
+    connection = models.OneToOneField(
+        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
+    )
+
+    # the status of this session
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+
+    # whether the contact has responded in this session
+    responded = models.BooleanField(default=False)
+
+    # the goflow output of this session
+    output = JSONAsTextField(null=True, default=dict)
+
+    # when this session was created
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # when this session ended
+    ended_on = models.DateTimeField(null=True)
+
+    # when this session's wait will time out (if at all)
+    timeout_on = models.DateTimeField(null=True)
+
+    # when this session started waiting (if at all)
+    wait_started_on = models.DateTimeField(null=True)
+
+    # the flow of the waiting run
+    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+
+    @classmethod
+    def create(cls, contact, connection):
+        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
+
+    def release(self):
+        self.delete()
+
+    def end(self, status):
+        self.status = status
+        self.ended_on = timezone.now()
+        self.save(update_fields=("status", "ended_on"))
+
+    def __str__(self):  # pragma: no cover
+        return str(self.contact)
 
 
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
