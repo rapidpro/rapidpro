@@ -19,7 +19,6 @@ from django.db import models, transaction
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 
 from temba.assets.models import register_asset_store
@@ -1155,22 +1154,6 @@ class Msg(models.Model):
             "created_on": self.created_on.isoformat(),
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
-
-    def as_json(self):
-        return dict(
-            direction=self.direction,
-            text=self.text,
-            id=self.id,
-            attachments=self.attachments,
-            created_on=self.created_on.strftime("%x %X"),
-            model="msg",
-            metadata=self.metadata,
-        )
-
-    def simulator_json(self):
-        msg_json = self.as_json()
-        msg_json["text"] = escape(self.text).replace("\n", "<br/>")
-        return msg_json
 
     @classmethod
     def get_text_parts(cls, text, max_length=160):

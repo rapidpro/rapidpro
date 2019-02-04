@@ -636,8 +636,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         help_text=_("The user which created this item"),
     )
 
-    simulation = False
-
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
@@ -756,17 +754,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             raise  # reraise the exception
 
     @classmethod
-    def set_simulation(cls, simulation):
-        cls.simulation = simulation
-
-    @classmethod
-    def get_simulation(cls):
-        return cls.simulation
-
-    @classmethod
     def all(cls):
-        simulation = cls.get_simulation()
-        return cls.objects.filter(is_test=simulation)
+        return cls.objects.filter(is_test=False)
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel

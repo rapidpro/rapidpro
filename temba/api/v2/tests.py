@@ -3050,9 +3050,7 @@ class APITest(TembaTest):
         joe_run3, = flow2.start([], [self.joe], restart_participants=True)
 
         # add a test contact run
-        Contact.set_simulation(True)
-        flow2.start([], [self.test_contact])
-        Contact.set_simulation(False)
+        FlowRun.create(flow2, self.test_contact)
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)

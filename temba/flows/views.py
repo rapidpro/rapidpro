@@ -1,7 +1,5 @@
 import logging
 from datetime import datetime, timedelta
-from functools import cmp_to_key
-from itertools import chain
 from uuid import uuid4
 
 import iso8601
@@ -43,18 +41,16 @@ from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
-from temba.msgs.models import PENDING, Msg
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
-from temba.utils import analytics, chunk_list, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
 
 from .models import (
-    ActionLog,
     ExportFlowResultsTask,
     FlowInvalidCycleException,
     FlowLabel,
@@ -187,18 +183,6 @@ class FlowActionMixin(SmartListView):
             response["Temba-Toast"] = toast
 
         return response
-
-
-def msg_log_cmp(a, b):
-    if a.__class__ == b.__class__:
-        return a.pk - b.pk
-    else:
-        if a.created_on == b.created_on:  # pragma: needs cover
-            return 0
-        elif a.created_on < b.created_on:
-            return -1
-        else:
-            return 1
 
 
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
@@ -986,10 +970,6 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
             org = self.request.user.get_org()
 
-            # hangup any test calls if we have them
-            if flow.flow_type == Flow.TYPE_VOICE:
-                IVRCall.hangup_test_call(flow)
-
             flow.ensure_current_version()
 
             if org:
@@ -1471,7 +1451,7 @@ class FlowCRUDL(SmartCRUDL):
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
-        def get(self, request, *args, **kwargs):
+        def get(self, request, *args, **kwargs):  # pragma: needs cover
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
@@ -1480,133 +1460,40 @@ class FlowCRUDL(SmartCRUDL):
             except Exception as e:  # pragma: needs cover
                 return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
-            if json_dict.get("version", None) == "1":
-                return self.handle_legacy(request, json_dict)
-            else:
-                if not settings.MAILROOM_URL:  # pragma: no cover
-                    return JsonResponse(
-                        dict(status="error", description="mailroom not configured, cannot simulate"), status=500
-                    )
+            if not settings.MAILROOM_URL:  # pragma: no cover
+                return JsonResponse(
+                    dict(status="error", description="mailroom not configured, cannot simulate"), status=500
+                )
 
-                flow = self.get_object()
-                client = mailroom.get_client()
+            flow = self.get_object()
+            client = mailroom.get_client()
 
-                # build our request body to mailroom
-                payload = dict(org_id=flow.org_id)
+            # build our request body to mailroom
+            payload = {"org_id": flow.org_id}
 
-                # check if we are triggering a new session
-                if "trigger" in json_dict:
-                    payload["trigger"] = json_dict["trigger"]
-                    payload["trigger"]["environment"] = serialize_environment(flow.org)
+            if "flow" in json_dict:
+                payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
 
-                    if "flow" in json_dict:
-                        payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
+            # check if we are triggering a new session
+            if "trigger" in json_dict:
+                payload["trigger"] = json_dict["trigger"]
+                payload["trigger"]["environment"] = serialize_environment(flow.org)
 
-                    try:
-                        return JsonResponse(client.sim_start(payload))
-                    except mailroom.MailroomException:
-                        return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-                # otherwise we are resuming
-                elif "resume" in json_dict:
-                    payload["resume"] = json_dict["resume"]
-                    payload["resume"]["environment"] = serialize_environment(flow.org)
-                    payload["session"] = json_dict["session"]
-
-                    if "flow" in json_dict:
-                        payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]
-
-                    try:
-                        return JsonResponse(client.sim_resume(payload))
-                    except mailroom.MailroomException:
-                        return JsonResponse(dict(status="error", description="mailroom error"), status=500)
-
-        def handle_legacy(self, request, json_dict):
-
-            Contact.set_simulation(True)
-            user = self.request.user
-            test_contact = Contact.get_test_contact(user)
-            flow = self.get_object(self.get_queryset())
-
-            if json_dict and json_dict.get("hangup", False):  # pragma: needs cover
-                # hangup any test calls if we have them
-                IVRCall.hangup_test_call(self.get_object())
-                return JsonResponse(dict(status="success", message="Test call hung up"))
-
-            if json_dict and json_dict.get("has_refresh", False):
-
-                lang = request.GET.get("lang", None)
-                if lang:
-                    test_contact.language = lang
-                    test_contact.save(update_fields=("language",), handle_update=False)
-
-                # delete all our steps and messages to restart the simulation
-                runs = FlowRun.objects.filter(contact=test_contact).order_by("-modified_on")
-
-                # if their last simulation was more than a day ago, log this simulation
-                if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
-                    analytics.track(user.username, "temba.flow_simulated")
-
-                msg_ids = list(Msg.objects.filter(contact=test_contact).only("id").values_list("id", flat=True))
-
-                for batch in chunk_list(msg_ids, 25):
-                    for msg in Msg.objects.filter(id__in=list(batch)):
-                        msg.release()
-
-                for ivr_call in IVRCall.objects.filter(contact=test_contact):
-                    ivr_call.release()
-
-                for run in runs:
-                    run.release()
-
-                # reset the name for our test contact too
-                test_contact.fields = {}
-                test_contact.name = "%s %s" % (request.user.first_name, request.user.last_name)
-                test_contact.save(update_fields=("name", "fields"), handle_update=False)
-
-                # reset the groups for test contact
-                for group in test_contact.all_groups.all():
-                    group.update_contacts(request.user, [test_contact], False)
-
-                flow.start([], [test_contact], restart_participants=True)
-
-            # try to create message
-            new_message = json_dict.get("new_message", "")
-
-            if new_message:
                 try:
-                    Msg.create_incoming(
-                        None, str(test_contact.get_urn(TEL_SCHEME)), new_message, org=user.get_org(), status=PENDING
-                    )
-                except Exception as e:  # pragma: needs cover
+                    return JsonResponse(client.sim_start(payload))
+                except mailroom.MailroomException:
+                    return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-                    logger.error(f"Could not create incoming message: {str(e)}", exc_info=True)
-                    return JsonResponse(
-                        dict(status="error", description="Error creating message: %s" % str(e)), status=400
-                    )
+            # otherwise we are resuming
+            elif "resume" in json_dict:
+                payload["resume"] = json_dict["resume"]
+                payload["resume"]["environment"] = serialize_environment(flow.org)
+                payload["session"] = json_dict["session"]
 
-            messages = Msg.objects.filter(contact=test_contact).order_by("pk", "created_on")
-            action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by("pk", "created_on")
-
-            messages_and_logs = chain(messages, action_logs)
-            messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
-
-            messages_json = []
-            if messages_and_logs:
-                for msg in messages_and_logs:
-                    messages_json.append(msg.simulator_json())
-
-            (active, visited) = flow.get_activity(test_contact)
-            response = dict(messages=messages_json, activity=active, visited=visited)
-
-            # if we are at a ruleset, include it's details
-            run = FlowRun.get_active_for_contact(test_contact).first()
-            if run and run.path:
-                ruleset = RuleSet.objects.filter(uuid=run.path[-1][FlowRun.PATH_NODE_UUID]).first()
-                if ruleset:
-                    response["ruleset"] = ruleset.as_json()
-
-            return JsonResponse(dict(status="success", description="Message sent to Flow", **response))
+                try:
+                    return JsonResponse(client.sim_resume(payload))
+                except mailroom.MailroomException:
+                    return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
     class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
