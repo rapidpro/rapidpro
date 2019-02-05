@@ -95,7 +95,7 @@ DECLARE
     _path_json JSONB;
     _path_len INT;
 BEGIN
-    -- leave activity as is if we're being archived or we're a test contact
+    -- leave activity as is if we're being archived
     IF OLD.delete_reason = 'A' THEN
         RETURN NULL;
     END IF;
@@ -466,7 +466,7 @@ BEGIN
 
   -- FlowRun being removed
   ELSIF TG_OP = 'DELETE' THEN
-     -- Is this a test contact, ignore
+     -- If we're being archived, don't change stats
      IF OLD.delete_reason = 'A' THEN
        RETURN NULL;
      END IF;
@@ -595,6 +595,11 @@ DROP FUNCTION temba_contact_is_test(_contact_id INT);
 
 class Migration(migrations.Migration):
 
-    dependencies = [("contacts", "0094_remove_test_contacts")]
+    dependencies = [
+        ("channels", "0116_auto_20190131_2013"),
+        ("contacts", "0094_remove_test_contacts"),
+        ("flows", "0194_auto_20190204_1835"),
+        ("msgs", "0130_auto_20181128_1226"),
+    ]
 
     operations = [migrations.RunSQL(SQL)]
