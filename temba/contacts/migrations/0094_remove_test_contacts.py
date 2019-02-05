@@ -25,8 +25,12 @@ def remove_test_contacts(apps, schema_editor):
         print(f"Deleted {num_deleted} test contacts")
 
 
+def unremove_test_contacts(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [("contacts", "0093_auto_20190131_1116")]
 
-    operations = [migrations.RunPython(remove_test_contacts)]
+    operations = [migrations.RunPython(remove_test_contacts, unremove_test_contacts)]
