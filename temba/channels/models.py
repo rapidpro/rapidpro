@@ -375,10 +375,6 @@ class Channel(TembaModel):
         "roles": ["send"],
     }
 
-    SIMULATOR_CONTEXT = dict(
-        __default__="(800) 555-1212", name="Simulator", tel="(800) 555-1212", tel_e164="+18005551212"
-    )
-
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3)
 
     name = models.CharField(

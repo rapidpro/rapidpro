@@ -22,11 +22,10 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Count, Max, Prefetch, Q, QuerySet, Sum
+from django.db.models import Max, Prefetch, Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.html import escape
-from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
+from django.utils.translation import ugettext_lazy as _
 
 from celery import current_app
 
@@ -157,77 +156,6 @@ class FlowPropsCache(Enum):
 
     terminal_nodes = 1
     category_nodes = 2
-
-
-class FlowSession(models.Model):
-    """
-    A contact's session with the flow engine
-    """
-
-    STATUS_WAITING = "W"
-    STATUS_COMPLETED = "C"
-    STATUS_INTERRUPTED = "I"
-    STATUS_EXPIRED = "X"
-    STATUS_FAILED = "F"
-
-    STATUS_CHOICES = (
-        (STATUS_WAITING, "Waiting"),
-        (STATUS_COMPLETED, "Completed"),
-        (STATUS_INTERRUPTED, "Interrupted"),
-        (STATUS_EXPIRED, "Expired"),
-        (STATUS_FAILED, "Failed"),
-    )
-
-    GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this session belongs to")
-
-    contact = models.ForeignKey(
-        "contacts.Contact", on_delete=models.PROTECT, help_text="The contact that this session is with"
-    )
-
-    connection = models.OneToOneField(
-        "channels.ChannelConnection",
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="session",
-        help_text=_("The channel connection used for flow sessions over IVR or USSD"),
-    )
-
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True, help_text="The status of this session")
-
-    responded = models.BooleanField(default=False, help_text="Whether the contact has responded in this session")
-
-    output = JSONAsTextField(null=True, default=dict)
-
-    created_on = models.DateTimeField(default=timezone.now, help_text=_("When this session was created"))
-
-    ended_on = models.DateTimeField(null=True, help_text=_("When this session ended"))
-
-    # only set by mailroom managed sessions
-    timeout_on = models.DateTimeField(null=True, help_text=_("When this session's wait will time out (if at all)"))
-
-    # only set by mailroom managed sessions
-    wait_started_on = models.DateTimeField(null=True, help_text=_("When this session started waiting (if at all)"))
-
-    current_flow = models.ForeignKey(
-        "flows.Flow", null=True, on_delete=models.PROTECT, help_text="The flow of the waiting run"
-    )
-
-    @classmethod
-    def create(cls, contact, connection):
-        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
-
-    def release(self):
-        self.delete()
-
-    def end(self, status):
-        self.status = status
-        self.ended_on = timezone.now()
-        self.save(update_fields=("status", "ended_on"))
-
-    def __str__(self):  # pragma: no cover
-        return str(self.contact)
 
 
 class Flow(TembaModel):
@@ -664,10 +592,6 @@ class Flow(TembaModel):
 
         run.voice_response = voice_response
 
-        # make sure our test contact is handled by simulation
-        if call.contact.is_test:
-            Contact.set_simulation(True)
-
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
 
@@ -1029,10 +953,6 @@ class Flow(TembaModel):
 
         ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
 
-        # output the new value if in the simulator
-        if run.contact.is_test:
-            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (result_value, Flow.label_to_slug(ruleset.label)))
-
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not result_rule.destination:
             run.set_completed(exit_uuid=result_rule.uuid)
@@ -1219,52 +1139,24 @@ class Flow(TembaModel):
 
         return r.lock(lock_key, lock_ttl)
 
-    def get_node_counts(self, contact=None):
+    def get_node_counts(self):
         """
-        Gets the number of contacts at each node in the flow. For simulator mode this manual counts steps by test
-        contacts as these are not pre-calculated.
+        Gets the number of contacts at each node in the flow
         """
-        if not contact:
-            return FlowNodeCount.get_totals(self)
+        return FlowNodeCount.get_totals(self)
 
-        # count unique values of current_node_uuid for active runs for given contact
-        totals = (
-            self.runs.filter(contact=contact, is_active=True)
-            .values("current_node_uuid")
-            .annotate(total=Count("current_node_uuid"))
-        )
-
-        return {str(t["current_node_uuid"]): t["total"] for t in totals if t["total"]}
-
-    def get_segment_counts(self, contact=None):
+    def get_segment_counts(self):
         """
-        Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
-        contacts as these are not pre-calculated.
+        Gets the number of contacts to have taken each flow segment.
         """
-        if not contact:
-            return FlowPathCount.get_totals(self)
+        return FlowPathCount.get_totals(self)
 
-        simulator_runs = self.runs.filter(contact=contact)
-        path_counts = defaultdict(int)
-
-        for run in simulator_runs:
-            prev_step = None
-            for step in run.path:
-                if prev_step and "exit_uuid" in prev_step:
-                    exit_uuid = prev_step["exit_uuid"]
-                    node_uuid = step["node_uuid"]
-                    path_counts["%s:%s" % (exit_uuid, node_uuid)] += 1
-
-                prev_step = step
-
-        return path_counts
-
-    def get_activity(self, contact=None):
+    def get_activity(self):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        return self.get_node_counts(contact), self.get_segment_counts(contact)
+        return self.get_node_counts(), self.get_segment_counts()
 
     def is_starting(self):
         """
@@ -1464,10 +1356,7 @@ class Flow(TembaModel):
         if msg:
             message_context = msg.build_expressions_context()
 
-            # some fake channel deets for simulation
-            if msg.contact.is_test:
-                channel_context = Channel.SIMULATOR_CONTEXT
-            elif msg.channel:
+            if msg.channel:
                 channel_context = msg.channel.build_expressions_context()
         else:
             message_context = dict(__default__="")
@@ -1885,11 +1774,6 @@ class Flow(TembaModel):
             run.org = self.org
 
             run_map[run.contact_id] = run
-            if run.contact.is_test:
-                ActionLog.create(
-                    run,
-                    '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name),
-                )
 
         # update our expiration date on our runs, we do this by calculating it on one run then updating all others
         run.update_expiration(timezone.now())
@@ -2784,6 +2668,81 @@ class Flow(TembaModel):
         ordering = ("-modified_on",)
 
 
+class FlowSession(models.Model):
+    """
+    A contact's session with the flow engine
+    """
+
+    STATUS_WAITING = "W"
+    STATUS_COMPLETED = "C"
+    STATUS_INTERRUPTED = "I"
+    STATUS_EXPIRED = "X"
+    STATUS_FAILED = "F"
+
+    STATUS_CHOICES = (
+        (STATUS_WAITING, "Waiting"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_INTERRUPTED, "Interrupted"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
+
+    # the modality of this session
+    session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
+
+    # the organization this session belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+
+    # the contact that this session is with
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT)
+
+    # the channel connection used for flow sessions over IVR or USSD"),
+    connection = models.OneToOneField(
+        "channels.ChannelConnection", on_delete=models.PROTECT, null=True, related_name="session"
+    )
+
+    # the status of this session
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
+
+    # whether the contact has responded in this session
+    responded = models.BooleanField(default=False)
+
+    # the goflow output of this session
+    output = JSONAsTextField(null=True, default=dict)
+
+    # when this session was created
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # when this session ended
+    ended_on = models.DateTimeField(null=True)
+
+    # when this session's wait will time out (if at all)
+    timeout_on = models.DateTimeField(null=True)
+
+    # when this session started waiting (if at all)
+    wait_started_on = models.DateTimeField(null=True)
+
+    # the flow of the waiting run
+    current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
+
+    @classmethod
+    def create(cls, contact, connection):
+        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
+
+    def release(self):
+        self.delete()
+
+    def end(self, status):
+        self.status = status
+        self.ended_on = timezone.now()
+        self.save(update_fields=("status", "ended_on"))
+
+    def __str__(self):  # pragma: no cover
+        return str(self.contact)
+
+
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
     STATE_ACTIVE = "A"
 
@@ -3494,9 +3453,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Mark a run as complete
         """
-        if self.contact.is_test:
-            ActionLog.create(self, _("%s has exited this flow") % self.contact.get_display(self.flow.org, short=True))
-
         now = timezone.now()
 
         if not completed_on:
@@ -3539,11 +3495,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Mark run as interrupted
         """
-        if self.contact.is_test:  # pragma: needs cover
-            ActionLog.create(
-                self, _("%s has interrupted this flow") % self.contact.get_display(self.flow.org, short=True)
-            )
-
         now = timezone.now()
 
         # mark this flow as inactive
@@ -4012,17 +3963,7 @@ class RuleSet(models.Model):
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
 
-                # flow simulation will always simulate a suceessful airtime transfer
-                # without saving the object in the DB
-                if run.contact.is_test:
-                    from temba.flows.models import ActionLog
-
-                    log_txt = "Simulate Complete airtime transfer"
-                    ActionLog.create(run, log_txt, safe=True)
-
-                    airtime = AirtimeTransfer(status=AirtimeTransfer.SUCCESS)
-                else:
-                    airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+                airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
                 # rebuild our context again, the webhook may have populated something
                 context = run.flow.build_expressions_context(run.contact, msg)
@@ -4999,54 +4940,6 @@ class ActionLog(models.Model):
 
     created_on = models.DateTimeField(help_text=_("When this log event occurred"))
 
-    @classmethod
-    def create(cls, run, text, level=LEVEL_INFO, safe=False, created_on=None):
-
-        # ActionLogs should only ever be created in simulation
-        if not run.contact.is_test:  # pragma: no cover
-            return None
-
-        if not safe:
-            text = escape(text)
-
-        text = text.replace("\n", "<br/>")
-
-        if not created_on:
-            created_on = timezone.now()
-
-        try:
-            return ActionLog.objects.create(run=run, text=text, level=level, created_on=created_on)
-        except Exception:  # pragma: no cover
-            return None  # it's possible our test run can be deleted out from under us
-
-    @classmethod
-    def info(cls, run, text, safe=False):
-        return cls.create(run, text, cls.LEVEL_INFO, safe)
-
-    @classmethod
-    def warn(cls, run, text, safe=False):
-        return cls.create(run, text, cls.LEVEL_WARN, safe)
-
-    @classmethod
-    def error(cls, run, text, safe=False):
-        return cls.create(run, text, cls.LEVEL_ERROR, safe)
-
-    def as_json(self):
-        return dict(
-            id=self.id,
-            direction="O",
-            level=self.level,
-            text=self.text,
-            created_on=self.created_on.strftime("%x %X"),
-            model="log",
-        )
-
-    def simulator_json(self):
-        return self.as_json()
-
-    def __str__(self):  # pragma: needs cover
-        return self.text
-
 
 class FlowStart(SmartModel):
     STATUS_PENDING = "P"
@@ -5478,18 +5371,10 @@ class EmailAction(Action):
             else:
                 invalid_addresses.append(address)
 
-        if not run.contact.is_test:
-            if valid_addresses:
-                on_transaction_commit(
-                    lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
-                )
-        else:
-            if valid_addresses:
-                valid_addresses = ['"%s"' % elt for elt in valid_addresses]
-                ActionLog.info(run, _('"%s" would be sent to %s') % (message, ", ".join(valid_addresses)))
-            if invalid_addresses:
-                invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
-                ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
+        if valid_addresses:
+            on_transaction_commit(
+                lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
+            )
         return []
 
 
@@ -5567,11 +5452,6 @@ class AddToGroupAction(Action):
 
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
-                        if not group and run.contact.is_test:  # pragma: no cover
-                            ActionLog.error(run, _("Unable to find group with name '%s'") % value)
-
-                    elif run.contact.is_test:  # pragma: needs cover
-                        ActionLog.error(run, _("Group name could not be evaluated: %s") % ", ".join(errors))
 
                 if group:
                     # TODO should become a failure (because it should be impossible) and not just a simulator error
@@ -5582,24 +5462,10 @@ class AddToGroupAction(Action):
                             "in flow '%s' [%d] for org '%s' [%d]"
                             % (group.name, group.pk, run.flow.name, run.flow.pk, run.org.name, run.org.pk)
                         )
-                        if run.contact.is_test:
-                            if add:
-                                ActionLog.error(
-                                    run, _("%s is a dynamic group which we can't add contacts to") % group.name
-                                )
-                            else:  # pragma: needs cover
-                                ActionLog.error(
-                                    run, _("%s is a dynamic group which we can't remove contacts from") % group.name
-                                )
                         continue  # pragma: can't cover
 
                     group.org = run.org
                     group.update_contacts(user, [contact], add)
-                    if run.contact.is_test:
-                        if add:
-                            ActionLog.info(run, _("Added %s to %s") % (run.contact.name, group.name))
-                        else:
-                            ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
 
@@ -5637,8 +5503,6 @@ class DeleteFromGroupAction(AddToGroupAction):
                     org=contact.org, group_type=ContactGroup.TYPE_USER_DEFINED, query__isnull=True
                 ):
                     group.update_contacts(user, [contact], False)
-                    if run.contact.is_test:  # pragma: needs cover
-                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
         return AddToGroupAction.execute(self, run, context, actionset, msg, offline_on)
 
@@ -5705,20 +5569,11 @@ class AddLabelAction(Action):
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                    if not label and run.contact.is_test:  # pragma: no cover
-                        ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
-
                 else:  # pragma: needs cover
                     label = None
-                    if run.contact.is_test:
-                        ActionLog.error(run, _("Label name could not be evaluated: %s") % ", ".join(errors))
 
             if label and msg and msg.pk:
-                if run.contact.is_test:  # pragma: needs cover
-                    # don't really add labels to simulator messages
-                    ActionLog.info(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
-                else:
-                    label.toggle_label([msg], True)
+                label.toggle_label([msg], True)
         return []
 
 
@@ -5763,11 +5618,6 @@ class SayAction(Action):
         msg = run.create_outgoing_ivr(message, media_url, run.connection)
 
         if msg:
-            if run.contact.is_test:
-                if media_url:  # pragma: needs cover
-                    ActionLog.create(run, _('Played recorded message for "%s"') % message)
-                else:
-                    ActionLog.create(run, _('Read message "%s"') % message)
             return [msg]
         else:  # pragma: needs cover
             # no message, possibly failed loop detection
@@ -5800,9 +5650,6 @@ class PlayAction(Action):
         msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
 
         if msg:
-            if run.contact.is_test:
-                log_txt = _('Played recording at "%s"') % recording_url
-                ActionLog.create(run, log_txt)
             return [msg]
         else:  # pragma: needs cover
             # no message, possibly failed loop detection
@@ -6134,19 +5981,9 @@ class TriggerFlowAction(VariableContactAction):
                     for contact in group.contacts.all():
                         unique_contacts.add(contact.pk)
 
-                self.logger(run, self.flow, len(unique_contacts))
-
             return []  # pragma: needs cover
         else:  # pragma: no cover
             return []
-
-    def logger(self, run, flow, contact_count):  # pragma: needs cover
-        if not run.contact.is_test:
-            return None
-
-        log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
-        log = ActionLog.create(run, log_txt)
-        return log
 
 
 class SetLanguageAction(Action):
@@ -6183,17 +6020,7 @@ class SetLanguageAction(Action):
             run.contact.language = new_lang
             run.contact.save(update_fields=["language"], handle_update=True)
 
-        self.logger(run)
         return []
-
-    def logger(self, run):  # pragma: needs cover
-        # only log for test contact
-        if not run.contact.is_test:
-            return False
-
-        log_txt = _("Setting language to %s") % self.name
-        log = ActionLog.create(run, log_txt)
-        return log
 
 
 class StartFlowAction(Action):
@@ -6251,19 +6078,7 @@ class StartFlowAction(Action):
                     msg.from_other_run = True
                     msgs.append(msg)
 
-        self.logger(run)
         return msgs
-
-    def logger(self, run):  # pragma: needs cover
-        # only log for test contact
-        if not run.contact.is_test:
-            return False
-
-        log_txt = _("Starting other flow %s") % self.flow.name
-
-        log = ActionLog.create(run, log_txt)
-
-        return log
 
 
 class SaveToContactAction(Action):
@@ -6333,9 +6148,6 @@ class SaveToContactAction(Action):
         user = get_flow_user(run.org)
         (value, errors) = Msg.evaluate_template(self.value, context, org=run.flow.org)
 
-        if contact.is_test and errors:  # pragma: needs cover
-            ActionLog.warn(run, _("Expression contained errors: %s") % ", ".join(errors))
-
         value = value.strip()
 
         if self.field == "name":
@@ -6343,14 +6155,12 @@ class SaveToContactAction(Action):
             contact.name = new_value
             contact.modified_by = user
             contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-            self.logger(run, new_value)
 
         elif self.field == "first_name":
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.modified_by = user
             contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-            self.logger(run, new_value)
 
         elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
@@ -6368,44 +6178,20 @@ class SaveToContactAction(Action):
             new_urn = None
             if new_value:
                 new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-                if not URN.validate(new_urn, contact.org.get_country_code()):
+                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
                     new_urn = False
-                    if contact.is_test:
-                        ActionLog.warn(
-                            run, _("Contact not updated, invalid connection for contact (%s:%s)" % (scheme, new_value))
-                        )
-            else:
-                if contact.is_test:
-                    ActionLog.warn(run, _("Contact not updated, missing connection for contact"))
 
             if new_urn:
                 urns = [str(urn) for urn in contact.urns.all()]
                 urns += [new_urn]
 
-                # don't really update URNs on test contacts
-                if contact.is_test:
-                    ActionLog.info(run, _("Added %s as @contact.%s - skipped in simulator" % (new_value, scheme)))
-                else:
-                    contact.update_urns(user, urns)
+                contact.update_urns(user, urns)
 
         else:
             new_value = value[: Value.MAX_VALUE_LEN]
             contact.set_field(user, self.field, new_value)
-            self.logger(run, new_value)
 
         return []
-
-    def logger(self, run, new_value):  # pragma: needs cover
-        # only log for test contact
-        if not run.contact.is_test:
-            return False
-
-        label = SaveToContactAction.get_label(run.flow.org, self.field, self.label)
-        log_txt = _("Updated %s to '%s'") % (label, new_value)
-
-        log = ActionLog.create(run, log_txt)
-
-        return log
 
 
 class SetChannelAction(Action):
@@ -6450,15 +6236,9 @@ class SetChannelAction(Action):
             if not run.contact.is_test:
                 run.contact.set_preferred_channel(self.channel)
 
-            self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:
-            self.log(run, _("Channel not found, no action taken"))
             return []
-
-    def log(self, run, text):  # pragma: no cover
-        if run.contact.is_test:
-            ActionLog.create(run, text)
 
 
 class SendAction(VariableContactAction):
@@ -6511,48 +6291,22 @@ class SendAction(VariableContactAction):
             flow = run.flow
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
 
-            # create our broadcast and send it
-            if not run.contact.is_test:
-                # no-op if neither text nor media are defined in the flow base language
-                if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
-                    return list()
+            # no-op if neither text nor media are defined in the flow base language
+            if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
+                return list()
 
-                broadcast = Broadcast.create(
-                    flow.org,
-                    flow.modified_by,
-                    self.msg,
-                    groups=groups,
-                    contacts=contacts,
-                    media=self.media,
-                    base_language=flow.base_language,
-                )
-                broadcast.send(expressions_context=context)
-
-            else:
-                unique_contacts = set()
-                for contact in contacts:
-                    unique_contacts.add(contact.pk)
-
-                for group in groups:
-                    for contact in group.contacts.all():
-                        unique_contacts.add(contact.pk)
-
-                text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, errors) = Msg.evaluate_template(text, context, org=run.flow.org, partial_vars=True)
-
-                self.logger(run, message, len(unique_contacts))
+            broadcast = Broadcast.create(
+                flow.org,
+                flow.modified_by,
+                self.msg,
+                groups=groups,
+                contacts=contacts,
+                media=self.media,
+                base_language=flow.base_language,
+            )
+            broadcast.send(expressions_context=context)
 
         return []
-
-    def logger(self, run, text, contact_count):
-        if not run.contact.is_test:  # pragma: no cover
-            return None
-
-        log_txt = _n(
-            "Sending '%(msg)s' to %(count)d contact", "Sending '%(msg)s' to %(count)d contacts", contact_count
-        ) % dict(msg=text, count=contact_count)
-        log = ActionLog.create(run, log_txt)
-        return log
 
 
 class Rule(object):

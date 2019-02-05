@@ -184,7 +184,6 @@ MIDDLEWARE = (
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
     "temba.middleware.OrgTimezoneMiddleware",
-    "temba.middleware.FlowSimulationMiddleware",
     "temba.middleware.ActivateLanguageMiddleware",
     "temba.middleware.OrgHeaderMiddleware",
 )
@@ -899,7 +898,7 @@ REST_FRAMEWORK = {
         "temba.api.support.APITokenAuthentication",
         "temba.api.support.APIBasicAuthentication",
     ),
-    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgRateThrottle",),
+    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgUserRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",

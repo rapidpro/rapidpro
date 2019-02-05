@@ -2474,18 +2474,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.contacts.count(), 1)
         self.assertTrue(self.joe in broadcast.contacts.all())
 
-        # Activate simulation mode
-        Contact.set_simulation(True)
-        flow.start([], [self.joe, test_contact], restart_participants=True)
-
-        response = self.client.post(send_url + "?_format=json&simulation=true", post_data, follow=True)
-        self.assertContains(response, "success")
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.text, {"base": "message content"})
-        self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual(broadcast.contacts.count(), 1)
-        self.assertTrue(test_contact in broadcast.contacts.all())
-
     def test_unreachable(self):
         no_urns = Contact.get_or_create_by_urns(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")

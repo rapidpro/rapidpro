@@ -56,7 +56,6 @@ from .flow_migrations import (
 )
 from .models import (
     Action,
-    ActionLog,
     ActionSet,
     AddLabelAction,
     AddToGroupAction,
@@ -3526,71 +3525,6 @@ class FlowTest(TembaTest):
                 reverse("flows.flow_json", args=[self.flow.id]), "badjson", content_type="application/json"
             )
 
-        # test simulation
-        simulate_url = reverse("flows.flow_simulate", args=[self.flow.id])
-
-        test_contact = Contact.get_test_contact(self.admin)
-        group = self.create_group("players", [test_contact])
-        test_contact.set_field(self.user, "custom", "hey")
-
-        response = self.client.get(simulate_url)
-        self.assertEqual(response.status_code, 302)
-
-        post_data = {"has_refresh": True, "version": "1"}
-
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        json_dict = response.json()
-
-        test_contact.refresh_from_db()
-        self.assertFalse(group in test_contact.all_groups.all())
-        self.assertFalse(test_contact.fields)
-
-        self.assertEqual(len(json_dict.keys()), 5)
-        self.assertEqual(len(json_dict["messages"]), 3)
-        self.assertEqual("Test Contact has entered the &quot;Color Flow&quot; flow", json_dict["messages"][0]["text"])
-        self.assertEqual("This flow is more like a broadcast", json_dict["messages"][1]["text"])
-        self.assertEqual("Test Contact has exited this flow", json_dict["messages"][2]["text"])
-
-        group = self.create_group("fans", [test_contact])
-        test_contact.set_field(self.user, "custom", "hey")
-
-        post_data["new_message"] = "Ok, Thanks"
-        post_data["has_refresh"] = False
-
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(200, response.status_code)
-        json_dict = response.json()
-
-        self.assertTrue(group in test_contact.all_groups.all())
-        self.assertEqual("hey", test_contact.get_field_value(ContactField.get_by_key(self.org, "custom")))
-
-        self.assertEqual(len(json_dict.keys()), 5)
-        self.assertIn("status", json_dict.keys())
-        self.assertIn("visited", json_dict.keys())
-        self.assertIn("activity", json_dict.keys())
-        self.assertIn("messages", json_dict.keys())
-        self.assertIn("description", json_dict.keys())
-        self.assertEqual(json_dict["status"], "success")
-        self.assertEqual(json_dict["description"], "Message sent to Flow")
-
-        post_data["has_refresh"] = True
-
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(200, response.status_code)
-        json_dict = response.json()
-
-        self.assertEqual(len(json_dict.keys()), 5)
-        self.assertIn("status", json_dict.keys())
-        self.assertIn("visited", json_dict.keys())
-        self.assertIn("activity", json_dict.keys())
-        self.assertIn("messages", json_dict.keys())
-        self.assertIn("description", json_dict.keys())
-        self.assertEqual(json_dict["status"], "success")
-        self.assertEqual(json_dict["description"], "Message sent to Flow")
-
-        FlowLabel.objects.create(name="one", org=self.org, parent=None)
-        FlowLabel.objects.create(name="two", org=self.org2, parent=None)
-
         # test update view
         response = self.client.post(reverse("flows.flow_update", args=[self.flow.id]))
         self.assertEqual(response.status_code, 200)
@@ -4200,24 +4134,6 @@ class ActionPackedTest(FlowFileTest):
             ["support@website.com"],
         )
 
-        # test contacts should get log messages
-        Contact.set_simulation(True)
-        test_contact = Contact.get_test_contact(self.admin)
-        self.flow.start([], [test_contact])
-
-        self.send("Test Contact", test_contact)
-        self.send("Female", test_contact)
-        self.send("email", test_contact)
-
-        log = ActionLog.objects.order_by("-id").first()
-        self.assertEqual(
-            "&quot;Hi there, my name is Test Contact.&quot; would be sent to &quot;support@website.com&quot;", log.text
-        )
-
-        # empty recipient list should fail
-        with self.assertRaises(FlowException):
-            self.update_action_field(self.flow, "431b0c69-cc9f-4017-b667-0823e5017d3e", "emails", [])
-
     def test_update_reserved_keys(self):
         """
         Reserved field names only applies to old engine
@@ -4346,48 +4262,6 @@ class ActionPackedTest(FlowFileTest):
 
         # robzor shouldn't have a number anymore
         self.assertFalse(robbed.urns.all())
-
-    def test_save_contact_simulator_messages(self):
-
-        action = self.get_action_json(self.flow, "0afb91da-9eb7-4e11-9cd8-ae01952c1153")
-        Contact.set_simulation(True)
-        test_contact = Contact.get_test_contact(self.admin)
-        test_contact_urn = test_contact.urns.all().first()
-
-        def test_with_save(label, value):
-            action["label"] = label
-            action["field"] = ContactField.make_key(label)
-            action["value"] = value
-            self.update_action_json(self.flow, action)
-
-            ActionLog.objects.all().delete()
-            self.flow.start([], [test_contact], restart_participants=True)
-            self.send("Trey Anastasio", test_contact)
-            self.send("Male", test_contact)
-
-        # valid email
-        test_with_save("mailto", "foo@bar.com")
-        self.assertEqual(
-            ActionLog.objects.all().order_by("id")[3].text,
-            "Added foo@bar.com as @contact.mailto - skipped in simulator",
-        )
-
-        # invalid email
-        test_with_save("mailto", "foobar.com")
-        self.assertEqual(
-            ActionLog.objects.all().order_by("id")[3].text,
-            "Contact not updated, invalid connection for contact (mailto:foobar.com)",
-        )
-
-        # URN should be unchanged on the simulator contact
-        test_contact = Contact.objects.get(id=test_contact.id)
-        self.assertEqual(test_contact_urn, test_contact.urns.all().first())
-
-        # try saving some empty data into mailto
-        test_with_save("mailto", "@contact.mailto")
-        self.assertEqual(
-            ActionLog.objects.all().order_by("id")[3].text, "Contact not updated, missing connection for contact"
-        )
 
     def test_set_language_action(self):
 
@@ -4673,32 +4547,6 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, None)
         self.assertEqual(Broadcast.objects.all().count(), 1)
 
-        # try with a test contact and a group
-        test_contact = Contact.get_test_contact(self.user)
-        test_contact.name = "Mr Test"
-        test_contact.save(update_fields=("name",), handle_update=False)
-        test_contact.set_field(self.user, "state", "IN", label="State")
-
-        self.other_group.update_contacts(self.user, [self.contact2], True)
-
-        action = SendAction(str(uuid4()), dict(base=msg_body), [self.other_group], [test_contact], [])
-        run = FlowRun.create(self.flow, test_contact)
-        self.execute_action(action, run, None)
-
-        # since we are test contact now, no new broadcasts
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-
-        # but we should have logged instead
-        logged = "Sending &#39;Hi Mr Test (IN). Mr Test (IN) is in the flow&#39; to 2 contacts"
-        self.assertEqual(ActionLog.objects.all().first().text, logged)
-
-        # delete the group
-        self.other_group.is_active = False
-        self.other_group.save()
-
-        self.assertTrue(action.groups)
-        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
-
         # support sending to groups inside SendAction
         SendAction.from_json(self.org, action.as_json())
 
@@ -4776,24 +4624,6 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, msg)
         self.assertOutbox(
             1, "no-reply@temba.io", "Eric added in subject", "Eric uses phone 0788 382 382", ["eric@nyaruka.com"]
-        )
-
-        # check simulator reports invalid addresses
-        test_contact = Contact.get_test_contact(self.user)
-        test_run = FlowRun.create(self.flow, test_contact)
-
-        self.execute_action(action, test_run, msg)
-
-        logs = list(ActionLog.objects.order_by("pk"))
-        self.assertEqual(logs[0].level, ActionLog.LEVEL_INFO)
-        self.assertEqual(
-            logs[0].text,
-            "&quot;Test Contact uses phone (206) 555-0100&quot; would be sent to &quot;testcontact@nyaruka.com&quot;",
-        )
-        self.assertEqual(logs[1].level, ActionLog.LEVEL_WARN)
-        self.assertEqual(
-            logs[1].text,
-            "Some email address appear to be invalid: &quot;Test Contact&quot;, &quot;xyz&quot;, &quot;&quot;",
         )
 
         # check that all white space is replaced with single spaces in the subject
@@ -4955,39 +4785,14 @@ class ActionTest(TembaTest):
         # robzor shouldn't have a number anymore
         self.assertFalse(robbed.urns.all())
 
-        # try the same with a simulator contact
-        test_contact = Contact.get_test_contact(self.admin)
-        test_contact_urn = test_contact.urns.all().first()
-        run = FlowRun.create(self.flow, test_contact)
-        self.execute_action(test, run, sms)
-
-        ActionLog.objects.all().delete()
-        action = SaveToContactAction.from_json(self.org, dict(type="save", label="mailto", value="foo@bar.com"))
-        self.execute_action(action, run, None)
-        self.assertEqual(ActionLog.objects.get().text, "Added foo@bar.com as @contact.mailto - skipped in simulator")
-
-        # Invalid email
-        ActionLog.objects.all().delete()
-        action = SaveToContactAction.from_json(self.org, dict(type="save", label="mailto", value="foobar.com"))
-        self.execute_action(action, run, None)
-        self.assertEqual(
-            ActionLog.objects.get().text, "Contact not updated, invalid connection for contact (mailto:foobar.com)"
-        )
-
-        # URN should be unchanged on the simulator contact
-        test_contact = Contact.objects.get(id=test_contact.id)
-        self.assertEqual(test_contact_urn, test_contact.urns.all().first())
-
         self.assertFalse(ContactField.user_fields.filter(org=self.org, label="Ecole"))
         SaveToContactAction.from_json(self.org, dict(type="save", label="[_NEW_]Ecole", value="@step"))
         field = ContactField.user_fields.get(org=self.org, key="ecole")
         self.assertEqual("Ecole", field.label)
 
         # try saving some empty data into mailto
-        ActionLog.objects.all().delete()
         action = SaveToContactAction.from_json(self.org, dict(type="save", label="mailto", value="@contact.mailto"))
         self.execute_action(action, run, None)
-        self.assertEqual(ActionLog.objects.get().text, "Contact not updated, missing connection for contact")
 
         self.assertEqual(SaveToContactAction.get_label(self.org, "foo"), "Foo")
 
@@ -5043,10 +4848,6 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
 
-        test_contact = Contact.get_test_contact(self.admin)
-        test_msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Blue")
-        test_run = FlowRun.create(self.flow, test_contact)
-
         group = self.create_group("Flow Group", [])
 
         # check converting to and from json
@@ -5082,40 +4883,6 @@ class ActionTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
-        replace_group2 = ContactGroup.create_static(self.org, self.admin, test_contact.name)
-
-        # with test contact, action logs are also created
-        self.execute_action(action, test_run, test_msg)
-
-        self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
-        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
-        self.assertEqual(set(replace_group2.contacts.all()), {test_contact})
-        self.assertEqual(ActionLog.objects.filter(level="I").count(), 2)
-
-        # now try remove action
-        action = DeleteFromGroupAction(str(uuid4()), [group, "@step.contact"])
-        action_json = action.as_json()
-        action = DeleteFromGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-
-        # contact should be removed now
-        self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group1.contacts.all()), set())
-
-        # no change if we run again
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group1.contacts.all()), set())
-
-        # with test contact, action logs are also created
-        self.execute_action(action, test_run, test_msg)
-
-        self.assertEqual(set(group.contacts.all()), set())
-        self.assertEqual(set(replace_group2.contacts.all()), set())
-        self.assertEqual(ActionLog.objects.filter(level="I").count(), 4)
-
         # try when group is inactive
         action = DeleteFromGroupAction(str(uuid4()), [group])
         group.is_active = False
@@ -5137,14 +4904,8 @@ class ActionTest(TembaTest):
 
         self.execute_action(action, run, msg)
 
-        # should do nothing and not log an error
+        # should do nothing
         self.assertEqual(dynamic_group.contacts.count(), 0)
-        self.assertEqual(ActionLog.objects.filter(level="E").count(), 0)
-
-        # tho if contact is a test contact, log as error
-        self.execute_action(action, test_run, test_msg)
-        self.assertEqual(dynamic_group.contacts.count(), 0)
-        self.assertEqual(ActionLog.objects.filter(level="E").count(), 1)
 
         group1 = self.create_group("Flow Group 1", [])
         group2 = self.create_group("Flow Group 2", [])
@@ -5153,13 +4914,13 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        self.execute_action(test, run, test_msg)
+        self.execute_action(test, run, msg)
 
         test = AddToGroupAction(str(uuid4()), [group2])
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        self.execute_action(test, run, test_msg)
+        self.execute_action(test, run, msg)
 
         # user should be in both groups now
         self.assertTrue(group1.contacts.filter(id=self.contact.pk))
@@ -5171,7 +4932,7 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        self.execute_action(test, run, test_msg)
+        self.execute_action(test, run, msg)
 
         # user should be gone from both groups now
         self.assertFalse(group1.contacts.filter(id=self.contact.pk))
@@ -5846,7 +5607,7 @@ class SimulationTest(FlowFileTest):
         return replies
 
     @override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io")
-    def test_mailroom_simulation(self):
+    def test_simulation(self):
         self.login(self.admin)
         flow = self.get_flow("favorites")
 
@@ -5894,104 +5655,6 @@ class SimulationTest(FlowFileTest):
             self.assertEqual("https://mailroom.temba.io/mr/sim/resume", mock_post.call_args_list[0][0][0])
             self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
             self.assertEqual(1, len(mock_post.call_args_list[0][1]["json"]["flows"]))
-
-    def test_release_action_logs(self):
-        flow = self.get_flow("group_split")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-        post_data = dict(has_refresh=True, version="1")
-        self.login(self.admin)
-
-        # start the simulation
-        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        post_data["new_message"] = "add Group A"
-        post_data["has_refresh"] = False
-        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(5, ActionLog.objects.all().count())
-
-        self.client.post(
-            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
-        )
-        self.assertEqual(1, ActionLog.objects.all().count())
-
-    def test_simulate_subflow(self):
-        self.get_flow("subflow")
-        flow = Flow.objects.get(name="Parent Flow")
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-        post_data = dict(has_refresh=True, version="1")
-        self.login(self.admin)
-
-        # start the simulation
-        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        # send a response
-        post_data["new_message"] = "color"
-        post_data["has_refresh"] = False
-        self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        # should have a parent and a child run
-        self.assertEqual(2, FlowRun.objects.all().count())
-
-        # start again
-        self.client.post(
-            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
-        )
-        self.assertEqual(1, FlowRun.objects.all().count())
-
-    def test_simulation_legacy(self):
-        flow = self.get_flow("pick_a_number")
-
-        # remove our channels
-        self.org.channels.all().delete()
-
-        simulate_url = reverse("flows.flow_simulate", args=[flow.pk])
-        self.admin.first_name = "Ben"
-        self.admin.last_name = "Haggerty"
-        self.admin.save()
-
-        post_data = dict(has_refresh=True, version="1")
-
-        # simulate from two different users
-        self.login(self.editor)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-
-        self.login(self.admin)
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        json_dict = response.json()
-
-        # check the activity, we should only see simulation for ourselves
-        simulation = response.json()
-        for count in simulation["activity"].values():
-            self.assertEqual(1, count)
-        for count in simulation["visited"].values():
-            self.assertEqual(1, count)
-
-        self.assertEqual(len(json_dict.keys()), 6)
-        self.assertEqual(len(json_dict["messages"]), 2)
-        self.assertEqual(
-            "Ben Haggerty has entered the &quot;Pick a Number&quot; flow", json_dict["messages"][0]["text"]
-        )
-        self.assertEqual("Pick a number between 1-10.", json_dict["messages"][1]["text"])
-
-        post_data["new_message"] = "3"
-        post_data["has_refresh"] = False
-
-        # previous steps without exits shouldn't blow up simulation stats
-        run = FlowRun.objects.filter(contact=Contact.get_test_contact(self.admin)).first()
-        del run.path[0]["exit_uuid"]
-        run.save(update_fields=("path",))
-
-        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEqual(200, response.status_code)
-        json_dict = response.json()
-
-        self.assertEqual(len(json_dict["messages"]), 6)
-        self.assertEqual("3", json_dict["messages"][2]["text"])
-        self.assertEqual("Saved &#39;3&#39; as @flow.number", json_dict["messages"][3]["text"])
-        self.assertEqual("You picked 3!", json_dict["messages"][4]["text"])
-        self.assertEqual("Ben Haggerty has exited this flow", json_dict["messages"][5]["text"])
 
 
 class FlowsTest(FlowFileTest):
@@ -6712,10 +6375,6 @@ class FlowsTest(FlowFileTest):
             self.send_message(favorites, "red", contact=jimmy)
             self.send_message(favorites, "turbo", contact=jimmy)
 
-            kobe = Contact.get_test_contact(self.admin)
-            self.send_message(favorites, "green", contact=kobe)
-            self.send_message(favorites, "skol", contact=kobe)
-
             self.login(self.admin)
             response = self.client.get(reverse("flows.flow_results", args=[favorites.uuid]))
 
@@ -7356,75 +7015,6 @@ class FlowsTest(FlowFileTest):
         # messages to/from deleted contacts shouldn't appear in the recent runs
         recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
         self.assertEqual([r["text"] for r in recent], ["burnt sienna"])
-
-        # test contacts should not affect the counts
-        hammer = Contact.get_test_contact(self.admin)
-
-        # please hammer, don't hurt em
-        self.send_message(flow, "Rose", contact=hammer)
-        self.send_message(flow, "Violet", contact=hammer)
-        self.send_message(flow, "Blue", contact=hammer)
-        self.send_message(flow, "Turbo King", contact=hammer)
-        self.send_message(flow, "MC Hammer", contact=hammer)
-
-        # our flow stats should be unchanged
-        (active, visited) = flow.get_activity()
-        self.assertEqual(active, {})
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 1,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
-        self.assertEqual(
-            flow.get_run_stats(),
-            {"total": 1, "active": 0, "completed": 1, "expired": 0, "interrupted": 0, "completion": 100},
-        )
-
-        # and no recent message entries for this test contact
-        recent = FlowPathRecentRun.get_recent([color_other_uuid], other_action.uuid)
-        self.assertEqual([r["text"] for r in recent], ["burnt sienna"])
-
-        # try the same thing after squashing
-        squash_flowpathcounts()
-        visited = flow.get_activity()[1]
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 1,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
-
-        # but hammer should have created some simulation activity
-        (active, visited) = flow.get_activity(hammer)
-        self.assertEqual(active, {})
-        self.assertEqual(
-            visited,
-            {
-                "%s:%s" % (color_question.exit_uuid, color.uuid): 1,
-                "%s:%s" % (color_other_uuid, other_action.uuid): 2,
-                "%s:%s" % (other_action.exit_uuid, color.uuid): 2,
-                "%s:%s" % (color_blue_uuid, beer_question.uuid): 1,
-                "%s:%s" % (beer_question.exit_uuid, beer.uuid): 1,
-                "%s:%s" % (beer.get_rules()[2].uuid, name_question.uuid): 1,
-                "%s:%s" % (name_question.exit_uuid, name.uuid): 1,
-                "%s:%s" % (name.get_rules()[0].uuid, end_prompt.uuid): 1,
-            },
-        )
 
         # delete our last contact to make sure activity is gone without first expiring, zeros abound
         ryan.release(self.admin)
@@ -8963,21 +8553,6 @@ class FlowsTest(FlowFileTest):
         json_dict = favorites.as_json()
         action = self.assertEqual("Bleck", json_dict["action_sets"][0]["actions"][0]["msg"]["tlh"])
 
-        # test that simulation takes language into account
-        self.login(self.admin)
-        simulate_url = reverse("flows.flow_simulate", args=[favorites.pk])
-        response = self.client.post(
-            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
-        ).json()
-        self.assertEqual("What is your favorite color?", response["messages"][1]["text"])
-
-        # now lets toggle the UI to Klingon and try the same thing
-        simulate_url = "%s?lang=tlh" % reverse("flows.flow_simulate", args=[favorites.pk])
-        response = self.client.post(
-            simulate_url, json.dumps(dict(has_refresh=True, version="1")), content_type="application/json"
-        ).json()
-        self.assertEqual("Bleck", response["messages"][1]["text"])
-
     def test_airtime_flow(self):
         flow = self.get_flow("airtime")
 
@@ -9080,15 +8655,6 @@ class FlowsTest(FlowFileTest):
             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
             MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
         ]
-
-        test_contact = Contact.get_test_contact(self.admin)
-
-        runs = flow.start_msg_flow([test_contact.id])
-        self.assertEqual(1, len(runs))
-
-        # no saved airtime event in DB
-        self.assertEqual(2, AirtimeTransfer.objects.all().count())
-        self.assertEqual(mock_post_transferto.call_count, 0)
 
         contact2 = self.create_contact(name="Bismack Biyombo", number="+250788123123", twitter="biyombo")
         self.assertEqual(contact2.get_urn().path, "biyombo")

@@ -14,13 +14,12 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.db import models
 from django.db.models import Q
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
-from temba.flows.models import ActionLog, Flow, FlowRun
+from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
@@ -388,14 +387,6 @@ class WebHookEvent(SmartModel):
                 request_time=request_time,
                 org=run.org,
             )
-
-            # if this is a test contact, add an entry to our action log
-            if run.contact.is_test:  # pragma: no cover
-                log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (
-                    reverse("api.log_read", args=[webhook_event.pk]),
-                    status_code,
-                )
-                ActionLog.create(run, log_txt, safe=True)
 
         return result
 

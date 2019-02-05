@@ -1892,13 +1892,6 @@ class MiddlewareTest(TembaTest):
         with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
-    def test_flow_simulation(self):
-        Contact.set_simulation(True)
-
-        self.client.get(reverse("public.public_index"))
-
-        self.assertFalse(Contact.get_simulation())
-
     def test_activate_language(self):
         self.assertContains(self.client.get(reverse("public.public_index")), "Create Account")
 

@@ -793,7 +793,7 @@ class Org(SmartModel):
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
         config = self.config
-        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password)}@{host}:{port}/?{query}"})
+        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password, safe='')}@{host}:{port}/?{query}"})
         self.config = config
         self.modified_by = user
         self.save()
