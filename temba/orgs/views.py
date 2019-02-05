@@ -1256,10 +1256,15 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 
+        def pre_save(self, obj):
+            obj.was_flow_server_enabled = obj.flow_server_enabled
+            return super().pre_save(obj)
+
         def post_save(self, obj):
-            # make sure all our flows have flow server enabled according to the org settings
-            if obj.flow_server_enabled:
-                obj.flows.update(flow_server_enabled=True)
+            # if we are being changed to flow server enabled, do so
+            if not obj.was_flow_server_enabled and obj.flow_server_enabled:
+                obj.enable_flow_server()
+            return super().post_save(obj)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
