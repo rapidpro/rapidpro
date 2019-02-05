@@ -238,3 +238,31 @@ class TwilioTypeTest(TembaTest):
                 twilio_channel.release()
                 twilio_channel.refresh_from_db()
                 self.assertFalse(twilio_channel.is_active)
+
+    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    def test_enable_flow_server(self):
+        # make our channel of the twilio
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        channel = self.org.channels.all().first()
+        channel.channel_type = "T"
+        channel.config["callback_domain"] = "temba.io"
+        channel.config["application_sid"] = "twilio_app_sid"
+        channel.save()
+
+        # mock an authentication failure during the release process
+        with patch("temba.tests.twilio.MockTwilioClient.MockApplication.update") as mock_application:
+            # doesn't support ivr, noop
+            ttype = channel.get_type()
+            ttype.enable_flow_server(channel)
+            self.assertEqual(mock_application.call_count, 0)
+
+            channel.role = Channel.ROLE_ANSWER
+            channel.save()
+
+            ttype.enable_flow_server(channel)
+
+            kwargs = mock_application.mock_calls[0][2]
+            self.assertEqual(kwargs["voice_method"], "POST")
+            self.assertEqual(kwargs["voice_url"], f"https://temba.io/mr/ivr/c/{channel.uuid}/incoming")
+            self.assertEqual(kwargs["status_callback_method"], "POST")
+            self.assertEqual(kwargs["status_callback"], f"https://temba.io/mr/ivr/c/{channel.uuid}/status")
