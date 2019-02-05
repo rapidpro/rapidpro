@@ -2614,3 +2614,7 @@ class IVRTests(FlowFileTest):
         call.refresh_from_db()
 
         self.assertEqual(call.status, IVRCall.FAILED)
+
+    def test_mailroom_ivr_view(self):
+        response = self.client.get(reverse("mailroom.ivr_handler", args=[self.channel.uuid, "incoming"]))
+        self.assertEqual(500, response.status_code)
