@@ -1,3 +1,9 @@
+v4.19.2
+----------
+ * remap incoming ivr endpoints for Twilio channels when enabling flow server
+ * interrupt flow runs when enabling flow server
+ * add enable_flow_server method to org, call in org update view
+
 v4.19.1
 ----------
  * Scope API throttling by org and user
