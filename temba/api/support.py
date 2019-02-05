@@ -4,7 +4,6 @@ from rest_framework import exceptions, status
 from rest_framework.authentication import BasicAuthentication, TokenAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
-from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
 from django.http import HttpResponseServerError
@@ -66,21 +65,6 @@ class APIBasicAuthentication(BasicAuthentication):
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token or email")
-
-
-class OrgRateThrottle(ScopedRateThrottle):
-    """
-    Throttle class which rate limits across an org
-    """
-
-    def get_cache_key(self, request, view):
-        ident = None
-        if request.user.is_authenticated:
-            org = request.user.get_org()
-            if org:
-                ident = org.pk
-
-        return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 
 
 class DocumentationRenderer(BrowsableAPIRenderer):

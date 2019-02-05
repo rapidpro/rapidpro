@@ -898,7 +898,7 @@ REST_FRAMEWORK = {
         "temba.api.support.APITokenAuthentication",
         "temba.api.support.APIBasicAuthentication",
     ),
-    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgRateThrottle",),
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.UserRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",
