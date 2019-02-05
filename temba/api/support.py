@@ -68,17 +68,16 @@ class APIBasicAuthentication(BasicAuthentication):
         raise exceptions.AuthenticationFailed("Invalid token or email")
 
 
-class OrgRateThrottle(ScopedRateThrottle):
+class OrgUserRateThrottle(ScopedRateThrottle):
     """
-    Throttle class which rate limits across an org
+    Throttle class which rate limits a user in an org
     """
 
     def get_cache_key(self, request, view):
         ident = None
         if request.user.is_authenticated:
             org = request.user.get_org()
-            if org:
-                ident = org.pk
+            ident = f"{org.id if org else 0}-{request.user.id}"
 
         return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 
