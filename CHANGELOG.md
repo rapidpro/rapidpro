@@ -1,3 +1,9 @@
+v4.19.1
+----------
+ * Scope API throttling by org and user
+ * Add export link on campaign read page
+ * Fix SMTP serever config to percentage encode slashes
+
 v4.19.0
 ----------
  * Add session_type field on FlowSession
