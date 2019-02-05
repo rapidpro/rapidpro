@@ -668,6 +668,10 @@ class OrgCRUDL(SmartCRUDL):
             context["archived"] = include_archived
             context["buckets"] = buckets
             context["singles"] = singles
+
+            context["flow_id"] = int(self.request.GET.get("flow", 0))
+            context["campaign_id"] = int(self.request.GET.get("campaign", 0))
+
             return context
 
         def generate_export_buckets(self, org, include_archived):
