@@ -7976,9 +7976,11 @@ class RemoveTestContactsTest(MigrationTest):
     def setUpBeforeMigration(self, apps):
         flow = self.get_flow("color")
         contact = self.create_contact("Bobby", twitter="bobby")
-        test_contact = Contact.get_test_contact(self.admin)
+        test_contact = self.create_contact("Testy", twitter="testy", is_test=True)
 
-        flow.start([], [contact, test_contact])
+        run, test_run = flow.start([], [contact, test_contact])
+
+        FlowRun.create(flow=flow, contact=test_contact, parent=test_run)
 
     def test_test_contacts_removed(self):
         self.assertEqual(Contact.objects.filter(is_test=False).count(), 1)

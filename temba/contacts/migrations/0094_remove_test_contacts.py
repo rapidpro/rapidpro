@@ -8,12 +8,12 @@ def remove_test_contacts(apps, schema_editor):
 
     num_deleted = 0
     for test_contact in Contact.objects.filter(is_test=True):
-        for test_run in test_contact.runs.order_by("id"):
+        for test_run in test_contact.runs.order_by("-id"):
             if test_run.connection:
                 test_run.connection.delete()
 
             test_run.webhook_events.all().delete()
-            test_run.logs.all.delete()
+            test_run.logs.all().delete()
             test_run.delete()
 
         test_contact.webhook_results.all().delete()

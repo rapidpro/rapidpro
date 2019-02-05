@@ -773,7 +773,6 @@ class Flow(TembaModel):
         run,
         msg,
         started_flows=None,
-        is_test_contact=False,
         user_input=False,
         triggered_start=False,
         trigger_send=True,
@@ -1498,12 +1497,10 @@ class Flow(TembaModel):
             start_msg.save(update_fields=["msg_type"])
 
         all_contact_ids = list(
-            Contact.all()
-            .filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
-            .only("is_test")
-            .order_by("pk")
-            .values_list("pk", flat=True)
-            .distinct("pk")
+            Contact.objects.filter(Q(all_groups__in=group_qs) | Q(id__in=contact_qs))
+            .order_by("id")
+            .values_list("id", flat=True)
+            .distinct("id")
         )
 
         if not restart_participants:
@@ -1737,8 +1734,6 @@ class Flow(TembaModel):
         Contact.bulk_cache_initialize(self.org, batch_contacts)
         contact_map = {c.id: c for c in batch_contacts}
 
-        simulation = len(batch_contacts) == 1 and batch_contacts[0].is_test
-
         # these fields are the initial state for our flow run
         run_fields = {}  # this should be the default value of the FlowRun.fields
         if extra:
@@ -1860,13 +1855,7 @@ class Flow(TembaModel):
 
                         msg = Msg(org=self.org, contact=contact, text="", id=0)
                         handled, step_msgs = Flow.handle_destination(
-                            destination,
-                            run,
-                            msg,
-                            started_flows_by_contact,
-                            is_test_contact=simulation,
-                            trigger_send=False,
-                            continue_parent=False,
+                            destination, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False
                         )
                         run_msgs += step_msgs
 
@@ -2105,7 +2094,7 @@ class Flow(TembaModel):
                     lookup_action_contacts(action, contacts, groups)
 
             # load them all
-            contacts = dict((_.uuid, _) for _ in Contact.all().filter(org=self.org, uuid__in=contacts))
+            contacts = dict((_.uuid, _) for _ in self.org.org_contacts.filter(uuid__in=contacts))
             groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
 
             # and replace them

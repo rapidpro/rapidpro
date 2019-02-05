@@ -202,7 +202,7 @@ def send_spam(user_id, contact_id):  # pragma: no cover
     from temba.contacts.models import Contact, TEL_SCHEME
     from temba.msgs.models import Broadcast
 
-    contact = Contact.all().get(pk=contact_id)
+    contact = Contact.objects.get(pk=contact_id)
     user = User.objects.get(pk=user_id)
     channel = contact.org.get_send_channel(TEL_SCHEME)
 

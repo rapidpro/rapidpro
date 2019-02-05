@@ -753,10 +753,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             logger.error("Error evaluating query", exc_info=True)
             raise  # reraise the exception
 
-    @classmethod
-    def all(cls):
-        return cls.objects.filter(is_test=False)
-
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
