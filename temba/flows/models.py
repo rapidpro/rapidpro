@@ -1459,6 +1459,7 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+
         from temba.campaigns.models import CampaignEvent
 
         # old engine can't start flows in passive mode
@@ -5034,14 +5035,17 @@ class FlowStart(SmartModel):
         return start
 
     def async_start(self):
-        from temba.flows.tasks import start_flow_task
+        if self.flow.flow_server_enabled:  # pragma: no cover
+            self.start_in_mailroom()
+        else:
+            from temba.flows.tasks import start_flow_task
 
-        # we prioritize the case where a specific contact is being started by themselves
-        prioritize = self.contacts.count() == 1 and self.groups.count() == 0
+            # we prioritize the case where a specific contact is being started by themselves
+            prioritize = self.contacts.count() == 1 and self.groups.count() == 0
 
-        queue = Queue.HANDLER if prioritize else Queue.FLOWS
+            queue = Queue.HANDLER if prioritize else Queue.FLOWS
 
-        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
+            on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING

@@ -44,7 +44,6 @@ class APITest(TembaTest):
 
         self.joe = self.create_contact("Joe Blow", "0788123123")
         self.frank = self.create_contact("Frank", twitter="franky")
-        self.test_contact = Contact.get_test_contact(self.user)
 
         self.twitter = Channel.create(
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
@@ -2003,7 +2002,6 @@ class APITest(TembaTest):
         contact5 = self.create_contact("Eve", "+250788000005")  # a deleted contact
         contact4.block(self.user)
         contact5.release(self.user)
-        test_contact = Contact.get_test_contact(self.user)
 
         group = self.create_group("Testers")
         self.create_field("isdeveloper", "Is developer")
@@ -2031,14 +2029,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "contacts": [
-                    contact1.uuid,
-                    "tel:+250788000002",
-                    contact3.uuid,
-                    contact4.uuid,
-                    contact5.uuid,
-                    test_contact.uuid,
-                ],
+                "contacts": [contact1.uuid, "tel:+250788000002", contact3.uuid, contact4.uuid, contact5.uuid],
                 "action": "add",
                 "group": "Testers",
             },
@@ -2103,18 +2094,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "add", "group": ""})
         self.assertResponseError(response, "group", "This field may not be null.")
 
-        # try to block all contacts
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, test_contact.uuid],
-                "action": "block",
-            },
-        )
-        self.assertResponseError(response, "contacts", "No such object: %s" % test_contact.uuid)
-
-        # block all valid contacts
+        # block all contacts
         response = self.postJSON(
             url, None, {"contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid], "action": "block"}
         )
@@ -2124,7 +2104,7 @@ class APITest(TembaTest):
         # unblock contact 1
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "unblock"})
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
@@ -2149,7 +2129,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "delete"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
-        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4})
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility="D").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility="D").exists())
 
@@ -2801,9 +2781,6 @@ class APITest(TembaTest):
         # add a deleted message
         deleted_msg = self.create_msg(direction="I", msg_type="I", text="!@$!%", contact=self.frank, visibility="D")
 
-        # add a test contact message
-        self.create_msg(direction="I", msg_type="F", text="Hello", contact=self.test_contact)
-
         # add message in other org
         self.create_msg(direction="I", msg_type="I", text="Guten tag!", contact=self.hans, org=self.org2)
 
@@ -3048,9 +3025,6 @@ class APITest(TembaTest):
         joe_run2, = flow1.start([], [self.joe], restart_participants=True)
         frank_run2, = flow1.start([], [self.frank], restart_participants=True)
         joe_run3, = flow2.start([], [self.joe], restart_participants=True)
-
-        # add a test contact run
-        FlowRun.create(flow2, self.test_contact)
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)

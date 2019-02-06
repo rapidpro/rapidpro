@@ -130,9 +130,23 @@ class CampaignCRUDL(SmartCRUDL):
                             href=reverse("campaigns.campaign_activate", args=[self.object.id]),
                         )
                     )
+
+                if self.has_org_perm("orgs.org_export"):
+                    links.append(
+                        dict(
+                            title=_("Export"),
+                            href=f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1",
+                        )
+                    )
+
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
                     links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
+
+                if self.has_org_perm("orgs.org_export"):
+                    links.append(
+                        dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
+                    )
 
                 if self.has_org_perm("campaigns.campaign_update"):
                     links.append(dict(title="Edit", js_class="update-campaign", href="#"))

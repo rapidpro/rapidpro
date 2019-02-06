@@ -12,6 +12,17 @@ from temba.utils import json
 from temba.utils.http import HttpEvent
 
 
+class MailroomHandler(View):
+    """
+    Placeholder view that returns a 500 error. Clients should never reach this view, instead all URLs prefixed with
+    /mr/ should be rerouted to Mailroom.
+    """
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return HttpResponse("Misconfigured. Invalid RapidPro URL, should be redirected to Mailroom.", status=500)
+
+
 class CallHandler(View):
     @csrf_exempt
     def dispatch(self, *args, **kwargs):

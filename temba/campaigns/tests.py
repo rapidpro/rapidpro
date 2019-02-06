@@ -1067,7 +1067,7 @@ class CampaignTest(TembaTest):
         self.assertContains(response, "(Archived)", count=0)
 
         gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Edit", "Archive"])
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Export", "Edit", "Archive"])
 
         # archive the campaign
         campaign.is_archived = True
@@ -1080,7 +1080,7 @@ class CampaignTest(TembaTest):
         self.assertContains(response, "(Archived)", count=2)
 
         gear_links = response.context["view"].get_gear_links()
-        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate"])
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
 
     def test_view_campaign_archive(self):
         self.login(self.admin)

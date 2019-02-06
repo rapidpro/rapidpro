@@ -11,13 +11,10 @@
 
   :javascript
 
-    function get_param(name){
-       if(name=(new RegExp('[?&]'+encodeURIComponent(name)+'=([^&]*)')).exec(location.search))
-          return decodeURIComponent(name[1]);
-    }
-
     $(document).ready(function() {
-      var flow_id = get_param('flow');
+      var flow_id = {{flow_id}};
+      var campaign_id = {{campaign_id}};
+
 
       // check the entire group if it's bucketed
       $('#flows-' + flow_id).parents('.exportables.bucket').each(function(){
@@ -26,8 +23,16 @@
         })
       })
 
+      $('#campaigns-' + campaign_id).parents('.exportables.bucket').each(function(){
+        $(this).find('.select-section').each(function() {
+          $(this).click();
+        })
+      })
+
+
       // check individually if for the other group
       $('#flows_' + flow_id).each(function(){$(this).click()});
+      $('#campaigns_' + campaign_id).each(function(){$(this).click()});
     });
 
     $('.toggle-all').on('change', function() {

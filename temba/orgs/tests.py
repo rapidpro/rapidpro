@@ -1441,7 +1441,6 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
         self.create_inbound_msgs(contact, 10)
@@ -1522,12 +1521,6 @@ class OrgTest(TembaTest):
         self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(-5, self.org.get_credits_remaining())
 
-        # create a message from our test contact, should not count against our totals
-        test_msg = self.create_msg(contact=test_contact, direction="I", text="Test")
-
-        self.assertIsNone(test_msg.topup_id)
-        self.assertEqual(30, self.org.get_credits_used())
-
         # test special status
         self.assertFalse(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
@@ -1535,10 +1528,9 @@ class OrgTest(TembaTest):
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
 
-        # after applying this, no non-test messages should be without a topup
+        # after applying this, no messages should be without a topup
         self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertFalse(Msg.objects.filter(org=self.org, topup=None))
         self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
@@ -1993,7 +1985,7 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url, dict(smtp_from_email="foobar.com", disconnect="false"), follow=True
+            smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
         )
         self.assertEqual(
             '[{"message": "Please enter a valid email address", "code": ""}]',
@@ -2001,7 +1993,7 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url, dict(smtp_from_email="foo@bar.com", disconnect="false"), follow=True
+            smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
         )
         self.assertEqual(
             '[{"message": "You must enter the SMTP host", "code": ""}]',
@@ -2010,7 +2002,7 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(smtp_from_email="foo@bar.com", smtp_host="smtp.example.com", disconnect="false"),
+            {"smtp_from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
             follow=True,
         )
         self.assertEqual(
@@ -2020,12 +2012,12 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "disconnect": "false",
+            },
             follow=True,
         )
         self.assertEqual(
@@ -2035,13 +2027,13 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "disconnect": "false",
+            },
             follow=True,
         )
         self.assertEqual(
@@ -2051,14 +2043,14 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2075,15 +2067,15 @@ class OrgTest(TembaTest):
 
         self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                smtp_port="465",
-                name="DO NOT CHANGE ME",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "smtp_port": "465",
+                "name": "DO NOT CHANGE ME",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2094,14 +2086,14 @@ class OrgTest(TembaTest):
 
         self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2115,14 +2107,14 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="help@example.com",
-                smtp_password="",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "help@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2139,22 +2131,57 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email=" support@example.com",
-                smtp_host=" smtp.example.com  ",
-                smtp_username=" support@example.com ",
-                smtp_password="secret ",
-                smtp_port="465 ",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": " support@example.com",
+                "smtp_host": " smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret ",
+                "smtp_port": "465 ",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
+
         self.assertEqual(
             self.org.config["smtp_server"],
             "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
+
+        response = self.client.post(
+            smtp_server_url,
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secre/t",
+                "smtp_port": 465,
+                "disconnect": "false",
+            },
+            follow=True,
+        )
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+
+        self.assertEqual(
+            self.org.config["smtp_server"],
+            "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
+
+        response = self.client.get(smtp_server_url)
+        self.assertDictEqual(
+            response.context["view"].derive_initial(),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secre/t",
+                "smtp_port": 465,
+                "disconnect": "false",
+            },
         )
 
     @patch("nexmo.Client.create_application")

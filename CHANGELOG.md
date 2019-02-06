@@ -1,3 +1,19 @@
+v4.19.3
+----------
+ * Ensure scheduled triggers start flows in mailroom if enabled
+
+v4.19.2
+----------
+ * remap incoming ivr endpoints for Twilio channels when enabling flow server
+ * interrupt flow runs when enabling flow server
+ * add enable_flow_server method to org, call in org update view
+
+v4.19.1
+----------
+ * Scope API throttling by org and user
+ * Add export link on campaign read page
+ * Fix SMTP serever config to percentage encode slashes
+
 v4.19.0
 ----------
  * Add session_type field on FlowSession

@@ -167,6 +167,11 @@ class ChannelType(metaclass=ABCMeta):
         channel. Note: this will only be called if IS_PROD setting is True.
         """
 
+    def enable_flow_server(self, channel):
+        """
+        Called when an org is switched to being flow server enabled, noop in most cases
+        """
+
     def deactivate(self, channel):
         """
         Called when a channel of this type has been released. Can be used to cleanup things like callbacks which were
