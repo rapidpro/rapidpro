@@ -1460,7 +1460,12 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+
         from temba.campaigns.models import CampaignEvent
+
+        if self.flow_server_enabled:  # pragma: no cover
+            self.async_start(None, groups, contacts, restart_participants, include_active)
+            return []
 
         # old engine can't start flows in passive mode
         if campaign_event and campaign_event.start_mode == CampaignEvent.MODE_PASSIVE:
