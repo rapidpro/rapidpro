@@ -1,3 +1,8 @@
+v4.19.6
+----------
+ * add incoming_extra flow to mailroom test
+ * fix for test contact deletion migration
+
 v4.19.5
 ----------
  * pass extra to mailroom start task
