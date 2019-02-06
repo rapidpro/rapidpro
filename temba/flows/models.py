@@ -1416,7 +1416,7 @@ class Flow(TembaModel):
 
         return context
 
-    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
+    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True, extra=None):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -1427,6 +1427,7 @@ class Flow(TembaModel):
             flow=self,
             restart_participants=restart_participants,
             include_active=include_active,
+            extra=extra,
             created_by=user,
             modified_by=user,
         )
@@ -1464,7 +1465,14 @@ class Flow(TembaModel):
         from temba.campaigns.models import CampaignEvent
 
         if self.flow_server_enabled:  # pragma: no cover
-            self.async_start(None, groups, contacts, restart_participants, include_active)
+            self.async_start(
+                None,
+                groups,
+                contacts,
+                restart_participants=restart_participants,
+                include_active=include_active,
+                extra=extra,
+            )
             return []
 
         # old engine can't start flows in passive mode
