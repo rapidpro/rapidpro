@@ -1,3 +1,12 @@
+v4.19.4
+----------
+ * Support audio/mp4 as playable audio
+ * Add migration to remove test contacts
+
+v4.19.3
+----------
+ * Ensure scheduled triggers start flows in mailroom if enabled
+
 v4.19.2
 ----------
  * remap incoming ivr endpoints for Twilio channels when enabling flow server

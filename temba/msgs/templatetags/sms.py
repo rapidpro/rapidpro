@@ -11,6 +11,7 @@ PLAYABLE_CONTENT_TYPES = {
     "audio/vnd.wav",
     "audio/ogg",
     "audio/mp3",
+    "audio/mp4",
     "audio/m4a",
     "audio/x-m4a",
     "video/mp4",
