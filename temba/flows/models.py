@@ -5097,6 +5097,7 @@ class FlowStart(SmartModel):
             contact_ids=[c.id for c in self.contacts.all()],
             restart_participants=self.restart_participants,
             include_active=self.include_active,
+            extra=self.extra,
         )
 
         # queue to mailroom
