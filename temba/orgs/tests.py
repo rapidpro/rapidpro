@@ -1441,7 +1441,6 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
         self.create_inbound_msgs(contact, 10)
@@ -1522,12 +1521,6 @@ class OrgTest(TembaTest):
         self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(-5, self.org.get_credits_remaining())
 
-        # create a message from our test contact, should not count against our totals
-        test_msg = self.create_msg(contact=test_contact, direction="I", text="Test")
-
-        self.assertIsNone(test_msg.topup_id)
-        self.assertEqual(30, self.org.get_credits_used())
-
         # test special status
         self.assertFalse(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
@@ -1535,10 +1528,9 @@ class OrgTest(TembaTest):
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
 
-        # after applying this, no non-test messages should be without a topup
+        # after applying this, no messages should be without a topup
         self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertFalse(Msg.objects.filter(org=self.org, topup=None))
         self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free

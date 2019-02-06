@@ -771,12 +771,8 @@ class MsgTest(TembaTest):
         self.client.post(inbox_url, post_data, follow=True)
         self.assertEqual(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED).count(), 0)
 
-        # messages from test contact are not included in the inbox
-        test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_incoming(self.channel, str(test_contact.get_urn()), "Bla Blah")
-
         response = self.client.get(inbox_url)
-        self.assertEqual(Msg.objects.all().count(), 7)
+        self.assertEqual(Msg.objects.all().count(), 6)
         self.assertEqual(response.context["object_list"].count(), 5)
 
         # archiving a message removes it from the inbox
@@ -2348,25 +2344,6 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
-        # test when we are simulating
-        response = self.client.get(send_url + "?simulation=true")
-        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
-
-        test_contact = Contact.get_test_contact(self.admin)
-
-        post_data = dict(
-            text="you simulator display this",
-            omnibox="c-%s,c-%s,c-%s" % (self.joe.uuid, self.frank.uuid, test_contact.uuid),
-        )
-        self.client.post(send_url + "?simulation=true", post_data)
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-        self.assertEqual(Broadcast.objects.all()[0].groups.all().count(), 0)
-        self.assertEqual(Broadcast.objects.all()[0].contacts.all().count(), 1)
-        self.assertEqual(Broadcast.objects.all()[0].contacts.all()[0], test_contact)
-
-        # delete this broadcast to keep future test right
-        Broadcast.objects.all()[0].release()
-
         # test when we have many channels
         Channel.create(
             self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
@@ -2454,7 +2431,7 @@ class BroadcastTest(TembaTest):
 
         # add flow steps
         flow = self.get_flow("favorites")
-        flow.start([], [self.joe, test_contact], restart_participants=True)
+        flow.start([], [self.joe], restart_participants=True)
 
         step_uuid = RuleSet.objects.first().uuid
 
@@ -2950,10 +2927,6 @@ class LabelTest(TembaTest):
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
-        # can't label test messages
-        msg4 = self.create_msg(text="Message", contact=Contact.get_test_contact(self.user), direction="I")
-        self.assertRaises(ValueError, label.toggle_label, [msg4], add=True)
-
         # can't label outgoing messages
         msg5 = self.create_msg(text="Message", contact=self.joe, direction="O")
         self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
@@ -3382,14 +3355,6 @@ class SystemLabelTest(TembaTest):
             contacts=[contact1, contact2],
             schedule=Schedule.create_schedule(timezone.now(), "D", self.user),
         )
-
-        # create a broadcast with a test contact to make sure they aren't included
-        test_bcast = Broadcast.create(
-            self.org, self.user, "Test Broadcast", contacts=[Contact.get_test_contact(self.admin)]
-        )
-
-        # this will create some test outgoing messages as well
-        test_bcast.send()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),

@@ -837,7 +837,6 @@ class ChannelTest(TembaTest):
 
         # now that we can access the channel, which messages do we display in the chart?
         joe = self.create_contact("Joe", "+2501234567890")
-        test_contact = Contact.get_test_contact(self.admin)
 
         # should have two series, one for incoming one for outgoing
         self.assertEqual(2, len(response.context["message_stats"]))
@@ -854,25 +853,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(0, response.context["message_stats_table"][0]["incoming_ivr_count"])
         self.assertEqual(0, response.context["message_stats_table"][0]["outgoing_ivr_count"])
 
-        # send messages with a test contact
-        Msg.create_incoming(self.tel_channel, str(test_contact.get_urn()), "This incoming message will not be counted")
-        Msg.create_outgoing(self.org, self.user, test_contact, "This outgoing message will not be counted")
-
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
-        self.assertEqual(200, response.status_code)
-
-        # nothing should change since it's a test contact
-        self.assertEqual(0, len(response.context["message_stats"][0]["data"]))
-        self.assertEqual(1, response.context["message_stats"][1]["data"][-1]["count"])
-
-        # no change on the table starts too
-        self.assertEqual(1, len(response.context["message_stats_table"]))
-        self.assertEqual(0, response.context["message_stats_table"][0]["incoming_messages_count"])
-        self.assertEqual(1, response.context["message_stats_table"][0]["outgoing_messages_count"])
-        self.assertEqual(0, response.context["message_stats_table"][0]["incoming_ivr_count"])
-        self.assertEqual(0, response.context["message_stats_table"][0]["outgoing_ivr_count"])
-
-        # send messages with a normal contact
+        # send messages
         Msg.create_incoming(self.tel_channel, str(joe.get_urn(TEL_SCHEME)), "This incoming message will be counted")
         Msg.create_outgoing(self.org, self.user, joe, "This outgoing message will be counted")
 
@@ -895,24 +876,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.role = "SCAR"
         self.tel_channel.save()
 
-        from temba.msgs.models import IVR
-
-        Msg.create_incoming(
-            self.tel_channel, str(test_contact.get_urn()), "incoming ivr as a test contact", msg_type=IVR
-        )
-        Msg.create_outgoing(self.org, self.user, test_contact, "outgoing ivr as a test contact", msg_type=IVR)
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
-
-        # nothing should have changed
-        self.assertEqual(2, len(response.context["message_stats"]))
-
-        self.assertEqual(1, len(response.context["message_stats_table"]))
-        self.assertEqual(1, response.context["message_stats_table"][0]["incoming_messages_count"])
-        self.assertEqual(2, response.context["message_stats_table"][0]["outgoing_messages_count"])
-        self.assertEqual(0, response.context["message_stats_table"][0]["incoming_ivr_count"])
-        self.assertEqual(0, response.context["message_stats_table"][0]["outgoing_ivr_count"])
-
-        # now let's create an ivr interaction from a real contact
+        # now let's create an ivr interaction
         Msg.create_incoming(self.tel_channel, str(joe.get_urn()), "incoming ivr", msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, "outgoing ivr", msg_type=IVR)
         response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.superuser)
@@ -2386,15 +2350,12 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(assert_count, calculated_count)
 
     def test_daily_counts(self):
-        # test that messages to test contacts aren't counted
         self.admin.set_org(self.org)
-        test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_outgoing(self.org, self.admin, test_contact, "Test Message", channel=self.channel)
 
         # no channel counts
         self.assertFalse(ChannelCount.objects.all())
 
-        # real contact, but no channel
+        # contact without a channel
         Msg.create_incoming(None, "tel:+250788111222", "Test Message", org=self.org)
 
         # still no channel counts
