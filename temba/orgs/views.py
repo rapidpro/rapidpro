@@ -668,6 +668,10 @@ class OrgCRUDL(SmartCRUDL):
             context["archived"] = include_archived
             context["buckets"] = buckets
             context["singles"] = singles
+
+            context["flow_id"] = int(self.request.GET.get("flow", 0))
+            context["campaign_id"] = int(self.request.GET.get("campaign", 0))
+
             return context
 
         def generate_export_buckets(self, org, include_archived):
@@ -1256,10 +1260,17 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 
+        def pre_save(self, obj):
+            # figure out what our previous value was
+            obj.was_flow_server_enabled = Org.objects.get(id=obj.id).flow_server_enabled
+            return super().pre_save(obj)
+
         def post_save(self, obj):
-            # make sure all our flows have flow server enabled according to the org settings
-            if obj.flow_server_enabled:
-                obj.flows.update(flow_server_enabled=True)
+            # if we are being changed to flow server enabled, do so
+            if not obj.was_flow_server_enabled and obj.flow_server_enabled:
+                obj.enable_flow_server()
+
+            return super().post_save(obj)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):

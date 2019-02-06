@@ -490,7 +490,7 @@ class Trigger(SmartModel):
             return
 
         # for single contacts, we just start directly
-        if not groups and contacts:
+        if not groups and contacts and not self.flow.flow_server_enabled:
             self.flow.start(groups, contacts, restart_participants=True)
 
         # we have groups of contacts to start, create a flow start
