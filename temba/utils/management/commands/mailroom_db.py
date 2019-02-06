@@ -106,6 +106,7 @@ ORG1 = dict(
         dict(name="IVR Flow", file="ivr_flow.json", uuid="2f81d0ea-4d75-4843-9371-3f7465311cce"),
         dict(name="Send All", file="send_all.json", uuid="a7c11d68-f008-496f-b56d-2d5cf4cf16a5"),
         dict(name="Contact Surveyor", file="contact_surveyor.json", uuid="ed8cf8d4-a42c-4ce1-a7e3-44a2918e3cec"),
+        dict(name="Incoming Extra", file="incoming_extra.json", uuid="376d3de6-7f0e-408c-80d6-b1919738bc80"),
     ),
     campaigns=(
         dict(
