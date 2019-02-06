@@ -1,0 +1,94 @@
+- extends 'smartmin/list.html'
+- load i18n
+
+- block content
+
+  - block table-controls
+    .buttons.pull-right
+      %a.btn.btn-primary{href:"{% url 'policies.policy_create'%}"}
+        -trans "New Policy"
+
+  - for policy in active_policies
+
+    .policy{ onclick:'javascript:view("{{policy.policy_type}}");'}
+      .type
+        {{policy.get_policy_type_display}}
+      .created_on
+        {{policy.created_on|date:"M d, Y"}}
+      .edit
+        %a{href:"{% url 'policies.policy_update' policy.id%}"}
+          -trans "edit"
+
+
+  -if object_list
+    %hr
+      %h4
+        -trans "Previous Policies"
+      %table
+        %thead
+          %th
+          %th
+            -trans "Created"
+        -for policy in object_list
+          %tr
+            %td
+              {{policy.get_policy_type_display}}
+            %td.date
+              {{policy.created_on}}
+            %td.link
+              %a{href:"{% url 'policies.policy_history' policy.id%}"}
+                -trans "view"
+
+- block extra-script
+  :javascript
+
+    function view(policy_type) {
+      document.location.href = '/policy/' + policy_type
+    }
+
+- block extra-style
+
+  :css
+
+    th {
+      font-weight: 300;
+      font-size: 10px;
+      color: #999;
+    }
+
+
+    table {
+      width: 600px;
+    }
+
+    .link {
+      width: 20px;
+    }
+    .date {
+      width: 180px;
+    }
+
+    .buttons {
+
+    }
+
+    .policy {
+      display: inline-block;
+      padding: 10px;
+      border: 1px solid #e6e6e6;
+      border-radius: 5px;
+      width: 250px;
+      margin-right: 10px;
+      margin-top: 10px;
+      text-decoration: none;
+    }
+
+    .policy:hover {
+      background: #f3f3f3;
+      cursor: pointer;
+    }
+
+    .edit {
+      font-size: 11px;
+      line-height: 11px;
+    }

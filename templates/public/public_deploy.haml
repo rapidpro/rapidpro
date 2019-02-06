@@ -140,17 +140,10 @@
       %h5
         -trans "Buy an Android phone"
 
-      .sidebox
-        .caption
-          -trans "We recommend using"
-          %a{href:'http://www.samsung.com/uk/consumer/mobile-devices/smartphones/productcompare?prda=GT-S5570EGAXEU&prdb=GT-S6500ZYABTU&prdc=GT-S5300ZKABTU&prdd=GT-S6310ZWNBTU'}
-            -trans "inexpensive Samsung phones"
-          -trans "which are available in many local markets around the world. In East Africa these devices can be had locally for around $90."
-        %img{src:'{{STATIC_URL}}images/galaxy-mini.png'}
-
       -blocktrans
         We always recommend that the phone you use for {{name}} be dedicated for that purpose. The good news
-        is that Android phones are very inexpensive and getting more capable every day.
+        is that Android phones are very inexpensive and getting more capable every day. We recommend using a 
+        current version of an inexpensive phone such as the Moto G.
 
       %h5
         -trans "Get a local sim card"
@@ -243,7 +236,7 @@
           In fact, it's the primary thing that drove us to create {{name}} in the first place. We try hard to make it as easy as possible
           but we realize that you probably have questions on what this all means for your
           specific project. Please
-        <a href='javascript:void(0);' class='uv-send-message'>contact us</a>
+        <a href='javascript:void(0);' class='launch-support-widget'>contact us</a>
         -blocktrans
           with <i>any questions</i> and we'll help you work through your options.
 
@@ -286,5 +279,5 @@
 
     -blocktrans with name=brand.name
       We're always extending our network of local aggregators. If you don't see an option for your country,
-      <a href='javascript:void(0);' class='uv-send-message'>let us know</a>. We'd be happy to help source a
+      <a href='javascript:void(0);' class='launch-support-widget'>let us know</a>. We'd be happy to help source a
       local aggregator that we can integrate with {{name}} for your country.

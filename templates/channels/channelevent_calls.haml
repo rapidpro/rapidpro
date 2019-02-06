@@ -1,6 +1,6 @@
 -extends "msgs/message_box.html"
 -load smartmin contacts
--load i18n
+-load i18n humanize
 
 -block title-icon
   %span.title-icon
@@ -11,7 +11,7 @@
 -block search-details
   .search-details
     -if search
-      -blocktrans count results_count=paginator.count
+      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
         Found {{ results_count }} call in last 90 days for <i>{{search}}</i>.
         -plural
           Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
@@ -45,7 +45,7 @@
               %span.glyph.icon-phone
           %td.value-received.field_time
             %nobr
-              {{ object.occurred_on|gmail_time }}
+              {% short_datetime object.occurred_on %}
 
         -empty
           %tr

@@ -1,10 +1,24 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from .settings import *  # noqa
 
+# -----------------------------------------------------------------------------------
+# Mailroom - on Travis we start an instance at http://localhost:8090
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = "http://localhost:8090"
 
-# -----------------------------------------------------------------------------------
-# Flowserver - on Travis we start a GoFlow instance at http://localhost:8080
-# -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = 'http://localhost:8080'
+DATABASES = {
+    "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": "temba",
+        "USER": "temba",
+        "PASSWORD": "temba",
+        "HOST": "localhost",
+        "PORT": "5432",
+        "ATOMIC_REQUESTS": True,
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {},
+        "TEST": {"NAME": "temba"},  # use this same database for unit tests
+    }
+}
+
+# Use a fast hasher to speed up tests.
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

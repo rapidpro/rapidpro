@@ -1,4 +1,4 @@
--load contacts tz
+-load contacts tz i18n
 
 -for run in runs
   <tr id="run_{{run.id}}" class="run exit-{{run.exit_type}}"
@@ -34,3 +34,13 @@
             .empty
               &ndash;
   </tr>
+
+  -if forloop.last and not more
+    -if start_date
+      %tr
+        %td.archive-note(colspan=100)><
+          -blocktrans with start=start_date
+            Any runs prior to {{start}} can be found in your
+          %a(href="{% url 'archives.archive_run'%}")><
+            -trans "archive"
+          \.

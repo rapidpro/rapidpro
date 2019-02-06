@@ -1,6 +1,6 @@
 -extends "smartmin/form.html"
 
--load smartmin
+-load smartmin temba i18n
 
 -block extra-script
   {{ block.super }}
@@ -14,6 +14,8 @@
     $(document).ready(function() {
 
       select2div("#id_flow_to_start", "515px", "Flow to Start");
+      select2div("#id_message_start_mode", "249px", "Start Mode");
+      select2div("#id_flow_start_mode", "249px", "Start Mode");
       select2div("#id_relative_to", "249px", "Select a date");
       select2div("#id_direction", "85px");
       select2div("#id_unit", "100px");
@@ -23,7 +25,6 @@
       $('.show_language').live('click', function() {
         lang = $(this).data('iso');
 
-        console.log("clicked on " + lang);
         // first hide all our languages
         $('.language').hide();
 
@@ -32,8 +33,8 @@
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      var completions = {{completions|safe}};
-      var function_completions = {{function_completions|safe}};
+      var completions = {{ completions|to_json }};
+      var function_completions = {{ function_completions|to_json }};
 
       $('#message-section textarea').each(function() {
 
@@ -159,8 +160,15 @@
 
     #flow-section {
       display:none;
-      margin-top:8px;
-      margin-bottom:10px;
+      padding-top:5px;
+    }
+
+    #schedule-section {
+      padding-top: 5px;
+    }
+
+    #event-flow-start-mode {
+      padding-top: 5px;
     }
 
     .schedule-label {
@@ -176,6 +184,13 @@
     .delivered {
       display: inline-block;
       width:69px;
+      color: #666;
+      font-size:16px;
+    }
+
+    .start-mode-help {
+      display: inline-block;
+      width:262px;
       color: #666;
       font-size:16px;
     }
@@ -203,8 +218,18 @@
       .language{class:'{{field.language.iso_code}} {%if forloop.counter0 > 0%}hide{%endif%}'}
         -render_field field.language.iso_code
 
+    #event-message-start-mode
+      .start-mode-help
+        - trans "If the contact is already active in a flow"
+      -render_field 'message_start_mode'
+
   #flow-section
     -render_field 'flow_to_start'
+
+    #event-flow-start-mode
+      .start-mode-help
+        -trans "If the contact is already active in a flow"
+      -render_field 'flow_start_mode'
 
   #schedule-section
     -render_field 'offset'
@@ -214,6 +239,6 @@
 
   #send-at.hide
     .delivered
-      Delivered
+      -trans "Delivered"
     -render_field 'delivery_hour'
 

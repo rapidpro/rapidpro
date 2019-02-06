@@ -4,6 +4,7 @@
 .ipynb_checkpoints
 *.pyc
 *~
+.envrc
 
 # temba
 dump.rdb
@@ -61,6 +62,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+venv/
 build/
 develop-eggs/
 dist/

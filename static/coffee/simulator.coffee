@@ -1,7 +1,7 @@
 window.simulation = false
 window.moving_sim = false
 window.level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
-window.legacy = true
+window.legacy = !window.useMailroom
 
 $ ->
   $(window).scroll (evt) ->
@@ -63,6 +63,9 @@ processForm = (postData) ->
     else
       window.sendUpdate(postData)
 
+window.sendSimulationMessage = (new_message) ->
+  sendMessage(new_message)
+
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
 
@@ -79,8 +82,6 @@ sendMessage = (newMessage) ->
 
         if window.legacy
           $('.simulator-content').removeClass('v2')
-        else
-          $('.simulator-content').addClass('v2')
 
       , 500)
       return false
@@ -231,35 +232,6 @@ resetSimulator = ->
 window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
-
-window.addMessage = (text, type, metadata=null, level=null, onClick=null) ->
-
-  classes = ["imsg"]
-  if type == "log" or type == "error"
-    classes = ["ilog"]
-
-  if type == "MO"
-    classes.push("to")
-  else if type == "MT"
-    classes.push("from")
-  else if type == "error"
-    classes.push("ierror")
-
-  if level
-    classes.push(level_classes[level])
-
-  if onClick
-    classes.push("link")
-
-  ele = "<div class=\"" + classes.join(" ") + "\">"
-  ele += text
-  ele += "</div>"
-
-  ele = $(ele)
-  if onClick
-    ele.bind("click", onClick)
-
-  ele = $(".simulator-body").append(ele)
 
 appendMessage = (newMessage, ussd=false) ->
   ussd = if ussd then "ussd " else ""

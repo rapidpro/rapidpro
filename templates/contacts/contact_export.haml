@@ -1,0 +1,8 @@
+-extends 'smartmin/form.html'
+-load i18n
+-load smartmin
+
+-block modal-script
+  {{block.super}}
+  %script
+    $('#id_group_memberships').select2({containerCssClass: "select2-temba-field"});

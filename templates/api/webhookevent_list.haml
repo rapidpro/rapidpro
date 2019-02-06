@@ -1,4 +1,5 @@
 {% extends "smartmin/list.html" %}
+-load i18n
 
 -block page-title
   {{ brand.name }} - WebHook Events
@@ -6,22 +7,31 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    Recent WebHook Events
+    -trans "Recent WebHook Events"
   %h5.header-margin
-    WebHook URL: {{ user_org.get_webhook_url|default:"None Configured" }}
+    -trans "WebHook URL: "
+    {{ user_org.get_webhook_url|default:"None Configured" }}
 
 -block above-bar
-  %a.btn.btn-primary{ href: '{% url "api" %}' } API Docs
+  %a.btn{ href: '{% url "api.webhook" %}', style:'width: 100px;'}
+    -trans "Webhook Docs"
+  %a.btn.btn-primary{ href: '{% url "api" %}' }
+    -trans "API Docs"
 
 -block table
   %table.list-table.table.table-condensed
     %thead
       %tr
-        %th Event
-        %th Status
-        %th Channel
-        %th{ style:'width:100px;text-align: center;'} Attempts
-        %th{ style:'width:100px;'} Time
+        %th
+          -trans "Event"
+        %th
+          -trans "Status"
+        %th
+          -trans "Channel"
+        %th{ style:'width:100px;text-align: center;'}
+          -trans "Attempts"
+        %th{ style:'width:100px;'}
+          -trans "Time"
 
       -for obj in object_list
         %tr
