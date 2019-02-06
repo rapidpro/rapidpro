@@ -1416,7 +1416,7 @@ class Flow(TembaModel):
 
         return context
 
-    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
+    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True, extra=None):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -1427,6 +1427,7 @@ class Flow(TembaModel):
             flow=self,
             restart_participants=restart_participants,
             include_active=include_active,
+            extra=extra,
             created_by=user,
             modified_by=user,
         )
@@ -1460,7 +1461,19 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+
         from temba.campaigns.models import CampaignEvent
+
+        if self.flow_server_enabled:  # pragma: no cover
+            self.async_start(
+                None,
+                groups,
+                contacts,
+                restart_participants=restart_participants,
+                include_active=include_active,
+                extra=extra,
+            )
+            return []
 
         # old engine can't start flows in passive mode
         if campaign_event and campaign_event.start_mode == CampaignEvent.MODE_PASSIVE:
@@ -5045,14 +5058,17 @@ class FlowStart(SmartModel):
         return start
 
     def async_start(self):
-        from temba.flows.tasks import start_flow_task
+        if self.flow.flow_server_enabled:  # pragma: no cover
+            self.start_in_mailroom()
+        else:
+            from temba.flows.tasks import start_flow_task
 
-        # we prioritize the case where a specific contact is being started by themselves
-        prioritize = self.contacts.count() == 1 and self.groups.count() == 0
+            # we prioritize the case where a specific contact is being started by themselves
+            prioritize = self.contacts.count() == 1 and self.groups.count() == 0
 
-        queue = Queue.HANDLER if prioritize else Queue.FLOWS
+            queue = Queue.HANDLER if prioritize else Queue.FLOWS
 
-        on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
+            on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
