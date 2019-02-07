@@ -11,6 +11,8 @@ def remove_test_contacts(apps, schema_editor):
     num_deleted = 0
     for test_contact in Contact.objects.filter(is_test=True):
         BroadcastRecipient.objects.filter(contact=test_contact).delete()
+
+        test_contact.msgs.all().update(response_to=None)
         test_contact.msgs.all().delete()
 
         test_contact.webhook_results.all().delete()
@@ -33,6 +35,12 @@ def remove_test_contacts(apps, schema_editor):
 
 def unremove_test_contacts(apps, schema_editor):
     pass
+
+
+def apply_manual():
+    from django.apps import apps
+
+    remove_test_contacts(apps, None)
 
 
 class Migration(migrations.Migration):
