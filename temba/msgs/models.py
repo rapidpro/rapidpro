@@ -2202,9 +2202,6 @@ class Label(TembaModel):
             if msg.direction != INCOMING:
                 raise ValueError("Can only apply labels to incoming messages")
 
-            if msg.contact.is_test:
-                raise ValueError("Cannot apply labels to test messages")
-
             # if we are adding the label and this message doesnt have it, add it
             if add:
                 if not msg.labels.filter(pk=self.pk):
