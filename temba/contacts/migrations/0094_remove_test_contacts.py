@@ -5,6 +5,7 @@ from django.db import migrations
 
 def remove_test_contacts(apps, schema_editor):
     ChannelConnection = apps.get_model("channels", "ChannelConnection")
+    ChannelEvent = apps.get_model("channels", "ChannelEvent")
     Contact = apps.get_model("contacts", "Contact")
     BroadcastRecipient = apps.get_model("msgs", "BroadcastRecipient")
 
@@ -23,6 +24,7 @@ def remove_test_contacts(apps, schema_editor):
             test_run.delete()
 
         ChannelConnection.objects.filter(contact=test_contact).delete()
+        ChannelEvent.objects.filter(contact=test_contact).delete()
 
         test_contact.urns.all().delete()
 
