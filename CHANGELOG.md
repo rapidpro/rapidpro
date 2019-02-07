@@ -1,3 +1,8 @@
+v4.19.7
+----------
+ * fix simulator to allow fields with empty value
+ * remove remaining usages of test contacts for testing
+
 v4.19.6
 ----------
  * add incoming_extra flow to mailroom test
