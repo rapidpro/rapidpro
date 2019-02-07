@@ -1,3 +1,17 @@
+v4.19.6
+----------
+ * add incoming_extra flow to mailroom test
+ * fix for test contact deletion migration
+
+v4.19.5
+----------
+ * pass extra to mailroom start task
+
+v4.19.4
+----------
+ * Support audio/mp4 as playable audio
+ * Add migration to remove test contacts
+
 v4.19.3
 ----------
  * Ensure scheduled triggers start flows in mailroom if enabled
