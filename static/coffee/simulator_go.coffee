@@ -121,7 +121,10 @@ window.renderSimEvent = (event) ->
       window.addSimMessage("MT", "Broadcast sent with text \"" + event.translations[event.base_language].text + "\"")
 
     when "contact_field_changed"
-      window.addSimMessage("log", "Updated " + event.field.name + " to \"" + event.value.text + "\"")
+      text = ''
+      if event.value
+        text = event.value.text
+      window.addSimMessage("log", "Updated " + event.field.name + " to \"" + text + "\"")
 
     when "contact_groups_changed"
       if event.groups_added
