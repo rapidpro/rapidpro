@@ -1862,9 +1862,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from temba.triggers.models import Trigger
 
-        if self.is_test:
-            raise ValueError("Can't block a test contact")
-
         self.clear_all_groups(user)
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1885,9 +1882,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Marks this contact has stopped, removing them from all groups.
         """
         from temba.triggers.models import Trigger
-
-        if self.is_test:
-            raise ValueError("Can't stop a test contact")
 
         self.is_stopped = True
         self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
