@@ -3422,16 +3422,12 @@ class APITest(TembaTest):
             resthook=resthook1,
             event="F",
             data=dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
-            created_by=self.admin,
-            modified_by=self.admin,
         )
         event2 = WebHookEvent.objects.create(
             org=self.org,
             resthook=resthook2,
             event="F",
             data=dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
-            created_by=self.admin,
-            modified_by=self.admin,
         )
 
         # no filtering

@@ -5159,9 +5159,7 @@ class FlowRunTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact)
 
         # give our run some webhook data
-        WebHookEvent.objects.create(
-            org=self.org, run=run, channel=self.channel, created_by=self.admin, modified_by=self.admin
-        )
+        WebHookEvent.objects.create(org=self.org, run=run, channel=self.channel)
 
         # our run go bye bye
         run.release()
@@ -10865,7 +10863,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=105, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 
