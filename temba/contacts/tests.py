@@ -238,7 +238,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         # contact without name or urn
         nameless = Contact.objects.create(org=self.org)
         response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
-        self.assertContains(response, "Unnamed Contact")
+        self.assertContains(response, "Contact Details")
 
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
