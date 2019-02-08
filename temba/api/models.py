@@ -160,7 +160,7 @@ class ResthookSubscriber(SmartModel):
         self.resthook.save(update_fields=["modified_on", "modified_by"])
 
 
-class WebHookEvent(SmartModel):
+class WebHookEvent(models.Model):
     """
     Represents an event that needs to be sent to the web hook for a channel.
     """
@@ -199,35 +199,38 @@ class WebHookEvent(SmartModel):
         (STATUS_FAILED, "Failed"),
     )
 
-    org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, help_text="The organization that this event was triggered for"
-    )
-    resthook = models.ForeignKey(
-        Resthook, on_delete=models.PROTECT, null=True, help_text="The associated resthook to this event. (optional)"
-    )
-    status = models.CharField(
-        max_length=1, choices=STATUS_CHOICES, default="P", help_text="The state this event is currently in"
-    )
-    run = models.ForeignKey(
-        FlowRun,
-        on_delete=models.PROTECT,
-        related_name="webhook_events",
-        null=True,
-        help_text="The flow run that triggered this event",
-    )
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        help_text="The channel that this event is relating to",
-    )
+    # the organization this event is tied to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
-    event = models.CharField(max_length=16, choices=TYPE_CHOICES, help_text="The event type for this event")
-    data = JSONAsTextField(default=dict, help_text="The JSON encoded data that will be POSTED to the web hook")
-    try_count = models.IntegerField(default=0, help_text="The number of times this event has been tried")
-    next_attempt = models.DateTimeField(null=True, blank=True, help_text="When this event will be retried")
-    action = models.CharField(max_length=8, default="POST", help_text="What type of HTTP event is it")
+    # the resthook this event is for if any
+    resthook = models.ForeignKey(Resthook, on_delete=models.PROTECT, null=True)
+
+    # the status of this event
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P")
+
+    # the flow run this event is associated with if any
+    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="webhook_events", null=True)
+
+    # the channel this event is for if any
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, blank=True)
+
+    # the type of event
+    event = models.CharField(max_length=16, choices=TYPE_CHOICES)
+
+    # the data that would have been POSTed to this event
+    data = JSONAsTextField(default=dict)
+
+    # how many times we have tried to deliver this event
+    try_count = models.IntegerField(default=0)
+
+    # the next time we will attempt this event if any
+    next_attempt = models.DateTimeField(null=True, blank=True)
+
+    # the method for our request
+    action = models.CharField(max_length=8, default="POST")
+
+    # when this event was created
+    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
 
     @classmethod
     def get_recent_errored(cls, org):
@@ -273,7 +276,6 @@ class WebHookEvent(SmartModel):
         if channel:
             post_data["channel"] = dict(name=channel.name, uuid=channel.uuid)
 
-        api_user = get_api_user()
         if not action:  # pragma: needs cover
             action = "POST"
 
@@ -286,8 +288,6 @@ class WebHookEvent(SmartModel):
             try_count=1,
             action=action,
             resthook=resthook,
-            created_by=api_user,
-            modified_by=api_user,
         )
 
         status_code = -1
@@ -409,8 +409,6 @@ class WebHookEvent(SmartModel):
         ):
             return
 
-        api_user = get_api_user()
-
         json_time = time.strftime("%Y-%m-%dT%H:%M:%S.%f")
         data = dict(
             sms=msg.id,
@@ -425,9 +423,7 @@ class WebHookEvent(SmartModel):
             direction=msg.direction,
         )
 
-        hook_event = cls.objects.create(
-            org=org, channel=msg.channel, event=event, data=data, created_by=api_user, modified_by=api_user
-        )
+        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data)
         hook_event.fire()
         return hook_event
 
@@ -453,8 +449,6 @@ class WebHookEvent(SmartModel):
         ):
             return
 
-        api_user = get_api_user()
-
         json_time = call.occurred_on.strftime("%Y-%m-%dT%H:%M:%S.%f")
         data = dict(
             call=call.pk,
@@ -465,9 +459,7 @@ class WebHookEvent(SmartModel):
             extra=call.extra,
             occurred_on=json_time,
         )
-        hook_event = cls.objects.create(
-            org=org, channel=call.channel, event=event, data=data, created_by=api_user, modified_by=api_user
-        )
+        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data)
         hook_event.fire()
         return hook_event
 
@@ -483,8 +475,6 @@ class WebHookEvent(SmartModel):
         if not org.is_notified_of_alarms():
             return
 
-        api_user = get_api_user()
-
         json_time = channel.last_seen.strftime("%Y-%m-%dT%H:%M:%S.%f")
         data = dict(
             channel=channel.pk,
@@ -498,14 +488,7 @@ class WebHookEvent(SmartModel):
             last_seen=json_time,
         )
 
-        hook_event = cls.objects.create(
-            org=org,
-            channel=channel,
-            event=cls.TYPE_RELAYER_ALARM,
-            data=data,
-            created_by=api_user,
-            modified_by=api_user,
-        )
+        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=data)
         hook_event.fire()
         return hook_event
 
@@ -801,16 +784,3 @@ def api_token(user):
 
 
 User.api_token = property(api_token)
-
-
-def get_api_user():
-    """
-    Returns a user that can be used to associate events created by the API service
-    """
-    user = User.objects.filter(username="api")
-    if user:
-        return user[0]
-    else:
-        user = User.objects.create_user("api", "code@temba.com")
-        user.groups.add(Group.objects.get(name="Service Users"))
-        return user
