@@ -73,7 +73,7 @@ from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
-class ContactCRUDLTest(_CRUDLTest):
+class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
     def setUp(self):
         from temba.contacts.views import ContactCRUDL
 
@@ -229,6 +229,16 @@ class ContactCRUDLTest(_CRUDLTest):
         # can no longer access
         response = self.client.get(read_url)
         self.assertEqual(response.status_code, 404)
+
+        # contact with only a urn
+        nameless = self.create_contact("", twitter="bobby_anon")
+        response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
+        self.assertContains(response, "bobby_anon")
+
+        # contact without name or urn
+        nameless = Contact.objects.create(org=self.org)
+        response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
+        self.assertContains(response, "Contact Details")
 
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))

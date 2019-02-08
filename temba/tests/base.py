@@ -134,7 +134,7 @@ class ESMockWithScrollMultiple(ESMockWithScroll):
         return patched_object()
 
 
-class TembaTestMixin(object):
+class TembaTestMixin:
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
