@@ -379,13 +379,14 @@ class WebHookEvent(SmartModel):
                 contact = webhook_event.run.contact
 
             result = WebHookResult.objects.create(
+                org=run.org,
+                resthook=resthook,
                 contact=contact,
                 url=webhook_url,
                 status_code=status_code,
                 response=body,
                 request=request,
                 request_time=request_time,
-                org=run.org,
             )
 
         return result
@@ -606,6 +607,9 @@ class WebHookResult(models.Model):
     """
     Represents the result of trying to deliver an event to a web hook
     """
+
+    # the resthook this result is for, if any
+    resthook = models.ForeignKey(Resthook, null=True, on_delete=models.CASCADE)
 
     # the url this result is for
     url = models.TextField(null=True, blank=True)

@@ -16,7 +16,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
+from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookResult
 from temba.api.v2.views_base import (
     BaseAPIView,
     BulkWriteAPIMixin,
@@ -67,7 +67,7 @@ from .serializers import (
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
-    WebHookEventReadSerializer,
+    WebHookResultReadSerializer,
 )
 
 
@@ -2763,9 +2763,9 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
     """
 
-    permission = "api.webhookevent_api"
-    model = WebHookEvent
-    serializer_class = WebHookEventReadSerializer
+    permission = "api.webhookresult_api"
+    model = WebHookResult
+    serializer_class = WebHookResultReadSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
