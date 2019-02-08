@@ -12,7 +12,6 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
 from temba.utils import extract_constants, json, on_transaction_commit
-from temba.utils.http import body_for_http_request
 from temba.values.constants import Value
 
 from . import fields
@@ -1132,7 +1131,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
         return resthook.add_subscriber(target_url, self.context["user"])
 
 
-class WebHookResultReadSerializer(ReadSerializer):
+class WebHookEventReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
     data = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -1141,7 +1140,7 @@ class WebHookResultReadSerializer(ReadSerializer):
         return obj.resthook.slug
 
     def get_data(self, obj):
-        return json.loads(body_for_http_request(obj.request))
+        return obj.data
 
     class Meta:
         model = WebHookEvent

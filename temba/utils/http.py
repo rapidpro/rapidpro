@@ -24,15 +24,3 @@ class HttpEvent(object):
 
     def __str__(self):  # pragma: no cover
         return "%s %s %s %s %s" % (self.method, self.url, self.status_code, self.response_body, self.request_body)
-
-
-def body_for_http_request(data):
-    """
-    Given a raw HTTP request returns just the body. This just splits on double \r\n which demarkates the header and body
-    of HTTP requests: https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
-    """
-    parts = data.split("\r\n\r\n", 1)
-    if len(parts) != 2:
-        return ""
-
-    return parts[1]
