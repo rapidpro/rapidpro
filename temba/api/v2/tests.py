@@ -18,7 +18,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.models import APIToken, Resthook, WebHookEvent
+from temba.api.models import APIToken, Resthook, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
@@ -3417,21 +3417,23 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some events on our resthooks
-        event1 = WebHookEvent.objects.create(
+        event1 = WebHookResult.objects.create(
             org=self.org,
             resthook=resthook1,
-            event="F",
-            data=dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
-            created_by=self.admin,
-            modified_by=self.admin,
+            url="http://foo.bar",
+            request="""POST /hooks/standard/95888/arstarstarst/ HTTP/1.1\r\nHost: hooks.zapier.com\r\n\r\n{"foo1": "bar"}""",
+            status_code=200,
+            response="",
+            created_on=timezone.now(),
         )
-        event2 = WebHookEvent.objects.create(
+        event2 = WebHookResult.objects.create(
             org=self.org,
             resthook=resthook2,
-            event="F",
-            data=dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
-            created_by=self.admin,
-            modified_by=self.admin,
+            url="http://foo.bar",
+            request="""POST /hooks/standard/958889/arstarstarst/ HTTP/1.1\r\nHost: hooks.zapier.com\r\n\r\n{"foo2": "bar"}""",
+            status_code=200,
+            response="",
+            created_on=timezone.now(),
         )
 
         # no filtering
@@ -3442,16 +3444,8 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json()["results"],
             [
-                {
-                    "resthook": "new-father",
-                    "created_on": format_datetime(event2.created_on),
-                    "data": dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
-                },
-                {
-                    "resthook": "new-mother",
-                    "created_on": format_datetime(event1.created_on),
-                    "data": dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
-                },
+                {"resthook": "new-father", "created_on": format_datetime(event2.created_on), "data": dict(foo2="bar")},
+                {"resthook": "new-mother", "created_on": format_datetime(event1.created_on), "data": dict(foo1="bar")},
             ],
         )
 
