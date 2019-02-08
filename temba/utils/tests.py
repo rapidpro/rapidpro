@@ -64,7 +64,7 @@ from .expressions import (
     migrate_template,
 )
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
-from .http import body_for_http_request, http_headers
+from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
@@ -213,15 +213,6 @@ class InitTest(TembaTest):
 
         self.assertEqual(headers, {"User-agent": "RapidPro", "Foo": "Bar", "Token": "123456"})
         self.assertEqual(http_headers(), {"User-agent": "RapidPro"})  # check changes don't leak
-
-    def test_body_for_http_request(self):
-        self.assertEqual("", body_for_http_request(""))
-        self.assertEqual(
-            """{"foo2": "bar"}""",
-            body_for_http_request(
-                """POST /hooks/standard/958889/arstarstarst/ HTTP/1.1\r\nHost: hooks.zapier.com\r\n\r\n{"foo2": "bar"}"""
-            ),
-        )
 
 
 class DatesTest(TembaTest):
