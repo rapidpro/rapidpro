@@ -1,3 +1,7 @@
+v4.21.1
+----------
+ * do not log errors for more common exceptions
+
 v4.21.0
 ----------
  * Include fake channel asset when simulating
