@@ -7,7 +7,8 @@ getStartRequest = ->
       channel: {
         uuid: "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
         name: "Test Channel"
-      }
+      },
+      urn: "tel:+12065551212"
     }
   else
     connection = null
