@@ -1479,6 +1479,7 @@ class FlowCRUDL(SmartCRUDL):
                             "address": "+18005551212",
                             "schemes": ["tel"],
                             "roles": ["send", "receive", "call"],
+                            "country": "US",
                         }
                     ]
                 },
