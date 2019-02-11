@@ -1,3 +1,7 @@
+v4.21.2
+----------
+ * set country code on test channel
+
 v4.21.1
 ----------
  * do not log errors for more common exceptions
