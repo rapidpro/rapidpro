@@ -32,14 +32,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    ESMockWithScroll,
-    ESMockWithScrollMultiple,
-    MigrationTest,
-    TembaTest,
-    TembaTestMixin,
-)
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -73,7 +66,7 @@ from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import activity_icon, contact_field, history_class
 
 
-class ContactCRUDLTest(_CRUDLTest):
+class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
     def setUp(self):
         from temba.contacts.views import ContactCRUDL
 
@@ -229,6 +222,16 @@ class ContactCRUDLTest(_CRUDLTest):
         # can no longer access
         response = self.client.get(read_url)
         self.assertEqual(response.status_code, 404)
+
+        # contact with only a urn
+        nameless = self.create_contact("", twitter="bobby_anon")
+        response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
+        self.assertContains(response, "bobby_anon")
+
+        # contact without name or urn
+        nameless = Contact.objects.create(org=self.org)
+        response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
+        self.assertContains(response, "Contact Details")
 
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
@@ -422,14 +425,6 @@ class ContactGroupTest(TembaTest):
 
         self.assertEqual(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
-        # add test contact (will add to group but won't increment count)
-        test_contact = Contact.get_test_contact(self.admin)
-        group.update_contacts(self.user, [test_contact], add=True)
-
-        group = ContactGroup.user_groups.get(pk=group.pk)
-        self.assertEqual(group.get_member_count(), 2)
-        self.assertEqual(set(group.contacts.all()), {self.joe, self.frank, test_contact})
-
         # blocking a contact removes them from all user groups
         self.joe.block(self.user)
 
@@ -438,7 +433,7 @@ class ContactGroupTest(TembaTest):
 
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 1)
-        self.assertEqual(set(group.contacts.all()), {self.frank, test_contact})
+        self.assertEqual(set(group.contacts.all()), {self.frank})
 
         # unblocking won't re-add to any groups
         self.joe.unblock(self.user)
@@ -450,7 +445,7 @@ class ContactGroupTest(TembaTest):
 
         group = ContactGroup.user_groups.get(pk=group.pk)
         self.assertEqual(group.get_member_count(), 0)
-        self.assertEqual(set(group.contacts.all()), {test_contact})
+        self.assertEqual(set(group.contacts.all()), set())
 
     def test_system_group_counts(self):
         # start with none
@@ -1017,31 +1012,6 @@ class ContactTest(TembaTest):
         )
         self.assertEqual(1, jimmy.urns.all().count())
 
-    def test_get_test_contact(self):
-        test_contact_admin = Contact.get_test_contact(self.admin)
-        self.assertTrue(test_contact_admin.is_test)
-        self.assertEqual(test_contact_admin.created_by, self.admin)
-
-        test_contact_user = Contact.get_test_contact(self.user)
-        self.assertTrue(test_contact_user.is_test)
-        self.assertEqual(test_contact_user.created_by, self.user)
-        self.assertFalse(test_contact_admin == test_contact_user)
-
-        test_contact_user2 = Contact.get_test_contact(self.user)
-        self.assertTrue(test_contact_user2.is_test)
-        self.assertEqual(test_contact_user2.created_by, self.user)
-        self.assertTrue(test_contact_user2 == test_contact_user)
-
-        # assign this URN to another contact
-        other_contact = Contact.get_or_create_by_urns(self.org, self.admin)
-        test_urn = test_contact_user2.get_urn(TEL_SCHEME)
-        test_urn.contact = other_contact
-        test_urn.save()
-
-        # fetching the test contact again should get us a new URN
-        new_test_contact = Contact.get_test_contact(self.user)
-        self.assertNotEqual(new_test_contact.get_urn(TEL_SCHEME), test_urn)
-
     def test_contact_create(self):
         self.login(self.admin)
 
@@ -1384,11 +1354,6 @@ class ContactTest(TembaTest):
         self.assertEqual(
             contact_counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 1, ContactGroup.TYPE_STOPPED: 1}
         )
-
-        # don't allow blocking or failing of test contacts
-        test_contact = Contact.get_test_contact(self.user)
-        self.assertRaises(ValueError, test_contact.block, self.user)
-        self.assertRaises(ValueError, test_contact.stop, self.user)
 
     def test_user_groups(self):
         # create some static groups
@@ -6427,32 +6392,6 @@ class ContactTest(TembaTest):
             self.mary.update_urns(self.user, ["tel:54321", "twitter:mary_mary"])
             self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by("name")))
 
-    def test_simulator_contact_views(self):
-        simulator_contact = Contact.get_test_contact(self.admin)
-
-        other_contact = self.create_contact("Will", "+250788987987")
-
-        group = self.create_group("Members", [simulator_contact, other_contact])
-
-        self.login(self.admin)
-        response = self.client.get(reverse("contacts.contact_read", args=[simulator_contact.uuid]))
-        self.assertEqual(response.status_code, 404)
-
-        response = self.client.get(reverse("contacts.contact_update", args=[simulator_contact.pk]))
-        self.assertEqual(response.status_code, 404)
-
-        response = self.client.get(reverse("contacts.contact_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(simulator_contact in response.context["object_list"])
-        self.assertTrue(other_contact in response.context["object_list"])
-        self.assertNotContains(response, "Simulator Contact")
-
-        response = self.client.get(reverse("contacts.contact_filter", args=[group.uuid]))
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(simulator_contact in response.context["object_list"])
-        self.assertTrue(other_contact in response.context["object_list"])
-        self.assertNotContains(response, "Simulator Contact")
-
     def test_preferred_channel(self):
         from temba.msgs.tasks import process_message_task
 
@@ -6722,8 +6661,6 @@ class ContactFieldTest(TembaTest):
             group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()
-
-        Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportContactsTask.create(self.org, self.admin)
@@ -7966,25 +7903,3 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
                 "ward": "Rwanda > Eastern Province > Rwamagana > Bukure",
             },
         )
-
-
-class RemoveTestContactsTest(MigrationTest):
-    migrate_from = "0093_auto_20190131_1116"
-    migrate_to = "0094_remove_test_contacts"
-    app = "contacts"
-
-    def setUpBeforeMigration(self, apps):
-        flow = self.get_flow("color")
-        contact = self.create_contact("Bobby", twitter="bobby")
-        test_contact = self.create_contact("Testy", twitter="testy", is_test=True)
-
-        run, test_run = flow.start([], [contact, test_contact])
-
-        FlowRun.create(flow=flow, contact=test_contact, parent=test_run)
-
-    def test_test_contacts_removed(self):
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 1)
-        self.assertEqual(Contact.objects.filter(is_test=True).count(), 0)
-
-        self.assertEqual(FlowRun.objects.filter(contact__is_test=False).count(), 1)
-        self.assertEqual(FlowRun.objects.filter(contact__is_test=True).count(), 0)

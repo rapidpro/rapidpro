@@ -1,24 +1,33 @@
-getRequest = ->
-  return {
-  }
 
 getStartRequest = ->
   scope = $("#ctlr").data('$scope')
-  request = getRequest()
 
-  request['trigger'] = {
-    type: "manual",
-    contact: {
-      uuid: uuid(),
-      name: contactName,
-      urns: ["tel:+12065551212"],
-      created_on: new Date(),
+  if window.ivr
+    connection = {
+      channel: {
+        uuid: "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
+        name: "Test Channel"
+      },
+      urn: "tel:+12065551212"
     }
-    flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name},
-    connection: {},
-    triggered_on: new Date()
+  else
+    connection = null
+
+  return {
+    trigger: {
+      type: "manual",
+      contact: {
+        uuid: uuid(),
+        name: window.contactName,
+        urns: ["tel:+12065551212"],
+        created_on: new Date(),
+      }
+      flow: {uuid: scope.flow.metadata.uuid, name: scope.flow.metadata.name},
+      connection: connection,
+      triggered_on: new Date()
+    }
   }
-  return request
+
 
 window.simStart = ->
   window.session = null
@@ -53,13 +62,14 @@ window.sendSimUpdate = (postData) ->
   else if postData.new_gps
     msg.attachments.push("geo:47.6089533,-122.34177")
 
-  request = getRequest()
-  request['session'] = window.session
-  request['resume'] = {
-    type: "msg",
-    msg: msg,
-    resumed_on: new Date(),
-    contact: window.session.contact
+  request = {
+    'session': window.session,
+    'resume': {
+      type: "msg",
+      msg: msg,
+      resumed_on: new Date(),
+      contact: window.session.contact
+    }
   }
 
   $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
@@ -121,7 +131,10 @@ window.renderSimEvent = (event) ->
       window.addSimMessage("MT", "Broadcast sent with text \"" + event.translations[event.base_language].text + "\"")
 
     when "contact_field_changed"
-      window.addSimMessage("log", "Updated " + event.field.name + " to \"" + event.value.text + "\"")
+      text = ''
+      if event.value
+        text = event.value.text
+      window.addSimMessage("log", "Updated " + event.field.name + " to \"" + text + "\"")
 
     when "contact_groups_changed"
       if event.groups_added
@@ -288,8 +301,6 @@ window.handleSimWait = (wait) ->
 # Displays the simulator key pad
 #============================================================================
 window.showSimKeypad = (show) ->
-  console.log("showSimKeypad(" + show + ")")
-
   normalBodyHeight = 360
   normalFooterHeight = 35
   keypadHeight = 145

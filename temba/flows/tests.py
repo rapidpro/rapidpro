@@ -734,18 +734,10 @@ class FlowTest(TembaTest):
         # check flow activity endpoint response
         self.login(self.admin)
 
-        test_contact = Contact.get_test_contact(self.admin)
-
         activity = self.client.get(reverse("flows.flow_activity", args=[self.flow.pk])).json()
         self.assertEqual(2, activity["visited"][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity["activity"][color_ruleset.uuid])
         self.assertFalse(activity["is_starting"])
-
-        # check activity with IVR test call
-        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, "CallSid")
-        activity = self.client.get(reverse("flows.flow_activity", args=[self.flow.pk])).json()
-        self.assertEqual(2, activity["visited"][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
-        self.assertEqual(2, activity["activity"][color_ruleset.uuid])
 
         # set the flow as inactive, shouldn't react to replies
         self.flow.is_archived = True
@@ -5167,9 +5159,7 @@ class FlowRunTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact)
 
         # give our run some webhook data
-        WebHookEvent.objects.create(
-            org=self.org, run=run, channel=self.channel, created_by=self.admin, modified_by=self.admin
-        )
+        WebHookEvent.objects.create(org=self.org, run=run, channel=self.channel)
 
         # our run go bye bye
         run.release()
@@ -5627,13 +5617,17 @@ class SimulationTest(FlowFileTest):
             response = self.client.post(url, json.dumps(payload), content_type="application/json")
             self.assertEqual(200, response.status_code)
             self.assertEqual({}, response.json()["session"])
-            self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
-            self.assertEqual(
-                "DD-MM-YYYY", mock_post.call_args_list[0][1]["json"]["trigger"]["environment"]["date_format"]
-            )
-            self.assertEqual("https://mailroom.temba.io/mr/sim/start", mock_post.call_args_list[0][0][0])
-            self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
-            self.assertEqual(1, len(mock_post.call_args_list[0][1]["json"]["flows"]))
+
+            actual_url = mock_post.call_args_list[0][0][0]
+            actual_payload = mock_post.call_args_list[0][1]["json"]
+            actual_headers = mock_post.call_args_list[0][1]["headers"]
+
+            self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/start")
+            self.assertEqual(actual_payload["org_id"], flow.org_id)
+            self.assertEqual(actual_payload["trigger"]["environment"]["date_format"], "DD-MM-YYYY")
+            self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
+            self.assertEqual(len(actual_payload["flows"]), 1)
+            self.assertEqual(actual_headers["Authorization"], "Token sesame")
 
         # try a resume
         payload = dict(version=2, session={}, resume={}, flow={})
@@ -5648,13 +5642,17 @@ class SimulationTest(FlowFileTest):
             response = self.client.post(url, json.dumps(payload), content_type="application/json")
             self.assertEqual(200, response.status_code)
             self.assertEqual({}, response.json()["session"])
-            self.assertEqual(flow.org_id, mock_post.call_args_list[0][1]["json"]["org_id"])
-            self.assertEqual(
-                "DD-MM-YYYY", mock_post.call_args_list[0][1]["json"]["resume"]["environment"]["date_format"]
-            )
-            self.assertEqual("https://mailroom.temba.io/mr/sim/resume", mock_post.call_args_list[0][0][0])
-            self.assertEqual("Token sesame", mock_post.call_args_list[0][1]["headers"]["Authorization"])
-            self.assertEqual(1, len(mock_post.call_args_list[0][1]["json"]["flows"]))
+
+            actual_url = mock_post.call_args_list[0][0][0]
+            actual_payload = mock_post.call_args_list[0][1]["json"]
+            actual_headers = mock_post.call_args_list[0][1]["headers"]
+
+            self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/resume")
+            self.assertEqual(actual_payload["org_id"], flow.org_id)
+            self.assertEqual(actual_payload["resume"]["environment"]["date_format"], "DD-MM-YYYY")
+            self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
+            self.assertEqual(len(actual_payload["flows"]), 1)
+            self.assertEqual(actual_headers["Authorization"], "Token sesame")
 
 
 class FlowsTest(FlowFileTest):
@@ -10873,7 +10871,7 @@ class QueryTest(FlowFileTest):
 
         # mock our webhook call which will get triggered in the flow
         self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=105, stack_count=10, skip_unique_queries=True):
+        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
             flow.start([], [self.contact])
 
 

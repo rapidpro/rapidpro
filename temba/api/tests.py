@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.api.models import APIToken, WebHookEvent, WebHookResult
-from temba.api.tasks import trim_webhook_event_task
+from temba.api.tasks import retry_events_task, trim_webhook_event_task
 from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.msgs.models import FAILED, Broadcast
@@ -269,6 +269,40 @@ class WebHookTest(TembaTest):
 
             self.assertTrue(mock_time.called)
             self.assertTrue(mock.called)
+
+    def test_webhook_retry_task(self):
+        sms = self.create_msg(contact=self.joe, direction="I", status="H", text="I'm gonna pop some tags")
+        self.setupChannel()
+        now = timezone.now()
+
+        with patch("requests.Session.send") as mock:
+            mock.return_value = MockResponse(200, "Hello World")
+
+            # trigger an event
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.get()
+
+            # mark it as errored with a retry in the past
+            event.status = WebHookEvent.STATUS_ERRORED
+            event.next_attempt = timezone.now()
+            event.save(update_fields=["next_attempt", "status"])
+            retry_events_task()
+            self.assertEqual(2, mock.call_count)
+
+            # mark it as pending more than five minutes ago
+            event.status = WebHookEvent.STATUS_PENDING
+            event.created_on = timezone.now() - timedelta(minutes=6)
+            event.next_attempt = None
+            event.save(update_fields=["created_on", "status", "next_attempt"])
+            retry_events_task()
+            self.assertEqual(3, mock.call_count)
+
+            # mark it as errored and created hours hour ago
+            event.status = WebHookEvent.STATUS_ERRORED
+            event.created_on = timezone.now() - timedelta(hours=2)
+            event.save(update_fields=["created_on", "status"])
+            retry_events_task()
+            self.assertEqual(4, mock.call_count)
 
     def test_webhook_event_trim_task(self):
         sms = self.create_msg(contact=self.joe, direction="I", status="H", text="I'm gonna pop some tags")

@@ -1468,8 +1468,21 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             client = mailroom.get_client()
 
-            # build our request body to mailroom
-            payload = {"org_id": flow.org_id}
+            # build our request body, which includes any assets that mailroom should fake
+            payload = {
+                "org_id": flow.org_id,
+                "assets": {
+                    "channels": [
+                        {
+                            "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
+                            "name": "Test Channel",
+                            "address": "+18005551212",
+                            "schemes": ["tel"],
+                            "roles": ["send", "receive", "call"],
+                        }
+                    ]
+                },
+            }
 
             if "flow" in json_dict:
                 payload["flows"] = [{"uuid": flow.uuid, "definition": json_dict["flow"]}]

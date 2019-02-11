@@ -1360,41 +1360,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return contact
 
     @classmethod
-    def get_test_contact(cls, user):
-        """
-        Gets or creates the test contact for the given user
-        """
-        org = user.get_org()
-        test_contacts = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True)
-        test_contact = test_contacts.order_by("-created_on").first()
-
-        # double check that our test contact has a valid URN, it may have been reassigned
-        if test_contact:
-            test_urn = test_contact.get_urn(TEL_SCHEME)
-
-            # no URN, let's start over
-            if not test_urn:
-                test_contact.release(user)
-                test_contact = None
-
-        if not test_contact:
-            # creates a full URN string from a phone number stored as an integer
-            def make_urn(tel_as_int):
-                return URN.from_tel("+%s" % tel_as_int)
-
-            # generate sequential test contact URNs until we find an available one
-            test_urn_path = START_TEST_CONTACT_PATH
-            existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
-            while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
-                test_urn_path += 1
-                existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
-
-            test_contact, urn_obj = Contact.get_or_create(
-                org, make_urn(test_urn_path), user=user, name="Test Contact", is_test=True
-            )
-        return test_contact
-
-    @classmethod
     def create_instance(cls, field_dict):
         """
         Creates or updates a contact from the given field values during an import
@@ -1897,9 +1862,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from temba.triggers.models import Trigger
 
-        if self.is_test:
-            raise ValueError("Can't block a test contact")
-
         self.clear_all_groups(user)
         Trigger.archive_triggers_for_contact(self, user)
 
@@ -1920,9 +1882,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Marks this contact has stopped, removing them from all groups.
         """
         from temba.triggers.models import Trigger
-
-        if self.is_test:
-            raise ValueError("Can't stop a test contact")
 
         self.is_stopped = True
         self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
