@@ -1,0 +1,62 @@
+{
+  "version": "11.10",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "entry": "7ad2dc84-fa9b-47ef-b897-be3feb379917",
+      "action_sets": [
+        {
+          "uuid": "7ad2dc84-fa9b-47ef-b897-be3feb379917",
+          "x": 100,
+          "y": 0,
+          "destination": "dea84370-11b3-42f4-8607-85608c82b62f",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "27dfd8ac-55c5-49c9-88e3-3fb84a9894ff",
+              "msg": {
+                "eng": "Hey"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "451ca3ed-7ff6-4729-b2bc-a9bc1574d8cd"
+        },
+        {
+          "uuid": "dea84370-11b3-42f4-8607-85608c82b62f",
+          "x": 103,
+          "y": 178,
+          "destination": null,
+          "actions": [
+            {
+              "type": "add_label",
+              "uuid": "bc82c11d-7654-44e4-966c-fb39e2851df0",
+              "labels": [
+                {
+                  "uuid": "8049349a-910e-4fc8-9fb9-45cdb29d1c5d",
+                  "name": "Hello"
+                }
+              ]
+            }
+          ],
+          "exit_uuid": "61d9d82a-eeac-403a-b6c6-8d3e49068b0b"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.10",
+      "metadata": {
+        "name": "Add Label",
+        "saved_on": "2019-02-11T20:10:01.045842Z",
+        "revision": 4,
+        "uuid": "70a44d2d-0f41-438b-b700-7dd4a239d5d0",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}
