@@ -6,9 +6,11 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+import nexmo
 import phonenumbers
 import pytz
 import requests
+import twilio.base.exceptions
 from django_countries.data import COUNTRIES
 from smartmin.views import (
     SmartCRUDL,
@@ -1032,6 +1034,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             )
             return self.form_invalid(form)
 
+        error_message = None
+
         # try to claim the number
         try:
             role = Channel.ROLE_CALL + Channel.ROLE_ANSWER
@@ -1041,18 +1045,31 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             self.remove_api_credentials_from_session()
 
             return HttpResponseRedirect("%s?success" % reverse("public.public_welcome"))
+
+        except (
+            nexmo.AuthenticationError,
+            nexmo.ClientError,
+            twilio.base.exceptions.TwilioRestException,
+        ) as e:  # pragma: no cover
+            logger.warning(f"Unable to claim a number: {str(e)}", exc_info=True)
+            error_message = form.error_class([str(e)])
+
         except Exception as e:  # pragma: needs cover
             logger.error(f"Unable to claim a number: {str(e)}", exc_info=True)
 
             message = str(e)
             if message:
-                form._errors["phone_number"] = form.error_class([message])
+                error_message = form.error_class([message])
             else:
-                form._errors["phone_number"] = _(
+                error_message = _(
                     "An error occurred connecting your Twilio number, try removing your "
                     "Twilio account, reconnecting it and trying again."
                 )
-            return self.form_invalid(form)
+
+        if error_message is not None:
+            form._errors["phone_number"] = error_message
+
+        return self.form_invalid(form)
 
 
 class ClaimAndroidForm(forms.Form):

@@ -1767,9 +1767,11 @@ class Org(SmartModel):
         # 2. we already have a stripe customer, but they have just added a new card, we need to use that one
         # 3. we don't have a customer, so we need to create a new customer and use that card
 
-        # for our purposes, #1 and #2 are treated the same, we just always update the default card
+        validation_error = None
 
+        # for our purposes, #1 and #2 are treated the same, we just always update the default card
         try:
+
             if not customer or customer.email != user.email:
                 # then go create a customer object for this user
                 customer = stripe.Customer.create(card=token, email=user.email, description="{ org: %d }" % self.pk)
@@ -1787,12 +1789,7 @@ class Org(SmartModel):
                 for card in existing_cards:
                     card.delete()
 
-                try:
-                    card = customer.cards.create(card=token)
-                except stripe.error.CardError:
-                    raise ValidationError(
-                        _("Sorry, your card was declined, please contact your provider or try another card.")
-                    )
+                card = customer.cards.create(card=token)
 
                 customer.default_card = card.id
                 customer.save()
@@ -1850,15 +1847,19 @@ class Org(SmartModel):
 
             return topup
 
-        except ValidationError as e:
-            raise e
+        except stripe.error.CardError as e:
+            logger.warning(f"Error adding credits to org: {str(e)}", exc_info=True)
+            validation_error = _("Sorry, your card was declined, please contact your provider or try another card.")
 
-        except Exception:
-            logger = logging.getLogger(__name__)
-            logger.error("Error adding credits to org", exc_info=True)
-            raise ValidationError(
-                _("Sorry, we were unable to process your payment, please try again later or contact us.")
+        except Exception as e:
+            logger.error(f"Error adding credits to org: {str(e)}", exc_info=True)
+
+            validation_error = _(
+                "Sorry, we were unable to process your payment, please try again later or contact us."
             )
+
+        if validation_error is not None:
+            raise ValidationError(validation_error)
 
     def account_value(self):
         """

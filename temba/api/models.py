@@ -354,7 +354,11 @@ class WebHookEvent(models.Model):
             else:
                 webhook_event.status = cls.STATUS_FAILED
                 message = "Got non 200 response (%d) from webhook." % response.status_code
-                raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
+                raise ValueError("Got non 200 response (%d) from webhook." % response.status_code)
+
+        except (requests.ReadTimeout, ValueError) as e:
+            webhook_event.status = cls.STATUS_FAILED
+            message = f"Error calling webhook: {str(e)}"
 
         except Exception as e:
             logger.error(f"Could not trigger flow webhook: {str(e)}", exc_info=True)
