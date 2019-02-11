@@ -1,3 +1,7 @@
+v4.20.1
+----------
+ * remove excess fields on webhookevent
+
 v4.20.0
 ----------
  * Tie webhook results to resthooks when appropriate
