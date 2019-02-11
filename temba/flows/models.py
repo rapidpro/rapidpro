@@ -1223,6 +1223,23 @@ class Flow(TembaModel):
 
                 json[attribute] = new_uuid
 
+        def remap_label(label):
+            # labels can be single string expressions
+            if type(label) is dict:
+                # we haven't been mapped yet (also, non-uuid labels can't be mapped)
+                if "uuid" not in label or label["uuid"] not in uuid_map:
+                    label_instance = Label.get_or_create(self.org, self.created_by, label["name"])
+
+                    # map group references that started with a uuid
+                    if "uuid" in label:
+                        uuid_map[label["uuid"]] = label_instance.uuid
+
+                    label["uuid"] = label_instance.uuid
+
+                # we were already mapped
+                elif label["uuid"] in uuid_map:
+                    label["uuid"] = uuid_map[label["uuid"]]
+
         def remap_group(group):
             # groups can be single string expressions
             if type(group) is dict:
@@ -1254,6 +1271,9 @@ class Flow(TembaModel):
 
                 for group in action.get("groups", []):
                     remap_group(group)
+
+                for label in action.get("labels", []):
+                    remap_label(label)
 
                 if "recording" in action:
                     # if its a localized
