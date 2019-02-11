@@ -466,6 +466,19 @@ class FlowTest(TembaTest):
         self.assertEqual(len(json_payload["results"]), 1)
         self.assertEqual([res["text"] for res in json_payload["results"]], ["No ruleset flow"])
 
+    def test_flow_import_labels(self):
+        self.assertFalse(Label.label_objects.all())
+
+        label = Label.get_or_create(self.org, self.admin, "Hello")
+        self.login(self.admin)
+        self.import_file("add_label")
+
+        flow = Flow.objects.filter(name="Add Label").first()
+        label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
+
+        self.assertNotEqual("76791802-b433-4baf-8c99-d777f5853cbe", label_uuid_in_def)
+        self.assertEqual(label.uuid, label_uuid_in_def)
+
     def test_campaign_filter(self):
         self.login(self.admin)
         self.get_flow("the_clinic")
