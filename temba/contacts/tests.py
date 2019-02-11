@@ -32,14 +32,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    ESMockWithScroll,
-    ESMockWithScrollMultiple,
-    MigrationTest,
-    TembaTest,
-    TembaTestMixin,
-)
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -7910,25 +7903,3 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
                 "ward": "Rwanda > Eastern Province > Rwamagana > Bukure",
             },
         )
-
-
-class RemoveTestContactsTest(MigrationTest):
-    migrate_from = "0093_auto_20190131_1116"
-    migrate_to = "0094_remove_test_contacts"
-    app = "contacts"
-
-    def setUpBeforeMigration(self, apps):
-        flow = self.get_flow("color")
-        contact = self.create_contact("Bobby", twitter="bobby")
-        test_contact = self.create_contact("Testy", twitter="testy", is_test=True)
-
-        run, test_run = flow.start([], [contact, test_contact])
-
-        FlowRun.create(flow=flow, contact=test_contact, parent=test_run)
-
-    def test_test_contacts_removed(self):
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 1)
-        self.assertEqual(Contact.objects.filter(is_test=True).count(), 0)
-
-        self.assertEqual(FlowRun.objects.filter(contact__is_test=False).count(), 1)
-        self.assertEqual(FlowRun.objects.filter(contact__is_test=True).count(), 0)
