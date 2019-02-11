@@ -1,3 +1,9 @@
+v4.21.0
+----------
+ * Include fake channel asset when simulating
+ * Add test for event retrying, fix out of date model
+ * Stop checking contact.is_test in db triggers
+
 v4.20.1
 ----------
  * Remove unused fields on webhookevent
