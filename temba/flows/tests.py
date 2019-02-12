@@ -476,7 +476,7 @@ class FlowTest(TembaTest):
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
 
-        self.assertNotEqual("76791802-b433-4baf-8c99-d777f5853cbe", label_uuid_in_def)
+        self.assertNotEqual("0bfecd01-9612-48ab-8c49-72170de6ee49", label_uuid_in_def)
         self.assertEqual(label.uuid, label_uuid_in_def)
 
     def test_campaign_filter(self):
