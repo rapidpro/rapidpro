@@ -40,10 +40,10 @@ jobs:
               docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
 
               # build the container images
-              docker build --build-arg BUILD_NUMBER=$CIRCLE_BUILD_NUM -t $IMAGE_BASE-$TAG -f Dockerfile .
+              docker build --build-arg BUILD_NUMBER=$CIRCLE_BUILD_NUM -t $IMAGE_BASE:$TAG -f Dockerfile .
 
               # push the images to dockerhub
-              docker push $IMAGE_BASE-$TAG
+              docker push $IMAGE_BASE:$TAG
               docker logout
             else
               echo "No docker images pushed"
