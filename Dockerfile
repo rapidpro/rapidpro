@@ -1,4 +1,4 @@
-FROM rapidpro/rapidpro:v3.0.334
+FROM rapidpro/rapidpro:v4.14.0
 
 WORKDIR /rapidpro
 
