@@ -2079,10 +2079,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if channel is None or (Channel.ROLE_SEND not in channel.role and Channel.ROLE_CALL not in channel.role):
             return
 
-        # don't set preferred channels for test contacts
-        if self.is_test:
-            return
-
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
@@ -2236,7 +2232,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from .search import evaluate_query
 
         # blocked, stopped or test contacts can't be in dynamic groups
-        if self.is_blocked or self.is_stopped or self.is_test:
+        if self.is_blocked or self.is_stopped:
             return set()
 
         # cache contact search json
