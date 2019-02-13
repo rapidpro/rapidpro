@@ -979,7 +979,6 @@ class Msg(models.Model):
                         (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID)
                         and msg.topup
                         and msg.uuid
-                        and not msg.contact.is_test
                     ):
                         courier_msgs.append(msg)
                         continue
@@ -1320,7 +1319,7 @@ class Msg(models.Model):
             raise ValueError(ugettext("Cannot process an outgoing message."))
 
         # process Android and test contact messages inline
-        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID or self.contact.is_test:
+        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID:
             Msg.process_message(self)
 
         # others do in celery
@@ -1480,7 +1479,7 @@ class Msg(models.Model):
         topup_id = None
         if topup:  # pragma: needs cover
             topup_id = topup.pk
-        elif not contact.is_test:
+        else:
             (topup_id, amount) = org.decrement_credit()
 
         now = timezone.now()
@@ -1614,7 +1613,7 @@ class Msg(models.Model):
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
-                if not channel and not contact.is_test:  # pragma: needs cover
+                if not channel:  # pragma: needs cover
                     raise UnreachableException("No suitable channel available for this org")
         else:
             # if message has already been sent, recipient must be a tuple of contact and URN
@@ -1679,7 +1678,7 @@ class Msg(models.Model):
                     return None
 
         # costs 1 credit to send a message
-        if not topup_id and not contact.is_test:
+        if not topup_id:
             (topup_id, _) = org.decrement_credit()
 
         if response_to:
@@ -1739,12 +1738,8 @@ class Msg(models.Model):
         resolved_schemes = set(channel.schemes) if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
-            if recipient.is_test:
-                contact = recipient
-                contact_urn = contact.urns.all().first()
-            else:
-                contact = recipient
-                contact_urn = contact.get_urn(schemes=resolved_schemes)  # use highest priority URN we can send to
+            contact = recipient
+            contact_urn = contact.get_urn(schemes=resolved_schemes)  # use highest priority URN we can send to
         elif isinstance(recipient, ContactURN):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
@@ -1793,7 +1788,7 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        if self.direction != INCOMING or self.contact.is_test:
+        if self.direction != INCOMING:
             raise ValueError("Can only archive incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_ARCHIVED
@@ -1816,7 +1811,7 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != INCOMING or self.contact.is_test:  # pragma: needs cover
+        if self.direction != INCOMING:  # pragma: needs cover
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_VISIBLE
