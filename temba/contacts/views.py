@@ -126,6 +126,10 @@ class ContactGroupForm(forms.ModelForm):
     def clean_query(self):
         try:
             parsed_query = parse_query(text=self.cleaned_data["query"], as_anon=self.org.is_anon)
+
+            # try to prepare query as it would be used, might raise errors for invalid search operators
+            parsed_query.as_elasticsearch(self.org)
+
             cleaned_query = parsed_query.as_text()
 
             if (
@@ -141,8 +145,7 @@ class ContactGroupForm(forms.ModelForm):
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
         except forms.ValidationError as e:
             raise e
-
-        except Exception as e:
+        except SearchException as e:
             raise forms.ValidationError(str(e))
 
     class Meta:
