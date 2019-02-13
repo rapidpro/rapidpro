@@ -2845,7 +2845,7 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields, parse_query
+        from .search import extract_fields, parse_query, SearchException
         from .tasks import reevaluate_dynamic_group
 
         if not self.is_dynamic:
@@ -2854,6 +2854,12 @@ class ContactGroup(TembaModel):
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         parsed_query = parse_query(text=query)
+
+        # check if query is valid, raise ValueError if it's not
+        try:
+            parsed_query.as_elasticsearch(self.org)
+        except SearchException as e:
+            raise ValueError(str(e))
 
         if not parsed_query.can_be_dynamic_group():
             raise ValueError("Cannot use query '%s' as a dynamic group")
