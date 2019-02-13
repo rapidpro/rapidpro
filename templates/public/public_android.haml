@@ -1,0 +1,51 @@
+{% extends "frame.html" %}
+
+-load smartmin temba compress i18n
+
+-block nav
+
+
+-block content
+  %p 
+    -blocktrans with brand.name as brand
+      To use an Android phone with your {{ brand }} account to send messages you need to download the {{brand}} relayer app
+  
+   %p 
+    %a.btn-download{href: "{% url 'apks.apk_download' relayer_app.id %}"}
+      -trans "Download Relayer"
+
+  %p
+    -blocktrans with brand.name as brand
+      To increase the capacity of messages your phone can send in an hour we recommend you install each of the following {{brand}} message packs as well.
+      
+  %p
+    -for msg_pack in message_packs
+      %br
+      %a.btn-download{href: "{% url 'apks.apk_download' msg_pack.id %}"}
+        -blocktrans with forloop.counter as counter
+            Download Message pack {{ counter }}
+
+
+-block extra-style
+  {{ block.super }}
+
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .btn-download {
+            text-align: center;
+            display: block;
+            background-color: #0c6596;
+            height: 50px;
+            width: 250px;
+            color: #fff;
+            line-height: 50px;
+            font-size: 13pt;
+            text-decoration: none;
+
+            &:hover, &:focus {
+                color: #fff;
+                text-decoration: none;
+            }
+        }
+    {% endlessblock %}

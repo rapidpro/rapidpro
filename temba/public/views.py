@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView, View
 
+from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
@@ -42,6 +43,18 @@ class WelcomeRedirect(RedirectView):
 
 class Deploy(SmartTemplateView):
     template_name = "public/public_deploy.haml"
+
+
+class Android(SmartTemplateView):
+    title = _("Android applications")
+    template_name = "public/public_android.haml"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["relayer_app"] = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+        context["message_packs"] = Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK).order_by("-created_on")[:10]
+
+        return context
 
 
 class Welcome(SmartTemplateView):
