@@ -37,78 +37,111 @@
         %p
           -blocktrans with brand.name as brand
             {{ brand }} uses your Android phone to send and receive messages.
-        %p
-          -blocktrans
-            You can use any Android phone as your message channel, though we recommend one from Samsung like the
-            Galaxy Mini series.
 
         %p
           -blocktrans with brand.name as brand
-            You can download the free {{ brand }} app from the Google Play Store.  If you have used the Play Store before, then
-            the process will be the same. If this is your first time, don't worry, it is easy!  Just follow the steps
-            below and you'll be up and running in a few minutes.
+            You can download the free {{ brand }} app from URL.
+            You will need to allow installing apps downloaded from unknown sources. Below we provide step by step guide for how to allow 
+            your to install the apps on your Android phone. It is possible the model you have might not be exactly as the screenshots provided
+            however the process will be similar. Just follow the steps below and you'll be up and running in a few minutes.
+
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
           .step-text
             %h3
-              -trans "Open Play Store"
+              -trans "Open the Settings app"
             %p
               -blocktrans
-                First find the "Play Store" or "Market" application on your phone and open it.  You might need to
+                First find the "Settings" application on your phone and open it.  You might need to
                 press "Home" or find the launcher menu first.
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
           .step-text
             %h3
-              -blocktrans with brand.name as brand
-                Search for {{ brand }}
+              -trans "Click on Apps & Notifications"
             %p
-              -blocktrans with brand.name as brand
-                Once you open the Play Store, search for "{{ brand }}".  Begin your search by tapping the magnifying
-                glass, enter "{{ brand }}", then tap on the result that comes back.
+              -blocktrans
+                Once you open the Settings, then scroll to see "Advanced".
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
           .step-text
             %h3
-              -trans "Install"
+              -trans "Tap to expand the Advanced settings"
             %p
-              -blocktrans with brand.name as brand
-                On the {{ brand }} application page tap the "Install" button.
+              -blocktrans
+                You will see the option "Special app access".
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
           .step-text
             %h3
-              -trans "Confirm Installation"
+              -trans "Tap Special app access"
             %p
               -blocktrans 
-                You will now be asked to confirm the installation.  Tap "Accept and Download" to begin the download.
+                You will see a list of various access, scroll to "Install unknown apps"
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
           .step-text
             %h3
-              -trans "Allow Updates"
+              -trans "Tap Install unknown apps"
             %p
-              -blocktrans with brand.name as brand
-                The {{ brand }} app gets regular updates. To make sure you don't miss any, tap the "Allow automatic updating"
-                checkbox.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim55.png' }
-          .step-text
-            %h3
-              -trans "Wait for Download"
-            %p
-              -blocktrans with brand.name as brand
-                Depending on the speed of your connection, {{ brand }} may take a few minutes to download.  You can keep track
-                of the progress by swiping down from the top of the screen.
+              -blocktrans
+                You will see a list of applications installed that you can grant the access to install unknown apps.
+                Choose a app you use to browse URL. We'll use Google Chrome.
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
+          .step-text
+            %h3
+              -trans "Tap Chrome"
+            %p
+              -blocktrans
+                You will see a toggle to "allow from this source" and 
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim7.png' }
+          .step-text
+            %h3
+              -trans "Toggle allow from this source"
+            %p
+              -blocktrans
+                Make sure "allow from this source" toggle is in the ON position.
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim8.png' }
+          .step-text
+            %h3
+              -trans "Go Back"
+            %p
+              -blocktrans
+                You should see "Allowed" under the app you allowed.
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim9.png' }
+          .step-text
+            %h3
+              -blocktrans with brand.name as brand
+                Download {{ brand }}
+            %p
+              -blocktrans with brand.name as brand
+                Once {{ brand }} has been downloaded, look up the downloaded file to install the app.
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim10.png' }
+          .step-text
+            %h3
+              -blocktrans with brand.name as brand
+                Click {{ brand }} installer
+            %p
+              -blocktrans
+                Click INSTALL
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim11.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
@@ -118,7 +151,7 @@
                 Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim7.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim12.png' }
           .step-text
             %h3
               -trans "Enter Claim Code"
