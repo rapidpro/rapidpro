@@ -226,6 +226,7 @@ INSTALLED_APPS = (
     # django-timezone-field
     "timezone_field",
     # temba apps
+    "temba.apks",
     "temba.archives",
     "temba.assets",
     "temba.auth_tweaks",

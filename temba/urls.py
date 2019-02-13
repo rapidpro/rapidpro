@@ -17,6 +17,7 @@ js_info_dict = {"packages": ()}  # this is empty due to the fact that all transl
 urlpatterns = [
     url(r"^", include("temba.public.urls")),
     url(r"^", include("temba.msgs.urls")),
+    url(r"^", include("temba.apks.urls")),
     url(r"^", include("temba.archives.urls")),
     url(r"^", include("temba.policies.urls")),
     url(r"^", include("temba.contacts.urls")),
