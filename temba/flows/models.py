@@ -2871,8 +2871,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         runs = runs.exclude(flow__flow_type=Flow.TYPE_VOICE)
 
         # real contacts don't deal with archived flows
-        if not contact.is_test:
-            runs = runs.filter(flow__is_archived=False)
+        runs = runs.filter(flow__is_archived=False)
 
         return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
 
@@ -5869,13 +5868,7 @@ class VariableContactAction(Action):
         for variable in self.variables:
             # this is a marker for a new contact
             if variable == NEW_CONTACT_VARIABLE:
-                # if this is a test contact, stuff a fake contact in for logging purposes
-                if run.contact.is_test:  # pragma: needs cover
-                    contacts.append(Contact(pk=-1))
-
-                # otherwise, really create the contact
-                else:
-                    contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
+                contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -5948,34 +5941,18 @@ class TriggerFlowAction(VariableContactAction):
         if self.flow:
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
             # start our contacts down the flow
-            if not run.contact.is_test:
-                # our extra will be our flow variables in our message context
-                extra = context.get("extra", dict())
-                child_runs = self.flow.start(
-                    groups,
-                    contacts,
-                    restart_participants=True,
-                    started_flows=[run.flow.pk],
-                    extra=extra,
-                    parent_run=run,
-                )
+            # our extra will be our flow variables in our message context
+            extra = context.get("extra", dict())
+            child_runs = self.flow.start(
+                groups, contacts, restart_participants=True, started_flows=[run.flow.pk], extra=extra, parent_run=run
+            )
 
-                # build up all the msgs that where sent by our flow
-                msgs = []
-                for run in child_runs:
-                    msgs += run.start_msgs
+            # build up all the msgs that where sent by our flow
+            msgs = []
+            for run in child_runs:
+                msgs += run.start_msgs
 
-                return msgs
-            else:  # pragma: needs cover
-                unique_contacts = set()
-                for contact in contacts:
-                    unique_contacts.add(contact.pk)
-
-                for group in groups:
-                    for contact in group.contacts.all():
-                        unique_contacts.add(contact.pk)
-
-            return []  # pragma: needs cover
+            return msgs
         else:  # pragma: no cover
             return []
 
@@ -6225,11 +6202,7 @@ class SetChannelAction(Action):
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-
-            # don't set preferred channel for test contacts
-            if not run.contact.is_test:
-                run.contact.set_preferred_channel(self.channel)
-
+            run.contact.set_preferred_channel(self.channel)
             return []
         else:
             return []

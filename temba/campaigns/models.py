@@ -744,7 +744,7 @@ class EventFire(Model):
             scheduled = event.calculate_scheduled_fire(contact)
 
             # and if we have a date, then schedule it
-            if scheduled and not contact.is_test:
+            if scheduled:
                 EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     @classmethod
@@ -764,7 +764,7 @@ class EventFire(Model):
                 scheduled = event.calculate_scheduled_fire(contact)
 
                 # and if we have a date, then schedule it
-                if scheduled and not contact.is_test:
+                if scheduled:
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     def __str__(self):
