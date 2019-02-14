@@ -40,6 +40,12 @@ class PublicTest(SmartminTest):
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_signup"))
 
+    def test_android(self):
+        android_url = reverse("public.public_welcome")
+        response = self.client.get(android_url, follow=True)
+        self.assertIn("relayer_app", response.context)
+        self.assertIn("message_packs", response.context)
+
     def test_welcome(self):
         welcome_url = reverse("public.public_welcome")
         response = self.client.get(welcome_url, follow=True)
