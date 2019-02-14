@@ -51,7 +51,7 @@ class TwilioType(ChannelType):
         client = org.get_twilio_client()
         config = channel.config
 
-        base_url = "https://" + config[Channel.CONFIG_CALLBACK_DOMAIN]
+        base_url = "https://" + config.get(Channel.CONFIG_CALLBACK_DOMAIN, org.get_brand_domain())
 
         # build our URLs
         channel_uuid = str(channel.uuid)
