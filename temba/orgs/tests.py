@@ -219,7 +219,7 @@ class OrgDeleteTest(TembaTest):
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.administrators.add(self.user)
-        self.child_org.initialize(topup_size=0)
+        self.child_org.initialize(topup_size=0, flow_server_enabled=False)
         self.child_org.parent = self.parent_org
         self.child_org.save()
 
