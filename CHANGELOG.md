@@ -1,3 +1,8 @@
+v4.21.4
+----------
+ * All new orgs flow server enabled
+ * Fallback to org domain when no channe domain set
+
 v4.21.3
 ----------
  * Remove all remaining checks of is_test, except where used in queries
