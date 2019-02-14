@@ -53,6 +53,7 @@ from .flow_migrations import (
     migrate_to_version_11_7,
     migrate_to_version_11_8,
     migrate_to_version_11_9,
+    migrate_to_version_11_11,
 )
 from .models import (
     Action,
@@ -143,6 +144,15 @@ def get_groups(definition):
                 group = rule["test"]["test"]
                 groups[group["uuid"]] = group["name"]
     return groups
+
+
+def get_labels(definition):
+    labels = {}
+    for actionset in definition[Flow.ACTION_SETS]:
+        for action in actionset[Flow.ACTIONS]:
+            for label in action.get("labels", []):
+                labels[label["uuid"]] = label["name"]
+    return labels
 
 
 class FlowTest(TembaTest):
@@ -471,7 +481,7 @@ class FlowTest(TembaTest):
 
         label = Label.get_or_create(self.org, self.admin, "Hello")
         self.login(self.admin)
-        self.import_file("add_label")
+        self.import_file("migrate_to_11_11")
 
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
@@ -9066,6 +9076,16 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_11(self):
+
+        flow = self.get_flow("migrate_to_11_11")
+        flow_json = self.get_flow_json("migrate_to_11_11")
+
+        migrated = migrate_to_version_11_11(flow_json, flow)
+        migrated_labels = get_labels(migrated)
+        for uuid, name in migrated_labels.items():
+            self.assertTrue(Label.label_objects.filter(uuid=uuid, name=name).exists(), msg="Label UUID mismatch")
 
     def test_migrate_to_11_10(self):
         self.get_flow("migrate_to_11_10")

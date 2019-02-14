@@ -1230,7 +1230,7 @@ class Flow(TembaModel):
                 if "uuid" not in label or label["uuid"] not in uuid_map:
                     label_instance = Label.get_or_create(self.org, self.created_by, label["name"])
 
-                    # map group references that started with a uuid
+                    # map label references that started with a uuid
                     if "uuid" in label:
                         uuid_map[label["uuid"]] = label_instance.uuid
 
