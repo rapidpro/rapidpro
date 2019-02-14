@@ -13,6 +13,8 @@ DROP INDEX CONCURRENTLY contacts_contact_modified_on_non_test;
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [("contacts", "0096_indexes_without_is_test")]
 
     operations = [migrations.RunSQL(CREATE_SQL), migrations.RunSQL(DROP_SQL)]
