@@ -53,68 +53,39 @@
           %a{href: "{{ android_public_url }}"}
               Download page
 
-
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
           .step-text
             %h3
-              -trans "Open the Settings app"
+              -blocktrans with brand.name as brand
+                %a{href: "{{ android_public_url }}"}
+                  Download {{ brand }} apps
             %p
-              -blocktrans
-                First find the "Settings" application on your phone and open it.  You might need to
-                press "Home" or find the launcher menu first.
+              -blocktrans with brand.name as brand
+                First dowload {{ brand }} installer, look up the downloaded file to install the app.
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
           .step-text
             %h3
-              -trans "Click on Apps & Notifications"
+              -blocktrans with brand.name as brand
+                Click {{ brand }} installer
             %p
               -blocktrans
-                Once you open the Settings, then scroll to see "Advanced".
+                Click the downloaded file
+
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
           .step-text
             %h3
-              -trans "Tap to expand the Advanced settings"
+              -trans "Tap Settings"
             %p
               -blocktrans
-                You will see the option "Special app access".
+                You will be taken to a screen with "allow from this source" toggle
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
-          .step-text
-            %h3
-              -trans "Tap Special app access"
-            %p
-              -blocktrans 
-                You will see a list of various access, scroll to "Install unknown apps"
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
-          .step-text
-            %h3
-              -trans "Tap Install unknown apps"
-            %p
-              -blocktrans
-                You will see a list of applications installed that you can grant the access to install unknown apps.
-                Choose an app you use to browse
-                %a{href: "{{ android_public_url }}"}
-                  the Android apps page.
-                We'll use Google Chrome.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
-          .step-text
-            %h3
-              -trans "Tap Chrome"
-            %p
-              -blocktrans
-                You will see a toggle to "allow from this source" and 
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim7.png' }
           .step-text
             %h3
               -trans "Toggle allow from this source"
@@ -123,37 +94,16 @@
                 Make sure "allow from this source" toggle is in the ON position.
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim8.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
           .step-text
             %h3
               -trans "Go Back"
             %p
               -blocktrans
-                You should see "Allowed" under the app you allowed.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim9.png' }
-          .step-text
-            %h3
-              -blocktrans with brand.name as brand
-                %a{href: "{{ android_public_url }}"}
-                  Download {{ brand }}
-            %p
-              -blocktrans with brand.name as brand
-                Once {{ brand }} has been downloaded, look up the downloaded file to install the app.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim10.png' }
-          .step-text
-            %h3
-              -blocktrans with brand.name as brand
-                Click {{ brand }} installer
-            %p
-              -blocktrans
                 Click INSTALL
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim11.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
@@ -163,7 +113,7 @@
                 Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim12.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim7.png' }
           .step-text
             %h3
               -trans "Enter Claim Code"
