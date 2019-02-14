@@ -482,7 +482,6 @@ class FlowTest(TembaTest):
         label = Label.get_or_create(self.org, self.admin, "Hello")
         self.login(self.admin)
         self.import_file("migrate_to_11_11")
-
         flow = Flow.objects.filter(name="Add Label").first()
         label_uuid_in_def = flow.revisions.first().definition["action_sets"][1]["actions"][0]["labels"][0]["uuid"]
 
