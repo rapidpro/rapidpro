@@ -1356,9 +1356,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
 
-            test_contacts = Contact.objects.filter(org=org, is_test=True).values_list("id", flat=True)
-
-            runs = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)
+            runs = flow.runs.all()
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)

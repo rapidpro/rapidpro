@@ -190,7 +190,7 @@ class ContactField(TembaModelField):
     lookup_fields = ("uuid", "urns__urn")
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"], is_active=True, is_test=False)
+        return self.model.objects.filter(org=self.context["org"], is_active=True)
 
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
@@ -251,6 +251,4 @@ class MessageField(TembaModelField):
     lookup_fields = ("id",)
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"], contact__is_test=False).exclude(
-            visibility=Msg.VISIBILITY_DELETED
-        )
+        return self.model.objects.filter(org=self.context["org"]).exclude(visibility=Msg.VISIBILITY_DELETED)

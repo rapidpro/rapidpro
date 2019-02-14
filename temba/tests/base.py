@@ -228,7 +228,7 @@ class TembaTestMixin:
 
         self.org2.initialize(topup_size=topup_size, flow_server_enabled=False)
 
-    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, **kwargs):
         """
         Create a contact in the master test org
         """
