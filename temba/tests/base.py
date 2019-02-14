@@ -247,7 +247,6 @@ class TembaTestMixin:
 
         kwargs["name"] = name
         kwargs["urns"] = urns
-        kwargs["is_test"] = is_test
 
         if "org" not in kwargs:
             kwargs["org"] = self.org
@@ -283,8 +282,7 @@ class TembaTestMixin:
         if "created_on" not in kwargs:
             kwargs["created_on"] = timezone.now()
 
-        if not kwargs["contact"].is_test:
-            (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
+        (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
 
         return Msg.objects.create(**kwargs)
 

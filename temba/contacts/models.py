@@ -2079,10 +2079,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if channel is None or (Channel.ROLE_SEND not in channel.role and Channel.ROLE_CALL not in channel.role):
             return
 
-        # don't set preferred channels for test contacts
-        if self.is_test:
-            return
-
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
@@ -2236,7 +2232,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from .search import evaluate_query
 
         # blocked, stopped or test contacts can't be in dynamic groups
-        if self.is_blocked or self.is_stopped or self.is_test:
+        if self.is_blocked or self.is_stopped:
             return set()
 
         # cache contact search json
@@ -2849,7 +2845,7 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from .search import extract_fields, parse_query
+        from .search import extract_fields, parse_query, SearchException
         from .tasks import reevaluate_dynamic_group
 
         if not self.is_dynamic:
@@ -2858,6 +2854,12 @@ class ContactGroup(TembaModel):
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
         parsed_query = parse_query(text=query)
+
+        # check if query is valid, raise ValueError if it's not
+        try:
+            parsed_query.as_elasticsearch(self.org)
+        except SearchException as e:
+            raise ValueError(str(e))
 
         if not parsed_query.can_be_dynamic_group():
             raise ValueError("Cannot use query '%s' as a dynamic group")

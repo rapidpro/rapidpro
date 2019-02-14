@@ -347,6 +347,10 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(ValueError):
             group.reevaluate()
 
+    def test_query_elasticsearch_for_ids_bad_query(self):
+        with self.assertRaises(SearchException):
+            Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
+
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow("initialize")
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
@@ -792,6 +796,10 @@ class ContactGroupCRUDLTest(TembaTest):
         # update both name and query, form should fail, because query is not parsable
         response = self.client.post(url, dict(name="Frank", query="(!))!)"))
         self.assertFormError(response, "form", "query", "Search query contains an error at: !")
+
+        # try to update a group with an invalid query
+        response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
+        self.assertFormError(response, "form", "query", "Search query contains an error at: >")
 
         response = self.client.post(url, dict(name="Frank", query="id = 123"))
         self.assertFormError(response, "form", "query", 'You cannot create a dynamic group based on "name" or "id".')
@@ -2891,7 +2899,7 @@ class ContactTest(TembaTest):
             ContactGroup.create_dynamic(self.org, self.admin, "Age field is set", 'age != ""')
             ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "helio"')
 
-            with self.assertRaises(SearchException):
+            with self.assertRaises(ValueError):
                 ContactGroup.create_dynamic(self.org, self.admin, "Age field is invalid", 'age < "age"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
@@ -6411,12 +6419,6 @@ class ContactTest(TembaTest):
         # create some channels of various types
         twitter = Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="@rapidpro")
         Channel.create(self.org, self.user, None, "TG", name="Twitter Channel", address="@rapidpro")
-
-        # can't set preferred channel for test contacts
-        self.test_contact = self.create_contact(name="Test Contact", number="+12065551212", is_test=True)
-        self.test_contact.update_urns(self.admin, ["tel:+12065551212", "telegram:12515", "twitter:macklemore"])
-        self.test_contact.set_preferred_channel(twitter)
-        self.assertEqual(self.test_contact.urns.all()[0].scheme, TEL_SCHEME)
 
         # update our contact URNs, give them telegram and twitter with telegram being preferred
         self.joe.update_urns(self.admin, ["telegram:12515", "twitter:macklemore"])
