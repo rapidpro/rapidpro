@@ -20,9 +20,48 @@ from temba.flows.models import (
     TriggerFlowAction,
     VariableContactAction,
 )
+from temba.msgs.models import Label
 from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_to_version_11_11(json_flow, flow=None):
+    """
+    Versions before 11.11 maintained uuid mismatches on imported flows. This updates
+    the flow definition with accurate label uuids
+    """
+
+    # this migration only matters for existing flows
+    if not flow:
+        return json_flow
+
+    # only look up label once per flow migration
+    uuid_map = {}
+
+    def remap_label(label):
+        # labels can be single string expressions
+        if type(label) is dict:
+            # we haven't been mapped yet (also, non-uuid labels can't be mapped)
+            if "uuid" not in label or label["uuid"] not in uuid_map:
+                label_instance = Label.get_or_create(flow.org, flow.created_by, label["name"])
+
+                # map label references that started with a uuid
+                if "uuid" in label:
+                    uuid_map[label["uuid"]] = label_instance.uuid
+
+                label["uuid"] = label_instance.uuid
+
+            # we were already mapped
+            elif label["uuid"] in uuid_map:
+                label["uuid"] = uuid_map[label["uuid"]]
+
+    for actionset in json_flow.get(Flow.ACTION_SETS, []):
+        for action in actionset[Flow.ACTIONS]:
+            for label in action.get("labels", []):
+                remap_label(label)
+
+    return json_flow
 
 
 def migrate_export_to_version_11_10(exported_json, org, same_site=True):
