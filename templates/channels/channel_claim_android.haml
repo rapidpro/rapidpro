@@ -42,30 +42,23 @@
 
         %p
           -blocktrans with brand.name as brand
-            You can download the 
-            %a{href: "{{ android_public_url }}"}
-              free {{ brand }} app.
+            You can download the free {{ brand }} app.
             You will need to allow installing apps downloaded from unknown sources. Below we provide step by step guide for how to allow 
             your to install the apps on your Android phone. It is possible the model you have might not be exactly as the screenshots provided
             however the process will be similar. Just follow the steps below and you'll be up and running in a few minutes.
           
         %p
-          %a{href: "{{ android_public_url }}"}
-              Download page
+          {% blocktrans with brand=brand.name link=brand.link %}
+            First download {{ brand }} installer from
+            %code
+              {{ link }}{{ android_public_url }} 
+            from your phone, 
+            then look up the downloaded file to install the app and follow the other steps below.
+          {% endblocktrans %}
+
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
-          .step-text
-            %h3
-              -blocktrans with brand.name as brand
-                %a{href: "{{ android_public_url }}"}
-                  Download {{ brand }} apps
-            %p
-              -blocktrans with brand.name as brand
-                First dowload {{ brand }} installer, look up the downloaded file to install the app.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
@@ -76,7 +69,7 @@
 
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
           .step-text
             %h3
               -trans "Tap Settings"
@@ -85,7 +78,7 @@
                 You will be taken to a screen with "allow from this source" toggle
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
           .step-text
             %h3
               -trans "Toggle allow from this source"
@@ -94,7 +87,7 @@
                 Make sure "allow from this source" toggle is in the ON position.
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
           .step-text
             %h3
               -trans "Go Back"
@@ -103,7 +96,7 @@
                 Click INSTALL
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
