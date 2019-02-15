@@ -16,6 +16,10 @@ class ApkTest(TembaTest):
         response = self.client.get(url)
         self.assertLoginRedirect(response)
 
+        self.login(self.customer_support)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
         self.login(self.superuser)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -26,6 +30,10 @@ class ApkTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(url)
         self.assertLoginRedirect(response)
+
+        self.login(self.customer_support)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
 
         self.login(self.superuser)
         response = self.client.get(url)
@@ -45,6 +53,10 @@ class ApkTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(url)
         self.assertLoginRedirect(response)
+
+        self.login(self.customer_support)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
 
         self.login(self.superuser)
         response = self.client.get(url)
