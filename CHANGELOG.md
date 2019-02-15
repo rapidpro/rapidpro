@@ -1,3 +1,7 @@
+v4.21.6
+----------
+ * Use pretty datetime on contact page for upcoming events
+
 v4.21.5
 ----------
  * Replace final index which references contact.is_test
