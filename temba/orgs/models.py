@@ -2041,11 +2041,13 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None):
+    def initialize(self, branding=None, topup_size=None, flow_server_enabled=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
+
+        self.flow_server_enabled = flow_server_enabled
 
         if not branding:
             branding = BrandingMiddleware.get_branding_for_host("")

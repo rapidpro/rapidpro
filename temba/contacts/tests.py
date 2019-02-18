@@ -86,7 +86,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         )
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
-        self.org.initialize()
+        self.org.initialize(flow_server_enabled=False)
 
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
@@ -7688,7 +7688,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000)
+        self.org.initialize(topup_size=1000, flow_server_enabled=False)
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
 
