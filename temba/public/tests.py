@@ -1,7 +1,12 @@
+from unittest.mock import MagicMock
+
 from smartmin.tests import SmartminTest, _CRUDLTest
 
 from django.contrib.auth.models import User
+from django.core.files import File
 from django.urls import reverse
+
+from temba.apks.models import Apk
 
 from .models import Lead, Video
 from .views import VideoCRUDL
@@ -41,10 +46,13 @@ class PublicTest(SmartminTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_signup"))
 
     def test_android(self):
+        apk_file_mock = MagicMock(spec=File)
+        apk_file_mock.name = "relayer.apk"
+        apk = Apk.objects.create(apk_type="R", name="Relayer", description="Relayer v1.0", apk_file=apk_file_mock)
+
         android_url = reverse("public.public_android")
         response = self.client.get(android_url, follow=True)
-        self.assertIn("relayer_app", response.context)
-        self.assertIn("message_packs", response.context)
+        self.assertEqual(response.request["PATH_INFO"], apk.apk_file.url)
 
     def test_welcome(self):
         welcome_url = reverse("public.public_welcome")

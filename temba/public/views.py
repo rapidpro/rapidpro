@@ -46,15 +46,9 @@ class Deploy(SmartTemplateView):
 
 
 class Android(SmartTemplateView):
-    title = _("Android applications")
-    template_name = "public/public_android.haml"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["relayer_app"] = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
-        context["message_packs"] = Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK).order_by("-created_on")[:10]
-
-        return context
+    def render_to_response(self, context, **response_kwargs):
+        apk = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+        return HttpResponseRedirect(apk.apk_file.url)
 
 
 class Welcome(SmartTemplateView):
