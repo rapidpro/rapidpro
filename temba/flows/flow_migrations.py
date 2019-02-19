@@ -659,6 +659,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                 elif rs_type and test != rs_type:
                     rs_type = "none"
 
+            if rs["label"] is None:
+                continue
+
             key = Flow.label_to_slug(rs["label"])
 
             # any reference to this result value's time property needs wrapped in format_date
@@ -690,10 +693,11 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                             text = next(iter(text.values()))
 
                         migrated_text = text
-                        for pattern, replacement in replacements:
-                            migrated_text = regex.sub(
-                                pattern, replacement, migrated_text, flags=regex.UNICODE | regex.MULTILINE
-                            )
+                        if isinstance(migrated_text, str):
+                            for pattern, replacement in replacements:
+                                migrated_text = regex.sub(
+                                    pattern, replacement, migrated_text, flags=regex.UNICODE | regex.MULTILINE
+                                )
 
                         msg[lang] = migrated_text
 
