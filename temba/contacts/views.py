@@ -257,13 +257,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            test_contact_ids = Contact.objects.filter(org=org).values_list("id", flat=True)
-            return (
-                group.contacts.all()
-                .exclude(id__in=test_contact_ids)
-                .order_by("-id")
-                .prefetch_related("org", "all_groups")
-            )
+            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

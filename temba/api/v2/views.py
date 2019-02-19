@@ -2295,7 +2295,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
-                return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
+                return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
                 return self.model.objects.filter(org=org, direction="I")
             else:
