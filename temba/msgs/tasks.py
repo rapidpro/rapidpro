@@ -176,13 +176,12 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
-    simulation = kwargs.get("simulation", "false") == "true"
     node_uuid = kwargs.get("s", None)
 
     runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
     contact_ids = (
-        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True)
         .filter(id__in=runs.values_list("contact", flat=True))
         .values_list("id", flat=True)
     )
@@ -321,7 +320,7 @@ def check_messages_task():  # pragma: needs cover
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(contact__is_test=True)
+    unhandled_messages = unhandled_messages.exclude(channel__is_active=False)
     unhandled_count = unhandled_messages.count()
 
     if unhandled_count:

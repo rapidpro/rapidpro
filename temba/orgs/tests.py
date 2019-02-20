@@ -39,7 +39,7 @@ from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
+from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
 from temba.tests import MockResponse, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -2406,9 +2406,6 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org_tier())
 
     def test_sub_orgs(self):
-
-        from temba.orgs.models import Debit
-
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
 
         # lets start with two topups

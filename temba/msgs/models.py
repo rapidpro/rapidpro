@@ -960,7 +960,6 @@ class Msg(models.Model):
                     .exclude(channel__channel_type=Channel.TYPE_ANDROID)
                     .exclude(msg_type=IVR)
                     .exclude(topup=None)
-                    .exclude(contact__is_test=True)
                 )
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
@@ -1066,7 +1065,7 @@ class Msg(models.Model):
         if msg_type:  # pragma: needs cover
             messages = messages.filter(msg_type=msg_type)
 
-        return messages.filter(contact__is_test=False)
+        return messages
 
     @classmethod
     def fail_old_messages(cls):  # pragma: needs cover
@@ -1946,7 +1945,7 @@ class SystemLabel(object):
         return SystemLabelCount.get_totals(org)
 
     @classmethod
-    def get_queryset(cls, org, label_type, exclude_test_contacts=True):
+    def get_queryset(cls, org, label_type):
         """
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
@@ -1975,15 +1974,7 @@ class SystemLabel(object):
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
-        qs = qs.filter(org=org)
-
-        if exclude_test_contacts:
-            if label_type == cls.TYPE_SCHEDULED:
-                qs = qs.exclude(contacts__is_test=True)
-            else:
-                qs = qs.exclude(contact__is_test=True)
-
-        return qs
+        return qs.filter(org=org)
 
     @classmethod
     def get_archive_attributes(cls, label_type):
