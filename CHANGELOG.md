@@ -1,3 +1,8 @@
+v4.21.7
+----------
+ * Update status demo view to match the current webhook posted data
+ * Remove all remaining reads of contact.is_test
+
 v4.21.6
 ----------
  * Use pretty datetime on contact page for upcoming events
