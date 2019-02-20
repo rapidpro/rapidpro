@@ -107,6 +107,11 @@ ORG1 = dict(
         dict(name="Send All", file="send_all.json", uuid="a7c11d68-f008-496f-b56d-2d5cf4cf16a5"),
         dict(name="Contact Surveyor", file="contact_surveyor.json", uuid="ed8cf8d4-a42c-4ce1-a7e3-44a2918e3cec"),
         dict(name="Incoming Extra", file="incoming_extra.json", uuid="376d3de6-7f0e-408c-80d6-b1919738bc80"),
+        dict(
+            name="Parent Child Expiration",
+            file="parent_child_expiration.json",
+            uuid="81c0f323-7e06-4e0c-a960-19c20f17117c",
+        ),
     ),
     campaigns=(
         dict(

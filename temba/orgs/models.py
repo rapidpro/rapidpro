@@ -2048,6 +2048,7 @@ class Org(SmartModel):
         from temba.middleware import BrandingMiddleware
 
         self.flow_server_enabled = flow_server_enabled
+        self.save(update_fields=["flow_server_enabled"])
 
         if not branding:
             branding = BrandingMiddleware.get_branding_for_host("")
