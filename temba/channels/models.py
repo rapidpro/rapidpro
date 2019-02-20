@@ -969,9 +969,7 @@ class Channel(TembaModel):
         # use our optimized index for our org outbox
         from temba.msgs.models import Msg
 
-        return Msg.objects.filter(org=self.org.id, status__in=["P", "Q"], direction="O", visibility="V").filter(
-            channel=self, contact__is_test=False
-        )
+        return Msg.objects.filter(org=self.org.id, status__in=["P", "Q"], direction="O", visibility="V", channel=self)
 
     def is_new(self):
         # is this channel newer than an hour
@@ -1158,8 +1156,8 @@ class Channel(TembaModel):
         )
         pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)
 
-        # only SMS'es that have a topup and aren't the test contact
-        pending = pending.exclude(topup=None).exclude(contact__is_test=True)
+        # only SMS'es that have a topup
+        pending = pending.exclude(topup=None)
 
         # order by date created
         return pending.order_by("created_on")
@@ -1760,10 +1758,7 @@ class Alert(SmartModel):
 
             if (
                 not Msg.objects.filter(
-                    status__in=["Q", "P"],
-                    channel_id=alert.channel_id,
-                    contact__is_test=False,
-                    created_on__lte=thirty_minutes_ago,
+                    status__in=["Q", "P"], channel_id=alert.channel_id, created_on__lte=thirty_minutes_ago
                 )
                 .exclude(created_on__lte=day_ago)
                 .exists()
@@ -1773,7 +1768,7 @@ class Alert(SmartModel):
 
         # now look for channels that have many unsent messages
         queued_messages = (
-            Msg.objects.filter(status__in=["Q", "P"], contact__is_test=False)
+            Msg.objects.filter(status__in=["Q", "P"])
             .order_by("channel", "created_on")
             .exclude(created_on__gte=thirty_minutes_ago)
             .exclude(created_on__lte=day_ago)
@@ -1782,7 +1777,7 @@ class Alert(SmartModel):
             .annotate(latest_queued=Max("created_on"))
         )
         sent_messages = (
-            Msg.objects.filter(status__in=["S", "D"], contact__is_test=False)
+            Msg.objects.filter(status__in=["S", "D"])
             .exclude(created_on__lte=day_ago)
             .exclude(channel=None)
             .order_by("channel", "sent_on")
@@ -1865,9 +1860,7 @@ class Alert(SmartModel):
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )
-        context["unsent_count"] = Msg.objects.filter(
-            channel=self.channel, status__in=["Q", "P"], contact__is_test=False
-        ).count()
+        context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
         context["subject"] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())

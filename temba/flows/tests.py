@@ -7060,7 +7060,7 @@ class FlowsTest(FlowFileTest):
         )
 
         # runs all gone too
-        self.assertEqual(0, FlowRun.objects.filter(flow=flow, contact__is_test=False).count())
+        self.assertEqual(0, FlowRun.objects.filter(flow=flow).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
         tupac = self.create_contact("Tupac Shakur", "+12065550725")
