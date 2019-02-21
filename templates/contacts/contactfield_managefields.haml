@@ -1,85 +1,275 @@
--extends "smartmin/update.html"
-
+-extends "smartmin/base.html"
 -load smartmin
+-load i18n
 
--block fields
-  %fieldset
-    #field-table-container
-      %table#field-table
-        %thead
-          %tr
-            %th.drag-icon
-            %th Name
-            %th Type
-            %th Show
+-block top-form
+  - if view.search_fields and object_list
+    - block search-form
+      %form
+        %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{search}}"}
 
-        %tbody#draggable-tbody
-          -for field_fields in contact_fields
-            %tr.draggable-row
-              %td.drag-icon
-                %div.drag-handle.icon.icon-menu
+-block content
+  -block table-controls
+    .row
+      .table-buttons
+        - block table-buttons
+          - if view.add_button
+            - if org_perms.contacts.contactfield_create
+              %a.btn.btn-primary.pull-right{ onClick:'showCreateContactFieldModal()' } Create a field
 
-              %td.field-label
-                {% render_field field_fields.label %}
+  {% block pjax %}
+  #pjax
+    .row-fluid
+      .span12
+        - block pre-table
 
-              %td.field-type
-                {% render_field field_fields.type %}
+        - block table
+          .scroll-x
+            %table{ class:'{% get_list_class object_list %} list-table table table-striped', cellspacing:'0'}
+              %thead
+                %tr
+                  %th.drag-icon
 
-              %td.field-show
-                {% render_field field_fields.show %}
-                {% render_field field_fields.field %}
-                {% render_field field_fields.priority %}
+                  - for field in fields
+                    %th{ class:'header-{{field}} {% if view|field_orderable:field %}header {% if field == order %}{% if order_asc %}headerSortUp{% else %}headerSortDown{% endif %}{% endif %}{% endif %}', id:'header-{{field}}' }
+                      {% get_label field %}
 
+                %tbody#draggable-tbody
+                  - for obj in object_list
+                    %tr.draggable-row{ class:'{% cycle "row2" "row1" %} {% if not obj.is_active and obj|is_smartobject %}inactive{% endif %}', data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
 
--block modal-script
+                      - if org_perms.contacts.contactfield_updatepriority
+                        %td.drag-icon
+                          .drag-handle.icon.icon-menu
+                      - else
+                        %td
 
-  :javascript
-    $(".smartmin-form select").select2({minimumResultsForSearch: -1, width: 'element'});
+                      -for field in fields
+                        %td{class:'value-{{field}} {% get_class field obj %}{% if field in link_fields %} {% endif %}' }
+                          - if field in link_fields
+                            <a {% if pjax %}data-pjax='{{ pjax }}'{% endif %} href="{% get_field_link field obj %}">{% get_value obj field %}</a>
+                          - else
+                            {% get_value obj field %}
 
-    // polyfill for older browsers
-    if (!String.prototype.startsWith) {
-        String.prototype.startsWith = function(search, pos) {
-            return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search;
-        }
-    }
+                  - empty
+                    %tr.empty_list
+                      - for field in fields
+                        %td
 
-    $('#draggable-tbody').sortable({
-        // handle: '.drag-handle',  // make this row draggable only by the handle
+          - block extra-rows
+
+        - block post-table
+
+  {% block paginator %}
+  .row
+    - include "smartmin/sidebar_pagination.haml"
+
+{% endblock pjax %}
+{% endblock content %}
+
+{% block extra-script %}
+{{ block.super }}
+:javascript
+
+<script>
+
+  $(document).ready(function(){
+
+    - if org_perms.contacts.contactfield_updatepriority
+      $('#draggable-tbody').sortable({
+        handle: '.drag-handle',  // make this row draggable only by the handle
         placeholder: "sortable-placeholder",
         stop: function (event, ui) {
           $(ui.item).removeClass('sortable-dragging');
 
-           $('#draggable-tbody > tr').each(function(idx, elem) {
-             // rewrite priority of every element based on the current order of elements
-             var new_idx = 1000 - idx;
+          var priorityMapping = {};
+          $('#draggable-tbody > tr').each(function(idx, elem) {
+            // rewrite priority of every element based on the current order of elements
+            var new_idx = 1000 - idx;
 
-             $(elem).find('input[type=hidden]').each(function(idx, in_elem) {
-                if (in_elem.name.startsWith('priority')){
-                    in_elem.value = new_idx;
-                }
-             });
-           });
+            priorityMapping[$(elem).data('cfid')] = new_idx;
+
+          });
+
+          var priorityUpdateUrl = '{% url "contacts.contactfield_updatepriority" %}';
+
+          $.ajax({
+            type: 'POST',
+            url: priorityUpdateUrl,
+            data: JSON.stringify(priorityMapping),
+            success: function (data, status, jqXHR) {
+              // show user a notification ???
+              // console.log(data, status, jqXHR);
+            },
+            error: function (jqXHR, status, error) {
+              // how do we display errors to the user ???
+              // console.log(jqXHR, status, error);
+            }
+          });
+
         },
         start: function (event, ui) {
           $(ui.item).addClass('sortable-dragging');
           // since we use a table we need to manually add a div to the sortable.placeholder in order to modify its margin
           ui.placeholder.html('<td colspan=99><div></div></td>');
         }
-    });
+      });
 
--block modal-extra-style
+
+    - if org_perms.contacts.contactfield_update
+      $('tr[data-cfid]').on('click', function(evt) {
+        evt.preventDefault();
+
+        showUpdateContactFieldModal($(this).data('cfid'));
+      });
+
+  }); // document.ready
+
+  function showCreateContactFieldModal() {
+
+    var modal = new Modax('{% trans "Create Contact Field" %}', '{% url "contacts.contactfield_create" %}')
+    modal.setIcon('icon-vcard');
+    modal.ele.find('.primary').text('{% trans "Create" %}');
+
+    modal.setListeners({
+      onSuccess: function() {
+        // simply reload the whole page
+        location.reload();
+      }
+    })
+    modal.show()
+  }
+
+  function showUpdateContactFieldModal(cfid) {
+    var updateUrl = '/contactfield/update/' + cfid + '/';
+
+    var modal = new Modax('{% trans "Update Contact Field" %}', updateUrl);
+
+    modal.setIcon('icon-vcard');
+    modal.ele.find('.primary').text('{% trans "Update" %}');
+
+    - if org_perms.contacts.contactfield_delete
+      modal.setTertiaryButton('{% trans "Delete" %}', function() {
+        // hide current UpdateModal
+        modal.dismiss();
+
+        showDeleteContactFieldModal(cfid);
+      });
+      // make Delete dangerous
+      modal.ele.find('.tertiary').addClass('btn-danger');
+
+    modal.setListeners({
+      onSuccess: function() {
+        // simply reload the whole page
+        location.reload();
+      },
+      onFormLoaded: function() {
+        // fonty checkboxy
+        useFontCheckbox(".smartmin-form input[type=checkbox]", true);
+      }
+    })
+    modal.show();
+  }
+
+
+  function renderUsedByFlows(payload) {
+    return [
+      '<ul>',
+      payload.map(function (flow) {
+        return '<li><a target="_new" href="/flow/editor/' + flow[0] + '/">'+flow[1]+'</a></li>'
+      }).join(''),
+      '</ul>'
+    ].join('');
+  }
+
+  function showDeleteContactFieldModal(cfid) {
+    var deleteUrl = '/contactfield/delete/' + cfid + '/';
+
+    $.ajax({
+      type: 'GET',
+      url: deleteUrl,
+      success: function (data, status, jqXHR) {
+        // console.log(data, status, jqXHR);
+
+        var payload = jqXHR.responseJSON;
+
+        var modal = new ConfirmationModal(
+          '{% trans "Delete a Contact Field" %}',
+          '{% trans "Do you REALLY REALLY want to delete: " %}'+'<strong>'+payload.cf_label+'</strong>'
+        );
+        modal.setIcon('icon-vcard');
+
+        modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger');
+
+        modal.setListeners({
+          onSuccess: function() {
+            // simply reload the whole page
+            location.reload();
+          },
+          onPrimary: function() {
+            $.ajax({
+              type: 'DELETE',
+              url: deleteUrl,
+              success: function (data, status, jqXHR) {
+                // simply reload the whole page
+                location.reload();
+              },
+              error: function (jqXHR, status, error) {
+                // how do we display errors to the user ???
+                console.log(jqXHR, status, error);
+              }
+            });
+          }
+        })
+        modal.show()
+
+      },
+      error: function (jqXHR, status, error) {
+        // how do we display errors to the user ???
+        // console.log(jqXHR, status, error);
+
+        var payload = jqXHR.responseJSON;
+
+        var modal = new ConfirmationModal(
+          '{% trans "Delete Contact Field" %}',
+          '<strong>'+ payload.cf_label +'</strong>' + '{% trans " is used in flows and cannot be deleted:" %}' + renderUsedByFlows(payload.dependent_flows)
+        );
+        modal.setIcon('icon-vcard');
+
+        // hide the secondary button
+        modal.ele.find('.secondary').hide();
+        // rename the primary button
+        modal.ele.find('.primary').text('Cancel');
+
+        modal.setListeners({
+          onSuccess: function() {
+            // simply reload the whole page
+            location.reload();
+          }
+        });
+        modal.show()
+      }
+    });
+  }
+</script>
+
+{% endblock %}
+
+
+
+-block extra-style
   {{block.super}}
   :css
     .drag-handle {
-      cursor:move;
+      cursor: move;
       display: block;
-      padding-top:10px;
+      /*padding-top:10px;*/
     }
 
     .drag-icon:before {
-        content: '';
-        display: block;
-        width: 15px;
+      content: '';
+      display: block;
+      width: 15px;
     }
 
     .sortable-dragging {
@@ -94,14 +284,19 @@
       display: none;
     }
 
+    .draggable-row > td {
+      cursor: pointer;
+    }
+
     .draggable-row:hover .icon {
       display: inline-block;
       color: #cccccc;
     }
 
     #draggable-tbody tr.sortable-placeholder {
-        visibility: visible;
+      visibility: visible;
     }
+
     #draggable-tbody .sortable-placeholder div {
       border-top: 1px solid #dbdfe0;
       border-bottom: 1px solid #dbdfe0;
@@ -111,63 +306,23 @@
       margin-top: 0px;
     }
 
-    .smartmin-form select {
-      width: 150px;
-      display: inline-block;
+    .value-label {
+      min-width: 400px;
+    }
+    .value-key {
+      width: 240px;
+    }
+    .value-value_type {
+      width: 80px;
+    }
+    .value-show_in_table {
+      width: 50px;
     }
 
-    #field-table-container {
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    #field-table .help-block {
-      font-size: 13px;
-      margin-top: -6px;
-    }
-
-    #field-table tr th {
-      font-size: 13px;
-      margin-bottom:-5px;
-      font-weight: 200;
-      text-align: left;
-    }
-
-    #field-table td.field-label {
-      width: 300px;
-      vertical-align: top;
-      padding-top: 10px;
-      padding-right: 10px;
-    }
-
-    #field-table td.field-label input {
-      width: 280px;
-    }
-
-    #field-table td.field-type {
-      width: 160px;
-      vertical-align: top;
-      padding-top:10px;
-    }
-
-    #field-table td.field-show {
-      width: 30px;
-      vertical-align: top;
+    td.value-show_in_table {
       text-align: center;
-      padding-left: 10px;
-      padding-top: 8px;
-      color: #888;
     }
 
-    #field-table .control-label {
-      display: none;
-    }
-
-    #field-table .controls {
-      margin-left: 0px;
-    }
-
-    #field-table td.drag-icon {
-      vertical-align: top;
-      padding-top: 7px;
+    .drag-icon {
+      width: 15px;
     }

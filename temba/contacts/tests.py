@@ -7298,56 +7298,29 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         self.get_flow("dependencies")
 
-        manage_fields_url = reverse("contacts.contactfield_managefields")
-        response = self.client.get(manage_fields_url)
+        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
+        delete_contactfield_url = reverse("contacts.contactfield_delete", args=[dependant_field.id])
 
-        # prep our post_data from the form in our response
-        post_data = dict()
-        for id, field in response.context["form"].fields.items():
-            if field.initial is None:
-                post_data[id] = ""
-            elif isinstance(field.initial, ContactField):
-                post_data[id] = field.initial.pk
-            else:
-                post_data[id] = field.initial
+        response = self.client.get(delete_contactfield_url)
+        response_json = response.json()
 
-        # find our favorite_cat contact field
-        favorite_cat = None
-        for key, value in post_data.items():
-            if value == "Favorite Cat":
-                favorite_cat = key
-        self.assertIsNotNone(favorite_cat)
+        # there is a flow that is using this field
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(len(response_json["dependent_flows"]), 1)
 
-        # try deleting favorite_cat, should not work since our flow depends on it
-        before = ContactField.user_fields.filter(org=self.org, is_active=True).count()
+        # try to delete the contactfield, though there is a dependancy
+        response = self.client.delete(delete_contactfield_url)
+        response_json = response.json()
 
-        # make sure we can't delete it directly
-        with self.assertRaises(Exception):
-            ContactField.hide_field(self.org, self.admin, "favorite_cat")
+        # we get the error again
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(len(response_json["dependent_flows"]), 1)
 
-        # or through the ui
-        post_data[favorite_cat] = ""
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(before, ContactField.user_fields.filter(org=self.org, is_active=True).count())
-        self.assertFormError(
-            response,
-            "form",
-            None,
-            'The field "Favorite Cat" cannot be removed while it is still used in the flow "Dependencies"',
-        )
+    def test_hide_field_with_flow_dependency(self):
+        self.get_flow("dependencies")
 
-        # remove it from our list of dependencies
-        from temba.flows.models import Flow
-
-        flow = Flow.objects.filter(name="Dependencies").first()
-        flow.field_dependencies.clear()
-
-        # now we should be successful
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("form", response.context)
-        self.assertEqual(before - 1, ContactField.user_fields.filter(org=self.org, is_active=True).count())
+        with self.assertRaises(ValueError):
+            ContactField.hide_field(self.org, self.admin, key="favorite_cat")
 
     def test_manage_fields(self):
         manage_fields_url = reverse("contacts.contactfield_managefields")
@@ -7359,100 +7332,271 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         self.login(self.admin)
+
         response = self.client.get(manage_fields_url)
-        self.assertEqual(len(response.context["form"].fields), 20)
+        self.assertEqual(len(response.context["object_list"]), 3)
 
-        post_data = dict()
-        for id, field in response.context["form"].fields.items():
-            if field.initial is None:
-                post_data[id] = ""
-            elif isinstance(field.initial, ContactField):
-                post_data[id] = field.initial.pk
-            else:
-                post_data[id] = field.initial
+        # deactivate a field
+        a_contactfield = ContactField.user_fields.order_by("id").first()
+        a_contactfield.is_active = False
+        a_contactfield.save(update_fields=("is_active",))
 
-        response = self.client.post(manage_fields_url, post_data, follow=True)
+        response = self.client.get(manage_fields_url)
+        self.assertEqual(len(response.context["object_list"]), 2)
+
+    def test_view_create_valid(self):
+        # we have three fields
+        self.assertEqual(ContactField.user_fields.count(), 3)
+
+        self.login(self.admin)
+
+        create_cf_url = reverse("contacts.contactfield_create")
+
+        response = self.client.get(create_cf_url)
         self.assertEqual(response.status_code, 200)
 
-        # make sure we didn't have an error
-        self.assertNotIn("form", response.context)
+        # we got a form with expected form fields
+        self.assertListEqual(list(response.context["form"].fields.keys()), ["label", "value_type", "loc"])
 
-        # should still have three contact fields
-        self.assertEqual(3, ContactField.user_fields.filter(org=self.org, is_active=True).count())
+        # a valid form
+        post_data = {"label": "this is a label", "value_type": "T"}
 
-        # fields name should be unique case insensitively
-        post_data["label_1"] = "Town"
-        post_data["label_2"] = "town"
+        response = self.client.post(create_cf_url, post_data)
 
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, "form", None, "Field names must be unique. 'town' is duplicated")
-        self.assertEqual(3, ContactField.user_fields.filter(org=self.org, is_active=True).count())
-        self.assertFalse(ContactField.user_fields.filter(org=self.org, label__in=["town", "Town"]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNoFormErrors(response, post_data)
 
-        # now remove the first field, rename the second and change the type on the third
-        post_data["label_1"] = ""
-        post_data["label_2"] = "Number 2"
-        post_data["type_3"] = "N"
-        post_data["label_4"] = "New Field"
+        # after creating a field there should be 4
+        self.assertEqual(ContactField.user_fields.count(), 4)
 
-        response = self.client.post(manage_fields_url, post_data, follow=True)
+    def test_view_create_invalid(self):
+        self.login(self.admin)
+
+        create_cf_url = reverse("contacts.contactfield_create")
+
+        response = self.client.get(create_cf_url)
         self.assertEqual(response.status_code, 200)
 
-        # make sure we didn't have an error
-        self.assertNotIn("form", response.context)
+        # we got a form with expected form fields
+        self.assertListEqual(list(response.context["form"].fields.keys()), ["label", "value_type", "loc"])
 
-        # first field was blank, so it should be inactive
-        self.assertIsNone(ContactField.user_fields.filter(org=self.org, key="third", is_active=True).first())
+        # an empty form
+        post_data = {}
 
-        # the second should be renamed
-        self.assertEqual(
-            "Number 2", ContactField.user_fields.filter(org=self.org, key="first", is_active=True).first().label
-        )
+        response = self.client.post(create_cf_url, post_data)
 
-        # the third should have a different type
-        self.assertEqual(
-            "N", ContactField.user_fields.filter(org=self.org, key="second", is_active=True).first().value_type
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", "value_type", "This field is required.")
 
-        # we should have a fourth field now
-        self.assertTrue(
-            ContactField.user_fields.filter(org=self.org, key="new_field", label="New Field", value_type="T")
-        )
+        # a form with an invalid label
+        post_data = {"label": "!@#"}
 
-        # check that a field name which is a reserved field, gives an error
-        post_data["label_2"] = "name"
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, "form", None, "Field name 'name' is a reserved word")
+        response = self.client.post(create_cf_url, post_data)
 
-        # check that a field name which contains disallowed characters, gives an error
-        post_data["label_2"] = "@name"
-        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
 
-        post_data["label_2"] = "Name"
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, "form", None, "Field name 'Name' is a reserved word")
+        # a form trying to create a field that already exists
+        post_data = {"label": "First"}
 
-        # bad field
-        ContactField.user_fields.create(
-            org=self.org, key="language", label="User Language", created_by=self.admin, modified_by=self.admin
+        response = self.client.post(create_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+
+        # a form creating a field that does not have a valid key
+        post_data = {"label": "modified by"}
+
+        response = self.client.post(create_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
+            # a valid form, but ORG has reached max active fields limit
+            post_data = {"label": "teefilter", "value_type": "T"}
+
+            response = self.client.post(create_cf_url, post_data)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertFormError(
+                response, "form", None, "Cannot create a new Contact Field, maximum allowed per org: 2"
+            )
+
+        # value_type not supported
+        post_data = {"label": "teefilter", "value_type": "J"}
+
+        response = self.client.post(create_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
         )
 
-        self.assertEqual(4, ContactField.user_fields.filter(org=self.org, is_active=True).count())
+    def test_view_update_valid(self):
+        cf_to_update = ContactField.user_fields.get(key="first")
 
-        response = self.client.get(manage_fields_url)
-        post_data = dict()
-        for id, field in response.context["form"].fields.items():
-            if field.initial is None:
-                post_data[id] = ""
-            elif isinstance(field.initial, ContactField):
-                post_data[id] = field.initial.pk
-            else:
-                post_data[id] = field.initial
+        self.login(self.admin)
 
-        response = self.client.post(manage_fields_url, post_data, follow=True)
+        update_cf_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
+
+        response = self.client.get(update_cf_url)
+        self.assertEqual(response.status_code, 200)
+
+        initial_data = {"label": "First", "value_type": "T", "show_in_table": False}
+
+        # we got a form with expected form fields
+        self.assertListEqual(
+            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
+        )
+        self.assertDictEqual(response.context["form"].initial, initial_data)
+
+        initial_data["show_in_table"] = True
+        initial_data["label"] = "First 1"
+
+        response = self.client.post(update_cf_url, initial_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertNoFormErrors(response, initial_data)
+
+        cf_to_update.refresh_from_db()
+        self.assertEqual(cf_to_update.label, "First 1")
+
+    def test_view_update_invalid(self):
+        self.login(self.admin)
+
+        # cannot update a contact field which does not exist
+        update_cf_url = reverse("contacts.contactfield_update", args=(123_123,))
+
+        response = self.client.get(update_cf_url)
+        self.assertEqual(response.status_code, 404)
+
+        # cannot update a contact field which does not exist
+        response = self.client.post(update_cf_url, {})
+        self.assertEqual(response.status_code, 404)
+
+        # get a valid field to update
+        cf_to_update = ContactField.user_fields.get(key="first")
+        update_cf_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
+
+        response = self.client.get(update_cf_url)
+
+        # we got a form with expected form fields
+        self.assertListEqual(
+            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
+        )
+
+        # an empty form
+        post_data = {}
+
+        response = self.client.post(update_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+        self.assertFormError(response, "form", "value_type", "This field is required.")
+
+        # a form with an invalid label
+        post_data = {"label": "!@#"}
+
+        response = self.client.post(update_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field names can only contain letters, numbers and hypens")
+
+        # a form trying to create a field that already exists
+        post_data = {"label": "Second"}
+
+        response = self.client.post(update_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field names must be unique. 'Second' is duplicated")
+
+        # a form creating a field that does not have a valid key
+        post_data = {"label": "modified by"}
+
+        response = self.client.post(update_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", None, "Field name 'modified by' is a reserved word")
+
+        # value_type not supported
+        post_data = {"label": "teefilter", "value_type": "J"}
+
+        response = self.client.post(update_cf_url, post_data)
+
+        self.assertEqual(response.status_code, 200)
         self.assertFormError(
-            response, "form", None, "Field key language has invalid characters " "or is a reserved field name"
+            response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
+        )
+
+    def test_view_delete_valid(self):
+        cf_to_delete = ContactField.user_fields.get(key="first")
+        self.assertTrue(cf_to_delete.is_active)
+
+        self.login(self.admin)
+
+        delete_cf_url = reverse("contacts.contactfield_delete", args=(cf_to_delete.id,))
+
+        response = self.client.get(delete_cf_url)
+        self.assertEqual(response.status_code, 200)
+
+        expected_response = {"cf_label": "First", "dependent_flows": []}
+        # we got a form with expected form fields
+        self.assertDictEqual(response.json(), expected_response)
+
+        # delete the field
+        response = self.client.delete(delete_cf_url)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(len(response.content), 0)
+
+        cf_to_delete.refresh_from_db()
+
+        self.assertFalse(cf_to_delete.is_active)
+
+    def test_view_updatepriority_valid(self):
+        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
+        self.assertListEqual(cf_priority, [10, 0, 20])
+
+        self.login(self.admin)
+        updatepriority_cf_url = reverse("contacts.contactfield_updatepriority")
+
+        # there should be no updates because CFs with ids do not exist
+        post_data = json.dumps({123_123: 1000, 123_124: 999, 123_125: 998})
+
+        response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "OK")
+
+        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
+        self.assertListEqual(cf_priority, [10, 0, 20])
+
+        # actually update the priorities
+        post_data = json.dumps(
+            {cf.id: index for index, cf in enumerate(ContactField.user_fields.filter(is_active=True).order_by("id"))}
+        )
+
+        response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "OK")
+
+        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
+        self.assertListEqual(cf_priority, [0, 1, 2])
+
+    def test_view_updatepriority_invalid(self):
+        cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
+        self.assertListEqual(cf_priority, [10, 0, 20])
+
+        self.login(self.admin)
+        updatepriority_cf_url = reverse("contacts.contactfield_updatepriority")
+
+        # there are 3 CFs in db, we are trying to update 2
+        post_data = json.dumps({123_123: 1000, 123_124: 999})
+
+        response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["status"], "ERROR")
+        self.assertEqual(
+            response.json()["err_detail"], "Priority could not be updated, expected 3 got 2 fields for update."
         )
 
     def test_contactfield_priority(self):

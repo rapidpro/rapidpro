@@ -472,38 +472,6 @@
 
     {% endif %}
 
-    {% if org_perms.contacts.contactfield_managefields %}
-    $('.page-content').on('click', ".manage-fields", function() {
-      lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Manage Contact Fields" %}', '{% url "contacts.contactfield_managefields" %}');
-      modal.setIcon('icon-vcard');
-      modal.setListeners({
-        onFormLoaded:function() {
-          useFontCheckbox("input[type=checkbox]", false);
-        },
-        onSuccess: function() {
-            // grab the current search string, sort_on/page/...
-            var url = window.location.search;
-
-            if (!url) {
-                url = '?'
-            }
-
-            // bust cache
-            url += '&ts=' + new Date().getTime();
-
-            fetchPJAXContent(url, '#pjax', {
-                forceReload: true,
-                onSuccess: function () {
-                    recheckIds();
-                }
-            })
-        }
-      });
-      modal.show();
-    });
-    {% endif %}
-
     {% if org_perms.contacts.contact_export %}
     $(".export-contacts").live('click', function() {
       var modal = new Modax('{% trans "Export Contacts" %}', '{{export_url}}');
