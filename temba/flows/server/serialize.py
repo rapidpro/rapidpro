@@ -17,12 +17,10 @@ def serialize_flow(flow):
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
-
-    # if we are already a goflow version, no migration necessary
     from temba.flows.models import Flow
 
-    flow.ensure_current_version(min_version=Flow.GOFLOW_VERSION)
-    return flow.as_json(expand_contacts=True)
+    current_revision = flow.revisions.all.order_by("-revision").first()
+    return current_revision.get_definition_json(to_version=Flow.GOFLOW_VERSION)
 
 
 def serialize_channel(channel):
