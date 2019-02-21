@@ -199,8 +199,11 @@ window.renderSimEvent = (event) ->
 
     when "webhook_called"
       webhookEvent = event
-      window.addSimMessage("log", "Called " + event.url + " which returned " + event.status, null, () ->
-        modal = showModal("Webhook Result", "<pre>" + webhookEvent.response + "</pre>")
+      window.addSimMessage("log", "Called " + event.url + " which returned " + event.status + " in " + webhookEvent.elapsed_ms + "ms", null, () ->
+        body = "<pre>" + webhookEvent.request + "</pre>"
+        body += "<pre>" + webhookEvent.response + "</pre>"
+
+        modal = showModal("Webhook Result", body)
         modal.setListeners({}, true)
         modal.hideSecondaryButton()
       )
@@ -231,7 +234,7 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
 
       if media_type == 'geo'
         media_viewer = '<div class="media-file">' + url + '</div>'
-      else
+      else if media_type.indexOf('/') > 0
         media_type = media_type.split('/')[0]
 
         if not url.startsWith("http") and not url.startsWith("/sitestatic/")
