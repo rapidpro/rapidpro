@@ -213,6 +213,8 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
+    GOFLOW_VERSION = "12"
+
     VERSIONS = [
         "1",
         "2",
@@ -2240,10 +2242,11 @@ class Flow(TembaModel):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by("-revision").all().first()
                 if revision:
-                    json_flow = revision.get_definition_json()
+                    json_flow = revision.get_definition_json(to_version)
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
+                print(json_flow)
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
 
@@ -2251,6 +2254,8 @@ class Flow(TembaModel):
         """
         Updates a definition for a flow and returns the new revision
         """
+
+        flow_version = get_current_export_version()
 
         def get_step_type(dest, rulesets, actionsets):
             if dest:
@@ -2266,7 +2271,7 @@ class Flow(TembaModel):
 
         try:
             # make sure the flow version hasn't changed out from under us
-            if json_dict.get(Flow.VERSION) != get_current_export_version():
+            if json_dict.get(Flow.VERSION) != flow_version:
                 raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
             flow_user = get_flow_user(self.org)
@@ -2526,7 +2531,7 @@ class Flow(TembaModel):
             if user and user != flow_user:
                 self.saved_on = timezone.now()
 
-            self.version_number = get_current_export_version()
+            self.version_number = flow_version
             self.save()
 
             # clear property cache
@@ -2552,7 +2557,7 @@ class Flow(TembaModel):
                 definition=json_dict,
                 created_by=user,
                 modified_by=user,
-                spec_version=get_current_export_version(),
+                spec_version=flow_version,
                 revision=revision_num,
             )
 
@@ -4247,9 +4252,12 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
+        if to_version == Flow.GOFLOW_VERSION:
+            return mailroom.get_client().flow_migrate({"flow": json_flow, "collapse_exits": False})
+
         return json_flow
 
-    def get_definition_json(self):
+    def get_definition_json(self, to_version=get_current_export_version()):
 
         definition = self.definition
 
@@ -4269,8 +4277,8 @@ class FlowRevision(SmartModel):
         definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
-        if self.spec_version != get_current_export_version():
-            definition = FlowRevision.migrate_definition(definition, self.flow)
+        if self.spec_version != to_version:
+            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
         return definition
 
     def as_json(self):

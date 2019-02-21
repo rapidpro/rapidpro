@@ -51,8 +51,8 @@
 
   :javascript
     window.orgId = {{object.org.id}};
-    window.flowId = {{object.id}};
     window.flowUUID = '{{object.uuid}}';
+    window.flowVersion = '{{flow_version}}'
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';

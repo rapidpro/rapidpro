@@ -41,7 +41,7 @@ from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
-from temba.orgs.models import Org
+from temba.orgs.models import Org, get_current_export_version
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
@@ -275,20 +275,33 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(recent_messages, safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+
+        slug_url_kwarg = "uuid"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<uuid>[0-9a-f-]+)/((?P<revision_id>\d+)/)?$" % (path, action)
+
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            revision_id = request.GET.get("definition", None)
+            flow_version = request.GET.get("version", Flow.GOFLOW_VERSION)
+            revision_id = self.kwargs["revision_id"]
 
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return JsonResponse(revision.get_definition_json())
+                return JsonResponse(revision.get_definition_json(flow_version))
             else:
+
+                versions = Flow.get_versions_before(flow_version)
+                versions.append(flow_version)
+
                 revisions = []
-                for revision in flow.revisions.all().order_by("-created_on")[:25]:
+                for revision in flow.revisions.filter(spec_version__in=versions).order_by("-created_on")[:25]:
                     # validate the flow definition before presenting it to the user
                     try:
-                        FlowRevision.validate_flow_definition(revision.get_definition_json())
+                        # can only validate up to our last python version
+                        FlowRevision.validate_flow_definition(revision.get_definition_json(versions[-2]))
                         revisions.append(revision.as_json())
 
                     except ValueError:
@@ -302,7 +315,7 @@ class FlowCRUDL(SmartCRUDL):
                         )
                         pass
 
-                return JsonResponse(revisions, safe=False)
+                return JsonResponse({"results": revisions}, safe=False)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -936,11 +949,11 @@ class FlowCRUDL(SmartCRUDL):
 
             flow_variables.append(dict(name="flow", display=str(_("All flow variables"))))
 
-            flow_id = self.request.GET.get("flow", None)
+            flow_uuid = self.request.GET.get("flow", None)
 
-            if flow_id:
+            if flow_uuid:
                 # TODO: restrict this to only the possible paths to the passed in actionset uuid
-                rule_sets = RuleSet.objects.filter(flow__pk=flow_id, flow__org=org)
+                rule_sets = RuleSet.objects.filter(flow__uuid=flow_uuid, flow__org=org)
                 for rule_set in rule_sets:
                     key = ContactField.make_key(slugify(rule_set.label))
                     flow_variables.append(dict(name="flow.%s" % key, display=rule_set.label))
@@ -970,6 +983,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
             org = self.request.user.get_org()
 
+            context["flow_version"] = get_current_export_version()
             flow.ensure_current_version()
 
             if org:
@@ -1508,6 +1522,7 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
     class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+        slug_url_kwarg = "uuid"
         success_message = ""
 
         def get(self, request, *args, **kwargs):

@@ -131,7 +131,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
   # fetch our flow to get started
   $scope.init = ->
-    Flow.fetch window.flowId, ->
+    Flow.fetch window.flowUUID, ->
       $scope.updateActivity()
       $scope.flow = Flow.flow
 
