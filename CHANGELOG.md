@@ -1,3 +1,7 @@
+v4.21.10
+----------
+ * display attachments that are just 'image:'
+
 v4.21.9
 ----------
  * simulator tweaks
