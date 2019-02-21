@@ -288,13 +288,14 @@ class FlowTest(TembaTest):
 
         # should be back to one valid flow
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.pk]))
+        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.uuid]))
         self.assertEqual(1, len(response.json()))
 
         # fetch that revision
-        revision_id = response.json()[0]["id"]
+        revision_id = response.json()["results"][0]["id"]
         response = self.client.get(
-            "%s?definition=%s" % (reverse("flows.flow_revisions", args=[self.flow.pk]), revision_id)
+            "%s%s/?version=%s"
+            % (reverse("flows.flow_revisions", args=[self.flow.uuid]), revision_id, get_current_export_version())
         )
 
         # make sure we can read the definition
@@ -309,14 +310,14 @@ class FlowTest(TembaTest):
         revision.save()
 
         # no valid revisions (but we didn't throw!)
-        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.pk]))
-        self.assertEqual(0, len(response.json()))
+        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.uuid]))
+        self.assertEqual(0, len(response.json()["results"]))
 
     def test_revision_history_of_inactive_flow(self):
         self.flow.release()
 
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.pk]))
+        response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.uuid]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -332,7 +333,7 @@ class FlowTest(TembaTest):
         self.flow.release()
 
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_json", args=[self.flow.id]))
+        response = self.client.get(reverse("flows.flow_json", args=[self.flow.uuid]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -3476,7 +3477,7 @@ class FlowTest(TembaTest):
         self.flow.start([], [self.contact])
 
         # test getting the json
-        response = self.client.get(reverse("flows.flow_json", args=[self.flow.id]))
+        response = self.client.get(reverse("flows.flow_json", args=[self.flow.uuid]))
         self.assertIn("channels", response.json())
         self.assertIn("languages", response.json())
         self.assertIn("channel_countries", response.json())
@@ -3498,7 +3499,7 @@ class FlowTest(TembaTest):
         json_dict["entry"] = json_dict["action_sets"][0]["uuid"]
 
         response = self.client.post(
-            reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
+            reverse("flows.flow_json", args=[self.flow.uuid]), json.dumps(json_dict), content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(ActionSet.objects.all().count(), 25)
@@ -3511,7 +3512,7 @@ class FlowTest(TembaTest):
         json_dict["action_sets"][0]["destination"] = "notthere"
 
         response = self.client.post(
-            reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
+            reverse("flows.flow_json", args=[self.flow.uuid]), json.dumps(json_dict), content_type="application/json"
         )
         self.assertEqual(200, response.status_code)
 
@@ -3523,20 +3524,20 @@ class FlowTest(TembaTest):
         self.flow.refresh_from_db()
 
         # should still have the original one, nothing changed
-        response = self.client.get(reverse("flows.flow_json", args=[self.flow.id]))
+        response = self.client.get(reverse("flows.flow_json", args=[self.flow.uuid]))
         self.assertEqual(200, response.status_code)
         json_dict = response.json()
 
         # can't save against the other org's flow
         response = self.client.post(
-            reverse("flows.flow_json", args=[other_flow.id]), json.dumps(json_dict), content_type="application/json"
+            reverse("flows.flow_json", args=[other_flow.uuid]), json.dumps(json_dict), content_type="application/json"
         )
         self.assertEqual(302, response.status_code)
 
         # can't save with invalid json
         with self.assertRaises(ValueError):
             response = self.client.post(
-                reverse("flows.flow_json", args=[self.flow.id]), "badjson", content_type="application/json"
+                reverse("flows.flow_json", args=[self.flow.uuid]), "badjson", content_type="application/json"
             )
 
         # test update view
@@ -3775,11 +3776,11 @@ class FlowTest(TembaTest):
         self.assertFalse(response.context["mutable"])
 
         # we can fetch the json for the flow
-        response = self.client.get(reverse("flows.flow_json", args=[self.flow.pk]))
+        response = self.client.get(reverse("flows.flow_json", args=[self.flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # but posting to it should redirect to a get
-        response = self.client.post(reverse("flows.flow_json", args=[self.flow.pk]), post_data=response.content)
+        response = self.client.post(reverse("flows.flow_json", args=[self.flow.uuid]), post_data=response.content)
         self.assertEqual(302, response.status_code)
 
         self.flow.is_archived = True
@@ -3819,7 +3820,7 @@ class FlowTest(TembaTest):
         json_dict["action_sets"][0]["actions"].append(dict(type="add_label", labels=[dict(name="@badlabel")]))
         self.login(self.admin)
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.pk]), json.dumps(json_dict), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), json.dumps(json_dict), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -6234,7 +6235,7 @@ class FlowsTest(FlowFileTest):
 
         # check view sends converts exception to error response
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=json.dumps(flow_json), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -6259,7 +6260,9 @@ class FlowsTest(FlowFileTest):
 
             # check view sends converts exception to error response
             response = self.client.post(
-                reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+                reverse("flows.flow_json", args=[flow.uuid]),
+                data=json.dumps(flow_json),
+                content_type="application/json",
             )
 
             self.assertEqual(response.status_code, 400)
@@ -6280,7 +6283,7 @@ class FlowsTest(FlowFileTest):
 
         # check view sends converts exception to error response
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=json.dumps(flow_json), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -6706,7 +6709,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow("favorites")
         self.login(self.admin)
 
-        response = self.client.get("%s?flow=%d" % (reverse("flows.flow_completion"), flow.pk))
+        response = self.client.get("%s?flow=%s" % (reverse("flows.flow_completion"), flow.uuid))
         response = response.json()
 
         def assert_in_response(response, data_key, key):
@@ -8856,13 +8859,13 @@ class FlowMigrationTest(FlowFileTest):
 
         # should see the system user on our revision json
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_revisions", args=[flow.id]))
+        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
         self.assertContains(response, "System Update")
-        self.assertEqual(2, len(response.json()))
+        self.assertEqual(2, len(response.json()["results"]))
 
         # attempt to save with old json, no bueno
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=json.dumps(old_json), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=json.dumps(old_json), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)

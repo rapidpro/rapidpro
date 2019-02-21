@@ -12,6 +12,7 @@ def serialize_ref(obj):
     return {"uuid": str(obj.uuid), "name": obj.name or ""}
 
 
+# TODO: don't believe we actuall need this anymore
 def serialize_flow(flow):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
@@ -19,7 +20,7 @@ def serialize_flow(flow):
     """
     from temba.flows.models import Flow
 
-    current_revision = flow.revisions.all.order_by("-revision").first()
+    current_revision = flow.revisions.all().order_by("-revision").first()
     return current_revision.get_definition_json(to_version=Flow.GOFLOW_VERSION)
 
 
