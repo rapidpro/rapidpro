@@ -2246,7 +2246,6 @@ class Flow(TembaModel):
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
-                print(json_flow)
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
 
