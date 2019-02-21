@@ -1,3 +1,8 @@
+v4.21.9
+----------
+ * simulator tweaks
+ * show Django warning if mailroom URL not configured
+
 v4.21.8
 ----------
  * make sure we save flow_server_enabled in initialize
