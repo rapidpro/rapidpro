@@ -1,3 +1,7 @@
+v4.21.8
+----------
+ * make sure we save flow_server_enabled in initialize
+
 v4.21.7
 ----------
  * Update status demo view to match the current webhook posted data
