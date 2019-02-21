@@ -1,3 +1,7 @@
+v4.21.11
+----------
+ * work around JS split to show simulator images
+
 v4.21.10
 ----------
  * display attachments that are just 'image:'
