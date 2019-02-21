@@ -234,8 +234,9 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
 
       if media_type == 'geo'
         media_viewer = '<div class="media-file">' + url + '</div>'
-      else if media_type.indexOf('/') > 0
-        media_type = media_type.split('/')[0]
+      else
+        if media_type.indexOf('/') > 0
+          media_type = media_type.split('/')[0]
 
         if not url.startsWith("http") and not url.startsWith("/sitestatic/")
           url = window.mediaURL + url
