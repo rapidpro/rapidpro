@@ -228,7 +228,8 @@ window.addSimMessage = (type, text, attachments=null, onClick=null) ->
 
   if attachments and attachments.length > 0
       attachment = attachments[0]
-      [media_type, url] = attachment.split(':', 2)
+      media_type = attachment.split(':')[0]
+      url = attachment.split(":").slice(1).join(":")
 
       classes.push("media-msg")
 
