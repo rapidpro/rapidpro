@@ -41,7 +41,6 @@ window.simStart = ->
 
     # the initial flow doesn't get a flow start event
     scope = $("#ctlr").data('$scope')
-    window.addSimMessage("log", "Entering the flow \"" + scope.flow.metadata.name + "\"")
 
     window.updateSimResults(response.session, response.events)
 
@@ -85,24 +84,36 @@ window.showModal = (title, body) ->
   return modal
 
 
+window.trigger = null
+
 window.updateSimResults = (session, events) ->
+  if window.trigger == null || window.trigger.triggered_on != session.trigger.triggered_on
+    if window.trigger != null && !window.trigger.exited
+      window.addSimMessage("log", "Exited the flow \"" + window.trigger.flow.name + "\"")
+
+    window.trigger = session.trigger
+    window.trigger.exited = false
+    window.addSimMessage("log", "Entered the flow \"" + session.trigger.flow.name + "\"")
+
   if events
     for event in events
       window.renderSimEvent(event)
 
   $("#simulator textarea").val("")
 
-  $(".btn.quick-reply").on("click", (event) ->
+  $(".btn.quick-reply").unbind('click').on("click", (event) ->
     payload = event.target.innerText
+    window.appendMessage(payload)
     window.sendSimMessage(payload)
   )
 
   if session
     if session.status == 'completed'
-      # the initial flow doesn't get a flow exit event
-      scope = $("#ctlr").data('$scope')
-      window.addSimMessage("log", "Exited the flow \"" + scope.flow.metadata.name + "\"")
-      $('#simulator').addClass('disabled')
+      if !window.trigger.exited
+        window.addSimMessage("log", "Exited the flow \"" + window.trigger.flow.name + "\"")
+        window.trigger.exited = true
+
+      window.handleSimWait(null)
     else if session.status == 'waiting'
       window.handleSimWait(session.wait)
 
@@ -185,6 +196,7 @@ window.renderSimEvent = (event) ->
       window.addSimMessage("log", msg)
 
     when "ivr_created", "msg_created"
+      $(".btn.quick-reply").hide()
       window.addSimMessage("MT", event.msg.text, event.msg.attachments)
 
       if event.msg.quick_replies?
@@ -275,6 +287,11 @@ window.setSimQuickReplies = (replies) ->
 # Handles a wait in the current simulator session
 #============================================================================
 window.handleSimWait = (wait) ->
+  if wait == null
+    $('.simulator-footer .media-button').hide()
+    $('.simulator-footer .imessage').show()
+    return
+
   window.currentSimWait = wait
   window.showSimKeypad(false)
 
@@ -338,6 +355,7 @@ $('#simulator .keypad .btn').on('click', ->
 
     if submit
       window.showSimKeypad(false)
+      window.appendMessage(keypadDisplay.text())
       window.sendSimMessage(keypadDisplay.text())
       keypadDisplay.text("")
 )
