@@ -14,7 +14,7 @@ class ApkCRUDL(SmartCRUDL):
         fields = ("apk_type", "name", "apk_file", "description")
 
     class List(SmartListView):
-        fields = ("name", "apk_type", "apk_file", "description")
+        fields = ("name", "apk_type", "apk_file", "description", "created_on")
 
         def get_apk_type(self, obj):
             return obj.get_apk_type_display()
