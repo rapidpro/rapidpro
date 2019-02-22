@@ -1,3 +1,7 @@
+v4.21.12
+----------
+ * improve simulator for goflow simulation
+
 v4.21.11
 ----------
  * work around JS split to show simulator images
