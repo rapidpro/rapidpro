@@ -9122,7 +9122,7 @@ class FlowMigrationTest(FlowFileTest):
         migrated = migrate_to_version_11_12(definition, flow)
 
         # removed the invalid reference
-        self.assertEqual(len(migrated["action_sets"][1]["actions"]), 0)
+        self.assertEqual(len(migrated["action_sets"]), 1)
 
         # reconnected the nodes to new destinations and adjust entry
         self.assertEqual(migrated["entry"], migrated["action_sets"][0]["uuid"])

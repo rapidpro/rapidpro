@@ -36,52 +36,68 @@ def migrate_to_version_11_12(json_flow, flow=None):
         return json_flow
 
     new_flow_json = json_flow.copy()
+    new_flow_json[Flow.ACTION_SETS] = []
+
     entry = json_flow.get(Flow.ENTRY)
     action_sets = json_flow.get(Flow.ACTION_SETS, [])
-
-    uuid_remap = {}
+    reroute_uuid_remap = {}
 
     for actionset_index, action_set in enumerate(action_sets):
-        one_action = len(action_set["actions"]) <= 1
-        for action_index, action in enumerate(action_set["actions"]):
-            if action.get("type", "") == "channel":
-                channel = action.get("channel", None)
+        action_set_clone = action_set.copy()
+        valid_actions = []
 
-                if channel is not None:
-                    channel = Channel.objects.filter(is_active=True, uuid=channel["uuid"]).first()
+        for action_index, action in enumerate(action_set["actions"]):
+            if action.get("type") == "channel":
+                channel = None
+                channel_uuid = action.get("channel")
+                if channel_uuid is not None:
+                    channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
 
                 if channel is None:
-                    if one_action:
-                        uuid_remap[action_set["uuid"]] = action_set["destination"]
+                    # skip this action it is invalid
+                    continue
 
-                    del new_flow_json[Flow.ACTION_SETS][actionset_index]["actions"][action_index]
+            # the action is valid append it
+            valid_actions.append(action)
+
+        if len(valid_actions) > 0:
+            action_set_clone["actions"] = valid_actions
+            new_flow_json[Flow.ACTION_SETS].append(action_set_clone)
+        else:
+            reroute_uuid_remap[action_set["uuid"]] = action_set["destination"]
 
     action_sets = new_flow_json.get(Flow.ACTION_SETS, [])
     rule_sets = new_flow_json.get(Flow.RULE_SETS, [])
 
-    for each_uuid in uuid_remap:
-        rm_uuid = uuid_remap[each_uuid]
-        while rm_uuid in uuid_remap:
-            rm_uuid = uuid_remap[rm_uuid]
-        uuid_remap[each_uuid] = rm_uuid
+    rerouted_sources = reroute_uuid_remap.keys()
+    for source_uuid in rerouted_sources:
+        reroute_destination = reroute_uuid_remap[source_uuid]
+        # Check final destination not rerouted
+        while reroute_destination in rerouted_sources:
+            reroute_destination = reroute_uuid_remap[reroute_destination]
+        reroute_uuid_remap[source_uuid] = reroute_destination
 
-    if entry in uuid_remap:
-        entry = uuid_remap[entry]
+    if entry in reroute_uuid_remap:
+        entry = reroute_uuid_remap[entry]
         new_flow_json[Flow.ENTRY] = entry
 
     for actionset_index, action_set in enumerate(action_sets):
-        if action_set["destination"] in uuid_remap:
-            new_flow_json[Flow.ACTION_SETS][actionset_index]["destination"] = uuid_remap[action_set["destination"]]
+        if action_set["destination"] in reroute_uuid_remap:
+            new_flow_json[Flow.ACTION_SETS][actionset_index]["destination"] = reroute_uuid_remap[
+                action_set["destination"]
+            ]
 
         if action_set["uuid"] == entry:
             action_set["y"] = 0
+        else:
+            action_set["y"] = max(100, action_set["y"])
 
     for ruleset_index, rule_set in enumerate(rule_sets):
         for rule_index, rule in enumerate(rule_set.get(Flow.RULES)):
-            if rule["destintation"] in uuid_remap:
-                new_flow_json[Flow.RULE_SETS][ruleset_index][Flow.RULES][rule_index]["destination"] = uuid_remap[
-                    rule["destination"]
-                ]
+            if rule["destintation"] in reroute_uuid_remap:
+                new_flow_json[Flow.RULE_SETS][ruleset_index][Flow.RULES][rule_index][
+                    "destination"
+                ] = reroute_uuid_remap[rule["destination"]]
 
     return new_flow_json
 

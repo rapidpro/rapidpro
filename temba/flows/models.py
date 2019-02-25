@@ -240,6 +240,7 @@ class Flow(TembaModel):
         "11.9",
         "11.10",
         "11.11",
+        "11.12",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -1266,6 +1267,7 @@ class Flow(TembaModel):
             remap_uuid(actionset, "uuid")
             remap_uuid(actionset, "exit_uuid")
             remap_uuid(actionset, "destination")
+            valid_actions = []
 
             # for all of our recordings, pull them down and remap
             for action in actionset["actions"]:
@@ -1290,6 +1292,29 @@ class Flow(TembaModel):
                             "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"]),
                         )
                         action["recording"] = path
+
+                if "channel" in action:
+                    channel = None
+                    channel_uuid = action.get("channel")
+
+                    if channel_uuid is not None:
+                        channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+
+                    if channel is None:
+                        continue
+
+                valid_actions.append(action)
+
+            if valid_actions:
+                actionset["actions"] = valid_actions
+            else:
+                uuid_map[actionset["uuid"]] = actionset["destination"]
+
+        # loop on actionsets once again to reroute all the destinations that need to be updated
+        for actionset in flow_json[Flow.ACTION_SETS]:
+            remap_uuid(actionset, "uuid")
+            remap_uuid(actionset, "exit_uuid")
+            remap_uuid(actionset, "destination")
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
