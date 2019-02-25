@@ -55,6 +55,7 @@ from .flow_migrations import (
     migrate_to_version_11_8,
     migrate_to_version_11_9,
     migrate_to_version_11_11,
+    migrate_to_version_11_12,
 )
 from .models import (
     Action,
@@ -9076,6 +9077,56 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_12(self):
+        flow = self.get_flow("favorites")
+        definition = {
+            "entry": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+            "rule_sets": [],
+            "action_sets": [
+                {
+                    "uuid": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "x": 459,
+                    "y": 150,
+                    "destination": "ef4865e9-1d34-4876-a0ff-fa3fe5025b3e",
+                    "actions": [
+                        {
+                            "type": "reply",
+                            "uuid": "3db54617-cce1-455b-a787-12df13df87bd",
+                            "msg": {"base": "Hi there"},
+                            "media": {},
+                            "quick_replies": [],
+                            "send_all": False,
+                        }
+                    ],
+                    "exit_uuid": "959fbe68-ba5a-4c78-b8d1-861e64d1e1e3",
+                },
+                {
+                    "uuid": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+                    "x": 476,
+                    "y": 0,
+                    "destination": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "actions": [
+                        {
+                            "type": "channel",
+                            "uuid": "f133934a-9772-419f-ad52-00fe934dab19",
+                            "channel": None,
+                            "name": None,
+                        }
+                    ],
+                    "exit_uuid": "aec0318d-45c2-4c39-92fc-81d3d21178f6",
+                },
+            ],
+        }
+
+        migrated = migrate_to_version_11_12(definition, flow)
+
+        # removed the invalid reference
+        self.assertEqual(len(migrated["action_sets"][1]["actions"]), 0)
+
+        # reconnected the nodes to new destinations and adjust entry
+        self.assertEqual(migrated["entry"], migrated["action_sets"][0]["uuid"])
+        self.assertEqual(migrated["action_sets"][0]["y"], 0)
 
     def test_migrate_to_11_11(self):
 
