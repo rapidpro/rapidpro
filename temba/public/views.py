@@ -54,7 +54,7 @@ class Android(SmartTemplateView):
             apk = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
         else:
             latest_ids = (
-                Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK, name__icontains="v" + pack_version)
+                Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK, name__iexact="v" + pack_version)
                 .order_by("-created_on")
                 .only("id")
                 .values_list("id", flat=True)[:10]

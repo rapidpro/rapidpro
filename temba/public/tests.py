@@ -54,6 +54,15 @@ class PublicTest(SmartminTest):
         response = self.client.get(android_url, follow=True)
         self.assertEqual(response.request["PATH_INFO"], apk.apk_file.url)
 
+        apk_pack_file_mock = MagicMock(spec=File)
+        apk_pack_file_mock.name = "pack.apk"
+        pack_apk = Apk.objects.create(
+            apk_type="M", name="v1.1", description="Message pack v1.1", apk_file=apk_pack_file_mock
+        )
+
+        response = self.client.get(f"{android_url}?v=1.1&pack=1", follow=True)
+        self.assertEqual(response.request["PATH_INFO"], pack_apk.apk_file.url)
+
     def test_welcome(self):
         welcome_url = reverse("public.public_welcome")
         response = self.client.get(welcome_url, follow=True)
@@ -160,7 +169,7 @@ class PublicTest(SmartminTest):
                 "item": "public.public_index",
                 "lastmod": None,
                 "changefreq": "daily",
-                "location": u"http://example.com/",
+                "location": "http://example.com/",
             },
         )
 
