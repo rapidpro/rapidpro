@@ -1305,9 +1305,8 @@ class Flow(TembaModel):
 
                 valid_actions.append(action)
 
-            if valid_actions:
-                actionset["actions"] = valid_actions
-            else:
+            actionset["actions"] = valid_actions
+            if not valid_actions:
                 uuid_map[actionset["uuid"]] = actionset["destination"]
 
         # loop on actionsets once again to reroute all the destinations that need to be updated
