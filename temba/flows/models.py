@@ -1263,6 +1263,7 @@ class Flow(TembaModel):
                     group["uuid"] = uuid_map[group["uuid"]]
 
         remap_uuid(flow_json, "entry")
+        needs_move_entry = False
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, "uuid")
             remap_uuid(actionset, "exit_uuid")
@@ -1310,9 +1311,10 @@ class Flow(TembaModel):
                 uuid_map[actionset["uuid"]] = actionset["destination"]
                 if actionset["uuid"] == flow_json["entry"]:
                     flow_json["entry"] = actionset["destination"]
+                    needs_move_entry = True
 
         for actionset in flow_json[Flow.ACTION_SETS]:
-            if actionset["uuid"] == flow_json.get("entry"):
+            if needs_move_entry and actionset["uuid"] == flow_json.get("entry"):
                 actionset["y"] = 0
 
         for ruleset in flow_json[Flow.RULE_SETS]:

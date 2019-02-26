@@ -41,6 +41,7 @@ def migrate_to_version_11_12(json_flow, flow=None):
     entry = json_flow.get(Flow.ENTRY)
     action_sets = json_flow.get(Flow.ACTION_SETS, [])
     reroute_uuid_remap = {}
+    needs_move_entry = False
 
     for actionset_index, action_set in enumerate(action_sets):
         action_set_clone = action_set.copy()
@@ -65,6 +66,7 @@ def migrate_to_version_11_12(json_flow, flow=None):
             new_flow_json[Flow.ACTION_SETS].append(action_set_clone)
         else:
             reroute_uuid_remap[action_set["uuid"]] = action_set["destination"]
+            needs_move_entry = True
 
     action_sets = new_flow_json.get(Flow.ACTION_SETS, [])
     rule_sets = new_flow_json.get(Flow.RULE_SETS, [])
@@ -87,7 +89,7 @@ def migrate_to_version_11_12(json_flow, flow=None):
                 action_set["destination"]
             ]
 
-        if action_set["uuid"] == entry:
+        if needs_move_entry and action_set["uuid"] == entry:
             action_set["y"] = 0
 
     for ruleset_index, rule_set in enumerate(rule_sets):
