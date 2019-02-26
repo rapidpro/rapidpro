@@ -2948,6 +2948,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
         self.assertEqual(org.slug, "relieves-world")
+        self.assertTrue(org.flow_server_enabled)
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))

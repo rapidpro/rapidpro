@@ -1,3 +1,24 @@
+v4.21.12
+----------
+ * improve simulator for goflow simulation
+
+v4.21.11
+----------
+ * work around JS split to show simulator images
+
+v4.21.10
+----------
+ * display attachments that are just 'image:'
+
+v4.21.9
+----------
+ * simulator tweaks
+ * show Django warning if mailroom URL not configured
+
+v4.21.8
+----------
+ * make sure we save flow_server_enabled in initialize
+
 v4.21.7
 ----------
  * Update status demo view to match the current webhook posted data

@@ -1007,7 +1007,7 @@ class FlowCRUDL(SmartCRUDL):
             context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
+            context["has_mailroom"] = bool(settings.MAILROOM_URL)
             return context
 
         def get_gear_links(self):

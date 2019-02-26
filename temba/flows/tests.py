@@ -36,6 +36,7 @@ from temba.utils import json
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
+from .checks import mailroom_url
 from .flow_migrations import (
     map_actions,
     migrate_export_to_version_9,
@@ -11217,3 +11218,12 @@ class AssetServerTest(TembaTest):
                 ]
             },
         )
+
+
+class SystemChecksTest(TembaTest):
+    def test_mailroom_url(self):
+        with override_settings(MAILROOM_URL="http://mailroom.io"):
+            self.assertEqual(len(mailroom_url(None)), 0)
+
+        with override_settings(MAILROOM_URL=None):
+            self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
