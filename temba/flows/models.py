@@ -1303,7 +1303,8 @@ class Flow(TembaModel):
                         channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
 
                     if channel is None and channel_name is not None:
-                        channel = Channel.objects.filter(is_active=True, name=channel_name).first()
+                        name = channel_name.split(":")[-1].strip()
+                        channel = Channel.objects.filter(is_active=True, name=name).first()
 
                     if channel is None:
                         continue
