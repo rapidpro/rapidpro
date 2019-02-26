@@ -1297,12 +1297,19 @@ class Flow(TembaModel):
                 if "channel" in action:
                     channel = None
                     channel_uuid = action.get("channel")
+                    channel_name = action.get("name")
 
                     if channel_uuid is not None:
                         channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
 
+                    if channel is None and channel_name is not None:
+                        channel = Channel.objects.filter(is_active=True, name=channel_name).first()
+
                     if channel is None:
                         continue
+                    else:
+                        action["channel"] = channel.uuid
+                        action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
 
                 valid_actions.append(action)
 
