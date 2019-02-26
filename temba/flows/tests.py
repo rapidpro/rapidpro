@@ -9192,7 +9192,7 @@ class FlowMigrationTest(FlowFileTest):
         migrate_to_version_11_12(flow_json, flow)
 
         action_sets = flow.action_sets.all()
-        self.assertEqual(len(action_sets), 6)
+        self.assertEqual(len(action_sets), 7)
 
     def test_migrate_to_11_11(self):
 

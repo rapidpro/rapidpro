@@ -58,7 +58,7 @@
           "uuid": "76e091fe-62a5-4786-9465-7c1fb2446694",
           "x": 460,
           "y": 117,
-          "destination": "3bb1fb6d-f0a3-4ec7-abba-cc5fac4c6a9d",
+          "destination": "ef9afd2d-d106-4168-a104-20ddc14f9444",
           "actions": [
             {
               "type": "reply",
@@ -106,6 +106,21 @@
             }
           ],
           "exit_uuid": "835a5ca9-d518-452f-865c-ca8e5cde4777"
+        },
+        {
+          "uuid": "ef9afd2d-d106-4168-a104-20ddc14f9444",
+          "x": 501,
+          "y": 242,
+          "destination": "3bb1fb6d-f0a3-4ec7-abba-cc5fac4c6a9d",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "28d63382-40ea-4741-ba3a-2930348fab0e",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "be8ca9a5-0f61-4c9d-93e4-02aa6bb27afc"
         }
       ],
       "rule_sets": [
@@ -170,8 +185,8 @@
       "version": "11.12",
       "metadata": {
         "name": "channels",
-        "saved_on": "2019-02-26T20:26:48.820718Z",
-        "revision": 21,
+        "saved_on": "2019-02-26T21:16:32.055957Z",
+        "revision": 24,
         "uuid": "e5fdf453-428f-4da1-9703-0decdf7cf6f9",
         "expires": 10080
       }
