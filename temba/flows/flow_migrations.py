@@ -82,19 +82,17 @@ def migrate_to_version_11_12(json_flow, flow=None):
         new_flow_json[Flow.ENTRY] = entry
 
     for actionset_index, action_set in enumerate(action_sets):
-        if action_set["destination"] in reroute_uuid_remap:
+        if action_set.get("destination") in reroute_uuid_remap:
             new_flow_json[Flow.ACTION_SETS][actionset_index]["destination"] = reroute_uuid_remap[
                 action_set["destination"]
             ]
 
         if action_set["uuid"] == entry:
             action_set["y"] = 0
-        else:
-            action_set["y"] = max(100, action_set["y"])
 
     for ruleset_index, rule_set in enumerate(rule_sets):
         for rule_index, rule in enumerate(rule_set.get(Flow.RULES)):
-            if "destination" in rule and rule["destination"] in reroute_uuid_remap:
+            if rule.get("destination") in reroute_uuid_remap:
                 new_flow_json[Flow.RULE_SETS][ruleset_index][Flow.RULES][rule_index][
                     "destination"
                 ] = reroute_uuid_remap[rule["destination"]]

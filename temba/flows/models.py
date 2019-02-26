@@ -1312,10 +1312,8 @@ class Flow(TembaModel):
                     flow_json["entry"] = actionset["destination"]
 
         for actionset in flow_json[Flow.ACTION_SETS]:
-            if actionset["uuid"] == flow_json["entry"]:
+            if actionset["uuid"] == flow_json.get("entry"):
                 actionset["y"] = 0
-            else:
-                actionset["y"] = max(100, actionset["y"])
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
