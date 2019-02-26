@@ -1308,12 +1308,14 @@ class Flow(TembaModel):
             actionset["actions"] = valid_actions
             if not valid_actions:
                 uuid_map[actionset["uuid"]] = actionset["destination"]
+                if actionset["uuid"] == flow_json["entry"]:
+                    flow_json["entry"] = actionset["destination"]
 
-        # loop on actionsets once again to reroute all the destinations that need to be updated
         for actionset in flow_json[Flow.ACTION_SETS]:
-            remap_uuid(actionset, "uuid")
-            remap_uuid(actionset, "exit_uuid")
-            remap_uuid(actionset, "destination")
+            if actionset["uuid"] == flow_json["entry"]:
+                actionset["y"] = 0
+            else:
+                actionset["y"] = max(100, actionset["y"])
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
