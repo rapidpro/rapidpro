@@ -1,0 +1,197 @@
+{
+  "version": "11.12",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "456b7f83-a96b-4f17-aa0a-116a30ee0d52",
+      "action_sets": [
+        {
+          "uuid": "456b7f83-a96b-4f17-aa0a-116a30ee0d52",
+          "x": 100,
+          "y": 0,
+          "destination": "cfea15b5-3761-41d0-ad3e-33df7a9b835a",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "338300e8-b433-4372-8a12-87a0f543ee8a",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "6fb525e7-bc24-4358-acde-f2d712b28f2b"
+        },
+        {
+          "uuid": "cfea15b5-3761-41d0-ad3e-33df7a9b835a",
+          "x": 114,
+          "y": 156,
+          "destination": "3bb1fb6d-f0a3-4ec7-abba-cc5fac4c6a9d",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "bbdd28f0-824f-41b4-af25-5d6f9a4afefb",
+              "msg": {
+                "base": "Hey there, Yes or No?"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "902db0bc-f6a7-45d2-93b2-f47f3af1261e"
+        },
+        {
+          "uuid": "af882e66-9ae2-4bc1-9af7-c8c2e7373766",
+          "x": 181,
+          "y": 452,
+          "destination": "85d88c16-fafe-4b8e-8e58-a6dc6e1e0e77",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "437d71a2-bb17-4e71-bef7-ad6b58f0eb85",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "cec84721-7f8f-43c3-9af2-4d5d6a15f9de"
+        },
+        {
+          "uuid": "76e091fe-62a5-4786-9465-7c1fb2446694",
+          "x": 460,
+          "y": 117,
+          "destination": "ef9afd2d-d106-4168-a104-20ddc14f9444",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "f7d12748-440e-4ef1-97d4-8a9efddf4454",
+              "msg": {
+                "base": "Yo, What? Repeat Yes or No"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "f5ce0ce5-8023-4b8d-b635-762a2c18726f"
+        },
+        {
+          "uuid": "9eef8677-8598-4e87-9e21-3ad245d87aee",
+          "x": 193,
+          "y": 633,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "1d3ec932-6b6f-45c2-b4d6-9a0e07721686",
+              "msg": {
+                "base": "Bye"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "839dd7c4-64b9-428f-b1d0-c386f493fc4f"
+        },
+        {
+          "uuid": "85d88c16-fafe-4b8e-8e58-a6dc6e1e0e77",
+          "x": 173,
+          "y": 550,
+          "destination": "9eef8677-8598-4e87-9e21-3ad245d87aee",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "0afa546d-8308-41c2-a70c-979846108bec",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "835a5ca9-d518-452f-865c-ca8e5cde4777"
+        },
+        {
+          "uuid": "ef9afd2d-d106-4168-a104-20ddc14f9444",
+          "x": 501,
+          "y": 242,
+          "destination": "3bb1fb6d-f0a3-4ec7-abba-cc5fac4c6a9d",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "28d63382-40ea-4741-ba3a-2930348fab0e",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "be8ca9a5-0f61-4c9d-93e4-02aa6bb27afc"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "3bb1fb6d-f0a3-4ec7-abba-cc5fac4c6a9d",
+          "x": 134,
+          "y": 315,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "2924a1d0-be47-4f8e-aefb-f7ff3a563a43",
+              "category": {
+                "base": "Yes"
+              },
+              "destination": "af882e66-9ae2-4bc1-9af7-c8c2e7373766",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "Yes"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "0107f9e4-b46c-40d7-b25b-058cac3a167e",
+              "category": {
+                "base": "No"
+              },
+              "destination": "af882e66-9ae2-4bc1-9af7-c8c2e7373766",
+              "destination_type": "A",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "No"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "ad81cc6d-1973-4eed-b97d-6edd9ebdeedc",
+              "category": {
+                "base": "Other"
+              },
+              "destination": "76e091fe-62a5-4786-9465-7c1fb2446694",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.12",
+      "metadata": {
+        "name": "channels",
+        "saved_on": "2019-02-26T21:16:32.055957Z",
+        "revision": 24,
+        "uuid": "e5fdf453-428f-4da1-9703-0decdf7cf6f9",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

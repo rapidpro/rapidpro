@@ -240,6 +240,7 @@ class Flow(TembaModel):
         "11.9",
         "11.10",
         "11.11",
+        "11.12",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -1262,10 +1263,12 @@ class Flow(TembaModel):
                     group["uuid"] = uuid_map[group["uuid"]]
 
         remap_uuid(flow_json, "entry")
+        needs_move_entry = False
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, "uuid")
             remap_uuid(actionset, "exit_uuid")
             remap_uuid(actionset, "destination")
+            valid_actions = []
 
             # for all of our recordings, pull them down and remap
             for action in actionset["actions"]:
@@ -1290,6 +1293,37 @@ class Flow(TembaModel):
                             "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"]),
                         )
                         action["recording"] = path
+
+                if "channel" in action:
+                    channel = None
+                    channel_uuid = action.get("channel")
+                    channel_name = action.get("name")
+
+                    if channel_uuid is not None:
+                        channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+
+                    if channel is None and channel_name is not None:
+                        name = channel_name.split(":")[-1].strip()
+                        channel = Channel.objects.filter(is_active=True, name=name).first()
+
+                    if channel is None:
+                        continue
+                    else:
+                        action["channel"] = channel.uuid
+                        action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
+
+                valid_actions.append(action)
+
+            actionset["actions"] = valid_actions
+            if not valid_actions:
+                uuid_map[actionset["uuid"]] = actionset["destination"]
+                if actionset["uuid"] == flow_json["entry"]:
+                    flow_json["entry"] = actionset["destination"]
+                    needs_move_entry = True
+
+        for actionset in flow_json[Flow.ACTION_SETS]:
+            if needs_move_entry and actionset["uuid"] == flow_json.get("entry"):
+                actionset["y"] = 0
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
