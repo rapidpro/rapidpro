@@ -1,3 +1,8 @@
+v4.21.13
+----------
+ * Fix import with invalid channel reference
+ * Add flow migration to remove actions with invalid channel reference
+
 v4.21.12
 ----------
  * improve simulator for goflow simulation
