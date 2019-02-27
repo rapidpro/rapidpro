@@ -7302,19 +7302,18 @@ class ContactFieldTest(TembaTest):
         delete_contactfield_url = reverse("contacts.contactfield_delete", args=[dependant_field.id])
 
         response = self.client.get(delete_contactfield_url)
-        response_json = response.json()
 
         # there is a flow that is using this field
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(len(response_json["dependent_flows"]), 1)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context_data["dependent_flows"]), 1)
 
-        # try to delete the contactfield, though there is a dependancy
+        with self.assertRaises(ValueError):
+            # try to delete the contactfield, though there is a dependency
+            self.client.post(delete_contactfield_url)
+
+        # delete method is not allowed on the Delete ContactField view
         response = self.client.delete(delete_contactfield_url)
-        response_json = response.json()
-
-        # we get the error again
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(len(response_json["dependent_flows"]), 1)
+        self.assertEqual(response.status_code, 405)
 
     def test_hide_field_with_flow_dependency(self):
         self.get_flow("dependencies")
@@ -7540,14 +7539,13 @@ class ContactFieldTest(TembaTest):
         response = self.client.get(delete_cf_url)
         self.assertEqual(response.status_code, 200)
 
-        expected_response = {"cf_label": "First", "dependent_flows": []}
         # we got a form with expected form fields
-        self.assertDictEqual(response.json(), expected_response)
+        self.assertListEqual(response.context_data["dependent_flows"], [])
 
         # delete the field
-        response = self.client.delete(delete_cf_url)
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(len(response.content), 0)
+        response = self.client.post(delete_cf_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertListEqual(response.context_data["dependent_flows"], [])
 
         cf_to_delete.refresh_from_db()
 

@@ -1,0 +1,48 @@
+{% extends "smartmin/base.html" %}
+
+{% load smartmin %}
+{% load i18n %}
+
+-block page-top
+
+-block content
+  -block pjax
+
+    .row
+      .span9
+
+
+        {% if dependent_flows %}
+          <div class="has-related-flows">
+          %strong
+            {{ object.label }}
+          {% trans " is used in flows and cannot be deleted:" %}
+
+          %ul
+            {% for dep_flow in dependent_flows %}
+            %li
+              %a{ href:'{% url "flows.flow_editor" dep_flow.uuid %}', target: '_new' }
+                {{ dep_flow.name }}
+
+            {% endfor %}
+
+          </div>
+
+        {% else %}
+
+          <div class="delete-confirmation">
+
+          <h2>Remove {{ object }}?</h2>
+          <p>Are you sure you want to remove <b>{{object}}</b> from your account?</p>
+          <p>This cannot be undone.</p>
+
+          <form method="POST">
+
+            {% block delete_form %}{% endblock %}
+
+          </form>
+
+        </div>
+        {% endif %}
+
+

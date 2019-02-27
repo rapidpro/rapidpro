@@ -1764,51 +1764,52 @@ class ContactFieldCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Delete(OrgPermsMixin, SmartReadView):
+    class Delete(OrgPermsMixin, SmartUpdateView):
         # how many related flows we want to show to the user so that is does not break modal dialog
         SHOW_MAX_RELATED_FLOWS = 10
+
+        success_url = "@contacts.contactfield_managefields"
+        success_message = ""
+        http_method_names = ["get", "post"]
 
         def _check_if_cf_is_used_in_flows(self):
             from temba.flows.models import Flow
 
-            flows = Flow.objects.filter(org=self.org, field_dependencies__in=[self.object.id]).order_by("id")
+            flows = (
+                Flow.objects.filter(org=self.org, field_dependencies__in=[self.object.id])
+                .order_by("id")
+                .only("uuid", "name")
+            )
 
-            return [(flow.uuid, flow.name) for flow in flows]
+            return [flow for flow in flows]
 
-        def get(self, request, pk, *args, **kwargs):
-
-            # does this ContactField actually exist
-            self.object = ContactField.user_fields.filter(is_active=True, id=pk).get()
-
-            payload = {"cf_label": self.object.label, "dependent_flows": []}
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
 
             cf_used_in_flows = self._check_if_cf_is_used_in_flows()
 
-            if len(cf_used_in_flows) > 0:
-                payload["dependent_flows"] = cf_used_in_flows[: self.SHOW_MAX_RELATED_FLOWS]
+            context["dependent_flows"] = cf_used_in_flows[: self.SHOW_MAX_RELATED_FLOWS]
 
-                return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
-            else:
-                return HttpResponse(json.dumps(payload), status=200, content_type="application/json")
+            return context
 
-        def delete(self, request, pk, *args, **kwargs):
+        def post(self, request, *args, **kwargs):
+
+            pk = self.kwargs.get(self.pk_url_kwarg)
+
             # does this ContactField actually exist
             self.object = ContactField.user_fields.filter(is_active=True, id=pk).get()
-
-            payload = {"cf_label": self.object.label, "dependent_flows": []}
 
             # did it maybe change underneath us ???
             cf_used_in_flows = self._check_if_cf_is_used_in_flows()
 
             if len(cf_used_in_flows) > 0:
-                payload["dependent_flows"] = cf_used_in_flows[: self.SHOW_MAX_RELATED_FLOWS]
-
-                return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
+                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is used by flows")
             else:
 
                 self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
 
-                return HttpResponse(status=204, content_type="application/json")
+                response = self.render_to_response(self.get_context_data())
+                return response
 
     class Updatepriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
@@ -1843,7 +1844,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         fields = ("label", "key", "value_type", "show_in_table")
         field_config = {"show_in_table": {"label": "Featured"}}
         # search_fields = ('label__icontains', 'key__icontains')  # search and reordering do not work together
-        default_order = ("-priority", "-id")
+        default_order = ("-show_in_table", "-priority", "label")
 
         success_url = "@contacts.contactfield_managefields"
 

@@ -53,6 +53,7 @@
 
                   - empty
                     %tr.empty_list
+                      %td
                       - for field in fields
                         %td
 
@@ -79,6 +80,8 @@
       $('#draggable-tbody').sortable({
         handle: '.drag-handle',  // make this row draggable only by the handle
         placeholder: "sortable-placeholder",
+        dataIdAttr: 'data-cfid',
+        direction: 'vertical',
         stop: function (event, ui) {
           $(ui.item).removeClass('sortable-dragging');
 
@@ -114,7 +117,6 @@
           ui.placeholder.html('<td colspan=99><div></div></td>');
         }
       });
-
 
     - if org_perms.contacts.contactfield_update
       $('tr[data-cfid]').on('click', function(evt) {
@@ -171,85 +173,43 @@
     modal.show();
   }
 
+  function _updateModalButtonsStyle(modal) {
+    var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
 
-  function renderUsedByFlows(payload) {
-    return [
-      '<ul>',
-      payload.map(function (flow) {
-        return '<li><a target="_new" href="/flow/editor/' + flow[0] + '/">'+flow[1]+'</a></li>'
-      }).join(''),
-      '</ul>'
-    ].join('');
-  }
+    if (has_related_flows) {
+      // hide the secondary button
+      modal.hideSecondaryButton();
+      // rename the primary button
+      modal.ele.find('.primary').text('Cancel').on('click', function () { modal.dismiss()} );
+
+      modal.submit = function () {};
+    } else {
+      modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger')
+    }
+  };
+
 
   function showDeleteContactFieldModal(cfid) {
     var deleteUrl = '/contactfield/delete/' + cfid + '/';
 
-    $.ajax({
-      type: 'GET',
-      url: deleteUrl,
-      success: function (data, status, jqXHR) {
-        // console.log(data, status, jqXHR);
+    var modal = new Modax('{% trans "Delete Contact Field" %}', deleteUrl);
+    modal.setIcon('icon-vcard');
 
-        var payload = jqXHR.responseJSON;
+    modal.redirectOnSuccess = true;
 
-        var modal = new ConfirmationModal(
-          '{% trans "Delete a Contact Field" %}',
-          '{% trans "Do you REALLY REALLY want to delete: " %}'+'<strong>'+payload.cf_label+'</strong>'
-        );
-        modal.setIcon('icon-vcard');
+    modal.show();
 
-        modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger');
+    modal.setListeners({
+      onCompleted: function() {
+        _updateModalButtonsStyle(modal)
 
-        modal.setListeners({
-          onSuccess: function() {
-            // simply reload the whole page
-            location.reload();
-          },
-          onPrimary: function() {
-            $.ajax({
-              type: 'DELETE',
-              url: deleteUrl,
-              success: function (data, status, jqXHR) {
-                // simply reload the whole page
-                location.reload();
-              },
-              error: function (jqXHR, status, error) {
-                // how do we display errors to the user ???
-                console.log(jqXHR, status, error);
-              }
-            });
-          }
-        })
-        modal.show()
-
+        // simply reload the whole page
+        location.reload();
       },
-      error: function (jqXHR, status, error) {
-        // how do we display errors to the user ???
-        // console.log(jqXHR, status, error);
-
-        var payload = jqXHR.responseJSON;
-
-        var modal = new ConfirmationModal(
-          '{% trans "Delete Contact Field" %}',
-          '<strong>'+ payload.cf_label +'</strong>' + '{% trans " is used in flows and cannot be deleted:" %}' + renderUsedByFlows(payload.dependent_flows)
-        );
-        modal.setIcon('icon-vcard');
-
-        // hide the secondary button
-        modal.ele.find('.secondary').hide();
-        // rename the primary button
-        modal.ele.find('.primary').text('Cancel');
-
-        modal.setListeners({
-          onSuccess: function() {
-            // simply reload the whole page
-            location.reload();
-          }
-        });
-        modal.show()
+      onFormLoaded: function() {
+        _updateModalButtonsStyle(modal)
       }
-    });
+    })
   }
 </script>
 
