@@ -306,7 +306,7 @@ def check_messages_task():  # pragma: needs cover
     r = get_redis_connection()
 
     # for any org that sent messages in the past five minutes, check for pending messages
-    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
+    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago, flow_server_enabled=False).distinct():
         # more than 1,000 messages queued? don't do anything, wait for our queue to go down
         queued = r.zcard("send_message_task:%d" % org.id)
         if queued < 1000:
