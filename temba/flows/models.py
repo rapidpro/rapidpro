@@ -4829,7 +4829,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
-                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on")
+                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on", "pk")
             )
 
             # convert this batch of runs to same format as records in our archives
