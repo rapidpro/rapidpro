@@ -320,7 +320,7 @@ def check_messages_task():  # pragma: needs cover
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__is_active=False, org__flow_server_enabled=False)
+    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(org__flow_server_enabled=True)
     unhandled_count = unhandled_messages.count()
 
     if unhandled_count:
