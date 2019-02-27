@@ -1262,6 +1262,283 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
 
+    def test_export_results_with_replaced_rulesets(self):
+        self.login(self.admin)
+        devs = self.create_group("Devs", [self.contact])
+
+        favorites = self.get_flow("favorites")
+
+        contact1_run1, contact3_run1 = favorites.start([], [self.contact, self.contact3])
+
+        # simulate two runs each for two contacts...
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
+        Flow.find_and_handle(contact1_in1)
+
+        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="red")
+        Flow.find_and_handle(contact1_in2)
+
+        # now remap the uuid for our color
+        flow_json = favorites.as_json()
+        color_ruleset = flow_json["rule_sets"][0]
+        flow_json = json.loads(json.dumps(flow_json).replace(color_ruleset["uuid"], str(uuid4())))
+        favorites.update(flow_json)
+
+        contact2_run1 = favorites.start([], [self.contact2])[0]
+
+        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
+        Flow.find_and_handle(contact2_in1)
+
+        contact1_run2, contact2_run2 = favorites.start([], [self.contact, self.contact2], restart_participants=True)
+
+        contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
+        Flow.find_and_handle(contact1_in3)
+
+        for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
+            run.refresh_from_db()
+
+        workbook = self.export_flow_results(favorites, group_memberships=[devs])
+
+        tz = self.org.timezone
+
+        sheet_runs, sheet_msgs = workbook.worksheets
+
+        # check runs sheet...
+        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
+        self.assertEqual(len(list(sheet_runs.columns)), 16)
+
+        self.assertExcelRow(
+            sheet_runs,
+            0,
+            [
+                "Contact UUID",
+                "URN",
+                "Name",
+                "Group:Devs",
+                "Started",
+                "Modified",
+                "Exited",
+                "Color (Category) - Favorites",
+                "Color (Value) - Favorites",
+                "Color (Text) - Favorites",
+                "Beer (Category) - Favorites",
+                "Beer (Value) - Favorites",
+                "Beer (Text) - Favorites",
+                "Name (Category) - Favorites",
+                "Name (Value) - Favorites",
+                "Name (Text) - Favorites",
+            ],
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            1,
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                False,
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            2,
+            [
+                contact1_run1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                True,
+                contact1_run1.created_on,
+                contact1_run1.modified_on,
+                contact1_run1.exited_on,
+                "Red",
+                "red",
+                "red",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            3,
+            [
+                contact2_run1.contact.uuid,
+                "+250788383383",
+                "Nic",
+                False,
+                contact2_run1.created_on,
+                contact2_run1.modified_on,
+                contact2_run1.exited_on,
+                "Green",
+                "green",
+                "green",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            4,
+            [
+                contact2_run2.contact.uuid,
+                "+250788383383",
+                "Nic",
+                False,
+                contact2_run2.created_on,
+                contact2_run2.modified_on,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            5,
+            [
+                contact1_run2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                True,
+                contact1_run2.created_on,
+                contact1_run2.modified_on,
+                "",
+                "Blue",
+                "blue",
+                " blue ",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        # check messages sheet...
+        self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
+        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+
+        contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
+        contact1_out2 = contact1_run1.get_messages().get(text="I don't know that color. Try again.")
+        contact1_out3 = contact1_run1.get_messages().get(
+            text__startswith="Good choice, I like Red too! What is your favorite beer?"
+        )
+        contact3_out1 = contact3_run1.get_messages().get(text="What is your favorite color?")
+
+        self.assertExcelRow(
+            sheet_msgs,
+            1,
+            [
+                self.contact3.uuid,
+                "+250788123456",
+                "Norbert",
+                contact3_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            2,
+            [
+                contact1_out1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            3,
+            [
+                contact1_in1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_in1.created_on,
+                "IN",
+                "light beige",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            4,
+            [
+                contact1_out2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out2.created_on,
+                "OUT",
+                "I don't know that color. Try again.",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            5,
+            [contact1_in2.contact.uuid, "+250788382382", "Eric", contact1_in2.created_on, "IN", "red", "Test Channel"],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            6,
+            [
+                contact1_out3.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out3.created_on,
+                "OUT",
+                "Good choice, I like Red too! What is your favorite beer?",
+                "Test Channel",
+            ],
+            tz,
+        )
+
     def test_export_results(self):
         # setup flow and start both contacts
         self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])

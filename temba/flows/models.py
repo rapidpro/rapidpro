@@ -4862,8 +4862,10 @@ class ExportFlowResultsTask(BaseExportTask):
             run_values = run["values"]
             if isinstance(run_values, list):
                 results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+                results_by_name = {result["name"]: result for item in run_values for result in item.values()}
             else:
                 results_by_node = {result["node"]: result for result in run_values.values()}
+                results_by_name = {result["name"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [
@@ -4888,6 +4890,8 @@ class ExportFlowResultsTask(BaseExportTask):
             result_values = []
             for n, node in enumerate(result_nodes):
                 node_result = results_by_node.get(node.uuid, {})
+                if not node_result:
+                    node_result = results_by_name.get(node.label, {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")
