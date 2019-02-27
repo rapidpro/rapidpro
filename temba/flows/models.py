@@ -1161,9 +1161,13 @@ class Flow(TembaModel):
 
     def is_starting(self):
         """
-        Returns whether this flow has active flow starts
+        Returns whether this flow is already being started by a user
         """
-        return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
+        return (
+            self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
+            .exclude(created_by=None)
+            .exists()
+        )
 
     def get_localized_text(self, text_translations, contact=None):
         """
@@ -3220,6 +3224,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
+
+            # mark all sessions as completed if this is an interruption
+            if exit_type == FlowRun.EXIT_TYPE_INTERRUPTED:
+                (
+                    FlowSession.objects.filter(id__in=runs.exclude(session=None).values_list("session_id", flat=True))
+                    .filter(status=FlowSession.STATUS_WAITING)
+                    .update(status=FlowSession.STATUS_INTERRUPTED, ended_on=now)
+                )
 
     def add_messages(self, msgs, do_save=True):
         """
