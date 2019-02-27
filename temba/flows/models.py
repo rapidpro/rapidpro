@@ -4890,7 +4890,8 @@ class ExportFlowResultsTask(BaseExportTask):
             result_values = []
             for n, node in enumerate(result_nodes):
                 node_result = results_by_node.get(node.uuid, {})
-                if not node_result:
+                # check the result by ruleset label if the flow is the same
+                if not node_result and node.flow.uuid == run["flow"]["uuid"]:
                     node_result = results_by_name.get(node.label, {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
