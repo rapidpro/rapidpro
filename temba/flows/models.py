@@ -4861,10 +4861,8 @@ class ExportFlowResultsTask(BaseExportTask):
             # get this run's results by node UUID
             run_values = run["values"]
             if isinstance(run_values, list):
-                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
                 results_by_name = {result["name"]: result for item in run_values for result in item.values()}
             else:
-                results_by_node = {result["node"]: result for result in run_values.values()}
                 results_by_name = {result["name"]: result for result in run_values.values()}
 
             # generate contact info columns
@@ -4889,9 +4887,9 @@ class ExportFlowResultsTask(BaseExportTask):
             # generate result columns for each ruleset
             result_values = []
             for n, node in enumerate(result_nodes):
-                node_result = results_by_node.get(node.uuid, {})
+                node_result = {}
                 # check the result by ruleset label if the flow is the same
-                if not node_result and node.flow.uuid == run["flow"]["uuid"]:
+                if node.flow.uuid == run["flow"]["uuid"]:
                     node_result = results_by_name.get(node.label, {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
