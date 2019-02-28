@@ -1,3 +1,7 @@
+v4.22.1
+----------
+ * Increase the schedule broadcast text max length to be consistent on the form
+
 v4.22.0
 ----------
  * Fix case of single node flow with invalid channel reference
