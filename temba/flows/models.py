@@ -4841,7 +4841,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
-                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on")
+                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on", "pk")
             )
 
             # convert this batch of runs to same format as records in our archives
@@ -4870,12 +4870,12 @@ class ExportFlowResultsTask(BaseExportTask):
         for run in runs:
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
-            # get this run's results by node UUID
+            # get this run's results by node name(ruleset label)
             run_values = run["values"]
             if isinstance(run_values, list):
-                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+                results_by_name = {result["name"]: result for item in run_values for result in item.values()}
             else:
-                results_by_node = {result["node"]: result for result in run_values.values()}
+                results_by_name = {result["name"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [
@@ -4899,7 +4899,10 @@ class ExportFlowResultsTask(BaseExportTask):
             # generate result columns for each ruleset
             result_values = []
             for n, node in enumerate(result_nodes):
-                node_result = results_by_node.get(node.uuid, {})
+                node_result = {}
+                # check the result by ruleset label if the flow is the same
+                if node.flow.uuid == run["flow"]["uuid"]:
+                    node_result = results_by_name.get(node.label, {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")
