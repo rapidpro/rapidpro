@@ -1320,9 +1320,9 @@ class Flow(TembaModel):
 
             actionset["actions"] = valid_actions
             if not valid_actions:
-                uuid_map[actionset["uuid"]] = actionset["destination"]
+                uuid_map[actionset["uuid"]] = actionset.get("destination")
                 if actionset["uuid"] == flow_json["entry"]:
-                    flow_json["entry"] = actionset["destination"]
+                    flow_json["entry"] = actionset.get("destination")
                     needs_move_entry = True
 
         for actionset in flow_json[Flow.ACTION_SETS]:

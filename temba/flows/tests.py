@@ -9204,6 +9204,15 @@ class FlowMigrationTest(FlowFileTest):
         action_sets = flow.action_sets.all()
         self.assertEqual(len(action_sets), 7)
 
+    def test_migrate_to_11_12_with_one_node(self):
+
+        flow = self.get_flow("migrate_to_11_12_one_node")
+        flow_json = self.get_flow_json("migrate_to_11_12_one_node")
+        migrate_to_version_11_12(flow_json, flow)
+
+        action_sets = flow.action_sets.all()
+        self.assertEqual(len(action_sets), 0)
+
     def test_migrate_to_11_11(self):
 
         flow = self.get_flow("migrate_to_11_11")

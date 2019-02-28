@@ -1,0 +1,38 @@
+{
+  "version": "11.11",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "b0b6559d-e5bd-4deb-a4ab-9e5f04001dd4",
+      "action_sets": [
+        {
+          "uuid": "b0b6559d-e5bd-4deb-a4ab-9e5f04001dd4",
+          "x": 100,
+          "y": 0,
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "4b34b85d-da31-40c9-af65-6d76ca54b1b5",
+              "channel": "228cc824-6740-482a-ac2f-4f08ca449e06",
+              "name": "Android: 1234"
+            }
+          ],
+          "exit_uuid": "be37f250-f992-45e0-97fd-a3c0f57584dc"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.11",
+      "metadata": {
+        "name": "channel",
+        "saved_on": "2019-02-28T08:55:17.275670Z",
+        "revision": 2,
+        "uuid": "8a8612bc-ff3a-45ea-b7a5-2673ce901cd9",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}
