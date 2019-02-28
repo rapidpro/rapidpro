@@ -200,7 +200,7 @@ class InboxView(OrgPermsMixin, SmartListView):
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(required=True, widget=forms.Textarea, max_length=160)
+    message = forms.CharField(required=True, widget=forms.Textarea, max_length=Broadcast.MAX_TEXT_LEN)
     omnibox = OmniboxField()
 
     def __init__(self, user, *args, **kwargs):
