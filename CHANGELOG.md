@@ -1,3 +1,9 @@
+v4.22.0
+----------
+ * Fix case of single node flow with invalid channel reference
+ * Remove ChannelConnection.created_by and ChannelConnection.is_active
+ * Fix flow export results to include results from replaced rulesets
+
 v4.21.15
 ----------
  * correct exclusion
