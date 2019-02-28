@@ -1656,7 +1656,7 @@ class Flow(TembaModel):
                 call = parent_run.connection
                 session = parent_run.session
             else:
-                call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
+                call = IVRCall.create_outgoing(channel, contact, contact_urn)
                 session = FlowSession.create(contact, connection=call)
 
             # save away our created call

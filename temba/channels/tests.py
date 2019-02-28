@@ -1429,7 +1429,7 @@ class ChannelTest(TembaTest):
 
         # create outgoing call for the channel
         contact = self.create_contact("Bruno Mars", "+252788123123")
-        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME), self.admin)
+        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME))
 
         self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
         self.tel_channel.release()

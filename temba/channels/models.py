@@ -1933,16 +1933,6 @@ class ChannelConnection(models.Model):
         (ENDING, "Ending"),
     )
 
-    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="connections",
-        help_text="The user which originally created this connection",
-        null=True,
-    )
-
     created_on = models.DateTimeField(
         default=timezone.now, editable=False, blank=True, help_text="When this item was originally created"
     )

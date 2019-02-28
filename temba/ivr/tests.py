@@ -1808,9 +1808,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.NO_ANSWER,
@@ -1823,9 +1821,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS - 1,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.BUSY,
@@ -1840,9 +1836,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=IVRCall.MAX_RETRY_ATTEMPTS + 1,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.BUSY,
@@ -1856,9 +1850,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.IN_PROGRESS,
@@ -1873,9 +1865,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.NO_ANSWER,
@@ -1928,11 +1918,7 @@ class IVRTests(FlowFileTest):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
         call1 = IVRCall.objects.create(
-            channel=self.channel,
-            org=self.org,
-            contact=a_contact,
-            contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
+            channel=self.channel, org=self.org, contact=a_contact, contact_urn=a_contact.urns.first()
         )
 
         self.assertIsNone(call1.next_attempt)
@@ -1961,11 +1947,7 @@ class IVRTests(FlowFileTest):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
         call1 = IVRCall.objects.create(
-            channel=self.channel,
-            org=self.org,
-            contact=a_contact,
-            contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
+            channel=self.channel, org=self.org, contact=a_contact, contact_urn=a_contact.urns.first()
         )
 
         def _get_flow():
@@ -2009,11 +1991,7 @@ class IVRTests(FlowFileTest):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
         call1 = IVRCall.objects.create(
-            channel=self.channel,
-            org=self.org,
-            contact=a_contact,
-            contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
+            channel=self.channel, org=self.org, contact=a_contact, contact_urn=a_contact.urns.first()
         )
 
         def _get_flow():
@@ -2090,11 +2068,7 @@ class IVRTests(FlowFileTest):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
         call1 = IVRCall.objects.create(
-            channel=self.channel,
-            org=self.org,
-            contact=a_contact,
-            contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
+            channel=self.channel, org=self.org, contact=a_contact, contact_urn=a_contact.urns.first()
         )
 
         # status is None
@@ -2106,29 +2080,21 @@ class IVRTests(FlowFileTest):
     def test_create_outgoing_implicit_values(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
-        call = IVRCall.create_outgoing(
-            channel=self.channel, contact=a_contact, contact_urn=a_contact.urns.first(), user=self.admin
-        )
+        call = IVRCall.create_outgoing(channel=self.channel, contact=a_contact, contact_urn=a_contact.urns.first())
 
         self.assertEqual(call.direction, IVRCall.OUTGOING)
         self.assertEqual(call.org, self.org)
-        self.assertEqual(call.created_by, self.admin)
         self.assertEqual(call.status, IVRCall.PENDING)
 
     def test_create_incoming_implicit_values(self):
         a_contact = self.create_contact("Eric Newcomer", number="+13603621737")
 
         call = IVRCall.create_incoming(
-            channel=self.channel,
-            contact=a_contact,
-            contact_urn=a_contact.urns.first(),
-            user=self.admin,
-            external_id="an_external_id",
+            channel=self.channel, contact=a_contact, contact_urn=a_contact.urns.first(), external_id="an_external_id"
         )
 
         self.assertEqual(call.direction, IVRCall.INCOMING)
         self.assertEqual(call.org, self.org)
-        self.assertEqual(call.created_by, self.admin)
         self.assertEqual(call.status, IVRCall.PENDING)
 
     def test_nexmo_derive_ivr_status(self):
@@ -2172,9 +2138,7 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
-            is_active=True,
             retry_count=0,
             next_attempt=timezone.now() - timedelta(days=180),
             status=IVRCall.NO_ANSWER,
@@ -2327,7 +2291,6 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
         call2 = IVRCall.objects.create(
@@ -2335,7 +2298,6 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
 
@@ -2431,7 +2393,6 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
         call2 = IVRCall.objects.create(
@@ -2439,7 +2400,6 @@ class IVRTests(FlowFileTest):
             org=self.org,
             contact=a_contact,
             contact_urn=a_contact.urns.first(),
-            created_by=self.admin,
             direction=IVRCall.OUTGOING,
         )
 
