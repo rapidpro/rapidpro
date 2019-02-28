@@ -68,11 +68,11 @@ def migrate_to_version_11_12(json_flow, flow=None):
             # the action is valid append it
             valid_actions.append(action)
 
+        action_set_clone["actions"] = valid_actions
         if len(valid_actions) > 0:
-            action_set_clone["actions"] = valid_actions
             new_flow_json[Flow.ACTION_SETS].append(action_set_clone)
         else:
-            reroute_uuid_remap[action_set["uuid"]] = action_set["destination"]
+            reroute_uuid_remap[action_set["uuid"]] = action_set.get("destination")
             needs_move_entry = True
 
     action_sets = new_flow_json.get(Flow.ACTION_SETS, [])
