@@ -246,6 +246,7 @@ INSTALLED_APPS = (
     "temba.locations",
     "temba.values",
     "temba.airtime",
+    "temba.templates",
 )
 
 # the last installed app that uses smartmin permissions
@@ -309,8 +310,8 @@ PERMISSIONS = {
         "read",  # can read an object, viewing it's details
         "update",  # can update an object
         "delete",  # can delete an object,
-        "list",
-    ),  # can view a list of the objects
+        "list",  # can view a list of the objects
+    ),
     "api.apitoken": ("refresh",),
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
@@ -613,6 +614,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_list",
+        "templates.template_create",
+        "templates.template_update",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -704,6 +708,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_list",
+        "templates.template_create",
+        "templates.template_update",
         "triggers.trigger.*",
     ),
     "Viewers": (

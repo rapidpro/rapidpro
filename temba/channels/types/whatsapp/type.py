@@ -11,6 +11,79 @@ from temba.contacts.models import WHATSAPP_SCHEME
 
 from ...models import ChannelType
 
+# WhatsApp only supports some languages. For those they do support, we map from our ISO-639 codo to
+# WhatsApp's iso639-2 / country pair. Note that not all combinations can be mapped, for example there
+# are more WhatsApp variants of Spanish than are represented in ISO639-3. That's probably ok as
+# individual orgs will hopefully not use all those variants at once.
+LANGUAGE_MAPPING = dict(
+    afr="af",  # Afrikans
+    sqi="sq",  # Albanian
+    ara="ar",  # Arabic
+    aze="az",  # Azerbaijani
+    ben="bn",  # Bengali
+    bul="bg",  # Bulgarian
+    cat="ca",  # Catalan
+    zho="zh_CN",  # Chinese Macro Language
+    yue="zh_HK",  # Cantonese Chinese (guess)
+    cmn="zh_TW",  # Mandarin Chinese (guess)
+    hrv="hr",  # Croatian
+    ces="cs",  # Czech
+    dah="da",  # Danish
+    nld="nl",  # Dutch
+    eng="en",  # English
+    # en_GB (nothing from ISO-639-3)
+    # en_US (nothing from ISO-639-3)
+    est="et",  # Estonian
+    fil="fil",  # Filipino
+    fin="fi",  # Finnish
+    fra="fr",  # French
+    deu="de",  # German
+    ell="el",  # Greek
+    gul="gu",  # Gujarati
+    enb="he",  # Hebrew
+    hin="hi",  # Hindi
+    hun="hu",  # Hungarian
+    ind="id",  # Indonesian
+    gle="ga",  # Irish
+    ita="it",  # Italian
+    jpn="ja",  # Japanese
+    kan="kn",  # Kannada
+    kaz="kk",  # Kazakh
+    kor="ko",  # Korean
+    lao="lo",  # Lao
+    lav="lv",  # Latvian
+    lit="lt",  # Lithuanian
+    mkd="mk",  # Macedonian
+    msa="ms",  # Malay
+    mar="mr",  # Marathi
+    nob="nb",  # Norwegian
+    nor="nb",  # Norwegian
+    fas="fa",  # Persian
+    pol="pl",  # Polish
+    # pt_BR (nothing from ISO-639-3)
+    por="pt_PT",  # Portuguese
+    pan="pa",  # Punjabi
+    ron="ro",  # Romanian
+    rus="ru",  # Russian
+    srp="sr",  # Serbian
+    slk="sk",  # Slovak
+    slv="sl",  # Slovenian
+    spa="es",  # Spanish
+    # es_AR (nothing from ISO-639-3)
+    # es_ES (nothing from ISO-639-3)
+    # es_MX (nothing from ISO-639-3)
+    swa="sw",  # Swahili
+    swe="sv",  # Swedish
+    tam="ta",  # Tamil
+    tel="te",  # Telugu
+    tha="th",  # Thai
+    turn="tr",  # Turkish
+    ukr="uk",  # Ukrainian
+    urd="ur",  # Urdu
+    uzb="uz",  # Uzbek
+    vie="vi",  # Vietnamese
+)
+
 
 class WhatsAppType(ChannelType):
     """
