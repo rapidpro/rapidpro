@@ -1,3 +1,12 @@
+v4.21.15
+----------
+ * correct exclusion
+
+v4.21.14
+----------
+ * Dont requeue flow server enabled msgs
+ * Exit sessions in bulk exit, ignore mailroom flow starts
+
 v4.21.13
 ----------
  * Fix import with invalid channel reference

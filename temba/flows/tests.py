@@ -7060,11 +7060,21 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 6, "I": 0})
 
+        # create a flow session for our first one
+        first = FlowRun.objects.filter(is_active=True).first()
+        session = FlowSession.objects.create(org=self.org, contact=first.contact, status=FlowSession.STATUS_WAITING)
+        first.session = session
+        first.save(update_fields=["session"])
+
         # stop them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="I").exclude(exited_on=None).count(), 6)
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
+
+        session.refresh_from_db()
+        self.assertEqual(FlowSession.STATUS_INTERRUPTED, session.status)
+        self.assertIsNotNone(session.ended_on)
 
         # squash our counts
         squash_flowruncounts()
