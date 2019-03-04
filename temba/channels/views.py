@@ -46,7 +46,16 @@ from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMi
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import (
+    Alert,
+    Channel,
+    ChannelConnection,
+    ChannelCount,
+    ChannelEvent,
+    ChannelLog,
+    SyncEvent,
+    UnsupportedAndroidChannelError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -735,9 +744,12 @@ def register(request):
     client_payload = json.loads(force_text(request.body))
     cmds = client_payload["cmds"]
 
-    # look up a channel with that id
-    channel = Channel.get_or_create_android(cmds[0], cmds[1])
-    cmd = channel.build_registration_command()
+    try:
+        # look up a channel with that id
+        channel = Channel.get_or_create_android(cmds[0], cmds[1])
+        cmd = channel.build_registration_command()
+    except UnsupportedAndroidChannelError:
+        cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
     return JsonResponse(dict(cmds=[cmd]))
 
