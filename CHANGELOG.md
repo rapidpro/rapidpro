@@ -1,3 +1,10 @@
+v4.22.2
+----------
+ * Fix schedule next fire calculation bug when schedule is greater than number of days
+ * Fix to allow archiving flow for removed(inactive) campaign events
+ * Strip resthook slug during creation
+ * Ignore request from old android clients using GCM
+
 v4.22.1
 ----------
  * Increase the schedule broadcast text max length to be consistent on the form
