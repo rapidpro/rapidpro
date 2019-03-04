@@ -57,6 +57,64 @@ class ScheduleTest(TembaTest):
         sched.unschedule()
         self.assertEqual(sched.status, "U")
 
+    def assertScheduleFires(self, sched, start, dates):
+        last = start
+        for date in dates:
+            d = sched.get_next_fire(last)
+            self.assertEqual(d, date)
+
+            last = d
+
+    def test_month_fire(self):
+        start = datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc)
+        sched = self.create_schedule("M", start_date=start)
+        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
+
+        self.assertScheduleFires(
+            sched,
+            create,
+            [
+                datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 2, 28, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 3, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 4, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 5, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 6, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 7, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 8, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 9, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 10, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 11, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 12, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 1, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 2, 29, hour=10).replace(tzinfo=pytz.utc),
+            ],
+        )
+
+        start = datetime(2019, 1, 5, hour=10).replace(tzinfo=pytz.utc)
+        sched = self.create_schedule("M", start_date=start)
+        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
+
+        self.assertScheduleFires(
+            sched,
+            create,
+            [
+                datetime(2019, 2, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 3, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 4, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 5, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 6, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 7, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 8, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 9, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 10, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 11, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 12, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 1, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 2, 5, hour=10).replace(tzinfo=pytz.utc),
+            ],
+        )
+
     def test_next_fire(self):
 
         # updates two days later on Saturday
