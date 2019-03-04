@@ -94,7 +94,7 @@ class Schedule(SmartModel):
                 microsecond=0,
             )
             next_date = self.get_org_timezone().localize(next_date)
-            if trigger_date.day >= self.repeat_day_of_month or (trigger_date.month == 2 and trigger_date.day >= days):
+            if trigger_date.day >= day_of_month:
                 next_date += relativedelta(months=1)
                 (weekday, days) = calendar.monthrange(next_date.year, next_date.month)
                 day_of_month = min(days, self.repeat_day_of_month)
