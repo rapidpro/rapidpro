@@ -980,7 +980,7 @@ class Flow(TembaModel):
             from temba.campaigns.models import CampaignEvent
 
             if not CampaignEvent.objects.filter(
-                flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
+                is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
             ).exists():
                 flow.archive()
                 changed.append(flow.pk)

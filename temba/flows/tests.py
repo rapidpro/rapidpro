@@ -514,12 +514,14 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.get_flow("the_clinic")
 
-        from temba.campaigns.models import Campaign
+        from temba.campaigns.models import Campaign, CampaignEvent
 
         campaign = Campaign.objects.filter(name="Appointment Schedule").first()
         self.assertIsNotNone(campaign)
         flow = Flow.objects.filter(name="Confirm Appointment").first()
         self.assertIsNotNone(flow)
+        campaign_event = CampaignEvent.objects.filter(flow=flow, campaign=campaign).first()
+        self.assertIsNotNone(campaign_event)
 
         # do not archive if the campaign is active
         changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
@@ -532,6 +534,23 @@ class FlowTest(TembaTest):
         campaign.save()
 
         # can archive if the campaign is archived
+        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
+        self.assertTrue(changed)
+        self.assertEqual(changed, [flow.pk])
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_archived)
+
+        campaign.is_archived = False
+        campaign.save()
+
+        flow.is_archived = False
+        flow.save()
+
+        campaign_event.is_active = False
+        campaign_event.save()
+
+        # can archive if the campaign is not archived with no active event
         changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
         self.assertTrue(changed)
         self.assertEqual(changed, [flow.pk])
