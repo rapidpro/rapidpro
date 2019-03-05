@@ -6551,6 +6551,56 @@ class FlowsTest(FlowFileTest):
         label = Label.all_objects.get(name="Foo zap")
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
+    @skip_if_no_mailroom
+    def test_save_contact_does_not_update_field_label(self):
+        self.login(self.admin)
+
+        rank_field = ContactField.get_or_create(
+            self.org, self.admin, "rank", "Commander ranking", value_type=Value.TYPE_NUMBER
+        )
+
+        self.assertEqual(rank_field.label, "Commander ranking")
+
+        flow = self.get_flow("favorites")
+        flow_json = flow.as_json()
+
+        # save some data to the field
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "save",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2a",
+                "label": "Rank label",
+                "field": "rank",
+                "value": "@flow.response_1.text",
+            }
+        )
+
+        # add a new field
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "save",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2b",
+                "label": "New field label",
+                "field": "new_field",
+                "value": "@flow.response_1.text",
+            }
+        )
+
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        rank_field.refresh_from_db()
+
+        # the label should not be changed
+        self.assertEqual(rank_field.label, "Commander ranking")
+
+        # new field is created
+        new_field = ContactField.user_fields.get(key="new_field")
+        self.assertEqual(new_field.label, "New field label")
+
     def test_write_protection(self):
         flow = self.get_flow("favorites")
         flow_json = flow.as_json()
