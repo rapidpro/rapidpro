@@ -2319,7 +2319,7 @@ class Flow(TembaModel):
                     raise FlowUserConflictException(self.saved_by, last_save)
 
         try:
-            # mailroom.get_client().flow_validate(self.org, json_dict)
+            mailroom.get_client().flow_validate(self.org, json_dict)
 
             # TODO remove this when we no longer need rulesets or actionsets
             self.update_rulesets_and_actionsets(json_dict)
