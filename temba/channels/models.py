@@ -254,6 +254,11 @@ def _get_default_channel_scheme():
     return ["tel"]
 
 
+class UnsupportedAndroidChannelError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
 class Channel(TembaModel):
     """
     Notes:
@@ -673,8 +678,12 @@ class Channel(TembaModel):
         country = status.get("cc")
         device = status.get("dev")
 
-        if not fcm_id or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID or FCM ID")
+        if not fcm_id or not uuid:
+            gcm_id = registration_data.get("gcm_id")
+            if gcm_id:
+                raise UnsupportedAndroidChannelError("Unsupported Android client app.")
+            else:
+                raise ValueError("Can't create Android channel without UUID or FCM ID")
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
@@ -1931,16 +1940,6 @@ class ChannelConnection(models.Model):
         (TRIGGERED, "Triggered"),
         (INITIATED, "Initiated"),
         (ENDING, "Ending"),
-    )
-
-    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="connections",
-        help_text="The user which originally created this connection",
-        null=True,
     )
 
     created_on = models.DateTimeField(

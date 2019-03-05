@@ -3652,7 +3652,7 @@ class ContactTest(TembaTest):
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")
 
-        call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(), self.admin, self.admin)
+        call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(), self.admin)
 
         item = {"type": "call", "obj": call}
         self.assertEqual(history_class(item), "non-msg")

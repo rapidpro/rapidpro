@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import regex
 
+from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import (
     ContainsAnyTest,
@@ -24,6 +25,88 @@ from temba.msgs.models import Label
 from temba.utils import json
 from temba.utils.expressions import migrate_template
 from temba.utils.languages import iso6392_to_iso6393
+
+
+def migrate_to_version_11_12(json_flow, flow=None):
+    """
+    This removes actions with invalid channel references
+    """
+    # this migration only matters for existing flows
+    if not flow:
+        return json_flow
+
+    new_flow_json = json_flow.copy()
+    new_flow_json[Flow.ACTION_SETS] = []
+
+    entry = json_flow.get(Flow.ENTRY)
+    action_sets = json_flow.get(Flow.ACTION_SETS, [])
+    reroute_uuid_remap = {}
+    needs_move_entry = False
+
+    for actionset_index, action_set in enumerate(action_sets):
+        action_set_clone = action_set.copy()
+        valid_actions = []
+
+        for action_index, action in enumerate(action_set["actions"]):
+            if action.get("type") == "channel":
+                channel = None
+                channel_uuid = action.get("channel")
+                channel_name = action.get("name")
+                if channel_uuid is not None:
+                    channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+
+                if channel is None and channel_name is not None:
+                    channel = Channel.objects.filter(is_active=True, name=channel_name).first()
+
+                if channel is None:
+                    # skip this action it is invalid
+                    continue
+                else:
+                    action["channel"] = channel.uuid
+                    action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
+
+            # the action is valid append it
+            valid_actions.append(action)
+
+        action_set_clone["actions"] = valid_actions
+        if len(valid_actions) > 0:
+            new_flow_json[Flow.ACTION_SETS].append(action_set_clone)
+        else:
+            reroute_uuid_remap[action_set["uuid"]] = action_set.get("destination")
+            needs_move_entry = True
+
+    action_sets = new_flow_json.get(Flow.ACTION_SETS, [])
+    rule_sets = new_flow_json.get(Flow.RULE_SETS, [])
+
+    rerouted_sources = reroute_uuid_remap.keys()
+    for source_uuid in rerouted_sources:
+        reroute_destination = reroute_uuid_remap[source_uuid]
+        # Check final destination not rerouted
+        while reroute_destination in rerouted_sources:
+            reroute_destination = reroute_uuid_remap[reroute_destination]
+        reroute_uuid_remap[source_uuid] = reroute_destination
+
+    if entry in reroute_uuid_remap:
+        entry = reroute_uuid_remap[entry]
+        new_flow_json[Flow.ENTRY] = entry
+
+    for actionset_index, action_set in enumerate(action_sets):
+        if action_set.get("destination") in reroute_uuid_remap:
+            new_flow_json[Flow.ACTION_SETS][actionset_index]["destination"] = reroute_uuid_remap[
+                action_set["destination"]
+            ]
+
+        if needs_move_entry and action_set["uuid"] == entry:
+            action_set["y"] = 0
+
+    for ruleset_index, rule_set in enumerate(rule_sets):
+        for rule_index, rule in enumerate(rule_set.get(Flow.RULES)):
+            if rule.get("destination") in reroute_uuid_remap:
+                new_flow_json[Flow.RULE_SETS][ruleset_index][Flow.RULES][rule_index][
+                    "destination"
+                ] = reroute_uuid_remap[rule["destination"]]
+
+    return new_flow_json
 
 
 def migrate_to_version_11_11(json_flow, flow=None):

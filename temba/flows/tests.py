@@ -23,6 +23,7 @@ from django.utils.encoding import force_text
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
@@ -55,6 +56,7 @@ from .flow_migrations import (
     migrate_to_version_11_8,
     migrate_to_version_11_9,
     migrate_to_version_11_11,
+    migrate_to_version_11_12,
 )
 from .models import (
     Action,
@@ -514,12 +516,12 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         self.get_flow("the_clinic")
 
-        from temba.campaigns.models import Campaign
-
         campaign = Campaign.objects.filter(name="Appointment Schedule").first()
         self.assertIsNotNone(campaign)
         flow = Flow.objects.filter(name="Confirm Appointment").first()
         self.assertIsNotNone(flow)
+        campaign_event = CampaignEvent.objects.filter(flow=flow, campaign=campaign).first()
+        self.assertIsNotNone(campaign_event)
 
         # do not archive if the campaign is active
         changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
@@ -532,6 +534,23 @@ class FlowTest(TembaTest):
         campaign.save()
 
         # can archive if the campaign is archived
+        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
+        self.assertTrue(changed)
+        self.assertEqual(changed, [flow.pk])
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_archived)
+
+        campaign.is_archived = False
+        campaign.save()
+
+        flow.is_archived = False
+        flow.save()
+
+        campaign_event.is_active = False
+        campaign_event.save()
+
+        # can archive if the campaign is not archived with no active event
         changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
         self.assertTrue(changed)
         self.assertEqual(changed, [flow.pk])
@@ -1261,6 +1280,283 @@ class FlowTest(TembaTest):
         self.assertEqual(len(list(sheet_runs.columns)), 6)
 
         self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
+
+    def test_export_results_with_replaced_rulesets(self):
+        self.login(self.admin)
+        devs = self.create_group("Devs", [self.contact])
+
+        favorites = self.get_flow("favorites")
+
+        contact1_run1, contact3_run1 = favorites.start([], [self.contact, self.contact3])
+
+        # simulate two runs each for two contacts...
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
+        Flow.find_and_handle(contact1_in1)
+
+        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="red")
+        Flow.find_and_handle(contact1_in2)
+
+        # now remap the uuid for our color
+        flow_json = favorites.as_json()
+        color_ruleset = flow_json["rule_sets"][0]
+        flow_json = json.loads(json.dumps(flow_json).replace(color_ruleset["uuid"], str(uuid4())))
+        favorites.update(flow_json)
+
+        contact2_run1 = favorites.start([], [self.contact2])[0]
+
+        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
+        Flow.find_and_handle(contact2_in1)
+
+        contact1_run2, contact2_run2 = favorites.start([], [self.contact, self.contact2], restart_participants=True)
+
+        contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
+        Flow.find_and_handle(contact1_in3)
+
+        for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
+            run.refresh_from_db()
+
+        workbook = self.export_flow_results(favorites, group_memberships=[devs])
+
+        tz = self.org.timezone
+
+        sheet_runs, sheet_msgs = workbook.worksheets
+
+        # check runs sheet...
+        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
+        self.assertEqual(len(list(sheet_runs.columns)), 16)
+
+        self.assertExcelRow(
+            sheet_runs,
+            0,
+            [
+                "Contact UUID",
+                "URN",
+                "Name",
+                "Group:Devs",
+                "Started",
+                "Modified",
+                "Exited",
+                "Color (Category) - Favorites",
+                "Color (Value) - Favorites",
+                "Color (Text) - Favorites",
+                "Beer (Category) - Favorites",
+                "Beer (Value) - Favorites",
+                "Beer (Text) - Favorites",
+                "Name (Category) - Favorites",
+                "Name (Value) - Favorites",
+                "Name (Text) - Favorites",
+            ],
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            1,
+            [
+                contact3_run1.contact.uuid,
+                "+250788123456",
+                "Norbert",
+                False,
+                contact3_run1.created_on,
+                contact3_run1.modified_on,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            2,
+            [
+                contact1_run1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                True,
+                contact1_run1.created_on,
+                contact1_run1.modified_on,
+                contact1_run1.exited_on,
+                "Red",
+                "red",
+                "red",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            3,
+            [
+                contact2_run1.contact.uuid,
+                "+250788383383",
+                "Nic",
+                False,
+                contact2_run1.created_on,
+                contact2_run1.modified_on,
+                contact2_run1.exited_on,
+                "Green",
+                "green",
+                "green",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            4,
+            [
+                contact2_run2.contact.uuid,
+                "+250788383383",
+                "Nic",
+                False,
+                contact2_run2.created_on,
+                contact2_run2.modified_on,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        self.assertExcelRow(
+            sheet_runs,
+            5,
+            [
+                contact1_run2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                True,
+                contact1_run2.created_on,
+                contact1_run2.modified_on,
+                "",
+                "Blue",
+                "blue",
+                " blue ",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ],
+            tz,
+        )
+
+        # check messages sheet...
+        self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
+        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+
+        contact1_out1 = contact1_run1.get_messages().get(text="What is your favorite color?")
+        contact1_out2 = contact1_run1.get_messages().get(text="I don't know that color. Try again.")
+        contact1_out3 = contact1_run1.get_messages().get(
+            text__startswith="Good choice, I like Red too! What is your favorite beer?"
+        )
+        contact3_out1 = contact3_run1.get_messages().get(text="What is your favorite color?")
+
+        self.assertExcelRow(
+            sheet_msgs,
+            1,
+            [
+                self.contact3.uuid,
+                "+250788123456",
+                "Norbert",
+                contact3_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            2,
+            [
+                contact1_out1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out1.created_on,
+                "OUT",
+                "What is your favorite color?",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            3,
+            [
+                contact1_in1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_in1.created_on,
+                "IN",
+                "light beige",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            4,
+            [
+                contact1_out2.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out2.created_on,
+                "OUT",
+                "I don't know that color. Try again.",
+                "Test Channel",
+            ],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            5,
+            [contact1_in2.contact.uuid, "+250788382382", "Eric", contact1_in2.created_on, "IN", "red", "Test Channel"],
+            tz,
+        )
+        self.assertExcelRow(
+            sheet_msgs,
+            6,
+            [
+                contact1_out3.contact.uuid,
+                "+250788382382",
+                "Eric",
+                contact1_out3.created_on,
+                "OUT",
+                "Good choice, I like Red too! What is your favorite beer?",
+                "Test Channel",
+            ],
+            tz,
+        )
 
     def test_export_results(self):
         # setup flow and start both contacts
@@ -5196,7 +5492,7 @@ class FlowRunTest(TembaTest):
         run3 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
 
         # create an IVR run and session
-        connection = IVRCall.create_outgoing(self.channel, self.contact, self.contact.urns.get(), self.admin)
+        connection = IVRCall.create_outgoing(self.channel, self.contact, self.contact.urns.get())
         session = FlowSession.create(self.contact, connection)
         run4 = FlowRun.create(self.flow, self.contact, connection=connection, session=session)
 
@@ -6785,11 +7081,21 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 6, "I": 0})
 
+        # create a flow session for our first one
+        first = FlowRun.objects.filter(is_active=True).first()
+        session = FlowSession.objects.create(org=self.org, contact=first.contact, status=FlowSession.STATUS_WAITING)
+        first.session = session
+        first.save(update_fields=["session"])
+
         # stop them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="I").exclude(exited_on=None).count(), 6)
         self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
+
+        session.refresh_from_db()
+        self.assertEqual(FlowSession.STATUS_INTERRUPTED, session.status)
+        self.assertIsNotNone(session.ended_on)
 
         # squash our counts
         squash_flowruncounts()
@@ -9079,6 +9385,131 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["base_language"], "base")
         self.assertEqual(5, len(flow_json["action_sets"]))
         self.assertEqual(1, len(flow_json["rule_sets"]))
+
+    def test_migrate_to_11_12(self):
+        flow = self.get_flow("favorites")
+        definition = {
+            "entry": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+            "rule_sets": [],
+            "action_sets": [
+                {
+                    "uuid": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "x": 459,
+                    "y": 150,
+                    "destination": "ef4865e9-1d34-4876-a0ff-fa3fe5025b3e",
+                    "actions": [
+                        {
+                            "type": "reply",
+                            "uuid": "3db54617-cce1-455b-a787-12df13df87bd",
+                            "msg": {"base": "Hi there"},
+                            "media": {},
+                            "quick_replies": [],
+                            "send_all": False,
+                        }
+                    ],
+                    "exit_uuid": "959fbe68-ba5a-4c78-b8d1-861e64d1e1e3",
+                },
+                {
+                    "uuid": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+                    "x": 476,
+                    "y": 0,
+                    "destination": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "actions": [
+                        {
+                            "type": "channel",
+                            "uuid": "f133934a-9772-419f-ad52-00fe934dab19",
+                            "channel": None,
+                            "name": None,
+                        }
+                    ],
+                    "exit_uuid": "aec0318d-45c2-4c39-92fc-81d3d21178f6",
+                },
+            ],
+        }
+
+        migrated = migrate_to_version_11_12(definition, flow)
+
+        # removed the invalid reference
+        self.assertEqual(len(migrated["action_sets"]), 1)
+
+        # reconnected the nodes to new destinations and adjust entry
+        self.assertEqual(migrated["entry"], migrated["action_sets"][0]["uuid"])
+        self.assertEqual(migrated["action_sets"][0]["y"], 0)
+
+        definition = {
+            "entry": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+            "rule_sets": [],
+            "action_sets": [
+                {
+                    "uuid": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "x": 459,
+                    "y": 150,
+                    "destination": "ef4865e9-1d34-4876-a0ff-fa3fe5025b3e",
+                    "actions": [
+                        {
+                            "type": "reply",
+                            "uuid": "3db54617-cce1-455b-a787-12df13df87bd",
+                            "msg": {"base": "Hi there"},
+                            "media": {},
+                            "quick_replies": [],
+                            "send_all": False,
+                        }
+                    ],
+                    "exit_uuid": "959fbe68-ba5a-4c78-b8d1-861e64d1e1e3",
+                },
+                {
+                    "uuid": "79b4776b-a995-475d-ae06-1cab9af8a28e",
+                    "x": 476,
+                    "y": 0,
+                    "destination": "d1244cfb-dc48-4dd5-ac45-7da49fdf46fb",
+                    "actions": [
+                        {
+                            "type": "channel",
+                            "uuid": "f133934a-9772-419f-ad52-00fe934dab19",
+                            "channel": self.channel.uuid,
+                            "name": self.channel.name,
+                        }
+                    ],
+                    "exit_uuid": "aec0318d-45c2-4c39-92fc-81d3d21178f6",
+                },
+            ],
+        }
+
+        migrated = migrate_to_version_11_12(definition, flow)
+
+        # removed the invalid reference
+        self.assertEqual(len(migrated["action_sets"]), 2)
+
+        flow = self.get_flow("migrate_to_11_12")
+        flow_json = self.get_flow_json("migrate_to_11_12")
+        migrate_to_version_11_12(flow_json, flow)
+
+        actionset = flow.action_sets.filter(y=0).first()
+        self.assertEqual(actionset.actions[0]["msg"]["base"], "Hey there, Yes or No?")
+
+        action_sets = flow.action_sets.all()
+        self.assertEqual(len(action_sets), 3)
+
+    def test_migrate_to_11_12_with_valid_channels(self):
+        self.channel.name = "1234"
+        self.channel.save()
+
+        self.org = self.channel.org
+        flow = self.get_flow("migrate_to_11_12")
+        flow_json = self.get_flow_json("migrate_to_11_12")
+        migrate_to_version_11_12(flow_json, flow)
+
+        action_sets = flow.action_sets.all()
+        self.assertEqual(len(action_sets), 7)
+
+    def test_migrate_to_11_12_with_one_node(self):
+
+        flow = self.get_flow("migrate_to_11_12_one_node")
+        flow_json = self.get_flow_json("migrate_to_11_12_one_node")
+        migrate_to_version_11_12(flow_json, flow)
+
+        action_sets = flow.action_sets.all()
+        self.assertEqual(len(action_sets), 0)
 
     def test_migrate_to_11_11(self):
 

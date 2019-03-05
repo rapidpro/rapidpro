@@ -57,6 +57,64 @@ class ScheduleTest(TembaTest):
         sched.unschedule()
         self.assertEqual(sched.status, "U")
 
+    def assertScheduleFires(self, sched, start, dates):
+        last = start
+        for date in dates:
+            d = sched.get_next_fire(last)
+            self.assertEqual(d, date)
+
+            last = d
+
+    def test_month_fire(self):
+        start = datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc)
+        sched = self.create_schedule("M", start_date=start)
+        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
+
+        self.assertScheduleFires(
+            sched,
+            create,
+            [
+                datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 2, 28, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 3, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 4, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 5, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 6, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 7, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 8, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 9, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 10, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 11, 30, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 12, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 1, 31, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 2, 29, hour=10).replace(tzinfo=pytz.utc),
+            ],
+        )
+
+        start = datetime(2019, 1, 5, hour=10).replace(tzinfo=pytz.utc)
+        sched = self.create_schedule("M", start_date=start)
+        create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
+
+        self.assertScheduleFires(
+            sched,
+            create,
+            [
+                datetime(2019, 2, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 3, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 4, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 5, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 6, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 7, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 8, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 9, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 10, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 11, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2019, 12, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 1, 5, hour=10).replace(tzinfo=pytz.utc),
+                datetime(2020, 2, 5, hour=10).replace(tzinfo=pytz.utc),
+            ],
+        )
+
     def test_next_fire(self):
 
         # updates two days later on Saturday
@@ -112,6 +170,8 @@ class ScheduleTest(TembaTest):
 
         sched = self.create_schedule("M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
         self.assertEqual(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 28).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
@@ -120,6 +180,88 @@ class ScheduleTest(TembaTest):
             datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc),
             sched.get_next_fire(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)),
         )
+
+        sched = self.create_schedule("M", start_date=datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 27, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 28, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 29, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 30, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2013, 12, 31).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 31).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 28).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 30).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 5, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+
+        sched = self.create_schedule("M", start_date=datetime(2013, 12, 5, hour=10).replace(tzinfo=pytz.utc))
+        self.assertTrue(sched.update_schedule(datetime(2013, 12, 5).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 1, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 1, 5).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 2, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 2, 5).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 3, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 3, 5).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 4, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertTrue(sched.update_schedule(datetime(2014, 4, 5).replace(tzinfo=pytz.utc)))
+        self.assertEqual(str(datetime(2014, 5, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
     def test_schedule_ui(self):
 

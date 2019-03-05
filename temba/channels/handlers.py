@@ -122,7 +122,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, call_sid)
                     session = FlowSession.create(contact, connection=call)
 
                     call.update_status(
@@ -290,7 +290,7 @@ class NexmoCallHandler(BaseChannelHandler):
             flow = Trigger.find_flow_for_inbound_call(contact)
 
             if flow:
-                call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+                call = IVRCall.create_incoming(channel, contact, urn_obj, external_id)
                 session = FlowSession.create(contact, connection=call)
 
                 FlowRun.create(flow, contact, session=session, connection=call)

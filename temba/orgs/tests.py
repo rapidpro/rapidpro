@@ -1926,7 +1926,7 @@ class OrgTest(TembaTest):
         self.assertFalse(response.context["current_resthooks"])
 
         # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration"))
+        self.client.post(resthook_url, dict(resthook="mother-registration "))
 
         # should now have a resthook
         resthook = Resthook.objects.get()

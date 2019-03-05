@@ -242,6 +242,7 @@ class Flow(TembaModel):
         "11.9",
         "11.10",
         "11.11",
+        "11.12",
     ]
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -981,7 +982,7 @@ class Flow(TembaModel):
             from temba.campaigns.models import CampaignEvent
 
             if not CampaignEvent.objects.filter(
-                flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
+                is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
             ).exists():
                 flow.archive()
                 changed.append(flow.pk)
@@ -1162,9 +1163,13 @@ class Flow(TembaModel):
 
     def is_starting(self):
         """
-        Returns whether this flow has active flow starts
+        Returns whether this flow is already being started by a user
         """
-        return self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING)).exists()
+        return (
+            self.starts.filter(status__in=(FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING))
+            .exclude(created_by=None)
+            .exists()
+        )
 
     def get_localized_text(self, text_translations, contact=None):
         """
@@ -1264,10 +1269,12 @@ class Flow(TembaModel):
                     group["uuid"] = uuid_map[group["uuid"]]
 
         remap_uuid(flow_json, "entry")
+        needs_move_entry = False
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, "uuid")
             remap_uuid(actionset, "exit_uuid")
             remap_uuid(actionset, "destination")
+            valid_actions = []
 
             # for all of our recordings, pull them down and remap
             for action in actionset["actions"]:
@@ -1292,6 +1299,37 @@ class Flow(TembaModel):
                             "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"]),
                         )
                         action["recording"] = path
+
+                if "channel" in action:
+                    channel = None
+                    channel_uuid = action.get("channel")
+                    channel_name = action.get("name")
+
+                    if channel_uuid is not None:
+                        channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+
+                    if channel is None and channel_name is not None:
+                        name = channel_name.split(":")[-1].strip()
+                        channel = Channel.objects.filter(is_active=True, name=name).first()
+
+                    if channel is None:
+                        continue
+                    else:
+                        action["channel"] = channel.uuid
+                        action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
+
+                valid_actions.append(action)
+
+            actionset["actions"] = valid_actions
+            if not valid_actions:
+                uuid_map[actionset["uuid"]] = actionset.get("destination")
+                if actionset["uuid"] == flow_json["entry"]:
+                    flow_json["entry"] = actionset.get("destination")
+                    needs_move_entry = True
+
+        for actionset in flow_json[Flow.ACTION_SETS]:
+            if needs_move_entry and actionset["uuid"] == flow_json.get("entry"):
+                actionset["y"] = 0
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
@@ -1620,7 +1658,7 @@ class Flow(TembaModel):
                 call = parent_run.connection
                 session = parent_run.session
             else:
-                call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
+                call = IVRCall.create_outgoing(channel, contact, contact_urn)
                 session = FlowSession.create(contact, connection=call)
 
             # save away our created call
@@ -3190,6 +3228,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # continue the parent flows to continue async
             on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
+
+            # mark all sessions as completed if this is an interruption
+            if exit_type == FlowRun.EXIT_TYPE_INTERRUPTED:
+                (
+                    FlowSession.objects.filter(id__in=runs.exclude(session=None).values_list("session_id", flat=True))
+                    .filter(status=FlowSession.STATUS_WAITING)
+                    .update(status=FlowSession.STATUS_INTERRUPTED, ended_on=now)
+                )
 
     def add_messages(self, msgs, do_save=True):
         """
@@ -4802,7 +4848,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         for id_batch in chunk_list(run_ids, 1000):
             run_batch = (
-                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on")
+                FlowRun.objects.filter(id__in=id_batch).select_related("contact", "flow").order_by("modified_on", "pk")
             )
 
             # convert this batch of runs to same format as records in our archives
@@ -4831,12 +4877,12 @@ class ExportFlowResultsTask(BaseExportTask):
         for run in runs:
             contact = contacts_by_uuid.get(run["contact"]["uuid"])
 
-            # get this run's results by node UUID
+            # get this run's results by node name(ruleset label)
             run_values = run["values"]
             if isinstance(run_values, list):
-                results_by_node = {result["node"]: result for item in run_values for result in item.values()}
+                results_by_name = {result["name"]: result for item in run_values for result in item.values()}
             else:
-                results_by_node = {result["node"]: result for result in run_values.values()}
+                results_by_name = {result["name"]: result for result in run_values.values()}
 
             # generate contact info columns
             contact_values = [
@@ -4860,7 +4906,10 @@ class ExportFlowResultsTask(BaseExportTask):
             # generate result columns for each ruleset
             result_values = []
             for n, node in enumerate(result_nodes):
-                node_result = results_by_node.get(node.uuid, {})
+                node_result = {}
+                # check the result by ruleset label if the flow is the same
+                if node.flow.uuid == run["flow"]["uuid"]:
+                    node_result = results_by_name.get(node.label, {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")

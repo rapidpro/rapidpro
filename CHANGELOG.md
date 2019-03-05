@@ -1,3 +1,34 @@
+v4.22.2
+----------
+ * Fix schedule next fire calculation bug when schedule is greater than number of days
+ * Fix to allow archiving flow for removed(inactive) campaign events
+ * Strip resthook slug during creation
+ * Ignore request from old android clients using GCM
+
+v4.22.1
+----------
+ * Increase the schedule broadcast text max length to be consistent on the form
+
+v4.22.0
+----------
+ * Fix case of single node flow with invalid channel reference
+ * Remove ChannelConnection.created_by and ChannelConnection.is_active
+ * Fix flow export results to include results from replaced rulesets
+
+v4.21.15
+----------
+ * correct exclusion
+
+v4.21.14
+----------
+ * Dont requeue flow server enabled msgs
+ * Exit sessions in bulk exit, ignore mailroom flow starts
+
+v4.21.13
+----------
+ * Fix import with invalid channel reference
+ * Add flow migration to remove actions with invalid channel reference
+
 v4.21.12
 ----------
  * improve simulator for goflow simulation
