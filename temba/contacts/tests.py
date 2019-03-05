@@ -7587,14 +7587,14 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         updatepriority_cf_url = reverse("contacts.contactfield_updatepriority")
 
-        # there are 3 CFs in db, we are trying to update 2
-        post_data = json.dumps({123_123: 1000, 123_124: 999})
+        post_data = '{invalid_json": 123}'
 
         response = self.client.post(updatepriority_cf_url, post_data, content_type="application/json")
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["status"], "ERROR")
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "ERROR")
         self.assertEqual(
-            response.json()["err_detail"], "Priority could not be updated, expected 3 got 2 fields for update."
+            response_json["err_detail"], "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
         )
 
     def test_contactfield_priority(self):

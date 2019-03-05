@@ -30,7 +30,6 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -1754,6 +1753,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 label=form.cleaned_data["label"],
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
+                priority=0,  # reset the priority, this will move CF to the bottom of the list
             )
 
             response = self.render_to_response(
@@ -1817,14 +1817,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             try:
                 post_data = json.loads(request.body)
 
-                num_cf_for_update = len(post_data)
-                actual_active_cf = ContactField.user_fields.count_active_for_org(org=self.request.user.get_org())
-
-                if num_cf_for_update != actual_active_cf:
-                    raise ValueError(
-                        f"Priority could not be updated, expected {actual_active_cf} got {num_cf_for_update} fields for update."
-                    )
-
                 with transaction.atomic():
                     for cfid, priority in post_data.items():
                         ContactField.user_fields.filter(id=cfid).update(priority=priority)
@@ -1841,8 +1833,7 @@ class ContactFieldCRUDL(SmartCRUDL):
     class Managefields(OrgPermsMixin, SmartListView):
         queryset = ContactField.user_fields
         title = _("Manage ContactFields")
-        fields = ("label", "key", "value_type", "show_in_table")
-        field_config = {"show_in_table": {"label": "Featured"}}
+        fields = ("label", "key", "value_type")
         # search_fields = ('label__icontains', 'key__icontains')  # search and reordering do not work together
         default_order = ("-show_in_table", "-priority", "label")
 
@@ -1859,13 +1850,17 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             return qs
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["featured_cf"] = self.object_list.filter(show_in_table=True)
+            context["other_cf"] = self.object_list.filter(show_in_table=False)
+
+            return context
+
         # smartmin field value getter
         def get_value_type(self, obj):
             return obj.get_value_type_display()
-
-        # smartmin field value getter
-        def get_show_in_table(self, obj):
-            return mark_safe('<span class="icon-checkmark">') if obj.show_in_table is True else ""
 
     class List(OrgPermsMixin, SmartListView):
         queryset = ContactField.user_fields

@@ -20,7 +20,10 @@
   {% block pjax %}
   #pjax
     .row-fluid
-      .span12
+      .span6
+        %h2
+          Featured
+
         - block pre-table
 
         - block table
@@ -31,12 +34,12 @@
                   %th.drag-icon
 
                   - for field in fields
-                    %th{ class:'header-{{field}} {% if view|field_orderable:field %}header {% if field == order %}{% if order_asc %}headerSortUp{% else %}headerSortDown{% endif %}{% endif %}{% endif %}', id:'header-{{field}}' }
+                    %th{ class:'header-{{field}}', id:'header-{{field}}' }
                       {% get_label field %}
 
                 %tbody#draggable-tbody
-                  - for obj in object_list
-                    %tr.draggable-row{ class:'{% cycle "row2" "row1" %} {% if not obj.is_active and obj|is_smartobject %}inactive{% endif %}', data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
+                  - for obj in featured_cf
+                    %tr.draggable-row{ class:'{% cycle "row2" "row1" %}', data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
 
                       - if org_perms.contacts.contactfield_updatepriority
                         %td.drag-icon
@@ -45,25 +48,43 @@
                         %td
 
                       -for field in fields
-                        %td{class:'value-{{field}} {% get_class field obj %}{% if field in link_fields %} {% endif %}' }
-                          - if field in link_fields
-                            <a {% if pjax %}data-pjax='{{ pjax }}'{% endif %} href="{% get_field_link field obj %}">{% get_value obj field %}</a>
-                          - else
-                            {% get_value obj field %}
+                        %td{class:'value-{{field}} {% get_class field obj %}' }
+                          {% get_value obj field %}
 
                   - empty
                     %tr.empty_list
                       %td
-                      - for field in fields
-                        %td
+                      %td{ colspan:'99' }
+                        {% trans "No Featured ContactFields" %}
 
           - block extra-rows
 
         - block post-table
 
+      .span6
+        %h2
+          Other
+        .scroll-x
+          %table{ class:'{% get_list_class object_list %} list-table table table-striped', cellspacing:'0'}
+            %thead
+              %tr
+                - for field in fields
+                  %th{ class:'header-{{field}}', id:'header-{{field}}' }
+                    {% get_label field %}
+
+              %tbody
+                - for obj in other_cf
+                  %tr.draggable-row{ class:'{% cycle "row2" "row1" %}', data-cfid:'{{ obj.id }}'}
+
+                    -for field in fields
+                      %td{class:'value-{{field}} {% get_class field obj %}' }
+                        {% get_value obj field %}
+
+                - empty
+                  %td{ colspan:'99' }
+                    {% trans "No ContactFields" %}
+
   {% block paginator %}
-  .row
-    - include "smartmin/sidebar_pagination.haml"
 
 {% endblock pjax %}
 {% endblock content %}
@@ -267,7 +288,7 @@
     }
 
     .value-label {
-      min-width: 400px;
+      min-width: 240px;
     }
     .value-key {
       width: 240px;
