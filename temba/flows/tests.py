@@ -2402,11 +2402,16 @@ class FlowTest(TembaTest):
                         "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
                         "actions": [
                             {
+                                "uuid": "d5dbbabf-b0f3-4add-9c4b-a114c8c4a1d9",
                                 "type": "api",
                                 "webhook": "http://localhost:49999/coupon",
                                 "webhook_header": [{"name": "Authorization", "value": "Token 12345"}],
                             },
-                            {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"},
+                            {
+                                "uuid": "e085c297-6f26-4c2e-b8fb-8b0df8c15144",
+                                "msg": {"base": "text to get @extra.coupon"},
+                                "type": "reply",
+                            },
                         ],
                     }
                 ],
@@ -3783,19 +3788,26 @@ class FlowTest(TembaTest):
 
         # test setting the json to a single actionset
         json_dict["action_sets"] = [
-            dict(
-                uuid=str(uuid4()),
-                x=1,
-                y=1,
-                destination=None,
-                actions=[dict(type="reply", msg=dict(base="This flow is more like a broadcast"))],
-            )
+            {
+                "uuid": str(uuid4()),
+                "x": 1,
+                "y": 1,
+                "destination": None,
+                "actions": [
+                    {
+                        "uuid": "013e6934-c439-4e14-97ec-218b5644f235",
+                        "type": "reply",
+                        "msg": {"base": "This flow is more like a broadcast"},
+                    }
+                ],
+                "exit_uuid": "bd5a374d-04c4-4383-a9f8-a574fe22c780",
+            }
         ]
         json_dict["rule_sets"] = []
         json_dict["entry"] = json_dict["action_sets"][0]["uuid"]
 
         response = self.client.post(
-            reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
+            reverse("flows.flow_json", args=[self.flow.id]), json_dict, content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(ActionSet.objects.all().count(), 25)
@@ -3810,7 +3822,7 @@ class FlowTest(TembaTest):
         response = self.client.post(
             reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
         )
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.status_code, 400)
 
         self.flow.refresh_from_db()
         flow_json = self.flow.as_json()
@@ -4347,11 +4359,6 @@ class ActionPackedTest(FlowFileTest):
         customers.is_active = False
         customers.save()
         self.assertIsNone(ContactGroup.user_groups.filter(name="Customers", is_active=True).first())
-
-        # updating with our inactive group will recreate it
-        action["groups"][0] = {"name": "Customers"}
-        self.update_action_json(self.flow, action)
-        self.assertIsNotNone(ContactGroup.user_groups.filter(name="Customers", is_active=True).first())
 
     def test_labeling(self):
         self.start_flow()
@@ -6655,8 +6662,15 @@ class FlowsTest(FlowFileTest):
         counts = favorites.get_category_counts(deleted_nodes=False)
         assertCount(counts, "color", "Red", 3)
 
-        # now erase the color key entirely
+        # now delete the color ruleset and repoint nodes to the beer ruleset
+        color_ruleset = flow_json["rule_sets"][0]
+        beer_ruleset = flow_json["rule_sets"][1]
         flow_json["rule_sets"] = flow_json["rule_sets"][1:]
+
+        for actionset in flow_json["action_sets"]:
+            if actionset["destination"] == color_ruleset["uuid"]:
+                actionset["destination"] = beer_ruleset["uuid"]
+
         favorites.update(flow_json)
 
         # now the color counts have been removed, but beer is still there
@@ -8863,23 +8877,6 @@ class FlowsTest(FlowFileTest):
         sms = Msg.objects.filter(contact=self.contact).order_by("-pk")[0]
         self.assertEqual("Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", sms.text)
 
-        # test dirty json
-        json_dict = favorites.as_json()
-
-        # boolean values in our language dict shouldn't blow up
-        json_dict["action_sets"][0]["actions"][0]["msg"]["updated"] = True
-        json_dict["action_sets"][0]["actions"][0]["msg"]["tlh"] = "Bleck"
-
-        # boolean values in our rule dict shouldn't blow up
-        rule = json_dict["rule_sets"][0]["rules"][0]
-        rule["category"]["updated"] = True
-
-        favorites.update(json_dict)
-
-        favorites = Flow.objects.get(pk=favorites.pk)
-        json_dict = favorites.as_json()
-        action = self.assertEqual("Bleck", json_dict["action_sets"][0]["actions"][0]["msg"]["tlh"])
-
     def test_airtime_flow(self):
         flow = self.get_flow("airtime")
 
@@ -9124,27 +9121,19 @@ class FlowMigrationTest(FlowFileTest):
         return Flow.objects.get(pk=flow.pk)
 
     def test_migrate_with_flow_user(self):
-        flow = Flow.create_instance(
-            dict(
-                name="Favorites",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=7,
-            )
+        flow = Flow.objects.create(
+            name="Favorites",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=7,
+            flow_type="M",
         )
 
         flow_json = self.get_flow_json("favorites")
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=7,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=7, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         old_json = flow.as_json()
@@ -9188,28 +9177,19 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_malformed_single_message_flow(self):
 
-        flow = Flow.create_instance(
-            dict(
-                name="Single Message Flow",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="Single Message Flow",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
         )
 
         flow_json = self.get_flow_json("malformed_single_message")["definition"]
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         flow.ensure_current_version()
@@ -9221,28 +9201,19 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["metadata"]["revision"], 2)
 
     def test_migration_string_group(self):
-        flow = Flow.create_instance(
-            dict(
-                name="String group",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="String group",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
         )
 
         flow_json = self.get_flow_json("string_group")["definition"]
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         flow.ensure_current_version()
@@ -9255,26 +9226,18 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_update_dependencies_on_old_version(self):
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.create_instance(
-            dict(
-                name="Call Me Maybe",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="Call Me Maybe",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
+            flow_type="V",
         )
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         # updating our dependencies should ensure the current version
@@ -9298,7 +9261,7 @@ class FlowMigrationTest(FlowFileTest):
         flow_json["action_sets"].append(
             {
                 "uuid": ruleset1["uuid"],
-                "actions": [{"type": "lang", "language": "fra"}],
+                "actions": [{"uuid": "da6d7657-8940-4778-ada8-27a2035a8352", "type": "lang", "language": "fra"}],
                 "x": ruleset1["x"],
                 "y": ruleset1["y"],
                 "destination": ruleset1["rules"][0]["destination"],
@@ -9328,6 +9291,7 @@ class FlowMigrationTest(FlowFileTest):
         flow_json["rule_sets"].append(
             {
                 "uuid": actionset1["uuid"],
+                "ruleset_type": "wait_message",
                 "rules": [
                     {
                         "uuid": actionset1["exit_uuid"],
@@ -9349,26 +9313,18 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.create_instance(
-            dict(
-                name="Call Me Maybe",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="Call Me Maybe",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
+            flow_type="V",
         )
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         # now make sure we are on the latest version
@@ -9800,45 +9756,37 @@ class FlowMigrationTest(FlowFileTest):
             ],
         }
 
-        flow1 = Flow.create_instance(
-            dict(
-                name="base lang test",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=1,
-            )
+        flow1 = Flow.objects.create(
+            name="base lang test",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=1,
         )
-        flow2 = Flow.create_instance(
-            dict(
-                name="Base lang test",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=1,
-            )
+        flow2 = Flow.objects.create(
+            name="Base lang test",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=1,
         )
-        FlowRevision.create_instance(
-            dict(
-                flow=flow1,
-                definition=fre_definition,
-                spec_version=1,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow1,
+            definition=fre_definition,
+            spec_version=1,
+            revision=1,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
-        FlowRevision.create_instance(
-            dict(
-                flow=flow2,
-                definition=fre_definition,
-                spec_version=1,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow2,
+            definition=fre_definition,
+            spec_version=1,
+            revision=1,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
 
         new_definition = migrate_to_version_11_2(fre_definition, flow=flow1)
@@ -9909,26 +9857,17 @@ class FlowMigrationTest(FlowFileTest):
             ],
         }
 
-        flow = Flow.create_instance(
-            dict(
-                name="String group",
-                org=self.org,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=1,
-            )
+        flow = Flow.objects.create(
+            name="String group",
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=1,
         )
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=definition,
-                spec_version=1,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         new_definition = migrate_to_version_11_1(definition, flow=flow)
