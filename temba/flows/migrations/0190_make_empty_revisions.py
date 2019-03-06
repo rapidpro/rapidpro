@@ -4,12 +4,27 @@ from django.db import migrations
 
 
 def create_revisions(apps, schema_editor):
-    from temba.flows.models import Flow
+    Flow = apps.get_model("flows", "Flow")
 
     # for each flow without a revision
     for flow in Flow.objects.filter(is_active=True, revisions=None):
         print(f"Creating revision for: {flow.name}")
-        flow.update(flow.as_json())
+
+        definition = {
+            "flow_type": flow.flow_type,
+            "version": "11.12",
+            "base_language": flow.base_language,
+            "action_sets": [],
+            "rule_sets": [],
+            "metadata": {
+                "uuid": str(flow.uuid),
+                "name": flow.name,
+                "revision": 1,
+                "expires": flow.expires_after_minutes,
+            },
+        }
+
+        flow.revisions.create(definition=definition, revision=1, spec_version="11.12")
 
 
 class Migration(migrations.Migration):
