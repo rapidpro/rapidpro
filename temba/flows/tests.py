@@ -7886,6 +7886,13 @@ class FlowsTest(FlowFileTest):
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
 
+    def test_extracting_results(self):
+        flow = self.get_flow("favorites")
+
+        self.assertEqual(
+            flow.results, {"beer": {"names": ["Beer"]}, "color": {"names": ["Color"]}, "name": {"names": ["Name"]}}
+        )
+
     def test_group_split(self):
         flow = self.get_flow("group_split")
 

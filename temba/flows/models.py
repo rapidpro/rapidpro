@@ -316,6 +316,9 @@ class Flow(TembaModel):
         help_text=_("Any fields this flow depends on"),
     )
 
+    # information about all the results this flow can generate stored as a dict by result key
+    results = JSONField(null=True)
+
     flow_server_enabled = models.BooleanField(default=False, help_text=_("Run this flow using the flow server"))
 
     @classmethod
@@ -2319,7 +2322,8 @@ class Flow(TembaModel):
                     raise FlowUserConflictException(self.saved_by, last_save)
 
         try:
-            mailroom.get_client().flow_validate(self.org, json_dict)
+            definition = mailroom.get_client().flow_validate(self.org, json_dict)
+            self.results = definition["_results"]
 
             # TODO remove this when we no longer need rulesets or actionsets
             self.update_rulesets_and_actionsets(json_dict)
