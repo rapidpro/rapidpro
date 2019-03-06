@@ -5603,7 +5603,7 @@ class AddLabelAction(Action):
                     label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
                     if label:
                         labels.append(label)
-                else:
+                else:  # pragma: needs cover
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
             elif isinstance(label_data, str):

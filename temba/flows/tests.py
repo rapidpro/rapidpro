@@ -10057,8 +10057,9 @@ class FlowMigrationTest(FlowFileTest):
             self.assertNotIn("id", contact)
 
         for group in send_action["groups"]:
-            self.assertIn("uuid", group)
-            self.assertNotIn("id", contact)
+            if isinstance(group, dict):
+                self.assertIn("uuid", group)
+                self.assertNotIn("id", group)
 
         label_action = flow_json["action_sets"][0]["actions"][2]
         for label in label_action.get("labels"):
