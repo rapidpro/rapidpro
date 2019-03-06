@@ -220,10 +220,7 @@ class WebHookTest(TembaTest):
             self.assertEqual(5, int(data["pending_message_count"][0]))
             self.assertEqual(4, int(data["retry_message_count"][0]))
 
-    @patch("requests.Session.send")
-    def test_webhook_first(self, mock_send):
-        mock_send.return_value = MockResponse(200, "{}")
-
+    def test_webhook_first(self):
         self.setupChannel()
         org = self.channel.org
         org.save()
@@ -231,8 +228,12 @@ class WebHookTest(TembaTest):
         # set our very first action to be a webhook
         flow = self.get_flow("webhook_rule_first")
 
-        # run a user through this flow
-        flow.start([], [self.joe])
+        with patch("requests.Session.send") as mock_send:
+            mock_send.return_value = MockResponse(200, "{}")
+
+            # run a user through this flow
+            flow.start([], [self.joe])
+
         event = WebHookEvent.objects.get()
 
         # make sure our contact still has a URN
