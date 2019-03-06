@@ -61,6 +61,25 @@ class ViberPublicTypeTest(TembaTest):
         # should have been called with our webhook URL
         self.assertEqual(mock_post.call_args[0][0], "https://chatapi.viber.com/pa/set_webhook")
 
+        channel.delete()
+        mock_post.side_effect = [
+            MockResponse(200, json.dumps({"status": 0, "status_message": "ok", "id": "viberId", "uri": "viberName"})),
+            MockResponse(200, json.dumps({"status": 0, "status_message": "ok", "id": "viberId", "uri": "viberName"})),
+            MockResponse(200, json.dumps({"status": 0, "status_message": "ok"})),
+        ]
+
+        # test with welcome message
+        self.client.post(
+            url, {"auth_token": "123456", "welcome_message": "Welcome, please subscribe for more"}, follow=True
+        )
+
+        # assert our channel got created
+        channel = Channel.objects.get(address="viberId")
+        self.assertEqual(channel.config["auth_token"], "123456")
+        self.assertEqual(channel.config["welcome_message"], "Welcome, please subscribe for more")
+        self.assertEqual(channel.name, "viberName")
+        self.assertTrue(channel.get_type().has_attachment_support(channel))
+
     @override_settings(IS_PROD=True)
     @patch("requests.post")
     def test_release(self, mock_post):
