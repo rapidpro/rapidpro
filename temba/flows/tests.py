@@ -28,6 +28,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
@@ -6538,7 +6539,7 @@ class FlowsTest(FlowFileTest):
 
         # check view sends converts exception to error response
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -6563,7 +6564,7 @@ class FlowsTest(FlowFileTest):
 
             # check view sends converts exception to error response
             response = self.client.post(
-                reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+                reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
             )
 
             self.assertEqual(response.status_code, 400)
@@ -6576,6 +6577,23 @@ class FlowsTest(FlowFileTest):
                 },
             )
 
+        # check that flow validation failing is returned as an error message to the user
+        flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
+
+        with self.assertRaises(FlowValidationException):
+            flow.update(flow_json, self.admin)
+
+        # check view sends converts exception to error response
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"description": "Your flow failed validation. Please refresh your browser.", "status": "failure"},
+        )
+
         # create an invalid loop in the flow definition
         flow_json["action_sets"][0]["destination"] = flow_json["action_sets"][0]["uuid"]
 
@@ -6584,7 +6602,7 @@ class FlowsTest(FlowFileTest):
 
         # check view sends converts exception to error response
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=json.dumps(flow_json), content_type="application/json"
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)

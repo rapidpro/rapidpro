@@ -33,6 +33,9 @@ class FlowValidationException(MailroomException):
 
         self.message = response["error"]
 
+    def __str__(self):
+        return self.message
+
 
 class MailroomClient:
     """
