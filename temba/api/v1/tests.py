@@ -761,7 +761,7 @@ class APITest(TembaTest):
         flow_json["action_sets"][0] = {
             "y": 1,
             "x": 1,
-            "destination": "bd531ace-911e-4722-8e53-6730d6122fe1",
+            "destination": flow_json["rule_sets"][0]["uuid"],
             "uuid": "385e0ce2-4e4b-465a-aedf-4028731b86a9",
             "actions": [
                 {
@@ -771,6 +771,7 @@ class APITest(TembaTest):
                     "uuid": "61dd8291-64eb-4e74-8c75-c48ab7f81d00",
                 }
             ],
+            "exit_uuid": "b7fadf3c-5c23-4d8e-b34f-eb145d27d680",
         }
         flow.update(flow_json)
 
@@ -890,14 +891,14 @@ class APITest(TembaTest):
                 {
                     "category": {"base": "Orange"},
                     "test": {"test": {"base": "orange"}, "type": "contains"},
-                    "destination": "7d40faea-723b-473d-8999-59fb7d3c3ca2",
+                    "destination": flow_json["action_sets"][1]["uuid"],
                     "uuid": "a1a763f5-ba34-4fa5-b822-cbf04e51feff",
                     "destination_type": "A",
                 },
                 {
                     "category": {"base": "Other"},
                     "test": {"type": "true"},
-                    "destination": "1cb6d8da-3749-45b2-9382-3f756e3ca71f",
+                    "destination": flow_json["action_sets"][3]["uuid"],
                     "uuid": "aec3299a-c6ff-4315-8bb3-dac39bc64268",
                     "destination_type": "A",
                 },
@@ -909,6 +910,8 @@ class APITest(TembaTest):
             "x": 3,
             "y": 3,
         }
+        flow_json["action_sets"][0]["destination"] = "be34f5bb-a450-4b1d-b72a-8b9cc116e881"
+        flow_json["action_sets"][3]["destination"] = "be34f5bb-a450-4b1d-b72a-8b9cc116e881"
         flow.update(flow_json)
 
         data = {
@@ -1033,8 +1036,13 @@ class APITest(TembaTest):
             "x": 100,
             "y": 4,
             "actions": [
-                {"type": "save", "field": "tel_e164", "value": "+12065551212"},
-                {"type": "del_group", "group": {"name": "Remove Me"}},
+                {
+                    "uuid": "920b5e8f-1707-47de-8192-bea5bd576c27",
+                    "type": "save",
+                    "field": "tel_e164",
+                    "value": "+12065551212",
+                },
+                {"uuid": "f792050a-71ab-4766-92b5-58808c3ffe33", "type": "del_group", "group": {"name": "Remove Me"}},
             ],
             "exit_uuid": str(uuid4()),
             "destination": None,

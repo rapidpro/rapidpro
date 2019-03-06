@@ -6,14 +6,14 @@ from temba.tests import MockResponse, TembaTest, matchers
 
 
 class MailroomClientTest(TembaTest):
-    @patch("requests.post")
-    def test_request_failure(self, mock_post):
-        mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
-
+    def test_request_failure(self):
         flow = self.get_flow("color")
 
-        with self.assertRaises(MailroomException) as e:
-            serialize_flow(flow)
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
+
+            with self.assertRaises(MailroomException) as e:
+                serialize_flow(flow)
 
         self.assertEqual(
             e.exception.as_json(),

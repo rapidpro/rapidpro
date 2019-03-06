@@ -5922,7 +5922,6 @@ class SimulationTest(FlowFileTest):
                 replies.append(event["msg"]["text"])
         return replies
 
-    @override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io")
     def test_simulation(self):
         self.login(self.admin)
         flow = self.get_flow("favorites")
@@ -5932,53 +5931,54 @@ class SimulationTest(FlowFileTest):
 
         url = reverse("flows.flow_simulate", args=[flow.pk])
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(400, '{"session": {}}')
-            response = self.client.post(url, json.dumps(payload), content_type="application/json")
-            self.assertEqual(500, response.status_code)
+        with override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io"):
+            with patch("requests.post") as mock_post:
+                mock_post.return_value = MockResponse(400, '{"session": {}}')
+                response = self.client.post(url, json.dumps(payload), content_type="application/json")
+                self.assertEqual(500, response.status_code)
 
-        # start a flow
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"session": {}}')
-            response = self.client.post(url, json.dumps(payload), content_type="application/json")
-            self.assertEqual(200, response.status_code)
-            self.assertEqual({}, response.json()["session"])
+            # start a flow
+            with patch("requests.post") as mock_post:
+                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                response = self.client.post(url, json.dumps(payload), content_type="application/json")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual({}, response.json()["session"])
 
-            actual_url = mock_post.call_args_list[0][0][0]
-            actual_payload = mock_post.call_args_list[0][1]["json"]
-            actual_headers = mock_post.call_args_list[0][1]["headers"]
+                actual_url = mock_post.call_args_list[0][0][0]
+                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_headers = mock_post.call_args_list[0][1]["headers"]
 
-            self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/start")
-            self.assertEqual(actual_payload["org_id"], flow.org_id)
-            self.assertEqual(actual_payload["trigger"]["environment"]["date_format"], "DD-MM-YYYY")
-            self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
-            self.assertEqual(len(actual_payload["flows"]), 1)
-            self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/start")
+                self.assertEqual(actual_payload["org_id"], flow.org_id)
+                self.assertEqual(actual_payload["trigger"]["environment"]["date_format"], "DD-MM-YYYY")
+                self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
+                self.assertEqual(len(actual_payload["flows"]), 1)
+                self.assertEqual(actual_headers["Authorization"], "Token sesame")
 
-        # try a resume
-        payload = dict(version=2, session={}, resume={}, flow={})
+            # try a resume
+            payload = dict(version=2, session={}, resume={}, flow={})
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(400, '{"session": {}}')
-            response = self.client.post(url, json.dumps(payload), content_type="application/json")
-            self.assertEqual(500, response.status_code)
+            with patch("requests.post") as mock_post:
+                mock_post.return_value = MockResponse(400, '{"session": {}}')
+                response = self.client.post(url, json.dumps(payload), content_type="application/json")
+                self.assertEqual(500, response.status_code)
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"session": {}}')
-            response = self.client.post(url, json.dumps(payload), content_type="application/json")
-            self.assertEqual(200, response.status_code)
-            self.assertEqual({}, response.json()["session"])
+            with patch("requests.post") as mock_post:
+                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                response = self.client.post(url, json.dumps(payload), content_type="application/json")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual({}, response.json()["session"])
 
-            actual_url = mock_post.call_args_list[0][0][0]
-            actual_payload = mock_post.call_args_list[0][1]["json"]
-            actual_headers = mock_post.call_args_list[0][1]["headers"]
+                actual_url = mock_post.call_args_list[0][0][0]
+                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_headers = mock_post.call_args_list[0][1]["headers"]
 
-            self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/resume")
-            self.assertEqual(actual_payload["org_id"], flow.org_id)
-            self.assertEqual(actual_payload["resume"]["environment"]["date_format"], "DD-MM-YYYY")
-            self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
-            self.assertEqual(len(actual_payload["flows"]), 1)
-            self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/resume")
+                self.assertEqual(actual_payload["org_id"], flow.org_id)
+                self.assertEqual(actual_payload["resume"]["environment"]["date_format"], "DD-MM-YYYY")
+                self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
+                self.assertEqual(len(actual_payload["flows"]), 1)
+                self.assertEqual(actual_headers["Authorization"], "Token sesame")
 
 
 class FlowsTest(FlowFileTest):
@@ -9199,30 +9199,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(len(flow_json["rule_sets"]), 0)
         self.assertEqual(flow_json["version"], get_current_export_version())
         self.assertEqual(flow_json["metadata"]["revision"], 2)
-
-    def test_migration_string_group(self):
-        flow = Flow.objects.create(
-            name="String group",
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-            saved_by=self.admin,
-            version_number=3,
-        )
-
-        flow_json = self.get_flow_json("string_group")["definition"]
-
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
-
-        flow.ensure_current_version()
-        flow_json = flow.as_json()
-
-        self.assertEqual(len(flow_json["action_sets"]), 1)
-        self.assertEqual("The Funky Bunch", flow_json["action_sets"][0]["actions"][0]["groups"][0]["name"])
-        self.assertTrue("The Funky Bunch", flow_json["action_sets"][0]["actions"][0]["groups"][0]["uuid"])
-        self.assertEqual("@contact.name", flow_json["action_sets"][0]["actions"][0]["groups"][1])
 
     def test_update_dependencies_on_old_version(self):
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
