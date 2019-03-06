@@ -1123,6 +1123,18 @@ class ContactCRUDL(SmartCRUDL):
                         dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
                     )
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                if len(links) > 1:
+                    links.append(dict(divider=True))
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
+                    )
+                )
+
             return links
 
     class History(OrgObjPermsMixin, SmartReadView):

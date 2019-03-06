@@ -1238,6 +1238,18 @@ class ChannelCRUDL(SmartCRUDL):
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                if len(links) > 1:
+                    links.append(dict(divider=True))
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.get_object().pk    ])}',
+                    )
+                )
+
             return links
 
         def get_context_data(self, **kwargs):
