@@ -1055,6 +1055,23 @@ class CampaignTest(TembaTest):
         # we should get 404 for the inactive campaign
         self.assertEqual(response.status_code, 404)
 
+    def test_view_campaign_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
+
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.id}/",
+        )
+
     def test_view_campaign_read_archived(self):
         self.login(self.admin)
 

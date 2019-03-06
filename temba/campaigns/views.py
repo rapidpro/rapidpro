@@ -162,8 +162,6 @@ class CampaignCRUDL(SmartCRUDL):
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
-                if len(links) > 1:
-                    links.append(dict(divider=True))
                 links.append(
                     dict(
                         title=_("Service"),

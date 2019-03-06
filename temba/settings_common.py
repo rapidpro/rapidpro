@@ -481,6 +481,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_history",
         "channels.channel_read",
         "contacts.contact_break_anon",
+        "contacts.contact_read",
         "flows.flow_editor",
         "flows.flow_json",
         "flows.flow_revisions",
