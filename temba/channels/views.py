@@ -1454,10 +1454,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            welcome_message = self.get_object().config.get(Channel.CONFIG_VIBER_WELCOME_MESSAGE, "")
-            if welcome_message is None:
-                welcome_message = ""
-            initial["welcome_message"] = welcome_message
+            initial["welcome_message"] = self.get_object().config.get(Channel.CONFIG_VIBER_WELCOME_MESSAGE, "")
             return initial
 
         def get_queryset(self):
