@@ -31,7 +31,15 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
+from temba.tests import (
+    ESMockWithScroll,
+    FlowFileTest,
+    MigrationTest,
+    MockResponse,
+    TembaTest,
+    matchers,
+    skip_if_no_mailroom,
+)
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -11596,3 +11604,22 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowResultMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0195_flow_results"
+    migrate_to = "0196_populate_flow_results"
+
+    def setUpBeforeMigration(self, apps):
+        favorites = self.get_flow("favorites")
+        favorites.results = None
+        favorites.save(update_fields=("results",))
+
+    def test_results_populated(self):
+        favorites = Flow.objects.get()
+
+        self.assertEqual(
+            favorites.results,
+            {"beer": {"names": ["Beer"]}, "color": {"names": ["Color"]}, "name": {"names": ["Name"]}},
+        )
