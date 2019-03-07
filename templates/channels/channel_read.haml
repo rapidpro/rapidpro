@@ -499,16 +499,6 @@
     });
   {% endif %}
 
-  {% if org_perms.channels.channel_viber_welcome_message %}
-    $(".viber-welcome-message").live('click', function(){
-      var modal = new Modax('{% trans "Viber Welcome Message" %}','{% url "channels.channel_viber_welcome_message" object.uuid %}');
-      modal.setIcon('icon-viber');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-  {% endif %}
-
-
   {% if start_date %}
 
     $(function () {

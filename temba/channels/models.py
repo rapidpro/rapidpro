@@ -309,8 +309,6 @@ class Channel(TembaModel):
     CONFIG_NEXMO_APP_ID = "nexmo_app_id"
     CONFIG_NEXMO_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
-    CONFIG_VIBER_WELCOME_MESSAGE = "viber_welcome_message"
-
     CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
 
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
