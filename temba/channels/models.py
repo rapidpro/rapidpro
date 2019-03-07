@@ -292,7 +292,6 @@ class Channel(TembaModel):
     CONFIG_SECRET = "secret"
     CONFIG_CHANNEL_ID = "channel_id"
     CONFIG_CHANNEL_MID = "channel_mid"
-    CONFIG_WELCOME_MESSAGE = "welcome_message"
     CONFIG_FCM_ID = "FCM_ID"
     CONFIG_MAX_LENGTH = "max_length"
     CONFIG_MACROKIOSK_SENDER_ID = "macrokiosk_sender_id"
@@ -309,6 +308,8 @@ class Channel(TembaModel):
     CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
     CONFIG_NEXMO_APP_ID = "nexmo_app_id"
     CONFIG_NEXMO_APP_PRIVATE_KEY = "nexmo_app_private_key"
+
+    CONFIG_VIBER_WELCOME_MESSAGE = "viber_welcome_message"
 
     CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
 

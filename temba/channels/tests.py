@@ -2544,6 +2544,54 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "invalid credentials")
 
 
+class ViberWelcomeMessageTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(
+            self.org,
+            self.user,
+            None,
+            "VP",
+            None,
+            "1234",
+            config={Channel.CONFIG_AUTH_TOKEN: "auth"},
+            uuid="00000000-0000-0000-0000-000000001234",
+        )
+
+    def test_viber_welcome_messages(self):
+        welcome_msg_url = reverse("channels.channel_viber_welcome_message", args=[self.channel.uuid])
+        response = self.client.get(welcome_msg_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+
+        self.assertContains(response, welcome_msg_url)
+
+        response = self.client.get(welcome_msg_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["view"].derive_initial()["welcome_message"], "")
+
+        postdata = dict()
+        postdata["welcome_message"] = "Welcome, please subscribe for more"
+
+        response = self.client.post(welcome_msg_url, postdata, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        self.channel.refresh_from_db()
+        self.assertEqual(
+            self.channel.config.get(Channel.CONFIG_VIBER_WELCOME_MESSAGE, ""), "Welcome, please subscribe for more"
+        )
+
+        response = self.client.get(welcome_msg_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["view"].derive_initial()["welcome_message"], "Welcome, please subscribe for more"
+        )
+
+
 class FacebookWhitelistTest(TembaTest):
     def setUp(self):
         super().setUp()

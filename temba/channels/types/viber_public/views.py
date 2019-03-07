@@ -12,13 +12,6 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
-        welcome_message = forms.CharField(
-            max_length=640,
-            label=_("Welcome Message"),
-            required=False,
-            widget=forms.Textarea,
-            help_text=_("The message send to user who have not yet subscribed to the channel"),
-        )
 
         def clean_auth_token(self):
             auth_token = self.data["auth_token"]
@@ -32,7 +25,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
         auth_token = form.cleaned_data["auth_token"]
-        welcome_message = form.cleaned_data["welcome_message"]
 
         response = requests.post("https://chatapi.viber.com/pa/get_account_info", json={"auth_token": auth_token})
         response_json = response.json()
@@ -40,8 +32,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         name = response_json["uri"]
         address = response_json["id"]
         config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
-        if welcome_message:
-            config[Channel.CONFIG_WELCOME_MESSAGE] = welcome_message
 
         self.object = Channel.create(
             org, self.request.user, None, self.channel_type, name=name, address=address, config=config

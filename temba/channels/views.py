@@ -1189,6 +1189,7 @@ class ChannelCRUDL(SmartCRUDL):
         "create_caller",
         "search_plivo",
         "facebook_whitelist",
+        "viber_welcome_message",
     )
     permissions = True
 
@@ -1237,6 +1238,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
+
+            if self.object.channel_type == "VP" and self.has_org_perm("channels.channel_viber_welcome_message"):
+                links.append(dict(title=_("Viber Welcome Message"), js_class="viber-welcome-message", href="#"))
 
             return links
 
@@ -1432,6 +1436,37 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
+    class ViberWelcomeMessage(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+        class WelcomeMessageForm(forms.Form):
+            welcome_message = forms.CharField(
+                max_length=640,
+                label=_("Viber Welcome Message"),
+                required=False,
+                widget=forms.Textarea,
+                help_text=_(
+                    "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
+                ),
+            )
+
+        slug_url_kwarg = "uuid"
+        success_url = "uuid@channels.channel_read"
+        form_class = WelcomeMessageForm
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            welcome_message = self.get_object().config.get(Channel.CONFIG_VIBER_WELCOME_MESSAGE, "")
+            if welcome_message is None:
+                welcome_message = ""
+            initial["welcome_message"] = welcome_message
+            return initial
+
+        def get_queryset(self):
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="VP")
+
+        def execute_action(self):
+            self.object.config[Channel.CONFIG_VIBER_WELCOME_MESSAGE] = self.form.cleaned_data["welcome_message"]
+            self.object.save()
+
     class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
@@ -1445,7 +1480,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
