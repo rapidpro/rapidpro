@@ -47,6 +47,8 @@
             -trans "Missed incoming call"
           -elif event.event_type == 'new_conversation'
             -trans "Started Conversation"
+          -elif event.event_type == 'welcome_message'
+            -trans "Welcome Message Sent"
           -elif event.event_type == 'referral'
             -trans "Referred"
           -elif event.event_type == 'follow'
