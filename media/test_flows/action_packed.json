@@ -263,7 +263,8 @@
                       "scheme": "tel"
                     }
                   ], 
-                  "name": "Oprah Winfrey"
+                  "name": "Oprah Winfrey",
+                  "uuid": "6e9ab7cc-b9e5-4e9b-bb81-732e04ef71e7"
                 }
               ], 
               "variables": [], 
@@ -292,7 +293,8 @@
                       "scheme": "tel"
                     }
                   ],
-                  "name": "Oprah Winfrey"
+                  "name": "Oprah Winfrey",
+                  "uuid": "6e9ab7cc-b9e5-4e9b-bb81-732e04ef71e7"
                 }],
               "media": {},
               "variables": [{"id": "+12065551212"}],

@@ -22,7 +22,7 @@ def serialize_flow(flow):
     flow.ensure_current_version()
     flow_def = flow.as_json(expand_contacts=True)
 
-    return mailroom.get_client().flow_migrate({"flow": flow_def, "collapse_exits": False})
+    return mailroom.get_client().flow_migrate(flow_def)
 
 
 def serialize_channel(channel):

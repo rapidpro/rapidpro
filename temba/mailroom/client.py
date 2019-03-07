@@ -23,6 +23,20 @@ class MailroomException(Exception):
         return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
 
 
+class FlowValidationException(MailroomException):
+    """
+    Exception for a flow validation request that fails validation
+    """
+
+    def __init__(self, endpoint, request, response):
+        super().__init__(endpoint, request, response)
+
+        self.message = response["error"]
+
+    def __str__(self):
+        return self.message
+
+
 class MailroomClient:
     """
     Basic web client for mailroom
@@ -36,8 +50,17 @@ class MailroomClient:
         if auth_token:
             self.headers["Authorization"] = "Token " + auth_token
 
-    def flow_migrate(self, payload):
-        return self._request("flow/migrate", payload)
+    def flow_migrate(self, definition, include_ui=True):
+        return self._request("flow/migrate", {"flow": definition, "include_ui": include_ui})
+
+    def flow_validate(self, org, definition):
+        payload = {"flow": definition}
+
+        # during tests do validation without org because mailroom can't see unit test data created in a transaction
+        if not settings.TESTING:
+            payload["org_id"] = org.id
+
+        return self._request("flow/validate", payload)
 
     def sim_start(self, payload):
         return self._request("sim/start", payload)
@@ -59,6 +82,8 @@ class MailroomClient:
             logger.debug(json.dumps(resp_json, indent=2))
             logger.debug("=============== /%s response ===============" % endpoint)
 
+        if response.status_code == 422:
+            raise FlowValidationException(endpoint, payload, resp_json)
         if 400 <= response.status_code < 500:
             raise MailroomException(endpoint, payload, resp_json)
 

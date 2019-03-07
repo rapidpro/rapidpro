@@ -735,9 +735,9 @@ class TriggerTest(TembaTest):
         self.assertEqual(viber_channel, trigger.channel)
 
     @override_settings(IS_PROD=True)
-    @patch("requests.post")
-    def test_new_conversation_trigger(self, mock_post):
+    def test_new_conversation_trigger(self):
         self.login(self.admin)
+
         flow = self.create_flow()
         flow2 = self.create_flow()
 
@@ -756,25 +756,28 @@ class TriggerTest(TembaTest):
         self.assertContains(response, "conversation is started")
 
         # go create it
-        mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
 
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_post.call_count, 1)
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
 
-        # check that it is right
-        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
-        self.assertEqual(trigger.channel, fb_channel)
-        self.assertEqual(trigger.flow, flow)
+            # check that it is right
+            trigger = Trigger.objects.get(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False
+            )
+            self.assertEqual(trigger.channel, fb_channel)
+            self.assertEqual(trigger.flow, flow)
 
-        # try to create another one, fails as we already have a trigger for that channel
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
+            # try to create another one, fails as we already have a trigger for that channel
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
 
         # archive our trigger, should unregister our callback
         with patch("requests.post") as mock_post:

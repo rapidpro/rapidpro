@@ -41,6 +41,7 @@ from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
+from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
@@ -1568,6 +1569,8 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
+            except FlowValidationException:
+                error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
             except FlowVersionConflictException:
