@@ -2326,7 +2326,7 @@ class Flow(TembaModel):
                     actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
                     actionset[Flow.ACTIONS] = actions
 
-            mailroom.get_client().flow_validate(self.org, json_dict)
+            # mailroom.get_client().flow_validate(self.org, json_dict)
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
