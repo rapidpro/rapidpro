@@ -647,12 +647,11 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd["phone"] if cmd["phone"] else "empty"
                         try:
-                            URN.normalize(URN.from_tel(tel), channel.country.code)
+                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
                             if "msg" in cmd:
-                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd["msg"], sent_on=date)
-                                if msg:
-                                    extra = dict(msg_id=msg.id)
+                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                                extra = dict(msg_id=msg.id)
                         except ValueError:
                             pass
 

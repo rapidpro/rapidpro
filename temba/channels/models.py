@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
+from temba.mailroom.queue import queue_mailroom_channel_event_task
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
@@ -1394,7 +1395,6 @@ class ChannelEvent(models.Model):
     def create(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.api.models import WebHookEvent
         from temba.contacts.models import Contact
-        from temba.triggers.models import Trigger
 
         org = channel.org
         contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
@@ -1414,7 +1414,8 @@ class ChannelEvent(models.Model):
             WebHookEvent.trigger_call_event(event)
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
-            Trigger.catch_triggers(event, Trigger.TYPE_MISSED_CALL, channel)
+            # pass off handling of the message to mailroom after we commit
+            on_transaction_commit(lambda: queue_mailroom_channel_event_task(event))
 
         return event
 
