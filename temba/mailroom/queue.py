@@ -60,6 +60,7 @@ def queue_mailroom_mo_miss_task(event):
         "contact_id": event.contact_id,
         "urn": str(event.contact_urn),
         "urn_id": event.contact_urn_id,
+        "extra": event.extra,
         "new_contact": getattr(event.contact, "is_new", False),
     }
     queue_mailroom_contact_task(event.org_id, event.contact_id, MO_MISS_EVENT_TASK, event_task)

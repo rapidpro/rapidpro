@@ -4,6 +4,7 @@ from django_redis import get_redis_connection
 
 from django.utils import timezone
 
+from temba.channels.models import ChannelEvent
 from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import MailroomException
 from temba.msgs.models import Msg
@@ -53,3 +54,39 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual(msg.contact_id, msg_task["task"]["contact_id"])
         self.assertEqual("Hello World", msg_task["task"]["text"])
         self.assertTrue(msg_task["task"]["new_contact"])
+
+    def test_event_task(self):
+        event = ChannelEvent.create_relayer_event(
+            self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
+        )
+
+        r = get_redis_connection()
+
+        # noop, this event isn't handled by mailroom
+        self.assertEqual(0, r.zcard(f"handler:active"))
+        self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
+        self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
+
+        event = ChannelEvent.create_relayer_event(
+            self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now()
+        )
+
+        # org is queued
+        self.assertEqual(1, r.zcard(f"handler:active"))
+        org_task = json.loads(r.zrange(f"handler:active", 0, 1)[0])
+        self.assertEqual(self.org.id, org_task)
+
+        # contact is queued
+        self.assertEqual(1, r.zcard(f"handler:{self.org.id}"))
+        contact_task = json.loads(r.zrange(f"handler:{self.org.id}", 0, 1)[0])
+        self.assertEqual("handle_contact_event", contact_task["type"])
+        self.assertEqual(self.org.id, contact_task["org_id"])
+        self.assertEqual({"contact_id": event.contact_id}, contact_task["task"])
+
+        # event event is valid
+        self.assertEqual(1, r.llen(f"c:{self.org.id}:{event.contact_id}"))
+        event_task = json.loads(r.rpop(f"c:{self.org.id}:{event.contact_id}"))
+        self.assertEqual("mo_miss", event_task["type"])
+        self.assertEqual(event.contact_id, event_task["task"]["contact_id"])
+        self.assertEqual("tel:+12065551515", event_task["task"]["urn"])
+        self.assertTrue(event_task["task"]["new_contact"])

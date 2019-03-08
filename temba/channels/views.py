@@ -671,7 +671,9 @@ def sync(request, channel_id):
                         if cmd["phone"]:
                             urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
                             try:
-                                ChannelEvent.create(channel, urn, cmd["type"], date, extra=dict(duration=duration))
+                                ChannelEvent.create_relayer_event(
+                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                                )
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
