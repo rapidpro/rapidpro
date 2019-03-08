@@ -24,7 +24,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -10430,43 +10430,6 @@ class WebhookLoopTest(FlowFileTest):
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
-
-
-class MissedCallChannelTest(FlowFileTest):
-    def test_missed_call_channel(self):
-        flow = self.get_flow("call_channel_split")
-
-        # trigger a missed call on our channel
-        call = ChannelEvent.create(
-            self.channel, "tel:+250788111222", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-
-        # we aren't in the group, so no run should be started
-        run = FlowRun.objects.filter(flow=flow).first()
-        self.assertIsNone(run)
-
-        # but if we add our contact to the group..
-        group = ContactGroup.user_groups.filter(name="Trigger Group").first()
-        group.update_contacts(self.admin, [self.create_contact(number="+250788111222")], True)
-
-        # now create another missed call which should fire our trigger
-        call = ChannelEvent.create(
-            self.channel, "tel:+250788111222", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-
-        # should have triggered our flow
-        FlowRun.objects.get(flow=flow)
-
-        # should have sent a message to the user
-        msg = Msg.objects.get(contact=call.contact, channel=self.channel)
-        self.assertEqual(msg.text, "Matched +250785551212")
-
-        # try the same thing with a contact trigger (same as missed calls via twilio)
-        Trigger.catch_triggers(msg.contact, Trigger.TYPE_MISSED_CALL, msg.channel)
-
-        self.assertEqual(2, Msg.objects.filter(contact=call.contact, channel=self.channel).count())
-        last = Msg.objects.filter(contact=call.contact, channel=self.channel).order_by("-pk").first()
-        self.assertEqual(last.text, "Matched +250785551212")
 
 
 class GhostActionNodeTest(FlowFileTest):

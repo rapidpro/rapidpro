@@ -1434,6 +1434,11 @@ class Msg(models.Model):
 
         now = timezone.now()
 
+        # don't create duplicate messages
+        existing = Msg.objects.filter(text=text, sent_on=received_on, contact=contact, direction="I").first()
+        if existing:
+            return existing
+
         msg = Msg.objects.create(
             org=org,
             channel=channel,
