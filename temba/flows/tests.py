@@ -6524,6 +6524,32 @@ class FlowsTest(FlowFileTest):
                 "15%(delim)sM%(delim)spequeño" % ctx, "I don't know the location pequeño. Please try again."
             )
 
+    @skip_if_no_mailroom
+    def test_create_dependencies(self):
+        self.login(self.admin)
+
+        flow = self.get_flow("favorites")
+        flow_json = flow.as_json()
+
+        # create an invalid label in our first actionset
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "add_label",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2a",
+                "labels": [{"uuid": "fake uuid", "name": "Foo zap"}],
+            }
+        )
+
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # make sure our revision doesn't have our fake uuid
+        label = Label.all_objects.get(name="Foo zap")
+        self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
+
     def test_write_protection(self):
         flow = self.get_flow("favorites")
         flow_json = flow.as_json()

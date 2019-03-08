@@ -20,6 +20,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import transaction
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -1511,6 +1512,10 @@ class FlowCRUDL(SmartCRUDL):
     class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
 
+        @transaction.non_atomic_requests
+        def dispatch(self, request, *args, **kwargs):
+            return super().dispatch(request, *args, **kwargs)
+
         def get(self, request, *args, **kwargs):
 
             flow = self.get_object()
@@ -1569,7 +1574,8 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
-            except FlowValidationException:
+            except FlowValidationException as e:
+                logger.error(str(e), exc_info=True)
                 error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
@@ -1586,7 +1592,8 @@ class FlowCRUDL(SmartCRUDL):
                     )
                     % e.other_user
                 )
-            except Exception:  # pragma: no cover
+            except Exception as e:  # pragma: no cover
+                logger.error(str(e), exc_info=True)
                 error = _("Your flow could not be saved. Please refresh your browser.")
 
             return JsonResponse({"status": "failure", "description": error}, status=400)

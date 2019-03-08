@@ -2319,57 +2319,65 @@ class Flow(TembaModel):
                     raise FlowUserConflictException(self.saved_by, last_save)
 
         try:
+            # run through all our action sets and validate / instantiate them, we need to do this in a transaction
+            # or mailroom won't know about the labels / groups possibly created here
+            with transaction.atomic():
+                for actionset in json_dict.get(Flow.ACTION_SETS, []):
+                    actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
+                    actionset[Flow.ACTIONS] = actions
+
             mailroom.get_client().flow_validate(self.org, json_dict)
 
-            # TODO remove this when we no longer need rulesets or actionsets
-            self.update_rulesets_and_actionsets(json_dict)
+            with transaction.atomic():
+                # TODO remove this when we no longer need rulesets or actionsets
+                self.update_rulesets_and_actionsets(json_dict)
 
-            # if we have a base language, set that
-            self.base_language = json_dict.get("base_language", None)
+                # if we have a base language, set that
+                self.base_language = json_dict.get("base_language", None)
 
-            # set our metadata
-            self.metadata = None
-            if Flow.METADATA in json_dict:
-                self.metadata = json_dict[Flow.METADATA]
+                # set our metadata
+                self.metadata = None
+                if Flow.METADATA in json_dict:
+                    self.metadata = json_dict[Flow.METADATA]
 
-            if user:
-                self.saved_by = user
+                if user:
+                    self.saved_by = user
 
-            # if it's our migration user, don't update saved on
-            if user and user != flow_user:
-                self.saved_on = timezone.now()
+                # if it's our migration user, don't update saved on
+                if user and user != flow_user:
+                    self.saved_on = timezone.now()
 
-            self.version_number = get_current_export_version()
-            self.save()
+                self.version_number = get_current_export_version()
+                self.save()
 
-            # clear property cache
-            self.clear_props_cache()
+                # clear property cache
+                self.clear_props_cache()
 
-            # in case rulesets/actionsets were prefetched, clear those cached values
-            # TODO https://code.djangoproject.com/ticket/29625
-            self.action_sets._remove_prefetched_objects()
-            self.rule_sets._remove_prefetched_objects()
+                # in case rulesets/actionsets were prefetched, clear those cached values
+                # TODO https://code.djangoproject.com/ticket/29625
+                self.action_sets._remove_prefetched_objects()
+                self.rule_sets._remove_prefetched_objects()
 
-            # create a version of our flow for posterity
-            if user is None:
-                user = self.created_by
+                # create a version of our flow for posterity
+                if user is None:
+                    user = self.created_by
 
-            # last version
-            revision_num = 1
-            last_revision = self.revisions.order_by("-revision").first()
-            if last_revision:
-                revision_num = last_revision.revision + 1
+                # last version
+                revision_num = 1
+                last_revision = self.revisions.order_by("-revision").first()
+                if last_revision:
+                    revision_num = last_revision.revision + 1
 
-            # create a new version
-            revision = self.revisions.create(
-                definition=json_dict,
-                created_by=user,
-                modified_by=user,
-                spec_version=get_current_export_version(),
-                revision=revision_num,
-            )
+                # create a new version
+                revision = self.revisions.create(
+                    definition=json_dict,
+                    created_by=user,
+                    modified_by=user,
+                    spec_version=get_current_export_version(),
+                    revision=revision_num,
+                )
 
-            self.update_dependencies()
+                self.update_dependencies()
 
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
