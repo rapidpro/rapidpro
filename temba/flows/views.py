@@ -1575,7 +1575,6 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             except FlowValidationException as e:
-                logger.error(str(e), exc_info=True)
                 error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
@@ -1593,7 +1592,6 @@ class FlowCRUDL(SmartCRUDL):
                     % e.other_user
                 )
             except Exception as e:  # pragma: no cover
-                logger.error(str(e), exc_info=True)
                 error = _("Your flow could not be saved. Please refresh your browser.")
 
             return JsonResponse({"status": "failure", "description": error}, status=400)
