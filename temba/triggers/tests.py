@@ -6,8 +6,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME
+from temba.channels.models import Channel
 from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Language
@@ -593,78 +592,6 @@ class TriggerTest(TembaTest):
         # we should be in the group now
         self.assertEqual(msg.msg_type, "F")
         self.assertEqual(set(contact.user_groups.all()), {group})
-
-    def test_missed_call_trigger(self):
-        self.login(self.admin)
-        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
-        flow = self.create_flow()
-        contact = self.create_contact("Ali", "250788739305")
-
-        self.assertFalse(missed_call_trigger)
-
-        ChannelEvent.create(
-            self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-        self.assertEqual(ChannelEvent.objects.all().count(), 1)
-        self.assertEqual(flow.runs.all().count(), 0)
-
-        trigger_url = reverse("triggers.trigger_missed_call")
-
-        response = self.client.get(trigger_url)
-        self.assertEqual(response.status_code, 200)
-
-        post_data = dict(flow=flow.pk)
-
-        response = self.client.post(trigger_url, post_data)
-        trigger = Trigger.objects.all().order_by("-pk")[0]
-
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
-        self.assertEqual(trigger.flow.pk, flow.pk)
-
-        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
-
-        self.assertEqual(missed_call_trigger.pk, trigger.pk)
-
-        ChannelEvent.create(
-            self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-        self.assertEqual(ChannelEvent.objects.all().count(), 2)
-        self.assertEqual(flow.runs.all().count(), 1)
-        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
-
-        other_flow = Flow.copy(flow, self.admin)
-        post_data = dict(flow=other_flow.pk)
-
-        response = self.client.post(reverse("triggers.trigger_update", args=[trigger.pk]), post_data)
-        trigger = Trigger.objects.get(pk=trigger.pk)
-        self.assertEqual(trigger.flow.pk, other_flow.pk)
-
-        # create ten missed call triggers
-        for i in range(10):
-            response = self.client.get(trigger_url)
-            self.assertEqual(response.status_code, 200)
-
-            post_data = dict(flow=flow.pk)
-
-            response = self.client.post(trigger_url, post_data)
-            self.assertEqual(i + 2, Trigger.objects.all().count())
-            self.assertEqual(
-                1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count()
-            )
-
-        # even unarchiving we only have one acive trigger at a time
-        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
-        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
-
-        post_data = dict()
-        post_data["action"] = "restore"
-        post_data["objects"] = [t.pk for t in triggers]
-
-        response = self.client.post(reverse("triggers.trigger_archived"), post_data)
-        self.assertEqual(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
-        self.assertFalse(
-            active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].pk
-        )
 
     def test_new_conversation_trigger_viber(self):
         self.login(self.admin)
