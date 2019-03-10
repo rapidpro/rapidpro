@@ -1,3 +1,7 @@
+v4.22.5
+----------
+ * queue incoming messages and incoming calls from relayer to mailroom
+
 v4.22.4
 ----------
  * Temporarily disable flow validation until we can fix it for new orgs
