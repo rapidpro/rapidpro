@@ -1,3 +1,8 @@
+v4.22.6
+----------
+ * Add Viber Welcome Message event type and config
+ * More customer support service buttons
+
 v4.22.5
 ----------
  * queue incoming messages and incoming calls from relayer to mailroom
