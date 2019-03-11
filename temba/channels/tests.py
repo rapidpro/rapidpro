@@ -137,6 +137,21 @@ class ChannelTest(TembaTest):
         self.assertEqual(context["tel"], "")
         self.assertEqual(context["tel_e164"], "")
 
+    def test_channel_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
+        )
+
     def test_deactivate(self):
         self.login(self.admin)
         self.tel_channel.is_active = False
@@ -2454,7 +2469,7 @@ class ChannelCountTest(TembaTest):
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
         self.contact = self.create_contact("Fred Jones", "+12067799191")
-        self.create_secondary_org(100000)
+        self.create_secondary_org(100_000)
 
         incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
         self.assertEqual(self.contact, incoming_msg.contact)
