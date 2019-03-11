@@ -1456,7 +1456,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
@@ -1556,7 +1556,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             if obj.config:
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    obj.config[field] = bool(self.form.cleaned_data[field])
+                    obj.config[field] = self.form.cleaned_data[field]
             return obj
 
         def post_save(self, obj):
