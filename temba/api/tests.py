@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.api.models import APIToken, WebHookEvent, WebHookResult
 from temba.api.tasks import retry_events_task, trim_webhook_event_task
-from temba.channels.models import ChannelEvent, SyncEvent
+from temba.channels.models import SyncEvent
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.msgs.models import FAILED, Broadcast
 from temba.orgs.models import ALL_EVENTS
@@ -104,63 +104,6 @@ class WebHookTest(TembaTest):
 
         self.channel.address = "+250788123123"
         self.channel.save()
-
-    def test_call_deliveries(self):
-        self.setupChannel()
-        now = timezone.now()
-        call = ChannelEvent.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=self.joe,
-            contact_urn=self.joe.get_urn(),
-            event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
-            occurred_on=now,
-        )
-
-        self.setupChannel()
-
-        with patch("requests.Session.send") as mock:
-            # clear out which events we listen for, we still shouldnt be notified though we have a webhook
-            self.channel.org.webhook_events = 0
-            self.channel.org.save()
-
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_call_event(call)
-            self.assertFalse(WebHookEvent.objects.all())
-
-        self.setupChannel()
-
-        with patch("requests.Session.send") as mock:
-            mock.return_value = MockResponse(200, "Hello World")
-
-            # trigger an event
-            WebHookEvent.trigger_call_event(call)
-            event = WebHookEvent.objects.get()
-
-            self.assertEqual("C", event.status)
-            self.assertEqual(1, event.try_count)
-            self.assertFalse(event.next_attempt)
-
-            result = WebHookResult.objects.get()
-            self.assertEqual(200, result.status_code)
-            self.assertEqual("Hello World", result.response)
-
-            self.assertTrue(mock.called)
-            args = mock.call_args_list[0][0]
-            prepared_request = args[0]
-            self.assertEqual(self.channel.org.get_webhook_url(), prepared_request.url)
-
-            data = parse_qs(prepared_request.body)
-            self.assertEqual("+250788123123", data["phone"][0])
-            self.assertEqual(str(self.joe.get_urn(TEL_SCHEME)), data["urn"][0])
-            self.assertEqual(self.joe.uuid, data["contact"][0])
-            self.assertEqual(self.joe.name, data["contact_name"][0])
-            self.assertEqual(call.pk, int(data["call"][0]))
-            self.assertEqual(call.event_type, data["event"][0])
-            self.assertIn("occurred_on", data)
-            self.assertEqual(self.channel.pk, int(data["channel"][0]))
 
     def test_alarm_deliveries(self):
         sync_event = SyncEvent.objects.create(
