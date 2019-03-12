@@ -1512,10 +1512,8 @@ class Msg(models.Model):
             text = clean_string(text[: cls.MAX_TEXT_LEN])
 
         # don't create duplicate messages
-        existing = Msg.objects.filter(
-            text=text, sent_on=sent_on, contact=contact, direction="I"
-        ).first()  # pragma: no cover
-        if existing:
+        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
+        if existing:  # pragma: no cover
             return existing
 
         # costs 1 credit to receive a message
