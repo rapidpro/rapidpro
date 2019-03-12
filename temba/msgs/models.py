@@ -1513,7 +1513,7 @@ class Msg(models.Model):
 
         # don't create duplicate messages
         existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
-        if existing:
+        if existing:  # pragma: no cover
             return existing
 
         # costs 1 credit to receive a message

@@ -3928,6 +3928,21 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(reverse("contacts.contact_read", args=[hans.uuid]), self.superuser)
         self.assertEqual(response.status_code, 200)
 
+    def test_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={self.joe.org_id}&redirect_url=/contact/read/{self.joe.uuid}/",
+        )
+
     def test_read_language(self):
 
         # this is a bogus
