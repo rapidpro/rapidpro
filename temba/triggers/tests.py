@@ -629,8 +629,6 @@ class TriggerTest(TembaTest):
             self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
         )
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
-        self.assertEqual(flow.runs.all().count(), 1)
-        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)
@@ -652,7 +650,7 @@ class TriggerTest(TembaTest):
                 1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count()
             )
 
-        # even unarchiving we only have one acive trigger at a time
+        # even unarchiving we only have one active trigger at a time
         triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
         active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
 

@@ -24,7 +24,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -3831,6 +3831,7 @@ class FlowTest(TembaTest):
         response = self.client.post(
             reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
         )
+
         self.assertEqual(response.status_code, 400)
 
         self.flow.refresh_from_db()
@@ -6532,6 +6533,32 @@ class FlowsTest(FlowFileTest):
                 "15%(delim)sM%(delim)spequeño" % ctx, "I don't know the location pequeño. Please try again."
             )
 
+    @skip_if_no_mailroom
+    def test_create_dependencies(self):
+        self.login(self.admin)
+
+        flow = self.get_flow("favorites")
+        flow_json = flow.as_json()
+
+        # create an invalid label in our first actionset
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "add_label",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2a",
+                "labels": [{"uuid": "fake uuid", "name": "Foo zap"}],
+            }
+        )
+
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        # make sure our revision doesn't have our fake uuid
+        label = Label.all_objects.get(name="Foo zap")
+        self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
+
     def test_write_protection(self):
         flow = self.get_flow("favorites")
         flow_json = flow.as_json()
@@ -7898,7 +7925,8 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow("favorites")
 
         self.assertEqual(
-            flow.results, {"beer": {"names": ["Beer"]}, "color": {"names": ["Color"]}, "name": {"names": ["Name"]}}
+            flow.results,
+            [{"name": "Beer", "key": "beer"}, {"name": "Color", "key": "color"}, {"name": "Name", "key": "name"}],
         )
 
     def test_group_split(self):
@@ -10445,43 +10473,6 @@ class WebhookLoopTest(FlowFileTest):
 
         # check all our mocked requests were made
         self.assertAllRequestsMade()
-
-
-class MissedCallChannelTest(FlowFileTest):
-    def test_missed_call_channel(self):
-        flow = self.get_flow("call_channel_split")
-
-        # trigger a missed call on our channel
-        call = ChannelEvent.create(
-            self.channel, "tel:+250788111222", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-
-        # we aren't in the group, so no run should be started
-        run = FlowRun.objects.filter(flow=flow).first()
-        self.assertIsNone(run)
-
-        # but if we add our contact to the group..
-        group = ContactGroup.user_groups.filter(name="Trigger Group").first()
-        group.update_contacts(self.admin, [self.create_contact(number="+250788111222")], True)
-
-        # now create another missed call which should fire our trigger
-        call = ChannelEvent.create(
-            self.channel, "tel:+250788111222", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
-        )
-
-        # should have triggered our flow
-        FlowRun.objects.get(flow=flow)
-
-        # should have sent a message to the user
-        msg = Msg.objects.get(contact=call.contact, channel=self.channel)
-        self.assertEqual(msg.text, "Matched +250785551212")
-
-        # try the same thing with a contact trigger (same as missed calls via twilio)
-        Trigger.catch_triggers(msg.contact, Trigger.TYPE_MISSED_CALL, msg.channel)
-
-        self.assertEqual(2, Msg.objects.filter(contact=call.contact, channel=self.channel).count())
-        last = Msg.objects.filter(contact=call.contact, channel=self.channel).order_by("-pk").first()
-        self.assertEqual(last.text, "Matched +250785551212")
 
 
 class GhostActionNodeTest(FlowFileTest):

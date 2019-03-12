@@ -49,7 +49,7 @@ from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -1508,7 +1508,7 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
@@ -1569,7 +1569,7 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
-            except FlowValidationException:
+            except FlowValidationException:  # pragma: no cover
                 error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
