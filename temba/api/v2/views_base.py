@@ -10,9 +10,10 @@ from django.db import transaction
 from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
+from temba.utils.views import NonAtomicMixin
 
 
-class BaseAPIView(generics.GenericAPIView):
+class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
@@ -22,10 +23,6 @@ class BaseAPIView(generics.GenericAPIView):
     model = None
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
-
-    @transaction.non_atomic_requests
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
 
     def options(self, request, *args, **kwargs):
         """

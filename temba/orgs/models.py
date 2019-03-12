@@ -38,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, languages
+from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -1351,8 +1351,6 @@ class Org(SmartModel):
         )
 
     def create_sample_flows(self, api_url):
-        import json
-
         # get our sample dir
         filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
 
@@ -2045,16 +2043,19 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
 
-        self.flow_server_enabled = flow_server_enabled
-        self.save(update_fields=["flow_server_enabled"])
+        with transaction.atomic():
+            self.flow_server_enabled = flow_server_enabled
+            self.save(update_fields=["flow_server_enabled"])
 
-        if not branding:
-            branding = BrandingMiddleware.get_branding_for_host("")
+            if not branding:
+                branding = BrandingMiddleware.get_branding_for_host("")
 
-        self.create_system_groups()
-        self.create_system_contact_fields()
+            self.create_system_groups()
+            self.create_system_contact_fields()
+            self.create_welcome_topup(topup_size)
+
+        # outside of the transaction as it's going to call out to mailroom for flow validation
         self.create_sample_flows(branding.get("api_link", ""))
-        self.create_welcome_topup(topup_size)
 
     def download_and_save_media(self, request, extension=None):  # pragma: needs cover
         """
