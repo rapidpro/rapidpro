@@ -647,12 +647,11 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd["phone"] if cmd["phone"] else "empty"
                         try:
-                            URN.normalize(URN.from_tel(tel), channel.country.code)
+                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
                             if "msg" in cmd:
-                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd["msg"], sent_on=date)
-                                if msg:
-                                    extra = dict(msg_id=msg.id)
+                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                                extra = dict(msg_id=msg.id)
                         except ValueError:
                             pass
 
@@ -672,7 +671,9 @@ def sync(request, channel_id):
                         if cmd["phone"]:
                             urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
                             try:
-                                ChannelEvent.create(channel, urn, cmd["type"], date, extra=dict(duration=duration))
+                                ChannelEvent.create_relayer_event(
+                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                                )
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
@@ -1238,6 +1239,16 @@ class ChannelCRUDL(SmartCRUDL):
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.get_object().uuid])}',
+                    )
+                )
+
             return links
 
         def get_context_data(self, **kwargs):
@@ -1445,7 +1456,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
@@ -1545,7 +1556,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             if obj.config:
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    obj.config[field] = bool(self.form.cleaned_data[field])
+                    obj.config[field] = self.form.cleaned_data[field]
             return obj
 
         def post_save(self, obj):
