@@ -1569,7 +1569,7 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
-            except FlowValidationException:
+            except FlowValidationException:  # pragma: no cover
                 error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")

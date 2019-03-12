@@ -1054,7 +1054,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     for trigger in exported_json.get("triggers", []):
         if "flow" in trigger:
             remap_flow(trigger["flow"])
-        for group in trigger["groups"]:
+        for group in trigger["groups"]:  # pragma: no cover
             remap_group(group)
         remap_channel(trigger)
 
