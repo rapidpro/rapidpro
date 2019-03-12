@@ -35,6 +35,7 @@ from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -460,11 +461,16 @@ class Org(SmartModel):
 
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
-        # we need to import flows first, they will resolve to
-        # the appropriate ids and update our definition accordingly
-        Flow.import_flows(data, self, user, same_site)
-        Campaign.import_campaigns(data, self, user, same_site)
-        Trigger.import_triggers(data, self, user, same_site)
+        with transaction.atomic():
+            # we need to import flows first, they will resolve to
+            # the appropriate ids and update our definition accordingly
+            new_flows = Flow.import_flows(data, self, user, same_site)
+            Campaign.import_campaigns(data, self, user, same_site)
+            Trigger.import_triggers(data, self, user, same_site)
+
+        # with all the flows and dependencies committed, we can now have mailroom do full validation
+        for flow in new_flows:
+            mailroom.get_client().flow_validate(self, flow.as_json())
 
     @classmethod
     def export_definitions(cls, site_link, components):

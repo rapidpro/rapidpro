@@ -539,7 +539,7 @@ class Flow(TembaModel):
                     if flow_uuid in uuid_map:
                         trigger["flow"]["uuid"] = uuid_map[flow_uuid]
 
-        return exported_json
+        return [f["flow"] for f in created_flows]
 
     @classmethod
     def copy(cls, flow, user):
@@ -1340,7 +1340,7 @@ class Flow(TembaModel):
                     remap_group(group)
 
         # now update with our remapped values
-        self.update(flow_json)
+        self.update(flow_json, validate_dependencies=False)
         return self
 
     def archive(self):
@@ -2287,7 +2287,7 @@ class Flow(TembaModel):
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
 
-    def update(self, json_dict, user=None, force=False):
+    def update(self, json_dict, user=None, force=False, validate_dependencies=True):
         """
         Updates a definition for a flow and returns the new revision
         """
@@ -2326,7 +2326,7 @@ class Flow(TembaModel):
                     actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
                     actionset[Flow.ACTIONS] = actions
 
-            mailroom.get_client().flow_validate(self.org, json_dict)
+            mailroom.get_client().flow_validate(self.org if validate_dependencies else None, json_dict)
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
