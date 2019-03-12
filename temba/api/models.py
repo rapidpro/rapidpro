@@ -95,7 +95,7 @@ class Resthook(SmartModel):
         """
         Looks up (or creates) the resthook for the passed in org and slug
         """
-        slug = slug.lower()
+        slug = slug.lower().strip()
         resthook = Resthook.objects.filter(is_active=True, org=org, slug=slug).first()
         if not resthook:
             resthook = Resthook.objects.create(org=org, slug=slug, created_by=user, modified_by=user)

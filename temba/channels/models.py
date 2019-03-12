@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
+from temba.mailroom.queue import queue_mailroom_mo_miss_task
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
@@ -252,6 +253,11 @@ class ChannelType(metaclass=ABCMeta):
 
 def _get_default_channel_scheme():
     return ["tel"]
+
+
+class UnsupportedAndroidChannelError(Exception):
+    def __init__(self, message):
+        self.message = message
 
 
 class Channel(TembaModel):
@@ -673,8 +679,12 @@ class Channel(TembaModel):
         country = status.get("cc")
         device = status.get("dev")
 
-        if not fcm_id or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID or FCM ID")
+        if not fcm_id or not uuid:
+            gcm_id = registration_data.get("gcm_id")
+            if gcm_id:
+                raise UnsupportedAndroidChannelError("Unsupported Android client app.")
+            else:
+                raise ValueError("Can't create Android channel without UUID or FCM ID")
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
@@ -1383,15 +1393,12 @@ class ChannelEvent(models.Model):
 
     @classmethod
     def create(cls, channel, urn, event_type, occurred_on, extra=None):
-        from temba.api.models import WebHookEvent
         from temba.contacts.models import Contact
-        from temba.triggers.models import Trigger
 
-        org = channel.org
-        contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
+        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
 
         event = cls.objects.create(
-            org=org,
+            org=channel.org,
             channel=channel,
             contact=contact,
             contact_urn=contact_urn,
@@ -1400,12 +1407,27 @@ class ChannelEvent(models.Model):
             extra=extra,
         )
 
-        if event_type in cls.CALL_TYPES:
-            analytics.gauge("temba.call_%s" % event.get_event_type_display().lower().replace(" ", "_"))
-            WebHookEvent.trigger_call_event(event)
+        return event
+
+    @classmethod
+    def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
+        from temba.contacts.models import Contact
+
+        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
+
+        event = cls.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            occurred_on=occurred_on,
+            event_type=event_type,
+            extra=extra,
+        )
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
-            Trigger.catch_triggers(event, Trigger.TYPE_MISSED_CALL, channel)
+            # pass off handling of the message to mailroom after we commit
+            on_transaction_commit(lambda: queue_mailroom_mo_miss_task(event))
 
         return event
 
@@ -1931,16 +1953,6 @@ class ChannelConnection(models.Model):
         (TRIGGERED, "Triggered"),
         (INITIATED, "Initiated"),
         (ENDING, "Ending"),
-    )
-
-    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="connections",
-        help_text="The user which originally created this connection",
-        null=True,
     )
 
     created_on = models.DateTimeField(
