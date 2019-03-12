@@ -437,7 +437,6 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(ORG_STATUS, None) == WHITELISTED
 
-    @transaction.atomic
     def import_app(self, data, user, site=None):
         from temba.flows.models import Flow
         from temba.campaigns.models import Campaign
@@ -1356,21 +1355,20 @@ class Org(SmartModel):
 
         # for each of our samples
         with open(filename, "r") as example_file:
-            example = example_file.read()
+            samples = example_file.read()
 
         user = self.get_user()
         if user:
             # some some substitutions
-            org_example = example.replace("{{EMAIL}}", user.username)
-            org_example = org_example.replace("{{API_URL}}", api_url)
+            samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
 
             try:
-                self.import_app(json.loads(org_example), user)
+                self.import_app(json.loads(samples), user)
             except Exception as e:  # pragma: needs cover
                 logger.error(
                     f"Failed creating sample flows: {str(e)}",
                     exc_info=True,
-                    extra=dict(definition=json.loads(org_example)),
+                    extra=dict(definition=json.loads(samples)),
                 )
 
     def is_notified_of_mt_sms(self):
