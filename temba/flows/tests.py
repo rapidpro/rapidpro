@@ -7918,7 +7918,7 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual(
             flow.results,
-            [{"name": "Beer", "key": "beer"}, {"name": "Color", "key": "color"}, {"name": "Name", "key": "name"}],
+            [{"name": "Color", "key": "color"}, {"name": "Beer", "key": "beer"}, {"name": "Name", "key": "name"}],
         )
 
     def test_group_split(self):
