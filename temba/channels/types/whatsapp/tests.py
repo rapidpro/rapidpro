@@ -1,5 +1,4 @@
-
-from mock import patch
+from unittest.mock import patch
 
 from django.forms import ValidationError
 from django.urls import reverse
@@ -61,6 +60,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
         self.assertEqual("WA", channel.channel_type)
+        self.assertTrue(channel.get_type().has_attachment_support(channel))
 
         # test activating the channel
         with patch("requests.patch") as mock_patch:

@@ -1,4 +1,3 @@
-
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -111,6 +110,34 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             choices=Channel.ENCODING_CHOICES,
             label=_("Encoding"),
             help_text=_("What encoding to use for outgoing messages"),
+        )
+
+        content_type = forms.ChoiceField(
+            choices=Channel.CONTENT_TYPE_CHOICES, help_text=_("The content type used when sending the request")
+        )
+
+        max_length = forms.IntegerField(
+            initial=160,
+            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            help_text=_(
+                "The maximum length of any single message on this channel. " "(longer messages will be split)"
+            ),
+        )
+
+        body = forms.CharField(
+            max_length=2048,
+            label=_("Request Body"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"),
+        )
+
+        mt_response_check = forms.CharField(
+            max_length=2048,
+            label=_("MT Response check"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The content that must be in the response to consider the request successful"),
         )
 
     title = "Connect External Service"

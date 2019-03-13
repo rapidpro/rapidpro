@@ -1,6 +1,6 @@
+from unittest.mock import patch
 
 import telegram
-from mock import patch
 
 from django.test import override_settings
 from django.urls import reverse

@@ -1,21 +1,16 @@
 import inspect
-import os
 import shutil
-import string
 import sys
-import time
 from datetime import datetime, timedelta
-from functools import wraps
 from io import StringIO
 from unittest import skipIf
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
 import redis
 import regex
 from future.moves.html.parser import HTMLParser
-from mock import patch
-from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -23,9 +18,7 @@ from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import LiveServerTestCase, override_settings
 from django.test.runner import DiscoverRunner
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
@@ -36,7 +29,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Org
-from temba.utils import dict_to_struct, get_anonymous_user, json
+from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
 
 from .http import MockServer
@@ -76,62 +69,11 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def skip_if_no_flowserver(test):
+def skip_if_no_mailroom(test):
     """
-    Skip a test if flow server isn't configured
+    Skip a test if mailroom isn't configured
     """
-    return skipIf(settings.FLOW_SERVER_URL is None, "this test can't be run without a flowserver instance")(test)
-
-
-def also_in_flowserver(test_func):
-    """
-    Decorator to mark a test function as one that should also be run with the flow server
-    """
-    test_func._also_in_flowserver = True
-    return test_func
-
-
-class AddFlowServerTestsMeta(type):
-    """
-    Metaclass with adds new flowserver-based tests based on existing tests decorated with @also_in_flowserver. For
-    example a test method called test_foo will become two test methods - the original test_foo which runs in the old
-    engine, and a new one called test_foo_flowserver with is run using the flowserver.
-    """
-
-    def __new__(mcs, name, bases, dct):
-        new_tests = {}
-        for key, test_func in dct.items():
-            if key.startswith("test_") and getattr(test_func, "_also_in_flowserver", False):
-                test_without, test_with = mcs._split_test(test_func)
-
-                new_tests[key] = test_without
-                if settings.FLOW_SERVER_URL:
-                    new_tests[key + "_flowserver"] = test_with
-
-        dct.update(new_tests)
-
-        return super().__new__(mcs, name, bases, dct)
-
-    @staticmethod
-    def _split_test(test_func):
-        """
-        Takes a given test function and returns two test functions - one that will run without the flowserver, and one
-        that will run with the flowserver
-        """
-        old_func = test_func
-        new_func = override_settings(FLOW_SERVER_AUTH_TOKEN="1234", FLOW_SERVER_FORCE=True)(test_func)
-
-        @wraps(old_func)
-        def old_wrapper(*args, **kwargs):
-            kwargs["in_flowserver"] = False
-            return old_func(*args, **kwargs)
-
-        @wraps(new_func)
-        def new_wrapper(*args, **kwargs):
-            kwargs["in_flowserver"] = True
-            return new_func(*args, **kwargs)
-
-        return old_wrapper, new_wrapper
+    return skipIf(not settings.MAILROOM_URL, "this test can't be run without a mailroom instance")(test)
 
 
 class ESMockWithScroll:
@@ -519,7 +461,7 @@ class TembaTestMixin(object):
         cursor.execute("explain %s" % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in regex.finditer("Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
+        for match in regex.finditer(r"Index Scan using (.*?) on (.*?) \(cost", str(plan), regex.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))
@@ -528,7 +470,7 @@ class TembaTestMixin(object):
         return indexes
 
 
-class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
+class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server
@@ -607,7 +549,7 @@ class TembaTest(TembaTestMixin, SmartminTest, metaclass=AddFlowServerTestsMeta):
             address="+250785551212",
             device="Nexus 5X",
             secret="12345",
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         # don't cache anon user between tests
@@ -795,145 +737,6 @@ class MLStripper(HTMLParser):  # pragma: no cover
         return "".join(self.fed)
 
 
-class BrowserTest(LiveServerTestCase):  # pragma: no cover
-    @classmethod
-    def setUpClass(cls):
-        cls.driver = WebDriver()
-
-        try:
-            import os
-
-            os.mkdir("screenshots")
-        except Exception:
-            pass
-
-        super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        pass
-        # cls.driver.quit()
-        # super().tearDownClass()
-
-    def strip_tags(self, html):
-        s = MLStripper()
-        s.feed(html)
-        return s.get_data()
-
-    def save_screenshot(self):
-        time.sleep(1)
-        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-        filename = "".join(c for c in self.driver.current_url if c in valid_chars)
-        self.driver.get_screenshot_as_file("screenshots/%s.png" % filename)
-
-    def fetch_page(self, url=None):
-
-        if not url:
-            url = ""
-
-        if "http://" not in url:
-            url = self.live_server_url + url
-
-        self.driver.get(url)
-        self.save_screenshot()
-
-    def get_elements(self, selector):
-        return self.driver.find_elements_by_css_selector(selector)
-
-    def get_element(self, selector):
-        if selector[0] == "#" or selector[0] == ".":
-            return self.driver.find_element_by_css_selector(selector)
-        else:
-            return self.driver.find_element_by_name(selector)
-
-    def keys(self, selector, value):
-        self.get_element(selector).send_keys(value)
-
-    def click(self, selector):
-        time.sleep(1)
-        self.get_element(selector).click()
-        self.save_screenshot()
-
-    def link(self, link_text):
-        self.driver.find_element_by_link_text(link_text).click()
-        time.sleep(2)
-        self.save_screenshot()
-
-    def submit(self, selector):
-        time.sleep(1)
-        self.get_element(selector).submit()
-        self.save_screenshot()
-        time.sleep(1)
-
-    def assertInElements(self, selector, text, strip_html=True):
-        for element in self.get_elements(selector):
-            if text in (self.strip_tags(element.text) if strip_html else element.text):
-                return
-
-        self.fail("Couldn't find '%s' in any element '%s'" % (text, selector))
-
-    def assertInElement(self, selector, text, strip_html=True):
-        element = self.get_element(selector)
-        if text not in (self.strip_tags(element.text) if strip_html else element.text):
-            self.fail("Couldn't find '%s' in  '%s'" % (text, element.text))
-
-    def browser(self):
-
-        self.driver.set_window_size(1024, 2000)
-
-        # view the homepage
-        self.fetch_page()
-
-        # go directly to our signup
-        self.fetch_page(reverse("orgs.org_signup"))
-
-        # create account
-        self.keys("email", "code@temba.com")
-        self.keys("password", "SuperSafe1")
-        self.keys("first_name", "Joe")
-        self.keys("last_name", "Blow")
-        self.click("#form-one-submit")
-        self.keys("name", "Temba")
-        self.click("#form-two-submit")
-
-        # set up our channel for claiming
-        channel = Channel.create(
-            None,
-            get_anonymous_user(),
-            "RW",
-            "A",
-            name="Test Channel",
-            address="0785551212",
-            claim_code="AAABBBCCC",
-            secret="12345",
-            gcm_id="123",
-        )
-
-        # and claim it
-        self.fetch_page(reverse("channels.channel_claim_android"))
-        self.keys("#id_claim_code", "AAABBBCCC")
-        self.keys("#id_phone_number", "0785551212")
-        self.submit(".claim-form")
-
-        # get our freshly claimed channel
-        channel = Channel.objects.get(pk=channel.pk)
-
-        # now go to the contacts page
-        self.click("#menu-right .icon-contact")
-        self.click("#id_import_contacts")
-
-        # upload some contacts
-        directory = os.path.dirname(os.path.realpath(__file__))
-        self.keys("#csv_file", "%s/../media/test_imports/sample_contacts.xls" % directory)
-        self.submit(".smartmin-form")
-
-        # make sure they are there
-        self.click("#menu-right .icon-contact")
-        self.assertInElements(".value-phone", "+250788382382")
-        self.assertInElements(".value-text", "Eric Newcomer")
-        self.assertInElements(".value-text", "Sample Contacts")
-
-
 class MockResponse(object):
     def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
         self.text = force_text(text)
@@ -986,9 +789,7 @@ class MigrationTest(TembaTest):
     def setUp(self):
         assert (
             self.migrate_from and self.migrate_to
-        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(
-            type(self).__name__
-        )
+        ), "TestCase '{}' must define migrate_from and migrate_to properties".format(type(self).__name__)
 
         # set up our temba test
         super().setUp()

@@ -1,14 +1,15 @@
-
 import logging
 import time
+from datetime import timedelta
 
 import iso8601
 
+from django.conf import settings
 from django.utils import timezone
+from django.utils.timesince import timesince
 
 from celery.task import task
 
-from temba.flows.models import FLOW_BATCH
 from temba.msgs.models import BROADCAST_BATCH, HANDLE_EVENT_TASK, TIMEOUT_EVENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils.cache import QueueRecord
@@ -16,6 +17,7 @@ from temba.utils.dates import datetime_to_epoch
 from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import (
+    FLOW_BATCH,
     ExportFlowResultsTask,
     Flow,
     FlowCategoryCount,
@@ -24,6 +26,7 @@ from .models import (
     FlowPathRecentRun,
     FlowRun,
     FlowRunCount,
+    FlowSession,
     FlowStart,
     FlowStartCount,
 )
@@ -173,15 +176,48 @@ def start_msg_flow_batch_task():
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_flowpathcounts", lock_key="squash_flowpathcounts", lock_timeout=7200
+)
 def squash_flowpathcounts():
     FlowPathCount.squash()
 
 
-@nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key="squash_flowruncounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_flowruncounts", lock_key="squash_flowruncounts", lock_timeout=7200
+)
 def squash_flowruncounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
     FlowCategoryCount.squash()
     FlowPathRecentRun.prune()
     FlowStartCount.squash()
+
+
+@nonoverlapping_task(track_started=True, name="trim_flow_sessions")
+def trim_flow_sessions():
+    """
+    Cleanup old flow sessions
+    """
+    threshold = timezone.now() - timedelta(days=settings.FLOW_SESSION_TRIM_DAYS)
+    num_deleted = 0
+    start = timezone.now()
+
+    print(f"Deleting flow sessions which ended before {threshold.isoformat()}...")
+
+    while True:
+        session_ids = list(FlowSession.objects.filter(ended_on__lte=threshold).values_list("id", flat=True)[:1000])
+        if not session_ids:
+            break
+
+        # detach any flows runs that belong to these sessions
+        FlowRun.objects.filter(session_id__in=session_ids).update(session_id=None)
+
+        FlowSession.objects.filter(id__in=session_ids).delete()
+        num_deleted += len(session_ids)
+
+        if num_deleted % 10000 == 0:  # pragma: no cover
+            print(f" > Deleted {num_deleted} flow sessions")
+
+    elapsed = timesince(start)
+    print(f"Deleted {num_deleted} flow sessions which ended before {threshold.isoformat()} in {elapsed}")

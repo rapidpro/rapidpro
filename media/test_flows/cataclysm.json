@@ -1,0 +1,252 @@
+{
+  "version": "11.5",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "entry": "c4462613-5936-42cc-a286-82e5f1816793",
+      "action_sets": [
+        {
+          "uuid": "eca0f1d7-59ef-4a7c-a4a9-9bbd049eb144",
+          "x": 76,
+          "y": 99,
+          "destination": "d21be990-5e48-4e4b-995f-c9df8f38e517",
+          "actions": [
+            {
+              "type": "add_group",
+              "uuid": "feb7a33e-bc8b-44d8-9112-bc4e910fe304",
+              "groups": [
+                {
+                  "uuid": "1966e54a-fc30-4a96-81ea-9b0185b8b7de",
+                  "name": "Cat Fanciers"
+                }
+              ]
+            },
+            {
+              "type": "add_group",
+              "uuid": "ca82f0e0-43ca-426c-a77c-93cf297b8e7c",
+              "groups": [
+                 {
+                  "uuid": "bc4d7100-60ac-44f0-aa78-0ec9373d2c2f",
+                  "name": "Catnado"
+                }
+              ]
+            },
+            {
+              "type": "reply",
+              "uuid": "d57e9e9f-ada4-4a22-99ef-b8bf3dbcdcae",
+              "msg": {
+                "eng": "You are a cat fan! Purrrrr."
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "55f88a1e-73ad-4b6d-9a04-626046bbe5a8"
+        },
+        {
+          "uuid": "ef389049-d2e3-4343-b91f-13ea2db5f943",
+          "x": 558,
+          "y": 94,
+          "destination": "d21be990-5e48-4e4b-995f-c9df8f38e517",
+          "actions": [
+            {
+              "type": "del_group",
+              "uuid": "cea907a8-af81-49af-92e6-f246e52179fe",
+              "groups": [
+                {
+                  "uuid": "bc4d7100-60ac-44f0-aa78-0ec9373d2c2f",
+                  "name": "Catnado"
+                }
+              ]
+            },
+            {
+              "type": "reply",
+              "uuid": "394a328f-f829-43f2-9975-fe2f27c8b786",
+              "msg": {
+                "eng": "You are not a cat fan. Hissssss."
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "9ba78afa-948e-44c5-992f-84030f2eaa6b"
+        },
+        {
+          "uuid": "d21be990-5e48-4e4b-995f-c9df8f38e517",
+          "x": 319,
+          "y": 323,
+          "destination": "35416fea-787d-48c1-b839-76eca089ad2e",
+          "actions": [
+            {
+              "type": "channel",
+              "uuid": "78c58574-9f91-4c27-855e-73eacc99c395",
+              "channel": "bd55bb31-8ed4-4f89-b903-7103aa3762be",
+              "name": "Telegram: TextItBot"
+            }
+          ],
+          "exit_uuid": "c86638a9-2688-47c9-83ec-7f10ef49de1e"
+        },
+        {
+          "uuid": "35416fea-787d-48c1-b839-76eca089ad2e",
+          "x": 319,
+          "y": 468,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "30d35b8f-f439-482a-91b1-d3b1a4351071",
+              "msg": {
+                "eng": "All done."
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "send",
+              "uuid": "a7b6def8-d315-49bd-82e4-85887f39babe",
+              "msg": {
+                "eng": "Hey Cat Fans!"
+              },
+              "contacts": [],
+              "groups": [
+                {
+                  "uuid": "47b1b36c-7736-47b9-b63a-c0ebfb610e61",
+                  "name": "Cat Blasts"
+                }
+              ],
+              "variables": [],
+              "media": {}
+            },
+            {
+              "type": "trigger-flow",
+              "uuid": "540965e5-bdfe-4416-b4dd-449220b1c588",
+              "flow": {
+                "uuid": "ef9603ff-3886-4e5e-8870-0f643b6098de",
+                "name": "Cataclysmic"
+              },
+              "contacts": [],
+              "groups": [
+                {
+                  "uuid": "22a48356-71e9-4ae1-9f93-4021855c0bd5",
+                  "name": "Cat Alerts"
+                }
+              ],
+              "variables": []
+            }
+          ],
+          "exit_uuid": "f2ef5066-434d-42bc-a5cb-29c59e51432f"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "c4462613-5936-42cc-a286-82e5f1816793",
+          "x": 294,
+          "y": 0,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "17d69564-60c9-4a56-be8b-34e98a2ce14a",
+              "category": {
+                "eng": "Cat Facts"
+              },
+              "destination": "eca0f1d7-59ef-4a7c-a4a9-9bbd049eb144",
+              "destination_type": "A",
+              "test": {
+                "type": "in_group",
+                "test": {
+                  "name": "Cat Facts",
+                  "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "a9ec4d0a-2ddd-4a13-a1d2-c63ce9916a04",
+              "category": {
+                "eng": "Other"
+              },
+              "destination": "ef389049-d2e3-4343-b91f-13ea2db5f943",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "group",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.5",
+      "metadata": {
+        "name": "Cataclysmic",
+        "saved_on": "2018-10-18T17:03:54.835916Z",
+        "revision": 49,
+        "uuid": "ef9603ff-3886-4e5e-8870-0f643b6098de",
+        "expires": 10080,
+        "notes": []
+      }
+    },
+    {
+      "entry": "0429d1f9-82ed-4198-80a2-3b213aa11fd5",
+      "action_sets": [
+        {
+          "uuid": "0429d1f9-82ed-4198-80a2-3b213aa11fd5",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "type": "add_group",
+              "uuid": "11f61fc6-834e-4cbc-88ee-c834279345e6",
+              "groups": [
+                {
+                  "uuid": "22a48356-71e9-4ae1-9f93-4021855c0bd5",
+                  "name": "Cat Alerts"
+                },
+                {
+                  "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9",
+                  "name": "Cat Facts"
+                },
+                {
+                  "uuid": "47b1b36c-7736-47b9-b63a-c0ebfb610e61",
+                  "name": "Cat Blasts"
+                },
+                {
+                  "uuid": "1966e54a-fc30-4a96-81ea-9b0185b8b7de",
+                  "name": "Cat Fanciers"
+                },
+                {
+                  "uuid": "bc4d7100-60ac-44f0-aa78-0ec9373d2c2f",
+                  "name": "Catnado"
+                }
+              ]
+            }
+          ],
+          "exit_uuid": "029a7c9d-c935-4ed1-9573-543ded29d954"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.5",
+      "metadata": {
+        "name": "Catastrophe",
+        "saved_on": "2018-10-18T19:03:07.702388Z",
+        "revision": 1,
+        "uuid": "d6dd96b1-d500-4c7a-9f9c-eae3f2a2a7c5",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

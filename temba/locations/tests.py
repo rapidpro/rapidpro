@@ -1,10 +1,9 @@
 import os
 import shutil
 import tempfile
+from unittest.mock import Mock, mock_open, patch
 
 import responses
-from mock import mock
-from mock.mock import mock_open, patch
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -433,7 +432,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT() as captured_output:
@@ -457,7 +456,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT():
@@ -470,7 +469,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT() as captured_output:
@@ -489,7 +488,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT():
@@ -502,7 +501,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT() as captured_output:
@@ -523,7 +522,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT():
@@ -536,7 +535,7 @@ class ImportGeoJSONtest(TestCase):
 
         with patch("builtins.open") as mock_file:
             mock_file.return_value.__enter__ = lambda filename: filename
-            mock_file.return_value.__exit__ = mock.Mock()
+            mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
             with CaptureSTDOUT() as captured_output:
@@ -554,7 +553,7 @@ class ImportGeoJSONtest(TestCase):
             zipfile_patched().namelist.return_value = ["admin_level_0_simplified.json"]
 
             zipfile_patched().open.return_value.__enter__ = lambda filename: filename
-            zipfile_patched().open.return_value.__exit__ = mock.Mock()
+            zipfile_patched().open.return_value.__exit__ = Mock()
             zipfile_patched().open.return_value.read.return_value = self.data_geojson_level_0
 
             with CaptureSTDOUT() as captured_output:

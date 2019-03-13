@@ -10,7 +10,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -38,7 +38,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, json, languages
+from temba.utils import analytics, chunk_list, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -106,12 +106,7 @@ TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
 TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
 TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
 
-SMTP_FROM_EMAIL = "SMTP_FROM_EMAIL"
-SMTP_HOST = "SMTP_HOST"
-SMTP_USERNAME = "SMTP_USERNAME"
-SMTP_PASSWORD = "SMTP_PASSWORD"
-SMTP_PORT = "SMTP_PORT"
-SMTP_ENCRYPTION = "SMTP_ENCRYPTION"
+SMTP_SERVER = "smtp_server"
 
 CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
 CHATBASE_API_KEY = "CHATBASE_API_KEY"
@@ -174,6 +169,8 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
@@ -779,54 +776,39 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
-        smtp_config = {
-            SMTP_FROM_EMAIL: from_email.strip(),
-            SMTP_HOST: host,
-            SMTP_USERNAME: username,
-            SMTP_PASSWORD: password,
-            SMTP_PORT: port,
-            SMTP_ENCRYPTION: encryption,
-        }
+    def add_smtp_config(self, from_email, host, username, password, port, user):
+        query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
         config = self.config
-        config.update(smtp_config)
+        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password)}@{host}:{port}/?{query}"})
         self.config = config
         self.modified_by = user
         self.save()
 
     def remove_smtp_config(self, user):
         if self.config:
-
-            self.config.pop(SMTP_FROM_EMAIL)
-            self.config.pop(SMTP_HOST)
-            self.config.pop(SMTP_USERNAME)
-            self.config.pop(SMTP_PASSWORD)
-            self.config.pop(SMTP_PORT)
-            self.config.pop(SMTP_ENCRYPTION)
+            self.config.pop(SMTP_SERVER)
             self.modified_by = user
             self.save()
 
     def has_smtp_config(self):
         if self.config:
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-
-            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            return bool(smtp_server)
         else:
             return False
 
     def email_action_send(self, recipients, subject, body):
         if self.has_smtp_config():
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            use_tls = self.config.get(SMTP_ENCRYPTION, None) == "T" or None
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            parsed_smtp_server = urlparse(smtp_server)
+            smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
+            use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
+
+            smtp_host = parsed_smtp_server.hostname
+            smtp_port = parsed_smtp_server.port
+            smtp_username = unquote(parsed_smtp_server.username)
+            smtp_password = unquote(parsed_smtp_server.password)
 
             send_custom_smtp_email(
                 recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
@@ -909,9 +891,8 @@ class Org(SmartModel):
         )
 
         response = client.create_application(params=params)
-        response_json = json.loads(response)
-        app_id = response_json.get("id", None)
-        private_key = response_json.get("keys", dict()).get("private_key", None)
+        app_id = response.get("id", None)
+        private_key = response.get("keys", dict()).get("private_key", None)
 
         nexmo_config[NEXMO_APP_ID] = app_id
         nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
@@ -1881,7 +1862,7 @@ class Org(SmartModel):
         except ValidationError as e:
             raise e
 
-        except Exception as e:
+        except Exception:
             logger = logging.getLogger(__name__)
             logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(
@@ -2161,12 +2142,7 @@ class Org(SmartModel):
         path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = public_file_storage.save(path, file)
 
-        # force http for localhost
-        scheme = "https"
-        if "localhost" in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
-            scheme = "http"
-
-        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
+        return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, *, release_users=True, immediately=False):
 

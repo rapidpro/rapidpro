@@ -146,7 +146,7 @@ class ContactGroupForm(forms.ModelForm):
             raise forms.ValidationError(str(e))
 
     class Meta:
-        fields = "__all__"
+        fields = ("name", "query")
         model = ContactGroup
 
 
@@ -1591,7 +1591,11 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["triggers"] = self.get_object().trigger_set.filter(is_archived=False)
+            group = self.get_object()
+
+            context["triggers"] = group.trigger_set.filter(is_archived=False)
+            context["campaigns"] = group.campaign_set.filter(is_archived=False)
+
             return context
 
         def get_success_url(self):
@@ -1606,10 +1610,14 @@ class ContactGroupCRUDL(SmartCRUDL):
             triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
             from temba.flows.models import Flow
 
             flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
             if flows.count():
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
+            if group.campaign_set.filter(is_archived=False).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
             # deactivate the group, this makes it 'invisible'

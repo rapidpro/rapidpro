@@ -52,6 +52,7 @@
   :javascript
     window.orgId = {{object.org.id}};
     window.flowId = {{object.id}};
+    window.flowUUID = '{{object.uuid}}';
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
@@ -59,6 +60,7 @@
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';
+    window.useMailroom = {{has_mailroom|lower}} && '{{object.flow_type}}' == 'M';
     window.has_ussd_channel = {{has_ussd_channel|lower}};
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
@@ -396,10 +398,11 @@
                     -trans "Click here to add a message"
 
                   %span.reply{ng-show:'action.type == "reply" || action.type == "send"'}
-
-                    .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
-                    .node-attachment.icon-attachment{ng-show:'action._attachURL'}
-                    .node-attachment.viewer-button.icon-quick-reply{ng-show:'action.quick_replies.length > 0'}
+      
+                    .node-attachments
+                      .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+                      .node-attachment.icon-attachment{ng-show:'action._attachURL'}
+                      .node-attachment.viewer-button.icon-quick-reply{ng-show:'action.quick_replies.length > 0'}
 
                     .uploading{ng-show:'action.uploading'}
                       %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
@@ -474,8 +477,10 @@
             .recent-messages{ng-show:'action_set._showMessages'}
               .title
                 -trans "Recent Messages"
-              .loading{ng-show:'!action_set._messages.length'}
+              .loading{ng-show:'!action_set._messages.length && !action_set._messagesLoaded'}
                 %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+              .empty-messages{ng-show:'!action_set._messages.length && action_set._messagesLoaded'}
+                -trans "No recent messages to show"
               .message{ng-repeat:'message in action_set._messages'}
                 .text
                   [[message.text]]
@@ -601,8 +606,10 @@
                   .recent-messages{ng-show:'category._showMessages'}
                     .title
                       -trans "Recent Messages"
-                    .loading{ng-show:'!category._messages.length'}
+                    .loading{ng-show:'!category._messages.length && !category._messagesLoaded'}
                       %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+                    .empty-messages{ng-show:'!category._messages.length && category._messagesLoaded'}
+                      -trans "No recent messages to show"
                     .message{ng-repeat:'message in category._messages'}
                       .text
                         [[message.text]]

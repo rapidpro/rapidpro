@@ -1,4 +1,3 @@
-
 import logging
 import time
 from datetime import timedelta
@@ -24,12 +23,6 @@ class MageStreamAction(Enum):
     activate = 1
     refresh = 2
     deactivate = 3
-
-
-@task(track_started=True, name="sync_channel_gcm_task")
-def sync_channel_gcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
-    channel = Channel.objects.filter(pk=channel_id).first()
-    Channel.sync_channel_gcm(cloud_registration_id, channel)
 
 
 @task(track_started=True, name="sync_channel_fcm_task")
@@ -91,6 +84,18 @@ def check_channels_task():
     Alert.check_alerts()
 
 
+@nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
+def sync_old_seen_channels_task():
+    now = timezone.now()
+    window_end = now - timedelta(minutes=15)
+    window_start = now - timedelta(days=7)
+    old_seen_channels = Channel.objects.filter(
+        is_active=True, channel_type=Channel.TYPE_ANDROID, last_seen__lte=window_end, last_seen__gt=window_start
+    )
+    for channel in old_seen_channels:
+        channel.trigger_sync()
+
+
 @task(track_started=True, name="send_alert_task")
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
@@ -118,6 +123,8 @@ def trim_channel_log_task():  # pragma: needs cover
         ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
 
 
-@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200
+)
 def squash_channelcounts():
     ChannelCount.squash()

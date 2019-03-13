@@ -1,7 +1,5 @@
-
 from datetime import datetime, timedelta
-
-from mock import patch
+from unittest.mock import patch
 
 from django.conf import settings
 from django.urls import reverse
@@ -172,6 +170,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.direction, USSDSession.USSD_PUSH)
         self.assertEqual(session.status, USSDSession.INITIATED)
         self.assertIsInstance(session.started_on, datetime)
+        self.assertIsNotNone(FlowRun.objects.filter(connection=session).first().expires_on)
 
         # send an interrupt "signal"
         session = USSDSession.handle_incoming(

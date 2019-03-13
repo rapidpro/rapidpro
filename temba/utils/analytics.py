@@ -1,4 +1,3 @@
-
 import logging
 import time
 from random import randint

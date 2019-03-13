@@ -1,4 +1,3 @@
-
 from django import forms
 from django.forms import widgets
 
@@ -40,7 +39,7 @@ class OmniboxWidget(widgets.TextInput):
     def set_user(self, user):
         self.__dict__["user"] = user
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         value = self.get_json(value)
         return super().render(name, value, attrs)
 

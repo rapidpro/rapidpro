@@ -2,15 +2,9 @@
 django
 django-compressor
 django-countries
-django-debug-toolbar
-django-digest
-django-excel
-django-extensions
 django-hamlpy
 django-mptt
 django-redis
-django-rosetta
-django_select2
 django-storages
 django-timezone-field
 djangorestframework
@@ -20,7 +14,6 @@ smartmin
 ########################## services ##########################
 analytics-python
 boto3
-google
 librato_bg
 nexmo
 pyfcm
@@ -36,11 +29,10 @@ elasticsearch_dsl
 ########################## file types ##########################
 geojson
 markdown
-pisa
+pyexcel
 pyexcel-xls
 pyexcel-xlsx
 python-magic
-xlutils
 xlsxlite
 
 ########################## misc ##########################
@@ -51,8 +43,6 @@ gunicorn
 iptools
 iso-639
 iso8601
-isoweek
-jsondiff
 phonenumbers
 pycountry
 pycrypto
@@ -63,10 +53,8 @@ rapidpro-expressions
 redis
 requests
 simplejson
-stop-words
-unidecode
 python-intercom
-pysocks; python_version >= "3.0"
+pysocks
 pip-tools
 
 ########################## testing ##########################
@@ -74,9 +62,8 @@ black
 coverage
 flake8
 flake8-deprecated
-flake8-print
+flake8-print==2.0.2  # pinned temporary, a lot of updates === new PR
 isort
-mock
 openpyxl
 responses
-selenium
+beautifulsoup4

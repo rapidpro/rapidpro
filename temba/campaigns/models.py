@@ -99,13 +99,15 @@ class Campaign(TembaModel):
 
                 # fill our campaign with events
                 for event_spec in campaign_spec["events"]:
-                    relative_to = ContactField.get_or_create(
-                        org,
-                        user,
-                        key=event_spec["relative_to"]["key"],
-                        label=event_spec["relative_to"]["label"],
-                        value_type="D",
-                    )
+                    field_key = event_spec["relative_to"]["key"]
+
+                    if field_key == "created_on":
+                        relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                    else:
+                        relative_to = ContactField.get_or_create(
+                            org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
+                        )
+
                     start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
 
                     # create our message flow for message events
@@ -232,7 +234,7 @@ class Campaign(TembaModel):
             if evt.flow.is_system:
                 evt.flow.ensure_current_version()
 
-        return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
+        return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
 
     def __str__(self):
         return self.name
@@ -540,21 +542,34 @@ class CampaignEvent(TembaModel):
 
 
 class EventFire(Model):
+    FIRED = "F"
+    SKIPPED = "S"
+
+    FIRED_RESULTS_CHOICES = ((FIRED, _("Fired")), (SKIPPED, _("Skipped")))
+
     event = models.ForeignKey(
         "campaigns.CampaignEvent",
         on_delete=models.PROTECT,
         related_name="event_fires",
-        help_text="The event that will be fired",
+        help_text=_("The event that will be fired"),
     )
     contact = models.ForeignKey(
         Contact,
         on_delete=models.PROTECT,
         related_name="fire_events",
-        help_text="The contact that is scheduled to have an event run",
+        help_text=_("The contact that is scheduled to have an event run"),
     )
-    scheduled = models.DateTimeField(help_text="When this event is scheduled to run")
+    scheduled = models.DateTimeField(help_text=_("When this event is scheduled to run"))
     fired = models.DateTimeField(
-        null=True, blank=True, help_text="When this event actually fired, null if not yet fired"
+        null=True, blank=True, help_text=_("When this event actually fired, null if not yet fired")
+    )
+
+    fired_result = models.CharField(
+        max_length=1,
+        choices=FIRED_RESULTS_CHOICES,
+        null=True,
+        blank=True,
+        help_text=_("Whether the event is fired or skipped, null if not yet fired"),
     )
 
     def is_firing_soon(self):
@@ -596,14 +611,10 @@ class EventFire(Model):
         Updates all the scheduled events for each user for the passed in campaign.
         Should be called anytime a campaign changes.
         """
-        from temba.campaigns.tasks import update_event_fires_for_campaign
-
-        on_transaction_commit(lambda: update_event_fires_for_campaign.delay(campaign.pk))
-
-    @classmethod
-    def do_update_campaign_events(cls, campaign):
-        for contact in campaign.group.contacts.exclude(is_test=True):
-            cls.update_campaign_events_for_contact(campaign, contact)
+        for event in campaign.get_events():
+            if EventFire.objects.filter(event=event).exists():
+                event = event.deactivate_and_copy()
+            EventFire.create_eventfires_for_event(event)
 
     @classmethod
     def create_eventfires_for_event(cls, event):
@@ -696,38 +707,36 @@ class EventFire(Model):
                 EventFire.objects.bulk_create(events)
 
     @classmethod
-    def update_events_for_contact(cls, contact):
+    def update_events_for_contact_groups(cls, contact, groups):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
-        # remove all pending fires for this contact
-        EventFire.objects.filter(contact=contact, fired=None).delete()
 
         # for each campaign that might affect us
         for campaign in Campaign.objects.filter(
-            group__in=contact.user_groups, org=contact.org, is_active=True, is_archived=False
+            group__in=groups, org=contact.org, is_active=True, is_archived=False
         ).distinct():
             # update all the events for the campaign
             EventFire.update_campaign_events_for_contact(campaign, contact)
 
     @classmethod
-    def update_events_for_contact_fields(cls, contact, keys, is_new=False):
+    def update_events_for_contact_fields(cls, contact, keys):
         """
         Updates all the events for a contact, across all campaigns.
         Should be called anytime a contact field or contact group membership changes.
         """
-        # get all events which are in one of these groups and on this field
+        # make sure we consider immutable fields(created_on)
+        keys = list(keys)
+        keys.extend(list(ContactField.IMMUTABLE_FIELDS))
+
         events = CampaignEvent.objects.filter(
             campaign__group__in=contact.user_groups,
+            campaign__org=contact.org,
             relative_to__key__in=keys,
             campaign__is_archived=False,
             is_active=True,
         ).prefetch_related("relative_to")
-
-        if is_new is False:
-            # only new contacts can trigger campaign event reevaluation that are relative to immutable fields
-            events.exclude(relative_to__key__in=ContactField.IMMUTABLE_FIELDS)
 
         for event in events:
             # remove any unfired events, they will get recreated below
@@ -749,8 +758,8 @@ class EventFire(Model):
         # remove any unfired events, they will get recreated below
         EventFire.objects.filter(event__campaign=campaign, contact=contact, fired=None).delete()
 
-        # if we aren't archived
-        if not campaign.is_archived:
+        # if we aren't archived and still in our campaign's group
+        if not campaign.is_archived and contact.user_groups.filter(id__in=[campaign.group.id]).exists():
             # then scheduled all our events
             for event in campaign.get_events():
                 # calculate our scheduled date

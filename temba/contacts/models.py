@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = "12065551212"
-START_TEST_CONTACT_PATH = 12065550100
-END_TEST_CONTACT_PATH = 12065550199
+START_TEST_CONTACT_PATH = 12_065_550_100
+END_TEST_CONTACT_PATH = 12_065_550_199
 
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
@@ -256,7 +256,7 @@ class URN(object):
             number = number[0:-4].replace(".", "")
 
         # remove other characters
-        number = regex.sub("[^0-9a-z\+]", "", number.lower(), regex.V0)
+        number = regex.sub(r"[^0-9a-z\+]", "", number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
         if len(number) >= 11 and number[0] not in ["+", "0"]:
@@ -735,6 +735,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         return ", ".join(groups_name_list)
 
     @classmethod
+    def query_elasticsearch_for_ids(cls, org, query, group=None):
+        from .search import contact_es_search, SearchException
+        from temba.utils.es import ES
+
+        try:
+            search_object, _ = contact_es_search(org, query, group)
+            es_search = search_object.source(include=["id"]).using(ES).scan()
+            return mapEStoDB(Contact, es_search, only_ids=True)
+        except SearchException:
+            logger.exception("Error evaluating query", exc_info=True)
+            raise  # reraise the exception
+
+    @classmethod
     def set_simulation(cls, simulation):
         cls.simulation = simulation
 
@@ -1112,11 +1125,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
           2. A change to the specified contact field
           3. A manual change to a group membership
         """
-        dynamic_group_change = False
+        changed_groups = set([group]) if group else set()
 
         if fields or urns or is_new:
             # ensure dynamic groups are up to date
-            dynamic_group_change = self.reevaluate_dynamic_groups(for_fields=fields, urns=urns)
+            changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
@@ -1124,13 +1137,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if fields:
             EventFire.update_events_for_contact_fields(contact=self, keys=fields)
 
-        if group or dynamic_group_change:
+        if changed_groups:
             # delete any cached groups
             if hasattr(self, "_user_groups"):
                 delattr(self, "_user_groups")
 
             # ensure our campaigns are up to date
-            EventFire.update_events_for_contact(self)
+            EventFire.update_events_for_contact_groups(self, changed_groups)
 
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
@@ -1983,8 +1996,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 msg.release()
 
             # release any calls or ussd sessions
-            for session in self.sessions.all():
-                session.release()
+            for conn in self.connections.all():
+                conn.release()
 
             # any urns currently owned by us
             for urn in self.urns.all():
@@ -1996,8 +2009,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     msg.release()
 
                 # same thing goes for sessions
-                for session in urn.channelsession_set.all():
-                    session.release()
+                for conn in urn.connections.all():
+                    conn.release()
 
                 urn.release()
 
@@ -2272,12 +2285,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
         performed for those groups which reference that field.
+        :returns: the set of groups that were affected
         """
         from .search import evaluate_query
 
         # blocked, stopped or test contacts can't be in dynamic groups
         if self.is_blocked or self.is_stopped or self.is_test:
-            return False
+            return set()
 
         # cache contact search json
         contact_search_json = self.as_search_json()
@@ -2289,7 +2303,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not urns and for_fields:
             affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
 
-        changed = False
+        changed_set = set()
 
         for dynamic_group in affected_dynamic_groups:
             dynamic_group.org = self.org
@@ -2300,12 +2314,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 should_add = False
                 logger.exception("Error evaluating query", exc_info=True)
 
-            changed_set = dynamic_group._update_contacts(user, [self], add=should_add)
+            changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
 
-            if changed_set and not changed:
-                changed = True
-
-        return changed
+        return changed_set
 
     def clear_all_groups(self, user):
         """
@@ -2833,7 +2844,7 @@ class ContactGroup(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def update_contacts(self, user, contacts, add):
         """
@@ -2942,14 +2953,20 @@ class ContactGroup(TembaModel):
             to_add_ids = new_group_members.difference(existing_member_ids)
             to_remove_ids = existing_member_ids.difference(new_group_members)
 
+            from temba.campaigns.models import Campaign
+
+            has_campaigns = Campaign.objects.filter(org=self.org, group=self).exists()
+
             # add new contacts to the group
             for members_chunk in chunk_list(to_add_ids, 1000):
                 to_add = Contact.objects.filter(id__in=members_chunk)
 
                 self.contacts.add(*to_add)
 
-                for changed_contact in to_add:
-                    changed_contact.handle_update(group=self)
+                # if our group is used in a campaign, our contacts need updating
+                if has_campaigns:
+                    for changed_contact in to_add:
+                        changed_contact.handle_update(group=self)
 
                 # update group updated_at
                 self.modified_on = datetime.datetime.now()
@@ -2984,7 +3001,7 @@ class ContactGroup(TembaModel):
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        from .search import contact_es_search, SearchException, evaluate_query
+        from .search import evaluate_query
         from temba.utils.es import ES, ModelESSearch
 
         # get the modified_on of the last synced contact
@@ -3003,15 +3020,8 @@ class ContactGroup(TembaModel):
             # there are no contacts for this org in the ES index
             last_modifed_on = datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
 
-        # search the ES
-        try:
-            search_object, _ = contact_es_search(self.org, self.query, None)
-
-            es_search = search_object.source(include=["id"]).using(ES).scan()
-            contact_ids = set(mapEStoDB(Contact, es_search, only_ids=True))
-        except SearchException:
-            logger.exception("Error evaluating query", exc_info=True)
-            raise  # reraise the exception
+        # search ES
+        contact_ids = set(Contact.query_elasticsearch_for_ids(self.org, self.query))
 
         # search the database for any new contacts that have been modified after the modified_on
         db_contacts = Contact.objects.filter(
@@ -3089,6 +3099,11 @@ class ContactGroup(TembaModel):
         from temba.triggers.models import Trigger
 
         Trigger.objects.filter(is_active=True, groups=self).update(is_active=False, is_archived=True)
+
+        # deactivate any campaigns that are related to this group
+        from temba.campaigns.models import Campaign
+
+        Campaign.objects.filter(is_active=True, group=self).update(is_active=False, is_archived=True)
 
     @property
     def is_dynamic(self):
@@ -3239,9 +3254,6 @@ class ExportContactsTask(BaseExportTask):
         return fields, scheme_counts, group_fields
 
     def write_export(self):
-        from .search import contact_es_search
-        from temba.utils.es import ES
-
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
         group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
@@ -3249,10 +3261,8 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            search_object, _ = contact_es_search(self.org, self.search, group)
-
-            es_search = search_object.source(include=["id"]).using(ES).scan()
-            contact_ids = mapEStoDB(Contact, es_search, only_ids=True)
+            # cache contact ids
+            contact_ids = list(Contact.query_elasticsearch_for_ids(self.org, self.search, group))
         else:
             contacts = group.contacts.all()
             contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
@@ -3260,7 +3270,7 @@ class ExportContactsTask(BaseExportTask):
         # create our exporter
         exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])
 
-        current_contact = 0
+        total_exported_contacts = 0
         start = time.time()
 
         # write out contacts in batches to limit memory usage
@@ -3325,19 +3335,19 @@ class ExportContactsTask(BaseExportTask):
 
                 # write this contact's values
                 exporter.write_row(values + group_values)
-                current_contact += 1
+                total_exported_contacts += 1
 
                 # output some status information every 10,000 contacts
-                if current_contact % 10000 == 0:  # pragma: no cover
+                if total_exported_contacts % ExportContactsTask.LOG_PROGRESS_PER_ROWS == 0:
                     elapsed = time.time() - start
-                    predicted = elapsed // (current_contact / len(contact_ids))
+                    predicted = elapsed // (total_exported_contacts / len(contact_ids))
 
                     logger.info(
                         "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
                         % (
                             self.org.name,
-                            current_contact * 100 // len(contact_ids),
-                            "{:,}".format(current_contact),
+                            total_exported_contacts * 100 // len(contact_ids),
+                            "{:,}".format(total_exported_contacts),
                             "{:,}".format(len(contact_ids)),
                             time.time() - start,
                             predicted,

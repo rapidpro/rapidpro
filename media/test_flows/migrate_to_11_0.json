@@ -1,0 +1,42 @@
+{
+  "version": "10.4",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "d96947d0-f975-47ee-be7d-3dfe68a52703",
+      "action_sets": [
+        {
+          "uuid": "d96947d0-f975-47ee-be7d-3dfe68a52703",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "msg": {
+                "base": {
+                  "base": "@date Something went wrong once. I shouldn't be a dict inside a dict."
+                }
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply",
+              "uuid": "1ee58c31-3504-49d3-914b-324d484fed1d"
+            }
+          ],
+          "exit_uuid": "f2566f59-5d36-4de7-8581-dcc5de7e8340"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "10.4",
+      "metadata": {
+        "name": "Migrate to 11.0",
+        "saved_on": "2017-11-15T22:56:36.039558Z",
+        "revision": 5,
+        "uuid": "5a8deb77-23b8-46ee-a775-48ed32742e31",
+        "expires": 720
+      }
+    }
+  ]
+}

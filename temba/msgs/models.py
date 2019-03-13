@@ -469,7 +469,7 @@ class Broadcast(models.Model):
                 # arbitrary media urls don't have a full content type, so only
                 # make uploads into fully qualified urls
                 if media_url and len(media_type.split("/")) > 1:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    media = f"{media_type}:{settings.STORAGE_URL}/{media_url}"
 
             # build our message specific context
             if expressions_context is not None:
@@ -748,7 +748,7 @@ class Msg(models.Model):
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -815,7 +815,9 @@ class Msg(models.Model):
 
     text = models.TextField(verbose_name=_("Text"), help_text=_("The actual message content that was sent"))
 
-    high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
+    high_priority = models.BooleanField(
+        null=True, help_text=_("Give this message higher priority than other messages")
+    )
 
     created_on = models.DateTimeField(
         verbose_name=_("Created On"), db_index=True, help_text=_("When this message was created")
@@ -925,7 +927,7 @@ class Msg(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="msgs",
         null=True,
@@ -2242,7 +2244,7 @@ class Label(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():
@@ -2465,7 +2467,9 @@ class ExportMessagesTask(BaseExportTask):
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
-        msgs_exported = 0
+        total_msgs_exported = 0
+        temp_msgs_exported = 0
+
         start = time.time()
 
         contact_uuids = set()
@@ -2485,12 +2489,15 @@ class ExportMessagesTask(BaseExportTask):
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
 
-            msgs_exported += len(batch)
-            if msgs_exported % 10000 == 0:  # pragma: needs cover
+            total_msgs_exported += len(batch)
+
+            # start logging
+            if (total_msgs_exported - temp_msgs_exported) > ExportMessagesTask.LOG_PROGRESS_PER_ROWS:
                 mins = (time.time() - start) / 60
                 logger.info(
-                    f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins"
+                    f"Msgs export #{self.id} for org #{self.org.id}: exported {total_msgs_exported} in {mins:.1f} mins"
                 )
+                temp_msgs_exported = total_msgs_exported
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)

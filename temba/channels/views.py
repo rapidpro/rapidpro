@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import logging
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -34,7 +35,6 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.channels.models import ChannelSession
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
@@ -43,7 +43,9 @@ from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMi
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+
+logger = logging.getLogger(__name__)
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")
@@ -665,28 +667,16 @@ def sync(request, channel_id):
                                 pass
                         handled = True
 
-                    elif keyword == "gcm":
-                        gcm_id = cmd.get("gcm_id", None)
-                        uuid = cmd.get("uuid", None)
-                        if channel.gcm_id != gcm_id or channel.uuid != uuid:
-                            channel.gcm_id = gcm_id
-                            channel.uuid = uuid
-                            channel.save(update_fields=["gcm_id", "uuid"])
-
-                        # no acking the gcm
-                        handled = False
-
                     elif keyword == "fcm":
                         # update our fcm and uuid
 
-                        channel.gcm_id = None
                         config = channel.config
                         config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
                         channel.config = config
                         channel.uuid = cmd.get("uuid", None)
-                        channel.save(update_fields=["uuid", "config", "gcm_id"])
+                        channel.save(update_fields=["uuid", "config"])
 
-                        # no acking the gcm
+                        # no acking the fcm
                         handled = False
 
                     elif keyword == "reset":
@@ -1176,7 +1166,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
-        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on", "gcm_id")
+        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
@@ -1487,10 +1477,9 @@ class ChannelCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
-            except Exception as e:  # pragma: no cover
-                import traceback
+            except Exception:  # pragma: no cover
+                logger.error("Error removing a channel", exc_info=True)
 
-                traceback.print_exc()
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
                 return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
@@ -1987,10 +1976,10 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .exclude(connection=None)
                     .values_list("connection_id", flat=True)
                 )
-                events = ChannelSession.objects.filter(id__in=logs).order_by("-created_on")
+                events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelSession.FAILED)
+                    events = events.filter(status=ChannelConnection.FAILED)
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
@@ -2012,7 +2001,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return context
 
     class Session(AnonMixin, OrgPermsMixin, SmartReadView):
-        model = ChannelSession
+        model = ChannelConnection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):
         fields = ("description", "created_on")

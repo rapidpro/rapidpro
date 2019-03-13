@@ -1,4 +1,3 @@
-
 import os
 import socket
 import sys
@@ -47,19 +46,21 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-# where recordings and exports are stored
+STORAGE_URL = None  # may be local /media or AWS S3
+STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
+
+# -----------------------------------------------------------------------------------
+# AWS S3 storage used in production
+# -----------------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = "aws_access_key_id"
+AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
+AWS_DEFAULT_ACL = "private"
+
 AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
-STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # bucket where archives files are stored
 ARCHIVE_BUCKET = "dl-temba-archives"
-
-# keys to access s3
-AWS_ACCESS_KEY_ID = "aws_access_key_id"
-AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-
-AWS_DEFAULT_ACL = "private"
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
@@ -316,7 +317,7 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
         "api",
@@ -377,6 +378,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
+        "token",
         "webhook",
     ),
     "orgs.usersettings": ("phone",),
@@ -421,6 +423,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
     ),
+    "flows.flowsession": ("json",),
     "msgs.msg": (
         "api",
         "archive",
@@ -464,6 +467,7 @@ GROUP_PERMISSIONS = {
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
+        "contacts.contactgroup_api",
         "contacts.contactfield_api",
         "flows.flow_api",
         "locations.adminboundary_api",
@@ -481,6 +485,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
+        "flows.flowsession_json",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_grant",
@@ -563,6 +568,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_transfer_to_account",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
+        "orgs.org_token",
         "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
@@ -808,12 +814,7 @@ DATABASES = {"default": _default_database_config, "direct": _direct_database_con
 if TESTING:
     DATABASES["default"] = _direct_database_config
 
-# -----------------------------------------------------------------------------------
-# Debug Toolbar
-# -----------------------------------------------------------------------------------
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
-
-DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}  # disable redirect traps
 
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
@@ -821,6 +822,7 @@ DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}  # disable redirect traps
 CELERYBEAT_SCHEDULE = {
     "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
+    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
     "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
     "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
@@ -828,18 +830,21 @@ CELERYBEAT_SCHEDULE = {
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
     "check-messages-task": {"task": "check_messages_task", "schedule": timedelta(seconds=300)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
+    "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
+    "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "clear-old-msg-external-ids": {"task": "clear_old_msg_external_ids", "schedule": crontab(hour=2, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
-    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
-    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
-    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=300)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=300)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=300)},
+    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
+    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
+    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
+    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
+    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
+    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
@@ -989,6 +994,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.nexmo.NexmoType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
+    "temba.channels.types.bongolive.BongoLiveType",
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
@@ -1028,6 +1034,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
+    "temba.channels.types.i2sms.I2SMSType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1080,13 +1087,16 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 EVENT_FIRE_TRIM_DAYS = 90
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
+# Installs can also choose how long to keep FlowSessions around. These are
+# potentially big but really helpful for debugging. Default is 7 days.
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = None
-FLOW_SERVER_AUTH_TOKEN = None
-FLOW_SERVER_DEBUG = False
-FLOW_SERVER_FORCE = False
-FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
+FLOW_SESSION_TRIM_DAYS = 7
+
+# -----------------------------------------------------------------------------------
+# Mailroom - disabled by default, but is where simulation happens
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
 # These legacy channels still send on RapidPro:

@@ -1,4 +1,3 @@
-
 from uuid import uuid4
 
 import phonenumbers
@@ -47,6 +46,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The Account Token to use to authenticate to the TwiML REST API"),
             widget=forms.TextInput(attrs={"autocomplete": "off"}),
         )
+        max_concurrent_events = forms.IntegerField(
+            min_value=1, required=False, help_text=_("Max active calls at the same time")
+        )
 
     form_class = TwimlApiClaimForm
 
@@ -65,6 +67,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_ACCOUNT_SID: data.get("account_sid", None),
             Channel.CONFIG_AUTH_TOKEN: data.get("account_token", None),
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
+            Channel.CONFIG_MAX_CONCURRENT_EVENTS: data.get("max_concurrent_events", None),
         }
 
         is_short_code = len(number) <= 6

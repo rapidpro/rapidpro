@@ -1,4 +1,3 @@
-
 import requests
 
 from django.urls import reverse
@@ -25,7 +24,7 @@ class ViberPublicType(ChannelType):
 
     schemes = [VIBER_SCHEME]
     max_length = 7000
-    attachment_support = False
+    attachment_support = True
     free_sending = True
     quick_reply_text_size = 36
 

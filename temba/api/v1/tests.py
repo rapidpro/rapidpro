@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
-from mock import patch
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
@@ -42,7 +42,14 @@ class APITest(TembaTest):
         self.joe = self.create_contact("Joe Blow", "0788123123")
 
         self.channel2 = Channel.create(
-            None, self.admin, "RW", "A", "Unclaimed Channel", claim_code="123123123", secret="123456", gcm_id="1234"
+            None,
+            self.admin,
+            "RW",
+            "A",
+            "Unclaimed Channel",
+            claim_code="123123123",
+            secret="123456",
+            config={"FCM_ID": "1234"},
         )
 
         self.call1 = ChannelEvent.objects.create(

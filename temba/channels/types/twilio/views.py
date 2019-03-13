@@ -1,4 +1,3 @@
-
 from uuid import uuid4
 
 import phonenumbers
@@ -123,7 +122,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             sms_url=new_receive_url,
             sms_method="POST",
             voice_url=new_voice_url,
-            voice_fallback_url="https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml",
+            voice_fallback_url=f"{settings.STORAGE_URL}/voice_unavailable.xml",
             voice_fallback_method="GET",
             status_callback=new_status_url,
             status_callback_method="POST",

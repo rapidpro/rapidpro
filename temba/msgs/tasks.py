@@ -1,4 +1,3 @@
-
 import logging
 import time
 from datetime import timedelta
@@ -211,7 +210,10 @@ def send_spam(user_id, contact_id):  # pragma: no cover
         print("Sorry, no channel to be all spammy with")
         return
 
-    long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " "selfish and the tyranny of evil men. Blessed is your face."
+    long_text = (
+        "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the "
+        "selfish and the tyranny of evil men. Blessed is your face."
+    )
 
     # only trigger sync on the last one
     for idx in range(10):
@@ -383,7 +385,7 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_msgcounts")
+@nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)
 def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()

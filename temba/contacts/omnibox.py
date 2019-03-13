@@ -1,4 +1,3 @@
-
 import operator
 from functools import reduce
 
@@ -118,7 +117,6 @@ def omnibox_mixed_search(org, search, types):
 
             es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
             contact_ids = list(mapEStoDB(Contact, es_search, only_ids=True))
-
             es_results = Contact.objects.filter(id__in=contact_ids).order_by(Upper("name"))
 
             results += list(es_results[:per_type_limit])

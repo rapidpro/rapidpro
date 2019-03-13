@@ -1,4 +1,3 @@
-
 import base64
 import copy
 import hashlib
@@ -59,8 +58,8 @@ from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.queues import Queue, push_task
 
-from .models import CHANNEL_EVENT, Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, ChannelSession, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts
+from .models import CHANNEL_EVENT, Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task
 
 
 class ChannelTest(TembaTest):
@@ -78,7 +77,7 @@ class ChannelTest(TembaTest):
             address="+250785551212",
             role="SR",
             secret="12345",
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         self.twitter_channel = Channel.create(
@@ -86,7 +85,14 @@ class ChannelTest(TembaTest):
         )
 
         self.unclaimed_channel = Channel.create(
-            None, self.user, None, "NX", name="Unclaimed Channel", address=None, secret=None, gcm_id="000"
+            None,
+            self.user,
+            None,
+            "NX",
+            name="Unclaimed Channel",
+            address=None,
+            secret=None,
+            config={Channel.CONFIG_FCM_ID: "000"},
         )
 
         self.ussd_channel = Channel.create(
@@ -231,7 +237,16 @@ class ChannelTest(TembaTest):
         mtn.save()
 
         # create a channel for Tigo too
-        tigo = Channel.create(self.org, self.user, "RW", "A", "Tigo", "+250725551212", secret="11111", gcm_id="456")
+        tigo = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            "Tigo",
+            "+250725551212",
+            secret="11111",
+            config={Channel.CONFIG_FCM_ID: "456"},
+        )
 
         # new contact on MTN should send with the MTN channel
         msg = self.send_message(["+250788382382"], "Sent to an MTN number")
@@ -444,7 +459,7 @@ class ChannelTest(TembaTest):
             "Test Channel",
             "0785551212",
             secret=Channel.generate_secret(),
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         response = self.fetch_protected(reverse("channels.channel_delete", args=[channel.pk]), self.superuser)
@@ -464,7 +479,7 @@ class ChannelTest(TembaTest):
             "Test Channel",
             "0785551212",
             secret=Channel.generate_secret(),
-            gcm_id="123",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
         # add channel trigger
@@ -564,7 +579,7 @@ class ChannelTest(TembaTest):
             Channel.TYPE_ANDROID,
             None,
             "+250781112222",
-            gcm_id="asdf",
+            config={Channel.CONFIG_FCM_ID: "asdf"},
             secret="asdf",
             created_on=(timezone.now() - timedelta(hours=2)),
         )
@@ -1026,7 +1041,7 @@ class ChannelTest(TembaTest):
 
         Channel.objects.all().delete()
 
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
 
         # must be a post
         response = self.client.get(reverse("register"), content_type="application/json")
@@ -1042,7 +1057,7 @@ class ChannelTest(TembaTest):
         self.assertIsNone(android1.alert_email)
         self.assertEqual(android1.country, "RW")
         self.assertEqual(android1.device, "Nexus")
-        self.assertEqual(android1.gcm_id, "GCM111")
+        self.assertEqual(android1.config["FCM_ID"], "FCM111")
         self.assertEqual(android1.uuid, "uuid")
         self.assertTrue(android1.secret)
         self.assertTrue(android1.claim_code)
@@ -1115,7 +1130,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")  # normalized
         self.assertEqual(android1.alert_email, self.admin.email)  # the logged-in user
-        self.assertEqual(android1.gcm_id, "GCM111")
+        self.assertEqual(android1.config["FCM_ID"], "FCM111")
         self.assertEqual(android1.uuid, "uuid")
         self.assertFalse(android1.claim_code)
 
@@ -1128,7 +1143,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")
         self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.gcm_id, "GCM111")
+        self.assertEqual(android1.config["FCM_ID"], "FCM111")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
         self.assertTrue(android1.claim_code)
@@ -1140,17 +1155,17 @@ class ChannelTest(TembaTest):
         )
         self.assertRedirect(response, reverse("public.public_welcome"))
 
-        # try having a device register yet again with new GCM ID
-        reg_data["cmds"][0]["gcm_id"] = "GCM222"
+        # try having a device register yet again with new FCM ID
+        reg_data["cmds"][0]["fcm_id"] = "FCM222"
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
-        # should return same channel but with GCM updated
+        # should return same channel but with FCM updated
         android1.refresh_from_db()
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123123")
         self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.gcm_id, "GCM222")
+        self.assertEqual(android1.config["FCM_ID"], "FCM222")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
 
@@ -1165,7 +1180,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.org, self.org)
         self.assertEqual(android1.address, "+250788123124")
         self.assertEqual(android1.alert_email, self.admin.email)
-        self.assertEqual(android1.gcm_id, "GCM222")
+        self.assertEqual(android1.config["FCM_ID"], "FCM222")
         self.assertEqual(android1.uuid, "uuid")
         self.assertEqual(android1.is_active, True)
 
@@ -1222,9 +1237,7 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = bytes(
-                    json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-                )
+                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
@@ -1255,7 +1268,7 @@ class ChannelTest(TembaTest):
 
         # re-register device with country as US
         reg_data = dict(
-            cmds=[dict(cmd="gcm", gcm_id="GCM222", uuid="uuid"), dict(cmd="status", cc="US", dev="Nexus 5X")]
+            cmds=[dict(cmd="fcm", fcm_id="FCM222", uuid="uuid"), dict(cmd="status", cc="US", dev="Nexus 5X")]
         )
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
@@ -1265,7 +1278,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android2.country, "US")
         self.assertEqual(android2.device, "Nexus 5X")
         self.assertEqual(android2.org, self.org)
-        self.assertEqual(android2.gcm_id, "GCM222")
+        self.assertEqual(android2.config["FCM_ID"], "FCM222")
         self.assertEqual(android2.uuid, "uuid")
         self.assertTrue(android2.is_active)
 
@@ -1283,7 +1296,7 @@ class ChannelTest(TembaTest):
 
         # register another device with country as US
         reg_data = dict(
-            cmds=[dict(cmd="gcm", gcm_id="GCM444", uuid="uuid4"), dict(cmd="status", cc="US", dev="Nexus 6P")]
+            cmds=[dict(cmd="fcm", fcm_id="FCM444", uuid="uuid4"), dict(cmd="status", cc="US", dev="Nexus 6P")]
         )
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
@@ -1329,7 +1342,7 @@ class ChannelTest(TembaTest):
 
         # yet another registration in rwanda
         reg_data = dict(
-            cmds=[dict(cmd="gcm", gcm_id="GCM555", uuid="uuid5"), dict(cmd="status", cc="RW", dev="Nexus 5")]
+            cmds=[dict(cmd="fcm", fcm_id="FCM555", uuid="uuid5"), dict(cmd="status", cc="RW", dev="Nexus 5")]
         )
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         claim_code = response.json()["cmds"][0]["relayer_claim_code"]
@@ -1436,7 +1449,7 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
 
         # register and claim an Android channel
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
         self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         android = Channel.objects.get()
         self.client.post(
@@ -1448,9 +1461,7 @@ class ChannelTest(TembaTest):
         with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
             connect.return_value = True
             with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = bytes(
-                    json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-                )
+                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
                 self.org.connect_nexmo("123", "456", self.admin)
                 self.org.save()
 
@@ -1460,8 +1471,9 @@ class ChannelTest(TembaTest):
 
         android.release()
 
-        # check that some details are cleared and channel is now in active
+        # check that some details are cleared and channel is now inactive
         self.assertFalse(android.is_active)
+        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
         # Nexmo delegate should have been released as well
         nexmo.refresh_from_db()
@@ -1476,11 +1488,15 @@ class ChannelTest(TembaTest):
             reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
         )
         android.refresh_from_db()
+        # simulate no FCM ID
+        android.config.pop(Channel.CONFIG_FCM_ID, None)
+        android.save()
 
         android.release()
 
         # check that some details are cleared and channel is now in active
         self.assertFalse(android.is_active)
+        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
@@ -1489,11 +1505,11 @@ class ChannelTest(TembaTest):
         contact = self.create_contact("Bruno Mars", "+252788123123")
         call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME), self.admin)
 
-        self.assertNotEqual(call.status, ChannelSession.INTERRUPTED)
+        self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
         self.tel_channel.release()
 
         call.refresh_from_db()
-        self.assertEqual(call.status, ChannelSession.INTERRUPTED)
+        self.assertEqual(call.status, ChannelConnection.INTERRUPTED)
 
     def test_unclaimed(self):
         response = self.sync(self.unclaimed_channel)
@@ -1606,7 +1622,7 @@ class ChannelTest(TembaTest):
             address="+250785551313",
             role="SR",
             secret="12367",
-            gcm_id="456",
+            config={Channel.CONFIG_FCM_ID: "456"},
         )
 
         contact1 = self.create_contact("John Doe", "250788382382")
@@ -1671,7 +1687,7 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel)
         self.assertEqual(200, response.status_code)
 
-        # check last seen and gcm id were updated
+        # check last seen and fcm id were updated
         self.tel_channel.refresh_from_db()
 
         response = response.json()
@@ -1697,13 +1713,13 @@ class ChannelTest(TembaTest):
 
         six_mins_ago = timezone.now() - timedelta(minutes=6)
         self.tel_channel.last_seen = six_mins_ago
-        self.tel_channel.gcm_id = "old_gcm_id"
-        self.tel_channel.save(update_fields=["last_seen", "gcm_id"])
+        self.tel_channel.config["FCM_ID"] = "old_fcm_id"
+        self.tel_channel.save(update_fields=["last_seen", "config"])
 
         post_data = dict(
             cmds=[
-                # device gcm data
-                dict(cmd="gcm", gcm_id="12345", uuid="abcde"),
+                # device fcm data
+                dict(cmd="fcm", fcm_id="12345", uuid="abcde"),
                 # device details status
                 dict(
                     cmd="status",
@@ -1742,7 +1758,7 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
 
         self.tel_channel.refresh_from_db()
-        self.assertEqual(self.tel_channel.gcm_id, "12345")
+        self.assertEqual(self.tel_channel.config["FCM_ID"], "12345")
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
@@ -1765,9 +1781,9 @@ class ChannelTest(TembaTest):
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
 
-        # check our channel gcm and uuid were updated
+        # check our channel fcm and uuid were updated
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
-        self.assertEqual("12345", self.tel_channel.gcm_id)
+        self.assertEqual("12345", self.tel_channel.config["FCM_ID"])
         self.assertEqual("abcde", self.tel_channel.uuid)
 
         # should ignore incoming messages without text
@@ -1946,7 +1962,6 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
 
         self.tel_channel.refresh_from_db()
-        self.assertIsNone(self.tel_channel.gcm_id)
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
         self.assertEqual(self.tel_channel.config[Channel.CONFIG_FCM_ID], "12345")
 
@@ -2016,15 +2031,56 @@ class ChannelTest(TembaTest):
             if "p_id" in response and response["p_id"] == p_id:
                 return response
 
+    def test_nexmo_create_application(self):
+        from nexmo import Client as NexmoClient
+        from uuid import uuid4
+
+        self.login(self.admin)
+        with patch("requests.post") as nexmo_post:
+            nexmo_post.return_value = MockResponse(
+                200,
+                json.dumps({"id": "app-id", "keys": {"private_key": "private_key"}}),
+                headers={"content-type": "application/json"},
+            )
+
+            nexmo_client = NexmoClient(key="key", secret="secret")
+
+            nexmo_uuid = str(uuid4())
+            domain = self.org.get_brand_domain()
+            app_name = "%s/%s" % (domain, nexmo_uuid)
+
+            answer_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]))
+
+            event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]))
+
+            params = dict(
+                name=app_name,
+                type="voice",
+                answer_url=answer_url,
+                answer_method="POST",
+                event_url=event_url,
+                event_method="POST",
+            )
+
+            response = nexmo_client.create_application(params=params)
+            self.assertEqual(response, {"id": "app-id", "keys": {"private_key": "private_key"}})
+
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")
     def test_get_ivr_client(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = bytes(
-            json.dumps(dict(id="app-id", keys=dict(private_key="private-key\n"))), encoding="utf-8"
-        )
+        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_update_call.return_value = dict(uuid="12345")
 
-        channel = Channel.create(self.org, self.user, "RW", "A", "Tigo", "+250725551212", secret="11111", gcm_id="456")
+        channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            "Tigo",
+            "+250725551212",
+            secret="11111",
+            config={Channel.CONFIG_FCM_ID: "456"},
+        )
         self.assertIsNone(channel.get_ivr_client())
 
         self.org.connect_nexmo("123", "456", self.admin)
@@ -2123,7 +2179,14 @@ class SyncEventTest(SmartminTest):
             name="Temba", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user
         )
         self.tel_channel = Channel.create(
-            self.org, self.user, "RW", "A", "Test Channel", "0785551212", secret="12345", gcm_id="123"
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            "Test Channel",
+            "0785551212",
+            secret="12345",
+            config={Channel.CONFIG_FCM_ID: "123"},
         )
 
     def test_sync_event_model(self):
@@ -2166,6 +2229,28 @@ class ChannelAlertTest(TembaTest):
         check_channels_task()
 
         self.assertTrue(len(mail.outbox) == 0)
+
+
+class ChannelSyncTest(TembaTest):
+    @patch("temba.channels.models.Channel.trigger_sync")
+    def test_sync_old_seen_chaanels(self, mock_trigger_sync):
+        self.channel.last_seen = timezone.now() - timedelta(days=40)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertFalse(mock_trigger_sync.called)
+
+        self.channel.last_seen = timezone.now() - timedelta(minutes=5)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertFalse(mock_trigger_sync.called)
+
+        self.channel.last_seen = timezone.now() - timedelta(hours=3)
+        self.channel.save()
+
+        sync_old_seen_channels_task()
+        self.assertTrue(mock_trigger_sync.called)
 
 
 class ChannelClaimTest(TembaTest):

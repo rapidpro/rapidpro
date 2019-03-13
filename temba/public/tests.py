@@ -17,6 +17,11 @@ class PublicTest(SmartminTest):
         response = self.client.get(home_url, follow=True)
         self.assertEqual(response.request["PATH_INFO"], "/")
 
+        response = self.client.get(home_url + "?errors=&foo", follow=True)
+        self.assertEqual(response.request["PATH_INFO"], "/")
+        self.assertTrue(response.context["errors"])
+        self.assertFalse("error_msg" in response.context)
+
         # try to create a lead from the homepage
         lead_create_url = reverse("public.lead_create")
         post_data = dict()

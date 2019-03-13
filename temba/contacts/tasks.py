@@ -1,4 +1,3 @@
-
 import logging
 from datetime import timedelta
 
@@ -33,7 +32,7 @@ def release_group_task(group_id):
     ContactGroup.all_groups.get(id=group_id).release()
 
 
-@nonoverlapping_task(track_started=True, name="squash_contactgroupcounts")
+@nonoverlapping_task(track_started=True, name="squash_contactgroupcounts", lock_timeout=7200)
 def squash_contactgroupcounts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup

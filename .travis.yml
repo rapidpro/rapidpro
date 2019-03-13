@@ -1,32 +1,49 @@
 # use container-based Ubuntu Trusty
-dist:
-  - trusty
-sudo:
-  - false
+dist: trusty
+sudo: true
 
 language: python
 python:
   - "3.6.6"
-addons:
-  apt:
-    packages:
-      - postgresql-9.6-postgis-2.3
-  postgresql: "9.6"
 
 services:
   - redis-server
 
 env:
-  - ES_VERSION=6.3.1 ES_DOWNLOAD_URL=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
+  - PGDB=10
+  - PGDB=9.6
 
 cache:
   directories:
     - "$HOME/.cache/pip"
 
+before_install:
+  - sudo -E service postgresql stop 9.2
+  - sudo -E service postgresql stop 9.3
+  - sudo -E service postgresql stop 9.4
+  - sudo -E service postgresql stop 9.5
+  - sudo -E service postgresql stop 9.6
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
+  - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
+  - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
+  - sudo -E service postgresql restart $PGDB
+
 install:
-  - wget ${ES_DOWNLOAD_URL}
+  # install Elasticsearch
+  - ES_VERSION=6.3.1
+  - wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VERSION}.tar.gz
   - tar -xzf elasticsearch-${ES_VERSION}.tar.gz
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
+
+  # install mailroom
+  - MAILROOM_VERSION=0.0.73
+  - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
+  - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
+
+  # install rp-indexer
+  - RPINDEXER_VERSION=1.0.25
+  - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
+  - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
   # install all Python dependencies
   - travis_retry pip install --upgrade pip
@@ -42,8 +59,6 @@ install:
   - npm run build
 
 before_script:
-  - wget -q --waitretry=1 --retry-connrefused -T 10 -O - http://127.0.0.1:9200
-
   # setup test database
   - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
   - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
@@ -55,15 +70,8 @@ before_script:
   # use dev settings file
   - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
-  # setup a goflow server instance
-  - GOFLOW_VERSION=0.22.0
-  - wget https://github.com/nyaruka/goflow/releases/download/v${GOFLOW_VERSION}/goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
-  - tar -xvf goflow_${GOFLOW_VERSION}_linux_amd64.tar.gz
-
-    # prepare rp-indexer binary
-  - RPINDEXER_VERSION=1.0.22
-  - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
-  - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
+  # wait until Elasticsearch is responsive
+  - wget -q --waitretry=1 --retry-connrefused -T 10 -O - http://127.0.0.1:9200
 
 script:
   # any non-zero error code should be treated as an immediate failure
@@ -85,12 +93,15 @@ script:
   - python manage.py collectstatic --noinput --verbosity=0
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
-  # fire up goflow
-  - ./flowserver --log-level=warn &
+  # install database schema
+  - python manage.py migrate --settings=temba.settings_travis
+
+  # fire up mailroom
+  - ./mailroom -db=postgres://temba:temba@localhost:5432/temba -redis=redis://localhost:6379/10 -log-level=info &
   - jobs
 
-  # run our Python tests
-  - coverage run manage.py test --settings=temba.settings_travis --noinput --verbosity=2
+  # run our Python unit tests on same database
+  - coverage run manage.py test --settings=temba.settings_travis --keepdb --noinput --verbosity=2
 
   - set +e
 

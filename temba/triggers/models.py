@@ -449,7 +449,7 @@ class Trigger(SmartModel):
     @classmethod
     def find_trigger_for_ussd_session(cls, contact, starcode):
         # Determine keyword from starcode
-        matched_object = regex.match("(^\*[\d\*]+\#)((?:\d+\#)*)$", starcode)
+        matched_object = regex.match(r"(^\*[\d\*]+\#)((?:\d+\#)*)$", starcode)
         if matched_object:
             keyword = matched_object.group(1)
         else:

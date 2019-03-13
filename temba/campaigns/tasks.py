@@ -10,13 +10,15 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import CampaignEvent, EventFire
 from temba.msgs.models import FIRE_EVENT, HANDLE_EVENT_TASK
 from temba.utils import chunk_list
 from temba.utils.cache import QueueRecord
 from temba.utils.queues import Queue, nonoverlapping_task, push_task
 
 logger = logging.getLogger(__name__)
+
+EVENT_FIRES_TO_TRIM = 100_000
 
 
 @nonoverlapping_task(track_started=True, name="check_campaigns_task", lock_key="check_campaigns")
@@ -89,37 +91,24 @@ def create_event_fires(event_id):
             raise e
 
 
-@task(track_started=True, name="update_event_fires_for_campaign_task")  # pragma: no cover
-def update_event_fires_for_campaign(campaign_id):
-
-    # get a lock
-    r = get_redis_connection()
-    key = "event_fires_campaign_%d" % campaign_id
-
-    with r.lock(key, timeout=300):
-        try:
-            with transaction.atomic():
-                campaign = Campaign.objects.filter(pk=campaign_id).first()
-                if campaign:
-                    EventFire.do_update_campaign_events(campaign)
-
-        except Exception as e:  # pragma: no cover
-            import traceback
-
-            traceback.print_exc()
-
-            # requeue our task to try again in five minutes
-            update_event_fires_for_campaign(campaign_id).delay(countdown=60 * 5)
-
-            # bubble up the exception so sentry sees it
-            raise e
-
-
 @nonoverlapping_task(track_started=True, name="trim_event_fires_task")
 def trim_event_fires_task():
     start = timezone.now()
     boundary = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS)
-    trim_ids = EventFire.objects.filter(fired__lt=boundary).values_list("id", flat=True).order_by("fired")[:100000]
+
+    # first look for unfired fires that belong to inactive events
+    trim_ids = list(
+        EventFire.objects.filter(fired=None, event__is_active=False).values_list("id", flat=True)[:EVENT_FIRES_TO_TRIM]
+    )
+
+    # if we have trimmed all of our unfired inactive fires, look for old fired ones
+    if len(trim_ids) < EVENT_FIRES_TO_TRIM:
+        trim_ids += list(
+            EventFire.objects.filter(fired__lt=boundary)
+            .values_list("id", flat=True)
+            .order_by("fired")[: EVENT_FIRES_TO_TRIM - len(trim_ids)]
+        )
+
     for batch in chunk_list(trim_ids, 100):
         # use a bulk delete for performance reasons, nothing references EventFire
         EventFire.objects.filter(id__in=batch).delete()

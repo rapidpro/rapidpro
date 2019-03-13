@@ -1,0 +1,458 @@
+{
+  "version": "11.8",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "edea0cb4-00b9-4a53-a923-f4aa38cf18c5",
+      "action_sets": [
+        {
+          "uuid": "edea0cb4-00b9-4a53-a923-f4aa38cf18c5",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "0b6745ce-6d8b-40d4-bb4f-f18f407bdcdf",
+              "msg": {
+                "base": "hi valid"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "d79e8a16-62df-4b48-aff9-fae2633f2b77"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.8",
+      "metadata": {
+        "name": "Valid1",
+        "saved_on": "2018-12-17T12:08:54.146452Z",
+        "revision": 2,
+        "uuid": "b823cc3b-aaa6-4cd1-b7a5-28d6b492cfa3",
+        "expires": 10080,
+        "ivr_retry_failed_events": null
+      }
+    },
+    {
+      "entry": "d3e2b506-50cd-4c1e-9573-295bd2087258",
+      "action_sets": [
+        {
+          "uuid": "d3e2b506-50cd-4c1e-9573-295bd2087258",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "d17b512e-87ed-4717-9461-bc2ffde23b77",
+              "msg": {
+                "base": "Hi flow invalid 1"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "c231d9a6-3b53-4670-ac41-247736126ffd"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.8",
+      "metadata": {
+        "name": "Invalid1",
+        "saved_on": "2018-12-17T12:09:52.155509Z",
+        "revision": 2,
+        "uuid": "ad40071e-a665-4df3-af14-0bc0fe589244",
+        "expires": 10080,
+        "ivr_retry_failed_events": null
+      }
+    },
+    {
+      "entry": "932b19a7-245c-4a2b-9249-66d4eb7cfdf7",
+      "action_sets": [
+        {
+          "uuid": "932b19a7-245c-4a2b-9249-66d4eb7cfdf7",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "2f6cdd62-9b29-4597-8af0-3dd410ae46f0",
+              "msg": {
+                "base": "Hi flow invalid two"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "0035ccc2-6359-4954-bbc9-bddb90076c25"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.8",
+      "metadata": {
+        "name": "Invalid2",
+        "saved_on": "2018-12-17T12:10:13.269437Z",
+        "revision": 3,
+        "uuid": "136cdab3-e9d1-458c-b6eb-766afd92b478",
+        "expires": 10080,
+        "ivr_retry_failed_events": null
+      }
+    },
+    {
+      "entry": "544e4ef3-4c54-4bb0-8f89-a1e098b3f030",
+      "action_sets": [
+        {
+          "uuid": "544e4ef3-4c54-4bb0-8f89-a1e098b3f030",
+          "x": 375,
+          "y": 1,
+          "destination": "a7de0caa-5ab0-4edc-8fc8-33eb31f79cba",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "64ce02e3-8ea8-414a-a7cf-7f5d3938aa03",
+              "msg": {
+                "base": "Hi"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "33d4947d-bdda-4226-bc27-55a6b6e56b36"
+        },
+        {
+          "uuid": "c9e48e85-b91c-4e2b-bb17-fb670f1559c0",
+          "x": 420,
+          "y": 622,
+          "destination": "861c6312-b2a8-4586-8688-6621d7065497",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "24b49e66-2520-4f9c-a6f7-f7a43793db53",
+              "msg": {
+                "base": "tnx"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "trigger-flow",
+              "uuid": "bf31a0f8-73d8-4c81-8f90-ea0d4008a212",
+              "flow": {
+                "uuid": "136cdab3-e9d1-458c-b6eb-766afd92b478",
+                "name": "Invalid2"
+              },
+              "contacts": [],
+              "groups": [
+                {
+                  "uuid": "ad17d536-0085-4e6b-abc6-222b22d57caa",
+                  "name": "Empty"
+                }
+              ],
+              "variables": []
+            }
+          ],
+          "exit_uuid": "c8b6b99d-1af5-4bd1-b2d8-b3e87de702e8"
+        },
+        {
+          "uuid": "6adc7de8-6a84-490a-b3d3-3d1ec607d465",
+          "x": 580,
+          "y": 316,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "09f0ddee-c27e-4397-bb3c-4a6cf35da77a",
+              "msg": {
+                "base": "tyvm"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "flow",
+              "uuid": "95e9750f-9bf4-4ae9-aa07-5c4cde604956",
+              "flow": {
+                "uuid": "136cdab3-e9d1-458c-b6eb-766afd92b478",
+                "name": "Invalid2"
+              }
+            }
+          ],
+          "exit_uuid": "1f5d4b7e-7ceb-47cf-91e7-94790f63c9db"
+        },
+        {
+          "uuid": "ed891a32-6e6d-49b1-88d0-399d2002bce0",
+          "x": 323,
+          "y": 993,
+          "destination": null,
+          "actions": [
+            {
+              "type": "flow",
+              "uuid": "70acb970-8b3a-47d0-9fb6-56c5974a582b",
+              "flow": {
+                "uuid": "b823cc3b-aaa6-4cd1-b7a5-28d6b492cfa3",
+                "name": "Valid1"
+              }
+            }
+          ],
+          "exit_uuid": "b5bfc0a1-701e-4e19-ad3e-bf9d7470b241"
+        },
+        {
+          "uuid": "a750fe69-167b-4ae3-af72-7aae4c2d8b1a",
+          "x": 598,
+          "y": 993,
+          "destination": null,
+          "actions": [
+            {
+              "type": "flow",
+              "uuid": "9b0f11bd-fbda-4efe-a41a-8ef101412d95",
+              "flow": {
+                "uuid": "136cdab3-e9d1-458c-b6eb-766afd92b478",
+                "name": "Invalid2"
+              }
+            }
+          ],
+          "exit_uuid": "1231547d-8f57-4a12-82d1-b1bf3e664010"
+        },
+        {
+          "uuid": "0bfb7527-c6e9-4452-b780-6755d2041144",
+          "x": 576,
+          "y": 169,
+          "destination": null,
+          "actions": [
+            {
+              "type": "flow",
+              "uuid": "e8e85830-1aef-4947-af91-1a2653f3627d",
+              "flow": {
+                "uuid": "b823cc3b-aaa6-4cd1-b7a5-28d6b492cfa3",
+                "name": "Valid1"
+              }
+            }
+          ],
+          "exit_uuid": "8d2c4101-330a-49f7-a4e5-972513c1a995"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "a7de0caa-5ab0-4edc-8fc8-33eb31f79cba",
+          "x": 61,
+          "y": 190,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "a16424a4-95df-4839-813a-bf6bee37f735",
+              "category": {
+                "base": "1"
+              },
+              "destination": "9baa6aaf-61bf-4686-8059-1c373a43e5a6",
+              "destination_type": "R",
+              "test": {
+                "type": "eq",
+                "test": "1"
+              },
+              "label": null
+            },
+            {
+              "uuid": "f6b45161-f1fe-475f-a4db-7eb300f26415",
+              "category": {
+                "base": "2"
+              },
+              "destination": "c9e48e85-b91c-4e2b-bb17-fb670f1559c0",
+              "destination_type": "A",
+              "test": {
+                "type": "eq",
+                "test": "2"
+              },
+              "label": null
+            },
+            {
+              "uuid": "59bfd40b-8b94-4555-ac2e-e6883d280df2",
+              "category": {
+                "base": "3"
+              },
+              "destination": "6adc7de8-6a84-490a-b3d3-3d1ec607d465",
+              "destination_type": "A",
+              "test": {
+                "type": "eq",
+                "test": "3"
+              },
+              "label": null
+            },
+            {
+              "uuid": "7b25509c-94c4-45c1-86cf-2995916ac825",
+              "category": {
+                "base": "Other"
+              },
+              "destination": "0bfb7527-c6e9-4452-b780-6755d2041144",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "9baa6aaf-61bf-4686-8059-1c373a43e5a6",
+          "x": 51,
+          "y": 659,
+          "label": "Response 2",
+          "rules": [
+            {
+              "uuid": "049a4d45-d50d-468a-ae61-9e55c5dda0ea",
+              "category": {
+                "base": "Completed"
+              },
+              "destination": "54c31965-d727-4b0a-a37e-6231551343dc",
+              "destination_type": "R",
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              },
+              "label": null
+            },
+            {
+              "uuid": "101dea88-83bf-4219-973b-d11de45589ae",
+              "category": {
+                "base": "Expired"
+              },
+              "destination": "544e4ef3-4c54-4bb0-8f89-a1e098b3f030",
+              "destination_type": "A",
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "subflow",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "flow": {
+              "name": "Invalid1",
+              "uuid": "ad40071e-a665-4df3-af14-0bc0fe589244"
+            }
+          }
+        },
+        {
+          "uuid": "54c31965-d727-4b0a-a37e-6231551343dc",
+          "x": 36,
+          "y": 875,
+          "label": "Response 3",
+          "rules": [
+            {
+              "uuid": "6a9a30cc-0400-4148-b760-ff342d7ef496",
+              "category": {
+                "base": "Completed"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              },
+              "label": null
+            },
+            {
+              "uuid": "e9e0ad89-6d63-4744-ba35-8042af052a95",
+              "category": {
+                "base": "Expired"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "subflow",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "flow": {
+              "name": "Valid1",
+              "uuid": "b823cc3b-aaa6-4cd1-b7a5-28d6b492cfa3"
+            }
+          }
+        },
+        {
+          "uuid": "861c6312-b2a8-4586-8688-6621d7065497",
+          "x": 409,
+          "y": 863,
+          "label": "Response 4",
+          "rules": [
+            {
+              "uuid": "451cb651-7a59-4d2b-bfe5-753643ad7db2",
+              "category": {
+                "base": "1"
+              },
+              "destination": "ed891a32-6e6d-49b1-88d0-399d2002bce0",
+              "destination_type": "A",
+              "test": {
+                "type": "between",
+                "min": "0",
+                "max": "0.5"
+              },
+              "label": null
+            },
+            {
+              "uuid": "39c05550-91a3-4497-9595-2478b5ab6ae4",
+              "category": {
+                "base": "2"
+              },
+              "destination": "a750fe69-167b-4ae3-af72-7aae4c2d8b1a",
+              "destination_type": "A",
+              "test": {
+                "type": "between",
+                "min": "0.5",
+                "max": "1"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "random",
+          "response_type": "",
+          "operand": "@(RAND())",
+          "config": {}
+        }
+      ],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.8",
+      "metadata": {
+        "name": "Master",
+        "saved_on": "2018-12-17T13:54:21.769976Z",
+        "revision": 56,
+        "uuid": "8d3f72ef-60b9-4902-b792-d664df502f3f",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

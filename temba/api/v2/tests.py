@@ -1,11 +1,11 @@
 import base64
 from datetime import datetime
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import uuid4
 
 import iso8601
 import pytz
-from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
 
@@ -28,6 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
+from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -235,7 +236,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("tel:+1-800-123-4567"), "tel:+18001234567")
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "12345")  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "tel:800-123-4567")  # no country code
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18001234567)  # non-string
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 18_001_234_567)  # non-string
 
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
@@ -455,7 +456,10 @@ class APITest(TembaTest):
 
         tokens = response.json()["tokens"]
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0], {"org": {"id": self.org.pk, "name": "Temba"}, "token": token_obj1.key})
+        self.assertEqual(
+            tokens[0],
+            {"org": {"id": self.org.pk, "name": "Temba", "uuid": str(self.org.uuid)}, "token": token_obj1.key},
+        )
 
         # authenticate an admin as a surveyor
         response = self.client.post(url, {"username": "Administrator", "password": "Administrator", "role": "S"})
@@ -465,7 +469,10 @@ class APITest(TembaTest):
 
         tokens = response.json()["tokens"]
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0], {"org": {"id": self.org.pk, "name": "Temba"}, "token": token_obj2.key})
+        self.assertEqual(
+            tokens[0],
+            {"org": {"id": self.org.pk, "name": "Temba", "uuid": str(self.org.uuid)}, "token": token_obj2.key},
+        )
 
         # the keys should be different
         self.assertNotEqual(token_obj1.key, token_obj2.key)
@@ -481,7 +488,7 @@ class APITest(TembaTest):
         self.assertEqual(client.get(reverse("api.v2.campaigns") + ".json").status_code, 403)
 
         # but their surveyor token can get flows or contacts
-        # self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse("api.v2.flows") + ".json").status_code, 200)
         self.assertEqual(client.get(reverse("api.v2.contacts") + ".json").status_code, 200)
 
         # our surveyor can't login with an admin role
@@ -892,6 +899,33 @@ class APITest(TembaTest):
         response = self.postJSON(url, "uuid=%s" % spam.uuid, {"name": "Won't work", "group": spammers.uuid})
         self.assert404(response)
 
+    def test_campaigns_does_not_update_inactive_archived(self):
+        url = reverse("api.v2.campaigns")
+
+        self.assertEndpointAccess(url)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        campaign = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
+
+        campaign.is_active = False
+        campaign.save(update_fields=("is_active",))
+
+        # can't update inactive or archived campaign
+        response = self.postJSON(
+            url, "uuid=%s" % campaign.uuid, data={"name": "Reminders III", "group": reporters.uuid}
+        )
+        self.assertEqual(response.status_code, 404)
+
+        campaign.is_active = True
+        campaign.is_archived = True
+        campaign.save(update_fields=("is_active", "is_archived"))
+
+        # can't update inactive or archived campaign
+        response = self.postJSON(
+            url, "uuid=%s" % campaign.uuid, data={"name": "Reminders III", "group": reporters.uuid}
+        )
+        self.assertEqual(response.status_code, 404)
+
     def test_campaign_events(self):
         url = reverse("api.v2.campaign_events")
 
@@ -1201,6 +1235,135 @@ class APITest(TembaTest):
         # should no longer have any events
         self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
+    def test_campaignevents_cant_modify_on_inactive_campaign(self):
+        url = reverse("api.v2.campaign_events")
+
+        self.login(self.admin)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        registration = ContactField.get_or_create(
+            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+        )
+
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
+        event1 = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign1,
+            registration,
+            1,
+            CampaignEvent.UNIT_DAYS,
+            "Don't forget to brush your teeth",
+        )
+
+        campaign1.is_active = False
+        campaign1.save(update_fields=("is_active",))
+
+        # fetch campaign event on inactive campaign
+        response = self.fetchJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(len(response.json()["results"]), 1)
+
+        # creating a new flow event on the inactive campaign does not work
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "Nice job",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
+
+        # updating a flow event on the inactive campaign does not work
+        response = self.postJSON(
+            url,
+            f"uuid={event1.uuid}",
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "Nice job",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
+
+        # we can delete an event on the inactive campaign
+        response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(response.status_code, 204)
+
+    def test_campaignevents_on_archived_campaign(self):
+        url = reverse("api.v2.campaign_events")
+
+        self.login(self.admin)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        registration = ContactField.get_or_create(
+            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+        )
+
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
+        event1 = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign1,
+            registration,
+            1,
+            CampaignEvent.UNIT_DAYS,
+            "Don't forget to brush your teeth",
+        )
+
+        campaign1.is_active = True
+        campaign1.is_archived = True
+        campaign1.save(update_fields=("is_active", "is_archived"))
+
+        # creating a new flow event on the archived campaign does not work
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "Nice job",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
+
+        # updating a flow event on the inactive campaign does not work
+        response = self.postJSON(
+            url,
+            f"uuid={event1.uuid}",
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "Nice job",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
+
+        # fetch campaign event on archived campaign
+        response = self.fetchJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(len(response.json()["results"]), 1)
+
+        # we can delete an event on the archived campaign
+        response = self.deleteJSON(url, "uuid=%s" % event1.uuid)
+        self.assertEqual(response.status_code, 204)
+
     def test_channels(self):
         url = reverse("api.v2.channels")
 
@@ -1507,7 +1670,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        with self.assertNumQueries(72):
+        with self.assertNumQueries(66):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,
@@ -1563,7 +1726,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(33):
             response = self.postJSON(
                 url,
                 "uuid=%s" % jean.uuid,
@@ -1673,6 +1836,50 @@ class APITest(TembaTest):
         # try to delete a contact in another org
         response = self.deleteJSON(url, "uuid=%s" % hans.uuid)
         self.assert404(response)
+
+    def test_prevent_modifying_contacts_with_fields_that_have_null_chars(self):
+        """
+        Verifies fix for: https://sentry.io/nyaruka/textit/issues/770220071/
+        """
+
+        url = reverse("api.v2.contacts")
+        self.assertEndpointAccess(url)
+
+        ContactField.get_or_create(self.org, self.admin, "string_field")
+        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=Value.TYPE_NUMBER)
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "name": "Jean",
+                "language": "fra",
+                "urns": ["tel:+250783333334"],
+                "groups": [],
+                "fields": {"string_field": "crayons on the wall \u0000, pudding on the wall \x00, yeah \0"},
+            },
+        )
+        response_json = response.json()
+        self.assertTrue("string_field" in response_json["fields"])
+        self.assertEqual(response_json["fields"]["string_field"], ["Null characters are not allowed."])
+
+        # test create with a null chars \u0000
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "name": "Jean",
+                "language": "fra",
+                "urns": ["tel:+250783333334"],
+                "groups": [],
+                "fields": {"number_field": "123\u0000"},
+            },
+        )
+
+        response_json = response.json()
+        self.assertTrue("number_field" in response_json["fields"])
+        self.assertEqual(response_json["fields"]["number_field"], ["Null characters are not allowed."])
 
     def test_contact_action_update_datetime_field(self):
         url = reverse("api.v2.contacts")
@@ -2126,8 +2333,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        registration = self.create_flow(name="Registration")
+        survey = self.get_flow("media_survey")
         color = self.get_flow("color")
+        archived = self.get_flow("favorites")
+        archived.archive()
 
         # add a campaign message flow that should be filtered out
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")
@@ -2144,7 +2353,7 @@ class APITest(TembaTest):
         self.create_flow(org=self.org2, name="Other")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -2154,8 +2363,20 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
+                    "uuid": archived.uuid,
+                    "name": "Favorites",
+                    "type": "message",
+                    "archived": True,
+                    "labels": [],
+                    "expires": 720,
+                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "created_on": format_datetime(archived.created_on),
+                    "modified_on": format_datetime(archived.modified_on),
+                },
+                {
                     "uuid": color.uuid,
                     "name": "Color Flow",
+                    "type": "message",
                     "archived": False,
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
                     "expires": 720,
@@ -2164,14 +2385,15 @@ class APITest(TembaTest):
                     "modified_on": format_datetime(color.modified_on),
                 },
                 {
-                    "uuid": registration.uuid,
-                    "name": "Registration",
+                    "uuid": survey.uuid,
+                    "name": "Media Survey",
+                    "type": "survey",
                     "archived": False,
                     "labels": [],
-                    "expires": 720,
+                    "expires": 10080,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
-                    "created_on": format_datetime(registration.created_on),
-                    "modified_on": format_datetime(registration.modified_on),
+                    "created_on": format_datetime(survey.created_on),
+                    "modified_on": format_datetime(survey.modified_on),
                 },
             ],
         )
@@ -2180,37 +2402,37 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "uuid=%s" % color.uuid)
         self.assertResultsByUUID(response, [color])
 
+        # filter by type
+        response = self.fetchJSON(url, "type=message")
+        self.assertResultsByUUID(response, [archived, color])
+
+        response = self.fetchJSON(url, "type=survey")
+        self.assertResultsByUUID(response, [survey])
+
+        # filter by archived
+        response = self.fetchJSON(url, "archived=1")
+        self.assertResultsByUUID(response, [archived])
+
+        response = self.fetchJSON(url, "archived=0")
+        self.assertResultsByUUID(response, [color, survey])
+
+        response = self.fetchJSON(url, "archived=false")
+        self.assertResultsByUUID(response, [color, survey])
+
         # filter by before
-        response = self.fetchJSON(url, "before=%s" % format_datetime(registration.modified_on))
-        self.assertResultsByUUID(response, [registration])
+        response = self.fetchJSON(url, "before=%s" % format_datetime(color.modified_on))
+        self.assertResultsByUUID(response, [color, survey])
 
         # filter by after
         response = self.fetchJSON(url, "after=%s" % format_datetime(color.modified_on))
-        self.assertResultsByUUID(response, [color])
+        self.assertResultsByUUID(response, [archived, color])
 
-        # Inactive flows hidden
-        registration.is_active = False
-        registration.save()
+        # inactive flows are never returned
+        archived.is_active = False
+        archived.save()
 
         response = self.fetchJSON(url)
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
-                {
-                    "uuid": color.uuid,
-                    "name": "Color Flow",
-                    "archived": False,
-                    "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
-                    "expires": 720,
-                    "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
-                    "created_on": format_datetime(color.created_on),
-                    "modified_on": format_datetime(color.modified_on),
-                }
-            ],
-        )
+        self.assertResultsByUUID(response, [color, survey])
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
@@ -2352,6 +2574,63 @@ class APITest(TembaTest):
         group1 = ContactGroup.user_groups.filter(org=self.org, name="group1").first()
         response = self.deleteJSON(url, "uuid=%s" % group1.uuid)
         self.assertEqual(response.status_code, 204)
+
+    def test_api_groups_cant_delete_with_trigger_dependency(self):
+        url = reverse("api.v2.groups")
+        self.login(self.admin)
+
+        flow = self.get_flow("dependencies")
+        cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
+
+        trigger = Trigger.objects.create(
+            org=self.org, flow=flow, keyword="block_group", created_by=self.admin, modified_by=self.admin
+        )
+        trigger.groups.add(cats)
+
+        response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": "This group is used by active triggers. In order to delete it, first archive triggers: block_group"
+            },
+        )
+
+    def test_api_groups_cant_delete_with_flow_dependency(self):
+        url = reverse("api.v2.groups")
+        self.login(self.admin)
+
+        self.get_flow("dependencies")
+
+        cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
+
+        response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"detail": "This group is used by active flows. In order to delete it, first archive flows: Dependencies"},
+        )
+
+    def test_api_groups_cant_delete_with_campaign_dependency(self):
+        url = reverse("api.v2.groups")
+        self.login(self.admin)
+
+        customers = self.create_group("Customers", [self.frank])
+
+        post_data = dict(name="Don't forget to ...", group=customers.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        response = self.deleteJSON(url, "uuid=%s" % customers.uuid)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": "This group is used by active campaigns. In order to delete it, first archive campaigns: Don't forget to ..."
+            },
+        )
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
@@ -2665,6 +2944,7 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {
+                "uuid": str(self.org.uuid),
                 "name": "Temba",
                 "country": "RW",
                 "languages": [],
@@ -2682,6 +2962,7 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {
+                "uuid": str(self.org.uuid),
                 "name": "Temba",
                 "country": "RW",
                 "languages": ["eng", "fra"],
@@ -2700,6 +2981,7 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {
+                "uuid": str(self.org.uuid),
                 "name": "Temba",
                 "country": "RW",
                 "languages": ["eng", "fra"],
@@ -2726,11 +3008,7 @@ class APITest(TembaTest):
                 location = response.json().get("location", None)
                 self.assertIsNotNone(location)
 
-                starts_with = "https://%s/%s/%d/media/" % (
-                    settings.AWS_BUCKET_DOMAIN,
-                    settings.STORAGE_ROOT_DIR,
-                    self.org.pk,
-                )
+                starts_with = f"{settings.STORAGE_URL}/{settings.STORAGE_ROOT_DIR}/{self.org.id}/media/"
                 self.assertEqual(starts_with, location[0 : len(starts_with)])
                 self.assertEqual(".%s" % ext, location[-4:])
 

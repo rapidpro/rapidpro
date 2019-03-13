@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
 from functools import cmp_to_key
+from urllib.parse import parse_qs, unquote, urlparse
 
 import nexmo
 import requests
@@ -68,12 +69,7 @@ from .models import (
     NEXMO_SECRET,
     NEXMO_UUID,
     RESTORED,
-    SMTP_ENCRYPTION,
-    SMTP_FROM_EMAIL,
-    SMTP_HOST,
-    SMTP_PASSWORD,
-    SMTP_PORT,
-    SMTP_USERNAME,
+    SMTP_SERVER,
     SUSPENDED,
     TRANSFERTO_ACCOUNT_LOGIN,
     TRANSFERTO_AIRTIME_API_TOKEN,
@@ -546,6 +542,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
         "home",
+        "token",
         "webhook",
         "edit",
         "edit_sub_org",
@@ -982,9 +979,6 @@ class OrgCRUDL(SmartCRUDL):
                 widget=forms.PasswordInput,
             )
             smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
-            smtp_encryption = forms.ChoiceField(
-                choices=(("", _("No encryption")), ("T", _("Use TLS"))), required=False, label=_("Encryption")
-            )
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
@@ -997,9 +991,12 @@ class OrgCRUDL(SmartCRUDL):
                     smtp_port = self.cleaned_data.get("smtp_port", None)
 
                     config = self.instance.config
-                    existing_username = config.get(SMTP_USERNAME, "")
-                    if not smtp_password and existing_username == smtp_username:
-                        smtp_password = config.get(SMTP_PASSWORD, "")
+                    existing_smtp_server = urlparse(config.get("smtp_server", ""))
+                    existing_username = ""
+                    if existing_smtp_server.username:
+                        existing_username = unquote(existing_smtp_server.username)
+                    if not smtp_password and existing_username == smtp_username and existing_smtp_server.password:
+                        smtp_password = unquote(existing_smtp_server.password)
 
                     if not smtp_from_email:
                         raise ValidationError(_("You must enter a from email"))
@@ -1025,15 +1022,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = (
-                    "smtp_from_email",
-                    "smtp_host",
-                    "smtp_username",
-                    "smtp_password",
-                    "smtp_port",
-                    "smtp_encryption",
-                    "disconnect",
-                )
+                fields = ("smtp_from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
 
         form_class = SmtpConfig
 
@@ -1041,13 +1030,20 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["smtp_from_email"] = config.get(SMTP_FROM_EMAIL, "")
-            initial["smtp_host"] = config.get(SMTP_HOST, "")
-            initial["smtp_username"] = config.get(SMTP_USERNAME, "")
-            initial["smtp_password"] = config.get(SMTP_PASSWORD, "")
-            initial["smtp_port"] = config.get(SMTP_PORT, "")
-            initial["smtp_encryption"] = config.get(SMTP_ENCRYPTION, "")
+            smtp_server = config.get(SMTP_SERVER, None)
+            parsed_smtp_server = urlparse(smtp_server)
+            smtp_username = ""
+            if parsed_smtp_server.username:
+                smtp_username = unquote(parsed_smtp_server.username)
+            smtp_password = ""
+            if parsed_smtp_server.password:
+                smtp_password = unquote(parsed_smtp_server.password)
 
+            initial["smtp_from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
+            initial["smtp_host"] = parsed_smtp_server.hostname
+            initial["smtp_username"] = smtp_username
+            initial["smtp_password"] = smtp_password
+            initial["smtp_port"] = parsed_smtp_server.port
             initial["disconnect"] = "false"
             return initial
 
@@ -1065,11 +1061,8 @@ class OrgCRUDL(SmartCRUDL):
                 smtp_username = form.cleaned_data["smtp_username"]
                 smtp_password = form.cleaned_data["smtp_password"]
                 smtp_port = form.cleaned_data["smtp_port"]
-                smtp_encryption = form.cleaned_data["smtp_encryption"]
 
-                org.add_smtp_config(
-                    smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, smtp_encryption, user
-                )
+                org.add_smtp_config(smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, user)
 
             return super().form_valid(form)
 
@@ -1079,7 +1072,10 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             if org.has_smtp_config():
                 config = org.config
-                from_email = config.get(SMTP_FROM_EMAIL)
+                smtp_server = config.get(SMTP_SERVER, None)
+                parsed_smtp_server = urlparse(smtp_server)
+
+                from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
             else:
                 from_email = settings.FLOW_FROM_EMAIL
 
@@ -1940,8 +1936,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 surveyors_group = Group.objects.get(name="Surveyors")
                 token = APIToken.get_or_create(org, user, role=surveyors_group)
-                response = dict(url=self.get_success_url(), token=token, user=username, org=org.name)
-                return HttpResponseRedirect("%(url)s?org=%(org)s&token=%(token)s&user=%(user)s" % response)
+
+                org_name = urlquote(org.name)
+
+                return HttpResponseRedirect(
+                    f"{self.get_success_url()}?org={org_name}&uuid={str(org.uuid)}&token={token}&user={username}"
+                )
 
         def form_invalid(self, form):
             return super().form_invalid(form)
@@ -2121,6 +2121,23 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().pre_save(obj)
 
+    class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class TokenForm(forms.ModelForm):
+            class Meta:
+                model = Org
+                fields = ("id",)
+
+        form_class = TokenForm
+        success_url = "@orgs.org_home"
+        success_message = ""
+
+        def get_context_data(self, **kwargs):
+            from temba.api.models import WebHookEvent
+
+            context = super().get_context_data(**kwargs)
+            context["failed_webhooks"] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
+            return context
+
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class WebhookForm(forms.ModelForm):
             webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
@@ -2154,6 +2171,12 @@ class OrgCRUDL(SmartCRUDL):
         form_class = WebhookForm
         success_url = "@orgs.org_home"
         success_message = ""
+
+        def pre_process(self, request, *args, **kwargs):
+            org = self.get_object()
+            if not org.get_webhook_url():
+                return HttpResponseRedirect(reverse("orgs.org_token"))
+            return None
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
@@ -2377,8 +2400,10 @@ class OrgCRUDL(SmartCRUDL):
                         nobutton=True,
                     )
 
-            if self.has_org_perm("orgs.org_webhook"):
+            if self.has_org_perm("orgs.org_webhook") and org.get_webhook_url():
                 formax.add_section("webhook", reverse("orgs.org_webhook"), icon="icon-cloud-upload")
+            elif self.has_org_perm("orgs.org_token"):
+                formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(

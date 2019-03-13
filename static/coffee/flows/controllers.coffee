@@ -840,9 +840,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if hovered.action_set
         action_set = hovered.action_set
         action_set._showMessages = true
+        action_set._messagesLoaded = false
 
         Flow.fetchRecentMessages([action_set.exit_uuid], action_set.destination).then (response) ->
           action_set._messages = response.data
+          action_set._messagesLoaded = true
 
       if hovered.category
 
@@ -853,10 +855,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         # our node and rule should be marked as showing messages
         ruleset._showMessages = true
         category._showMessages = true
+        category._messagesLoaded = false
 
         # get all recent messages for all rules that make up this category
         Flow.fetchRecentMessages(category.sources, category.target).then (response) ->
           category._messages = response.data
+          category._messagesLoaded = true
     , 500
 
   $scope.clickShowActionMedia = ->
@@ -1225,8 +1229,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.isRuleVisible = (rule) ->
     return flow.flow_type in rule._config.filter
 
-  $scope.getFlowsUrl = (flow) ->
+  $scope.getFlowsUrl = (exclude_current_flow) ->
     url = "/flow/?_format=select2"
+
+    if exclude_current_flow
+        url += '&exclude_flow_uuid='+ Flow.flow.metadata.uuid;
+
     if Flow.flow.flow_type == 'S'
       return url + "&flow_type=S"
     if Flow.flow.flow_type == 'M'
@@ -2066,27 +2074,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.field = field.id
     $scope.action.label = field.text
     $scope.action.value = value
-
-    Flow.saveAction(actionset, $scope.action)
-    $modalInstance.close()
-
-  # save a webhook action
-  $scope.saveWebhook = (method, url) ->
-
-    if $scope.hasInvalidFields([url])
-      return
-
-    # don't include headers without name
-    webhook_headers = []
-    if $scope.action.webhook_headers
-      for header in $scope.action.webhook_headers
-        if header.name
-          webhook_headers.push(header)
-
-    $scope.action.type = 'api'
-    $scope.action.action = method
-    $scope.action.webhook = url
-    $scope.action.webhook_headers = webhook_headers
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

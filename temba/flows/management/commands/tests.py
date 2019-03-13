@@ -6,6 +6,11 @@ from temba.tests import FlowFileTest, TembaTest
 from .run_audit import has_none_string_in
 
 
+class MigrateFlowsTest(FlowFileTest):
+    def test_migrate_flows(self):
+        call_command("migrate_flows")
+
+
 class RunAuditTest(TembaTest):
     def test_has_none_string_in(self):
         self.assertTrue(has_none_string_in("None"))

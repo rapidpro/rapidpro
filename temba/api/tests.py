@@ -1,8 +1,6 @@
 from datetime import timedelta
+from unittest.mock import patch
 from urllib.parse import parse_qs
-from uuid import uuid4
-
-from mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -14,11 +12,9 @@ from temba.api.models import APIToken, WebHookEvent, WebHookResult
 from temba.api.tasks import trim_webhook_event_task
 from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import TEL_SCHEME, Contact
-from temba.flows.models import ActionSet, Flow, WebhookAction
 from temba.msgs.models import FAILED, Broadcast
 from temba.orgs.models import ALL_EVENTS
-from temba.tests import MockResponse, TembaTest, matchers
-from temba.utils import json
+from temba.tests import MockResponse, TembaTest
 
 
 class APITokenTest(TembaTest):
@@ -226,82 +222,6 @@ class WebHookTest(TembaTest):
             self.assertEqual("WIFI", data["network_type"][0])
             self.assertEqual(5, int(data["pending_message_count"][0]))
             self.assertEqual(4, int(data["retry_message_count"][0]))
-
-    @patch("requests.Session.send")
-    def test_flow_event(self, mock_send):
-        self.setupChannel()
-
-        org = self.channel.org
-        org.save()
-
-        flow = self.get_flow("color")
-
-        # replace our uuid of 4 with the right thing
-        actionset = ActionSet.objects.get(x=4)
-        actionset.actions = [WebhookAction(str(uuid4()), org.get_webhook_url()).as_json()]
-        actionset.save()
-
-        # run a user through this flow
-        flow.start([], [self.joe])
-
-        # have joe reply with mauve, which will put him in the other category that triggers the API Action
-        sms = self.create_msg(
-            contact=self.joe,
-            direction="I",
-            status="H",
-            text="Mauve",
-            attachments=["image/jpeg:http://s3.com/text.jpg", "audio/mp4:http://s3.com/text.mp4"],
-        )
-
-        mock_send.return_value = MockResponse(200, "{}")
-        Flow.find_and_handle(sms)
-
-        # should have one event created
-        event = WebHookEvent.objects.get()
-
-        self.assertEqual("C", event.status)
-        self.assertEqual(1, event.try_count)
-        self.assertFalse(event.next_attempt)
-
-        result = WebHookResult.objects.get()
-        self.assertIn("successfully", result.message)
-        self.assertEqual(200, result.status_code)
-        self.assertEqual(self.joe, result.contact)
-
-        self.assertTrue(mock_send.called)
-
-        args = mock_send.call_args_list[0][0]
-        prepared_request = args[0]
-        self.assertIn(self.channel.org.get_webhook_url(), prepared_request.url)
-
-        data = json.loads(prepared_request.body)
-
-        self.assertEqual(data["channel"], {"uuid": str(self.channel.uuid), "name": self.channel.name})
-        self.assertEqual(
-            data["contact"], {"uuid": str(self.joe.uuid), "name": self.joe.name, "urn": str(self.joe.get_urn("tel"))}
-        )
-        self.assertEqual(data["flow"], {"uuid": str(flow.uuid), "name": flow.name, "revision": 1})
-        self.assertEqual(
-            data["input"],
-            {
-                "urn": "tel:+250788123123",
-                "text": "Mauve",
-                "attachments": ["image/jpeg:http://s3.com/text.jpg", "audio/mp4:http://s3.com/text.mp4"],
-            },
-        )
-        self.assertEqual(
-            data["results"],
-            {
-                "color": {
-                    "category": "Other",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "color",
-                    "value": "Mauve\nhttp://s3.com/text.jpg\nhttp://s3.com/text.mp4",
-                    "created_on": matchers.ISODate(),
-                    "input": "Mauve\nhttp://s3.com/text.jpg\nhttp://s3.com/text.mp4",
-                }
-            },
-        )
 
     @patch("requests.Session.send")
     def test_webhook_first(self, mock_send):
