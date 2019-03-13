@@ -3,6 +3,7 @@
 import regex
 
 from django.db import migrations
+from django.db.models import Prefetch
 
 
 def label_to_slug(label):
@@ -11,26 +12,27 @@ def label_to_slug(label):
 
 def extract_results(flow):
     print("extracting results for flow %s" % flow.name)
-    results = {}
+    results = []
+    keys_seen = set()
 
-    for rs in flow.rule_sets.all():
+    for rs in flow.rule_sets.order_by("y"):
         if rs.label:
             key = label_to_slug(rs.label)
-
-            if key not in results:
-                results[key] = {"names": []}
-
-            if rs.label not in results[key]["names"]:
-                results[key]["names"].append(rs.label)
+            if key not in keys_seen:
+                results.append({"name": rs.label, "key": key})
+                keys_seen.add(key)
 
     return results
 
 
 def populate_results(apps, schema_editor):
     Flow = apps.get_model("flows", "Flow")
+    RuleSet = apps.get_model("flows", "RuleSet")
+
+    ruleset_prefetch = Prefetch("rule_sets", queryset=RuleSet.objects.order_by("y"))
 
     num_updated = 0
-    for flow in Flow.objects.filter(results__isnull=True).prefetch_related("rule_sets"):
+    for flow in Flow.objects.filter(results__isnull=True).prefetch_related(ruleset_prefetch):
         flow.results = extract_results(flow)
         flow.save(update_fields=("results",))
 

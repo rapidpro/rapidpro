@@ -11612,5 +11612,5 @@ class FlowResultMigrationTest(MigrationTest):
 
         self.assertEqual(
             favorites.results,
-            {"beer": {"names": ["Beer"]}, "color": {"names": ["Color"]}, "name": {"names": ["Name"]}},
+            [{"name": "Color", "key": "color"}, {"name": "Beer", "key": "beer"}, {"name": "Name", "key": "name"}],
         )
