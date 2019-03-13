@@ -583,7 +583,7 @@ class OrgCRUDL(SmartCRUDL):
 
     model = Org
 
-    class Import(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_("The import file"))
             update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
