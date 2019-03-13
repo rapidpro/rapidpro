@@ -3,20 +3,16 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.twitter import TembaTwython, TwythonError
+from temba.utils.views import NonAtomicMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
 
 
-class ClaimView(ClaimViewMixin, SmartFormView):
-    @transaction.non_atomic_requests
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
+class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         api_key = forms.CharField(label=_("Consumer API Key"))
         api_secret = forms.CharField(label=_("Consumer API Secret Key"))
