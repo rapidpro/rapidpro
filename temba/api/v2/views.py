@@ -2418,7 +2418,13 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             "label": "Testing"
         }
 
-    You will receive an empty response with status code 204 if successful.
+    You will receive an empty response with status code 204 if successful. In the case that some messages couldn't be
+    updated because they no longer exist, the status code will be 200 and the body will include the failed message ids:
+
+    Example response:
+
+        {"failures": [2345, 3456]}
+
     """
 
     permission = "msgs.msg_api"
