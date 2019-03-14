@@ -3282,7 +3282,7 @@ class APITest(TembaTest):
 
         # should get a partial success
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {'failures': [msg2.id]})
+        self.assertEqual(response.json(), {"failures": [msg2.id]})
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg3})
 
         # try to act on an outgoing message
