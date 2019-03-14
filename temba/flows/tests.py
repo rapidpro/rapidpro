@@ -9245,27 +9245,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["version"], get_current_export_version())
         self.assertEqual(flow_json["metadata"]["revision"], 2)
 
-    def test_update_dependencies_on_old_version(self):
-        flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.objects.create(
-            name="Call Me Maybe",
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-            saved_by=self.admin,
-            version_number=3,
-            flow_type="V",
-        )
-
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
-
-        # updating our dependencies should ensure the current version
-        flow.update_dependencies()
-
-        self.assertEqual(flow.version_number, get_current_export_version())
-
     def test_update_with_ruleset_to_actionset_change(self):
         flow = self.get_flow("favorites")
 
