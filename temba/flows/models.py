@@ -62,7 +62,6 @@ from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.expressions import ContactFieldCollector
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -2329,8 +2328,9 @@ class Flow(TembaModel):
                     actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
                     actionset[Flow.ACTIONS] = actions
 
-            definition = mailroom.get_client().flow_validate(self.org if validate_dependencies else None, json_dict)
-            self.results = definition["_results"]
+            validated = mailroom.get_client().flow_validate(self.org if validate_dependencies else None, json_dict)
+            dependencies = validated["_dependencies"]
+            self.results = validated["_results"]
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
@@ -2381,7 +2381,7 @@ class Flow(TembaModel):
                     revision=revision_num,
                 )
 
-                self.update_dependencies()
+                self.update_dependencies(dependencies)
 
         except Exception as e:
             # user will see an error in the editor but log exception so we know we got something to fix
@@ -2625,110 +2625,34 @@ class Flow(TembaModel):
             self.entry_uuid = entry
             self.entry_type = Flow.NODE_TYPE_RULESET
 
-    def update_dependencies(self):
-        # if we are an older version, induce a system rev which will update our dependencies
-        if Flow.is_before_version(self.version_number, get_current_export_version()):
-            self.ensure_current_version()
-            return
+    def update_dependencies(self, dependencies):
+        field_keys = [f["key"] for f in dependencies.get("fields", [])]
+        flow_uuids = [f["uuid"] for f in dependencies.get("flows", [])]
+        group_uuids = [g["uuid"] for g in dependencies.get("groups", [])]
 
-        # otherwise, go about updating our dependencies assuming a current flow
-        groups = set()
-        flows = set()
-        collector = ContactFieldCollector()
-
-        # find any references in our actions
-        fields = set()
-        for actionset in self.action_sets.all():
-            for action in actionset.get_actions():
-                if action.TYPE in (AddToGroupAction.TYPE, DeleteFromGroupAction.TYPE):
-                    # iterate over them so we can type crack to ignore expression strings :(
-                    for group in action.groups:
-                        if isinstance(group, ContactGroup):
-                            groups.add(group)
-                        else:
-                            # group names can be an expression
-                            fields.update(collector.get_contact_fields(group))
-
-                if action.TYPE == StartFlowAction.TYPE:
-                    flows.add(action.flow)
-
-                if action.TYPE == TriggerFlowAction.TYPE:
-                    flows.add(action.flow)
-                    for recipient in action.variables:
-                        fields.update(collector.get_contact_fields(recipient))
-
-                if action.TYPE in ("reply", "send", "say"):
-                    for lang, msg in action.msg.items():
-                        fields.update(collector.get_contact_fields(msg))
-
-                    if hasattr(action, "media"):
-                        for lang, text in action.media.items():
-                            fields.update(collector.get_contact_fields(text))
-
-                    if hasattr(action, "variables"):
-                        for recipient in action.variables:
-                            fields.update(collector.get_contact_fields(recipient))
-
-                if action.TYPE == "email":
-                    fields.update(collector.get_contact_fields(action.subject))
-                    fields.update(collector.get_contact_fields(action.message))
-
-                if action.TYPE == "save":
-                    fields.add(action.field)
-                    fields.update(collector.get_contact_fields(action.value))
-
-                # voice recordings
-                if action.TYPE == "play":
-                    fields.update(collector.get_contact_fields(action.url))
-
-        # find references in our rulesets
-        for ruleset in self.rule_sets.all():
-            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow_uuid = ruleset.config.get("flow").get("uuid")
-                flow = Flow.objects.filter(org=self.org, uuid=flow_uuid).first()
-                if flow:
-                    flows.add(flow)
-            elif ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
-                webhook_url = ruleset.config.get("webhook")
-                fields.update(collector.get_contact_fields(webhook_url))
-            else:
-                # check our operand for expressions
-                fields.update(collector.get_contact_fields(ruleset.operand))
-
-                # check all the rules and their localizations
-                rules = ruleset.get_rules()
-
-                for rule in rules:
-                    if hasattr(rule.test, "test"):
-                        if type(rule.test.test) == dict:
-                            for lang, text in rule.test.test.items():
-                                fields.update(collector.get_contact_fields(text))
-                        # voice rules are not localized
-                        elif isinstance(rule.test.test, str):
-                            fields.update(collector.get_contact_fields(rule.test.test))
-                    if isinstance(rule.test, InGroupTest):
-                        groups.add(rule.test.group)
-
-        if len(fields):
-            existing = ContactField.user_fields.filter(org=self.org, key__in=fields).values_list("key")
+        # still need to do lazy creation of fields in the case of a flow import
+        if len(field_keys):
+            existing_keys = set(ContactField.user_fields.filter(org=self.org, key__in=field_keys).values_list("key"))
 
             # create any field that doesn't already exist
-            for field in fields:
-                if ContactField.is_valid_key(field) and field not in existing:
+            for key in field_keys:
+                if ContactField.is_valid_key(key) and key not in existing_keys:
                     # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in field.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, field, label)
+                    label = " ".join([word.capitalize() for word in key.split("_")])
+                    ContactField.get_or_create(self.org, self.modified_by, key, label)
 
-        fields = ContactField.user_fields.filter(org=self.org, key__in=fields)
+        fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
+        flows = self.org.flows.filter(uuid__in=flow_uuids)
+        groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
 
-        self.group_dependencies.clear()
-        self.group_dependencies.add(*groups)
+        self.field_dependencies.clear()
+        self.field_dependencies.add(*fields)
 
         self.flow_dependencies.clear()
         self.flow_dependencies.add(*flows)
 
-        self.field_dependencies.clear()
-        self.field_dependencies.add(*fields)
+        self.group_dependencies.clear()
+        self.group_dependencies.add(*groups)
 
     def __str__(self):
         return self.name
