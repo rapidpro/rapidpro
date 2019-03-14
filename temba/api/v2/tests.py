@@ -3277,9 +3277,13 @@ class APITest(TembaTest):
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
         self.assertFalse(Msg.objects.filter(id=msg2.id).exists())
 
-        # try to act on a deleted message
-        response = self.postJSON(url, None, {"messages": [msg2.id], "action": "restore"})
-        self.assertResponseError(response, "messages", "No such object: %d" % msg2.id)
+        # try to act on a a valid message and a deleted message
+        response = self.postJSON(url, None, {"messages": [msg2.id, msg3.id], "action": "restore"})
+
+        # should get a partial success
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'failures': [msg2.id]})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg3})
 
         # try to act on an outgoing message
         msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
