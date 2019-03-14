@@ -1,3 +1,9 @@
+v4.22.10
+----------
+ * Use output of flow validation in mailroom to set flow dependencies
+ * Make message_actions.json API endpoint support partial updates
+ * Log to librato only pending messages older than a minute
+
 v4.22.6
 ----------
  * Add Viber Welcome Message event type and config
