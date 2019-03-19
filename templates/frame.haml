@@ -188,7 +188,8 @@
       .name
         {{brand.name}}
 
-    -include 'includes/nav.html'
+    -block nav
+      -include 'includes/nav.html'
 
     -if user_org
       .org-header
