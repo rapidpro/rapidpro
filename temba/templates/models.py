@@ -46,14 +46,14 @@ class ChannelTemplate(models.Model):
 
     STATUS_CHOICES = ((STATUS_SYNCED, "Synced"), (STATUS_PENDING, "Pending"))
 
+    # the current status of this channel template
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+
     # the template this maps to
     template = models.ForeignKey(Template, on_delete=models.PROTECT)
 
-    # the channel responsible for syncing this template
+    # the channel that synced this template
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
 
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
-
-    # the current status of this channel template
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)

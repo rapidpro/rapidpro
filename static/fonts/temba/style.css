@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?vmmlm0');
-  src:  url('fonts/temba.eot?vmmlm0#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?vmmlm0') format('truetype'),
-    url('fonts/temba.woff?vmmlm0') format('woff'),
-    url('fonts/temba.svg?vmmlm0#temba') format('svg');
+  src:  url('fonts/temba.eot?tlmx7s');
+  src:  url('fonts/temba.eot?tlmx7s#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?tlmx7s') format('truetype'),
+    url('fonts/temba.woff?tlmx7s') format('woff'),
+    url('fonts/temba.svg?tlmx7s#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,6 +24,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-template:before {
+  content: "\e90b";
+}
 .icon-arrow-up5:before {
   content: "\edc7";
 }
