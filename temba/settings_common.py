@@ -478,7 +478,10 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         "auth.user_list",
         "auth.user_update",
-        "apks.apk.*",
+        "apks.apk_create",
+        "apks.apk_list",
+        "apks.apk_update",
+        "apks.apk_download",
         "campaigns.campaign_read",
         "channels.channel_configuration",
         "channels.channel_history",

@@ -24,7 +24,9 @@ class Apk(models.Model):
 
     version = models.TextField(null=False, help_text="Our version, ex: 1.9.8")
 
-    pack = models.IntegerField(null=True, help_text="Our pack number if this is a message pack (otherwise blank)")
+    pack = models.IntegerField(
+        null=True, blank=True, help_text="Our pack number if this is a message pack (otherwise blank)"
+    )
 
     description = models.TextField(
         null=True, blank=True, default="", help_text="Changelog for this version, markdown supported"
