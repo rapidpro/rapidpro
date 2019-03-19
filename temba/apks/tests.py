@@ -52,8 +52,8 @@ class ApkTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-    def test_read(self):
-        url = reverse("apks.apk_read", args=[self.apk.id])
+    def test_update(self):
+        url = reverse("apks.apk_update", args=[self.apk.id])
 
         response = self.client.get(url)
         self.assertLoginRedirect(response)
