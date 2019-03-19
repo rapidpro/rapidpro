@@ -169,7 +169,8 @@ class GenerateCoupon(View):
 class OrderStatus(View):
     def post(self, request, *args, **kwargs):
         if request.method == "POST":
-            text = request.POST.get("text", "")
+            request_body = json.loads(request.body)
+            text = request_body.get("input", dict()).get("text", "")
         else:
             text = request.GET.get("text", "")
 

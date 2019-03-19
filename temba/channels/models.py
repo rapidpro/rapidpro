@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
+from temba.mailroom.queue import queue_mailroom_mo_miss_task
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
@@ -252,6 +253,11 @@ class ChannelType(metaclass=ABCMeta):
 
 def _get_default_channel_scheme():
     return ["tel"]
+
+
+class UnsupportedAndroidChannelError(Exception):
+    def __init__(self, message):
+        self.message = message
 
 
 class Channel(TembaModel):
@@ -673,8 +679,12 @@ class Channel(TembaModel):
         country = status.get("cc")
         device = status.get("dev")
 
-        if not fcm_id or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID or FCM ID")
+        if not fcm_id or not uuid:
+            gcm_id = registration_data.get("gcm_id")
+            if gcm_id:
+                raise UnsupportedAndroidChannelError("Unsupported Android client app.")
+            else:
+                raise ValueError("Can't create Android channel without UUID or FCM ID")
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
@@ -969,9 +979,7 @@ class Channel(TembaModel):
         # use our optimized index for our org outbox
         from temba.msgs.models import Msg
 
-        return Msg.objects.filter(org=self.org.id, status__in=["P", "Q"], direction="O", visibility="V").filter(
-            channel=self, contact__is_test=False
-        )
+        return Msg.objects.filter(org=self.org.id, status__in=["P", "Q"], direction="O", visibility="V", channel=self)
 
     def is_new(self):
         # is this channel newer than an hour
@@ -1158,8 +1166,8 @@ class Channel(TembaModel):
         )
         pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)
 
-        # only SMS'es that have a topup and aren't the test contact
-        pending = pending.exclude(topup=None).exclude(contact__is_test=True)
+        # only SMS'es that have a topup
+        pending = pending.exclude(topup=None)
 
         # order by date created
         return pending.order_by("created_on")
@@ -1329,6 +1337,7 @@ class ChannelEvent(models.Model):
     TYPE_NEW_CONVERSATION = "new_conversation"
     TYPE_REFERRAL = "referral"
     TYPE_STOP_CONTACT = "stop_contact"
+    TYPE_WELCOME_MESSAGE = "welcome_message"
 
     EXTRA_REFERRER_ID = "referrer_id"
 
@@ -1342,6 +1351,7 @@ class ChannelEvent(models.Model):
         (TYPE_STOP_CONTACT, _("Stop Contact"), "stop-contact"),
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
+        (TYPE_WELCOME_MESSAGE, _("Welcome Message"), "welcome-message"),
     )
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
@@ -1385,15 +1395,12 @@ class ChannelEvent(models.Model):
 
     @classmethod
     def create(cls, channel, urn, event_type, occurred_on, extra=None):
-        from temba.api.models import WebHookEvent
         from temba.contacts.models import Contact
-        from temba.triggers.models import Trigger
 
-        org = channel.org
-        contact, contact_urn = Contact.get_or_create(org, urn, channel, name=None, user=get_anonymous_user())
+        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
 
         event = cls.objects.create(
-            org=org,
+            org=channel.org,
             channel=channel,
             contact=contact,
             contact_urn=contact_urn,
@@ -1402,12 +1409,27 @@ class ChannelEvent(models.Model):
             extra=extra,
         )
 
-        if event_type in cls.CALL_TYPES:
-            analytics.gauge("temba.call_%s" % event.get_event_type_display().lower().replace(" ", "_"))
-            WebHookEvent.trigger_call_event(event)
+        return event
+
+    @classmethod
+    def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
+        from temba.contacts.models import Contact
+
+        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
+
+        event = cls.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            occurred_on=occurred_on,
+            event_type=event_type,
+            extra=extra,
+        )
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
-            Trigger.catch_triggers(event, Trigger.TYPE_MISSED_CALL, channel)
+            # pass off handling of the message to mailroom after we commit
+            on_transaction_commit(lambda: queue_mailroom_mo_miss_task(event))
 
         return event
 
@@ -1760,10 +1782,7 @@ class Alert(SmartModel):
 
             if (
                 not Msg.objects.filter(
-                    status__in=["Q", "P"],
-                    channel_id=alert.channel_id,
-                    contact__is_test=False,
-                    created_on__lte=thirty_minutes_ago,
+                    status__in=["Q", "P"], channel_id=alert.channel_id, created_on__lte=thirty_minutes_ago
                 )
                 .exclude(created_on__lte=day_ago)
                 .exists()
@@ -1773,7 +1792,7 @@ class Alert(SmartModel):
 
         # now look for channels that have many unsent messages
         queued_messages = (
-            Msg.objects.filter(status__in=["Q", "P"], contact__is_test=False)
+            Msg.objects.filter(status__in=["Q", "P"])
             .order_by("channel", "created_on")
             .exclude(created_on__gte=thirty_minutes_ago)
             .exclude(created_on__lte=day_ago)
@@ -1782,7 +1801,7 @@ class Alert(SmartModel):
             .annotate(latest_queued=Max("created_on"))
         )
         sent_messages = (
-            Msg.objects.filter(status__in=["S", "D"], contact__is_test=False)
+            Msg.objects.filter(status__in=["S", "D"])
             .exclude(created_on__lte=day_ago)
             .exclude(channel=None)
             .order_by("channel", "sent_on")
@@ -1865,9 +1884,7 @@ class Alert(SmartModel):
             last_seen=self.channel.last_seen,
             sync=self.sync_event,
         )
-        context["unsent_count"] = Msg.objects.filter(
-            channel=self.channel, status__in=["Q", "P"], contact__is_test=False
-        ).count()
+        context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
         context["subject"] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
@@ -1938,16 +1955,6 @@ class ChannelConnection(models.Model):
         (TRIGGERED, "Triggered"),
         (INITIATED, "Initiated"),
         (ENDING, "Ending"),
-    )
-
-    is_active = models.BooleanField(help_text="Whether this item is active, use this instead of deleting", null=True)
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="connections",
-        help_text="The user which originally created this connection",
-        null=True,
     )
 
     created_on = models.DateTimeField(

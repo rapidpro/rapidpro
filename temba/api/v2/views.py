@@ -1094,7 +1094,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
@@ -1275,7 +1275,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         org = self.request.user.get_org()
 
         deleted_only = str_to_bool(params.get("deleted"))
-        queryset = queryset.filter(is_test=False, is_active=(not deleted_only))
+        queryset = queryset.filter(is_active=(not deleted_only))
 
         # filter by UUID (optional)
         uuid = params.get("uuid")
@@ -2295,7 +2295,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
-                return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
+                return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
                 return self.model.objects.filter(org=org, direction="I")
             else:
@@ -2320,15 +2320,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(pk=-1)
-        else:
-            # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
-            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
@@ -2422,7 +2418,13 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             "label": "Testing"
         }
 
-    You will receive an empty response with status code 204 if successful.
+    You will receive an empty response with status code 204 if successful. In the case that some messages couldn't be
+    updated because they no longer exist, the status code will be 200 and the body will include the failed message ids:
+
+    Example response:
+
+        {"failures": [2345, 3456]}
+
     """
 
     permission = "msgs.msg_api"
@@ -2893,15 +2895,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(pk=-1)
-        else:
-            # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
-            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # limit to responded runs (optional)
         if str_to_bool(params.get("responded")):

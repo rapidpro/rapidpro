@@ -95,7 +95,7 @@ class Resthook(SmartModel):
         """
         Looks up (or creates) the resthook for the passed in org and slug
         """
-        slug = slug.lower()
+        slug = slug.lower().strip()
         resthook = Resthook.objects.filter(is_active=True, org=org, slug=slug).first()
         if not resthook:
             resthook = Resthook.objects.create(org=org, slug=slug, created_by=user, modified_by=user)
@@ -428,42 +428,6 @@ class WebHookEvent(models.Model):
         )
 
         hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data)
-        hook_event.fire()
-        return hook_event
-
-    @classmethod
-    def trigger_call_event(cls, call):
-        if not call.channel:  # pragma: needs cover
-            return
-
-        org = call.channel.org
-
-        # no-op if no webhook configured
-        if not org or not org.get_webhook_url():
-            return
-
-        event = call.event_type
-
-        # if the org doesn't care about this type of message, ignore it
-        if (
-            (event == ChannelEvent.TYPE_CALL_OUT and not org.is_notified_of_mt_call())
-            or (event == ChannelEvent.TYPE_CALL_OUT_MISSED and not org.is_notified_of_mt_call())
-            or (event == ChannelEvent.TYPE_CALL_IN and not org.is_notified_of_mo_call())
-            or (event == ChannelEvent.TYPE_CALL_IN_MISSED and not org.is_notified_of_mo_call())
-        ):
-            return
-
-        json_time = call.occurred_on.strftime("%Y-%m-%dT%H:%M:%S.%f")
-        data = dict(
-            call=call.pk,
-            phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
-            contact=call.contact.uuid,
-            contact_name=call.contact.name,
-            urn=str(call.contact_urn),
-            extra=call.extra,
-            occurred_on=json_time,
-        )
-        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=data)
         hook_event.fire()
         return hook_event
 

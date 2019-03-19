@@ -1,0 +1,256 @@
+{
+  "version": "11.11",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "entry": "b834eea1-443c-4201-99f9-fcd1e4c5eac0",
+      "action_sets": [
+        {
+          "uuid": "b834eea1-443c-4201-99f9-fcd1e4c5eac0",
+          "x": 69,
+          "y": 0,
+          "destination": "fc0caf53-8d87-469a-97a5-153cbb63a7a1",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "f7d5f2c4-1e55-4926-8306-2538eaadabe3",
+              "msg": {
+                "eng": "This is parent"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "1e25f7de-96ca-4f8c-94cc-f0bb23bde9b2"
+        },
+        {
+          "uuid": "672802f8-4432-4244-99b0-404af1b285b7",
+          "x": 121,
+          "y": 280,
+          "destination": "6594a948-fdbf-482a-af5c-7b01d39121da",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "98fa3ef8-eeee-46d2-a735-cdf6fc2374c2",
+              "msg": {
+                "eng": "Completed"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "d138f858-ff92-40ae-80b5-5b0893066012"
+        },
+        {
+          "uuid": "b8bb71fb-d27b-42a6-98a4-2e73c137c2e8",
+          "x": 431,
+          "y": 276,
+          "destination": "6594a948-fdbf-482a-af5c-7b01d39121da",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "4cbfa0fb-d622-4e25-ab5e-37d35602baf8",
+              "msg": {
+                "eng": "Expired"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "d5ccef96-250f-41c1-b66d-914774ba0381"
+        },
+        {
+          "uuid": "36b55887-3fe3-49be-b3c7-2abdf288fdbb",
+          "x": 267,
+          "y": 585,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "fe65073d-79f5-489b-a811-c539f727f276",
+              "msg": {
+                "eng": "Ended"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "15194711-df3d-4519-8009-bc52061c2b88"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "fc0caf53-8d87-469a-97a5-153cbb63a7a1",
+          "x": 299,
+          "y": 99,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "17ce588f-1eca-45ab-a94b-a93872556f77",
+              "category": {
+                "eng": "Completed"
+              },
+              "destination": "672802f8-4432-4244-99b0-404af1b285b7",
+              "destination_type": "A",
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              },
+              "label": null
+            },
+            {
+              "uuid": "cca1bd3d-1e88-4c5c-80e2-451d39700672",
+              "category": {
+                "eng": "Expired"
+              },
+              "destination": "b8bb71fb-d27b-42a6-98a4-2e73c137c2e8",
+              "destination_type": "A",
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "subflow",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "flow": {
+              "name": "child",
+              "uuid": "c4dd3c3a-1c7c-4bb8-a8c4-11aaec1a4fea"
+            }
+          }
+        },
+        {
+          "uuid": "6594a948-fdbf-482a-af5c-7b01d39121da",
+          "x": 252,
+          "y": 434,
+          "label": "End",
+          "rules": [
+            {
+              "uuid": "dd86be4e-8c54-4ef6-84dc-6f786fe2c7b1",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "36b55887-3fe3-49be-b3c7-2abdf288fdbb",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.11",
+      "metadata": {
+        "name": "parent",
+        "saved_on": "2019-02-19T21:38:35.335104Z",
+        "revision": 33,
+        "uuid": "2cdcd8d9-a210-4269-a0cd-f4a07cc4f68a",
+        "expires": 10080
+      }
+    },
+    {
+      "entry": "f94a3ae8-7f2d-40eb-8430-017be1c48a62",
+      "action_sets": [
+        {
+          "uuid": "f94a3ae8-7f2d-40eb-8430-017be1c48a62",
+          "x": 100,
+          "y": 0,
+          "destination": "6b35ab7c-e517-40a1-b3dd-006bc66afc61",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "45f8719d-5d66-42d7-b126-38df067dd78b",
+              "msg": {
+                "eng": "Child"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "de31d5ec-7e00-4391-a5d1-ad28cd39faa7"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "6b35ab7c-e517-40a1-b3dd-006bc66afc61",
+          "x": 233,
+          "y": 162,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "97e713bf-1027-4c67-a884-0cefc1d5a6f3",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            },
+            {
+              "uuid": "2d792a87-b07f-4e9b-b82e-61d0278811c6",
+              "category": {
+                "eng": "No Response"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "timeout",
+                "minutes": 1
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.11",
+      "metadata": {
+        "name": "child",
+        "saved_on": "2019-02-19T21:26:35.104036Z",
+        "revision": 12,
+        "uuid": "c4dd3c3a-1c7c-4bb8-a8c4-11aaec1a4fea",
+        "expires": 5,
+        "ivr_retry_failed_events": null
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": [
+    {
+      "trigger_type": "K",
+      "keyword": "parent",
+      "flow": {
+        "uuid": "2cdcd8d9-a210-4269-a0cd-f4a07cc4f68a",
+        "name": "parent"
+      },
+      "groups": [],
+      "channel": null
+    }
+  ]
+}

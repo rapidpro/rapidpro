@@ -257,13 +257,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            test_contact_ids = Contact.objects.filter(org=org, is_test=True).values_list("id", flat=True)
-            return (
-                group.contacts.all()
-                .exclude(id__in=test_contact_ids)
-                .order_by("-id")
-                .prefetch_related("org", "all_groups")
-            )
+            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -980,7 +974,7 @@ class ContactCRUDL(SmartCRUDL):
             return self.object.get_display()
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True, is_test=False)
+            return Contact.objects.filter(is_active=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1129,13 +1123,23 @@ class ContactCRUDL(SmartCRUDL):
                         dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
                     )
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
+                    )
+                )
+
             return links
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True, is_test=False)
+            return Contact.objects.filter(is_active=True)
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1346,10 +1350,6 @@ class ContactCRUDL(SmartCRUDL):
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
-
-        def derive_queryset(self):
-            qs = super().derive_queryset()
-            return qs.filter(is_test=False)
 
         def derive_exclude(self):
             obj = self.get_object()

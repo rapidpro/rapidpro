@@ -54,6 +54,7 @@ from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
+from temba.utils.views import NonAtomicMixin
 
 from .models import (
     ACCOUNT_SID,
@@ -582,7 +583,7 @@ class OrgCRUDL(SmartCRUDL):
 
     model = Org
 
-    class Import(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class Import(NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_("The import file"))
             update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
@@ -1972,7 +1973,7 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return super().get_template_names()
 
-    class Grant(SmartCreateView):
+    class Grant(NonAtomicMixin, SmartCreateView):
         title = _("Create Organization Account")
         form_class = OrgGrantForm
         fields = ("first_name", "last_name", "email", "password", "name", "timezone", "credits")

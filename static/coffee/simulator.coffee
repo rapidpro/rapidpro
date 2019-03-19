@@ -201,7 +201,7 @@ window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
 
-appendMessage = (newMessage, attachments=null, ussd=false) ->
+window.appendMessage = (newMessage, attachments=null, ussd=false) ->
   ussd = if ussd then "ussd " else ""
   imsgDiv = '<div class=\"imsg ' + ussd + 'to post-message\"></div>'
   $(imsgDiv).text(newMessage).appendTo(".simulator-body")
@@ -242,9 +242,9 @@ $("#simulator .send-message").on "click", ->
   if sendMessage(newMessage)
     # add the progress gif
     if window.ussd and newMessage.length <= 182
-      appendMessage(newMessage, null, true)
+      window.appendMessage(newMessage, null, true)
     else if newMessage.length <= 160 and newMessage.length > 0
-      appendMessage(newMessage)
+      window.appendMessage(newMessage)
 
 # send new message on key press (enter)
 $("#simulator textarea").keypress (event) ->
@@ -255,9 +255,9 @@ $("#simulator textarea").keypress (event) ->
       # add the progress gif
       if newMessage
         if window.ussd and newMessage.length <= 182
-          appendMessage(newMessage, null, true)
+          window.appendMessage(newMessage, null, true)
         else if newMessage.length <= 160
-          appendMessage(newMessage)
+          window.appendMessage(newMessage)
 
 $("#show-simulator").hover ->
   if not window.moving_sim
