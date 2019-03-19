@@ -1,3 +1,7 @@
+v4.22.11
+----------
+ * Add APK app and new Android claiming pipeline for Android Relayer
+
 v4.22.10
 ----------
  * Use output of flow validation in mailroom to set flow dependencies
