@@ -1,5 +1,5 @@
 -extends "smartmin/create.html"
--load i18n temba
+-load i18n temba smartmin
 
 -block page-top
 
@@ -38,42 +38,44 @@
       #little-help
         %p
           -blocktrans with brand.name as brand
-            {{ brand }} uses your Android phone to send and receive messages.
+            {{ brand }} uses your Android phone to send and receive messages on your behalf.
 
         %p
           -blocktrans with brand.name as brand
-            You can download the free {{ brand }} app.
-            You will need to allow installing apps downloaded from unknown sources. Below we provide step by step guide for how to allow 
-            your to install the apps on your Android phone. It is possible the model you have might not be exactly as the screenshots provided
-            however the process will be similar. Just follow the steps below and you'll be up and running in a few minutes.
-          
-        %p
-          {% blocktrans with brand=brand.name link=brand.link %}
-            First download {{ brand }} installer from
-            %code
-              {{ link }}{{ android_public_url }} 
-            from your phone, 
-            then look up the downloaded file to install the app and follow the other steps below.
-          {% endblocktrans %}
+            Due to restrictions Android has on applications that send SMS messages, we cannot distribute
+            the {{ brand }} application through the Play Store. You will need to download the application manually
+            and install it using the steps below.
 
           -if relayer_app
-            .latest-release-description
-              .latest-release-date
-                -trans "Latest released on"
-                {% short_datetime relayer_app.created_on %}
+            .release-header
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% pretty_datetime relayer_app.created_on %}
 
-              -if relayer_app.description
-                {{ relayer_app.description}}
+            -if relayer_app.description
+              .release-description
+                {{ relayer_app.markdown_description}}
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim0.png' }
+          .step-text
+            %h3
+              -trans "Download App"
+
+            %p
+              {% blocktrans with brand=brand.name link=brand.link %}
+                On your Android device, open your browser and download the app by entering the URL:
+                %code
+                  {{ link }}{{ android_public_url }}
+              {% endblocktrans %}
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
-                Click {{ brand }} installer
+                Launch the {{ brand }} installer
             %p
               -blocktrans
-                Click the downloaded file
+                Open the notifications shade by dragging from the top and select the downloaded file.
 
 
         %p.step
@@ -92,7 +94,7 @@
               -trans "Toggle allow from this source"
             %p
               -blocktrans
-                Make sure "allow from this source" toggle is in the ON position.
+                Make sure "allow from this source" toggle is in the On position.
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
@@ -101,7 +103,7 @@
               -trans "Go Back"
             %p
               -blocktrans
-                Click INSTALL
+                Click Install
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
@@ -261,17 +263,14 @@
       margin-bottom:0;
     }
 
-    .latest-release-date{
-      font-style: italic;
-      margin: 10px 0px;
-      font-size: 20px;
+    .release-header{
       font-weight: bold;
     }
 
-    .latest-release-description {
-      margin: 20px 0px;
-      background-color: #eee;
-      padding: 0px 20px;
-      max-width: 501px;
-      white-space: pre-line;
+    .release-description {
+      color: #666;
+    }
+
+    .release-description ul li {
+      list-style-type: circle;
     }

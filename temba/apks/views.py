@@ -11,19 +11,22 @@ class ApkCRUDL(SmartCRUDL):
     actions = ("create", "read", "update", "list", "download")
 
     class Create(SmartCreateView):
-        fields = ("apk_type", "name", "apk_file", "description")
+        fields = ("apk_type", "version", "apk_file", "description")
 
     class List(SmartListView):
-        fields = ("name", "apk_type", "apk_file", "description", "created_on")
+        fields = ("apk_type", "version", "apk_file", "created_on")
 
         def get_apk_type(self, obj):
             return obj.get_apk_type_display()
 
     class Read(SmartReadView):
-        fields = ("name", "apk_type", "apk_file", "description")
+        fields = ("apk_type", "version", "apk_file", "description")
 
         def get_apk_type(self, obj):
             return obj.get_apk_type_display()
+
+        def get_description(self, obj):
+            return obj.markdown_description()
 
     class Download(SmartReadView):
         permission = None

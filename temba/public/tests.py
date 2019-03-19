@@ -46,6 +46,10 @@ class PublicTest(SmartminTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_signup"))
 
     def test_android(self):
+        android_url = reverse("public.public_android")
+        response = self.client.get(android_url, follow=True)
+        self.assertEqual(404, response.status_code)
+
         apk_file_mock = MagicMock(spec=File)
         apk_file_mock.name = "relayer.apk"
         apk = Apk.objects.create(apk_type="R", name="Relayer", description="Relayer v1.0", apk_file=apk_file_mock)

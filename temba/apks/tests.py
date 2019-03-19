@@ -14,7 +14,9 @@ class ApkTest(TembaTest):
         apk_file_mock = MagicMock(spec=File)
         apk_file_mock.name = "relayer.apk"
 
-        self.apk = Apk.objects.create(apk_type="R", name="Relayer", description="Relayer v1.0", apk_file=apk_file_mock)
+        self.apk = Apk.objects.create(
+            apk_type="R", version="1.0", description="* has new things", apk_file=apk_file_mock
+        )
 
     def tearDown(self):
         self.clear_storage()

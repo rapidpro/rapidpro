@@ -1,7 +1,10 @@
 from gettext import gettext as _
 
+from markdown import markdown
+
 from django.db import models
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 
 
 class Apk(models.Model):
@@ -17,16 +20,18 @@ class Apk(models.Model):
 
     apk_type = models.CharField(choices=TYPE_CHOICES, max_length=1)
 
-    name = models.CharField(
-        verbose_name=_("Name"),
-        max_length=64,
-        blank=True,
-        null=True,
-        help_text=_("Descriptive label for this application APK"),
-    )
-
     apk_file = models.FileField(upload_to="apks")
+
+    version = models.TextField(null=False, help_text="Our version, ex: 1.9.8")
+
+    description = models.TextField(
+        null=True, blank=True, default="", help_text="Changelog for this version, markdown supported"
+    )
 
     created_on = models.DateTimeField(default=timezone.now)
 
-    description = models.TextField(null=True, blank=True, default="")
+    def markdown_description(self):
+        return mark_safe(markdown(self.description))
+
+    class Meta:
+        unique_together = ("apk_type", "version")

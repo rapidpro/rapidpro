@@ -60,7 +60,11 @@ class Android(SmartTemplateView):
                 .values_list("id", flat=True)[:10]
             )
             apk = Apk.objects.filter(id__in=latest_ids).order_by("created_on")[pack - 1]
-        return HttpResponseRedirect(apk.apk_file.url)
+
+        if not apk:
+            return HttpResponse("No APK found", status=404)
+        else:
+            return HttpResponseRedirect(apk.apk_file.url)
 
 
 class Welcome(SmartTemplateView):
