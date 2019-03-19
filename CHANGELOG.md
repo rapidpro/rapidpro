@@ -1,3 +1,7 @@
+v4.22.13
+----------
+ * allow blank pack, update permissions
+
 v4.22.12
 ----------
  * remove APK read view, only have update
