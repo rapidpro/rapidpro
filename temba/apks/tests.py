@@ -70,9 +70,3 @@ class ApkTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Relayer Application APK")
-
-    def test_download(self):
-        url = reverse("apks.apk_download", args=[self.apk.id])
-
-        response = self.client.get(url, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], self.apk.apk_file.url)

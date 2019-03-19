@@ -316,7 +316,6 @@ PERMISSIONS = {
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "apks.apk": ("download",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
@@ -481,7 +480,6 @@ GROUP_PERMISSIONS = {
         "apks.apk_create",
         "apks.apk_list",
         "apks.apk_update",
-        "apks.apk_download",
         "campaigns.campaign_read",
         "channels.channel_configuration",
         "channels.channel_history",
