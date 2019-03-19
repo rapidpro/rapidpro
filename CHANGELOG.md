@@ -1,3 +1,8 @@
+v4.22.12
+----------
+ * remove APK read view, only have update
+ * allow setting pack number
+
 v4.22.11
 ----------
  * Add APK app and new Android claiming pipeline for Android Relayer
