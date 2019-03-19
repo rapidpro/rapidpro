@@ -48,18 +48,18 @@ class Deploy(SmartTemplateView):
 class Android(SmartTemplateView):
     def render_to_response(self, context, **response_kwargs):
         pack = int(self.request.GET.get("pack", 0))
-        pack_version = self.request.GET.get("v", "")
+        version = self.request.GET.get("v", "")
 
-        if not pack and not pack_version:
+        if not pack and not version:
             apk = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
         else:
             latest_ids = (
-                Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK, name__iexact="v" + pack_version)
+                Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK, version=version, pack=pack)
                 .order_by("-created_on")
                 .only("id")
                 .values_list("id", flat=True)[:10]
             )
-            apk = Apk.objects.filter(id__in=latest_ids).order_by("created_on")[pack - 1]
+            apk = Apk.objects.filter(id__in=latest_ids).order_by("created_on").first()
 
         if not apk:
             return HttpResponse("No APK found", status=404)
