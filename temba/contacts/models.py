@@ -760,9 +760,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         contact_groups = self.user_groups.all()
         now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(
-            self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False
-        )
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
         scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
@@ -1154,7 +1152,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, is_test=False):
+    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
         """
         Gets or creates a contact with the given URN
         """
@@ -1181,8 +1179,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ContactURN.update_auth(existing_urn, auth)
             return contact, existing_urn
         else:
-            kwargs = dict(org=org, name=name, created_by=user, is_test=is_test)
+            kwargs = dict(org=org, name=name, created_by=user, is_test=False)
             contact = Contact.objects.create(**kwargs)
+            contact.is_new = True
             updated_attrs = list(kwargs.keys())
 
             if existing_urn:
@@ -1197,22 +1196,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             analytics.gauge("temba.contact_created")
 
             # handle group and campaign updates
-            contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+            if init_new:
+                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+
             return contact, urn_obj
 
     @classmethod
     def get_or_create_by_urns(
-        cls,
-        org,
-        user,
-        name=None,
-        urns=None,
-        channel=None,
-        uuid=None,
-        language=None,
-        is_test=False,
-        force_urn_update=False,
-        auth=None,
+        cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, force_urn_update=False, auth=None
     ):
         """
         Gets or creates a contact with the given URNs
@@ -1330,7 +1321,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # otherwise create new contact with all URNs
             else:
-                kwargs = dict(org=org, name=name, language=language, is_test=is_test, created_by=user)
+                kwargs = dict(org=org, name=name, language=language, is_test=False, created_by=user)
                 contact = Contact.objects.create(**kwargs)
                 updated_attrs = ["name", "language", "created_on"]
 
@@ -2973,12 +2964,7 @@ class ContactGroup(TembaModel):
 
         # search the database for any new contacts that have been modified after the modified_on
         db_contacts = Contact.objects.filter(
-            org_id=self.org.id,
-            modified_on__gt=last_modifed_on,
-            is_test=False,
-            is_active=True,
-            is_blocked=False,
-            is_stopped=False,
+            org_id=self.org.id, modified_on__gt=last_modifed_on, is_active=True, is_blocked=False, is_stopped=False
         )
 
         # check if contacts are members of the new group
@@ -3105,11 +3091,8 @@ class ContactGroupCount(SquashableModel):
         # remove old ones
         ContactGroupCount.objects.filter(group=group).delete()
 
-        # get test contacts on this org
-        test_contacts = Contact.objects.filter(org=group.org, is_test=True).values("id")
-
         # calculate our count for the group
-        count = group.contacts.all().exclude(id__in=test_contacts).count()
+        count = group.contacts.all().count()
 
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
@@ -3212,8 +3195,7 @@ class ExportContactsTask(BaseExportTask):
             # cache contact ids
             contact_ids = list(Contact.query_elasticsearch_for_ids(self.org, self.search, group))
         else:
-            contacts = group.contacts.all()
-            contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
+            contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
         exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])

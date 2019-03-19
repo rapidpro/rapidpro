@@ -41,6 +41,7 @@ from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
+from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
@@ -48,7 +49,7 @@ from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.dates import datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -993,7 +994,7 @@ class FlowCRUDL(SmartCRUDL):
             context["static_url"] = static_url
             context["is_starting"] = flow.is_starting()
             context["has_airtime_service"] = bool(flow.org.is_connected_to_transferto())
-            context["has_mailroom"] = settings.MAILROOM_URL.startswith("http")
+            context["has_mailroom"] = bool(settings.MAILROOM_URL)
             return context
 
         def get_gear_links(self):
@@ -1356,9 +1357,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = "true" if rules > 1 else "false"
 
-            test_contacts = Contact.objects.filter(org=org, is_test=True).values_list("id", flat=True)
-
-            runs = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)
+            runs = flow.runs.all()
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
@@ -1509,7 +1508,7 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
@@ -1570,6 +1569,8 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
+            except FlowValidationException:  # pragma: no cover
+                error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
             except FlowVersionConflictException:

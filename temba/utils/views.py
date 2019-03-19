@@ -1,5 +1,6 @@
 from django import forms
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import HttpResponse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -17,6 +18,16 @@ class PostOnlyMixin(View):
 
     def get(self, *args, **kwargs):
         return HttpResponse("Method Not Allowed", status=405)
+
+
+class NonAtomicMixin(View):
+    """
+    Utility mixin to disable automatic transaction wrapping of a class based view
+    """
+
+    @transaction.non_atomic_requests
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
 
 class BaseActionForm(forms.Form):

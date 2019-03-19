@@ -80,27 +80,19 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.create_instance(
-            dict(
-                name="Call Me Maybe",
-                org=self.org,
-                is_system=True,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="Call Me Maybe",
+            org=self.org,
+            is_system=True,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
+            flow_type="V",
         )
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         event4 = CampaignEvent.create_flow_event(
@@ -1054,6 +1046,23 @@ class CampaignTest(TembaTest):
 
         # we should get 404 for the inactive campaign
         self.assertEqual(response.status_code, 404)
+
+    def test_view_campaign_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
+
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.id}/",
+        )
 
     def test_view_campaign_read_archived(self):
         self.login(self.admin)

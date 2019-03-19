@@ -2802,7 +2802,7 @@ class APITest(TembaTest):
         )
 
         # filter by inbox
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, "folder=INBOX")
 
         resp_json = response.json()
@@ -2814,7 +2814,7 @@ class APITest(TembaTest):
         )
 
         # filter by incoming, should get deleted messages too
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url, "folder=incoming")
 
         resp_json = response.json()
@@ -3037,7 +3037,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -3277,9 +3277,13 @@ class APITest(TembaTest):
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
         self.assertFalse(Msg.objects.filter(id=msg2.id).exists())
 
-        # try to act on a deleted message
-        response = self.postJSON(url, None, {"messages": [msg2.id], "action": "restore"})
-        self.assertResponseError(response, "messages", "No such object: %d" % msg2.id)
+        # try to act on a a valid message and a deleted message
+        response = self.postJSON(url, None, {"messages": [msg2.id, msg3.id], "action": "restore"})
+
+        # should get a partial success
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"failures": [msg2.id]})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg3})
 
         # try to act on an outgoing message
         msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")

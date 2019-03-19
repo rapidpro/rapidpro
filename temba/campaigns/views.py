@@ -117,7 +117,7 @@ class CampaignCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Read(OrgMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         def get_gear_links(self):
             links = []
 
@@ -159,6 +159,16 @@ class CampaignCRUDL(SmartCRUDL):
                             href=reverse("campaigns.campaign_archive", args=[self.object.id]),
                         )
                     )
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.id])}',
+                    )
+                )
 
             return links
 

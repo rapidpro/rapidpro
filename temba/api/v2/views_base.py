@@ -10,9 +10,12 @@ from django.db import transaction
 from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
+from temba.utils.views import NonAtomicMixin
+
+from .serializers import BulkActionFailure
 
 
-class BaseAPIView(generics.GenericAPIView):
+class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
@@ -22,10 +25,6 @@ class BaseAPIView(generics.GenericAPIView):
     model = None
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
-
-    @transaction.non_atomic_requests
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
 
     def options(self, request, *args, **kwargs):
         """
@@ -212,8 +211,11 @@ class BulkWriteAPIMixin(object):
         serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
 
         if serializer.is_valid():
-            serializer.save()
-            return Response("", status=status.HTTP_204_NO_CONTENT)
+            result = serializer.save()
+            if isinstance(result, BulkActionFailure):
+                return Response(result.as_json(), status.HTTP_200_OK)
+            else:
+                return Response("", status=status.HTTP_204_NO_CONTENT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
