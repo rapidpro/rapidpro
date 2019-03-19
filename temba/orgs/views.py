@@ -80,7 +80,6 @@ from .models import (
     Invitation,
     Org,
     OrgCache,
-    OrgLock,
     TopUp,
     UserSettings,
     get_stripe_credentials,
@@ -1416,35 +1415,34 @@ class OrgCRUDL(SmartCRUDL):
 
                     invitation.send_invitation()
 
-            with org.lock_on(OrgLock.users):
-                current_groups = {}
-                new_groups = {}
+            current_groups = {}
+            new_groups = {}
 
-                for group in self.ORG_GROUPS:
-                    # gather up existing users with their groups
-                    for user in self.org_group_set(org, group).all():
-                        current_groups[user] = group
+            for group in self.ORG_GROUPS:
+                # gather up existing users with their groups
+                for user in self.org_group_set(org, group).all():
+                    current_groups[user] = group
 
-                    # parse form fields to get new roles
-                    for field in self.form.cleaned_data:
-                        if field.startswith(group.lower() + "_") and self.form.cleaned_data[field]:
-                            user = User.objects.get(pk=field.split("_")[1])
-                            new_groups[user] = group
+                # parse form fields to get new roles
+                for field in self.form.cleaned_data:
+                    if field.startswith(group.lower() + "_") and self.form.cleaned_data[field]:
+                        user = User.objects.get(pk=field.split("_")[1])
+                        new_groups[user] = group
 
-                for user in current_groups.keys():
-                    current_group = current_groups.get(user)
-                    new_group = new_groups.get(user)
+            for user in current_groups.keys():
+                current_group = current_groups.get(user)
+                new_group = new_groups.get(user)
 
-                    if current_group != new_group:
-                        if current_group:
-                            self.org_group_set(org, current_group).remove(user)
-                        if new_group:
-                            self.org_group_set(org, new_group).add(user)
+                if current_group != new_group:
+                    if current_group:
+                        self.org_group_set(org, current_group).remove(user)
+                    if new_group:
+                        self.org_group_set(org, new_group).add(user)
 
-                        # when a user's role changes, delete any API tokens they're no longer allowed to have
-                        api_roles = APIToken.get_allowed_roles(org, user)
-                        for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
-                            token.release()
+                    # when a user's role changes, delete any API tokens they're no longer allowed to have
+                    api_roles = APIToken.get_allowed_roles(org, user)
+                    for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
+                        token.release()
 
             return obj
 
@@ -1701,30 +1699,29 @@ class OrgCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
 
-            with obj.lock_on(OrgLock.users):
-                user = Org.create_user(self.form.cleaned_data["email"], self.form.cleaned_data["password"])
+            user = Org.create_user(self.form.cleaned_data["email"], self.form.cleaned_data["password"])
 
-                user.first_name = self.form.cleaned_data["first_name"]
-                user.last_name = self.form.cleaned_data["last_name"]
-                user.save()
+            user.first_name = self.form.cleaned_data["first_name"]
+            user.last_name = self.form.cleaned_data["last_name"]
+            user.save()
 
-                self.invitation = self.get_invitation()
+            self.invitation = self.get_invitation()
 
-                # log the user in
-                user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
-                login(self.request, user)
-                if self.invitation.user_group == "A":
-                    obj.administrators.add(user)
-                elif self.invitation.user_group == "E":  # pragma: needs cover
-                    obj.editors.add(user)
-                elif self.invitation.user_group == "S":
-                    obj.surveyors.add(user)
-                else:  # pragma: needs cover
-                    obj.viewers.add(user)
+            # log the user in
+            user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
+            login(self.request, user)
+            if self.invitation.user_group == "A":
+                obj.administrators.add(user)
+            elif self.invitation.user_group == "E":  # pragma: needs cover
+                obj.editors.add(user)
+            elif self.invitation.user_group == "S":
+                obj.surveyors.add(user)
+            else:  # pragma: needs cover
+                obj.viewers.add(user)
 
-                # make the invitation inactive
-                self.invitation.is_active = False
-                self.invitation.save()
+            # make the invitation inactive
+            self.invitation.is_active = False
+            self.invitation.save()
 
             return obj
 
@@ -1797,23 +1794,22 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             self.invitation = self.get_invitation()
             if org:
-                with org.lock_on(OrgLock.contacts):
-                    if self.invitation.user_group == "A":
-                        org.administrators.add(self.request.user)
-                    elif self.invitation.user_group == "E":
-                        org.editors.add(self.request.user)
-                    elif self.invitation.user_group == "S":
-                        org.surveyors.add(self.request.user)
-                    else:
-                        org.viewers.add(self.request.user)
+                if self.invitation.user_group == "A":
+                    org.administrators.add(self.request.user)
+                elif self.invitation.user_group == "E":
+                    org.editors.add(self.request.user)
+                elif self.invitation.user_group == "S":
+                    org.surveyors.add(self.request.user)
+                else:
+                    org.viewers.add(self.request.user)
 
-                    # make the invitation inactive
-                    self.invitation.is_active = False
-                    self.invitation.save()
+                # make the invitation inactive
+                self.invitation.is_active = False
+                self.invitation.save()
 
-                    # set the active org on this user
-                    self.request.user.set_org(org)
-                    self.request.session["org_id"] = org.pk
+                # set the active org on this user
+                self.request.user.set_org(org)
+                self.request.session["org_id"] = org.pk
 
         def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == "S":

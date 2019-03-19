@@ -153,7 +153,6 @@ class OrgLock(Enum):
     channels = 2
     credits = 3
     field = 4
-    users = 5
 
 
 class OrgCache(Enum):
