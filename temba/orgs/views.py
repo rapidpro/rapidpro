@@ -1574,7 +1574,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateSubOrg(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
             name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
 
