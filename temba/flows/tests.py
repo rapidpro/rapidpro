@@ -11583,18 +11583,24 @@ class SystemChecksTest(TembaTest):
 
 class FlowResultMigrationTest(MigrationTest):
     app = "flows"
-    migrate_from = "0195_flow_results"
-    migrate_to = "0196_populate_flow_results"
+    migrate_from = "0195_flow_results_and_waiting_exits"
+    migrate_to = "0196_populate_results_and_waiting_exits"
 
     def setUpBeforeMigration(self, apps):
         favorites = self.get_flow("favorites")
         favorites.results = None
-        favorites.save(update_fields=("results",))
+        favorites.waiting_exit_uuids = None
+        favorites.save(update_fields=("results", "waiting_exit_uuids"))
 
-    def test_results_populated(self):
+    def test_populated(self):
         favorites = Flow.objects.get()
 
         self.assertEqual(
             favorites.results,
-            [{"name": "Color", "key": "color"}, {"name": "Beer", "key": "beer"}, {"name": "Name", "key": "name"}],
+            [
+                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
+                {"key": "name", "name": "Name", "categories": ["All Responses"]},
+            ],
         )
+        self.assertEqual(len(favorites.waiting_exit_uuids), 12)
