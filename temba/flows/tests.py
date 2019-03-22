@@ -7913,18 +7913,18 @@ class FlowsTest(FlowFileTest):
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
 
-    def test_extracting_results(self):
+    def test_flow_metadata(self):
         flow = self.get_flow("favorites")
 
         self.assertEqual(
-            flow.results,
+            flow.metadata["results"],
             [
                 {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
                 {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
                 {"key": "name", "name": "Name", "categories": ["All Responses"]},
             ],
         )
-        self.assertEqual(len(flow.waiting_exit_uuids), 11)
+        self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     def test_group_split(self):
         flow = self.get_flow("group_split")
