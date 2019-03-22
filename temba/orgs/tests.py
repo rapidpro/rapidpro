@@ -3632,6 +3632,16 @@ class BulkExportTest(TembaTest):
             response, "form", "import_file", "This file is no longer valid. Please export a new version and try again."
         )
 
+        # simulate an unexpected exception during import
+        with patch("temba.triggers.models.Trigger.import_triggers") as validate:
+            validate.side_effect = Exception("Unexpected Error")
+            post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
+            response = self.client.post(reverse("orgs.org_import"), post_data)
+            self.assertFormError(response, "form", "import_file", "Sorry, your import file is invalid.")
+
+            # trigger import failed, new flows that were added should get rolled back
+            self.assertIsNone(Flow.objects.filter(org=self.org, name="New Mother").first())
+
         # test import using data that is not parsable
         junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
         post_data = dict(import_file=junk_binary_data)

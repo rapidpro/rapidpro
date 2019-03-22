@@ -10,6 +10,10 @@ def create_revisions(apps, schema_editor):
     for flow in Flow.objects.filter(is_active=True, revisions=None):
         print(f"Creating revision for: {flow.name}")
 
+        # sanity check there we're not blowing away something that has nodes but no revisions
+        if flow.action_sets.exists() or flow.rule_sets.exists():
+            raise ValueError("flow has rulesets/actionsets but no revisions")
+
         definition = {
             "flow_type": flow.flow_type,
             "version": "11.12",

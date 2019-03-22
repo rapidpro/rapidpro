@@ -1,3 +1,27 @@
+v4.22.14
+----------
+ * CreateSubOrg needs to be non-atomic as well as it creates flows which need to be validated
+ * Remove unused download view
+
+v4.22.13
+----------
+ * allow blank pack, update permissions
+
+v4.22.12
+----------
+ * remove APK read view, only have update
+ * allow setting pack number
+
+v4.22.11
+----------
+ * Add APK app and new Android claiming pipeline for Android Relayer
+
+v4.22.10
+----------
+ * Use output of flow validation in mailroom to set flow dependencies
+ * Make message_actions.json API endpoint support partial updates
+ * Log to librato only pending messages older than a minute
+
 v4.22.6
 ----------
  * Add Viber Welcome Message event type and config

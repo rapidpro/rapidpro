@@ -283,8 +283,13 @@ def collect_message_metrics_task():  # pragma: needs cover
     )
     analytics.gauge("temba.current_outgoing_android", count)
 
-    # current # of pending incoming messages that haven't yet been handled
-    count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
+    # current # of pending incoming messages older than a minute that haven't yet been handled
+    minute_ago = timezone.now() - timedelta(minutes=1)
+    count = (
+        Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=minute_ago)
+        .exclude(channel=None)
+        .count()
+    )
     analytics.gauge("temba.current_incoming_pending", count)
 
     # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
