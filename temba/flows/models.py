@@ -19,6 +19,7 @@ from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
@@ -317,6 +318,9 @@ class Flow(TembaModel):
 
     # information about all the results this flow can generate stored as a dict by result key
     results = JSONField(null=True)
+
+    # list of exit UUIDs from nodes with waits (used to approximate responses for flow activity)
+    waiting_exit_uuids = ArrayField(models.UUIDField(), null=True)
 
     flow_server_enabled = models.BooleanField(default=False, help_text=_("Run this flow using the flow server"))
 
@@ -2331,6 +2335,7 @@ class Flow(TembaModel):
             validated = mailroom.get_client().flow_validate(self.org if validate_dependencies else None, json_dict)
             dependencies = validated["_dependencies"]
             self.results = validated["_results"]
+            self.waiting_exit_uuids = validated["_waiting_exits"]
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
