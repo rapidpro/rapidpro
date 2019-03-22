@@ -3527,10 +3527,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
 
-            # if it's in the past, just expire us now
-            if self.expires_on < now:
-                self.expire()
-
         # parent should always have a later expiration than the children
         if self.parent:
             self.parent.update_expiration(self.expires_on)
