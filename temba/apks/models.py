@@ -34,7 +34,7 @@ class Apk(models.Model):
 
     created_on = models.DateTimeField(default=timezone.now)
 
-    def markdown_description(self):
+    def markdown_description(self):  # pragma: needs cover
         return mark_safe(markdown(self.description))
 
     class Meta:
