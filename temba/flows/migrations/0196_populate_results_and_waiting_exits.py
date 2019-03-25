@@ -81,10 +81,10 @@ def populate_results_and_waiting_exits(apps, schema_editor):
     ruleset_prefetch = Prefetch("rule_sets", queryset=RuleSet.objects.order_by("y"))
 
     num_updated = 0
-    for flow in Flow.objects.filter(results__isnull=True).prefetch_related(ruleset_prefetch):
-        flow.results = extract_results(flow)
-        flow.waiting_exit_uuids = extract_waiting_exits(flow)
-        flow.save(update_fields=("results", "waiting_exit_uuids"))
+    for flow in Flow.objects.all().prefetch_related(ruleset_prefetch):
+        flow.metadata["results"] = extract_results(flow)
+        flow.metadata["waiting_exit_uuids"] = extract_waiting_exits(flow)
+        flow.save(update_fields=("metadata",))
 
         if num_updated % 1000 == 0:
             print(f"Updated {num_updated} flows with results and waiting exits")
@@ -97,6 +97,6 @@ def reverse(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0195_flow_results_and_waiting_exits")]
+    dependencies = [("flows", "0195_auto_20190322_2059")]
 
     operations = [migrations.RunPython(populate_results_and_waiting_exits, reverse)]

@@ -11583,24 +11583,29 @@ class SystemChecksTest(TembaTest):
 
 class FlowResultMigrationTest(MigrationTest):
     app = "flows"
-    migrate_from = "0195_flow_results_and_waiting_exits"
+    migrate_from = "0195_auto_20190322_2059"
     migrate_to = "0196_populate_results_and_waiting_exits"
 
     def setUpBeforeMigration(self, apps):
         favorites = self.get_flow("favorites")
-        favorites.results = None
-        favorites.waiting_exit_uuids = None
-        favorites.save(update_fields=("results", "waiting_exit_uuids"))
+        del favorites.metadata["results"]
+        del favorites.metadata["waiting_exit_uuids"]
+        favorites.save(update_fields=("metadata",))
 
     def test_populated(self):
         favorites = Flow.objects.get()
 
+        # existing metadata untouched
+        self.assertEqual(favorites.metadata["uuid"], str(favorites.uuid))
+        self.assertEqual(favorites.metadata["name"], "Favorites")
+
+        # new results and waiting_exit_uuids fields populated
         self.assertEqual(
-            favorites.results,
+            favorites.metadata["results"],
             [
                 {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
                 {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
                 {"key": "name", "name": "Name", "categories": ["All Responses"]},
             ],
         )
-        self.assertEqual(len(favorites.waiting_exit_uuids), 12)
+        self.assertEqual(len(favorites.metadata["waiting_exit_uuids"]), 12)
