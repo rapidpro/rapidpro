@@ -1078,7 +1078,7 @@ def migrate_to_version_9(json_flow, flow):
     from temba.flows.models import Flow
 
     if Flow.METADATA not in json_flow:
-        json_flow[Flow.METADATA] = flow.get_metadata()
+        json_flow[Flow.METADATA] = flow.get_legacy_metadata()
     return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)["flows"][0]
 
 
