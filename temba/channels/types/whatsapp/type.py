@@ -8,81 +8,84 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp.views import ClaimView, RefreshView
 from temba.contacts.models import WHATSAPP_SCHEME
+from temba.templates.models import ChannelTemplate
 
 from ...models import ChannelType
 
-# WhatsApp only supports some languages. For those they do support, we map from our ISO-639 codo to
-# WhatsApp's iso639-2 / country pair. Note that not all combinations can be mapped, for example there
-# are more WhatsApp variants of Spanish than are represented in ISO639-3. That's probably ok as
-# individual orgs will hopefully not use all those variants at once.
+# Mapping from WhatsApp status to RapidPro status
+STATUS_MAPPING = dict(PENDING=ChannelTemplate.STATUS_PENDING, APPROVED=ChannelTemplate.STATUS_APPROVED)
+
+# This maps from WA iso-639-2 codes to our internal 639-3 codes
 LANGUAGE_MAPPING = dict(
-    afr="af",  # Afrikans
-    sqi="sq",  # Albanian
-    ara="ar",  # Arabic
-    aze="az",  # Azerbaijani
-    ben="bn",  # Bengali
-    bul="bg",  # Bulgarian
-    cat="ca",  # Catalan
-    zho="zh_CN",  # Chinese Macro Language
-    yue="zh_HK",  # Cantonese Chinese (guess)
-    cmn="zh_TW",  # Mandarin Chinese (guess)
-    hrv="hr",  # Croatian
-    ces="cs",  # Czech
-    dah="da",  # Danish
-    nld="nl",  # Dutch
-    eng="en",  # English
-    # en_GB (nothing from ISO-639-3)
-    # en_US (nothing from ISO-639-3)
-    est="et",  # Estonian
+    af="afr",  # Afrikaans
+    sq="sqi",  # Albanian
+    ar="ara",  # Arabic
+    az="aze",  # Azerbaijani
+    bn="ben",  # Bengali
+    bg="bul",  # Bulgarian
+    ca="cat",  # Catalan
+    zh_CN="zho",  # Chinese (CHN)
+    zh_HK="yue",  # Chinese (HKG)
+    zh_TW="cmn",  # Chinese (TAI)
+    hr="hrv",  # Croatian
+    cs="ces",  # Czech
+    da="dah",  # Danish
+    nl="nld",  # Dutch
+    en="eng",  # English
+    en_GB="eng",  # English (UK)
+    en_US="eng",  # English (US)
+    et="est",  # Estonian
     fil="fil",  # Filipino
-    fin="fi",  # Finnish
-    fra="fr",  # French
-    deu="de",  # German
-    ell="el",  # Greek
-    gul="gu",  # Gujarati
-    enb="he",  # Hebrew
-    hin="hi",  # Hindi
-    hun="hu",  # Hungarian
-    ind="id",  # Indonesian
-    gle="ga",  # Irish
-    ita="it",  # Italian
-    jpn="ja",  # Japanese
-    kan="kn",  # Kannada
-    kaz="kk",  # Kazakh
-    kor="ko",  # Korean
-    lao="lo",  # Lao
-    lav="lv",  # Latvian
-    lit="lt",  # Lithuanian
-    mkd="mk",  # Macedonian
-    msa="ms",  # Malay
-    mar="mr",  # Marathi
-    nob="nb",  # Norwegian
-    nor="nb",  # Norwegian
-    fas="fa",  # Persian
-    pol="pl",  # Polish
-    # pt_BR (nothing from ISO-639-3)
-    por="pt_PT",  # Portuguese
-    pan="pa",  # Punjabi
-    ron="ro",  # Romanian
-    rus="ru",  # Russian
-    srp="sr",  # Serbian
-    slk="sk",  # Slovak
-    slv="sl",  # Slovenian
-    spa="es",  # Spanish
-    # es_AR (nothing from ISO-639-3)
-    # es_ES (nothing from ISO-639-3)
-    # es_MX (nothing from ISO-639-3)
-    swa="sw",  # Swahili
-    swe="sv",  # Swedish
-    tam="ta",  # Tamil
-    tel="te",  # Telugu
-    tha="th",  # Thai
-    turn="tr",  # Turkish
-    ukr="uk",  # Ukrainian
-    urd="ur",  # Urdu
-    uzb="uz",  # Uzbek
-    vie="vi",  # Vietnamese
+    fi="fin",  # Finnish
+    fr="fra",  # French
+    de="deu",  # German
+    el="ell",  # Greek
+    gu="gul",  # Gujarati
+    he="enb",  # Hebrew
+    hi="hin",  # Hindi
+    hu="hun",  # Hungarian
+    id="ind",  # Indonesian
+    ga="gle",  # Irish
+    it="ita",  # Italian
+    ja="jpn",  # Japanese
+    kn="kan",  # Kannada
+    kk="kaz",  # Kazakh
+    ko="kor",  # Korean
+    lo="lao",  # Lao
+    lv="lav",  # Latvian
+    lt="lit",  # Lithuanian
+    mk="mkd",  # Macedonian
+    ms="msa",  # Malay
+    mr="mar",  # Marathi
+    nb="nob",  # Norwegian
+    fa="fas",  # Persian
+    pl="pol",  # Polish
+    pt_BR="por",  # Portuguese (BR)
+    pt_PT="por",  # Portuguese (POR)
+    pa="pan",  # Punjabi
+    ro="ron",  # Romanian
+    ru="rus",  # Russian
+    sr="srp",  # Serbian
+    sk="slk",  # Slovak
+    sl="slv",  # Slovenian
+    es="spa",  # Spanish
+    es_AR="spa",  # Spanish (ARG)
+    es_ES="spa",  # Spanish (SPA)
+    es_MX="spa",  # Spanish (MEX)
+    sw="swa",  # Swahili
+    sv="swe",  # Swedish
+    ta="tam",  # Tamil
+    te="tel",  # Telugu
+    th="tha",  # Thai
+    tr="tur",  # Turkish
+    uk="ukr",  # Ukrainian
+    ur="urd",  # Urdu
+    uz="uzb",  # Uzbek
+    vi="vie",  # Vietnamese
 )
+
+CONFIG_FB_USER_ID = "fb_business_id"
+CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
 
 
 class WhatsAppType(ChannelType):

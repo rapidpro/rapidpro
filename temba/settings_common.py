@@ -234,6 +234,7 @@ INSTALLED_APPS = (
     "temba.public",
     "temba.policies",
     "temba.schedules",
+    "temba.templates",
     "temba.orgs",
     "temba.contacts",
     "temba.channels",
@@ -246,7 +247,6 @@ INSTALLED_APPS = (
     "temba.locations",
     "temba.values",
     "temba.airtime",
-    "temba.templates",
 )
 
 # the last installed app that uses smartmin permissions
@@ -442,6 +442,7 @@ PERMISSIONS = {
     "msgs.label": ("api", "create", "create_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
+    "templates.template": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -614,9 +615,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "templates.template_list",
-        "templates.template_create",
-        "templates.template_update",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -708,9 +707,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "templates.template_list",
-        "templates.template_create",
-        "templates.template_update",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Viewers": (

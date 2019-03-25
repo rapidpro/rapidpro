@@ -48,6 +48,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=64, help_text=_("The password to access your WhatsApp enterprise account")
         )
 
+        facebook_user_id = forms.CharField(
+            max_length=128, help_text=_("The Facebook user id that will be used for template syncing")
+        )
+
+        facebook_access_token = forms.CharField(
+            max_length=128, help_text=_("The Facebook access token for the above user")
+        )
+
         def clean(self):
             # first check that our phone number looks sane
             number, valid = URN.normalize_number(self.cleaned_data["number"], self.cleaned_data["country"])
@@ -76,6 +84,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
+        from .type import CONFIG_FB_ACCESS_TOKEN, CONFIG_FB_USER_ID
+
         user = self.request.user
         org = user.get_org()
 
@@ -89,6 +99,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_USERNAME: data["username"],
             Channel.CONFIG_PASSWORD: data["password"],
             Channel.CONFIG_AUTH_TOKEN: data["auth_token"],
+            CONFIG_FB_USER_ID: data["facebook_user_id"],
+            CONFIG_FB_ACCESS_TOKEN: data["facebook_access_token"],
         }
 
         self.object = Channel.create(

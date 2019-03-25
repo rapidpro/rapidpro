@@ -27,6 +27,7 @@ from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, R
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
+from temba.templates.models import ChannelTemplate
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -3616,3 +3617,37 @@ class APITest(TembaTest):
         # check filtering by id (deprecated)
         response = self.fetchJSON(url, "id=%d" % start2.id)
         self.assertResultsById(response, [start2])
+
+    def test_templates(self):
+        url = reverse("api.v2.templates")
+        self.assertEndpointAccess(url)
+
+        # create some templates
+        ChannelTemplate.ensure_exists(
+            self.channel, "hello", "eng", "Hi {{1}}", ChannelTemplate.STATUS_APPROVED, "1234"
+        )
+        ct = ChannelTemplate.ensure_exists(
+            self.channel, "hello", "fra", "Bonjour {{1}}", ChannelTemplate.STATUS_PENDING, "5678"
+        )
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "name": "hello",
+                    "translations": {
+                        "eng": {"language": "eng", "content": "Hi {{1}}", "status": "approved"},
+                        "fra": {"language": "fra", "content": "Bonjour {{1}}", "status": "pending"},
+                    },
+                    "created_on": format_datetime(ct.template.created_on),
+                    "modified_on": format_datetime(ct.template.modified_on),
+                }
+            ],
+        )

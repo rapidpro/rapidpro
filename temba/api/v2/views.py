@@ -34,6 +34,7 @@ from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.templates.models import Template
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -67,6 +68,7 @@ from .serializers import (
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
+    TemplateReadSerializer,
     WebHookEventReadSerializer,
 )
 
@@ -3110,3 +3112,77 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             ],
             example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
         )
+
+
+class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a '
+    dictionary of the languages it has been translated to along with the content of the template for that
+    language and the status of that translation.
+
+    ## Listing Templates
+
+    A `GET` request returns the templates for your organization.
+
+    Each template has the following attributes:
+
+     * **name** - the name of the template
+     * **translations** - a dictionary of the translations of the template with the key being an ISO639-3 code
+
+     Each translation contains the following attributes:
+
+     * **language** - the ISO639-3 code for the language of this translation
+     * **content** - the content of the translation
+     * **status** - the status of this translation, either `active` or `pending`
+
+    Example:
+
+        GET /api/v2/templates.json
+
+    Response is the list of templates for your organization:
+
+        {
+            "next": "http://example.com/api/v2/templates.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
+            "previous": null,
+            "results": [
+            {
+                "name": "welcome_message",
+                "translations": {
+                    "eng": {
+                        "language": "eng",
+                        "content": "Hi {{1}}, your appointment is coming up on {{2}}",
+                        "status": "active",
+                    },
+                    "fra": {
+                        "language": "fra",
+                        "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
+                        "status": "pending",
+                    }
+                },
+                "created_on": "2013-08-19T19:11:21.082Z",
+                "modified_on": "2013-08-19T19:11:21.082Z"
+            },
+            ...
+        }
+    """
+
+    permission = "templates.template_api"
+    model = Template
+    serializer_class = TemplateReadSerializer
+    pagination_class = ModifiedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        org = self.request.user.get_org()
+        queryset = Template.objects.filter(org=org).prefetch_related("channel_templates")
+        return self.filter_before_after(queryset, "modified_on")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Templates",
+            "url": reverse("api.v2.templates"),
+            "slug": "templates-list",
+            "params": [],
+            "example": {},
+        }

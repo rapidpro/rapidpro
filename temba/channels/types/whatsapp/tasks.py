@@ -8,6 +8,7 @@ from celery.task import task
 
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
+from temba.templates.models import ChannelTemplate
 from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,6 @@ def refresh_whatsapp_contacts(channel_id):
 @task(track_started=True, name="refresh_whatsapp_tokens")
 def refresh_whatsapp_tokens():
     r = get_redis_connection()
-    # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering
     if r.get("refresh_whatsapp_tokens"):  # pragma: no cover
         return
 
@@ -84,3 +84,56 @@ def refresh_whatsapp_tokens():
 
             channel.config["auth_token"] = resp.json()["users"][0]["token"]
             channel.save(update_fields=["config"])
+
+
+TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.2/%s/message_templates"
+
+
+@task(track_started=True, name="refresh_whatsapp_templates")
+def refresh_whatsapp_templates():
+    from .type import CONFIG_FB_USER_ID, CONFIG_FB_ACCESS_TOKEN, LANGUAGE_MAPPING, STATUS_MAPPING
+
+    r = get_redis_connection()
+    if r.get("refresh_whatsapp_templates"):  # pragma: no cover
+        return
+
+    with r.lock("refresh_whatsapp_templates", 1800):
+        # for every whatsapp channel
+        for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+            # move on if we have no FB credentials
+            if CONFIG_FB_USER_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config:
+                continue
+
+            # fetch all our templates
+            try:
+                response = requests.get(
+                    TEMPLATE_LIST_URL % channel.config[CONFIG_FB_USER_ID],
+                    params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
+                )
+
+                if response.status_code != 200:
+                    raise Exception("received non 200 status: %d %s" % (response.status_code, response.content))
+
+                # run through all our templates making sure they are present in our DB
+                for template in response.json()["data"]:
+                    # its a (non fatal) error if we see a language we don't know
+                    if template["language"] not in LANGUAGE_MAPPING:
+                        logger.error("unknown whatsapp language: %s" % template["language"])
+                        continue
+
+                    # or if this is a status we don't know about
+                    if template["status"] not in STATUS_MAPPING:
+                        logger.error("unknown whatsapp status: %s" % template["status"])
+                        continue
+
+                    ChannelTemplate.ensure_exists(
+                        channel=channel,
+                        name=template["name"],
+                        language=LANGUAGE_MAPPING[template["language"]],
+                        content=template["content"],
+                        status=STATUS_MAPPING[template["status"]],
+                        external_id=template["id"],
+                    )
+
+            except Exception as e:
+                logger.error("error fetching templates for whatsapp channel: %s" % str(e))

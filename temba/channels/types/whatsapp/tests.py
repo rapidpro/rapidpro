@@ -3,10 +3,11 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
+from temba.templates.models import ChannelTemplate, Template
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_tokens
+from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates, refresh_whatsapp_tokens
 from .type import WhatsAppType
 
 
@@ -29,6 +30,8 @@ class WhatsAppTypeTest(TembaTest):
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
         post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["facebook_user_id"] = "1234"
+        post_data["facebook_access_token"] = "token123"
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
@@ -128,3 +131,50 @@ class WhatsAppTypeTest(TembaTest):
             refresh_whatsapp_tokens()
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
+                MockResponse(
+                    200,
+                    """
+            {
+              "data": [
+              {
+                "name": "hello",
+                "content": "Hello {{1}}",
+                "language": "en_US",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1234"
+              },
+              {
+                "name": "hello",
+                "content": "Bonjour {{1}}",
+                "language": "fr",
+                "status": "APPROVED",
+                "category": "ISSUE_RESOLUTION",
+                "id": "5678"
+              },
+              {
+                "name": "goodbye",
+                "content": "Goodbye {{1}}",
+                "language": "en_US",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
+              }
+            ],
+            "paging": {
+              "cursors": {
+              "before": "MAZDZD",
+              "after": "MjQZD"
+            }
+            }
+            }""",
+                )
+            ]
+            refresh_whatsapp_templates()
+
+            # should have two templates
+            self.assertEqual(2, Template.objects.filter(org=self.org).count())
+            self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel).count())

@@ -1,14 +1,11 @@
-import regex
-
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.orgs.models import Org
-from temba.utils.models import TembaModel
 
 
-class Template(TembaModel):
+class Template(models.Model):
     """
     Templates represent messages that can be used in flows and have template variables substituted into them. These
     are usually used by WhatsApp channels, but can also be used more generically to create DRY messages in flows.
@@ -17,22 +14,17 @@ class Template(TembaModel):
     # the name of this template
     name = models.CharField(null=False, max_length=64)
 
-    # the slug for this template (generated from name on creation then permanent)
-    slug = models.CharField(null=False, max_length=64)
-
-    # the message for this template keyed by language code
-    message = JSONField(null=False)
-
     # the organization this template is used in
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
-    @classmethod
-    def make_slug(cls, name):
-        slug = regex.sub(r"([^a-z0-9]+)", " ", name.lower(), regex.V0)
-        return regex.sub(r"([^a-z0-9]+)", "_", slug.strip(), regex.V0)
+    # when this template was last modified
+    modified_on = models.DateTimeField(default=timezone.now)
+
+    # when this template was created
+    created_on = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        unique_together = ("org", "slug")
+        unique_together = ("org", "name")
 
 
 class ChannelTemplate(models.Model):
@@ -41,19 +33,62 @@ class ChannelTemplate(models.Model):
     id for the channel template as well as the current status.
     """
 
-    STATUS_SYNCED = "S"
+    STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
 
-    STATUS_CHOICES = ((STATUS_SYNCED, "Synced"), (STATUS_PENDING, "Pending"))
-
-    # the current status of this channel template
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+    STATUS_CHOICES = ((STATUS_APPROVED, "approved"), (STATUS_PENDING, "pending"))
 
     # the template this maps to
-    template = models.ForeignKey(Template, on_delete=models.PROTECT)
+    template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="channel_templates")
 
     # the channel that synced this template
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
 
+    # the content of this template
+    content = models.CharField(max_length=1280, null=False)
+
+    # the current status of this channel template
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+
+    # the language for this template (ISO639-3)
+    language = models.CharField(max_length=3)
+
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
+
+    @classmethod
+    def ensure_exists(cls, channel, name, language, content, status, external_id):
+        existing = ChannelTemplate.objects.filter(channel=channel, external_id=external_id).first()
+
+        if not existing:
+            template = Template.objects.filter(org=channel.org, name=name).first()
+            if not template:
+                template = Template.objects.create(
+                    org=channel.org, name=name, created_on=timezone.now(), modified_on=timezone.now()
+                )
+            else:
+                template.modified_on = timezone.now()
+                template.save(update_fields=["modified_on"])
+
+            existing = ChannelTemplate.objects.create(
+                template=template,
+                channel=channel,
+                content=content,
+                status=status,
+                language=language,
+                external_id=external_id,
+            )
+
+        else:
+            if existing.language != language:  # pragma: no cover
+                raise Exception("updating template with different language than created with")
+
+            if existing.status != status or existing.content != content:
+                existing.status = status
+                existing.content = content
+                existing.save(update_fields=["status", "content"])
+
+                existing.template.modified_on = timezone.now()
+                existing.template.save(update_fields=["modified_on"])
+
+        return existing

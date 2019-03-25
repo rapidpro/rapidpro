@@ -31,7 +31,6 @@ urlpatterns = [
     url(r"^", include("temba.channels.urls")),
     url(r"^", include("temba.airtime.urls")),
     url(r"^", include("temba.dashboard.urls")),
-    url(r"^", include("temba.templates.urls")),
     url(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),
     url(r"^relayers/relayer/register/$", register, {}, "register"),
     url(r"^users/", include("smartmin.users.urls")),
