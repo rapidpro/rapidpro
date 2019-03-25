@@ -21,6 +21,11 @@ class ApkTest(TembaTest):
     def tearDown(self):
         self.clear_storage()
 
+    def test_claim_android(self):
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_claim_android"))
+        self.assertContains(response, "<li>has new things</li>")
+
     def test_list(self):
         url = reverse("apks.apk_list")
 
