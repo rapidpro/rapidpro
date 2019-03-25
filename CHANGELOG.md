@@ -1,3 +1,10 @@
+v4.22.15
+----------
+ * Do not immediately expire flow when updating expirations (leave that to mailroom)
+ * Fix boundary aliases duplicates creation
+ * Add org lock for users to deal with similtaneous updates of org users
+ * Add results and waiting_exit_uuids to flow metadata and start populating on Flow.update
+
 v4.22.14
 ----------
  * CreateSubOrg needs to be non-atomic as well as it creates flows which need to be validated
