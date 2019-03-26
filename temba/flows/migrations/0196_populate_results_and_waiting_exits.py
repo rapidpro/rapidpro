@@ -95,6 +95,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():
+    from django.apps import apps
+
+    populate_results_and_waiting_exits(apps, None)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [("flows", "0195_auto_20190322_2059")]
