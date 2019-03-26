@@ -31,8 +31,8 @@ def extract_results(flow):
         categories = []
         for rule in rs.rules:
             category_dict = rule.get("category", {})
-            category_name = category_dict[flow.base_language]
-            if category_name.lower() not in [c.lower() for c in categories]:
+            category_name = category_dict.get(flow.base_language) if isinstance(category_dict, dict) else category_dict
+            if category_name and category_name.lower() not in [c.lower() for c in categories]:
                 categories.append(category_name)
 
         result_specs.append({"key": label_to_slug(rs.label), "name": rs.label, "categories": categories})
