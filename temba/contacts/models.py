@@ -1507,7 +1507,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 field_dict[key] = value
 
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict["org"], user, key, label, False, field["type"])
+                ContactField.get_or_create(field_dict["org"], user, key, label, value_type=field["type"])
+
                 extra_fields.append(key)
             else:
                 raise ValueError("Extra field %s is a reserved field name" % key)
