@@ -31,7 +31,15 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
+from temba.tests import (
+    ESMockWithScroll,
+    FlowFileTest,
+    MigrationTest,
+    MockResponse,
+    TembaTest,
+    matchers,
+    skip_if_no_mailroom,
+)
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -11571,3 +11579,33 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowResultMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0195_auto_20190322_2059"
+    migrate_to = "0196_populate_results_and_waiting_exits"
+
+    def setUpBeforeMigration(self, apps):
+        favorites = self.get_flow("favorites")
+        del favorites.metadata["results"]
+        del favorites.metadata["waiting_exit_uuids"]
+        favorites.save(update_fields=("metadata",))
+
+    def test_populated(self):
+        favorites = Flow.objects.get()
+
+        # existing metadata untouched
+        self.assertEqual(favorites.metadata["uuid"], str(favorites.uuid))
+        self.assertEqual(favorites.metadata["name"], "Favorites")
+
+        # new results and waiting_exit_uuids fields populated
+        self.assertEqual(
+            favorites.metadata["results"],
+            [
+                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
+                {"key": "name", "name": "Name", "categories": ["All Responses"]},
+            ],
+        )
+        self.assertEqual(len(favorites.metadata["waiting_exit_uuids"]), 12)
