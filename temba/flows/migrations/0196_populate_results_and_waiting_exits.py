@@ -81,7 +81,7 @@ def populate_results_and_waiting_exits(apps, schema_editor):
     ruleset_prefetch = Prefetch("rule_sets", queryset=RuleSet.objects.order_by("y"))
 
     num_updated = 0
-    for flow in Flow.objects.all().prefetch_related(ruleset_prefetch):
+    for flow in Flow.objects.filter(is_active=True).prefetch_related(ruleset_prefetch):
         flow.metadata["results"] = extract_results(flow)
         flow.metadata["waiting_exit_uuids"] = extract_waiting_exits(flow)
         flow.save(update_fields=("metadata",))
