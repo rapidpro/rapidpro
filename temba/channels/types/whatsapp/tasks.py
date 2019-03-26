@@ -146,7 +146,7 @@ def refresh_whatsapp_templates():
                         logger.error("unknown whatsapp status: %s" % template["status"])
                         continue
 
-                    template = ChannelTemplate.ensure_exists(
+                    template = ChannelTemplate.get_or_create(
                         channel=channel,
                         name=template["name"],
                         language=LANGUAGE_MAPPING[template["language"]],

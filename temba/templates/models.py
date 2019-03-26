@@ -73,7 +73,7 @@ class ChannelTemplate(models.Model):
         ChannelTemplate.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
     @classmethod
-    def ensure_exists(cls, channel, name, language, content, variable_count, status, external_id):
+    def get_or_create(cls, channel, name, language, content, variable_count, status, external_id):
         existing = ChannelTemplate.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:

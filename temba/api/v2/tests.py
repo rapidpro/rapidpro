@@ -3627,10 +3627,10 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some templates
-        ChannelTemplate.ensure_exists(
+        ChannelTemplate.get_or_create(
             self.channel, "hello", "eng", "Hi {{1}}", 1, ChannelTemplate.STATUS_APPROVED, "1234"
         )
-        ct = ChannelTemplate.ensure_exists(
+        ct = ChannelTemplate.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, ChannelTemplate.STATUS_PENDING, "5678"
         )
 

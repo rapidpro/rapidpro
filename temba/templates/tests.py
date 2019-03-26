@@ -5,17 +5,17 @@ from .models import ChannelTemplate, Template
 
 class TemplateTest(TembaTest):
     def test_templates(self):
-        ct1 = ChannelTemplate.ensure_exists(
+        ct1 = ChannelTemplate.get_or_create(
             self.channel, "hello", "eng", "Hello {{1}}", 1, ChannelTemplate.STATUS_PENDING, "1234"
         )
-        ct2 = ChannelTemplate.ensure_exists(
+        ct2 = ChannelTemplate.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, ChannelTemplate.STATUS_PENDING, "5678"
         )
 
         self.assertEqual(ct1.template, ct2.template)
         modified_on = ct1.template.modified_on
 
-        ct3 = ChannelTemplate.ensure_exists(
+        ct3 = ChannelTemplate.get_or_create(
             self.channel, "hello", "fra", "Salut {{1}}", 1, ChannelTemplate.STATUS_PENDING, "5678"
         )
 
