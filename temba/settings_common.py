@@ -226,6 +226,7 @@ INSTALLED_APPS = (
     # django-timezone-field
     "timezone_field",
     # temba apps
+    "temba.apks",
     "temba.archives",
     "temba.assets",
     "temba.auth_tweaks",
@@ -478,7 +479,15 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         "auth.user_list",
         "auth.user_update",
+        "apks.apk_create",
+        "apks.apk_list",
+        "apks.apk_update",
+        "campaigns.campaign_read",
+        "channels.channel_configuration",
+        "channels.channel_history",
+        "channels.channel_read",
         "contacts.contact_break_anon",
+        "contacts.contact_read",
         "flows.flow_editor",
         "flows.flow_json",
         "flows.flow_revisions",

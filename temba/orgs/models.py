@@ -35,10 +35,11 @@ from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, languages
+from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
@@ -437,7 +438,6 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(ORG_STATUS, None) == WHITELISTED
 
-    @transaction.atomic
     def import_app(self, data, user, site=None):
         from temba.flows.models import Flow
         from temba.campaigns.models import Campaign
@@ -461,11 +461,16 @@ class Org(SmartModel):
 
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
-        # we need to import flows first, they will resolve to
-        # the appropriate ids and update our definition accordingly
-        Flow.import_flows(data, self, user, same_site)
-        Campaign.import_campaigns(data, self, user, same_site)
-        Trigger.import_triggers(data, self, user, same_site)
+        with transaction.atomic():
+            # we need to import flows first, they will resolve to
+            # the appropriate ids and update our definition accordingly
+            new_flows = Flow.import_flows(data, self, user, same_site)
+            Campaign.import_campaigns(data, self, user, same_site)
+            Trigger.import_triggers(data, self, user, same_site)
+
+        # with all the flows and dependencies committed, we can now have mailroom do full validation
+        for flow in new_flows:
+            mailroom.get_client().flow_validate(self, flow.as_json())
 
     @classmethod
     def export_definitions(cls, site_link, components):
@@ -1351,28 +1356,25 @@ class Org(SmartModel):
         )
 
     def create_sample_flows(self, api_url):
-        import json
-
         # get our sample dir
         filename = os.path.join(settings.STATICFILES_DIRS[0], "examples", "sample_flows.json")
 
         # for each of our samples
         with open(filename, "r") as example_file:
-            example = example_file.read()
+            samples = example_file.read()
 
         user = self.get_user()
         if user:
             # some some substitutions
-            org_example = example.replace("{{EMAIL}}", user.username)
-            org_example = org_example.replace("{{API_URL}}", api_url)
+            samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
 
             try:
-                self.import_app(json.loads(org_example), user)
+                self.import_app(json.loads(samples), user)
             except Exception as e:  # pragma: needs cover
                 logger.error(
                     f"Failed creating sample flows: {str(e)}",
                     exc_info=True,
-                    extra=dict(definition=json.loads(org_example)),
+                    extra=dict(definition=json.loads(samples)),
                 )
 
     def is_notified_of_mt_sms(self):
@@ -2045,16 +2047,19 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
 
-        self.flow_server_enabled = flow_server_enabled
-        self.save(update_fields=["flow_server_enabled"])
+        with transaction.atomic():
+            self.flow_server_enabled = flow_server_enabled
+            self.save(update_fields=["flow_server_enabled"])
 
-        if not branding:
-            branding = BrandingMiddleware.get_branding_for_host("")
+            if not branding:
+                branding = BrandingMiddleware.get_branding_for_host("")
 
-        self.create_system_groups()
-        self.create_system_contact_fields()
+            self.create_system_groups()
+            self.create_system_contact_fields()
+            self.create_welcome_topup(topup_size)
+
+        # outside of the transaction as it's going to call out to mailroom for flow validation
         self.create_sample_flows(branding.get("api_link", ""))
-        self.create_welcome_topup(topup_size)
 
     def download_and_save_media(self, request, extension=None):  # pragma: needs cover
         """

@@ -59,6 +59,12 @@
         .title
           -trans "dashboard"
 
+  -if request.user.is_superuser or perms.apks.apk_list
+    %li.nav-android
+      %a.icon-nav-android{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apks' %}"}
+        .title
+          -trans "android"
+
   -if not request.user.is_anonymous
     %li.more
       %a.icon-menu-4{href:""}

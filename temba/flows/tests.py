@@ -28,6 +28,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
@@ -3823,8 +3824,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_json", args=[self.flow.id]), json.dumps(json_dict), content_type="application/json"
         )
 
-        # TODO revert back to 400 when we have validation working correctly
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
 
         self.flow.refresh_from_db()
         flow_json = self.flow.as_json()
@@ -6604,23 +6604,22 @@ class FlowsTest(FlowFileTest):
                 },
             )
 
-        # TODO re-enable when we fix flow validation for new orgs
         # check that flow validation failing is returned as an error message to the user
-        # flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
+        flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
 
-        # with self.assertRaises(FlowValidationException):
-        #     flow.update(flow_json, self.admin)
+        with self.assertRaises(FlowValidationException):
+            flow.update(flow_json, self.admin)
 
         # check view sends converts exception to error response
-        # response = self.client.post(
-        #     reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
-        # )
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
 
-        # self.assertEqual(response.status_code, 400)
-        # self.assertEqual(
-        #     response.json(),
-        #     {"description": "Your flow failed validation. Please refresh your browser.", "status": "failure"},
-        # )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"description": "Your flow failed validation. Please refresh your browser.", "status": "failure"},
+        )
 
         # create an invalid loop in the flow definition
         flow_json["action_sets"][0]["destination"] = flow_json["action_sets"][0]["uuid"]
@@ -7913,6 +7912,19 @@ class FlowsTest(FlowFileTest):
 
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
+
+    def test_flow_metadata(self):
+        flow = self.get_flow("favorites")
+
+        self.assertEqual(
+            flow.metadata["results"],
+            [
+                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
+                {"key": "name", "name": "Name", "categories": ["All Responses"]},
+            ],
+        )
+        self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     def test_group_split(self):
         flow = self.get_flow("group_split")
@@ -9245,27 +9257,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(len(flow_json["rule_sets"]), 0)
         self.assertEqual(flow_json["version"], get_current_export_version())
         self.assertEqual(flow_json["metadata"]["revision"], 2)
-
-    def test_update_dependencies_on_old_version(self):
-        flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.objects.create(
-            name="Call Me Maybe",
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-            saved_by=self.admin,
-            version_number=3,
-            flow_type="V",
-        )
-
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
-
-        # updating our dependencies should ensure the current version
-        flow.update_dependencies()
-
-        self.assertEqual(flow.version_number, get_current_export_version())
 
     def test_update_with_ruleset_to_actionset_change(self):
         flow = self.get_flow("favorites")

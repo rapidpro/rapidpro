@@ -1054,7 +1054,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     for trigger in exported_json.get("triggers", []):
         if "flow" in trigger:
             remap_flow(trigger["flow"])
-        for group in trigger["groups"]:
+        for group in trigger["groups"]:  # pragma: no cover
             remap_group(group)
         remap_channel(trigger)
 
@@ -1078,7 +1078,7 @@ def migrate_to_version_9(json_flow, flow):
     from temba.flows.models import Flow
 
     if Flow.METADATA not in json_flow:
-        json_flow[Flow.METADATA] = flow.get_metadata()
+        json_flow[Flow.METADATA] = flow.get_legacy_metadata()
     return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)["flows"][0]
 
 
