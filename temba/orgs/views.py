@@ -1433,7 +1433,7 @@ class OrgCRUDL(SmartCRUDL):
                 current_group = current_groups.get(user)
                 new_group = new_groups.get(user)
 
-                if current_group != new_group:
+                if user in self.fields_by_users and current_group != new_group:
                     if current_group:
                         self.org_group_set(org, current_group).remove(user)
                     if new_group:
