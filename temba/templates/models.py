@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.utils import timezone
 
@@ -11,8 +13,11 @@ class Template(models.Model):
     are usually used by WhatsApp channels, but can also be used more generically to create DRY messages in flows.
     """
 
+    # the uuid for this template
+    uuid = models.UUIDField(default=uuid.uuid4)
+
     # the name of this template
-    name = models.CharField(null=False, max_length=64)
+    name = models.CharField(max_length=64)
 
     # the organization this template is used in
     org = models.ForeignKey(Org, on_delete=models.PROTECT)

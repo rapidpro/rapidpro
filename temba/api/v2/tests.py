@@ -3646,15 +3646,23 @@ class APITest(TembaTest):
             [
                 {
                     "name": "hello",
-                    "translations": {
-                        "eng": {"language": "eng", "content": "Hi {{1}}", "variable_count": 1, "status": "approved"},
-                        "fra": {
+                    "uuid": str(ct.template.uuid),
+                    "translations": [
+                        {
+                            "language": "eng",
+                            "content": "Hi {{1}}",
+                            "variable_count": 1,
+                            "status": "approved",
+                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
+                        },
+                        {
                             "language": "fra",
                             "content": "Bonjour {{1}}",
                             "variable_count": 1,
                             "status": "pending",
+                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
                         },
-                    },
+                    ],
                     "created_on": format_datetime(ct.template.created_on),
                     "modified_on": format_datetime(ct.template.modified_on),
                 }

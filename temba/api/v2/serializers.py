@@ -1174,23 +1174,25 @@ class WebHookEventReadSerializer(ReadSerializer):
 
 
 class TemplateReadSerializer(ReadSerializer):
-    name = serializers.CharField(required=True)
     translations = serializers.SerializerMethodField()
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_translations(self, obj):
-        translations = dict()
-        for template in ChannelTemplate.objects.filter(template=obj).order_by("language"):
-            translations[template.language] = {
-                "language": template.language,
-                "content": template.content,
-                "variable_count": template.variable_count,
-                "status": template.get_status_display(),
-            }
+        translations = []
+        for template in ChannelTemplate.objects.filter(template=obj).order_by("language").select_related("channel"):
+            translations.append(
+                {
+                    "language": template.language,
+                    "content": template.content,
+                    "variable_count": template.variable_count,
+                    "status": template.get_status_display(),
+                    "channel": {"uuid": template.channel.uuid, "name": template.channel.name},
+                }
+            )
 
         return translations
 
     class Meta:
         model = Template
-        fields = ("name", "translations", "created_on", "modified_on")
+        fields = ("uuid", "name", "translations", "created_on", "modified_on")

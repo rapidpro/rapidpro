@@ -3154,20 +3154,21 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "name": "welcome_message",
-                "translations": {
-                    "eng": {
+                "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+                "translations": [
+                    {
                         "language": "eng",
                         "content": "Hi {{1}}, your appointment is coming up on {{2}}",
                         "variable_count": 2,
                         "status": "active",
                     },
-                    "fra": {
+                    {
                         "language": "fra",
                         "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
                         "variable_count": 2,
                         "status": "pending",
                     }
-                },
+                ],
                 "created_on": "2013-08-19T19:11:21.082Z",
                 "modified_on": "2013-08-19T19:11:21.082Z"
             },
