@@ -1,0 +1,82 @@
+{% extends "frame.html" %}
+
+-load smartmin temba compress i18n
+
+-block nav
+
+
+-block content
+  -if relayer_app
+    %p 
+      -blocktrans with brand.name as brand
+        To use an Android phone with your {{ brand }} account to send messages you need to download the {{brand}} relayer app
+   
+    .latest-release-date
+      -trans "Latest released on" 
+      {% short_datetime relayer_app.created_on %}
+
+    %p
+      %a.btn-download{href: "{% url 'apks.apk_download' relayer_app.id %}"}
+        -trans "Download Relayer"
+
+    -if relayer_app.description
+      .latest-release-description
+        {{ relayer_app.description}}
+
+  -else
+    %p
+    -blocktrans with brand.support_email as email
+      No Android app available yet. Please contact {{ email }} and report that.
+
+  -if message_packs
+    %p
+      -blocktrans with brand.name as brand
+        To increase the capacity of messages your phone can send in an hour we recommend you install each of the following {{brand}} message packs as well.
+      
+    %p
+      -for msg_pack in message_packs
+        %br
+        %a.btn-download{href: "{% url 'apks.apk_download' msg_pack.id %}"}
+          -blocktrans with forloop.counter as counter
+            Download Message pack {{ counter }}
+
+
+-block extra-style
+  {{ block.super }}
+
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .btn-download {
+            text-align: center;
+            display: block;
+            background-color: #0c6596;
+            height: 50px;
+            width: 250px;
+            color: #fff;
+            line-height: 50px;
+            font-size: 13pt;
+            text-decoration: none;
+
+            &:hover, &:focus {
+                color: #fff;
+                text-decoration: none;
+            }
+        }
+
+        .latest-release-date{
+          font-style: italic;
+          margin: 10px 0px;
+          font-size: 20px;
+          font-weight: bold;
+        }
+
+        .latest-release-description {
+          margin: 20px 0px;
+          background-color: #eee;
+          padding: 0px 20px;
+          max-width: 501px;
+          white-space: pre-line;
+
+        }
+    {% endlessblock %}

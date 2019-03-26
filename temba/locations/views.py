@@ -79,7 +79,8 @@ class BoundaryCRUDL(SmartCRUDL):
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
-                for new_alias in new_aliases.split("\n"):
+                unique_new_aliases = list(set(new_aliases.split("\n")))
+                for new_alias in unique_new_aliases:
                     if new_alias:
                         BoundaryAlias.objects.create(
                             boundary=boundary,

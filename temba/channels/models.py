@@ -1337,6 +1337,7 @@ class ChannelEvent(models.Model):
     TYPE_NEW_CONVERSATION = "new_conversation"
     TYPE_REFERRAL = "referral"
     TYPE_STOP_CONTACT = "stop_contact"
+    TYPE_WELCOME_MESSAGE = "welcome_message"
 
     EXTRA_REFERRER_ID = "referrer_id"
 
@@ -1350,6 +1351,7 @@ class ChannelEvent(models.Model):
         (TYPE_STOP_CONTACT, _("Stop Contact"), "stop-contact"),
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
+        (TYPE_WELCOME_MESSAGE, _("Welcome Message"), "welcome-message"),
     )
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]

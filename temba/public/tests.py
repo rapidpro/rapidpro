@@ -1,7 +1,12 @@
+from unittest.mock import MagicMock
+
 from smartmin.tests import SmartminTest, _CRUDLTest
 
 from django.contrib.auth.models import User
+from django.core.files import File
 from django.urls import reverse
+
+from temba.apks.models import Apk
 
 from .models import Lead, Video
 from .views import VideoCRUDL
@@ -39,6 +44,28 @@ class PublicTest(SmartminTest):
         post_data["email"] = "immortal@temba.com"
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_signup"))
+
+    def test_android(self):
+        android_url = reverse("public.public_android")
+        response = self.client.get(android_url, follow=True)
+        self.assertEqual(404, response.status_code)
+
+        apk_file_mock = MagicMock(spec=File)
+        apk_file_mock.name = "relayer.apk"
+        apk = Apk.objects.create(apk_type="R", version="1.9.8", description="* better syncing", apk_file=apk_file_mock)
+
+        android_url = reverse("public.public_android")
+        response = self.client.get(android_url, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], apk.apk_file.url)
+
+        apk_pack_file_mock = MagicMock(spec=File)
+        apk_pack_file_mock.name = "pack.apk"
+        pack_apk = Apk.objects.create(
+            apk_type="M", version="1.9.8", pack=1, description="* latest pack", apk_file=apk_pack_file_mock
+        )
+
+        response = self.client.get(f"{android_url}?v=1.9.8&pack=1", follow=True)
+        self.assertEqual(response.request["PATH_INFO"], pack_apk.apk_file.url)
 
     def test_welcome(self):
         welcome_url = reverse("public.public_welcome")
@@ -146,7 +173,7 @@ class PublicTest(SmartminTest):
                 "item": "public.public_index",
                 "lastmod": None,
                 "changefreq": "daily",
-                "location": u"http://example.com/",
+                "location": "http://example.com/",
             },
         )
 

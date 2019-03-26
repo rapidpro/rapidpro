@@ -60,6 +60,18 @@ class WriteSerializer(serializers.Serializer):
         return super().run_validation(data)
 
 
+class BulkActionFailure:
+    """
+    Bulk action serializers can return a partial failure if some objects couldn't be acted on
+    """
+
+    def __init__(self, failures):
+        self.failures = failures
+
+    def as_json(self):
+        return {"failures": self.failures}
+
+
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
@@ -1027,7 +1039,7 @@ class MsgBulkActionSerializer(WriteSerializer):
 
     def validate_messages(self, value):
         for msg in value:
-            if msg.direction != "I":
+            if msg and msg.direction != "I":
                 raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
 
         return value
@@ -1053,10 +1065,21 @@ class MsgBulkActionSerializer(WriteSerializer):
         return data
 
     def save(self):
-        messages = self.validated_data["messages"]
         action = self.validated_data["action"]
         label = self.validated_data.get("label")
         label_name = self.validated_data.get("label_name")
+
+        requested_message_ids = self.initial_data["messages"]
+        requested_messages = self.validated_data["messages"]
+
+        # requested_messages contains nones where msg no longer exists so compile lists of real messages and missing ids
+        messages = []
+        missing_message_ids = []
+        for m, msg in enumerate(requested_messages):
+            if msg is not None:
+                messages.append(msg)
+            else:
+                missing_message_ids.append(requested_message_ids[m])
 
         if action == self.LABEL:
             if not label:
@@ -1077,6 +1100,8 @@ class MsgBulkActionSerializer(WriteSerializer):
                     msg.restore()
                 elif action == self.DELETE:
                     msg.release()
+
+        return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 
 
 class ResthookReadSerializer(ReadSerializer):
