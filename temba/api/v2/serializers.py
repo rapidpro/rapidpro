@@ -1158,7 +1158,10 @@ class TemplateReadSerializer(ReadSerializer):
         translations = dict()
         for template in ChannelTemplate.objects.filter(template=obj).order_by("language"):
             translations[template.language] = dict(
-                language=template.language, content=template.content, status=template.get_status_display()
+                language=template.language,
+                content=template.content,
+                variable_count=template.variable_count,
+                status=template.get_status_display(),
             )
 
         return translations

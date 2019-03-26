@@ -119,6 +119,10 @@ class WhatsAppType(ChannelType):
     def get_urls(self):
         return [self.get_claim_url(), url(r"^refresh/(?P<uuid>[a-z0-9\-]+)/?$", RefreshView.as_view(), name="refresh")]
 
+    def deactivate(self, channel):
+        # deactivate all templates associated with us
+        ChannelTemplate.trim(channel, [])
+
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
         headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}

@@ -34,7 +34,7 @@ from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.templates.models import Template
+from temba.templates.models import ChannelTemplate, Template
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -3133,6 +3133,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
 
      * **language** - the ISO639-3 code for the language of this translation
      * **content** - the content of the translation
+     * **variable_count** - the count of variables in this template
      * **status** - the status of this translation, either `active` or `pending`
 
     Example:
@@ -3151,11 +3152,13 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
                     "eng": {
                         "language": "eng",
                         "content": "Hi {{1}}, your appointment is coming up on {{2}}",
+                        "variable_count": 2,
                         "status": "active",
                     },
                     "fra": {
                         "language": "fra",
                         "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
+                        "variable_count": 2,
                         "status": "pending",
                     }
                 },
@@ -3173,7 +3176,12 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
-        queryset = Template.objects.filter(org=org).prefetch_related("channel_templates")
+        template_ids = (
+            ChannelTemplate.objects.filter(channel__org=org, is_active=True)
+            .distinct("template_id")
+            .values_list("template_id", flat=True)
+        )
+        queryset = Template.objects.filter(org=org, id__in=template_ids).prefetch_related("channel_templates")
         return self.filter_before_after(queryset, "modified_on")
 
     @classmethod

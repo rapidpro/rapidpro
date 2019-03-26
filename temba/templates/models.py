@@ -47,6 +47,9 @@ class ChannelTemplate(models.Model):
     # the content of this template
     content = models.CharField(max_length=1280, null=False)
 
+    # how many variables this template contains
+    variable_count = models.IntegerField()
+
     # the current status of this channel template
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
 
@@ -56,8 +59,21 @@ class ChannelTemplate(models.Model):
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
 
+    # whether this channel template is active
+    is_active = models.BooleanField(default=True)
+
     @classmethod
-    def ensure_exists(cls, channel, name, language, content, status, external_id):
+    def trim(cls, channel, existing):
+        """
+        Trims what channel templates exist for this channel based on the set of templates passed in
+        """
+        ids = [tc.id for tc in existing]
+
+        # mark any that weren't included as inactive
+        ChannelTemplate.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
+
+    @classmethod
+    def ensure_exists(cls, channel, name, language, content, variable_count, status, external_id):
         existing = ChannelTemplate.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
@@ -74,6 +90,7 @@ class ChannelTemplate(models.Model):
                 template=template,
                 channel=channel,
                 content=content,
+                variable_count=variable_count,
                 status=status,
                 language=language,
                 external_id=external_id,
@@ -86,7 +103,9 @@ class ChannelTemplate(models.Model):
             if existing.status != status or existing.content != content:
                 existing.status = status
                 existing.content = content
-                existing.save(update_fields=["status", "content"])
+                existing.variable_count = variable_count
+                existing.is_active = True
+                existing.save(update_fields=["status", "content", "is_active", "variable_count"])
 
                 existing.template.modified_on = timezone.now()
                 existing.template.save(update_fields=["modified_on"])

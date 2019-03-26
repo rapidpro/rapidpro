@@ -3624,10 +3624,10 @@ class APITest(TembaTest):
 
         # create some templates
         ChannelTemplate.ensure_exists(
-            self.channel, "hello", "eng", "Hi {{1}}", ChannelTemplate.STATUS_APPROVED, "1234"
+            self.channel, "hello", "eng", "Hi {{1}}", 1, ChannelTemplate.STATUS_APPROVED, "1234"
         )
         ct = ChannelTemplate.ensure_exists(
-            self.channel, "hello", "fra", "Bonjour {{1}}", ChannelTemplate.STATUS_PENDING, "5678"
+            self.channel, "hello", "fra", "Bonjour {{1}}", 1, ChannelTemplate.STATUS_PENDING, "5678"
         )
 
         # no filtering
@@ -3643,8 +3643,13 @@ class APITest(TembaTest):
                 {
                     "name": "hello",
                     "translations": {
-                        "eng": {"language": "eng", "content": "Hi {{1}}", "status": "approved"},
-                        "fra": {"language": "fra", "content": "Bonjour {{1}}", "status": "pending"},
+                        "eng": {"language": "eng", "content": "Hi {{1}}", "variable_count": 1, "status": "approved"},
+                        "fra": {
+                            "language": "fra",
+                            "content": "Bonjour {{1}}",
+                            "variable_count": 1,
+                            "status": "pending",
+                        },
                     },
                     "created_on": format_datetime(ct.template.created_on),
                     "modified_on": format_datetime(ct.template.modified_on),

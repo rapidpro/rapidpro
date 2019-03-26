@@ -7,11 +7,20 @@ from temba.templates.models import ChannelTemplate, Template
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates, refresh_whatsapp_tokens
+from .tasks import (
+    _calculate_variable_count,
+    refresh_whatsapp_contacts,
+    refresh_whatsapp_templates,
+    refresh_whatsapp_tokens,
+)
 from .type import WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
+    def test_calculate_variable_count(self):
+        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
+        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
+
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -157,7 +166,7 @@ class WhatsAppTypeTest(TembaTest):
               },
               {
                 "name": "goodbye",
-                "content": "Goodbye {{1}}",
+                "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
                 "language": "en_US",
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
@@ -178,3 +187,4 @@ class WhatsAppTypeTest(TembaTest):
             # should have two templates
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
             self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel).count())
+            self.assertEqual(2, ChannelTemplate.objects.get(template__name="goodbye").variable_count)

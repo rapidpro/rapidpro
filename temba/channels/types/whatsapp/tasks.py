@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 
 import requests
@@ -86,11 +87,31 @@ def refresh_whatsapp_tokens():
             channel.save(update_fields=["config"])
 
 
+VARIABLE_RE = re.compile(r"{{(\d+)}}")
+
+
+def _calculate_variable_count(content):
+    """
+    Utility method that extracts the number of variables in the passed in WhatsApp template
+    """
+    count = 0
+
+    for match in VARIABLE_RE.findall(content):
+        if int(match) > count:
+            count = int(match)
+
+    return count
+
+
 TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.2/%s/message_templates"
 
 
 @task(track_started=True, name="refresh_whatsapp_templates")
 def refresh_whatsapp_templates():
+    """
+    Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
+    """
+
     from .type import CONFIG_FB_USER_ID, CONFIG_FB_ACCESS_TOKEN, LANGUAGE_MAPPING, STATUS_MAPPING
 
     r = get_redis_connection()
@@ -106,6 +127,7 @@ def refresh_whatsapp_templates():
 
             # fetch all our templates
             try:
+                # we should never need to paginate because facebook limits accounts to 255 templates
                 response = requests.get(
                     TEMPLATE_LIST_URL % channel.config[CONFIG_FB_USER_ID],
                     params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
@@ -115,6 +137,7 @@ def refresh_whatsapp_templates():
                     raise Exception("received non 200 status: %d %s" % (response.status_code, response.content))
 
                 # run through all our templates making sure they are present in our DB
+                seen = []
                 for template in response.json()["data"]:
                     # its a (non fatal) error if we see a language we don't know
                     if template["language"] not in LANGUAGE_MAPPING:
@@ -126,14 +149,22 @@ def refresh_whatsapp_templates():
                         logger.error("unknown whatsapp status: %s" % template["status"])
                         continue
 
-                    ChannelTemplate.ensure_exists(
+                    # figure out how many variables there are in this template. Variables are marked as {{1}} {{2}}
+
+                    template = ChannelTemplate.ensure_exists(
                         channel=channel,
                         name=template["name"],
                         language=LANGUAGE_MAPPING[template["language"]],
                         content=template["content"],
+                        variable_count=_calculate_variable_count(template["content"]),
                         status=STATUS_MAPPING[template["status"]],
                         external_id=template["id"],
                     )
+
+                    seen.append(template)
+
+                # trim any templates we didn't see
+                ChannelTemplate.trim(channel, seen)
 
             except Exception as e:
                 logger.error("error fetching templates for whatsapp channel: %s" % str(e))
