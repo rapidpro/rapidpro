@@ -103,16 +103,13 @@ def _calculate_variable_count(content):
     return count
 
 
-TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.2/%s/message_templates"
-
-
 @task(track_started=True, name="refresh_whatsapp_templates")
 def refresh_whatsapp_templates():
     """
     Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
     """
 
-    from .type import CONFIG_FB_USER_ID, CONFIG_FB_ACCESS_TOKEN, LANGUAGE_MAPPING, STATUS_MAPPING
+    from .type import CONFIG_FB_USER_ID, CONFIG_FB_ACCESS_TOKEN, LANGUAGE_MAPPING, STATUS_MAPPING, TEMPLATE_LIST_URL
 
     r = get_redis_connection()
     if r.get("refresh_whatsapp_templates"):  # pragma: no cover
@@ -133,7 +130,7 @@ def refresh_whatsapp_templates():
                     params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
                 )
 
-                if response.status_code != 200:
+                if response.status_code != 200:  # pragma: no cover
                     raise Exception("received non 200 status: %d %s" % (response.status_code, response.content))
 
                 # run through all our templates making sure they are present in our DB
@@ -148,8 +145,6 @@ def refresh_whatsapp_templates():
                     if template["status"] not in STATUS_MAPPING:
                         logger.error("unknown whatsapp status: %s" % template["status"])
                         continue
-
-                    # figure out how many variables there are in this template. Variables are marked as {{1}} {{2}}
 
                     template = ChannelTemplate.ensure_exists(
                         channel=channel,

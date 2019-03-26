@@ -57,11 +57,28 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertFalse(Channel.objects.all())
 
+            self.assertContains(response, "check username and password")
+
+        # then FB failure
+        with patch("requests.post") as mock_post:
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(400, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(200, response.status_code)
+                self.assertFalse(Channel.objects.all())
+
+                self.assertContains(response, "check user id and access token")
+
         # then success
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-            response = self.client.post(url, post_data)
-            self.assertEqual(302, response.status_code)
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(200, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(302, response.status_code)
 
         channel = Channel.objects.get()
 
@@ -172,6 +189,22 @@ class WhatsAppTypeTest(TembaTest):
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
                 "id": "9012"
+              },
+              {
+                "name": "invalid_status",
+                "content": "This is an unknown status, it will be ignored",
+                "language": "en_US",
+                "status": "UNKNOWN",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
+              },
+              {
+                "name": "invalid_language",
+                "content": "This is an unknown language, it will be ignored",
+                "language": "kli",
+                "status": "UNKNOWN",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
               }
             ],
             "paging": {
@@ -188,4 +221,16 @@ class WhatsAppTypeTest(TembaTest):
             # should have two templates
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
             self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel).count())
-            self.assertEqual(2, ChannelTemplate.objects.get(template__name="goodbye").variable_count)
+
+            ct = ChannelTemplate.objects.get(template__name="goodbye", is_active=True)
+            self.assertEqual(2, ct.variable_count)
+            self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
+            self.assertEqual("eng", ct.language)
+            self.assertEqual(ChannelTemplate.STATUS_PENDING, ct.status)
+
+        # deactivate our channel
+        with self.settings(IS_PROD=True):
+            channel.release()
+
+        # all our templates should be inactive now
+        self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel, is_active=False).count())
