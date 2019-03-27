@@ -12,7 +12,7 @@ from django.urls import reverse
 from temba.tests import CaptureSTDOUT, TembaTest
 from temba.utils import json
 
-from .models import AdminBoundary
+from .models import AdminBoundary, BoundaryAlias
 
 
 class LocationTest(TembaTest):
@@ -101,6 +101,11 @@ class LocationTest(TembaTest):
         )
 
         self.assertEqual(200, response.status_code)
+
+        self.create_secondary_org()
+        BoundaryAlias.objects.create(
+            boundary=self.state1, org=self.org2, name="KGL", created_by=self.admin2, modified_by=self.admin2
+        )
 
         # fetch our aliases again
         response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))

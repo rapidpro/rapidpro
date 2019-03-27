@@ -115,18 +115,19 @@ class BoundaryCRUDL(SmartCRUDL):
             return JsonResponse(json_list, safe=False)
 
         def get(self, request, *args, **kwargs):
+            org = request.user.get_org()
             tops = list(AdminBoundary.geometries.filter(parent__osm_id=self.get_object().osm_id).order_by("name"))
 
             tops_children = AdminBoundary.geometries.filter(
                 Q(parent__osm_id__in=[boundary.osm_id for boundary in tops])
             ).order_by("parent__osm_id", "name")
 
-            boundaries = [top.as_json() for top in tops]
+            boundaries = [top.as_json(org) for top in tops]
 
             current_top = None
             match = ""
             for child in tops_children:
-                child = child.as_json()
+                child = child.as_json(org)
                 # find the appropriate top if necessary
                 if not current_top or current_top["osm_id"] != child["parent_osm_id"]:
                     for top in boundaries:
@@ -143,7 +144,7 @@ class BoundaryCRUDL(SmartCRUDL):
                 )
                 sub_children = child.get("children", [])
                 for sub_child in child_children:
-                    sub_child = sub_child.as_json()
+                    sub_child = sub_child.as_json(org)
                     sub_child["match"] = "%s %s %s %s %s" % (
                         sub_child["name"],
                         sub_child["aliases"],
