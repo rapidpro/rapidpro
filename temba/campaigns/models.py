@@ -677,7 +677,6 @@ class EventFire(Model):
 
             for event in events:
                 field = event.relative_to
-                field_uuid = str(field.uuid)
 
                 if field.field_type == ContactField.FIELD_TYPE_USER:
                     field_uuid = str(field.uuid)
