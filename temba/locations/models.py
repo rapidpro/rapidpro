@@ -81,7 +81,7 @@ class AdminBoundary(MPTTModel, models.Model):
         if self.parent:
             result["parent_osm_id"] = self.parent.osm_id
 
-        aliases = "\n".join([alias.name for alias in self.aliases.all()])
+        aliases = "\n".join(sorted([alias.name for alias in self.aliases.all()]))
         result["aliases"] = aliases
         return result
 

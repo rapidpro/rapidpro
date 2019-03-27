@@ -93,6 +93,23 @@ class LocationTest(TembaTest):
         self.assertEqual("Kigali City", response_json[1]["name"])
         self.assertEqual("kig\nkigs", response_json[1]["aliases"])
 
+        # update our alias for kigali with duplicates
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+            json.dumps([dict(osm_id=self.state1.osm_id, aliases="kigs\nkig\nkig\nkigs\nkig")]),
+            content_type="application/json",
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        # fetch our aliases again
+        response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
+        response_json = response.json()
+
+        # now have kigs as an alias
+        self.assertEqual("Kigali City", response_json[1]["name"])
+        self.assertEqual("kig\nkigs", response_json[1]["aliases"])
+
         # test nested admin level aliases update
         geo_data = [
             dict(

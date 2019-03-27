@@ -5384,8 +5384,8 @@ class ContactTest(TembaTest):
 
         # existing field
         ContactField.get_or_create(self.org, self.admin, "ride_or_drive", "Vehicle")
-        ContactField.get_or_create(
-            self.org, self.admin, "wears", "Shoes"
+        shoes = ContactField.get_or_create(
+            self.org, self.admin, "wears", "Shoes", show_in_table=True
         )  # has trailing spaces on excel files as " Shoes  "
 
         # import spreadsheet with extra columns
@@ -5635,6 +5635,37 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by("name")[0]
         start_date = ContactField.get_by_key(self.org, "startdate")
         self.assertEqual(contact1.get_field_serialized(start_date), "2014-12-31T10:00:00+02:00")
+
+        # check if shoes field 'show_in_table' flag has not changed
+        shoes.refresh_from_db()
+        self.assertTrue(shoes.show_in_table)
+
+        response = self.assertContactImport(
+            "%s/test_imports/sample_contacts_with_extra_field_with_label_as_label_name.xls" % settings.MEDIA_ROOT,
+            None,
+            task_customize=True,
+        )
+
+        customize_url = reverse("contacts.contact_customize", args=[response.context["task"].pk])
+
+        post_data = dict()
+        post_data["column_country_label_one_include"] = "on"
+        post_data["column_country_label_one_label"] = "Country Label One"
+        post_data["column_country_label_one_type"] = "T"
+        post_data["column_country_label_two_include"] = "on"
+        post_data["column_country_label_two_label"] = "Country Label Two"
+        post_data["column_country_label_two_type"] = "T"
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertEqual(
+            response.context["results"], dict(records=3, errors=0, error_messages=[], creates=0, updates=3)
+        )
+
+        country_label_one = ContactField.user_fields.get(key="country_label_one")
+        self.assertEqual(country_label_one.label, "Country Label One")
+
+        country_label_two = ContactField.user_fields.get(key="country_label_two")
+        self.assertEqual(country_label_two.label, "Country Label Two")
 
     def test_campaign_eventfires_on_systemfields_for_new_contacts(self):
         self.login(self.admin)

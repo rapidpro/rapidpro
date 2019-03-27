@@ -173,7 +173,6 @@ class Flow(TembaModel):
     FINISHED_KEY = "finished_key"
     RULESET_TYPE = "ruleset_type"
     OPERAND = "operand"
-    METADATA = "metadata"
 
     BASE_LANGUAGE = "base_language"
     SAVED_BY = "saved_by"
@@ -183,12 +182,16 @@ class Flow(TembaModel):
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
 
-    SAVED_ON = "saved_on"
-    NAME = "name"
-    REVISION = "revision"
     FLOW_TYPE = "flow_type"
     ID = "id"
-    EXPIRES = "expires"
+
+    METADATA = "metadata"
+    METADATA_SAVED_ON = "saved_on"
+    METADATA_NAME = "name"
+    METADATA_REVISION = "revision"
+    METADATA_EXPIRES = "expires"
+    METADATA_RESULTS = "results"
+    METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
 
     X = "x"
     Y = "y"
@@ -264,12 +267,8 @@ class Flow(TembaModel):
         max_length=1, choices=FLOW_TYPES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
     )
 
-    metadata = JSONAsTextField(
-        null=True,
-        blank=True,
-        default=dict,
-        help_text=_("Any extra metadata attached to this flow, strictly used by the user interface."),
-    )
+    # additional information about the flow, e.g. possible results
+    metadata = JSONAsTextField(null=True, default=dict)
 
     expires_after_minutes = models.IntegerField(
         default=FLOW_DEFAULT_EXPIRES_AFTER, help_text=_("Minutes of inactivity that will cause expiration from flow")
@@ -450,7 +449,7 @@ class Flow(TembaModel):
             FlowRevision.validate_flow_definition(flow_spec)
 
             flow_type = flow_spec.get("flow_type", Flow.TYPE_MESSAGE)
-            name = flow_spec["metadata"]["name"][:64].strip()
+            name = flow_spec[Flow.METADATA]["name"][:64].strip()
 
             flow = None
 
@@ -467,7 +466,7 @@ class Flow(TembaModel):
             if same_site:
                 flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
                 if flow:  # pragma: needs cover
-                    expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
+                    expires_minutes = flow_spec[Flow.METADATA].get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
                     if flow_type == Flow.TYPE_VOICE:
                         expires_minutes = min([expires_minutes, 15])
 
@@ -481,7 +480,7 @@ class Flow(TembaModel):
 
             # if there isn't one already, create a new flow
             if not flow:
-                expires_minutes = flow_spec["metadata"].get("expires", FLOW_DEFAULT_EXPIRES_AFTER)
+                expires_minutes = flow_spec[Flow.METADATA].get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
                 if flow_type == Flow.TYPE_VOICE:
                     expires_minutes = min([expires_minutes, 15])
 
@@ -495,8 +494,8 @@ class Flow(TembaModel):
 
             created_flows.append(dict(flow=flow, flow_spec=flow_spec))
 
-            if "uuid" in flow_spec["metadata"]:
-                uuid_map[flow_spec["metadata"]["uuid"]] = flow.uuid
+            if "uuid" in flow_spec[Flow.METADATA]:
+                uuid_map[flow_spec[Flow.METADATA]["uuid"]] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
         def remap_flow(element):
@@ -2174,14 +2173,12 @@ class Flow(TembaModel):
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
         flow[Flow.VERSION] = get_current_export_version()
-        flow[Flow.METADATA] = self.get_metadata()
+        flow[Flow.METADATA] = self.get_legacy_metadata()
         return flow
 
-    def get_metadata(self):
-
-        metadata = dict()
-        if self.metadata:
-            metadata = self.metadata
+    def get_legacy_metadata(self):
+        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
+        metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
         revision = self.revisions.all().order_by("-revision").first()
 
@@ -2189,11 +2186,11 @@ class Flow(TembaModel):
         if self.saved_by == get_flow_user(self.org):
             last_saved = self.modified_on
 
-        metadata[Flow.NAME] = self.name
-        metadata[Flow.SAVED_ON] = json.encode_datetime(last_saved, micros=True)
-        metadata[Flow.REVISION] = revision.revision if revision else 1
         metadata[Flow.UUID] = self.uuid
-        metadata[Flow.EXPIRES] = self.expires_after_minutes
+        metadata[Flow.METADATA_NAME] = self.name
+        metadata[Flow.METADATA_SAVED_ON] = json.encode_datetime(last_saved, micros=True)
+        metadata[Flow.METADATA_REVISION] = revision.revision if revision else 1
+        metadata[Flow.METADATA_EXPIRES] = self.expires_after_minutes
 
         return metadata
 
@@ -2302,7 +2299,7 @@ class Flow(TembaModel):
         flow_user = get_flow_user(self.org)
         # check whether the flow has changed since this flow was last saved
         if user and not force:
-            saved_on = json_dict.get(Flow.METADATA, {}).get(Flow.SAVED_ON, None)
+            saved_on = json_dict.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
             org = user.get_org()
 
             # check our last save if we aren't the system flow user
@@ -2336,9 +2333,9 @@ class Flow(TembaModel):
                 self.base_language = json_dict.get("base_language", None)
 
                 # set our metadata
-                self.metadata = None
-                if Flow.METADATA in json_dict:
-                    self.metadata = json_dict[Flow.METADATA]
+                self.metadata = json_dict.get(Flow.METADATA, {})
+                self.metadata[Flow.METADATA_RESULTS] = validated["_results"]
+                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = validated["_waiting_exits"]
 
                 if user:
                     self.saved_by = user
@@ -2628,14 +2625,19 @@ class Flow(TembaModel):
 
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
-            existing_keys = set(ContactField.user_fields.filter(org=self.org, key__in=field_keys).values_list("key"))
+            active_org_fields = set(
+                ContactField.user_fields.filter(org=self.org, is_active=True).values_list("key", flat=True)
+            )
+
+            existing_fields = set(field_keys)
+            fields_to_create = existing_fields.difference(active_org_fields)
 
             # create any field that doesn't already exist
-            for key in field_keys:
-                if ContactField.is_valid_key(key) and key not in existing_keys:
+            for field in fields_to_create:
+                if ContactField.is_valid_key(field):
                     # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in key.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, key, label)
+                    label = " ".join([word.capitalize() for word in field.split("_")])
+                    ContactField.get_or_create(self.org, self.modified_by, field, label)
 
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)
@@ -3526,10 +3528,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             # save our updated fields
             self.save(update_fields=["expires_on", "modified_on"])
-
-            # if it's in the past, just expire us now
-            if self.expires_on < now:
-                self.expire()
 
         # parent should always have a later expiration than the children
         if self.parent:
