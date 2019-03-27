@@ -1,3 +1,7 @@
+v4.22.17
+----------
+ * Tweak previous migration to handle bad flows
+
 v4.22.16
 ----------
  * Don't overwrite show_in_table flag on contact import
