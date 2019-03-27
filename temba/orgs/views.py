@@ -1433,7 +1433,7 @@ class OrgCRUDL(SmartCRUDL):
                 current_group = current_groups.get(user)
                 new_group = new_groups.get(user)
 
-                if current_group != new_group:
+                if user in self.fields_by_users and current_group != new_group:
                     if current_group:
                         self.org_group_set(org, current_group).remove(user)
                     if new_group:
@@ -1574,7 +1574,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateSubOrg(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateSubOrg(NonAtomicMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class CreateOrgForm(forms.ModelForm):
             name = forms.CharField(label=_("Organization"), help_text=_("The name of your organization"))
 
