@@ -31,8 +31,8 @@ def extract_results(flow):
         categories = []
         for rule in rs.rules:
             category_dict = rule.get("category", {})
-            category_name = category_dict[flow.base_language]
-            if category_name.lower() not in [c.lower() for c in categories]:
+            category_name = category_dict.get(flow.base_language) if isinstance(category_dict, dict) else category_dict
+            if category_name and category_name.lower() not in [c.lower() for c in categories]:
                 categories.append(category_name)
 
         result_specs.append({"key": label_to_slug(rs.label), "name": rs.label, "categories": categories})
@@ -81,7 +81,7 @@ def populate_results_and_waiting_exits(apps, schema_editor):
     ruleset_prefetch = Prefetch("rule_sets", queryset=RuleSet.objects.order_by("y"))
 
     num_updated = 0
-    for flow in Flow.objects.all().prefetch_related(ruleset_prefetch):
+    for flow in Flow.objects.filter(is_active=True).prefetch_related(ruleset_prefetch):
         flow.metadata["results"] = extract_results(flow)
         flow.metadata["waiting_exit_uuids"] = extract_waiting_exits(flow)
         flow.save(update_fields=("metadata",))
