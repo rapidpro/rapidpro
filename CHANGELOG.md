@@ -1,3 +1,7 @@
+v4.22.18
+----------
+ * fix recalculating event fires for fields when that field is created_on
+
 v4.22.17
 ----------
  * Don't overwrite show_in_table flag on contact import
