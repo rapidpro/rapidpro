@@ -1274,6 +1274,10 @@ class CampaignTest(TembaTest):
         ev2 = EventFire.objects.create(event=event2, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
         self.assertIsNotNone(ev2.get_relative_to_value())
 
+        # recalculate for created on
+        EventFire.update_field_events(field_created_on)
+        self.assertEqual(2, EventFire.objects.filter(event__relative_to=field_created_on, fired=None).count())
+
     def test_campaignevent_calculate_scheduled_fire(self):
         planting_date = timezone.now()
         field_created_on = self.org.contactfields.get(key="created_on")
