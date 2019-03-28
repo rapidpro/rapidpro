@@ -145,8 +145,11 @@ class SerializationTest(TembaTest):
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
         BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
 
+        with self.assertNumQueries(2):
+            locations = serialize_location_hierarchy(self.org)
+
         self.assertEqual(
-            serialize_location_hierarchy(self.org),
+            locations,
             {
                 "name": "Rwanda",
                 "children": [
