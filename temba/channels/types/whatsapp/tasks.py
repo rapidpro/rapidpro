@@ -9,7 +9,7 @@ from celery.task import task
 
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
-from temba.templates.models import ChannelTemplate
+from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ def refresh_whatsapp_templates():
                         logger.error("unknown whatsapp status: %s" % template["status"])
                         continue
 
-                    template = ChannelTemplate.get_or_create(
+                    translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
                         language=LANGUAGE_MAPPING[template["language"]],
@@ -156,10 +156,10 @@ def refresh_whatsapp_templates():
                         external_id=template["id"],
                     )
 
-                    seen.append(template)
+                    seen.append(translation)
 
-                # trim any templates we didn't see
-                ChannelTemplate.trim(channel, seen)
+                # trim any translations we didn't see
+                TemplateTranslation.trim(channel, seen)
 
             except Exception as e:
                 logger.error("error fetching templates for whatsapp channel: %s" % str(e))

@@ -34,7 +34,7 @@ from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.templates.models import ChannelTemplate, Template
+from temba.templates.models import Template, TemplateTranslation
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -3184,11 +3184,11 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
         template_ids = (
-            ChannelTemplate.objects.filter(channel__org=org, is_active=True)
+            TemplateTranslation.objects.filter(channel__org=org, is_active=True)
             .distinct("template_id")
             .values_list("template_id", flat=True)
         )
-        queryset = Template.objects.filter(org=org, id__in=template_ids).prefetch_related("channel_templates")
+        queryset = Template.objects.filter(org=org, id__in=template_ids).prefetch_related("translations")
         return self.filter_before_after(queryset, "modified_on")
 
     @classmethod

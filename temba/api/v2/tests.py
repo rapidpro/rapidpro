@@ -27,7 +27,7 @@ from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, R
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
-from temba.templates.models import ChannelTemplate
+from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -3627,11 +3627,11 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create some templates
-        ChannelTemplate.get_or_create(
-            self.channel, "hello", "eng", "Hi {{1}}", 1, ChannelTemplate.STATUS_APPROVED, "1234"
+        TemplateTranslation.get_or_create(
+            self.channel, "hello", "eng", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
         )
-        ct = ChannelTemplate.get_or_create(
-            self.channel, "hello", "fra", "Bonjour {{1}}", 1, ChannelTemplate.STATUS_PENDING, "5678"
+        tt = TemplateTranslation.get_or_create(
+            self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
         # no filtering
@@ -3646,7 +3646,7 @@ class APITest(TembaTest):
             [
                 {
                     "name": "hello",
-                    "uuid": str(ct.template.uuid),
+                    "uuid": str(tt.template.uuid),
                     "translations": [
                         {
                             "language": "eng",
@@ -3663,8 +3663,8 @@ class APITest(TembaTest):
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
                         },
                     ],
-                    "created_on": format_datetime(ct.template.created_on),
-                    "modified_on": format_datetime(ct.template.modified_on),
+                    "created_on": format_datetime(tt.template.created_on),
+                    "modified_on": format_datetime(tt.template.modified_on),
                 }
             ],
         )

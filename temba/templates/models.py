@@ -10,7 +10,7 @@ from temba.orgs.models import Org
 class Template(models.Model):
     """
     Templates represent messages that can be used in flows and have template variables substituted into them. These
-    are usually used by WhatsApp channels, but can also be used more generically to create DRY messages in flows.
+    are currently only used for WhatsApp channels.
     """
 
     # the uuid for this template
@@ -32,10 +32,9 @@ class Template(models.Model):
         unique_together = ("org", "name")
 
 
-class ChannelTemplate(models.Model):
+class TemplateTranslation(models.Model):
     """
-    ChannelTemplate represents a template that must be synced to a specific channel. It maintains both the external
-    id for the channel template as well as the current status.
+    TemplateTranslation represents a translation for a template and channel pair.
     """
 
     STATUS_APPROVED = "A"
@@ -44,7 +43,7 @@ class ChannelTemplate(models.Model):
     STATUS_CHOICES = ((STATUS_APPROVED, "approved"), (STATUS_PENDING, "pending"))
 
     # the template this maps to
-    template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="channel_templates")
+    template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
 
     # the channel that synced this template
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
@@ -75,11 +74,11 @@ class ChannelTemplate(models.Model):
         ids = [tc.id for tc in existing]
 
         # mark any that weren't included as inactive
-        ChannelTemplate.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
+        TemplateTranslation.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
     @classmethod
     def get_or_create(cls, channel, name, language, content, variable_count, status, external_id):
-        existing = ChannelTemplate.objects.filter(channel=channel, external_id=external_id).first()
+        existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()
@@ -91,7 +90,7 @@ class ChannelTemplate(models.Model):
                 template.modified_on = timezone.now()
                 template.save(update_fields=["modified_on"])
 
-            existing = ChannelTemplate.objects.create(
+            existing = TemplateTranslation.objects.create(
                 template=template,
                 channel=channel,
                 content=content,

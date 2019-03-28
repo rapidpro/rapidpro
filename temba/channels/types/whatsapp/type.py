@@ -8,12 +8,12 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp.views import ClaimView, RefreshView
 from temba.contacts.models import WHATSAPP_SCHEME
-from temba.templates.models import ChannelTemplate
+from temba.templates.models import TemplateTranslation
 
 from ...models import ChannelType
 
 # Mapping from WhatsApp status to RapidPro status
-STATUS_MAPPING = dict(PENDING=ChannelTemplate.STATUS_PENDING, APPROVED=ChannelTemplate.STATUS_APPROVED)
+STATUS_MAPPING = dict(PENDING=TemplateTranslation.STATUS_PENDING, APPROVED=TemplateTranslation.STATUS_APPROVED)
 
 # This maps from WA iso-639-2 codes to our internal 639-3 codes
 LANGUAGE_MAPPING = dict(
@@ -25,15 +25,15 @@ LANGUAGE_MAPPING = dict(
     bg="bul",  # Bulgarian
     ca="cat",  # Catalan
     zh_CN="zho",  # Chinese (CHN)
-    zh_HK="yue",  # Chinese (HKG)
-    zh_TW="cmn",  # Chinese (TAI)
+    # zh_HK="yue",  # Chinese (HKG) (unsupported)
+    # zh_TW="cmn",  # Chinese (TAI) (unsupported)
     hr="hrv",  # Croatian
     cs="ces",  # Czech
     da="dah",  # Danish
     nl="nld",  # Dutch
     en="eng",  # English
-    en_GB="eng",  # English (UK)
-    en_US="eng",  # English (US)
+    # en_GB="eng",  # English (UK) (unsupported)
+    # en_US="eng",  # English (US) (unsupported)
     et="est",  # Estonian
     fil="fil",  # Filipino
     fi="fin",  # Finnish
@@ -61,7 +61,7 @@ LANGUAGE_MAPPING = dict(
     fa="fas",  # Persian
     pl="pol",  # Polish
     pt_BR="por",  # Portuguese (BR)
-    pt_PT="por",  # Portuguese (POR)
+    # pt_PT="por",  # Portuguese (POR) (unsupported)
     pa="pan",  # Punjabi
     ro="ron",  # Romanian
     ru="rus",  # Russian
@@ -69,9 +69,9 @@ LANGUAGE_MAPPING = dict(
     sk="slk",  # Slovak
     sl="slv",  # Slovenian
     es="spa",  # Spanish
-    es_AR="spa",  # Spanish (ARG)
-    es_ES="spa",  # Spanish (SPA)
-    es_MX="spa",  # Spanish (MEX)
+    # es_AR="spa",  # Spanish (ARG) (unsupported)
+    # es_ES="spa",  # Spanish (SPA) (unsupported)
+    # es_MX="spa",  # Spanish (MEX) (unsupported)
     sw="swa",  # Swahili
     sv="swe",  # Swedish
     ta="tam",  # Tamil
@@ -122,8 +122,8 @@ class WhatsAppType(ChannelType):
         return [self.get_claim_url(), url(r"^refresh/(?P<uuid>[a-z0-9\-]+)/?$", RefreshView.as_view(), name="refresh")]
 
     def deactivate(self, channel):
-        # deactivate all templates associated with us
-        ChannelTemplate.trim(channel, [])
+        # deactivate all translations associated with us
+        TemplateTranslation.trim(channel, [])
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()

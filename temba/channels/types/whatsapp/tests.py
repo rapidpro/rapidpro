@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
-from temba.templates.models import ChannelTemplate, Template
+from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
@@ -169,7 +169,7 @@ class WhatsAppTypeTest(TembaTest):
               {
                 "name": "hello",
                 "content": "Hello {{1}}",
-                "language": "en_US",
+                "language": "en",
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
                 "id": "1234"
@@ -185,7 +185,7 @@ class WhatsAppTypeTest(TembaTest):
               {
                 "name": "goodbye",
                 "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
-                "language": "en_US",
+                "language": "en",
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
                 "id": "9012"
@@ -193,7 +193,7 @@ class WhatsAppTypeTest(TembaTest):
               {
                 "name": "invalid_status",
                 "content": "This is an unknown status, it will be ignored",
-                "language": "en_US",
+                "language": "en",
                 "status": "UNKNOWN",
                 "category": "ISSUE_RESOLUTION",
                 "id": "9012"
@@ -220,17 +220,17 @@ class WhatsAppTypeTest(TembaTest):
 
             # should have two templates
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
-            self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel).count())
+            self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel).count())
 
-            ct = ChannelTemplate.objects.get(template__name="goodbye", is_active=True)
+            ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
             self.assertEqual(2, ct.variable_count)
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
-            self.assertEqual(ChannelTemplate.STATUS_PENDING, ct.status)
+            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
 
         # deactivate our channel
         with self.settings(IS_PROD=True):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(3, ChannelTemplate.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())

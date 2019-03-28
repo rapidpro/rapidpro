@@ -11,7 +11,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
-from temba.templates.models import ChannelTemplate, Template
+from temba.templates.models import Template, TemplateTranslation
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -1180,14 +1180,16 @@ class TemplateReadSerializer(ReadSerializer):
 
     def get_translations(self, obj):
         translations = []
-        for template in ChannelTemplate.objects.filter(template=obj).order_by("language").select_related("channel"):
+        for translation in (
+            TemplateTranslation.objects.filter(template=obj).order_by("language").select_related("channel")
+        ):
             translations.append(
                 {
-                    "language": template.language,
-                    "content": template.content,
-                    "variable_count": template.variable_count,
-                    "status": template.get_status_display(),
-                    "channel": {"uuid": template.channel.uuid, "name": template.channel.name},
+                    "language": translation.language,
+                    "content": translation.content,
+                    "variable_count": translation.variable_count,
+                    "status": translation.get_status_display(),
+                    "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
                 }
             )
 
