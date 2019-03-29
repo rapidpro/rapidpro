@@ -161,5 +161,5 @@ def refresh_whatsapp_templates():
                 # trim any translations we didn't see
                 TemplateTranslation.trim(channel, seen)
 
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 logger.error("error fetching templates for whatsapp channel: %s" % str(e))

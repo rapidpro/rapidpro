@@ -100,6 +100,7 @@ class RootView(views.APIView):
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
+     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -200,6 +201,7 @@ class RootView(views.APIView):
                 "resthook_events": reverse("api.v2.resthook_events", request=request),
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
+                "templates": reverse("api.v2.templates", request=request),
             }
         )
 
@@ -250,6 +252,7 @@ class ExplorerView(SmartTemplateView):
             ResthookSubscribersEndpoint.get_write_explorer(),
             ResthookSubscribersEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer(),
+            TemplatesEndpoint.get_read_explorer(),
         ]
         return context
 

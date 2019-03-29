@@ -13,7 +13,7 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import WhatsAppType
+from .type import CONFIG_FB_USER_ID, WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -40,6 +40,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
         post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_user_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
 
@@ -234,3 +235,8 @@ class WhatsAppTypeTest(TembaTest):
 
         # all our templates should be inactive now
         self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+
+        # clear our FB ids, should blow up refresh
+        del channel.config[CONFIG_FB_USER_ID]
+        channel.save(update_fields=["config", "modified_on"])
+        refresh_whatsapp_templates()
