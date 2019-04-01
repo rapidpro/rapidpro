@@ -229,14 +229,14 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
 
+        # clear our FB ids, should cause refresh to be noop (but not fail)
+        del channel.config[CONFIG_FB_USER_ID]
+        channel.save(update_fields=["config", "modified_on"])
+        refresh_whatsapp_templates()
+
         # deactivate our channel
         with self.settings(IS_PROD=True):
             channel.release()
 
         # all our templates should be inactive now
         self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
-
-        # clear our FB ids, should blow up refresh
-        del channel.config[CONFIG_FB_USER_ID]
-        channel.save(update_fields=["config", "modified_on"])
-        refresh_whatsapp_templates()
