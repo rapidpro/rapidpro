@@ -1,3 +1,13 @@
+v4.22.18
+----------
+ * fix recalculating event fires for fields when that field is created_on
+
+v4.22.17
+----------
+ * Don't overwrite show_in_table flag on contact import
+ * Prevent updates of contact field labels when adding a field to a flow
+ * Add migration to populate results and waiting_exit_uuids in Flow.metadata
+
 v4.22.15
 ----------
  * Do not immediately expire flow when updating expirations (leave that to mailroom)

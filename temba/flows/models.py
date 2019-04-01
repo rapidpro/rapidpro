@@ -2625,14 +2625,19 @@ class Flow(TembaModel):
 
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
-            existing_keys = set(ContactField.user_fields.filter(org=self.org, key__in=field_keys).values_list("key"))
+            active_org_fields = set(
+                ContactField.user_fields.filter(org=self.org, is_active=True).values_list("key", flat=True)
+            )
+
+            existing_fields = set(field_keys)
+            fields_to_create = existing_fields.difference(active_org_fields)
 
             # create any field that doesn't already exist
-            for key in field_keys:
-                if ContactField.is_valid_key(key) and key not in existing_keys:
+            for field in fields_to_create:
+                if ContactField.is_valid_key(field):
                     # reverse slug to get a reasonable label
-                    label = " ".join([word.capitalize() for word in key.split("_")])
-                    ContactField.get_or_create(self.org, self.modified_by, key, label)
+                    label = " ".join([word.capitalize() for word in field.split("_")])
+                    ContactField.get_or_create(self.org, self.modified_by, field, label)
 
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)

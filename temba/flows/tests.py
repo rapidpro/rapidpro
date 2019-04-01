@@ -31,7 +31,15 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
-from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
+from temba.tests import (
+    ESMockWithScroll,
+    FlowFileTest,
+    MigrationTest,
+    MockResponse,
+    TembaTest,
+    matchers,
+    skip_if_no_mailroom,
+)
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -6551,6 +6559,56 @@ class FlowsTest(FlowFileTest):
         label = Label.all_objects.get(name="Foo zap")
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
+    @skip_if_no_mailroom
+    def test_save_contact_does_not_update_field_label(self):
+        self.login(self.admin)
+
+        rank_field = ContactField.get_or_create(
+            self.org, self.admin, "rank", "Commander ranking", value_type=Value.TYPE_NUMBER
+        )
+
+        self.assertEqual(rank_field.label, "Commander ranking")
+
+        flow = self.get_flow("favorites")
+        flow_json = flow.as_json()
+
+        # save some data to the field
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "save",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2a",
+                "label": "Rank label",
+                "field": "rank",
+                "value": "@flow.response_1.text",
+            }
+        )
+
+        # add a new field
+        flow_json["action_sets"][0]["actions"].append(
+            {
+                "type": "save",
+                "uuid": "aafe958f-899c-42db-8dae-e2c797767d2b",
+                "label": "New field label",
+                "field": "new_field",
+                "value": "@flow.response_1.text",
+            }
+        )
+
+        response = self.client.post(
+            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        rank_field.refresh_from_db()
+
+        # the label should not be changed
+        self.assertEqual(rank_field.label, "Commander ranking")
+
+        # new field is created
+        new_field = ContactField.user_fields.get(key="new_field")
+        self.assertEqual(new_field.label, "New field label")
+
     def test_write_protection(self):
         flow = self.get_flow("favorites")
         flow_json = flow.as_json()
@@ -11571,3 +11629,33 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class FlowResultMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0195_auto_20190322_2059"
+    migrate_to = "0196_populate_results_and_waiting_exits"
+
+    def setUpBeforeMigration(self, apps):
+        favorites = self.get_flow("favorites")
+        del favorites.metadata["results"]
+        del favorites.metadata["waiting_exit_uuids"]
+        favorites.save(update_fields=("metadata",))
+
+    def test_populated(self):
+        favorites = Flow.objects.get()
+
+        # existing metadata untouched
+        self.assertEqual(favorites.metadata["uuid"], str(favorites.uuid))
+        self.assertEqual(favorites.metadata["name"], "Favorites")
+
+        # new results and waiting_exit_uuids fields populated
+        self.assertEqual(
+            favorites.metadata["results"],
+            [
+                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
+                {"key": "name", "name": "Name", "categories": ["All Responses"]},
+            ],
+        )
+        self.assertEqual(len(favorites.metadata["waiting_exit_uuids"]), 12)
