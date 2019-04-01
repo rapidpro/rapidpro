@@ -23,7 +23,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
@@ -1703,11 +1703,96 @@ class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
 
 
+class ContactFieldListView(OrgPermsMixin, SmartListView):
+    queryset = ContactField.user_fields
+    title = _("Manage Contact Fields")
+    fields = ("label", "key", "value_type")
+    search_fields = ("label__icontains", "key__icontains")
+    default_order = ("-priority", "label")
+
+    success_url = "@contacts.contactfield_managefields"
+
+    link_fields = ()
+
+    add_button = True
+    paginate_by = None
+
+    template_name = "contacts/contactfield_managefields.haml"
+
+    def _get_static_context_data(self, **kwargs):
+
+        active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
+
+        context = {}
+
+        context["cf_categories"] = [
+            {
+                "label": "All",
+                "count": active_user_fields.count(),
+                "url": reverse("contacts.contactfield_managefields"),
+            },
+            {
+                "label": "Featured",
+                "count": active_user_fields.filter(show_in_table=True).count(),
+                "url": reverse("contacts.contactfield_featured"),
+            },
+        ]
+
+        type_counts = (
+            active_user_fields.values("value_type")
+            .annotate(type_count=Count("value_type"))
+            .order_by("-type_count", "value_type")
+        )
+
+        value_type_map = {vt[0]: vt[1] for vt in Value.TYPE_CONFIG}
+
+        context["cf_types"] = [
+            {
+                "label": value_type_map[type_cnt["value_type"]],
+                "count": type_cnt["type_count"],
+                "url": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
+                "value_type": type_cnt["value_type"],
+            }
+            for type_cnt in type_counts
+        ]
+
+        return context
+
+    def get_queryset(self, **kwargs):
+        qs = super().get_queryset(**kwargs)
+        qs = qs.collect_usage().filter(org=self.request.user.get_org(), is_active=True)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context.update(self._get_static_context_data(**kwargs))
+
+        return context
+
+    # smartmin field value getter
+    def get_value_type(self, obj):
+        return obj.get_value_type_display()
+
+
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "managefields", "json", "create", "update", "updatepriority", "delete")
+    actions = (
+        "list",
+        "managefields",
+        "json",
+        "create",
+        "update",
+        "updatepriority",
+        "delete",
+        "featured",
+        "filter_by_type",
+        "detail",
+    )
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+        queryset = ContactField.user_fields
         form_class = CreateContactFieldForm
         success_message = ""
         submit_button_name = _("Create")
@@ -1735,6 +1820,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             return response
 
     class Update(ModalMixin, OrgPermsMixin, SmartUpdateView):
+        queryset = ContactField.user_fields
         form_class = UpdateContactFieldForm
         success_message = ""
         submit_button_name = _("Update")
@@ -1765,30 +1851,22 @@ class ContactFieldCRUDL(SmartCRUDL):
             return response
 
     class Delete(OrgPermsMixin, SmartUpdateView):
-        # how many related flows we want to show to the user so that is does not break modal dialog
-        SHOW_MAX_RELATED_FLOWS = 10
-
+        queryset = ContactField.user_fields
         success_url = "@contacts.contactfield_managefields"
         success_message = ""
         http_method_names = ["get", "post"]
 
-        def _check_if_cf_is_used_in_flows(self):
-            from temba.flows.models import Flow
+        def _has_uses(self):
+            obj_with_usages = self.get_queryset().collect_usage().filter(pk=self.kwargs.get(self.pk_url_kwarg)).get()
 
-            flows = (
-                Flow.objects.filter(org=self.org, field_dependencies__in=[self.object.id])
-                .order_by("id")
-                .only("uuid", "name")
+            return any(
+                [obj_with_usages.flow_count, obj_with_usages.campaign_count, obj_with_usages.contactgroup_count]
             )
-
-            return [flow for flow in flows]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            cf_used_in_flows = self._check_if_cf_is_used_in_flows()
-
-            context["dependent_flows"] = cf_used_in_flows[: self.SHOW_MAX_RELATED_FLOWS]
+            context["has_uses"] = self._has_uses()
 
             return context
 
@@ -1800,12 +1878,10 @@ class ContactFieldCRUDL(SmartCRUDL):
             self.object = ContactField.user_fields.filter(is_active=True, id=pk).get()
 
             # did it maybe change underneath us ???
-            cf_used_in_flows = self._check_if_cf_is_used_in_flows()
+            if self._has_uses():
+                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is in use")
 
-            if len(cf_used_in_flows) > 0:
-                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is used by flows")
             else:
-
                 self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
 
                 response = self.render_to_response(self.get_context_data())
@@ -1830,37 +1906,57 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class Managefields(OrgPermsMixin, SmartListView):
-        queryset = ContactField.user_fields
-        title = _("Manage ContactFields")
-        fields = ("label", "key", "value_type")
-        # search_fields = ('label__icontains', 'key__icontains')  # search and reordering do not work together
-        default_order = ("-show_in_table", "-priority", "label")
+    class Managefields(ContactFieldListView):
+        pass
 
-        success_url = "@contacts.contactfield_managefields"
-
-        link_fields = ()
-
-        add_button = True
-        paginate_by = None
+    class Featured(ContactFieldListView):
+        search_fields = None  # search and reordering do not work together
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True)
+            qs = qs.filter(org=self.request.user.get_org(), is_active=True, show_in_table=True)
 
             return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            context["featured_cf"] = self.object_list.filter(show_in_table=True)
-            context["other_cf"] = self.object_list.filter(show_in_table=False)
+            context["is_featured_category"] = True
 
             return context
 
-        # smartmin field value getter
-        def get_value_type(self, obj):
-            return obj.get_value_type_display()
+    class FilterByType(ContactFieldListView):
+        def get_queryset(self, **kwargs):
+            qs = super().get_queryset(**kwargs)
+
+            qs = qs.filter(value_type=self.kwargs["value_type"])
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["selected_value_type"] = self.kwargs["value_type"]
+
+            return context
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
+
+    class Detail(OrgObjPermsMixin, SmartReadView):
+        queryset = ContactField.user_fields
+        template_name = "contacts/contactfield_detail.haml"
+        title = _("Contact field uses")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["dep_flows"] = list(self.object.dependent_flows.all())
+            context["dep_campaignevents"] = list(self.object.campaigns.select_related("campaign").all())
+            context["dep_groups"] = list(self.object.contactgroup_set.all())
+
+            return context
 
     class List(OrgPermsMixin, SmartListView):
         queryset = ContactField.user_fields

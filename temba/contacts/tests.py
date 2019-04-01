@@ -7305,7 +7305,7 @@ class ContactFieldTest(TembaTest):
 
         # there is a flow that is using this field
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context_data["dependent_flows"]), 1)
+        self.assertTrue(response.context_data["has_uses"])
 
         with self.assertRaises(ValueError):
             # try to delete the contactfield, though there is a dependency
@@ -7540,16 +7540,80 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # we got a form with expected form fields
-        self.assertListEqual(response.context_data["dependent_flows"], [])
+        self.assertFalse(response.context_data["has_uses"])
 
         # delete the field
         response = self.client.post(delete_cf_url)
         self.assertEqual(response.status_code, 200)
-        self.assertListEqual(response.context_data["dependent_flows"], [])
+        self.assertFalse(response.context_data["has_uses"])
 
         cf_to_delete.refresh_from_db()
 
         self.assertFalse(cf_to_delete.is_active)
+
+    def test_view_featured(self):
+        featured1 = ContactField.user_fields.get(key="first")
+        featured1.show_in_table = True
+        featured1.save(update_fields=["show_in_table"])
+
+        featured2 = ContactField.user_fields.get(key="second")
+        featured2.show_in_table = True
+        featured2.save(update_fields=["show_in_table"])
+
+        self.login(self.admin)
+
+        featured_cf_url = reverse("contacts.contactfield_featured")
+
+        response = self.client.get(featured_cf_url)
+        self.assertEqual(response.status_code, 200)
+
+        # there are 2 featured fields
+        self.assertEqual(len(response.context_data["object_list"]), 2)
+
+        self.assertEqual(len(response.context_data["cf_categories"]), 2)
+        self.assertEqual(len(response.context_data["cf_types"]), 1)
+
+        self.assertTrue(response.context_data["is_featured_category"])
+
+    def test_view_filter_by_type(self):
+        self.login(self.admin)
+
+        # an invalid type
+        featured_cf_url = reverse("contacts.contactfield_filter_by_type", args=("xXx",))
+
+        response = self.client.get(featured_cf_url)
+        self.assertEqual(response.status_code, 200)
+
+        # there are no contact fields
+        self.assertEqual(len(response.context_data["object_list"]), 0)
+
+        # a type that is valid
+        featured_cf_url = reverse("contacts.contactfield_filter_by_type", args=("T"))
+
+        response = self.client.get(featured_cf_url)
+        self.assertEqual(response.status_code, 200)
+
+        # there are some contact fields of type text
+        self.assertEqual(len(response.context_data["object_list"]), 3)
+
+        self.assertEqual(response.context_data["selected_value_type"], "T")
+
+    def test_view_detail(self):
+
+        self.login(self.admin)
+        self.get_flow("dependencies")
+
+        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
+        detail_contactfield_url = reverse("contacts.contactfield_detail", args=[dependant_field.id])
+
+        response = self.client.get(detail_contactfield_url)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.context_data["object"].label, "Favorite Cat")
+
+        self.assertEqual(len(response.context_data["dep_flows"]), 1)
+        self.assertEqual(len(response.context_data["dep_campaignevents"]), 0)
+        self.assertEqual(len(response.context_data["dep_groups"]), 0)
 
     def test_view_updatepriority_valid(self):
         cf_priority = [cf.priority for cf in ContactField.user_fields.filter(is_active=True).order_by("id")]
