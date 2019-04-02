@@ -674,13 +674,20 @@ class EventFire(Model):
             events = CampaignEvent.objects.filter(
                 relative_to=contact_field, campaign__is_active=True, campaign__is_archived=False, is_active=True
             ).prefetch_related("relative_to")
+
             for event in events:
                 field = event.relative_to
-                field_uuid = str(field.uuid)
 
-                contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).extra(
-                    where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'], params=[[field_uuid]]
-                )
+                if field.field_type == ContactField.FIELD_TYPE_USER:
+                    field_uuid = str(field.uuid)
+                    contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).extra(
+                        where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'],
+                        params=[[field_uuid]],
+                    )
+                elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
+                    contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
+                else:  # pragma: no cover
+                    raise ValueError(f"Unhandled ContactField type {field.field_type}.")
 
                 events = []
                 for contact in contacts:
