@@ -11,6 +11,11 @@
       %form
         %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{ search }}"}
 
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-vcard
+
 -block content
 
   {% block pjax %}
@@ -26,7 +31,7 @@
         #sidebar-nav
           %ul.nav.nav-list
             %li.nav-header
-              -trans "Categories"
+              -trans "Contact Fields"
             - for category in cf_categories
               %li{'class':'{% if request.path == category.url %}active{% endif %}'}
                 %a{'href':'{{category.url}}'}
@@ -38,12 +43,13 @@
               %li{'class':'{% if selected_value_type == cf_type.value_type %}active{% endif %}'}
                 %a{'href':'{{ cf_type.url }}'}
                   {{cf_type.label}} ({{ cf_type.count }})
+
       .span9
         - block pre-table
 
         - block table
           .scroll-x
-            %table{ class:'{% get_list_class object_list %} list-table table table-striped', cellspacing:'0'}
+            %table{ class:'{% get_list_class object_list %} list-table table', cellspacing:'0'}
               %thead
                 -#%tr
                 -#  %th.drag-icon
@@ -56,9 +62,9 @@
 
                 %tbody#draggable-tbody
                   - for obj in object_list
-                    %tr.draggable-row{ class:'{% cycle "row2" "row1" %}', data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
+                    %tr.draggable-row{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
 
-                      - if org_perms.contacts.contactfield_updatepriority and is_featured_category
+                      - if org_perms.contacts.contactfield_update_priority and is_featured_category
                         %td.drag-icon
                           .drag-handle.icon.icon-menu
                       - else
@@ -69,11 +75,12 @@
                           {% get_value obj field %}
                       -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
                         %td{class:'field-dependencies'}
-                          {% blocktrans count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
-                            {{counter}} Use
-                          {% plural %}
-                            {{counter}} Uses
-                          {% endblocktrans %}
+                          %a{href:"#", class:'field-dependencies', onClick:"showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
+                            {% blocktrans count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
+                              {{counter}} Use
+                            {% plural %}
+                              {{counter}} Uses
+                            {% endblocktrans %}
                       -else
                         %td
 
@@ -100,9 +107,9 @@
 
   $(document).ready(function(){
 
-    - if org_perms.contacts.contactfield_updatepriority
+    - if org_perms.contacts.contactfield_update_priority
       $('#draggable-tbody').sortable({
-        handle: '.drag-handle',  // make this row draggable only by the handle
+        // handle: '.drag-handle',  // make this row draggable only by the handle
         placeholder: "sortable-placeholder",
         dataIdAttr: 'data-cfid',
         direction: 'vertical',
@@ -118,7 +125,7 @@
 
           });
 
-          var priorityUpdateUrl = '{% url "contacts.contactfield_updatepriority" %}';
+          var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
 
           $.ajax({
             type: 'POST',
@@ -150,7 +157,7 @@
 
       // if user clicked on the the field that shows field dependencies
       if (srcElem.hasClass('field-dependencies')) {
-        showDetailContactFieldModal($(this).data('cfid'));
+        // pass, do nothing, onClick method will handle this
       } else {
         - if org_perms.contacts.contactfield_update
           showUpdateContactFieldModal($(this).data('cfid'));
@@ -203,7 +210,7 @@
       },
       onFormLoaded: function() {
         // fonty checkboxy
-        useFontCheckbox(".smartmin-form input[type=checkbox]", true);
+        useFontCheckbox(".smartmin-form input[type=checkbox]");
         modal.ele.find('#id_value_type').select2();
       }
     })
@@ -217,7 +224,7 @@
       // hide the secondary button
       modal.hideSecondaryButton();
       // rename the primary button
-      modal.ele.find('.primary').text('Cancel').on('click', function () { modal.dismiss()} );
+      modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
 
       modal.submit = function () {};
     } else {
@@ -249,14 +256,14 @@
     })
   };
 
-  function showDetailContactFieldModal(cfid) {
+  function showDetailContactFieldModal(cfid, label) {
     var detailUrl = '/contactfield/detail/' + cfid + '/';
 
-    var modal = new Modax('{% trans "Contact field uses" %}', detailUrl);
+    var modal = new Modax(label + ' ' + '{% trans "Uses" %}', detailUrl);
 
     modal.setIcon('icon-vcard');
 
-    modal.ele.find('.primary').hide();  // hide primary, becuse primary button onClick handler will try to submit the form
+    modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
 
     modal.ele.find('.secondary').text('{% trans "Ok" %}');
 
@@ -343,4 +350,10 @@
 
     .drag-icon {
       width: 15px;
+    }
+
+    td.field-dependencies {
+      text-align: right;
+      white-space: nowrap;
+      width: 3em;
     }

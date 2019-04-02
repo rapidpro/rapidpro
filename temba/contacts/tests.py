@@ -7277,23 +7277,6 @@ class ContactFieldTest(TembaTest):
             self.assertEqual(response.context["sort_direction"], "desc")
             self.assertTrue("search" in response.context)
 
-    def test_contact_field_list(self):
-        url = reverse("contacts.contactfield_list")
-        self.login(self.admin)
-        response = self.client.get(url)
-
-        # label and key
-        self.assertContains(response, "First")
-        self.assertContains(response, "first")
-        self.assertContains(response, "Second")
-        self.assertContains(response, "second")
-
-        # try a search and make sure we filter out the second one
-        response = self.client.get("%s?search=first" % url)
-        self.assertContains(response, "First")
-        self.assertContains(response, "first")
-        self.assertNotContains(response, "Second")
-
     def test_delete_with_flow_dependency(self):
         self.login(self.admin)
         self.get_flow("dependencies")
@@ -7321,8 +7304,8 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValueError):
             ContactField.hide_field(self.org, self.admin, key="favorite_cat")
 
-    def test_manage_fields(self):
-        manage_fields_url = reverse("contacts.contactfield_managefields")
+    def test_view_list(self):
+        manage_fields_url = reverse("contacts.contactfield_list")
 
         self.login(self.non_org_user)
         response = self.client.get(manage_fields_url)
@@ -7620,7 +7603,7 @@ class ContactFieldTest(TembaTest):
         self.assertListEqual(cf_priority, [10, 0, 20])
 
         self.login(self.admin)
-        updatepriority_cf_url = reverse("contacts.contactfield_updatepriority")
+        updatepriority_cf_url = reverse("contacts.contactfield_update_priority")
 
         # there should be no updates because CFs with ids do not exist
         post_data = json.dumps({123_123: 1000, 123_124: 999, 123_125: 998})
@@ -7649,7 +7632,7 @@ class ContactFieldTest(TembaTest):
         self.assertListEqual(cf_priority, [10, 0, 20])
 
         self.login(self.admin)
-        updatepriority_cf_url = reverse("contacts.contactfield_updatepriority")
+        updatepriority_cf_url = reverse("contacts.contactfield_update_priority")
 
         post_data = '{invalid_json": 123}'
 
@@ -7746,21 +7729,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[15]["key"], "key0")
         self.assertEqual(response_json[16]["label"], "First")
         self.assertEqual(response_json[16]["key"], "first")
-
-
-class ContactFieldCRUDLTest(TembaTest):
-    def test_list(self):
-        self.login(self.admin)
-        self.create_secondary_org()
-
-        gender = ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
-        age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
-
-        # for a different org
-        ContactField.get_or_create(self.org2, self.admin2, "age", "Age", value_type=Value.TYPE_NUMBER)
-
-        response = self.client.get(reverse("contacts.contactfield_list"))
-        self.assertEqual(list(response.context["object_list"]), [age, gender])
 
 
 class URNTest(TembaTest):

@@ -23,13 +23,14 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -1207,12 +1208,10 @@ class ContactCRUDL(SmartCRUDL):
             if has_contactgroup_create_perm and valid_search_condition:
                 links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
 
-            if self.has_org_perm("contacts.contactfield_managefields"):
+            if self.has_org_perm("contacts.contactfield_list"):
                 links.append(
                     dict(
-                        title=_("Manage Fields"),
-                        js_class="manage-fields",
-                        href=reverse("contacts.contactfield_managefields"),
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
                     )
                 )
 
@@ -1261,8 +1260,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("contacts.contactfield_managefields"):
-                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(
+                    dict(
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                    )
+                )
 
             if self.has_org_perm("contacts.contactgroup_update"):
                 links.append(dict(title=_("Edit Group"), js_class="update-contactgroup", href="#"))
@@ -1683,6 +1686,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         super().clean()
 
         cnt_active_userfields_per_org = ContactField.user_fields.count_active_for_org(org=self.org)
+
         if cnt_active_userfields_per_org >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
             raise forms.ValidationError(
                 _(
@@ -1708,16 +1712,16 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     title = _("Manage Contact Fields")
     fields = ("label", "key", "value_type")
     search_fields = ("label__icontains", "key__icontains")
-    default_order = ("-priority", "label")
+    default_order = ("label",)
 
-    success_url = "@contacts.contactfield_managefields"
+    success_url = "@contacts.contactfield_list"
 
     link_fields = ()
 
     add_button = True
     paginate_by = None
 
-    template_name = "contacts/contactfield_managefields.haml"
+    template_name = "contacts/contactfield_list.haml"
 
     def _get_static_context_data(self, **kwargs):
 
@@ -1726,11 +1730,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
         context = {}
 
         context["cf_categories"] = [
-            {
-                "label": "All",
-                "count": active_user_fields.count(),
-                "url": reverse("contacts.contactfield_managefields"),
-            },
+            {"label": "All", "count": active_user_fields.count(), "url": reverse("contacts.contactfield_list")},
             {
                 "label": "Featured",
                 "count": active_user_fields.filter(show_in_table=True).count(),
@@ -1775,21 +1775,22 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     def get_value_type(self, obj):
         return obj.get_value_type_display()
 
+    # smartmin field value getter
+    def get_key(self, obj):
+        return f"@contact.{obj.key}"
+
+    # smartmin field value getter
+    def get_label(self, obj):
+        if obj.show_in_table:
+            featured = f'<span class="badge badge-pill">+</span>'
+        else:
+            featured = ""
+        return mark_safe(f"{featured} {obj.label}")
+
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = (
-        "list",
-        "managefields",
-        "json",
-        "create",
-        "update",
-        "updatepriority",
-        "delete",
-        "featured",
-        "filter_by_type",
-        "detail",
-    )
+    actions = ("list", "json", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         queryset = ContactField.user_fields
@@ -1852,16 +1853,19 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Delete(OrgPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
-        success_url = "@contacts.contactfield_managefields"
+        success_url = "@contacts.contactfield_list"
         success_message = ""
         http_method_names = ["get", "post"]
 
         def _has_uses(self):
-            obj_with_usages = self.get_queryset().collect_usage().filter(pk=self.kwargs.get(self.pk_url_kwarg)).get()
+            return any([self.object.flow_count, self.object.campaign_count, self.object.contactgroup_count])
 
-            return any(
-                [obj_with_usages.flow_count, obj_with_usages.campaign_count, obj_with_usages.contactgroup_count]
-            )
+        def get_queryset(self):
+            qs = super().get_queryset()
+
+            qs = qs.collect_usage()
+
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1875,7 +1879,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             pk = self.kwargs.get(self.pk_url_kwarg)
 
             # does this ContactField actually exist
-            self.object = ContactField.user_fields.filter(is_active=True, id=pk).get()
+            self.object = ContactField.user_fields.filter(is_active=True, id=pk).collect_usage().get()
 
             # did it maybe change underneath us ???
             if self._has_uses():
@@ -1887,7 +1891,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 response = self.render_to_response(self.get_context_data())
                 return response
 
-    class Updatepriority(OrgPermsMixin, SmartView, View):
+    class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
 
             try:
@@ -1906,11 +1910,12 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class Managefields(ContactFieldListView):
+    class List(ContactFieldListView):
         pass
 
     class Featured(ContactFieldListView):
         search_fields = None  # search and reordering do not work together
+        default_order = ("-priority", "label")
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -1957,20 +1962,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             context["dep_groups"] = list(self.object.contactgroup_set.all())
 
             return context
-
-    class List(OrgPermsMixin, SmartListView):
-        queryset = ContactField.user_fields
-
-        def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True)
-
-            query = self.request.GET.get("search", None)
-            if query:
-                qs = qs.filter(Q(key__icontains=query) | Q(label__icontains=query))
-
-            qs = qs.order_by("label")
-            return qs
 
     class Json(OrgPermsMixin, SmartListView):
         paginate_by = None
