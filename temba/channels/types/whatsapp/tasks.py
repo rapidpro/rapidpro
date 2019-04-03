@@ -119,7 +119,9 @@ def refresh_whatsapp_templates():
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
             # move on if we have no FB credentials
-            if CONFIG_FB_USER_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config:
+            if (
+                CONFIG_FB_USER_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config
+            ):  # pragma: no cover
                 continue
 
             # fetch all our templates
