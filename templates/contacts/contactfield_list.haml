@@ -51,15 +51,6 @@
           .scroll-x
             %table{ class:'{% get_list_class object_list %} list-table table', cellspacing:'0'}
               %thead
-                -#%tr
-                -#  %th.drag-icon
-                -#
-                -#  - for field in fields
-                -#    %th{ class:'header-{{field}}', id:'header-{{field}}' }
-                -#      {% get_label field %}
-                -#  %th
-                -#    -trans "Dependencies"
-
                 %tbody#draggable-tbody
                   - for obj in object_list
                     %tr.draggable-row{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
@@ -86,7 +77,6 @@
 
                   - empty
                     %tr.empty_list
-                      %td
                       %td{ colspan:'99' }
                         -trans "No fields"
 
@@ -179,6 +169,7 @@
         location.reload();
       },
       onFormLoaded: function() {
+        useFontCheckbox(".smartmin-form input[type=checkbox]");
         modal.ele.find('#id_value_type').select2();
       }
     })
@@ -356,4 +347,8 @@
       text-align: right;
       white-space: nowrap;
       width: 3em;
+    }
+
+    .badge-info {
+      background-color: #0c6596;
     }

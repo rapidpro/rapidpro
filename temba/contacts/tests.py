@@ -7329,6 +7329,8 @@ class ContactFieldTest(TembaTest):
     def test_view_create_valid(self):
         # we have three fields
         self.assertEqual(ContactField.user_fields.count(), 3)
+        # there are not featured fields
+        self.assertEqual(ContactField.user_fields.filter(show_in_table=True).count(), 0)
 
         self.login(self.admin)
 
@@ -7338,10 +7340,12 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # we got a form with expected form fields
-        self.assertListEqual(list(response.context["form"].fields.keys()), ["label", "value_type", "loc"])
+        self.assertListEqual(
+            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
+        )
 
         # a valid form
-        post_data = {"label": "this is a label", "value_type": "T"}
+        post_data = {"label": "this is a label", "value_type": "T", "show_in_table": True}
 
         response = self.client.post(create_cf_url, post_data)
 
@@ -7350,6 +7354,8 @@ class ContactFieldTest(TembaTest):
 
         # after creating a field there should be 4
         self.assertEqual(ContactField.user_fields.count(), 4)
+        # newly created field is featured
+        self.assertEqual(ContactField.user_fields.filter(show_in_table=True).count(), 1)
 
     def test_view_create_invalid(self):
         self.login(self.admin)
@@ -7360,7 +7366,9 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # we got a form with expected form fields
-        self.assertListEqual(list(response.context["form"].fields.keys()), ["label", "value_type", "loc"])
+        self.assertListEqual(
+            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
+        )
 
         # an empty form
         post_data = {}
@@ -7584,9 +7592,38 @@ class ContactFieldTest(TembaTest):
     def test_view_detail(self):
 
         self.login(self.admin)
-        self.get_flow("dependencies")
-
+        flow = self.get_flow("dependencies")
         dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
+        dependant_field.value_type = Value.TYPE_DATETIME
+        dependant_field.save(update_fields=("value_type",))
+
+        farmers = self.create_group("Farmers", [self.joe])
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", farmers)
+
+        # create flow events
+        CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=dependant_field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=17,
+        )
+        inactive_campaignevent = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=dependant_field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=20,
+        )
+        inactive_campaignevent.is_active = False
+        inactive_campaignevent.save(update_fields=("is_active",))
+
         detail_contactfield_url = reverse("contacts.contactfield_detail", args=[dependant_field.id])
 
         response = self.client.get(detail_contactfield_url)
@@ -7595,7 +7632,8 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.context_data["object"].label, "Favorite Cat")
 
         self.assertEqual(len(response.context_data["dep_flows"]), 1)
-        self.assertEqual(len(response.context_data["dep_campaignevents"]), 0)
+        # there should be only one active campaign event
+        self.assertEqual(len(response.context_data["dep_campaignevents"]), 1)
         self.assertEqual(len(response.context_data["dep_groups"]), 0)
 
     def test_view_updatepriority_valid(self):

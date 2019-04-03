@@ -1673,7 +1673,7 @@ class ContactFieldFormMixin:
 class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
     class Meta:
         model = ContactField
-        fields = ("label", "value_type")
+        fields = ("label", "value_type", "show_in_table")
 
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
@@ -1710,7 +1710,7 @@ class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
 class ContactFieldListView(OrgPermsMixin, SmartListView):
     queryset = ContactField.user_fields
     title = _("Manage Contact Fields")
-    fields = ("label", "key", "value_type")
+    fields = ("label", "show_in_table", "key", "value_type")
     search_fields = ("label__icontains", "key__icontains")
     default_order = ("label",)
 
@@ -1780,12 +1780,12 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
         return f"@contact.{obj.key}"
 
     # smartmin field value getter
-    def get_label(self, obj):
+    def get_show_in_table(self, obj):
         if obj.show_in_table:
-            featured = f'<span class="badge badge-pill">+</span>'
+            featured_label = _("featured")
+            return mark_safe(f'<span class="badge badge-info">{featured_label}</span>')
         else:
-            featured = ""
-        return mark_safe(f"{featured} {obj.label}")
+            return ""
 
 
 class ContactFieldCRUDL(SmartCRUDL):
@@ -1810,6 +1810,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 key=ContactField.make_key(label=form.cleaned_data["label"]),
                 label=form.cleaned_data["label"],
                 value_type=form.cleaned_data["value_type"],
+                show_in_table=form.cleaned_data["show_in_table"],
             )
 
             response = self.render_to_response(
@@ -1957,9 +1958,11 @@ class ContactFieldCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            context["dep_flows"] = list(self.object.dependent_flows.all())
-            context["dep_campaignevents"] = list(self.object.campaigns.select_related("campaign").all())
-            context["dep_groups"] = list(self.object.contactgroup_set.all())
+            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True).all())
+            context["dep_campaignevents"] = list(
+                self.object.campaigns.filter(is_active=True).select_related("campaign").all()
+            )
+            context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
 
             return context
 
