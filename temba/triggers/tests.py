@@ -57,13 +57,13 @@ class TriggerTest(TembaTest):
         # unicode keyword (Arabic)
         post_data = dict(keyword="١٠٠", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"١٠٠")
+        trigger = Trigger.objects.get(keyword="١٠٠")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # unicode keyword (Hindi)
         post_data = dict(keyword="मिलाए", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"मिलाए")
+        trigger = Trigger.objects.get(keyword="मिलाए")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # a valid keyword
@@ -550,7 +550,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(1, len(response.context["form"].errors))
 
         # create a trigger that sets up a group join flow
-        post_data = dict(action_join_group=group.pk, keyword=u"١٠٠")
+        post_data = dict(action_join_group=group.pk, keyword="١٠٠")
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
@@ -558,7 +558,7 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact("Ben", "+250788382382")
-        msg = self.create_msg(direction=INCOMING, contact=contact, text=u"١٠٠ join group")
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="١٠٠ join group")
         self.assertIsNone(msg.msg_type)
 
         self.assertTrue(Trigger.find_and_handle(msg))
