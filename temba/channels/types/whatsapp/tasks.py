@@ -133,19 +133,19 @@ def refresh_whatsapp_templates():
                 )
 
                 if response.status_code != 200:  # pragma: no cover
-                    raise Exception("received non 200 status: %d %s" % (response.status_code, response.content))
+                    raise Exception(f"received non 200 status: {response.status_code} {response.content}")
 
                 # run through all our templates making sure they are present in our DB
                 seen = []
                 for template in response.json()["data"]:
                     # its a (non fatal) error if we see a language we don't know
                     if template["language"] not in LANGUAGE_MAPPING:
-                        logger.error("unknown whatsapp language: %s" % template["language"])
+                        logger.error(f"unknown whatsapp language: {template['language']}")
                         continue
 
                     # or if this is a status we don't know about
                     if template["status"] not in STATUS_MAPPING:
-                        logger.error("unknown whatsapp status: %s" % template["status"])
+                        logger.error(f"unknown whatsapp status: {template['status']}")
                         continue
 
                     translation = TemplateTranslation.get_or_create(
@@ -164,4 +164,4 @@ def refresh_whatsapp_templates():
                 TemplateTranslation.trim(channel, seen)
 
             except Exception as e:  # pragma: no cover
-                logger.error("error fetching templates for whatsapp channel: %s" % str(e))
+                logger.error(f"error fetching templates for whatsapp channel: {str(e)}")

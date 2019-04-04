@@ -53,6 +53,8 @@ class APITest(TembaTest):
         self.create_secondary_org()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
+        self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
+
         self.maxDiff = None
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
@@ -3632,6 +3634,14 @@ class APITest(TembaTest):
         )
         tt = TemplateTranslation.get_or_create(
             self.channel, "hello", "fra", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+        )
+
+        # templates on other org to test filtering
+        TemplateTranslation.get_or_create(
+            self.org2channel, "goodbye", "eng", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+        )
+        TemplateTranslation.get_or_create(
+            self.org2channel, "goodbye", "fra", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
         )
 
         # no filtering

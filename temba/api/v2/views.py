@@ -3125,7 +3125,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
 class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a '
+    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a
     dictionary of the languages it has been translated to along with the content of the template for that
     language and the status of that translation.
 
@@ -3186,12 +3186,9 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
-        template_ids = (
-            TemplateTranslation.objects.filter(channel__org=org, is_active=True)
-            .distinct("template_id")
-            .values_list("template_id", flat=True)
+        queryset = org.templates.exclude(translations=None).prefetch_related(
+            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True))
         )
-        queryset = Template.objects.filter(org=org, id__in=template_ids).prefetch_related("translations")
         return self.filter_before_after(queryset, "modified_on")
 
     @classmethod

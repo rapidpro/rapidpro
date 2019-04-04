@@ -20,7 +20,7 @@ class Template(models.Model):
     name = models.CharField(max_length=64)
 
     # the organization this template is used in
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="templates")
 
     # when this template was last modified
     modified_on = models.DateTimeField(default=timezone.now)
