@@ -11,6 +11,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
+from temba.templates.models import Template, TemplateTranslation
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -1170,3 +1171,30 @@ class WebHookEventReadSerializer(ReadSerializer):
     class Meta:
         model = WebHookEvent
         fields = ("resthook", "data", "created_on")
+
+
+class TemplateReadSerializer(ReadSerializer):
+    translations = serializers.SerializerMethodField()
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_translations(self, obj):
+        translations = []
+        for translation in (
+            TemplateTranslation.objects.filter(template=obj).order_by("language").select_related("channel")
+        ):
+            translations.append(
+                {
+                    "language": translation.language,
+                    "content": translation.content,
+                    "variable_count": translation.variable_count,
+                    "status": translation.get_status_display(),
+                    "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
+                }
+            )
+
+        return translations
+
+    class Meta:
+        model = Template
+        fields = ("uuid", "name", "translations", "created_on", "modified_on")

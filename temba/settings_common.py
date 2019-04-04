@@ -235,6 +235,7 @@ INSTALLED_APPS = (
     "temba.public",
     "temba.policies",
     "temba.schedules",
+    "temba.templates",
     "temba.orgs",
     "temba.contacts",
     "temba.channels",
@@ -310,8 +311,8 @@ PERMISSIONS = {
         "read",  # can read an object, viewing it's details
         "update",  # can update an object
         "delete",  # can delete an object,
-        "list",
-    ),  # can view a list of the objects
+        "list",  # can view a list of the objects
+    ),
     "api.apitoken": ("refresh",),
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
@@ -442,6 +443,7 @@ PERMISSIONS = {
     "msgs.label": ("api", "create", "create_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
+    "templates.template": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -622,6 +624,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -713,6 +716,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
