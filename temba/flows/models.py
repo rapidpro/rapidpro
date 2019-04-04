@@ -22,7 +22,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Q, QuerySet, Sum
+from django.db.models import Max, Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -1050,7 +1050,12 @@ class Flow(TembaModel):
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
-        counts = FlowCategoryCount.objects.filter(flow_id=self.id).filter(result_key__in=keys)
+        counts = (
+            FlowCategoryCount.objects.filter(flow_id=self.id)
+            .filter(result_key__in=keys)
+            .values("result_key", "category_name")
+            .annotate(count=Sum("count"), result_name=Max("result_name"))
+        )
 
         results = {}
         for count in counts:

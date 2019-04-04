@@ -1419,7 +1419,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             context["result_fields"] = flow.metadata["results"]
             for result_field in context["result_fields"]:
-                result_field["has_category"] = "true" if len(result_field["categories"]) > 1 else "false"
+                result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context

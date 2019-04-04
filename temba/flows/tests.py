@@ -6761,10 +6761,6 @@ class FlowsTest(FlowFileTest):
         assertCount(counts, "color", "Red", 8)
         assertCount(counts, "beer", "Turbo King", 3)
 
-        # but if we ignore the ones from our deleted color node, should only have the three new ones
-        counts = favorites.get_category_counts(deleted_nodes=False)
-        assertCount(counts, "color", "Red", 3)
-
         # now delete the color ruleset and repoint nodes to the beer ruleset
         color_ruleset = flow_json["rule_sets"][0]
         beer_ruleset = flow_json["rule_sets"][1]
