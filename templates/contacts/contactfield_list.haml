@@ -97,47 +97,48 @@
 
   $(document).ready(function(){
 
-    - if org_perms.contacts.contactfield_update_priority
-      $('#draggable-tbody').sortable({
-        // handle: '.drag-handle',  // make this row draggable only by the handle
-        placeholder: "sortable-placeholder",
-        dataIdAttr: 'data-cfid',
-        direction: 'vertical',
-        stop: function (event, ui) {
-          $(ui.item).removeClass('sortable-dragging');
+    - if is_featured_category
+      - if org_perms.contacts.contactfield_update_priority
+        $('#draggable-tbody').sortable({
+          // handle: '.drag-handle',  // make this row draggable only by the handle
+          placeholder: "sortable-placeholder",
+          dataIdAttr: 'data-cfid',
+          direction: 'vertical',
+          stop: function (event, ui) {
+            $(ui.item).removeClass('sortable-dragging');
 
-          var priorityMapping = {};
-          $('#draggable-tbody > tr').each(function(idx, elem) {
-            // rewrite priority of every element based on the current order of elements
-            var new_idx = 1000 - idx;
+            var priorityMapping = {};
+            $('#draggable-tbody > tr').each(function(idx, elem) {
+              // rewrite priority of every element based on the current order of elements
+              var new_idx = 1000 - idx;
 
-            priorityMapping[$(elem).data('cfid')] = new_idx;
+              priorityMapping[$(elem).data('cfid')] = new_idx;
 
-          });
+            });
 
-          var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
+            var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
 
-          $.ajax({
-            type: 'POST',
-            url: priorityUpdateUrl,
-            data: JSON.stringify(priorityMapping),
-            success: function (data, status, jqXHR) {
-              // show user a notification ???
-              // console.log(data, status, jqXHR);
-            },
-            error: function (jqXHR, status, error) {
-              // how do we display errors to the user ???
-              // console.log(jqXHR, status, error);
-            }
-          });
+            $.ajax({
+              type: 'POST',
+              url: priorityUpdateUrl,
+              data: JSON.stringify(priorityMapping),
+              success: function (data, status, jqXHR) {
+                // show user a notification ???
+                // console.log(data, status, jqXHR);
+              },
+              error: function (jqXHR, status, error) {
+                // how do we display errors to the user ???
+                // console.log(jqXHR, status, error);
+              }
+            });
 
-        },
-        start: function (event, ui) {
-          $(ui.item).addClass('sortable-dragging');
-          // since we use a table we need to manually add a div to the sortable.placeholder in order to modify its margin
-          ui.placeholder.html('<td colspan=99><div></div></td>');
-        }
-      });
+          },
+          start: function (event, ui) {
+            $(ui.item).addClass('sortable-dragging');
+            // since we use a table we need to manually add a div to the sortable.placeholder in order to modify its margin
+            ui.placeholder.html('<td colspan=99><div></div></td>');
+          }
+        });
 
 
     $('tr[data-cfid]').on('click', function(evt) {
