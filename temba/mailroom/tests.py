@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django_redis import get_redis_connection
 
+from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
@@ -48,6 +49,7 @@ class MailroomClientTest(TembaTest):
 
 
 class MailroomQueueTest(TembaTest):
+    @override_settings(BROKER_URL="redis://%s:%d/%d" % (settings.REDIS_HOST, settings.REDIS_PORT, 9))
     def test_msg_task(self):
         msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
@@ -74,6 +76,7 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual("Hello World", msg_task["task"]["text"])
         self.assertTrue(msg_task["task"]["new_contact"])
 
+    @override_settings(BROKER_URL="redis://%s:%d/%d" % (settings.REDIS_HOST, settings.REDIS_PORT, 9))
     def test_event_task(self):
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
