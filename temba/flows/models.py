@@ -22,7 +22,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Q, QuerySet, Sum
+from django.db.models import Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -1048,23 +1048,9 @@ class Flow(TembaModel):
         # interrupt our runs in the background
         on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
 
-    def get_category_counts(self, deleted_nodes=True):
-
-        actives = self.rule_sets.all().values("uuid", "label").order_by("y", "x")
-
-        uuids = [active["uuid"] for active in actives]
-        keys = [Flow.label_to_slug(active["label"]) for active in actives]
-        counts = FlowCategoryCount.objects.filter(flow_id=self.id)
-
-        # always filter by active keys
-        counts = counts.filter(result_key__in=keys)
-
-        # filter by active nodes if we aren't including deleted nodes
-        if not deleted_nodes:
-            counts = counts.filter(node_uuid__in=uuids)
-        counts = counts.values("result_key", "category_name").annotate(
-            count=Sum("count"), result_name=Max("result_name")
-        )
+    def get_category_counts(self):
+        keys = [r["key"] for r in self.metadata["results"]]
+        counts = FlowCategoryCount.objects.filter(flow_id=self.id).filter(result_key__in=keys)
 
         results = {}
         for count in counts:
@@ -1091,8 +1077,7 @@ class Flow(TembaModel):
 
         # order counts by their place on the flow
         result_list = []
-        for active in actives:
-            key = Flow.label_to_slug(active["label"])
+        for key in keys:
             result = results.get(key)
             if result:
                 result_list.append(result)

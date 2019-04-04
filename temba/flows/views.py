@@ -1240,12 +1240,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
 
-            rulesets = list(flow.rule_sets.all())
-
-            from_uuids = []
-            for ruleset in rulesets:
-                from_uuids += [rule.uuid for rule in ruleset.get_rules()]
-
+            from_uuids = flow.metadata["waiting_exit_uuids"]
             dates = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).aggregate(
                 Max("period"), Min("period")
             )
@@ -1348,11 +1343,6 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             org = self.derive_org()
 
-            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
-            for ruleset in context["rulesets"]:
-                rules = len(ruleset.get_rules())
-                ruleset.category = "true" if rules > 1 else "false"
-
             runs = flow.runs.all()
 
             if str_to_bool(self.request.GET.get("responded", "true")):
@@ -1384,13 +1374,14 @@ class FlowCRUDL(SmartCRUDL):
             context["more"] = len(runs) > self.paginate_by
             runs = runs[: self.paginate_by]
 
-            # populate ruleset values
+            result_fields = flow.metadata["results"]
+
+            # populate result values
             for run in runs:
                 results = run.results
                 run.value_list = []
-                for ruleset in context["rulesets"]:
-                    key = Flow.label_to_slug(ruleset.label)
-                    run.value_list.append(results.get(key, None))
+                for result_field in result_fields:
+                    run.value_list.append(results.get(result_field["key"], None))
 
             context["runs"] = runs
             context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
@@ -1426,10 +1417,9 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
-            for ruleset in context["rulesets"]:
-                rules = len(ruleset.get_rules())
-                ruleset.category = "true" if rules > 1 else "false"
+            context["result_fields"] = flow.metadata["results"]
+            for result_field in context["result_fields"]:
+                result_field["has_category"] = "true" if len(result_field["categories"]) > 1 else "false"
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
