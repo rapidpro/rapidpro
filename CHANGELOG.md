@@ -1,3 +1,7 @@
+v4.22.19
+----------
+ * api for templates, add access token and fb user id to claim, sync with facebook endpoint
+
 v4.22.18
 ----------
  * fix recalculating event fires for fields when that field is created_on
