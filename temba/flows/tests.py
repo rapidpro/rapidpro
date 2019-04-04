@@ -1027,7 +1027,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -1278,7 +1278,7 @@ class FlowTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(35):
             workbook = self.export_flow_results(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -1621,7 +1621,7 @@ class FlowTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(44):
+                with self.assertNumQueries(43):
                     workbook = self.export_flow_results(self.flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -1842,7 +1842,7 @@ class FlowTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(
                 self.flow, include_msgs=False, responded_only=True, group_memberships=(devs,)
             )
@@ -1910,7 +1910,7 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age")
         self.contact.set_field(self.admin, "age", 36)
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             workbook = self.export_flow_results(
                 self.flow,
                 include_msgs=False,

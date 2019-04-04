@@ -26,7 +26,6 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
-from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -58,7 +57,6 @@ from .models import (
     FlowPathRecentRun,
     FlowUserConflictException,
     FlowVersionConflictException,
-    RuleSet,
 )
 
 logger = logging.getLogger(__name__)
@@ -938,16 +936,14 @@ class FlowCRUDL(SmartCRUDL):
             flow_variables.append(dict(name="flow", display=str(_("All flow variables"))))
 
             flow_id = self.request.GET.get("flow", None)
-
             if flow_id:
-                # TODO: restrict this to only the possible paths to the passed in actionset uuid
-                rule_sets = RuleSet.objects.filter(flow__pk=flow_id, flow__org=org)
-                for rule_set in rule_sets:
-                    key = ContactField.make_key(slugify(rule_set.label))
-                    flow_variables.append(dict(name="flow.%s" % key, display=rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % rule_set.label))
+                flow = Flow.objects.get(org=org, id=flow_id)
+                for result in flow.metadata["results"]:
+                    key, label = result["key"], result["name"]
+                    flow_variables.append(dict(name="flow.%s" % key, display=label))
+                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % label))
+                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % label))
+                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % label))
 
             function_completions = get_function_listing()
             messages_completions = contact_variables + date_variables + flow_variables

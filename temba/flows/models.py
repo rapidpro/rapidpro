@@ -22,7 +22,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Prefetch, Q, QuerySet, Sum
+from django.db.models import Max, Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -4595,7 +4595,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context["flows"] = self.flows.all()
         return context
 
-    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=False):
+    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -4619,10 +4619,11 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Modified")
         columns.append("Exited")
 
-        for node in result_nodes:
-            columns.append("%s (Category) - %s" % (node.label, node.flow.name))
-            columns.append("%s (Value) - %s" % (node.label, node.flow.name))
-            columns.append("%s (Text) - %s" % (node.label, node.flow.name))
+        for result_field in result_fields:
+            field_name, flow_name = result_field["name"], result_field["flow_name"]
+            columns.append(f"{field_name} (Category) - {flow_name}")
+            columns.append(f"{field_name} (Value) - {flow_name}")
+            columns.append(f"{field_name} (Text) - {flow_name}")
 
         return columns
 
@@ -4661,16 +4662,13 @@ class ExportFlowResultsTask(BaseExportTask):
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
-        result_nodes = []
-        flows = list(
-            self.flows.filter(is_active=True).prefetch_related(
-                Prefetch("rule_sets", RuleSet.objects.exclude(label=None).order_by("y", "id"))
-            )
-        )
+        result_fields = []
+        flows = list(self.flows.filter(is_active=True))
         for flow in flows:
-            for node in flow.rule_sets.all():
-                node.flow = flow
-                result_nodes.append(node)
+            for result_field in flow.metadata["results"]:
+                result_field["flow_uuid"] = flow.uuid
+                result_field["flow_name"] = flow.name
+                result_fields.append(result_field)
 
             if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True
@@ -4682,7 +4680,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=show_submitted_by
+            extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -4708,7 +4706,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_fields,
                 show_submitted_by,
                 runs_columns,
-                result_nodes,
+                result_fields,
             )
 
             total_runs_exported += len(batch)
@@ -4795,7 +4793,7 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_fields,
         show_submitted_by,
         runs_columns,
-        result_nodes,
+        result_fields,
     ):
         """
         Writes a batch of run JSON blobs to the export
@@ -4811,9 +4809,9 @@ class ExportFlowResultsTask(BaseExportTask):
             # get this run's results by node name(ruleset label)
             run_values = run["values"]
             if isinstance(run_values, list):
-                results_by_name = {result["name"]: result for item in run_values for result in item.values()}
+                results_by_key = {key: result for item in run_values for key, result in item.items()}
             else:
-                results_by_name = {result["name"]: result for result in run_values.values()}
+                results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
             contact_values = [
@@ -4836,11 +4834,11 @@ class ExportFlowResultsTask(BaseExportTask):
 
             # generate result columns for each ruleset
             result_values = []
-            for n, node in enumerate(result_nodes):
+            for n, result_field in enumerate(result_fields):
                 node_result = {}
                 # check the result by ruleset label if the flow is the same
-                if node.flow.uuid == run["flow"]["uuid"]:
-                    node_result = results_by_name.get(node.label, {})
+                if result_field["flow_uuid"] == run["flow"]["uuid"]:
+                    node_result = results_by_key.get(result_field["key"], {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")
