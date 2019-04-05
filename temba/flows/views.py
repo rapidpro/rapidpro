@@ -330,6 +330,8 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
+            use_new_editor = forms.BooleanField(label=_("Use new editor to author this flow"), initial=False)
+
             def __init__(self, user, branding, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -360,11 +362,16 @@ class FlowCRUDL(SmartCRUDL):
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
 
         def derive_exclude(self):
-            org = self.request.user.get_org()
+            user = self.request.user
+            org = user.get_org()
             exclude = []
 
             if not org.primary_language:
                 exclude.append("base_language")
+
+            if not self.has_permission(self.request, "flows.flow_definition"):
+                print("excluded use new editor")
+                exclude.append("use_new_editor")
 
             return exclude
 
@@ -393,6 +400,10 @@ class FlowCRUDL(SmartCRUDL):
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
+            import pdb
+
+            pdb.set_trace()
+
             self.object = Flow.create(
                 org,
                 self.request.user,
@@ -401,6 +412,7 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
+                use_new_editor=self.form.cleaned_data["use_new_editor"],
             )
 
         def post_save(self, obj):
@@ -1504,8 +1516,9 @@ class FlowCRUDL(SmartCRUDL):
         success_message = ""
 
         def get(self, request, *args, **kwargs):
-            flow = self.get_object()
-            return JsonResponse({"flow": flow.last_revision()})
+            last_revision = self.get_object().last_revision()
+            definition = json.loads(last_revision.definition) if last_revision else None
+            return JsonResponse({"flow": definition})
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):

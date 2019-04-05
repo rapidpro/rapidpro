@@ -209,6 +209,8 @@ class Flow(TembaModel):
         (TYPE_USSD, _("USSD flow")),
     )
 
+    GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
+
     NODE_TYPE_RULESET = "R"
     NODE_TYPE_ACTIONSET = "A"
 
@@ -246,7 +248,7 @@ class Flow(TembaModel):
         "11.12",
     ]
 
-    GOFLOW_VERSION = "12.0"
+    GOFLOW_VERSION = "12.0.0"
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -329,6 +331,7 @@ class Flow(TembaModel):
         expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
+        use_new_editor=False,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -341,11 +344,24 @@ class Flow(TembaModel):
             created_by=user,
             modified_by=user,
             flow_server_enabled=org.flow_server_enabled,
+            version_number=Flow.GOFLOW_VERSION if use_new_editor else get_current_export_version(),
             **kwargs,
         )
 
         if create_revision:
-            flow.update(flow.as_json())
+            if use_new_editor:
+                flow.save_revision(
+                    user,
+                    {
+                        "uuid": flow.uuid,
+                        "name": flow.name,
+                        "language": base_language,
+                        "type": Flow.GOFLOW_TYPES[flow_type],
+                        "nodes": [],
+                    },
+                )
+            else:
+                flow.update(flow.as_json())
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
         return flow
@@ -2282,7 +2298,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("-revision").first()
 
-    def save_revision(self, definition, user):
+    def save_revision(self, user, definition):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
@@ -2295,6 +2311,18 @@ class Flow(TembaModel):
         saved_on = definition.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
         if str_to_datetime(saved_on, org.timezone) < self.saved_on:
             raise FlowUserConflictException(self.saved_by, self.saved_on)
+
+        # get our last revision
+        revision = 1
+        last_revision = self.last_revision()
+        if last_revision:
+            revision = last_revision.revision + 1
+
+        # update the revision on our definition
+        definition["revision"] = revision
+
+        # and our expiration
+        definition["expires_after_minutes"] = self.expires_after_minutes
 
         # try to validate the flow (will throw if not valid)
         validated_definition = mailroom.get_client().flow_validate(self.org, definition)
@@ -2310,19 +2338,13 @@ class Flow(TembaModel):
             self.version_number = Flow.GOFLOW_VERSION
             self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
 
-            # get our last revision
-            revision_num = 1
-            last_revision = self.last_revision()
-            if last_revision:
-                revision_num = last_revision.revision + 1
-
             # create our new revision
             revision = self.revisions.create(
                 definition=validated_definition,
                 created_by=user,
                 modified_by=user,
                 spec_version=Flow.GOFLOW_VERSION,
-                revision=revision_num,
+                revision=revision,
             )
 
             self.update_dependencies(dependencies)

@@ -6560,6 +6560,15 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
     @skip_if_no_mailroom
+    def test_save_definitions(self):
+        # create empty flow first
+        self.login(self.admin)
+        self.client.post(
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+        )
+        Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE)
+
+    @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):
         self.login(self.admin)
 
