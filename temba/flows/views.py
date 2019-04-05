@@ -400,10 +400,6 @@ class FlowCRUDL(SmartCRUDL):
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
-            import pdb
-
-            pdb.set_trace()
-
             self.object = Flow.create(
                 org,
                 self.request.user,
