@@ -299,7 +299,13 @@ class FlowCRUDL(SmartCRUDL):
                 versions.append(flow_version)
 
                 revisions = []
-                for revision in flow.revisions.filter(spec_version__in=versions).order_by("-created_on")[:25]:
+                for revision in flow.revisions.filter(spec_version__in=versions).order_by("-revision")[:25]:
+
+                    # our goflow versions are already validated
+                    if revision.spec_version == Flow.GOFLOW_VERSION:
+                        revisions.append(revision.as_json())
+                        continue
+
                     # validate the flow definition before presenting it to the user
                     try:
                         # can only validate up to our last python version
@@ -318,6 +324,48 @@ class FlowCRUDL(SmartCRUDL):
                         pass
 
                 return JsonResponse({"results": revisions}, safe=False)
+
+        def post(self, request, *args, **kwargs):
+            if not self.has_org_perm("flows.flow_update"):
+                return HttpResponseRedirect(reverse("flows.flow_revisions", args=[self.get_object().pk]))
+
+            # try to parse our body
+            definition = json.loads(force_text(request.body))
+            try:
+                flow = self.get_object(self.get_queryset())
+                revision = flow.save_revision(self.request.user, definition)
+                return JsonResponse(
+                    {
+                        "status": "success",
+                        "saved_on": json.encode_datetime(flow.saved_on, micros=True),
+                        "revision": revision.as_json(),
+                    }
+                )
+
+            except FlowValidationException:  # pragma: no cover
+                error = _("Your flow failed validation. Please refresh your browser.")
+            except FlowInvalidCycleException:
+                error = _("Your flow contains an invalid loop. Please refresh your browser.")
+            except FlowVersionConflictException:
+                error = _(
+                    "Your flow has been upgraded to the latest version. "
+                    "In order to continue editing, please refresh your browser."
+                )
+            except FlowUserConflictException as e:
+                error = (
+                    _(
+                        "%s is currently editing this Flow. "
+                        "Your changes will not be saved until you refresh your browser."
+                    )
+                    % e.other_user
+                )
+            except Exception as e:  # pragma: no cover
+                import traceback
+
+                traceback.print_stack(e)
+                error = _("Your flow could not be saved. Please refresh your browser.")
+
+            return JsonResponse({"status": "failure", "description": error}, status=400)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -1595,6 +1643,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Definition(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
+        slug_url_kwarg = "uuid"
 
         def get(self, request, *args, **kwargs):
             last_revision = self.get_object().last_revision()

@@ -220,6 +220,7 @@ class Flow(TembaModel):
 
     GOFLOW_VERSION = "12.0.0"
     SPEC_VERSION = "spec_version"
+    REVISION = "revision"
 
     VERSIONS = [
         "1",
@@ -2319,7 +2320,7 @@ class Flow(TembaModel):
 
         # check we aren't walking over someone else
         if last_revision:
-            if definition.get(Flow.REVISION) < last_revision:
+            if definition.get(Flow.REVISION) < last_revision.revision:
                 raise FlowUserConflictException(self.saved_by, self.saved_on)
 
             revision = last_revision.revision + 1
@@ -4335,6 +4336,7 @@ class FlowRevision(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
+            definition[Flow.METADATA][Flow.REVISION] = self.revision
             definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
         return definition
 
