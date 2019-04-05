@@ -60,7 +60,9 @@ class MailroomClient:
         if org and not settings.TESTING:
             payload["org_id"] = org.id
 
-        return self._request("flow/validate", payload)
+        validated = self._request("flow/validate", payload)
+        validated["_ui"] = definition["_ui"]
+        return validated
 
     def sim_start(self, payload):
         return self._request("sim/start", payload)
