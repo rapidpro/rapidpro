@@ -229,6 +229,7 @@ class FlowCRUDL(SmartCRUDL):
         "copy",
         "create",
         "delete",
+        "definition",
         "update",
         "simulate",
         "export_results",
@@ -1417,9 +1418,14 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            context["result_fields"] = flow.metadata["results"]
-            for result_field in context["result_fields"]:
+
+            result_fields = []
+            for result_field in flow.metadata["results"]:
+                result_field = result_field.copy()
                 result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
+                result_fields.append(result_field)
+            context["result_fields"] = result_fields
+
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
@@ -1493,6 +1499,53 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(client.sim_resume(payload))
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+    class Definition(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+        success_message = ""
+
+        def get(self, request, *args, **kwargs):
+            flow = self.get_object()
+            return JsonResponse({"flow": flow.last_revision()})
+
+        def post(self, request, *args, **kwargs):
+            if not self.has_org_perm("flows.flow_update"):
+                return HttpResponseRedirect(reverse("flows.flow_definition", args=[self.get_object().pk]))
+
+            # try to parse our body
+            definition = json.loads(force_text(request.body))
+
+            try:
+                flow = self.get_object(self.get_queryset())
+                revision = flow.save_revision(definition, self.request.get_user())
+                return JsonResponse(
+                    {
+                        "status": "success",
+                        "saved_on": json.encode_datetime(flow.saved_on, micros=True),
+                        "revision": revision.revision,
+                    }
+                )
+
+            except FlowValidationException:  # pragma: no cover
+                error = _("Your flow failed validation. Please refresh your browser.")
+            except FlowInvalidCycleException:
+                error = _("Your flow contains an invalid loop. Please refresh your browser.")
+            except FlowVersionConflictException:
+                error = _(
+                    "Your flow has been upgraded to the latest version. "
+                    "In order to continue editing, please refresh your browser."
+                )
+            except FlowUserConflictException as e:
+                error = (
+                    _(
+                        "%s is currently editing this Flow. "
+                        "Your changes will not be saved until you refresh your browser."
+                    )
+                    % e.other_user
+                )
+            except Exception:  # pragma: no cover
+                error = _("Your flow could not be saved. Please refresh your browser.")
+
+            return JsonResponse({"status": "failure", "description": error}, status=400)
 
     class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""

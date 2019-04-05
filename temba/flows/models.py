@@ -174,6 +174,7 @@ class Flow(TembaModel):
     RULESET_TYPE = "ruleset_type"
     OPERAND = "operand"
 
+    LANGUAGE = "language"
     BASE_LANGUAGE = "base_language"
     SAVED_BY = "saved_by"
     VERSION = "version"
@@ -244,6 +245,8 @@ class Flow(TembaModel):
         "11.11",
         "11.12",
     ]
+
+    GOFLOW_VERSION = "12.0"
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -2272,6 +2275,59 @@ class Flow(TembaModel):
 
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
+
+    def last_revision(self):
+        """
+        Returns the last saved revision for this flow if any
+        """
+        return self.revisions.order_by("-revision").first()
+
+    def save_revision(self, definition, user):
+        """
+        Saves a new revision for this flow, validation will be done on the definition first
+        """
+        # must be a new version for this method
+        if definition.get(Flow.VERSION) != Flow.GOFLOW_VERSION:
+            raise FlowVersionConflictException(definition.get(Flow.VERSION))
+
+        # check we aren't walking over someone else
+        org = user.get_org()
+        saved_on = definition.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
+        if str_to_datetime(saved_on, org.timezone) < self.saved_on:
+            raise FlowUserConflictException(self.saved_by, self.saved_on)
+
+        # try to validate the flow (will throw if not valid)
+        validated_definition = mailroom.get_client().flow_validate(self.org, definition)
+
+        with transaction.atomic():
+            dependencies = validated_definition["_dependencies"]
+
+            # update our flow fields
+            self.base_language = validated_definition.get(Flow.LANGUAGE, None)
+            self.metadata = validated_definition[Flow.METADATA]
+            self.saved_by = user
+            self.saved_on = timezone.now()
+            self.version_number = Flow.GOFLOW_VERSION
+            self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
+
+            # get our last revision
+            revision_num = 1
+            last_revision = self.last_revision()
+            if last_revision:
+                revision_num = last_revision.revision + 1
+
+            # create our new revision
+            revision = self.revisions.create(
+                definition=validated_definition,
+                created_by=user,
+                modified_by=user,
+                spec_version=Flow.GOFLOW_VERSION,
+                revision=revision_num,
+            )
+
+            self.update_dependencies(dependencies)
+
+        return revision
 
     def update(self, json_dict, user=None, force=False, validate_dependencies=True):
         """
@@ -4656,6 +4712,7 @@ class ExportFlowResultsTask(BaseExportTask):
         flows = list(self.flows.filter(is_active=True))
         for flow in flows:
             for result_field in flow.metadata["results"]:
+                result_field = result_field.copy()
                 result_field["flow_uuid"] = flow.uuid
                 result_field["flow_name"] = flow.name
                 result_fields.append(result_field)

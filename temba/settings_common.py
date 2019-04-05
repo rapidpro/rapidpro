@@ -409,6 +409,7 @@ PERMISSIONS = {
         "category_counts",
         "completion",
         "copy",
+        "definition",
         "editor",
         "editor_next",
         "export",
@@ -462,7 +463,7 @@ PERMISSIONS = {
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
-    "Alpha": (),
+    "Alpha": ("flows.flow_definition",),
     "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
