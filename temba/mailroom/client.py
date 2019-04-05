@@ -61,7 +61,7 @@ class MailroomClient:
             payload["org_id"] = org.id
 
         validated = self._request("flow/validate", payload)
-        validated["_ui"] = definition["_ui"]
+        validated["_ui"] = definition.get("_ui", {})
         return validated
 
     def sim_start(self, payload):
