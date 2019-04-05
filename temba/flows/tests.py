@@ -6575,9 +6575,10 @@ class FlowsTest(FlowFileTest):
             org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=get_current_export_version()
         )
 
-        self.admin.user_permissions.add(Permission.objects.get(codename="flows.flow_definition"))
+        # make admin alpha
+        self.admin.user_permissions.add(Permission.objects.get(codename="flow_definition"))
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="True")
         )
         Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION)
 

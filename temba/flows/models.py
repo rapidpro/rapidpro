@@ -219,6 +219,7 @@ class Flow(TembaModel):
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
     GOFLOW_VERSION = "12.0.0"
+    SPEC_VERSION = "spec_version"
 
     VERSIONS = [
         "1",
@@ -359,7 +360,9 @@ class Flow(TembaModel):
                         "name": flow.name,
                         "language": base_language,
                         "type": Flow.GOFLOW_TYPES[flow_type],
+                        "spec_version": Flow.GOFLOW_VERSION,
                         "nodes": [],
+                        "metadata": {"saved_on": timezone.now().isoformat()},
                     },
                 )
             else:
@@ -2305,19 +2308,20 @@ class Flow(TembaModel):
         Saves a new revision for this flow, validation will be done on the definition first
         """
         # must be a new version for this method
-        if definition.get(Flow.VERSION) != Flow.GOFLOW_VERSION:
-            raise FlowVersionConflictException(definition.get(Flow.VERSION))
+        metadata = definition.get(Flow.METADATA, {})
 
-        # check we aren't walking over someone else
-        org = user.get_org()
-        saved_on = definition.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
-        if str_to_datetime(saved_on, org.timezone) < self.saved_on:
-            raise FlowUserConflictException(self.saved_by, self.saved_on)
+        if definition.get(Flow.SPEC_VERSION) != Flow.GOFLOW_VERSION:
+            raise FlowVersionConflictException(metadata.get(Flow.SPEC_VERSION))
 
         # get our last revision
         revision = 1
         last_revision = self.last_revision()
+
+        # check we aren't walking over someone else
         if last_revision:
+            if definition.get(Flow.REVISION) < last_revision:
+                raise FlowUserConflictException(self.saved_by, self.saved_on)
+
             revision = last_revision.revision + 1
 
         # update the revision on our definition
@@ -2334,7 +2338,11 @@ class Flow(TembaModel):
 
             # update our flow fields
             self.base_language = validated_definition.get(Flow.LANGUAGE, None)
-            self.metadata = validated_definition[Flow.METADATA]
+            self.metadata = {
+                "results": validated_definition["_results"],
+                "dependencies": validated_definition["_dependencies"],
+                "waiting_exits": validated_definition["_waiting_exits"],
+            }
             self.saved_by = user
             self.saved_on = timezone.now()
             self.version_number = Flow.GOFLOW_VERSION
