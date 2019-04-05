@@ -1031,7 +1031,7 @@ class FlowTest(TembaTest):
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -1282,7 +1282,7 @@ class FlowTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(36):
+        with self.assertNumQueries(35):
             workbook = self.export_flow_results(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -1625,7 +1625,7 @@ class FlowTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(44):
+                with self.assertNumQueries(43):
                     workbook = self.export_flow_results(self.flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -1846,7 +1846,7 @@ class FlowTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             workbook = self.export_flow_results(
                 self.flow, include_msgs=False, responded_only=True, group_memberships=(devs,)
             )
@@ -1914,7 +1914,7 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age")
         self.contact.set_field(self.admin, "age", 36)
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(43):
             workbook = self.export_flow_results(
                 self.flow,
                 include_msgs=False,
@@ -6564,6 +6564,15 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
     @skip_if_no_mailroom
+    def test_save_definitions(self):
+        # create empty flow first
+        self.login(self.admin)
+        self.client.post(
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+        )
+        Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE)
+
+    @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):
         self.login(self.admin)
 
@@ -6764,10 +6773,6 @@ class FlowsTest(FlowFileTest):
         counts = favorites.get_category_counts()
         assertCount(counts, "color", "Red", 8)
         assertCount(counts, "beer", "Turbo King", 3)
-
-        # but if we ignore the ones from our deleted color node, should only have the three new ones
-        counts = favorites.get_category_counts(deleted_nodes=False)
-        assertCount(counts, "color", "Red", 3)
 
         # now delete the color ruleset and repoint nodes to the beer ruleset
         color_ruleset = flow_json["rule_sets"][0]

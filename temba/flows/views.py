@@ -26,7 +26,6 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
-from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
@@ -57,7 +56,6 @@ from .models import (
     FlowPathRecentRun,
     FlowUserConflictException,
     FlowVersionConflictException,
-    RuleSet,
 )
 
 logger = logging.getLogger(__name__)
@@ -230,6 +228,7 @@ class FlowCRUDL(SmartCRUDL):
         "copy",
         "create",
         "delete",
+        "definition",
         "update",
         "simulate",
         "export_results",
@@ -346,6 +345,8 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
+            use_new_editor = forms.BooleanField(label=_("Use new editor to author this flow"), initial=False)
+
             def __init__(self, user, branding, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -376,11 +377,16 @@ class FlowCRUDL(SmartCRUDL):
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
 
         def derive_exclude(self):
-            org = self.request.user.get_org()
+            user = self.request.user
+            org = user.get_org()
             exclude = []
 
             if not org.primary_language:
                 exclude.append("base_language")
+
+            if not self.has_permission(self.request, "flows.flow_definition"):
+                print("excluded use new editor")
+                exclude.append("use_new_editor")
 
             return exclude
 
@@ -417,6 +423,7 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
+                use_new_editor=self.form.cleaned_data["use_new_editor"],
             )
 
         def post_save(self, obj):
@@ -953,16 +960,14 @@ class FlowCRUDL(SmartCRUDL):
             flow_variables.append(dict(name="flow", display=str(_("All flow variables"))))
 
             flow_uuid = self.request.GET.get("flow", None)
-
             if flow_uuid:
-                # TODO: restrict this to only the possible paths to the passed in actionset uuid
-                rule_sets = RuleSet.objects.filter(flow__uuid=flow_uuid, flow__org=org)
-                for rule_set in rule_sets:
-                    key = ContactField.make_key(slugify(rule_set.label))
-                    flow_variables.append(dict(name="flow.%s" % key, display=rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % rule_set.label))
-                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % rule_set.label))
+                flow = Flow.objects.get(org=org, uuid=flow_uuid)
+                for result in flow.metadata["results"]:
+                    key, label = result["key"], result["name"]
+                    flow_variables.append(dict(name="flow.%s" % key, display=label))
+                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % label))
+                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % label))
+                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % label))
 
             function_completions = get_function_listing()
             messages_completions = contact_variables + date_variables + flow_variables
@@ -1310,12 +1315,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
 
-            rulesets = list(flow.rule_sets.all())
-
-            from_uuids = []
-            for ruleset in rulesets:
-                from_uuids += [rule.uuid for rule in ruleset.get_rules()]
-
+            from_uuids = flow.metadata["waiting_exit_uuids"]
             dates = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).aggregate(
                 Max("period"), Min("period")
             )
@@ -1418,11 +1418,6 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             org = self.derive_org()
 
-            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
-            for ruleset in context["rulesets"]:
-                rules = len(ruleset.get_rules())
-                ruleset.category = "true" if rules > 1 else "false"
-
             runs = flow.runs.all()
 
             if str_to_bool(self.request.GET.get("responded", "true")):
@@ -1454,13 +1449,14 @@ class FlowCRUDL(SmartCRUDL):
             context["more"] = len(runs) > self.paginate_by
             runs = runs[: self.paginate_by]
 
-            # populate ruleset values
+            result_fields = flow.metadata["results"]
+
+            # populate result values
             for run in runs:
                 results = run.results
                 run.value_list = []
-                for ruleset in context["rulesets"]:
-                    key = Flow.label_to_slug(ruleset.label)
-                    run.value_list.append(results.get(key, None))
+                for result_field in result_fields:
+                    run.value_list.append(results.get(result_field["key"], None))
 
             context["runs"] = runs
             context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
@@ -1496,10 +1492,14 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            context["rulesets"] = list(flow.rule_sets.all().order_by("y"))
-            for ruleset in context["rulesets"]:
-                rules = len(ruleset.get_rules())
-                ruleset.category = "true" if rules > 1 else "false"
+
+            result_fields = []
+            for result_field in flow.metadata["results"]:
+                result_field = result_field.copy()
+                result_field["has_categories"] = "true" if len(result_field["categories"]) > 1 else "false"
+                result_fields.append(result_field)
+            context["result_fields"] = result_fields
+
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
@@ -1587,6 +1587,54 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(client.sim_resume(payload))
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
+
+    class Definition(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+        success_message = ""
+
+        def get(self, request, *args, **kwargs):
+            last_revision = self.get_object().last_revision()
+            definition = json.loads(last_revision.definition) if last_revision else None
+            return JsonResponse({"flow": definition})
+
+        def post(self, request, *args, **kwargs):
+            if not self.has_org_perm("flows.flow_update"):
+                return HttpResponseRedirect(reverse("flows.flow_definition", args=[self.get_object().pk]))
+
+            # try to parse our body
+            definition = json.loads(force_text(request.body))
+
+            try:
+                flow = self.get_object(self.get_queryset())
+                revision = flow.save_revision(definition, self.request.get_user())
+                return JsonResponse(
+                    {
+                        "status": "success",
+                        "saved_on": json.encode_datetime(flow.saved_on, micros=True),
+                        "revision": revision.revision,
+                    }
+                )
+
+            except FlowValidationException:  # pragma: no cover
+                error = _("Your flow failed validation. Please refresh your browser.")
+            except FlowInvalidCycleException:
+                error = _("Your flow contains an invalid loop. Please refresh your browser.")
+            except FlowVersionConflictException:
+                error = _(
+                    "Your flow has been upgraded to the latest version. "
+                    "In order to continue editing, please refresh your browser."
+                )
+            except FlowUserConflictException as e:
+                error = (
+                    _(
+                        "%s is currently editing this Flow. "
+                        "Your changes will not be saved until you refresh your browser."
+                    )
+                    % e.other_user
+                )
+            except Exception:  # pragma: no cover
+                error = _("Your flow could not be saved. Please refresh your browser.")
+
+            return JsonResponse({"status": "failure", "description": error}, status=400)
 
     class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
