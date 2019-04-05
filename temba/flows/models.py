@@ -215,7 +215,7 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
-    GOFLOW_VERSION = "12"
+    GOFLOW_VERSION = "12.0.0"
 
     VERSIONS = [
         "1",

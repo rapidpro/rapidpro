@@ -257,17 +257,20 @@ class FlowTest(TembaTest):
         assert_media_upload(
             "%s/test_media/steve.marten.jpg" % settings.MEDIA_ROOT,
             "image/jpeg",
-            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "11111-111-11", ".jpg"),
+            "%s/attachments/%d/%d/steps/%s%s"
+            % (settings.STORAGE_URL, self.flow.org.pk, self.flow.pk, "11111-111-11", ".jpg"),
         )
         assert_media_upload(
             "%s/test_media/snow.mp4" % settings.MEDIA_ROOT,
             "video/mp4",
-            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "22222-222-22", ".mp4"),
+            "%s/attachments/%d/%d/steps/%s%s"
+            % (settings.STORAGE_URL, self.flow.org.pk, self.flow.pk, "22222-222-22", ".mp4"),
         )
         assert_media_upload(
             "%s/test_media/snow.m4a" % settings.MEDIA_ROOT,
             "audio/mp4",
-            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
+            "%s/attachments/%d/%d/steps/%s%s"
+            % (settings.STORAGE_URL, self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
         )
 
     def test_revision_history(self):
@@ -337,7 +340,7 @@ class FlowTest(TembaTest):
         self.flow.release()
 
         self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_activity", args=[self.flow.pk]))
+        response = self.client.get(reverse("flows.flow_activity", args=[self.flow.uuid]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -786,7 +789,7 @@ class FlowTest(TembaTest):
         # check flow activity endpoint response
         self.login(self.admin)
 
-        activity = self.client.get(reverse("flows.flow_activity", args=[self.flow.pk])).json()
+        activity = self.client.get(reverse("flows.flow_activity", args=[self.flow.uuid])).json()
         self.assertEqual(2, activity["visited"][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
         self.assertEqual(2, activity["activity"][color_ruleset.uuid])
         self.assertFalse(activity["is_starting"])
@@ -6551,7 +6554,7 @@ class FlowsTest(FlowFileTest):
         )
 
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=flow_json, content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -6596,7 +6599,7 @@ class FlowsTest(FlowFileTest):
         )
 
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=flow_json, content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -6671,7 +6674,7 @@ class FlowsTest(FlowFileTest):
 
         # check view sends converts exception to error response
         response = self.client.post(
-            reverse("flows.flow_json", args=[flow.id]), data=flow_json, content_type="application/json"
+            reverse("flows.flow_json", args=[flow.uuid]), data=flow_json, content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -7056,7 +7059,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow("favorites")
 
         self.login(self.admin)
-        recent_messages_url = reverse("flows.flow_recent_messages", args=[flow.pk])
+        recent_messages_url = reverse("flows.flow_recent_messages", args=[flow.uuid])
 
         color_prompt = ActionSet.objects.filter(flow=flow, y=0).first()
         color_ruleset = RuleSet.objects.filter(flow=flow, label="Color").first()
