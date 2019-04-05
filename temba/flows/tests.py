@@ -6565,7 +6565,6 @@ class FlowsTest(FlowFileTest):
 
     @skip_if_no_mailroom
     def test_save_definitions(self):
-        # create empty flow first
         self.login(self.admin)
         self.client.post(
             reverse("flows.flow_create"),

@@ -487,7 +487,6 @@ GROUP_PERMISSIONS = {
         "apks.apk_update",
         "campaigns.campaign_read",
         "channels.channel_configuration",
-        "channels.channel_history",
         "channels.channel_read",
         "contacts.contact_break_anon",
         "contacts.contact_read",
