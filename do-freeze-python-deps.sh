@@ -5,15 +5,15 @@
 # add or remove a package
 #   1. add/remove package from/to pip-requires.txt
 #   2. run "./do-freeze-python-deps.sh"
-#   3. run "pip-sync pip-freeze.txt
+#   3. run "pip-sync pip-freeze.txt"
 #
 # update a package
 #   1. run "./do-freeze-python-deps.sh -P name_of_the_package"
-#   2. run "pip-sync pip-freeze.txt
+#   2. run "pip-sync pip-freeze.txt"
 #
 # update a package to a specific version
 #   1. run "./do-freeze-python-deps.sh -P name_of_the_package==1.3.6"
-#   2. run "pip-sync pip-freeze.txt
+#   2. run "pip-sync pip-freeze.txt"
 #
 
 PIP_REQUIRES_FILE=pip-requires.txt

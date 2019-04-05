@@ -630,7 +630,7 @@ class ContactCRUDL(SmartCRUDL):
 
                 used_labels = []
                 # don't allow users to specify field keys or labels
-                re_col_name_field = regex.compile(r"column_\w+_label", regex.V0)
+                re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
@@ -1122,6 +1122,16 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(
                         dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
                     )
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
+                    )
+                )
 
             return links
 

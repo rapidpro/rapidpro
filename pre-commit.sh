@@ -8,7 +8,7 @@ if [ -n "$FILES" ]; then
 fi
 
 if [ -n "$FILES" ]; then
-    if black --line-length=119 $FILES; then
+    if black --line-length=119 --target-version=py36 $FILES; then
 	touch .commit
     fi
 fi

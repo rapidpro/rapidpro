@@ -1,3 +1,67 @@
+v4.22.19
+----------
+ * api for templates, add access token and fb user id to claim, sync with facebook endpoint
+
+v4.22.18
+----------
+ * fix recalculating event fires for fields when that field is created_on
+
+v4.22.17
+----------
+ * Don't overwrite show_in_table flag on contact import
+ * Prevent updates of contact field labels when adding a field to a flow
+ * Add migration to populate results and waiting_exit_uuids in Flow.metadata
+
+v4.22.15
+----------
+ * Do not immediately expire flow when updating expirations (leave that to mailroom)
+ * Fix boundary aliases duplicates creation
+ * Add org lock for users to deal with similtaneous updates of org users
+ * Add results and waiting_exit_uuids to flow metadata and start populating on Flow.update
+
+v4.22.14
+----------
+ * CreateSubOrg needs to be non-atomic as well as it creates flows which need to be validated
+ * Remove unused download view
+
+v4.22.13
+----------
+ * allow blank pack, update permissions
+
+v4.22.12
+----------
+ * remove APK read view, only have update
+ * allow setting pack number
+
+v4.22.11
+----------
+ * Add APK app and new Android claiming pipeline for Android Relayer
+
+v4.22.10
+----------
+ * Use output of flow validation in mailroom to set flow dependencies
+ * Make message_actions.json API endpoint support partial updates
+ * Log to librato only pending messages older than a minute
+
+v4.22.6
+----------
+ * Add Viber Welcome Message event type and config
+ * More customer support service buttons
+
+v4.22.5
+----------
+ * queue incoming messages and incoming calls from relayer to mailroom
+
+v4.22.4
+----------
+ * Temporarily disable flow validation until we can fix it for new orgs
+
+v4.22.3
+----------
+ * Lazily create any dependent objects when we save
+ * MAILROOM_URL in settings.py.dev should default to http://localhost:8090
+ * Call to mailroom to validate a flow before saving a new definition (and fix invalid flows in our tests)
+
 v4.22.2
 ----------
  * Fix schedule next fire calculation bug when schedule is greater than number of days

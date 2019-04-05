@@ -57,13 +57,13 @@ class TriggerTest(TembaTest):
         # unicode keyword (Arabic)
         post_data = dict(keyword="١٠٠", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"١٠٠")
+        trigger = Trigger.objects.get(keyword="١٠٠")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # unicode keyword (Hindi)
         post_data = dict(keyword="मिलाए", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"मिलाए")
+        trigger = Trigger.objects.get(keyword="मिलाए")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # a valid keyword
@@ -550,7 +550,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(1, len(response.context["form"].errors))
 
         # create a trigger that sets up a group join flow
-        post_data = dict(action_join_group=group.pk, keyword=u"١٠٠")
+        post_data = dict(action_join_group=group.pk, keyword="١٠٠")
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
@@ -558,7 +558,7 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact("Ben", "+250788382382")
-        msg = self.create_msg(direction=INCOMING, contact=contact, text=u"١٠٠ join group")
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="١٠٠ join group")
         self.assertIsNone(msg.msg_type)
 
         self.assertTrue(Trigger.find_and_handle(msg))
@@ -629,8 +629,6 @@ class TriggerTest(TembaTest):
             self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
         )
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
-        self.assertEqual(flow.runs.all().count(), 1)
-        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)
@@ -652,7 +650,7 @@ class TriggerTest(TembaTest):
                 1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count()
             )
 
-        # even unarchiving we only have one acive trigger at a time
+        # even unarchiving we only have one active trigger at a time
         triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
         active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
 
@@ -735,9 +733,9 @@ class TriggerTest(TembaTest):
         self.assertEqual(viber_channel, trigger.channel)
 
     @override_settings(IS_PROD=True)
-    @patch("requests.post")
-    def test_new_conversation_trigger(self, mock_post):
+    def test_new_conversation_trigger(self):
         self.login(self.admin)
+
         flow = self.create_flow()
         flow2 = self.create_flow()
 
@@ -756,25 +754,28 @@ class TriggerTest(TembaTest):
         self.assertContains(response, "conversation is started")
 
         # go create it
-        mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
 
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_post.call_count, 1)
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
 
-        # check that it is right
-        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
-        self.assertEqual(trigger.channel, fb_channel)
-        self.assertEqual(trigger.flow, flow)
+            # check that it is right
+            trigger = Trigger.objects.get(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False
+            )
+            self.assertEqual(trigger.channel, fb_channel)
+            self.assertEqual(trigger.flow, flow)
 
-        # try to create another one, fails as we already have a trigger for that channel
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
+            # try to create another one, fails as we already have a trigger for that channel
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
 
         # archive our trigger, should unregister our callback
         with patch("requests.post") as mock_post:

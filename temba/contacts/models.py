@@ -1152,7 +1152,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None):
+    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
         """
         Gets or creates a contact with the given URN
         """
@@ -1181,6 +1181,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             kwargs = dict(org=org, name=name, created_by=user, is_test=False)
             contact = Contact.objects.create(**kwargs)
+            contact.is_new = True
             updated_attrs = list(kwargs.keys())
 
             if existing_urn:
@@ -1195,7 +1196,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             analytics.gauge("temba.contact_created")
 
             # handle group and campaign updates
-            contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+            if init_new:
+                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+
             return contact, urn_obj
 
     @classmethod
@@ -1504,7 +1507,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 field_dict[key] = value
 
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict["org"], user, key, label, False, field["type"])
+                ContactField.get_or_create(field_dict["org"], user, key, label, value_type=field["type"])
+
                 extra_fields.append(key)
             else:
                 raise ValueError("Extra field %s is a reserved field name" % key)

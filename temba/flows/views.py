@@ -41,13 +41,14 @@ from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
+from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, get_current_export_version
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, NonAtomicMixin
 
 from .models import (
     ExportFlowResultsTask,
@@ -1587,7 +1588,7 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class Json(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
         success_message = ""
 
@@ -1649,6 +1650,8 @@ class FlowCRUDL(SmartCRUDL):
                     status=200,
                 )
 
+            except FlowValidationException:  # pragma: no cover
+                error = _("Your flow failed validation. Please refresh your browser.")
             except FlowInvalidCycleException:
                 error = _("Your flow contains an invalid loop. Please refresh your browser.")
             except FlowVersionConflictException:

@@ -17,6 +17,7 @@ from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
+from temba.templates.models import Template, TemplateTranslation
 from temba.values.constants import Value
 
 # by default every user will have this password including the superuser
@@ -134,6 +135,30 @@ ORG1 = dict(
             ),
         ),
     ),
+    templates=(
+        dict(
+            name="revive_issue",
+            uuid="9c22b594-fcab-4b29-9bcb-ce4404894a80",
+            translations=(
+                dict(
+                    channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    language="eng",
+                    content="Hi {{1}}, are you still experiencing problems with {{2}}?",
+                    variable_count=2,
+                    status="A",
+                    external_id="eng1",
+                ),
+                dict(
+                    channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
+                    language="fra",
+                    content="Bonjour {{1}}, a tu des problems avec {{2}}?",
+                    variable_count=2,
+                    status="P",
+                    external_id="fra1",
+                ),
+            ),
+        ),
+    ),
 )
 
 ORG2 = dict(
@@ -160,6 +185,7 @@ ORG2 = dict(
         dict(name="Send All", file="send_all.json", uuid="5277916d-6011-41ac-a4a4-f6ac6a4f1dd9"),
     ),
     campaigns=(),
+    templates=(),
 )
 
 ORGS = [ORG1, ORG2]
@@ -196,6 +222,10 @@ class Command(BaseCommand):
         self._log("Creating superuser... ")
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
+
+        input(
+            '\nPlease start mailroom:\n   % ./mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable"\n\nPress enter when ready.\n'
+        )
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
 
@@ -260,6 +290,10 @@ class Command(BaseCommand):
             cursor.execute("ALTER SEQUENCE campaigns_campaign_id_seq RESTART WITH %s", [spec["sequence_start"]])
             cursor.execute("ALTER SEQUENCE campaigns_campaignevent_id_seq RESTART WITH %s", [spec["sequence_start"]])
             cursor.execute("ALTER SEQUENCE msgs_label_id_seq RESTART WITH %s", [spec["sequence_start"]])
+            cursor.execute("ALTER SEQUENCE templates_template_id_seq RESTART WITH %s", [spec["sequence_start"]])
+            cursor.execute(
+                "ALTER SEQUENCE templates_templatetranslation_id_seq RESTART WITH %s", [spec["sequence_start"]]
+            )
 
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
@@ -269,6 +303,7 @@ class Command(BaseCommand):
         self.create_contacts(spec, org, locations, superuser)
         self.create_group_contacts(spec, org, superuser)
         self.create_campaigns(spec, org, superuser)
+        self.create_templates(spec, org, superuser)
 
         return org
 
@@ -385,6 +420,25 @@ class Command(BaseCommand):
                     )
                     evt.flow.uuid = e["uuid"]
                     evt.flow.save()
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_templates(self, spec, org, templates):
+        self._log(f"Creating {len(spec['templates'])} templates... ")
+
+        for t in spec["templates"]:
+            Template.objects.create(org=org, uuid=t["uuid"], name=t["name"])
+            for tt in t["translations"]:
+                channel = Channel.objects.get(uuid=tt["channel_uuid"])
+                TemplateTranslation.get_or_create(
+                    channel,
+                    t["name"],
+                    tt["language"],
+                    tt["content"],
+                    tt["variable_count"],
+                    tt["status"],
+                    tt["external_id"],
+                )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

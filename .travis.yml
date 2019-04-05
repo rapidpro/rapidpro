@@ -36,7 +36,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=0.0.73
+  - MAILROOM_VERSION=0.0.155
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
@@ -77,7 +77,7 @@ script:
   - set -e
 
   # test that everything is well formatted
-  - black --line-length=119 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
+  - black --line-length=119 --target-version=py36 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
 
   # test PEP8 compliance on both Python 2 and 3
   - flake8
