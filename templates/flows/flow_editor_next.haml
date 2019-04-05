@@ -4,14 +4,37 @@
 
 -block extra-style
   %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
-  %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor-styles.css"}
+
 
   :css
     body {
       line-height: inherit;
+
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
 
-    p {
+    #header *, #top-menu *, .org-header * {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      z-index: 0;
+      position: relative;
+    }
+
+    #rp-flow-editor input[type=text] {
+      height: inherit !important;
+      line-height: inherit;
+    }
+
+    #rp-flow-editor p {
       display: block;
       margin-block-start: 1em;
       margin-block-end: 1em;
@@ -23,13 +46,13 @@
       height: inherit;
     }
 
-    input {
+    #rp-flow-editor input {
       font-family: 'Roboto', sans-serif;
       font-size: 14px !important;
       font-weight: 300 !important;
     }
 
-    input:focus {
+    #rp-flow-editor input:focus {
       box-shadow: none;
       outline: none;
       border: none;
@@ -40,36 +63,162 @@
       margin: 0;
     }
 
+    #toolbar h2 {
+      margin-top: -5px;
+    }
+
+    .gear-menu.open {
+      z-index: 3000;
+    }
+
+    #toolbar {
+      visibility: hidden;
+      position: relative;
+      height: 40px;
+      padding: 20px 30px;
+      background-color: #f9f9f9;
+      background-position: 13px 13px;
+      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
+      background-size: 40px 40px;
+    }
+
+    #rp-flow-editor {
+      visibility: hidden;
+    }
+
+    #rp-flow-editor .language-selector {
+      top: -15px !important;
+    }
+
 -block extra-script
   {{ block.super }}
 
-  -compress js
-    %script{type:'text/javascript', src:"{{ STATIC_URL }}wrapper.js"}
+  %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor-styles.css"}
+  %script{type:'text/javascript', src:"{{ STATIC_URL }}react.production.min.js"}
+  %script{type:'text/javascript', src:"{{ STATIC_URL }}react-dom.production.min.js"}
+  %script{type:'text/javascript', src:"{{ STATIC_URL }}flow-editor.js"}
+  %script{type:'text/javascript', src:"{{ STATIC_URL }}vendors~flow-editor.js"}
 
-    :javascript
-      var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
-      var config = {
-        flow: '{{object.uuid}}',
-        localStorage: true,
-        endpoints: {
-          attachments: '/flow/upload_media_action/{{object.org.id}}/',
-          resthooks: base + 'resthook',
-          flows: base + 'flow',
-          groups: base + 'group',
-          recipients: '/contact/omnibox?v=2&types=gcu',
-          fields: base + 'field',
-          labels: base + 'label',
-          languages: base + 'language',
-          channels: base + 'channel',
-          environment: base + 'environment',
-          activity: '',
-          simulateStart: '/flow/simulate/{{object.org.id}}/',
-          simulateResume: '/flow/simulate/{{object.org.id}}/'
+  // %script{type:'text/javascript', src:"http://localhost:9000/flow-editor.js"}
+
+  :javascript
+
+    const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
+    const api = '/api/v2/';
+
+    // line up our flow types with goflow types
+    var flowType = '{{object.flow_type}}';
+    if (flowType == 'M') {
+      flowType = 'messaging';
+    } else if (flowType == 'V') {
+      flowType = 'voice';
+    } else if (flowType == 'S') {
+      flowType = 'messaging_offline';
+    }
+
+    function handleEditorLoaded() {
+      $('#rp-flow-editor').css('visibility', 'visible')
+      $('#toolbar').css('visibility', 'visible')
+    }
+
+    function handleActivityClicked(nodeUUID, count) {
+      showCompose(false, null, nodeUUID, count);
+    }
+
+    const config = {
+      flow: '{{object.uuid}}',
+      flowType: flowType,
+      localStorage: true,
+
+      onLoad: handleEditorLoaded,
+      onActivityClicked: handleActivityClicked,
+
+      endpoints: {
+
+        groups: api + 'groups.json',
+        fields: api + 'fields.json',
+        labels: api + 'labels.json',
+        channels: api + 'channels.json',
+        resthooks: api + 'resthooks.json',
+
+        // TODO: migrate to API?
+        revisions: '/flow/revisions/{{object.uuid}}/',
+        recents: '/flow/recent_messages/{{object.uuid}}/',
+        attachments: '/flow/upload_media_action/{{object.org.id}}/',
+        flows: base + 'flow',
+        languages: base + 'language',
+        environment: base + 'environment',
+        activity: '/flow/activity/{{object.uuid}}/',
+        recipients: '/contact/omnibox?v=2&types=gcu',
+
+        simulateStart: '/flow/simulate/{{object.id}}/',
+        simulateResume: '/flow/simulate/{{object.id}}/'
+      }
+
+    };
+
+    showFlowEditor(document.getElementById('rp-flow-editor'), config);
+
+
+    {% if org_perms.flows.flow_update %}
+    $(".update-rulesflow").live('click', function(){
+      var modal = new Modax('Update Flow', '{% url "flows.flow_update" object.pk %}');
+      modal.setIcon('icon-users-2');
+      modal.setListeners({
+        onSuccess: function(data) {location.reload(); },
+        onFormLoaded: function() {
+          $('#id_label').children("option:first-child").before("<option></option>");
+          $('#id_label').select2({minimumResultsForSearch: -1, placeholder: "No Label Selected"});}
+      });
+      modal.show();
+    });
+    {% endif %}
+
+    // Starting the flow
+    {% if org_perms.msgs.broadcast_send %}
+      $(".broadcast-rulesflow").live('click', function(){
+        var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
+        var onActions = {
+          onSuccess: function(data) {
+            $('html').scope().is_starting = true;
+          },
+          onFormLoaded: function() { }
         }
-      };
+        // check if there is no channel, change the primary button behavior to redirect to channel creation
+        {% if not can_start or not has_outgoing_channel %}
+          modal.setPrimaryButton(gettext("Add Channel"));
+          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
+        {% endif %}
 
-      showFlowEditor(document.getElementById('rp-flow-editor'), config);
+        modal.setListeners(onActions);
+        modal.show();
+      });
+    {% endif %}
+
+    {% if org_perms.flows.flow_delete %}
+      $(".delete-flow").live('click', function() {
+        var modal = new Modax('{% trans "Delete Flow" %}', '{% url "flows.flow_delete" flow.id %}');
+        modal.addClass("alert");
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+    {% endif %}
+
 
 -block page-container
+
+  -include "msgs/msg_send_modal.html"
+  -include "delete_modal_include.html"
+
+  #toolbar
+    .actions.pull-right
+      -include "gear_links_include.haml"
+    %h2
+      -if flow.flow_type == 'V'
+        .icon-phone
+      -elif flow.flow_type == 'S'
+        .icon-mobile
+      {{ flow.name }}
+
   #rp-flow-editor
 

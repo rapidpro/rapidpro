@@ -45,7 +45,6 @@ from temba.orgs.models import Org, get_current_export_version
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
-from temba.utils.dates import datetime_to_ms
 from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm
@@ -260,6 +259,9 @@ class FlowCRUDL(SmartCRUDL):
             return initial_queryset.filter(is_active=True)
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
+
+        slug_url_kwarg = "uuid"
+
         def get(self, request, *args, **kwargs):
             exit_uuids = request.GET.get("exits", "").split(",")
             to_uuid = request.GET.get("to")
@@ -713,7 +715,7 @@ class FlowCRUDL(SmartCRUDL):
             url = public_file_storage.save(
                 "attachments/%d/%d/steps/%s.%s" % (flow.org.pk, flow.id, name_uuid, extension), file
             )
-            return {"type": file.content_type, "url": url}
+            return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")
@@ -971,6 +973,14 @@ class FlowCRUDL(SmartCRUDL):
     class Editor(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def get(self, request, *args, **kwargs):
+
+            # require update permissions
+            if self.get_object().version_number[0:2] == "12" and "legacy" not in self.request.GET:
+                return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
+
+            return super().get(request, *args, **kwargs)
+
         def derive_title(self):
             return self.object.name
 
@@ -1069,10 +1079,52 @@ class FlowCRUDL(SmartCRUDL):
         def get_template_names(self):
             return "flows/flow_editor_next.haml"
 
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            context["fingerprint"] = datetime_to_ms(datetime.now())
-            return context
+        def get_gear_links(self):
+            links = []
+            flow = self.object
+
+            if (
+                flow.flow_type != Flow.TYPE_SURVEY
+                and self.has_org_perm("flows.flow_broadcast")
+                and not flow.is_archived
+            ):
+                links.append(
+                    dict(title=_("Start Flow"), style="btn-primary", js_class="broadcast-rulesflow", href="#")
+                )
+
+            if self.has_org_perm("flows.flow_results"):
+                links.append(
+                    dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
+                )
+            if len(links) > 1:
+                links.append(dict(divider=True))
+
+            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
+                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
+
+            if self.has_org_perm("flows.flow_copy"):
+                links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
+
+            if self.has_org_perm("flows.flow_delete"):
+                links.append(dict(divider=True)),
+                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                if len(links) > 1:
+                    links.append(dict(divider=True))
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
+                    )
+                )
+
+            return links
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
@@ -1452,11 +1504,13 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
         def get(self, request, *args, **kwargs):
             flow = self.get_object(self.get_queryset())
             (active, visited) = flow.get_activity()
 
-            return JsonResponse(dict(activity=active, visited=visited, is_starting=flow.is_starting()))
+            return JsonResponse(dict(nodes=active, segments=visited, is_starting=flow.is_starting()))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
         @csrf_exempt
@@ -1480,14 +1534,17 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             client = mailroom.get_client()
 
+            channel_uuid = "440099cf-200c-4d45-a8e7-4a564f4a0e8b"
+            channel_name = "Test Channel"
+
             # build our request body, which includes any assets that mailroom should fake
             payload = {
                 "org_id": flow.org_id,
                 "assets": {
                     "channels": [
                         {
-                            "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
-                            "name": "Test Channel",
+                            "uuid": channel_uuid,
+                            "name": channel_name,
                             "address": "+18005551212",
                             "schemes": ["tel"],
                             "roles": ["send", "receive", "call"],
@@ -1502,7 +1559,16 @@ class FlowCRUDL(SmartCRUDL):
 
             # check if we are triggering a new session
             if "trigger" in json_dict:
+
                 payload["trigger"] = json_dict["trigger"]
+
+                # ivr flows need a connection in their trigger
+                if flow.flow_type == Flow.TYPE_VOICE:
+                    payload["trigger"]["connection"] = {
+                        "channel": {"uuid": channel_uuid, "name": channel_name},
+                        "urn": "tel:+12065551212",
+                    }
+
                 payload["trigger"]["environment"] = serialize_environment(flow.org)
 
                 try:
