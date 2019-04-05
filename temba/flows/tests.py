@@ -14,7 +14,7 @@ from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -6568,9 +6568,18 @@ class FlowsTest(FlowFileTest):
         # create empty flow first
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"),
+            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true"),
         )
-        Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE)
+        Flow.objects.get(
+            org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=get_current_export_version()
+        )
+
+        self.admin.user_permissions.add(Permission.objects.get(codename="flows.flow_definition"))
+        self.client.post(
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true")
+        )
+        Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION)
 
     @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):

@@ -345,7 +345,13 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            use_new_editor = forms.BooleanField(label=_("Use new editor to author this flow"), initial=False)
+            use_new_editor = forms.ChoiceField(
+                label=_("Use New Editor"),
+                help_text=_("Use new editor when authoring this flow"),
+                choices=((True, "Yes"), (False, "No")),
+                initial=False,
+                required=False,
+            )
 
             def __init__(self, user, branding, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -369,7 +375,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("name", "keyword_triggers", "flow_type", "base_language")
+                fields = ("name", "keyword_triggers", "flow_type", "base_language", "use_new_editor")
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -384,8 +390,7 @@ class FlowCRUDL(SmartCRUDL):
             if not org.primary_language:
                 exclude.append("base_language")
 
-            if not self.has_permission(self.request, "flows.flow_definition"):
-                print("excluded use new editor")
+            if not self.get_user().has_perm("flows.flow_definition"):
                 exclude.append("use_new_editor")
 
             return exclude
@@ -423,7 +428,7 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
-                use_new_editor=self.form.cleaned_data["use_new_editor"],
+                use_new_editor=self.form.cleaned_data.get("use_new_editor", False),
             )
 
         def post_save(self, obj):
