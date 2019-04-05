@@ -215,6 +215,8 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
+    GOFLOW_VERSION = "12"
+
     VERSIONS = [
         "1",
         "2",
@@ -2276,7 +2278,7 @@ class Flow(TembaModel):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by("-revision").all().first()
                 if revision:
-                    json_flow = revision.get_definition_json()
+                    json_flow = revision.get_definition_json(to_version)
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
@@ -4231,9 +4233,12 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
+        if to_version == Flow.GOFLOW_VERSION:
+            json_flow = mailroom.get_client().flow_migrate(json_flow)
+
         return json_flow
 
-    def get_definition_json(self):
+    def get_definition_json(self, to_version=get_current_export_version()):
 
         definition = self.definition
 
@@ -4253,8 +4258,8 @@ class FlowRevision(SmartModel):
         definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
-        if self.spec_version != get_current_export_version():
-            definition = FlowRevision.migrate_definition(definition, self.flow)
+        if self.spec_version != to_version:
+            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
         return definition
 
     def as_json(self):
