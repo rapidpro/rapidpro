@@ -75,6 +75,8 @@
                       -else
                         %td
 
+                      %td
+
                   - empty
                     %tr.empty_list
                       %td{ colspan:'99' }
@@ -99,13 +101,21 @@
 
     - if is_featured_category
       - if org_perms.contacts.contactfield_update_priority
-        $('#draggable-tbody').sortable({
+        var sortable = new Sortable(document.getElementById('draggable-tbody'), {
           // handle: '.drag-handle',  // make this row draggable only by the handle
-          placeholder: "sortable-placeholder",
           dataIdAttr: 'data-cfid',
           direction: 'vertical',
-          stop: function (event, ui) {
-            $(ui.item).removeClass('sortable-dragging');
+          animation: 100,
+
+          // uncomment next line of code to toggle fallback behaviour, might help if you are having issues with older browsers
+          //   once toggled the width of the dragged row will be smaller then expected (known problem with widths - https://github.com/nyaruka/rapidpro/pull/2328#issuecomment-479912074)
+
+          // forceFallback: true,
+
+          ghostClass: "sortable-ghost",  // Class name for the drop placeholder
+          dragClass: "sortable-drag",  // Class name for the dragging item
+
+          onEnd: function (event) {
 
             var priorityMapping = {};
             $('#draggable-tbody > tr').each(function(idx, elem) {
@@ -131,12 +141,6 @@
                 // console.log(jqXHR, status, error);
               }
             });
-
-          },
-          start: function (event, ui) {
-            $(ui.item).addClass('sortable-dragging');
-            // since we use a table we need to manually add a div to the sortable.placeholder in order to modify its margin
-            ui.placeholder.html('<td colspan=99><div></div></td>');
           }
         });
 
@@ -270,6 +274,8 @@
 
 </script>
 
+<script type="text/javascript" src="{{ STATIC_URL }}lib/Sortable.min.js"></script>
+
 {% endblock %}
 
 
@@ -277,6 +283,7 @@
 -block extra-style
   {{block.super}}
   :css
+
     .drag-handle {
       cursor: move;
       display: block;
@@ -289,12 +296,12 @@
       width: 15px;
     }
 
-    .sortable-dragging {
-      opacity: 1;
-      background-color: #f9f9f9;
-      border: 1px solid #dbdfe0 !important;
-      border-radius: 3px;
-      margin: 0px;
+    .sortable-drag {
+      background-color: #f5f9fa;;
+    }
+
+    .sortable-ghost {
+      background-color: #f5f9ff;
     }
 
     .draggable-row .icon {
@@ -310,17 +317,8 @@
       color: #cccccc;
     }
 
-    #draggable-tbody tr.sortable-placeholder {
-      visibility: visible;
-    }
-
-    #draggable-tbody .sortable-placeholder div {
-      border-top: 1px solid #dbdfe0;
-      border-bottom: 1px solid #dbdfe0;
-      background-color: #f5f9fa;
-      height: 57px;
-      margin-bottom: 10px;
-      margin-top: 0px;
+    .drag-icon {
+      width: 15px;
     }
 
     .value-label {
@@ -340,16 +338,8 @@
       text-align: center;
     }
 
-    .drag-icon {
-      width: 15px;
-    }
-
     td.field-dependencies {
       text-align: right;
       white-space: nowrap;
       width: 3em;
-    }
-
-    .badge-info {
-      background-color: #0c6596;
     }

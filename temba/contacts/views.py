@@ -1783,7 +1783,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     def get_show_in_table(self, obj):
         if obj.show_in_table:
             featured_label = _("featured")
-            return mark_safe(f'<span class="badge badge-info">{featured_label}</span>')
+            return mark_safe(f'<span class="label label-info">{featured_label}</span>')
         else:
             return ""
 
