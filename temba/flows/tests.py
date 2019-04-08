@@ -790,8 +790,8 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         activity = self.client.get(reverse("flows.flow_activity", args=[self.flow.uuid])).json()
-        self.assertEqual(2, activity["visited"][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
-        self.assertEqual(2, activity["activity"][color_ruleset.uuid])
+        self.assertEqual(2, activity["segments"][color_prompt.exit_uuid + ":" + color_ruleset.uuid])
+        self.assertEqual(2, activity["nodes"][color_ruleset.uuid])
         self.assertFalse(activity["is_starting"])
 
         # set the flow as inactive, shouldn't react to replies
@@ -7172,7 +7172,7 @@ class FlowsTest(FlowFileTest):
         # a Twitter channel
         Channel.create(self.org, self.user, None, "TT")
 
-        response = self.client.get("%s?flow=%d" % (reverse("flows.flow_completion"), flow.pk))
+        response = self.client.get("%s?flow=%s" % (reverse("flows.flow_completion"), flow.uuid))
         response = response.json()
 
         assert_in_response(response, "message_completions", "contact.twitter")

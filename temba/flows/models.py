@@ -4336,6 +4336,9 @@ class FlowRevision(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
+            if Flow.METADATA not in definition:
+                definition[Flow.METADATA] = {}
+
             definition[Flow.METADATA][Flow.REVISION] = self.revision
             definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
         return definition
