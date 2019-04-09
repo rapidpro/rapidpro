@@ -1,3 +1,7 @@
+v4.22.21
+----------
+ * Add new page for contact field management
+
 v4.22.20
 ----------
  * add management command to reactivate fb channels
