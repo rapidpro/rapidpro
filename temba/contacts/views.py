@@ -1719,7 +1719,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     link_fields = ()
 
     add_button = True
-    paginate_by = None
+    paginate_by = 10000
 
     template_name = "contacts/contactfield_list.haml"
 
