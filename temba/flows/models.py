@@ -439,6 +439,9 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
+        if f"{to_check}" not in Flow.VERSIONS:
+            return False
+
         return Version(f"{to_check}") < Version(f"{version}")
 
     @classmethod
