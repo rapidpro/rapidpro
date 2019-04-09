@@ -36,6 +36,7 @@ omit =
     temba/utils/management/commands/mailroom_db.py
     temba/orgs/management/commands/update_analytics_consent.py
     temba/orgs/management/commands/update_analytics_orgs.py
+    temba/channels/management/commands/reactivate_fb_channels.py
 
 [html]
 directory = coverage_html_report
