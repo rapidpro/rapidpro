@@ -133,12 +133,10 @@
               url: priorityUpdateUrl,
               data: JSON.stringify(priorityMapping),
               success: function (data, status, jqXHR) {
-                // show user a notification ???
-                // console.log(data, status, jqXHR);
+                // do nothing
               },
               error: function (jqXHR, status, error) {
-                // how do we display errors to the user ???
-                // console.log(jqXHR, status, error);
+                console.error(jqXHR, status, error);
               }
             });
           }
