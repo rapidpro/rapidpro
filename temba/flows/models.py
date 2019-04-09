@@ -13,6 +13,7 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
+from packaging.version import Version
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
@@ -252,8 +253,6 @@ class Flow(TembaModel):
         "11.12",
     ]
 
-    GOFLOW_VERSION = "12.0.0"
-
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
     labels = models.ManyToManyField(
@@ -440,14 +439,7 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
-        version_str = str(to_check)
-        version = str(version)
-        for ver in Flow.VERSIONS:
-            if ver == version_str and version != ver:
-                return True
-            elif version == ver:
-                return False
-        return False
+        return Version(f"{to_check}") < Version(f"{version}")
 
     @classmethod
     def get_triggerable_flows(cls, org):
@@ -1023,25 +1015,15 @@ class Flow(TembaModel):
 
     @classmethod
     def get_versions_before(cls, version_number):  # pragma: no cover
-        versions = []
-        version_str = str(version_number)
-        for ver in Flow.VERSIONS:
-            if version_str != ver:
-                versions.append(ver)
-            else:
-                break
-        return versions
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) < version_number]
 
     @classmethod
     def get_versions_after(cls, version_number):
-        versions = []
-        version_str = str(version_number)
-        for ver in reversed(Flow.VERSIONS):
-            if version_str != ver:
-                versions.insert(0, ver)
-            else:
-                break
-        return versions
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) > version_number]
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
@@ -2311,7 +2293,7 @@ class Flow(TembaModel):
         # must be a new version for this method
         metadata = definition.get(Flow.METADATA, {})
 
-        if definition.get(Flow.SPEC_VERSION) != Flow.GOFLOW_VERSION:
+        if Version(definition.get(Flow.SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
             raise FlowVersionConflictException(metadata.get(Flow.SPEC_VERSION))
 
         # get our last revision
@@ -2372,7 +2354,7 @@ class Flow(TembaModel):
             raise FlowInvalidCycleException(cycle_node_uuids)
 
         # make sure the flow version hasn't changed out from under us
-        if json_dict.get(Flow.VERSION) != get_current_export_version():
+        if Version(json_dict.get(Flow.VERSION)) != Version(get_current_export_version()):
             raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
         flow_user = get_flow_user(self.org)
@@ -4299,7 +4281,8 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = get_current_export_version()
 
-        for version in Flow.get_versions_after(json_flow.get(Flow.VERSION)):
+        versions = Flow.get_versions_after(json_flow[Flow.VERSION])
+        for version in versions:
             version_slug = version.replace(".", "_")
             migrate_fn = getattr(flow_migrations, "migrate_to_version_%s" % version_slug, None)
 
@@ -4310,7 +4293,7 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
-        if to_version == Flow.GOFLOW_VERSION:
+        if Version(to_version) >= Version(Flow.GOFLOW_VERSION):
             json_flow = mailroom.get_client().flow_migrate(json_flow)
 
         return json_flow

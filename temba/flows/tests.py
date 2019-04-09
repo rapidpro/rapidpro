@@ -14,7 +14,7 @@ from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -6575,7 +6575,7 @@ class FlowsTest(FlowFileTest):
         )
 
         # make admin alpha
-        self.admin.user_permissions.add(Permission.objects.get(codename="flow_definition"))
+        self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="True")
         )

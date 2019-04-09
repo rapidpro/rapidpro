@@ -62,6 +62,7 @@ mccabe==0.6.1             # via flake8
 nexmo==2.3.0
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.3
+packaging==19.0
 phonenumbers
 pip-tools==3.5.0
 psycopg2-binary==2.7.7
