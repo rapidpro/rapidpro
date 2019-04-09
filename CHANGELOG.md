@@ -1,3 +1,7 @@
+v4.22.20
+----------
+ * add management command to reactivate fb channels
+
 v4.22.19
 ----------
  * api for templates, add access token and fb user id to claim, sync with facebook endpoint
