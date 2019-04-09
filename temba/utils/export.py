@@ -104,7 +104,7 @@ class BaseExportTask(TembaModel):
         else:
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
-            print(f"Completed {self.analytics_key} in {elapsed:.1f} seconds")
+            print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
@@ -119,7 +119,7 @@ class BaseExportTask(TembaModel):
 
     def update_status(self, status):
         self.status = status
-        self.save(update_fields=("status",))
+        self.save(update_fields=("status", "modified_on"))
 
     @classmethod
     def get_recent_unfinished(cls, org):
