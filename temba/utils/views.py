@@ -158,7 +158,7 @@ class ContactListPaginator(Paginator):
     @cached_property
     def num_pages(self):
 
-        if isinstance(self.object_list, ModelESSearch):
+        if self.is_es_search():
             # limit maximum number of pages when searching contacts on ES
             # https://github.com/rapidpro/rapidpro/issues/876
 
@@ -170,7 +170,7 @@ class ContactListPaginator(Paginator):
 
     @cached_property
     def count(self):
-        if isinstance(self.object_list, ModelESSearch):
+        if self.is_es_search():
             # execute search on the ElasticSearch to get the count
             return self.object_list.count()
         else:
@@ -186,7 +186,7 @@ class ContactListPaginator(Paginator):
 
         es_search = args[0]
 
-        if isinstance(es_search, ModelESSearch):
+        if self.is_es_search(es_search):
             # we need to execute the ES search again, to get the actual page of records
             new_object_list = args[0].execute()
 
@@ -204,10 +204,16 @@ class ContactListPaginator(Paginator):
             top = self.count
 
         # make sure to not request more than we can return, set the upper limit to the ES search buffer size
-        if top >= self.ES_SEARCH_BUFFER_SIZE:
+        if top >= self.ES_SEARCH_BUFFER_SIZE and self.is_es_search():
             top = self.ES_SEARCH_BUFFER_SIZE
 
         return self._get_page(self.object_list[bottom:top], number, self)
+
+    def is_es_search(self, obj=None):
+        if obj is None:
+            return isinstance(self.object_list, ModelESSearch)
+        else:
+            return isinstance(obj, ModelESSearch)
 
 
 class ContactListPaginationMixin(object):
