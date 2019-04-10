@@ -344,8 +344,6 @@ class FlowCRUDL(SmartCRUDL):
 
             except FlowValidationException:  # pragma: no cover
                 error = _("Your flow failed validation. Please refresh your browser.")
-            except FlowInvalidCycleException:
-                error = _("Your flow contains an invalid loop. Please refresh your browser.")
             except FlowVersionConflictException:
                 error = _(
                     "Your flow has been upgraded to the latest version. "
@@ -1177,8 +1175,6 @@ class FlowCRUDL(SmartCRUDL):
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
-                if len(links) > 1:
-                    links.append(dict(divider=True))
                 links.append(
                     dict(
                         title=_("Service"),

@@ -328,6 +328,53 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_revisions", args=[self.flow.uuid]))
         self.assertEqual(0, len(response.json()["results"]))
 
+    @skip_if_no_mailroom
+    def test_goflow_revisions(self):
+        # make admin alpha
+        self.login(self.admin)
+        self.admin.groups.add(Group.objects.get(name="Alpha"))
+        self.client.post(
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+        )
+        flow = Flow.objects.get(
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+        )
+        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertEqual(1, len(response.json()))
+
+        definition = flow.revisions.all().first().definition
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
+        )
+
+        # check that we created a new revision
+        new_revision = json.loads(response.content)
+        self.assertEqual(2, new_revision[Flow.REVISION][Flow.REVISION])
+
+        # but we can't save our old revision
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
+        )
+        self.assertResponseError(
+            response, "description", "Your changes will not be saved until you refresh your browser"
+        )
+
+        # but we can't save our old revision
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
+        )
+        self.assertResponseError(
+            response, "description", "Your changes will not be saved until you refresh your browser"
+        )
+
+        # or save an old version
+        definition = flow.revisions.all().first().definition
+        definition[Flow.SPEC_VERSION] = "11.12"
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
+        )
+        self.assertResponseError(response, "description", "Your flow has been upgraded to the latest version")
+
     def test_revision_history_of_inactive_flow(self):
         self.flow.release()
 
@@ -5936,6 +5983,21 @@ class SimulationTest(FlowFileTest):
                 replies.append(event["msg"]["text"])
         return replies
 
+    def test_simulation_ivr(self):
+        self.login(self.admin)
+        flow = self.get_flow("ivr_flow")
+
+        # create our payload
+        payload = dict(version=2, trigger={}, flow={})
+        url = reverse("flows.flow_simulate", args=[flow.pk])
+
+        with override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io"):
+            with patch("requests.post") as mock_post:
+                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                response = self.client.post(url, json.dumps(payload), content_type="application/json")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual({}, response.json()["session"])
+
     def test_simulation(self):
         self.login(self.admin)
         flow = self.get_flow("favorites")
@@ -6566,6 +6628,7 @@ class FlowsTest(FlowFileTest):
     @skip_if_no_mailroom
     def test_save_definitions(self):
         self.login(self.admin)
+
         self.client.post(
             reverse("flows.flow_create"),
             data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true"),
@@ -6579,7 +6642,37 @@ class FlowsTest(FlowFileTest):
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
-        Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION)
+        flow = Flow.objects.get(
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+        )
+
+        # now loading the editor page should redirect
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        self.assertRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
+
+    def test_save_revision(self):
+        self.login(self.admin)
+
+        # make admin alpha
+        self.admin.groups.add(Group.objects.get(name="Alpha"))
+        self.client.post(
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+        )
+        flow = Flow.objects.get(
+            org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
+        )
+
+        # can't save old version over new
+        definition = flow.revisions.all().order_by("-id").first().definition
+        definition["spec_version"] = get_current_export_version()
+        with self.assertRaises(FlowVersionConflictException):
+            flow.save_revision(flow.created_by, definition)
+
+        # can't save old revision over new
+        definition["spec_version"] = Flow.GOFLOW_VERSION
+        definition["revision"] = 0
+        with self.assertRaises(FlowUserConflictException):
+            flow.save_revision(flow.created_by, definition)
 
     @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):

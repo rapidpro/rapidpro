@@ -616,6 +616,13 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)
 
+    def assertResponseError(self, response, field, message, status_code=400):
+        self.assertEqual(status_code, response.status_code)
+        body = response.json()
+        self.assertTrue(message, field in body)
+        self.assertTrue(message, isinstance(body[field], (list, tuple)))
+        self.assertIn(message, body[field])
+
 
 class FlowFileTest(TembaTest):
     def setUp(self):
