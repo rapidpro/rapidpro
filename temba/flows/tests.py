@@ -6577,7 +6577,7 @@ class FlowsTest(FlowFileTest):
         # make admin alpha
         self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="True")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
         Flow.objects.get(org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION)
 
