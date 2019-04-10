@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import iso8601
 import regex
+from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -392,12 +393,13 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            use_new_editor = forms.ChoiceField(
-                label=_("Use New Editor"),
+            use_new_editor = forms.TypedChoiceField(
+                label=_("New Editor (Alpha)"),
                 help_text=_("Use new editor when authoring this flow"),
-                choices=((True, "Yes"), (False, "No")),
-                initial=False,
+                choices=((1, "Yes"), (0, "No")),
+                initial=0,
                 required=False,
+                coerce=int,
             )
 
             def __init__(self, user, branding, *args, **kwargs):
@@ -1034,7 +1036,10 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
 
             # require update permissions
-            if self.get_object().version_number[0:2] == "12" and "legacy" not in self.request.GET:
+            if (
+                Version(self.get_object().version_number) >= Version(Flow.GOFLOW_VERSION)
+                and "legacy" not in self.request.GET
+            ):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
             return super().get(request, *args, **kwargs)
