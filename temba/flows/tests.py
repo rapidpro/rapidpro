@@ -343,12 +343,20 @@ class FlowTest(TembaTest):
         self.assertEqual(1, len(response.json()))
 
         definition = flow.revisions.all().first().definition
+
+        # viewers can't save flows
+        self.login(self.user)
         response = self.client.post(
             reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
         )
+        self.assertRedirect(response, reverse("flows.flow_revisions", args=[flow.uuid]))
 
-        # check that we created a new revision
-        new_revision = json.loads(response.content)
+        # check that we can create a new revision
+        self.login(self.admin)
+        response = self.client.post(
+            reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
+        )
+        new_revision = response.json()
         self.assertEqual(2, new_revision[Flow.REVISION][Flow.REVISION])
 
         # but we can't save our old revision
@@ -676,6 +684,17 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         self.assertContains(response, "id='rp-flow-editor'")
+
+        # customer service gets a service button
+        csrep = self.create_user("csrep")
+        csrep.groups.add(Group.objects.get(name="Customer Support"))
+        csrep.is_staff = True
+        csrep.save()
+
+        self.login(csrep)
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        gear_links = response.context["view"].get_gear_links()
+        self.assertEqual(gear_links[-1]["title"], "Service")
 
     def test_flow_editor(self):
         self.login(self.admin)

@@ -488,7 +488,7 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User")
+        self.user = self.create_user("User", ("Viewers",))
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
         self.surveyor = self.create_user("Surveyor")

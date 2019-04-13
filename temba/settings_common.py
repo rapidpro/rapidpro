@@ -760,6 +760,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
+        "flows.flow_revisions",
         "flows.flow_run_table",
         "flows.flow_simulate",
         "msgs.broadcast_schedule_list",

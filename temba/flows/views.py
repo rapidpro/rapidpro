@@ -327,7 +327,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):
-                return HttpResponseRedirect(reverse("flows.flow_revisions", args=[self.get_object().pk]))
+                return HttpResponseRedirect(reverse("flows.flow_revisions", args=[self.get_object().uuid]))
 
             # try to parse our body
             definition = json.loads(force_text(request.body))
