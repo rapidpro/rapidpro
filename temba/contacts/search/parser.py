@@ -177,6 +177,8 @@ class Condition(QueryNode):
 
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
@@ -258,6 +260,8 @@ class Condition(QueryNode):
 
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
@@ -293,6 +297,8 @@ class Condition(QueryNode):
                     contact_value = raw_contact_value.upper()
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unknown language comparator: '{self.comparator}'"))
             elif field_key == "created_on":
@@ -323,6 +329,8 @@ class Condition(QueryNode):
                     return contact_value == query_value
                 elif self.comparator == "~":
                     return query_value in contact_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:  # pragma: no cover
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
             else:
@@ -342,7 +350,8 @@ class Condition(QueryNode):
 
                 if self.comparator == "=":
                     es_query &= es_Q("term", **{"fields.text": query_value})
-
+                elif self.comparator == "!=":
+                    es_query &= ~es_Q("term", **{"fields.text": query_value})
                 else:
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
@@ -396,6 +405,9 @@ class Condition(QueryNode):
                 if self.comparator == "=":
                     field_name += "_keyword"
                     es_query &= es_Q("term", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name += "_keyword"
+                    es_query &= ~es_Q("term", **{field_name: query_value})
                 else:
                     raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
@@ -416,6 +428,9 @@ class Condition(QueryNode):
                 elif self.comparator == "~":
                     field_name = "name"
                     es_query = es_Q("match", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name = "name.keyword"
+                    es_query = ~es_Q("term", **{field_name: query_value})
                 else:
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "id":
@@ -424,6 +439,9 @@ class Condition(QueryNode):
                 if self.comparator == "=":
                     field_name = "language"
                     es_query = es_Q("term", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name = "language"
+                    es_query = ~es_Q("term", **{field_name: query_value})
                 else:
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "created_on":
