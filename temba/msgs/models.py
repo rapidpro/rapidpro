@@ -2227,6 +2227,10 @@ class Label(TembaModel):
 
     def release(self):
 
+        dependent_flows_count = self.dependent_flows.count()
+        if dependent_flows_count > 0:
+            raise ValueError(f"Cannot delete Label: {self.name}, used by {dependent_flows_count} flows")
+
         # release our children if we are a folder
         if self.is_folder():
             for label in self.children.all():

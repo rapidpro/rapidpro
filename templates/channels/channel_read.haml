@@ -352,11 +352,34 @@
       .title
         -trans "Remove Channel"
       .body
-        .text-center
-          %p
-            {% trans "Are you sure you want to remove this channel from your account?" %}
-            .number
-              {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+        %p
+          {% if object.dependent_flows.count == 0 %}
+          -trans "Are you sure you want to remove this channel from your account?"
+          .number.text-center
+            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+          {% else %}
+          - trans "This channel cannot be removed because it in use."
+          .number.text-center
+            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+          {% endif %}
+
+        %p
+          {% if object.dependent_flows.count == 0 %}
+            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+          {% else %}
+            {% blocktrans count num_flows=object.dependent_flows.count %}
+            Used by {{num_flows}} flow:
+            {% plural %}
+            Used by {{num_flows}} flows:
+            {% endblocktrans %}
+
+          %ul
+          - for flow in object.dependent_flows.all
+            %li
+              %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
+                {{ flow.name }}
+
+          {% endif %}
 
     %a#deletion-form.posterize{href:'{% url "channels.channel_delete" object.pk %}'}
 
@@ -487,7 +510,26 @@
 :javascript
 
   {% if org_perms.channels.channel_delete %}
-    $(".remove-channel").live('click', function(){ removalConfirmation("deletion", "Remove")});
+    $(".remove-channel").live('click', function(){
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+
+      {% if object.dependent_flows.count == 0 %}
+          modal.setListeners({onPrimary: function(){
+            $('#deletion-form').click();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Remove" %}');
+
+      {% else %}
+          modal.setListeners({onPrimary: function(){
+            modal.dismiss();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Ok" %}');
+      {% endif %}
+
+      modal.show();
+      });
+
     $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", "Disable Bulk Sending")});
     $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", "Disable Voice Calling")});
 

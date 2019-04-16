@@ -32,15 +32,7 @@ from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import (
-    ESMockWithScroll,
-    FlowFileTest,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    skip_if_no_mailroom,
-)
+from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -8107,6 +8099,36 @@ class FlowsTest(FlowFileTest):
         for name in group_names[1:]:
             self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
 
+    def test_label_dependencies(self):
+        self.get_flow("add_label")
+        flow = Flow.objects.filter(name="Add Label").first()
+
+        self.assertEqual(flow.label_dependencies.count(), 1)
+
+        update_json = flow.as_json()
+        # clear `add_label` actions
+        update_json["action_sets"][-2]["actions"] = []
+        update_json["action_sets"][-1]["actions"] = []
+        flow.update(update_json)
+
+        self.assertEqual(flow.label_dependencies.count(), 0)
+
+    def test_channel_dependencies(self):
+        self.channel.name = "1234"
+        self.channel.save()
+
+        self.get_flow("migrate_to_11_12_one_node")
+        flow = Flow.objects.filter(name="channel").first()
+
+        self.assertEqual(flow.channel_dependencies.count(), 1)
+
+        update_json = flow.as_json()
+        # clear `channel` action
+        update_json["action_sets"][-1]["actions"] = []
+        flow.update(update_json)
+
+        self.assertEqual(flow.channel_dependencies.count(), 0)
+
     def test_flow_dependencies(self):
 
         self.get_flow("dependencies")
@@ -11915,33 +11937,3 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
-
-
-class FlowResultMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0195_auto_20190322_2059"
-    migrate_to = "0196_populate_results_and_waiting_exits"
-
-    def setUpBeforeMigration(self, apps):
-        favorites = self.get_flow("favorites")
-        del favorites.metadata["results"]
-        del favorites.metadata["waiting_exit_uuids"]
-        favorites.save(update_fields=("metadata",))
-
-    def test_populated(self):
-        favorites = Flow.objects.get()
-
-        # existing metadata untouched
-        self.assertEqual(favorites.metadata["uuid"], str(favorites.uuid))
-        self.assertEqual(favorites.metadata["name"], "Favorites")
-
-        # new results and waiting_exit_uuids fields populated
-        self.assertEqual(
-            favorites.metadata["results"],
-            [
-                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
-                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
-                {"key": "name", "name": "Name", "categories": ["All Responses"]},
-            ],
-        )
-        self.assertEqual(len(favorites.metadata["waiting_exit_uuids"]), 12)
