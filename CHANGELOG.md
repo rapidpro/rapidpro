@@ -1,3 +1,9 @@
+v4.22.23
+----------
+ * simplify squashing of squashable models
+ * show a notification when users open the last page of the search
+ * update `modified_on` once msgs export is finished
+
 v4.22.22
 ----------
  * Fix issue with pagination when editing custom fields
