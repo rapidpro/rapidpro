@@ -350,14 +350,31 @@ class URN(object):
         return cls.from_parts(WECHAT_SCHEME, path)
 
 
+class UserContactFieldsQuerySet(models.QuerySet):
+    def collect_usage(self):
+        return (
+            self.annotate(
+                flow_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
+            )
+            .annotate(campaign_count=Count("campaigns", distinct=True, filter=Q(campaigns__is_active=True)))
+            .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
+        )
+
+
 class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(field_type=ContactField.FIELD_TYPE_USER)
+        return UserContactFieldsQuerySet(self.model, using=self._db).filter(field_type=ContactField.FIELD_TYPE_USER)
 
     def create(self, **kwargs):
         kwargs["field_type"] = ContactField.FIELD_TYPE_USER
 
         return super().create(**kwargs)
+
+    def count_active_for_org(self, org):
+        return self.get_queryset().filter(is_active=True, org=org).count()
+
+    def collect_usage(self):
+        return self.get_queryset().collect_usage()
 
 
 class SystemContactFieldsManager(models.Manager):
@@ -406,7 +423,9 @@ class ContactField(SmartModel):
     value_type = models.CharField(
         choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT, verbose_name="Field Type"
     )
-    show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
+    show_in_table = models.BooleanField(
+        verbose_name=_("Shown in Tables"), default=False, help_text=_("Featured field")
+    )
 
     priority = models.PositiveIntegerField(default=0)
 
@@ -440,12 +459,15 @@ class ContactField(SmartModel):
 
     @classmethod
     def hide_field(cls, org, user, key):
-        existing = ContactField.user_fields.filter(org=org, key=key).first()
-        if existing:
-            from temba.flows.models import Flow
+        existing = ContactField.user_fields.collect_usage().filter(org=org, key=key).first()
 
-            if Flow.objects.filter(field_dependencies__in=[existing]).exists():
-                raise ValueError("Cannot delete field '%s' while used in flows." % key)
+        if existing:
+
+            if any([existing.flow_count, existing.campaign_count, existing.contactgroup_count]):
+                formatted_field_use = (
+                    f"F: {existing.flow_count} C: {existing.campaign_count} G: {existing.contactgroup_count}"
+                )
+                raise ValueError(f"Cannot delete field '{key}', it's used by: {formatted_field_use}")
 
             existing.is_active = False
             existing.show_in_table = False

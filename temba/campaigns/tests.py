@@ -1614,11 +1614,19 @@ class CampaignTest(TembaTest):
         self.assertEqual(planting_reminder, fire.event)
         self.assertEqual(9, fire.scheduled.day)
 
+        # "hide" planting reminder Campaign, in order to hide the "planting_date" field
+        planting_reminder.is_active = False
+        planting_reminder.save(update_fields=("is_active",))
+
         # let's remove our contact field
         ContactField.hide_field(self.org, self.user, "planting_date")
 
         # shouldn't have anything scheduled
         self.assertFalse(EventFire.objects.all())
+
+        # "actvate" planting reminder Campaign, in order to update EventFire objects
+        planting_reminder.is_active = True
+        planting_reminder.save(update_fields=("is_active",))
 
         # add it back in
         ContactField.get_or_create(self.org, self.admin, "planting_date", "planting Date")
