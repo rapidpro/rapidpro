@@ -1548,11 +1548,18 @@ class MsgTest(TembaTest):
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+
+        old_modified_on = blocking_export.modified_on
+
         response = self.client.post(reverse("msgs.msg_export") + "?l=I", {"export_all": 1}, follow=True)
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
         self.assertNumQueries(11, lambda: blocking_export.perform())
+
+        blocking_export.refresh_from_db()
+        # after performing the export `modified_on` should be updated
+        self.assertNotEqual(old_modified_on, blocking_export.modified_on)
 
         def request_export(query, data=None):
             response = self.client.post(reverse("msgs.msg_export") + query, data)
