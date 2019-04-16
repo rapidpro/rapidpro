@@ -237,7 +237,7 @@ class SquashableModel(models.Model):
         start = time.time()
         num_sets = 0
 
-        for distinct_set in cls.get_unsquashed().distinct(*cls.SQUASH_OVER)[:5000]:
+        for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER)[:5000]:
             with connection.cursor() as cursor:
                 sql, params = cls.get_squash_query(distinct_set)
 
