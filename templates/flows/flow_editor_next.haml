@@ -67,6 +67,18 @@
       margin-top: -5px;
     }
 
+    .org-header {
+      z-index: 1000 !important;
+    }
+
+    #top-menu {
+      z-index: inherit;
+    }
+
+    #top-menu.expanded {
+      z-index: 3000 !important;
+    }
+
     .gear-menu.open {
       z-index: 3000;
     }
@@ -180,9 +192,11 @@
         var modal = new Modax(gettext('Start Flow'), '{% url "flows.flow_broadcast" object.pk %}');
         var onActions = {
           onSuccess: function(data) {
-            $('html').scope().is_starting = true;
+            // trigger an update right after sending so we have 
+            // and opportunity to show "starting" status
+            window.triggerActivityUpdate();
           },
-          onFormLoaded: function() { }
+          onFormLoaded: function() {}
         }
         // check if there is no channel, change the primary button behavior to redirect to channel creation
         {% if not can_start or not has_outgoing_channel %}

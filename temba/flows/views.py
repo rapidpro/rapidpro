@@ -1140,6 +1140,20 @@ class FlowCRUDL(SmartCRUDL):
         def get_template_names(self):
             return "flows/flow_editor_next.haml"
 
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+
+            flow = self.object
+
+            if flow.is_archived:
+                context["mutable"] = False
+                context["can_start"] = False
+            else:
+                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+
+            return context
+
         def get_gear_links(self):
             links = []
             flow = self.object
