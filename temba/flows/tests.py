@@ -696,6 +696,14 @@ class FlowTest(TembaTest):
         gear_links = response.context["view"].get_gear_links()
         self.assertEqual(gear_links[-1]["title"], "Service")
 
+        # viewing flows that are archived can't be started
+        self.login(self.admin)
+        self.flow.is_archived = True
+        self.flow.save()
+
+        response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
+        self.assertFalse(response.context["mutable"])
+
     def test_flow_editor(self):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_editor", args=[self.flow.uuid]))
