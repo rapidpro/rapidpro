@@ -8,8 +8,87 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp.views import ClaimView, RefreshView
 from temba.contacts.models import WHATSAPP_SCHEME
+from temba.templates.models import TemplateTranslation
 
 from ...models import ChannelType
+
+# Mapping from WhatsApp status to RapidPro status
+STATUS_MAPPING = dict(PENDING=TemplateTranslation.STATUS_PENDING, APPROVED=TemplateTranslation.STATUS_APPROVED)
+
+# This maps from WA iso-639-2 codes to our internal 639-3 codes
+LANGUAGE_MAPPING = dict(
+    af="afr",  # Afrikaans
+    sq="sqi",  # Albanian
+    ar="ara",  # Arabic
+    az="aze",  # Azerbaijani
+    bn="ben",  # Bengali
+    bg="bul",  # Bulgarian
+    ca="cat",  # Catalan
+    zh_CN="zho",  # Chinese (CHN)
+    # zh_HK="yue",  # Chinese (HKG) (unsupported)
+    # zh_TW="cmn",  # Chinese (TAI) (unsupported)
+    hr="hrv",  # Croatian
+    cs="ces",  # Czech
+    da="dah",  # Danish
+    nl="nld",  # Dutch
+    en="eng",  # English
+    # en_GB="eng",  # English (UK) (unsupported)
+    # en_US="eng",  # English (US) (unsupported)
+    et="est",  # Estonian
+    fil="fil",  # Filipino
+    fi="fin",  # Finnish
+    fr="fra",  # French
+    de="deu",  # German
+    el="ell",  # Greek
+    gu="gul",  # Gujarati
+    he="enb",  # Hebrew
+    hi="hin",  # Hindi
+    hu="hun",  # Hungarian
+    id="ind",  # Indonesian
+    ga="gle",  # Irish
+    it="ita",  # Italian
+    ja="jpn",  # Japanese
+    kn="kan",  # Kannada
+    kk="kaz",  # Kazakh
+    ko="kor",  # Korean
+    lo="lao",  # Lao
+    lv="lav",  # Latvian
+    lt="lit",  # Lithuanian
+    mk="mkd",  # Macedonian
+    ms="msa",  # Malay
+    mr="mar",  # Marathi
+    nb="nob",  # Norwegian
+    fa="fas",  # Persian
+    pl="pol",  # Polish
+    pt_BR="por",  # Portuguese (BR)
+    # pt_PT="por",  # Portuguese (POR) (unsupported)
+    pa="pan",  # Punjabi
+    ro="ron",  # Romanian
+    ru="rus",  # Russian
+    sr="srp",  # Serbian
+    sk="slk",  # Slovak
+    sl="slv",  # Slovenian
+    es="spa",  # Spanish
+    # es_AR="spa",  # Spanish (ARG) (unsupported)
+    # es_ES="spa",  # Spanish (SPA) (unsupported)
+    # es_MX="spa",  # Spanish (MEX) (unsupported)
+    sw="swa",  # Swahili
+    sv="swe",  # Swedish
+    ta="tam",  # Tamil
+    te="tel",  # Telugu
+    th="tha",  # Thai
+    tr="tur",  # Turkish
+    uk="ukr",  # Ukrainian
+    ur="urd",  # Urdu
+    uz="uzb",  # Uzbek
+    vi="vie",  # Vietnamese
+)
+
+CONFIG_FB_USER_ID = "fb_business_id"
+CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
+CONFIG_FB_NAMESPACE = "fb_namespace"
+
+TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.2/%s/message_templates"
 
 
 class WhatsAppType(ChannelType):
@@ -42,6 +121,10 @@ class WhatsAppType(ChannelType):
 
     def get_urls(self):
         return [self.get_claim_url(), url(r"^refresh/(?P<uuid>[a-z0-9\-]+)/?$", RefreshView.as_view(), name="refresh")]
+
+    def deactivate(self, channel):
+        # deactivate all translations associated with us
+        TemplateTranslation.trim(channel, [])
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()

@@ -39,7 +39,7 @@ from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
+from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
 from temba.tests import MockResponse, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -1926,7 +1926,7 @@ class OrgTest(TembaTest):
         self.assertFalse(response.context["current_resthooks"])
 
         # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration"))
+        self.client.post(resthook_url, dict(resthook="mother-registration "))
 
         # should now have a resthook
         resthook = Resthook.objects.get()
@@ -2406,9 +2406,6 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org_tier())
 
     def test_sub_orgs(self):
-
-        from temba.orgs.models import Debit
-
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
 
         # lets start with two topups
@@ -2951,6 +2948,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
         self.assertEqual(org.slug, "relieves-world")
+        self.assertTrue(org.flow_server_enabled)
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))

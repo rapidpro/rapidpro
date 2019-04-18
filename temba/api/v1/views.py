@@ -271,7 +271,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     cache_counts = True
 
     def get_base_queryset(self, request):
-        queryset = self.model.objects.filter(org=request.user.get_org(), is_test=False)
+        queryset = self.model.objects.filter(org=request.user.get_org())
 
         # if they pass in deleted=true then only return deleted contacts
         if str_to_bool(request.query_params.get("deleted", "")):

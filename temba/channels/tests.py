@@ -137,6 +137,21 @@ class ChannelTest(TembaTest):
         self.assertEqual(context["tel"], "")
         self.assertEqual(context["tel_e164"], "")
 
+    def test_channel_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={self.tel_channel.org_id}&redirect_url=/channels/channel/read/{self.tel_channel.uuid}/",
+        )
+
     def test_deactivate(self):
         self.login(self.admin)
         self.tel_channel.is_active = False
@@ -960,6 +975,36 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "IB")
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "JS")
 
+    def test_register_unsupported_android(self):
+        # remove our explicit country so it needs to be derived from channels
+        self.org.country = None
+        self.org.save()
+
+        Channel.objects.all().delete()
+
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
+
+        # try a post register
+        response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
+        self.assertEqual(200, response.status_code)
+
+        response_json = response.json()
+        self.assertEqual(
+            response_json,
+            dict(cmds=[dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)]),
+        )
+
+        # missing uuid raises
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111"), dict(cmd="status", cc="RW", dev="Nexus")])
+
+        with self.assertRaises(ValueError):
+            self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
+
+        # missing fcm_id raises
+        reg_data = dict(cmds=[dict(cmd="fcm", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
+        with self.assertRaises(ValueError):
+            self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
+
     def test_register_and_claim_android(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None
@@ -1429,7 +1474,7 @@ class ChannelTest(TembaTest):
 
         # create outgoing call for the channel
         contact = self.create_contact("Bruno Mars", "+252788123123")
-        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME), self.admin)
+        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME))
 
         self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
         self.tel_channel.release()
@@ -2424,7 +2469,7 @@ class ChannelCountTest(TembaTest):
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
         self.contact = self.create_contact("Fred Jones", "+12067799191")
-        self.create_secondary_org(100000)
+        self.create_secondary_org(100_000)
 
         incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
         self.assertEqual(self.contact, incoming_msg.contact)

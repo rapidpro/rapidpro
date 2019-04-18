@@ -3,14 +3,25 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
+from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .tasks import refresh_whatsapp_contacts, refresh_whatsapp_tokens
-from .type import WhatsAppType
+from .tasks import (
+    _calculate_variable_count,
+    refresh_whatsapp_contacts,
+    refresh_whatsapp_templates,
+    refresh_whatsapp_tokens,
+)
+from .type import CONFIG_FB_USER_ID, WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
+    def test_calculate_variable_count(self):
+        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
+        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
+        self.assertEqual(0, _calculate_variable_count("Hi there."))
+
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -29,6 +40,9 @@ class WhatsAppTypeTest(TembaTest):
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
         post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["facebook_namespace"] = "my-custom-app"
+        post_data["facebook_user_id"] = "1234"
+        post_data["facebook_access_token"] = "token123"
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
@@ -44,11 +58,28 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertFalse(Channel.objects.all())
 
+            self.assertContains(response, "check username and password")
+
+        # then FB failure
+        with patch("requests.post") as mock_post:
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(400, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(200, response.status_code)
+                self.assertFalse(Channel.objects.all())
+
+                self.assertContains(response, "check user id and access token")
+
         # then success
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-            response = self.client.post(url, post_data)
-            self.assertEqual(302, response.status_code)
+            with patch("requests.get") as mock_get:
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(200, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(302, response.status_code)
 
         channel = Channel.objects.get()
 
@@ -128,3 +159,84 @@ class WhatsAppTypeTest(TembaTest):
             refresh_whatsapp_tokens()
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
+                MockResponse(
+                    200,
+                    """
+            {
+              "data": [
+              {
+                "name": "hello",
+                "content": "Hello {{1}}",
+                "language": "en",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1234"
+              },
+              {
+                "name": "hello",
+                "content": "Bonjour {{1}}",
+                "language": "fr",
+                "status": "APPROVED",
+                "category": "ISSUE_RESOLUTION",
+                "id": "5678"
+              },
+              {
+                "name": "goodbye",
+                "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
+                "language": "en",
+                "status": "PENDING",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
+              },
+              {
+                "name": "invalid_status",
+                "content": "This is an unknown status, it will be ignored",
+                "language": "en",
+                "status": "UNKNOWN",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
+              },
+              {
+                "name": "invalid_language",
+                "content": "This is an unknown language, it will be ignored",
+                "language": "kli",
+                "status": "UNKNOWN",
+                "category": "ISSUE_RESOLUTION",
+                "id": "9012"
+              }
+            ],
+            "paging": {
+              "cursors": {
+              "before": "MAZDZD",
+              "after": "MjQZD"
+            }
+            }
+            }""",
+                )
+            ]
+            refresh_whatsapp_templates()
+
+            # should have two templates
+            self.assertEqual(2, Template.objects.filter(org=self.org).count())
+            self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel).count())
+
+            ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
+            self.assertEqual(2, ct.variable_count)
+            self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
+            self.assertEqual("eng", ct.language)
+            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+
+        # clear our FB ids, should cause refresh to be noop (but not fail)
+        del channel.config[CONFIG_FB_USER_ID]
+        channel.save(update_fields=["config", "modified_on"])
+        refresh_whatsapp_templates()
+
+        # deactivate our channel
+        with self.settings(IS_PROD=True):
+            channel.release()
+
+        # all our templates should be inactive now
+        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())

@@ -68,46 +68,46 @@ class FacebookTypeTest(TembaTest):
         )
 
     @override_settings(IS_PROD=True)
-    @patch("requests.post")
-    def test_new_conversation_triggers(self, mock_post):
-        mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
-
+    def test_new_conversation_triggers(self):
         flow = self.create_flow()
 
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, self.channel)
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
 
-        mock_post.assert_called_once_with(
-            "https://graph.facebook.com/v2.12/12345/thread_settings",
-            json={
-                "setting_type": "call_to_actions",
-                "thread_state": "new_thread",
-                "call_to_actions": [{"payload": "get_started"}],
-            },
-            headers={"Content-Type": "application/json"},
-            params={"access_token": "09876543"},
-        )
-        mock_post.reset_mock()
+            trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, self.channel)
 
-        trigger.archive(self.admin)
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                json={
+                    "setting_type": "call_to_actions",
+                    "thread_state": "new_thread",
+                    "call_to_actions": [{"payload": "get_started"}],
+                },
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
 
-        mock_post.assert_called_once_with(
-            "https://graph.facebook.com/v2.12/12345/thread_settings",
-            json={"setting_type": "call_to_actions", "thread_state": "new_thread", "call_to_actions": []},
-            headers={"Content-Type": "application/json"},
-            params={"access_token": "09876543"},
-        )
-        mock_post.reset_mock()
+            trigger.archive(self.admin)
 
-        trigger.restore(self.admin)
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                json={"setting_type": "call_to_actions", "thread_state": "new_thread", "call_to_actions": []},
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()
 
-        mock_post.assert_called_once_with(
-            "https://graph.facebook.com/v2.12/12345/thread_settings",
-            json={
-                "setting_type": "call_to_actions",
-                "thread_state": "new_thread",
-                "call_to_actions": [{"payload": "get_started"}],
-            },
-            headers={"Content-Type": "application/json"},
-            params={"access_token": "09876543"},
-        )
-        mock_post.reset_mock()
+            trigger.restore(self.admin)
+
+            mock_post.assert_called_once_with(
+                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                json={
+                    "setting_type": "call_to_actions",
+                    "thread_state": "new_thread",
+                    "call_to_actions": [{"payload": "get_started"}],
+                },
+                headers={"Content-Type": "application/json"},
+                params={"access_token": "09876543"},
+            )
+            mock_post.reset_mock()

@@ -11,6 +11,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.msgs.tasks import send_broadcast_task
+from temba.templates.models import Template, TemplateTranslation
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
 
@@ -57,6 +58,18 @@ class WriteSerializer(serializers.Serializer):
             )
 
         return super().run_validation(data)
+
+
+class BulkActionFailure:
+    """
+    Bulk action serializers can return a partial failure if some objects couldn't be acted on
+    """
+
+    def __init__(self, failures):
+        self.failures = failures
+
+    def as_json(self):
+        return {"failures": self.failures}
 
 
 # ============================================================
@@ -1026,7 +1039,7 @@ class MsgBulkActionSerializer(WriteSerializer):
 
     def validate_messages(self, value):
         for msg in value:
-            if msg.direction != "I":
+            if msg and msg.direction != "I":
                 raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
 
         return value
@@ -1052,10 +1065,21 @@ class MsgBulkActionSerializer(WriteSerializer):
         return data
 
     def save(self):
-        messages = self.validated_data["messages"]
         action = self.validated_data["action"]
         label = self.validated_data.get("label")
         label_name = self.validated_data.get("label_name")
+
+        requested_message_ids = self.initial_data["messages"]
+        requested_messages = self.validated_data["messages"]
+
+        # requested_messages contains nones where msg no longer exists so compile lists of real messages and missing ids
+        messages = []
+        missing_message_ids = []
+        for m, msg in enumerate(requested_messages):
+            if msg is not None:
+                messages.append(msg)
+            else:
+                missing_message_ids.append(requested_message_ids[m])
 
         if action == self.LABEL:
             if not label:
@@ -1076,6 +1100,8 @@ class MsgBulkActionSerializer(WriteSerializer):
                     msg.restore()
                 elif action == self.DELETE:
                     msg.release()
+
+        return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 
 
 class ResthookReadSerializer(ReadSerializer):
@@ -1145,3 +1171,30 @@ class WebHookEventReadSerializer(ReadSerializer):
     class Meta:
         model = WebHookEvent
         fields = ("resthook", "data", "created_on")
+
+
+class TemplateReadSerializer(ReadSerializer):
+    translations = serializers.SerializerMethodField()
+    modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_translations(self, obj):
+        translations = []
+        for translation in (
+            TemplateTranslation.objects.filter(template=obj).order_by("language").select_related("channel")
+        ):
+            translations.append(
+                {
+                    "language": translation.language,
+                    "content": translation.content,
+                    "variable_count": translation.variable_count,
+                    "status": translation.get_status_display(),
+                    "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
+                }
+            )
+
+        return translations
+
+    class Meta:
+        model = Template
+        fields = ("uuid", "name", "translations", "created_on", "modified_on")

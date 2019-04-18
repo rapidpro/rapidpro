@@ -34,6 +34,7 @@ smartmin
 mailroom_test.dump
 
 # Exclude media folder except files used for import testing
+media/apks
 media/contacts
 media/csv_imports
 media/flow

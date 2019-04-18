@@ -1,12 +1,35 @@
 import requests
 
+from django import forms
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import VIBER_SCHEME
 
 from ...models import ChannelType
+from ...views import UpdateChannelForm
 from .views import ClaimView
+
+CONFIG_WELCOME_MESSAGE = "welcome_message"
+
+
+class UpdateForm(UpdateChannelForm):
+    def add_config_fields(self):
+        self.fields["welcome_message"] = forms.CharField(
+            max_length=640,
+            label=_("Welcome Message"),
+            required=False,
+            widget=forms.Textarea,
+            initial=self.instance.config.get(CONFIG_WELCOME_MESSAGE, ""),
+            help_text=_(
+                "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
+            ),
+        )
+
+    class Meta(UpdateChannelForm.Meta):
+        fields = "name", "address", "alert_email"
+        config_fields = ["welcome_message"]
+        readonly = ("address",)
 
 
 class ViberPublicType(ChannelType):
@@ -29,6 +52,8 @@ class ViberPublicType(ChannelType):
     quick_reply_text_size = 36
 
     claim_view = ClaimView
+
+    update_form = UpdateForm
 
     claim_blurb = _(
         """

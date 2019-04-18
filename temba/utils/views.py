@@ -1,5 +1,8 @@
+from math import ceil
+
 from django import forms
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import HttpResponse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -17,6 +20,16 @@ class PostOnlyMixin(View):
 
     def get(self, *args, **kwargs):
         return HttpResponse("Method Not Allowed", status=405)
+
+
+class NonAtomicMixin(View):
+    """
+    Utility mixin to disable automatic transaction wrapping of a class based view
+    """
+
+    @transaction.non_atomic_requests
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
 
 class BaseActionForm(forms.Form):
@@ -140,9 +153,24 @@ class ContactListPaginator(Paginator):
     Paginator that knows how to work with ES dsl Search objects
     """
 
+    ES_SEARCH_BUFFER_SIZE = 10000
+
+    @cached_property
+    def num_pages(self):
+
+        if self.is_es_search():
+            # limit maximum number of pages when searching contacts on ES
+            # https://github.com/rapidpro/rapidpro/issues/876
+
+            record_count = self.count if self.count < self.ES_SEARCH_BUFFER_SIZE else self.ES_SEARCH_BUFFER_SIZE
+
+            return ceil(record_count / self.per_page)
+        else:
+            return super().num_pages
+
     @cached_property
     def count(self):
-        if isinstance(self.object_list, ModelESSearch):
+        if self.is_es_search():
             # execute search on the ElasticSearch to get the count
             return self.object_list.count()
         else:
@@ -158,13 +186,34 @@ class ContactListPaginator(Paginator):
 
         es_search = args[0]
 
-        if isinstance(es_search, ModelESSearch):
+        if self.is_es_search(es_search):
             # we need to execute the ES search again, to get the actual page of records
             new_object_list = args[0].execute()
 
             new_args[0] = new_object_list
 
         return super()._get_page(*new_args, **kwargs)
+
+    def page(self, number):
+        """Return a Page object for the given 1-based page number."""
+        number = self.validate_number(number)
+        bottom = (number - 1) * self.per_page
+        top = bottom + self.per_page
+
+        if top + self.orphans >= self.count:
+            top = self.count
+
+        # make sure to not request more than we can return, set the upper limit to the ES search buffer size
+        if top >= self.ES_SEARCH_BUFFER_SIZE and self.is_es_search():
+            top = self.ES_SEARCH_BUFFER_SIZE
+
+        return self._get_page(self.object_list[bottom:top], number, self)
+
+    def is_es_search(self, obj=None):
+        if obj is None:
+            return isinstance(self.object_list, ModelESSearch)
+        else:
+            return isinstance(obj, ModelESSearch)
 
 
 class ContactListPaginationMixin(object):

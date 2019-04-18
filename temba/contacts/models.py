@@ -350,14 +350,31 @@ class URN(object):
         return cls.from_parts(WECHAT_SCHEME, path)
 
 
+class UserContactFieldsQuerySet(models.QuerySet):
+    def collect_usage(self):
+        return (
+            self.annotate(
+                flow_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
+            )
+            .annotate(campaign_count=Count("campaigns", distinct=True, filter=Q(campaigns__is_active=True)))
+            .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
+        )
+
+
 class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(field_type=ContactField.FIELD_TYPE_USER)
+        return UserContactFieldsQuerySet(self.model, using=self._db).filter(field_type=ContactField.FIELD_TYPE_USER)
 
     def create(self, **kwargs):
         kwargs["field_type"] = ContactField.FIELD_TYPE_USER
 
         return super().create(**kwargs)
+
+    def count_active_for_org(self, org):
+        return self.get_queryset().filter(is_active=True, org=org).count()
+
+    def collect_usage(self):
+        return self.get_queryset().collect_usage()
 
 
 class SystemContactFieldsManager(models.Manager):
@@ -406,7 +423,9 @@ class ContactField(SmartModel):
     value_type = models.CharField(
         choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT, verbose_name="Field Type"
     )
-    show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
+    show_in_table = models.BooleanField(
+        verbose_name=_("Shown in Tables"), default=False, help_text=_("Featured field")
+    )
 
     priority = models.PositiveIntegerField(default=0)
 
@@ -440,12 +459,15 @@ class ContactField(SmartModel):
 
     @classmethod
     def hide_field(cls, org, user, key):
-        existing = ContactField.user_fields.filter(org=org, key=key).first()
-        if existing:
-            from temba.flows.models import Flow
+        existing = ContactField.user_fields.collect_usage().filter(org=org, key=key).first()
 
-            if Flow.objects.filter(field_dependencies__in=[existing]).exists():
-                raise ValueError("Cannot delete field '%s' while used in flows." % key)
+        if existing:
+
+            if any([existing.flow_count, existing.campaign_count, existing.contactgroup_count]):
+                formatted_field_use = (
+                    f"F: {existing.flow_count} C: {existing.campaign_count} G: {existing.contactgroup_count}"
+                )
+                raise ValueError(f"Cannot delete field '{key}', it's used by: {formatted_field_use}")
 
             existing.is_active = False
             existing.show_in_table = False
@@ -760,9 +782,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         contact_groups = self.user_groups.all()
         now = timezone.now()
 
-        scheduled_broadcasts = SystemLabel.get_queryset(
-            self.org, SystemLabel.TYPE_SCHEDULED, exclude_test_contacts=False
-        )
+        scheduled_broadcasts = SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
         scheduled_broadcasts = scheduled_broadcasts.exclude(schedule__next_fire=None)
         scheduled_broadcasts = scheduled_broadcasts.filter(schedule__next_fire__gte=now)
         scheduled_broadcasts = scheduled_broadcasts.filter(
@@ -1154,7 +1174,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, is_test=False):
+    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
         """
         Gets or creates a contact with the given URN
         """
@@ -1181,8 +1201,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ContactURN.update_auth(existing_urn, auth)
             return contact, existing_urn
         else:
-            kwargs = dict(org=org, name=name, created_by=user, is_test=is_test)
+            kwargs = dict(org=org, name=name, created_by=user, is_test=False)
             contact = Contact.objects.create(**kwargs)
+            contact.is_new = True
             updated_attrs = list(kwargs.keys())
 
             if existing_urn:
@@ -1197,22 +1218,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             analytics.gauge("temba.contact_created")
 
             # handle group and campaign updates
-            contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+            if init_new:
+                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
+
             return contact, urn_obj
 
     @classmethod
     def get_or_create_by_urns(
-        cls,
-        org,
-        user,
-        name=None,
-        urns=None,
-        channel=None,
-        uuid=None,
-        language=None,
-        is_test=False,
-        force_urn_update=False,
-        auth=None,
+        cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, force_urn_update=False, auth=None
     ):
         """
         Gets or creates a contact with the given URNs
@@ -1330,7 +1343,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # otherwise create new contact with all URNs
             else:
-                kwargs = dict(org=org, name=name, language=language, is_test=is_test, created_by=user)
+                kwargs = dict(org=org, name=name, language=language, is_test=False, created_by=user)
                 contact = Contact.objects.create(**kwargs)
                 updated_attrs = ["name", "language", "created_on"]
 
@@ -1516,7 +1529,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 field_dict[key] = value
 
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict["org"], user, key, label, False, field["type"])
+                ContactField.get_or_create(field_dict["org"], user, key, label, value_type=field["type"])
+
                 extra_fields.append(key)
             else:
                 raise ValueError("Extra field %s is a reserved field name" % key)
@@ -2973,12 +2987,7 @@ class ContactGroup(TembaModel):
 
         # search the database for any new contacts that have been modified after the modified_on
         db_contacts = Contact.objects.filter(
-            org_id=self.org.id,
-            modified_on__gt=last_modifed_on,
-            is_test=False,
-            is_active=True,
-            is_blocked=False,
-            is_stopped=False,
+            org_id=self.org.id, modified_on__gt=last_modifed_on, is_active=True, is_blocked=False, is_stopped=False
         )
 
         # check if contacts are members of the new group
@@ -3105,11 +3114,8 @@ class ContactGroupCount(SquashableModel):
         # remove old ones
         ContactGroupCount.objects.filter(group=group).delete()
 
-        # get test contacts on this org
-        test_contacts = Contact.objects.filter(org=group.org, is_test=True).values("id")
-
         # calculate our count for the group
-        count = group.contacts.all().exclude(id__in=test_contacts).count()
+        count = group.contacts.all().count()
 
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
@@ -3212,8 +3218,7 @@ class ExportContactsTask(BaseExportTask):
             # cache contact ids
             contact_ids = list(Contact.query_elasticsearch_for_ids(self.org, self.search, group))
         else:
-            contacts = group.contacts.all()
-            contact_ids = contacts.filter(is_test=False).order_by("name", "id").values_list("id", flat=True)
+            contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
         exporter = TableExporter(self, "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields])

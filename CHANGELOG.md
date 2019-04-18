@@ -1,3 +1,150 @@
+v4.22.25
+----------
+ * only show pagination warning when we have more than 10k results
+
+v4.22.24
+----------
+ * support != search operator
+
+v4.22.23
+----------
+ * simplify squashing of squashable models
+ * show a notification when users open the last page of the search
+ * update `modified_on` once msgs export is finished
+
+v4.22.22
+----------
+ * Fix issue with pagination when editing custom fields
+
+v4.22.21
+----------
+ * Add new page for contact field management
+
+v4.22.20
+----------
+ * add management command to reactivate fb channels
+
+v4.22.19
+----------
+ * api for templates, add access token and fb user id to claim, sync with facebook endpoint
+
+v4.22.18
+----------
+ * fix recalculating event fires for fields when that field is created_on
+
+v4.22.17
+----------
+ * Don't overwrite show_in_table flag on contact import
+ * Prevent updates of contact field labels when adding a field to a flow
+ * Add migration to populate results and waiting_exit_uuids in Flow.metadata
+
+v4.22.15
+----------
+ * Do not immediately expire flow when updating expirations (leave that to mailroom)
+ * Fix boundary aliases duplicates creation
+ * Add org lock for users to deal with similtaneous updates of org users
+ * Add results and waiting_exit_uuids to flow metadata and start populating on Flow.update
+
+v4.22.14
+----------
+ * CreateSubOrg needs to be non-atomic as well as it creates flows which need to be validated
+ * Remove unused download view
+
+v4.22.13
+----------
+ * allow blank pack, update permissions
+
+v4.22.12
+----------
+ * remove APK read view, only have update
+ * allow setting pack number
+
+v4.22.11
+----------
+ * Add APK app and new Android claiming pipeline for Android Relayer
+
+v4.22.10
+----------
+ * Use output of flow validation in mailroom to set flow dependencies
+ * Make message_actions.json API endpoint support partial updates
+ * Log to librato only pending messages older than a minute
+
+v4.22.6
+----------
+ * Add Viber Welcome Message event type and config
+ * More customer support service buttons
+
+v4.22.5
+----------
+ * queue incoming messages and incoming calls from relayer to mailroom
+
+v4.22.4
+----------
+ * Temporarily disable flow validation until we can fix it for new orgs
+
+v4.22.3
+----------
+ * Lazily create any dependent objects when we save
+ * MAILROOM_URL in settings.py.dev should default to http://localhost:8090
+ * Call to mailroom to validate a flow before saving a new definition (and fix invalid flows in our tests)
+
+v4.22.2
+----------
+ * Fix schedule next fire calculation bug when schedule is greater than number of days
+ * Fix to allow archiving flow for removed(inactive) campaign events
+ * Strip resthook slug during creation
+ * Ignore request from old android clients using GCM
+
+v4.22.1
+----------
+ * Increase the schedule broadcast text max length to be consistent on the form
+
+v4.22.0
+----------
+ * Fix case of single node flow with invalid channel reference
+ * Remove ChannelConnection.created_by and ChannelConnection.is_active
+ * Fix flow export results to include results from replaced rulesets
+
+v4.21.15
+----------
+ * correct exclusion
+
+v4.21.14
+----------
+ * Dont requeue flow server enabled msgs
+ * Exit sessions in bulk exit, ignore mailroom flow starts
+
+v4.21.13
+----------
+ * Fix import with invalid channel reference
+ * Add flow migration to remove actions with invalid channel reference
+
+v4.21.12
+----------
+ * improve simulator for goflow simulation
+
+v4.21.11
+----------
+ * work around JS split to show simulator images
+
+v4.21.10
+----------
+ * display attachments that are just 'image:'
+
+v4.21.9
+----------
+ * simulator tweaks
+ * show Django warning if mailroom URL not configured
+
+v4.21.8
+----------
+ * make sure we save flow_server_enabled in initialize
+
+v4.21.7
+----------
+ * Update status demo view to match the current webhook posted data
+ * Remove all remaining reads of contact.is_test
+
 v4.21.6
 ----------
  * Use pretty datetime on contact page for upcoming events

@@ -226,6 +226,7 @@ INSTALLED_APPS = (
     # django-timezone-field
     "timezone_field",
     # temba apps
+    "temba.apks",
     "temba.archives",
     "temba.assets",
     "temba.auth_tweaks",
@@ -234,6 +235,7 @@ INSTALLED_APPS = (
     "temba.public",
     "temba.policies",
     "temba.schedules",
+    "temba.templates",
     "temba.orgs",
     "temba.contacts",
     "temba.channels",
@@ -309,8 +311,8 @@ PERMISSIONS = {
         "read",  # can read an object, viewing it's details
         "update",  # can update an object
         "delete",  # can delete an object,
-        "list",
-    ),  # can view a list of the objects
+        "list",  # can view a list of the objects
+    ),
     "api.apitoken": ("refresh",),
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
@@ -334,7 +336,7 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "managefields"),
+    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
@@ -441,6 +443,7 @@ PERMISSIONS = {
     "msgs.label": ("api", "create", "create_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
+    "templates.template": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -476,7 +479,15 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         "auth.user_list",
         "auth.user_update",
+        "apks.apk_create",
+        "apks.apk_list",
+        "apks.apk_update",
+        "campaigns.campaign_read",
+        "channels.channel_configuration",
+        "channels.channel_history",
+        "channels.channel_read",
         "contacts.contact_break_anon",
+        "contacts.contact_read",
         "flows.flow_editor",
         "flows.flow_json",
         "flows.flow_revisions",
@@ -613,6 +624,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -704,6 +716,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -1107,3 +1120,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+
+# Maximum active ContactFields users can have in an Org
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255

@@ -38,6 +38,7 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.apks.models import Apk
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
@@ -46,7 +47,16 @@ from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMi
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import (
+    Alert,
+    Channel,
+    ChannelConnection,
+    ChannelCount,
+    ChannelEvent,
+    ChannelLog,
+    SyncEvent,
+    UnsupportedAndroidChannelError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -537,8 +547,9 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
-    msgs = msgs.exclude(contact__is_test=True).exclude(topup=None)
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING).exclude(
+        topup=None
+    )
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -637,12 +648,11 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd["phone"] if cmd["phone"] else "empty"
                         try:
-                            URN.normalize(URN.from_tel(tel), channel.country.code)
+                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
                             if "msg" in cmd:
-                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd["msg"], sent_on=date)
-                                if msg:
-                                    extra = dict(msg_id=msg.id)
+                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                                extra = dict(msg_id=msg.id)
                         except ValueError:
                             pass
 
@@ -662,7 +672,9 @@ def sync(request, channel_id):
                         if cmd["phone"]:
                             urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
                             try:
-                                ChannelEvent.create(channel, urn, cmd["type"], date, extra=dict(duration=duration))
+                                ChannelEvent.create_relayer_event(
+                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                                )
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
@@ -734,9 +746,12 @@ def register(request):
     client_payload = json.loads(force_text(request.body))
     cmds = client_payload["cmds"]
 
-    # look up a channel with that id
-    channel = Channel.get_or_create_android(cmds[0], cmds[1])
-    cmd = channel.build_registration_command()
+    try:
+        # look up a channel with that id
+        channel = Channel.get_or_create_android(cmds[0], cmds[1])
+        cmd = channel.build_registration_command()
+    except UnsupportedAndroidChannelError:
+        cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
     return JsonResponse(dict(cmds=[cmd]))
 
@@ -1225,6 +1240,16 @@ class ChannelCRUDL(SmartCRUDL):
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.get_object().uuid])}',
+                    )
+                )
+
             return links
 
         def get_context_data(self, **kwargs):
@@ -1432,7 +1457,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
@@ -1532,7 +1557,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             if obj.config:
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    obj.config[field] = bool(self.form.cleaned_data[field])
+                    obj.config[field] = self.form.cleaned_data[field]
             return obj
 
         def post_save(self, obj):
@@ -1702,6 +1727,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.user.get_org()
             return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["relayer_app"] = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+            return context
 
         def get_success_url(self):
             return "%s?success" % reverse("public.public_welcome")

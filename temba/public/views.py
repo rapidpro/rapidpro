@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView, View
 
+from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
@@ -42,6 +43,28 @@ class WelcomeRedirect(RedirectView):
 
 class Deploy(SmartTemplateView):
     template_name = "public/public_deploy.haml"
+
+
+class Android(SmartTemplateView):
+    def render_to_response(self, context, **response_kwargs):
+        pack = int(self.request.GET.get("pack", 0))
+        version = self.request.GET.get("v", "")
+
+        if not pack and not version:
+            apk = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+        else:
+            latest_ids = (
+                Apk.objects.filter(apk_type=Apk.TYPE_MESSAGE_PACK, version=version, pack=pack)
+                .order_by("-created_on")
+                .only("id")
+                .values_list("id", flat=True)[:10]
+            )
+            apk = Apk.objects.filter(id__in=latest_ids).order_by("created_on").first()
+
+        if not apk:
+            return HttpResponse("No APK found", status=404)
+        else:
+            return HttpResponseRedirect(apk.apk_file.url)
 
 
 class Welcome(SmartTemplateView):

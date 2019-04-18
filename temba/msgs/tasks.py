@@ -176,13 +176,12 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
-    simulation = kwargs.get("simulation", "false") == "true"
     node_uuid = kwargs.get("s", None)
 
     runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
     contact_ids = (
-        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True)
         .filter(id__in=runs.values_list("contact", flat=True))
         .values_list("id", flat=True)
     )
@@ -284,8 +283,13 @@ def collect_message_metrics_task():  # pragma: needs cover
     )
     analytics.gauge("temba.current_outgoing_android", count)
 
-    # current # of pending incoming messages that haven't yet been handled
-    count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
+    # current # of pending incoming messages older than a minute that haven't yet been handled
+    minute_ago = timezone.now() - timedelta(minutes=1)
+    count = (
+        Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=minute_ago)
+        .exclude(channel=None)
+        .count()
+    )
     analytics.gauge("temba.current_incoming_pending", count)
 
     # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
@@ -307,7 +311,7 @@ def check_messages_task():  # pragma: needs cover
     r = get_redis_connection()
 
     # for any org that sent messages in the past five minutes, check for pending messages
-    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
+    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago, flow_server_enabled=False).distinct():
         # more than 1,000 messages queued? don't do anything, wait for our queue to go down
         queued = r.zcard("send_message_task:%d" % org.id)
         if queued < 1000:
@@ -321,7 +325,7 @@ def check_messages_task():  # pragma: needs cover
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(contact__is_test=True)
+    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(org__flow_server_enabled=True)
     unhandled_count = unhandled_messages.count()
 
     if unhandled_count:
