@@ -141,6 +141,7 @@
       flow: '{{object.uuid}}',
       flowType: flowType,
       localStorage: true,
+      showTemplates: "{{has_whatsapp_channel}}" == "True",
 
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
@@ -152,11 +153,12 @@
         labels: api + 'labels.json',
         channels: api + 'channels.json',
         resthooks: api + 'resthooks.json',
+        templates: api + 'templates.json',
 
         // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_messages/{{object.uuid}}/',
-        attachments: '/flow/upload_media_action/{{object.org.id}}/',
+        attachments: '/flow/upload_media_action/{{object.uuid}}/',
         flows: base + 'flow',
         languages: base + 'language',
         environment: base + 'environment',
@@ -170,7 +172,6 @@
     };
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
-
 
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){

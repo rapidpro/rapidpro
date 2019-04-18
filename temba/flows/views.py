@@ -35,7 +35,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.server.assets import get_asset_type
 from temba.flows.server.serialize import serialize_environment, serialize_language
@@ -760,6 +760,8 @@ class FlowCRUDL(SmartCRUDL):
             )
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+        slug_url_kwarg = "uuid"
+
         def post(self, request, *args, **kwargs):
             return JsonResponse(self.save_media_upload(self.request.FILES["file"]))
 
@@ -1151,6 +1153,9 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
                 context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+
+            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            context["has_whatsapp_channel"] = whatsapp_channel is not None
 
             return context
 

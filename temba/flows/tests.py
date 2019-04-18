@@ -237,7 +237,7 @@ class FlowTest(TembaTest):
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
-        upload_media_action_url = reverse("flows.flow_upload_media_action", args=[self.flow.pk])
+        upload_media_action_url = reverse("flows.flow_upload_media_action", args=[self.flow.uuid])
 
         def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
