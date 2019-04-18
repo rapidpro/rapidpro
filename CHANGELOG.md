@@ -1,3 +1,7 @@
+v4.22.24
+----------
+ * support != search operator
+
 v4.22.23
 ----------
  * simplify squashing of squashable models
