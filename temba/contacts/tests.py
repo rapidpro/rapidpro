@@ -7,9 +7,6 @@ from unittest.mock import PropertyMock, patch
 
 import pytz
 from openpyxl import load_workbook
-from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError
-from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -20,6 +17,9 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError
+from smartmin.tests import SmartminTestMixin, _CRUDLTest
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -1591,6 +1591,8 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, "name ~ blow", contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'name = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'name != ""', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'name != "Bob"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'name != "Joe Blow"', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'name = ""', contact_json={}))
         self.assertFalse(evaluate_query(self.org, 'name != ""', contact_json={}))
         # nothing to compare
@@ -1600,6 +1602,9 @@ class ContactTest(TembaTest):
         self.joe.language = "eng"
         self.joe.save(update_fields=("language",), handle_update=False)
         self.assertTrue(evaluate_query(self.org, 'language = "eng"', contact_json=self.joe.as_search_json()))
+
+        self.assertFalse(evaluate_query(self.org, 'language != "eng"', contact_json=self.joe.as_search_json()))
+        self.assertTrue(evaluate_query(self.org, 'language != "ita"', contact_json=self.joe.as_search_json()))
 
         self.assertFalse(evaluate_query(self.org, 'language = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'language != ""', contact_json=self.joe.as_search_json()))
@@ -1661,6 +1666,9 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, "gender = Female", contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, "gender != male", contact_json=self.joe.as_search_json()))
 
         # test DECIMAL field type
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
@@ -1726,6 +1734,10 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'ward != "Rwamagana"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'ward != "Bukure"', contact_json=self.joe.as_search_json()))
+
         self.assertRaises(
             SearchException, evaluate_query, self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()
         )
@@ -1748,6 +1760,9 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_search_json()))
 
+        self.assertTrue(evaluate_query(self.org, 'district != "Bukure"', contact_json=self.joe.as_search_json()))
+        self.assertFalse(evaluate_query(self.org, 'district != "Rwamagana"', contact_json=self.joe.as_search_json()))
+
         self.assertFalse(
             evaluate_query(self.org, 'district = "cedevita is not a district"', contact_json=self.joe.as_search_json())
         )
@@ -1764,6 +1779,14 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.admin, "state", "Rwanda > Eastern Province")
         self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(
+            evaluate_query(self.org, 'state != "Western Province"', contact_json=self.joe.as_search_json())
+        )
+        self.assertFalse(
+            evaluate_query(self.org, 'state != "Eastern Province"', contact_json=self.joe.as_search_json())
+        )
+
         self.assertRaises(
             SearchException, evaluate_query, self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()
         )
@@ -1911,6 +1934,7 @@ class ContactTest(TembaTest):
         # property conditions
         self.assertEqual(parse_query("name=will"), ContactQuery(Condition("name", "=", "will")))
         self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition("name", "~", "felix")))
+        self.assertEqual(parse_query('name != "felix"'), ContactQuery(Condition("name", "!=", "felix")))
 
         # empty string conditions
         self.assertEqual(parse_query('name is ""'), ContactQuery(IsSetCondition("name", "is")))
@@ -2106,6 +2130,24 @@ class ContactTest(TembaTest):
             }
         ]
         actual_search, _ = contact_es_search(self.org, 'gender = "unknown"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
+        # text term does not match
+        expected_search = copy.deepcopy(base_search)
+        expected_search["query"]["bool"]["must"] = [
+            {
+                "nested": {
+                    "path": "fields",
+                    "query": {
+                        "bool": {
+                            "must_not": [{"term": {"fields.text": "unknown"}}],
+                            "must": [{"term": {"fields.field": str(gender.uuid)}}],
+                        }
+                    },
+                }
+            }
+        ]
+        actual_search, _ = contact_es_search(self.org, 'gender != "unknown"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # decimal range matches
@@ -2324,6 +2366,25 @@ class ContactTest(TembaTest):
         actual_search, _ = contact_es_search(self.org, 'ward = "Bukure"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
+        # ward does not match
+        expected_search = copy.deepcopy(base_search)
+        expected_search["query"]["bool"]["must"] = [
+            {
+                "nested": {
+                    "path": "fields",
+                    "query": {
+                        "bool": {
+                            "must_not": [{"term": {"fields.ward_keyword": "bukure"}}],
+                            "must": [{"term": {"fields.field": str(ward.uuid)}}],
+                        }
+                    },
+                }
+            }
+        ]
+
+        actual_search, _ = contact_es_search(self.org, 'ward != "Bukure"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
         self.assertRaises(SearchException, contact_es_search, self.org, 'ward ~ "Bukure"')
 
         # district matches
@@ -2345,6 +2406,25 @@ class ContactTest(TembaTest):
         ]
         actual_search, _ = contact_es_search(self.org, 'district = "Rwamagana"')
         self.assertEqual(actual_search.to_dict(), expected_search)
+
+        # district does not match
+        expected_search = copy.deepcopy(base_search)
+        expected_search["query"]["bool"]["must"] = [
+            {
+                "nested": {
+                    "path": "fields",
+                    "query": {
+                        "bool": {
+                            "must_not": [{"term": {"fields.district_keyword": "rwamagana"}}],
+                            "must": [{"term": {"fields.field": str(district.uuid)}}],
+                        }
+                    },
+                }
+            }
+        ]
+        actual_search, _ = contact_es_search(self.org, 'district != "Rwamagana"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
         self.assertRaises(SearchException, contact_es_search, self.org, 'district ~ "Rwamagana"')
 
         # state matches
@@ -2365,6 +2445,24 @@ class ContactTest(TembaTest):
             }
         ]
         actual_search, _ = contact_es_search(self.org, 'state = "Eastern Province"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
+        # state does not match
+        expected_search = copy.deepcopy(base_search)
+        expected_search["query"]["bool"]["must"] = [
+            {
+                "nested": {
+                    "path": "fields",
+                    "query": {
+                        "bool": {
+                            "must_not": [{"term": {"fields.state_keyword": "eastern province"}}],
+                            "must": [{"term": {"fields.field": str(state.uuid)}}],
+                        }
+                    },
+                }
+            }
+        ]
+        actual_search, _ = contact_es_search(self.org, 'state != "Eastern Province"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         self.assertRaises(SearchException, contact_es_search, self.org, 'state ~ "Eastern Province"')
@@ -2449,13 +2547,28 @@ class ContactTest(TembaTest):
 
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"name.keyword": "joe blow"}}]
+
         actual_search, _ = contact_es_search(self.org, 'name = "joe Blow"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
+        expected_search = copy.deepcopy(base_search)
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [{"term": {"name.keyword": "joe blow"}}]
+
+        actual_search, _ = contact_es_search(self.org, 'name != "joe Blow"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # test `language` contact attribute
         expected_search = copy.deepcopy(base_search)
         expected_search["query"]["bool"]["must"] = [{"term": {"language": "eng"}}]
         actual_search, _ = contact_es_search(self.org, 'language = "eng"')
+        self.assertEqual(actual_search.to_dict(), expected_search)
+
+        expected_search = copy.deepcopy(base_search)
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [{"term": {"language": "eng"}}]
+
+        actual_search, _ = contact_es_search(self.org, 'language != "eng"')
         self.assertEqual(actual_search.to_dict(), expected_search)
 
         # operator not supported
@@ -8001,7 +8114,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             contact.set_field(self.admin, "home", districts[i % len(districts)])
             contact.set_field(self.admin, "ward", wards[i % len(wards)])
 
-            contact.set_field(self.admin, "isureporter", "yes")
+            contact.set_field(self.admin, "isureporter", "yes" if i % 2 == 0 else "no")
             contact.set_field(self.admin, "hasbirth", "no")
 
             if i % 3 == 0:
@@ -8040,6 +8153,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('name != ""'), 60)
         self.assertEqual(q('NAME = ""'), 30)
         self.assertEqual(q("name ~ Mi"), 15)
+        self.assertEqual(q('name != "Mike"'), 75)
 
         # URN as property
         self.assertEqual(q("tel is +250188382011"), 1)
@@ -8068,6 +8182,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q("HOME is Kayônza"), 30)
         self.assertEqual(q("ward is kageyo"), 30)
+        self.assertEqual(q("ward != kageyo"), 60)
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)
@@ -8075,9 +8190,10 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('profession != ""'), 30)
 
         # contact fields beginning with 'is' or 'has'
-        self.assertEqual(q('isureporter = "yes"'), 90)
-        self.assertEqual(q("isureporter = yes"), 90)
-        self.assertEqual(q("isureporter = no"), 0)
+        self.assertEqual(q('isureporter = "yes"'), 45)
+        self.assertEqual(q("isureporter = yes"), 45)
+        self.assertEqual(q("isureporter = no"), 45)
+        self.assertEqual(q("isureporter != no"), 45)
 
         self.assertEqual(q('hasbirth = "no"'), 90)
         self.assertEqual(q("hasbirth = no"), 90)
