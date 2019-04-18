@@ -1,3 +1,11 @@
+v4.22.25
+----------
+ * only show pagination warning when we have more than 10k results
+
+v4.22.24
+----------
+ * support != search operator
+
 v4.22.23
 ----------
  * simplify squashing of squashable models
