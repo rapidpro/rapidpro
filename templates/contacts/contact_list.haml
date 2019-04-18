@@ -241,7 +241,7 @@
                     - include "smartmin/sidebar_pagination.haml"
 
                 -# are we using ES, and are we on the last page of the pagination and
-                - if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages
+                - if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
                   %div
                     %p.span3
 
