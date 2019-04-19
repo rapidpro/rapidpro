@@ -13,7 +13,6 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
-from packaging.version import Version
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
@@ -30,6 +29,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from celery import current_app
 
+from packaging.version import Version
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -219,7 +219,6 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
-    GOFLOW_VERSION = "12.0.0"
     SPEC_VERSION = "spec_version"
     REVISION = "revision"
 
@@ -252,6 +251,8 @@ class Flow(TembaModel):
         "11.11",
         "11.12",
     ]
+
+    GOFLOW_VERSION = "13.0.0"
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
