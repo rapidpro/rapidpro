@@ -129,7 +129,7 @@
     // line up our flow types with goflow types
     var flowType = '{{object.flow_type}}';
     if (flowType == 'M') {
-      flowType = 'messaging';
+      flowType = 'message';
     } else if (flowType == 'V') {
       flowType = 'voice';
     } else if (flowType == 'S') {
@@ -162,12 +162,12 @@
         channels: api + 'channels.json',
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
+        flows: api + 'flows.json?archived=false',
 
         // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_messages/{{object.uuid}}/',
         attachments: '/flow/upload_media_action/{{object.uuid}}/',
-        flows: base + 'flow',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
