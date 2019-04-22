@@ -21,4 +21,4 @@ class Migration(migrations.Migration):
 
     dependencies = [("flows", "0196_populate_results_and_waiting_exits")]
 
-    operations = [migrations.RunSQL(SQL)]
+    operations = [migrations.RunSQL(SQL, "")]
