@@ -9,7 +9,7 @@
     ]
   },
   "dependencies": {
-    "@nyaruka/flow-editor": "1.4.2",
+    "@nyaruka/flow-editor": "1.4.7",
     "bower": "1.7.9",
     "coffee-script": "1.9.3",
     "less": "2.7.1"
