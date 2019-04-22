@@ -797,7 +797,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from temba.api.models import WebHookResult
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg, BroadcastRecipient
+        from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = (
@@ -806,22 +806,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")
             .prefetch_related("channel_logs")[:MAX_HISTORY]
         )
-
-        # we also include in the timeline purged broadcasts with a best guess at the translation used
-        recipients = BroadcastRecipient.objects.filter(contact=self)
-        recipients = recipients.filter(
-            broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before
-        )
-        recipients = recipients.order_by("-broadcast__created_on").select_related("broadcast")[:MAX_HISTORY]
-        broadcasts = []
-        for recipient in recipients:
-            broadcast = recipient.broadcast
-            media = broadcast.get_translated_media(contact=self, org=self.org) if broadcast.media else None
-
-            broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
-            broadcast.purged_status = recipient.purged_status
-            broadcast.attachments = [media] if media else []
-            broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__is_system=True)
@@ -851,7 +835,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # wrap items, chain and sort by time
         activity = chain(
             [{"type": "msg", "time": m.created_on, "obj": m} for m in msgs],
-            [{"type": "broadcast", "time": b.created_on, "obj": b} for b in broadcasts],
             [{"type": "run-start", "time": r.created_on, "obj": r} for r in started_runs],
             [{"type": "run-exit", "time": r.exited_on, "obj": r} for r in exited_runs],
             [{"type": "channel-event", "time": e.created_on, "obj": e} for e in channel_events],
