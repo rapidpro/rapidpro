@@ -3322,6 +3322,24 @@ class FlowTest(TembaTest):
             ).first()
         )
 
+    def test_null_categories(self):
+        self.flow.start([], [self.contact])
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
+        self.assertTrue(Flow.find_and_handle(sms)[0])
+
+        FlowCategoryCount.objects.get(category_name="Blue", result_name="color", result_key="color", count=1)
+
+        # get our run and clear the category
+        run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
+        results = run.results
+        del results["color"]["category"]
+        results["color"]["created_on"] = timezone.now()
+        run.save(update_fields=["results", "modified_on"])
+
+        # should have added a negative one now
+        self.assertEqual(2, FlowCategoryCount.objects.filter(category_name="Blue", result_name="color").count())
+        FlowCategoryCount.objects.get(category_name="Blue", result_name="color", result_key="color", count=-1)
+
     def test_location_entry_test(self):
 
         self.country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
