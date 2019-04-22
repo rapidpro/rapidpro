@@ -112,14 +112,16 @@
 
 -block extra-script
   {{ block.super }}
+  
+  -if dev_mode
+    %script{type:'text/javascript', src:"http://localhost:9000/flow-editor.js"}
+  -else
+    %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor-styles.css"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}react.production.min.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}react-dom.production.min.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}flow-editor.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}vendors~flow-editor.js"}
 
-  %link{rel:'stylesheet', type:'text/css', href:"{{ STATIC_URL }}flow-editor-styles.css"}
-  %script{type:'text/javascript', src:"{{ STATIC_URL }}react.production.min.js"}
-  %script{type:'text/javascript', src:"{{ STATIC_URL }}react-dom.production.min.js"}
-  %script{type:'text/javascript', src:"{{ STATIC_URL }}flow-editor.js"}
-  %script{type:'text/javascript', src:"{{ STATIC_URL }}vendors~flow-editor.js"}
-
-  // %script{type:'text/javascript', src:"http://localhost:9000/flow-editor.js"}
 
   :javascript
 
@@ -133,7 +135,7 @@
     } else if (flowType == 'V') {
       flowType = 'voice';
     } else if (flowType == 'S') {
-      flowType = 'messaging_offline';
+      flowType = 'message_offline';
     }
 
     function handleEditorLoaded() {
@@ -163,6 +165,7 @@
         resthooks: api + 'resthooks.json',
         templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
+        editor: '/flow/editor',
 
         // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',

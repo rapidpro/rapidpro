@@ -1156,6 +1156,7 @@ class FlowCRUDL(SmartCRUDL):
 
             whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             context["has_whatsapp_channel"] = whatsapp_channel is not None
+            context["dev_mode"] = getattr(settings, "DEV_MODE", False)
 
             return context
 
