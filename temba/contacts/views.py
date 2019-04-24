@@ -3,19 +3,6 @@ from collections import OrderedDict
 from datetime import timedelta
 
 import regex
-from smartmin.csv_imports.models import ImportTask
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartCSVImportView,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartUpdateView,
-    SmartView,
-    smart_url,
-)
 
 from django import forms
 from django.conf import settings
@@ -35,8 +22,22 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from smartmin.csv_imports.models import ImportTask
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartCSVImportView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartUpdateView,
+    SmartView,
+    smart_url,
+)
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -1041,24 +1042,42 @@ class ContactCRUDL(SmartCRUDL):
             Contact.bulk_cache_initialize(contact.org, [contact])
 
             # lookup all of our contact fields
-            contact_fields = []
-            fields = ContactField.user_fields.filter(org=contact.org, is_active=True).order_by("label", "pk")
+            all_contact_fields = []
+            fields = ContactField.user_fields.filter(org=contact.org, is_active=True).order_by(
+                "-show_in_table", "-priority", "label", "pk"
+            )
+
             for field in fields:
                 value = contact.get_field_value(field)
-                if value:
-                    display = contact.get_field_display(field)
-                    contact_fields.append(
-                        dict(id=field.id, label=field.label, value=display, featured=field.show_in_table)
+
+                if field.show_in_table:
+                    if not (value):
+                        display = MISSING_VALUE
+                    else:
+                        display = contact.get_field_display(field)
+
+                    all_contact_fields.append(
+                        dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
                     )
 
-            # stuff in the contact's language in the fields as well
+                else:
+                    display = contact.get_field_display(field)
+                    # add a contact field only if it has a value
+                    if display:
+                        all_contact_fields.append(
+                            dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
+                        )
+
+            context["all_contact_fields"] = all_contact_fields
+
+            # add contact.language to the context
             if contact.language:
                 lang = languages.get_language_name(contact.language)
                 if not lang:
                     lang = contact.language
-                contact_fields.append(dict(label="Language", value=lang, featured=True))
-
-            context["contact_fields"] = sorted(contact_fields, key=lambda f: f["label"])
+                context["contact_language"] = lang
+            else:
+                context["contact_language"] = _("No Preference")
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
