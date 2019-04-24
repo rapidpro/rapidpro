@@ -57,6 +57,7 @@ from .flow_migrations import (
     migrate_to_version_9,
     migrate_to_version_10_2,
     migrate_to_version_10_4,
+    migrate_to_version_11_0,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
     migrate_to_version_11_5,
@@ -9989,6 +9990,44 @@ class FlowMigrationTest(FlowFileTest):
                 "You said @(format_location(flow.ward)).",  # flow var followed by period then end of input
             ],
         )
+
+    def test_migrate_to_11_0_with_null_ruleset_label(self):
+        flow = self.get_flow("migrate_to_11_0")
+        definition = {
+            "rule_sets": [
+                {
+                    "uuid": "9ed4a233-c737-4f46-9b0a-de6e88134e14",
+                    "rules": [],
+                    "ruleset_type": "wait_message",
+                    "label": None,
+                    "operand": None,
+                    "finished_key": None,
+                    "y": 180,
+                    "x": 179,
+                }
+            ]
+        }
+
+        migrated = migrate_to_version_11_0(definition, flow)
+
+        self.assertEqual(migrated, definition)
+
+    def test_migrate_to_11_0_with_null_msg_text(self):
+        flow = self.get_flow("migrate_to_11_0")
+        definition = {
+            "action_sets": [
+                {
+                    "y": 0,
+                    "x": 100,
+                    "destination": "0ecf7914-05e0-4b71-8816-495d2c0921b5",
+                    "uuid": "a6676605-332a-4309-a8b8-79b33e73adcd",
+                    "actions": [{"type": "reply", "msg": {"base": None}}],
+                }
+            ]
+        }
+
+        migrated = migrate_to_version_11_0(definition, flow)
+        self.assertEqual(migrated, definition)
 
     def test_migrate_to_11_0_with_broken_localization(self):
         migrated = self.get_flow("migrate_to_11_0").as_json()
