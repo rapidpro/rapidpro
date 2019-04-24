@@ -3,6 +3,19 @@ from collections import OrderedDict
 from datetime import timedelta
 
 import regex
+from smartmin.csv_imports.models import ImportTask
+from smartmin.views import (
+    SmartCreateView,
+    SmartCRUDL,
+    SmartCSVImportView,
+    SmartDeleteView,
+    SmartFormView,
+    SmartListView,
+    SmartReadView,
+    SmartUpdateView,
+    SmartView,
+    smart_url,
+)
 
 from django import forms
 from django.conf import settings
@@ -22,19 +35,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from smartmin.csv_imports.models import ImportTask
-from smartmin.views import (
-    SmartCreateView,
-    SmartCRUDL,
-    SmartCSVImportView,
-    SmartDeleteView,
-    SmartFormView,
-    SmartListView,
-    SmartReadView,
-    SmartUpdateView,
-    SmartView,
-    smart_url,
-)
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
@@ -1076,8 +1076,6 @@ class ContactCRUDL(SmartCRUDL):
                 if not lang:
                     lang = contact.language
                 context["contact_language"] = lang
-            else:
-                context["contact_language"] = _("No Preference")
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
