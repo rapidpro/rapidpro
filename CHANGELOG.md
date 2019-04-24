@@ -1,3 +1,7 @@
+v4.22.27
+----------
+ * styling tweaks to contacts page
+
 v4.22.26
 ----------
  * Always show featured ContactFields on Contact.read page
