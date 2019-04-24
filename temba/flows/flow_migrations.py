@@ -126,7 +126,7 @@ def migrate_to_version_11_11(json_flow, flow=None):
         # labels can be single string expressions
         if type(label) is dict:
             # we haven't been mapped yet (also, non-uuid labels can't be mapped)
-            if "uuid" not in label or label["uuid"] not in uuid_map:
+            if ("uuid" not in label or label["uuid"] not in uuid_map) and Label.is_valid_name(label["name"]):
                 label_instance = Label.get_or_create(flow.org, flow.created_by, label["name"])
 
                 # map label references that started with a uuid
@@ -742,6 +742,9 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                 elif rs_type and test != rs_type:
                     rs_type = "none"
 
+            if rs["label"] is None:
+                continue
+
             key = Flow.label_to_slug(rs["label"])
 
             # any reference to this result value's time property needs wrapped in format_date
@@ -773,10 +776,11 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
                             text = next(iter(text.values()))
 
                         migrated_text = text
-                        for pattern, replacement in replacements:
-                            migrated_text = regex.sub(
-                                pattern, replacement, migrated_text, flags=regex.UNICODE | regex.MULTILINE
-                            )
+                        if isinstance(migrated_text, str):
+                            for pattern, replacement in replacements:
+                                migrated_text = regex.sub(
+                                    pattern, replacement, migrated_text, flags=regex.UNICODE | regex.MULTILINE
+                                )
 
                         msg[lang] = migrated_text
 
