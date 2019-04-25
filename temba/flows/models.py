@@ -13,6 +13,7 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
+from packaging.version import Version
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
@@ -29,7 +30,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from celery import current_app
 
-from packaging.version import Version
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -193,6 +193,7 @@ class Flow(TembaModel):
     METADATA_REVISION = "revision"
     METADATA_EXPIRES = "expires"
     METADATA_RESULTS = "results"
+    METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
 
     X = "x"
@@ -2325,10 +2326,11 @@ class Flow(TembaModel):
 
             # update our flow fields
             self.base_language = validated_definition.get(Flow.LANGUAGE, None)
+
             self.metadata = {
-                "results": validated_definition["_results"],
-                "dependencies": validated_definition["_dependencies"],
-                "waiting_exits": validated_definition["_waiting_exits"],
+                Flow.METADATA_RESULTS: validated_definition["_results"],
+                Flow.METADATA_DEPENDENCIES: validated_definition["_dependencies"],
+                Flow.METADATA_WAITING_EXIT_UUIDS: validated_definition["_waiting_exits"],
             }
             self.saved_by = user
             self.saved_on = timezone.now()
