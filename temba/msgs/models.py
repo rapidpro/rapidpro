@@ -117,23 +117,6 @@ class UnreachableException(Exception):
     pass
 
 
-class BroadcastRecipient(models.Model):
-    """
-    Through table for broadcast recipients many-to-many
-    """
-
-    broadcast = models.ForeignKey("msgs.Broadcast", on_delete=models.PROTECT)
-
-    contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
-
-    purged_status = models.CharField(
-        null=True, max_length=1, help_text=_("Used when broadcast is purged to record contact's message's state")
-    )
-
-    class Meta:
-        db_table = "msgs_broadcast_recipients"
-
-
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -170,14 +153,6 @@ class Broadcast(models.Model):
         verbose_name=_("URNs"),
         related_name="addressed_broadcasts",
         help_text=_("Individual URNs included in this message"),
-    )
-
-    recipients = models.ManyToManyField(
-        Contact,
-        through=BroadcastRecipient,
-        verbose_name=_("Recipients"),
-        related_name="broadcasts",
-        help_text=_("The contacts which received this message"),
     )
 
     recipient_count = models.IntegerField(

@@ -7,6 +7,9 @@ from unittest.mock import PropertyMock, patch
 
 import pytz
 from openpyxl import load_workbook
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError
+from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -17,9 +20,6 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError
-from smartmin.tests import SmartminTestMixin, _CRUDLTest
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -29,7 +29,7 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
+from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
@@ -3588,7 +3588,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(68):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3634,34 +3634,12 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[10]["obj"].text, "Inbound message 0")
             self.assertEqual(activity[11]["obj"].text, "Very old inbound message")
 
-            # make our broadcast look like an old purged broadcast
-            bcast = Broadcast.objects.get()
-            for msg in bcast.msgs.all():
-                BroadcastRecipient.objects.create(contact=msg.contact, broadcast=bcast, purged_status=msg.status)
-
-            bcast.purged = True
-            bcast.save(update_fields=("purged",))
-            self.release(bcast.msgs.all(), delete=True)
-
-            recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
-            recipient.purged_status = "F"
-            recipient.save()
-
             response = self.fetch_protected(url, self.admin)
             activity = response.context["activity"]
 
-            # our broadcast recipient purged_status is failed
-            self.assertContains(response, "icon-bubble-notification")
-
             self.assertEqual(len(activity), 95)
-            self.assertIsInstance(
-                activity[6]["obj"], Broadcast
-            )  # TODO fix order so initial broadcasts come after their run
-            self.assertEqual(
-                activity[6]["obj"].text,
-                {"base": "What is your favorite color?", "fra": "Quelle est votre couleur préférée?"},
-            )
-            self.assertEqual(activity[6]["obj"].translated_text, "What is your favorite color?")
+            self.assertIsInstance(activity[5]["obj"], Msg)
+            self.assertEqual(activity[5]["obj"].text, "What is your favorite color?")
 
             # if a new message comes in
             self.create_msg(direction="I", contact=self.joe, text="Newer message")
@@ -3724,7 +3702,8 @@ class ContactTest(TembaTest):
             self.assertIsInstance(activity[6]["obj"], ChannelEvent)
             self.assertIsInstance(activity[7]["obj"], ChannelEvent)
             self.assertIsInstance(activity[8]["obj"], WebHookResult)
-            self.assertIsInstance(activity[9]["obj"], FlowRun)
+            self.assertIsInstance(activity[9]["obj"], Msg)
+            self.assertIsInstance(activity[10]["obj"], FlowRun)
 
         # with a max history of one, we should see this event first
         with patch("temba.contacts.models.MAX_HISTORY", 1):
