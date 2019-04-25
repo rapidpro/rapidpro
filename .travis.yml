@@ -52,9 +52,9 @@ install:
   - pip install coveralls
   - pip install flake8
 
-  # switch to Node 6 and install our node dependencies
-  - nvm install 6
-  - nvm use 6
+  # switch to Node 10 and install our node dependencies
+  - nvm install 10
+  - nvm use 10
   - npm install
 
 before_script:
