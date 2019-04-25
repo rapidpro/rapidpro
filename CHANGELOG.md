@@ -1,3 +1,12 @@
+v4.22.27
+----------
+ * styling tweaks to contacts page
+
+v4.22.26
+----------
+ * Always show featured ContactFields on Contact.read page
+ * Do not migrate ruleset with label null and action msg text null
+
 v4.22.25
 ----------
  * only show pagination warning when we have more than 10k results
