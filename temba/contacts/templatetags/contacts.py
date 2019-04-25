@@ -119,9 +119,7 @@ def urn_icon(urn):
 def activity_icon(item):
     obj = item["obj"]
 
-    if item["type"] == "broadcast":
-        icon = "Failed" if obj.purged_status in ("E", "F") else "Broadcast"
-    elif item["type"] == "msg":
+    if item["type"] == "msg":
         if obj.broadcast and obj.broadcast.recipient_count > 1:
             icon = "Failed" if obj.status in ("E", "F") else "Broadcast"
         elif obj.msg_type == "V":

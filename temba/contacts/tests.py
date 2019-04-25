@@ -7,6 +7,9 @@ from unittest.mock import PropertyMock, patch
 
 import pytz
 from openpyxl import load_workbook
+from smartmin.csv_imports.models import ImportTask
+from smartmin.models import SmartImportRowError
+from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -17,9 +20,6 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError
-from smartmin.tests import SmartminTestMixin, _CRUDLTest
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -29,7 +29,7 @@ from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import INCOMING, Broadcast, BroadcastRecipient, Label, Msg, SystemLabel
+from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
@@ -1598,6 +1598,9 @@ class ContactTest(TembaTest):
         # nothing to compare
         self.assertFalse(evaluate_query(self.org, "name = Joe", contact_json={}))
 
+        # 'voldemort' does not have any attributes, evaluates to True
+        self.assertTrue(evaluate_query(self.org, 'name != "Joe Blow"', contact_json=self.voldemort.as_search_json()))
+
         # test 'language' attribute
         self.joe.language = "eng"
         self.joe.save(update_fields=("language",), handle_update=False)
@@ -1608,6 +1611,8 @@ class ContactTest(TembaTest):
 
         self.assertFalse(evaluate_query(self.org, 'language = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'language != ""', contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, 'language != "bla"', contact_json=self.voldemort.as_search_json()))
 
         # language does not support `has` operator
         self.assertRaises(
@@ -1669,6 +1674,8 @@ class ContactTest(TembaTest):
 
         self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, "gender != male", contact_json=self.joe.as_search_json()))
+
+        self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.voldemort.as_search_json()))
 
         # test DECIMAL field type
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
@@ -1738,6 +1745,8 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'ward != "Rwamagana"', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'ward != "Bukure"', contact_json=self.joe.as_search_json()))
 
+        self.assertTrue(evaluate_query(self.org, 'ward != "Rwamagana"', contact_json=self.voldemort.as_search_json()))
+
         self.assertRaises(
             SearchException, evaluate_query, self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()
         )
@@ -1763,6 +1772,10 @@ class ContactTest(TembaTest):
         self.assertTrue(evaluate_query(self.org, 'district != "Bukure"', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'district != "Rwamagana"', contact_json=self.joe.as_search_json()))
 
+        self.assertTrue(
+            evaluate_query(self.org, 'district != "Rwamagana"', contact_json=self.voldemort.as_search_json())
+        )
+
         self.assertFalse(
             evaluate_query(self.org, 'district = "cedevita is not a district"', contact_json=self.joe.as_search_json())
         )
@@ -1785,6 +1798,10 @@ class ContactTest(TembaTest):
         )
         self.assertFalse(
             evaluate_query(self.org, 'state != "Eastern Province"', contact_json=self.joe.as_search_json())
+        )
+
+        self.assertTrue(
+            evaluate_query(self.org, 'state != "Western Province"', contact_json=self.voldemort.as_search_json())
         )
 
         self.assertRaises(
@@ -1862,6 +1879,7 @@ class ContactTest(TembaTest):
         with AnonymousOrg(self.org):
 
             self.assertTrue(evaluate_query(self.org, "gender = male", contact_json=self.joe.as_search_json()))
+            self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
             self.assertTrue(evaluate_query(self.org, "age >= 15", contact_json=self.joe.as_search_json()))
 
             # do not evaluate URN queries if org is anonymous
@@ -2134,14 +2152,18 @@ class ContactTest(TembaTest):
 
         # text term does not match
         expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [
             {
                 "nested": {
                     "path": "fields",
                     "query": {
                         "bool": {
-                            "must_not": [{"term": {"fields.text": "unknown"}}],
-                            "must": [{"term": {"fields.field": str(gender.uuid)}}],
+                            "must": [
+                                {"term": {"fields.field": str(gender.uuid)}},
+                                {"term": {"fields.text": "unknown"}},
+                                {"exists": {"field": "fields.text"}},
+                            ]
                         }
                     },
                 }
@@ -2368,14 +2390,18 @@ class ContactTest(TembaTest):
 
         # ward does not match
         expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [
             {
                 "nested": {
                     "path": "fields",
                     "query": {
                         "bool": {
-                            "must_not": [{"term": {"fields.ward_keyword": "bukure"}}],
-                            "must": [{"term": {"fields.field": str(ward.uuid)}}],
+                            "must": [
+                                {"term": {"fields.field": str(ward.uuid)}},
+                                {"term": {"fields.ward_keyword": "bukure"}},
+                                {"exists": {"field": "fields.ward_keyword"}},
+                            ]
                         }
                     },
                 }
@@ -2409,14 +2435,18 @@ class ContactTest(TembaTest):
 
         # district does not match
         expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [
             {
                 "nested": {
                     "path": "fields",
                     "query": {
                         "bool": {
-                            "must_not": [{"term": {"fields.district_keyword": "rwamagana"}}],
-                            "must": [{"term": {"fields.field": str(district.uuid)}}],
+                            "must": [
+                                {"term": {"fields.field": str(district.uuid)}},
+                                {"term": {"fields.district_keyword": "rwamagana"}},
+                                {"exists": {"field": "fields.district_keyword"}},
+                            ]
                         }
                     },
                 }
@@ -2449,14 +2479,18 @@ class ContactTest(TembaTest):
 
         # state does not match
         expected_search = copy.deepcopy(base_search)
-        expected_search["query"]["bool"]["must"] = [
+        del expected_search["query"]["bool"]["must"]
+        expected_search["query"]["bool"]["must_not"] = [
             {
                 "nested": {
                     "path": "fields",
                     "query": {
                         "bool": {
-                            "must_not": [{"term": {"fields.state_keyword": "eastern province"}}],
-                            "must": [{"term": {"fields.field": str(state.uuid)}}],
+                            "must": [
+                                {"term": {"fields.field": str(state.uuid)}},
+                                {"term": {"fields.state_keyword": "eastern province"}},
+                                {"exists": {"field": "fields.state_keyword"}},
+                            ]
                         }
                     },
                 }
@@ -3554,7 +3588,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(68):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3600,34 +3634,12 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[10]["obj"].text, "Inbound message 0")
             self.assertEqual(activity[11]["obj"].text, "Very old inbound message")
 
-            # make our broadcast look like an old purged broadcast
-            bcast = Broadcast.objects.get()
-            for msg in bcast.msgs.all():
-                BroadcastRecipient.objects.create(contact=msg.contact, broadcast=bcast, purged_status=msg.status)
-
-            bcast.purged = True
-            bcast.save(update_fields=("purged",))
-            self.release(bcast.msgs.all(), delete=True)
-
-            recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
-            recipient.purged_status = "F"
-            recipient.save()
-
             response = self.fetch_protected(url, self.admin)
             activity = response.context["activity"]
 
-            # our broadcast recipient purged_status is failed
-            self.assertContains(response, "icon-bubble-notification")
-
             self.assertEqual(len(activity), 95)
-            self.assertIsInstance(
-                activity[6]["obj"], Broadcast
-            )  # TODO fix order so initial broadcasts come after their run
-            self.assertEqual(
-                activity[6]["obj"].text,
-                {"base": "What is your favorite color?", "fra": "Quelle est votre couleur préférée?"},
-            )
-            self.assertEqual(activity[6]["obj"].translated_text, "What is your favorite color?")
+            self.assertIsInstance(activity[5]["obj"], Msg)
+            self.assertEqual(activity[5]["obj"].text, "What is your favorite color?")
 
             # if a new message comes in
             self.create_msg(direction="I", contact=self.joe, text="Newer message")
@@ -3690,7 +3702,8 @@ class ContactTest(TembaTest):
             self.assertIsInstance(activity[6]["obj"], ChannelEvent)
             self.assertIsInstance(activity[7]["obj"], ChannelEvent)
             self.assertIsInstance(activity[8]["obj"], WebHookResult)
-            self.assertIsInstance(activity[9]["obj"], FlowRun)
+            self.assertIsInstance(activity[9]["obj"], Msg)
+            self.assertIsInstance(activity[10]["obj"], FlowRun)
 
         # with a max history of one, we should see this event first
         with patch("temba.contacts.models.MAX_HISTORY", 1):
@@ -8129,8 +8142,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         ContactField.get_or_create(self.org, self.admin, "hasbirth", "Has Birth", value_type="T")
 
         names = ["Trey", "Mike", "Paige", "Fish", "", None]
-        districts = ["Gatsibo", "Kayônza", "Rwamagana"]
-        wards = ["Kageyo", "Kabara", "Bukure"]
+        districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
+        wards = ["Kageyo", "Kabara", "Bukure", None]
         date_format = get_datetime_format(True)[0]
 
         # create some contacts
@@ -8150,7 +8163,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             contact.set_field(self.admin, "home", districts[i % len(districts)])
             contact.set_field(self.admin, "ward", wards[i % len(wards)])
 
-            contact.set_field(self.admin, "isureporter", "yes" if i % 2 == 0 else "no")
+            contact.set_field(self.admin, "isureporter", "yes" if i % 2 == 0 else "no" if i % 3 == 0 else None)
             contact.set_field(self.admin, "hasbirth", "no")
 
             if i % 3 == 0:
@@ -8216,11 +8229,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('join_date = ""'), 0)
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
-        self.assertEqual(q("HOME is Kayônza"), 30)
-        self.assertEqual(q("ward is kageyo"), 30)
-        self.assertEqual(q("ward != kageyo"), 60)
+        self.assertEqual(q("HOME is Kayônza"), 23)
+        self.assertEqual(q("ward is kageyo"), 23)
+        self.assertEqual(q("ward != kageyo"), 67)  # includes objects with empty ward
 
-        self.assertEqual(q('home is ""'), 0)
+        self.assertEqual(q('home is ""'), 22)
         self.assertEqual(q('profession = ""'), 60)
         self.assertEqual(q('profession is ""'), 60)
         self.assertEqual(q('profession != ""'), 30)
@@ -8228,8 +8241,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # contact fields beginning with 'is' or 'has'
         self.assertEqual(q('isureporter = "yes"'), 45)
         self.assertEqual(q("isureporter = yes"), 45)
-        self.assertEqual(q("isureporter = no"), 45)
-        self.assertEqual(q("isureporter != no"), 45)
+        self.assertEqual(q("isureporter = no"), 15)
+        self.assertEqual(q("isureporter != no"), 75)  # includes objects with empty isureporter
 
         self.assertEqual(q('hasbirth = "no"'), 90)
         self.assertEqual(q("hasbirth = no"), 90)
@@ -8238,7 +8251,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         # boolean combinations
         self.assertEqual(q("name is trey or name is mike"), 30)
         self.assertEqual(q("name is trey and age < 20"), 2)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 45)
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
         self.assertEqual(q("profession = doctor or profession = farmer"), 30)  # same field

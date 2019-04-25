@@ -147,6 +147,9 @@ class MsgTest(TembaTest):
         msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
         msg2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "ignore joe, he's a liar")
 
+        # create a channel log for msg2
+        ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
+
         # we've used two credits
         self.assertEqual(2, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 2)
@@ -160,6 +163,9 @@ class MsgTest(TembaTest):
         msg2.release(Msg.DELETE_FOR_USER)
         self.assertEqual(0, Msg.objects.all().count())
         self.assertEqual(self.org._calculate_credits_used()[0], 1)
+
+        # log should be gone
+        self.assertEqual(0, ChannelLog.objects.filter(channel=self.channel).count())
 
     def test_get_sync_commands(self):
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
