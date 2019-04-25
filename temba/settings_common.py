@@ -128,6 +128,8 @@ STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
     os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
 STATIC_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 STATIC_URL = "/sitestatic/"
