@@ -23,22 +23,6 @@
               -for attachment in msg.attachments
                 {% attachment_button attachment %}
 
-      -if item.type == 'broadcast'
-        -with item.obj as broadcast
-          .activity-broadcast
-            -if broadcast.recipient_count > 1
-              .sent-to
-                .summary
-                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
-
-            .activity-body
-              -if broadcast.translated_text
-                .text{ style:"{% if broadcast.attachments %}margin-bottom:10px{% endif %}" }
-                  {{broadcast.translated_text}}
-
-              -for attachment in broadcast.attachments
-                {% attachment_button attachment %}
-
       -elif item.type == 'channel-event'
         -with item.obj as event
           -if event.event_type == 'mt_miss'
