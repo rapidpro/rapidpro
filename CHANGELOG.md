@@ -1,3 +1,8 @@
+v4.22.36
+----------
+ * allow Alpha users to build flows in new editor
+ * don't use RuleSets in figuring results, exports, categories
+
 v4.22.28
 ----------
  * Adjust `!=` search operator to include unset data
