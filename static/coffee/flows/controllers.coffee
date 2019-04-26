@@ -131,7 +131,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
   # fetch our flow to get started
   $scope.init = ->
-    Flow.fetch window.flowId, ->
+    Flow.fetch window.flowUUID, ->
       $scope.updateActivity()
       $scope.flow = Flow.flow
 
@@ -316,11 +316,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         $rootScope.is_starting = data.is_starting
 
         # to be successful we should be a 200 with activity data
-        if xhr.status == 200 and data.activity
+        if xhr.status == 200 and data.nodes
           $rootScope.activity =
-            active: data.activity
-            visited: data.visited
-
+            active: data.nodes
+            visited: data.segments
           if not window.simulation
             $rootScope.visibleActivity = $rootScope.activity
 

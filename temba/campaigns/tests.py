@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart, RuleSet
+from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org, get_current_export_version
 from temba.tests import ESMockWithScroll, TembaTest
@@ -568,7 +568,6 @@ class CampaignTest(TembaTest):
         msg = entry.get_actions()[0].msg
         self.assertEqual(flow.base_language, "base")
         self.assertEqual(msg, {"base": "This is my message", "spa": "hola"})
-        self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEqual(-1, event.offset)
         self.assertEqual(13, event.delivery_hour)

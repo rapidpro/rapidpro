@@ -9,30 +9,31 @@
     ]
   },
   "dependencies": {
-    "@nyaruka/flow-editor": "1.2.0",
-    "bower": "1.7.9",
-    "coffee-script": "1.9.3",
+    "@nyaruka/flow-editor": "1.4.11",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "coffeescript": "1.12.7",
     "less": "2.7.1"
   },
   "devDependencies": {
     "babel-core": "6.26.3",
     "babel-loader": "7.1.4",
-    "babel-preset-env": "1.6.1",
+    "babel-preset-env": "1.7.0",
     "babel-preset-react": "6.24.1",
+    "bower": "1.8.8",
     "jasmine-core": "2.5.0",
-    "karma": "0.12.37",
-    "karma-chrome-launcher": "0.1.7",
-    "karma-coffee-preprocessor": "0.2.1",
-    "karma-coverage": "0.2.7",
-    "karma-coveralls": "0.1.5",
+    "karma": "4.1.0",
+    "karma-coffee-preprocessor": "1.0.1",
+    "karma-coverage": "1.1.2",
+    "karma-coveralls": "2.1.0",
     "karma-jasmine": "0.3.5",
     "karma-ng-html2js-preprocessor": "0.1.1",
-    "karma-phantomjs-launcher": "1.0.2",
-    "phantomjs-prebuilt": "2.1.15",
+    "karma-phantomjs-launcher": "1.0.4",
+    "phantomjs-prebuilt": "2.1.16",
     "raf": "3.4.0",
     "react": "16.3.2",
     "react-dom": "16.3.2",
-    "webpack": "4.6.0",
-    "webpack-cli": "2.0.15"
+    "webpack": "4.30.0",
+    "webpack-cli": "3.3.1"
   }
 }

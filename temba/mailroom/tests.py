@@ -51,6 +51,7 @@ class MailroomClientTest(TembaTest):
 class MailroomQueueTest(TembaTest):
     @override_settings(BROKER_URL="redis://%s:%d/%d" % (settings.REDIS_HOST, settings.REDIS_PORT, 9))
     def test_msg_task(self):
+        get_redis_connection("default").flushall()
         msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
         # assert all looks good
@@ -78,6 +79,7 @@ class MailroomQueueTest(TembaTest):
 
     @override_settings(BROKER_URL="redis://%s:%d/%d" % (settings.REDIS_HOST, settings.REDIS_PORT, 9))
     def test_event_task(self):
+        get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
         )

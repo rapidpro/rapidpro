@@ -128,6 +128,8 @@ STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
     os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
 STATIC_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 STATIC_URL = "/sitestatic/"
@@ -484,7 +486,6 @@ GROUP_PERMISSIONS = {
         "apks.apk_update",
         "campaigns.campaign_read",
         "channels.channel_configuration",
-        "channels.channel_history",
         "channels.channel_read",
         "contacts.contact_break_anon",
         "contacts.contact_read",
@@ -759,6 +760,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
+        "flows.flow_revisions",
         "flows.flow_run_table",
         "flows.flow_simulate",
         "msgs.broadcast_schedule_list",
