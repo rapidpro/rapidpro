@@ -53,6 +53,7 @@ class MailroomQueueTest(TembaTest):
         super().setUp()
         r = get_redis_connection()
         r.execute_command("select", "9")
+        r.execute_command("flushdb")
 
     def tearDown(self):
         super().tearDown()
