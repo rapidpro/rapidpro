@@ -13,6 +13,7 @@ import iso8601
 import phonenumbers
 import regex
 from django_redis import get_redis_connection
+from packaging.version import Version
 from smartmin.models import SmartModel
 from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
@@ -22,7 +23,7 @@ from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
-from django.db.models import Max, Prefetch, Q, QuerySet, Sum
+from django.db.models import Max, Q, QuerySet, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -174,6 +175,7 @@ class Flow(TembaModel):
     RULESET_TYPE = "ruleset_type"
     OPERAND = "operand"
 
+    LANGUAGE = "language"
     BASE_LANGUAGE = "base_language"
     SAVED_BY = "saved_by"
     VERSION = "version"
@@ -191,6 +193,7 @@ class Flow(TembaModel):
     METADATA_REVISION = "revision"
     METADATA_EXPIRES = "expires"
     METADATA_RESULTS = "results"
+    METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
 
     X = "x"
@@ -208,12 +211,17 @@ class Flow(TembaModel):
         (TYPE_USSD, _("USSD flow")),
     )
 
+    GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
+
     NODE_TYPE_RULESET = "R"
     NODE_TYPE_ACTIONSET = "A"
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
+
+    SPEC_VERSION = "spec_version"
+    REVISION = "revision"
 
     VERSIONS = [
         "1",
@@ -244,6 +252,8 @@ class Flow(TembaModel):
         "11.11",
         "11.12",
     ]
+
+    GOFLOW_VERSION = "13.0.0"
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -326,6 +336,7 @@ class Flow(TembaModel):
         expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
+        use_new_editor=False,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -338,11 +349,26 @@ class Flow(TembaModel):
             created_by=user,
             modified_by=user,
             flow_server_enabled=org.flow_server_enabled,
+            version_number=Flow.GOFLOW_VERSION if use_new_editor else get_current_export_version(),
             **kwargs,
         )
 
         if create_revision:
-            flow.update(flow.as_json())
+            if use_new_editor:
+                flow.save_revision(
+                    user,
+                    {
+                        "uuid": flow.uuid,
+                        "name": flow.name,
+                        "language": base_language,
+                        "type": Flow.GOFLOW_TYPES[flow_type],
+                        "spec_version": Flow.GOFLOW_VERSION,
+                        "nodes": [],
+                        "metadata": {"saved_on": timezone.now().isoformat()},
+                    },
+                )
+            else:
+                flow.update(flow.as_json())
 
         analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
         return flow
@@ -415,14 +441,10 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
-        version_str = str(to_check)
-        version = str(version)
-        for ver in Flow.VERSIONS:
-            if ver == version_str and version != ver:
-                return True
-            elif version == ver:
-                return False
-        return False
+        if f"{to_check}" not in Flow.VERSIONS:
+            return False
+
+        return Version(f"{to_check}") < Version(f"{version}")
 
     @classmethod
     def get_triggerable_flows(cls, org):
@@ -998,25 +1020,15 @@ class Flow(TembaModel):
 
     @classmethod
     def get_versions_before(cls, version_number):  # pragma: no cover
-        versions = []
-        version_str = str(version_number)
-        for ver in Flow.VERSIONS:
-            if version_str != ver:
-                versions.append(ver)
-            else:
-                break
-        return versions
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) < version_number]
 
     @classmethod
     def get_versions_after(cls, version_number):
-        versions = []
-        version_str = str(version_number)
-        for ver in reversed(Flow.VERSIONS):
-            if version_str != ver:
-                versions.insert(0, ver)
-            else:
-                break
-        return versions
+        # older flows had numeric versions, lets make sure we are dealing with strings
+        version_number = Version(f"{version_number}")
+        return [v for v in Flow.VERSIONS if Version(v) > version_number]
 
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
@@ -1048,22 +1060,13 @@ class Flow(TembaModel):
         # interrupt our runs in the background
         on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
 
-    def get_category_counts(self, deleted_nodes=True):
-
-        actives = self.rule_sets.all().values("uuid", "label").order_by("y", "x")
-
-        uuids = [active["uuid"] for active in actives]
-        keys = [Flow.label_to_slug(active["label"]) for active in actives]
-        counts = FlowCategoryCount.objects.filter(flow_id=self.id)
-
-        # always filter by active keys
-        counts = counts.filter(result_key__in=keys)
-
-        # filter by active nodes if we aren't including deleted nodes
-        if not deleted_nodes:
-            counts = counts.filter(node_uuid__in=uuids)
-        counts = counts.values("result_key", "category_name").annotate(
-            count=Sum("count"), result_name=Max("result_name")
+    def get_category_counts(self):
+        keys = [r["key"] for r in self.metadata["results"]]
+        counts = (
+            FlowCategoryCount.objects.filter(flow_id=self.id)
+            .filter(result_key__in=keys)
+            .values("result_key", "category_name")
+            .annotate(count=Sum("count"), result_name=Max("result_name"))
         )
 
         results = {}
@@ -1091,8 +1094,7 @@ class Flow(TembaModel):
 
         # order counts by their place on the flow
         result_list = []
-        for active in actives:
-            key = Flow.label_to_slug(active["label"])
+        for key in keys:
             result = results.get(key)
             if result:
                 result_list.append(result)
@@ -2276,12 +2278,77 @@ class Flow(TembaModel):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by("-revision").all().first()
                 if revision:
-                    json_flow = revision.get_definition_json()
+                    json_flow = revision.get_definition_json(to_version)
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
+
+    def last_revision(self):
+        """
+        Returns the last saved revision for this flow if any
+        """
+        return self.revisions.order_by("-revision").first()
+
+    def save_revision(self, user, definition):
+        """
+        Saves a new revision for this flow, validation will be done on the definition first
+        """
+        # must be a new version for this method
+        metadata = definition.get(Flow.METADATA, {})
+
+        if Version(definition.get(Flow.SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
+            raise FlowVersionConflictException(metadata.get(Flow.SPEC_VERSION))
+
+        # get our last revision
+        revision = 1
+        last_revision = self.last_revision()
+
+        # check we aren't walking over someone else
+        if last_revision:
+            if definition.get(Flow.REVISION) < last_revision.revision:
+                raise FlowUserConflictException(self.saved_by, self.saved_on)
+
+            revision = last_revision.revision + 1
+
+        # update the revision on our definition
+        definition["revision"] = revision
+
+        # and our expiration
+        definition["expires_after_minutes"] = self.expires_after_minutes
+
+        # try to validate the flow (will throw if not valid)
+        validated_definition = mailroom.get_client().flow_validate(self.org, definition)
+
+        with transaction.atomic():
+            dependencies = validated_definition["_dependencies"]
+
+            # update our flow fields
+            self.base_language = validated_definition.get(Flow.LANGUAGE, None)
+
+            self.metadata = {
+                Flow.METADATA_RESULTS: validated_definition["_results"],
+                Flow.METADATA_DEPENDENCIES: validated_definition["_dependencies"],
+                Flow.METADATA_WAITING_EXIT_UUIDS: validated_definition["_waiting_exits"],
+            }
+            self.saved_by = user
+            self.saved_on = timezone.now()
+            self.version_number = Flow.GOFLOW_VERSION
+            self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
+
+            # create our new revision
+            revision = self.revisions.create(
+                definition=validated_definition,
+                created_by=user,
+                modified_by=user,
+                spec_version=Flow.GOFLOW_VERSION,
+                revision=revision,
+            )
+
+            self.update_dependencies(dependencies)
+
+        return revision
 
     def update(self, json_dict, user=None, force=False, validate_dependencies=True):
         """
@@ -2293,7 +2360,7 @@ class Flow(TembaModel):
             raise FlowInvalidCycleException(cycle_node_uuids)
 
         # make sure the flow version hasn't changed out from under us
-        if json_dict.get(Flow.VERSION) != get_current_export_version():
+        if Version(json_dict.get(Flow.VERSION)) != Version(get_current_export_version()):
             raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
         flow_user = get_flow_user(self.org)
@@ -4220,7 +4287,8 @@ class FlowRevision(SmartModel):
         if not to_version:
             to_version = get_current_export_version()
 
-        for version in Flow.get_versions_after(json_flow.get(Flow.VERSION)):
+        versions = Flow.get_versions_after(json_flow[Flow.VERSION])
+        for version in versions:
             version_slug = version.replace(".", "_")
             migrate_fn = getattr(flow_migrations, "migrate_to_version_%s" % version_slug, None)
 
@@ -4231,9 +4299,12 @@ class FlowRevision(SmartModel):
             if version == to_version:
                 break
 
+        if Version(to_version) >= Version(Flow.GOFLOW_VERSION):
+            json_flow = mailroom.get_client().flow_migrate(json_flow)
+
         return json_flow
 
-    def get_definition_json(self):
+    def get_definition_json(self, to_version=get_current_export_version()):
 
         definition = self.definition
 
@@ -4253,8 +4324,12 @@ class FlowRevision(SmartModel):
         definition[Flow.VERSION] = self.spec_version
 
         # migrate our definition if necessary
-        if self.spec_version != get_current_export_version():
-            definition = FlowRevision.migrate_definition(definition, self.flow)
+        if self.spec_version != to_version:
+            if Flow.METADATA not in definition:
+                definition[Flow.METADATA] = {}
+
+            definition[Flow.METADATA][Flow.REVISION] = self.revision
+            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
         return definition
 
     def as_json(self):
@@ -4595,7 +4670,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context["flows"] = self.flows.all()
         return context
 
-    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=False):
+    def _get_runs_columns(self, extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=False):
         columns = []
 
         if show_submitted_by:
@@ -4619,10 +4694,11 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Modified")
         columns.append("Exited")
 
-        for node in result_nodes:
-            columns.append("%s (Category) - %s" % (node.label, node.flow.name))
-            columns.append("%s (Value) - %s" % (node.label, node.flow.name))
-            columns.append("%s (Text) - %s" % (node.label, node.flow.name))
+        for result_field in result_fields:
+            field_name, flow_name = result_field["name"], result_field["flow_name"]
+            columns.append(f"{field_name} (Category) - {flow_name}")
+            columns.append(f"{field_name} (Value) - {flow_name}")
+            columns.append(f"{field_name} (Text) - {flow_name}")
 
         return columns
 
@@ -4661,16 +4737,14 @@ class ExportFlowResultsTask(BaseExportTask):
 
         # get all result saving nodes across all flows being exported
         show_submitted_by = False
-        result_nodes = []
-        flows = list(
-            self.flows.filter(is_active=True).prefetch_related(
-                Prefetch("rule_sets", RuleSet.objects.exclude(label=None).order_by("y", "id"))
-            )
-        )
+        result_fields = []
+        flows = list(self.flows.filter(is_active=True))
         for flow in flows:
-            for node in flow.rule_sets.all():
-                node.flow = flow
-                result_nodes.append(node)
+            for result_field in flow.metadata["results"]:
+                result_field = result_field.copy()
+                result_field["flow_uuid"] = flow.uuid
+                result_field["flow_name"] = flow.name
+                result_fields.append(result_field)
 
             if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True
@@ -4682,7 +4756,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
         runs_columns = self._get_runs_columns(
-            extra_urn_columns, groups, contact_fields, result_nodes, show_submitted_by=show_submitted_by
+            extra_urn_columns, groups, contact_fields, result_fields, show_submitted_by=show_submitted_by
         )
 
         book = XLSXBook()
@@ -4708,7 +4782,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_fields,
                 show_submitted_by,
                 runs_columns,
-                result_nodes,
+                result_fields,
             )
 
             total_runs_exported += len(batch)
@@ -4795,7 +4869,7 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_fields,
         show_submitted_by,
         runs_columns,
-        result_nodes,
+        result_fields,
     ):
         """
         Writes a batch of run JSON blobs to the export
@@ -4811,9 +4885,9 @@ class ExportFlowResultsTask(BaseExportTask):
             # get this run's results by node name(ruleset label)
             run_values = run["values"]
             if isinstance(run_values, list):
-                results_by_name = {result["name"]: result for item in run_values for result in item.values()}
+                results_by_key = {key: result for item in run_values for key, result in item.items()}
             else:
-                results_by_name = {result["name"]: result for result in run_values.values()}
+                results_by_key = {key: result for key, result in run_values.items()}
 
             # generate contact info columns
             contact_values = [
@@ -4836,11 +4910,11 @@ class ExportFlowResultsTask(BaseExportTask):
 
             # generate result columns for each ruleset
             result_values = []
-            for n, node in enumerate(result_nodes):
+            for n, result_field in enumerate(result_fields):
                 node_result = {}
                 # check the result by ruleset label if the flow is the same
-                if node.flow.uuid == run["flow"]["uuid"]:
-                    node_result = results_by_name.get(node.label, {})
+                if result_field["flow_uuid"] == run["flow"]["uuid"]:
+                    node_result = results_by_key.get(result_field["key"], {})
                 node_category = node_result.get("category", "")
                 node_value = node_result.get("value", "")
                 node_input = node_result.get("input", "")

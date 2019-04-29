@@ -355,10 +355,12 @@
           over:function() {
             // $('.submenu').hide();
             $(this).find('.submenu-container').slideDown(250);
+            $(this).parents("#top-menu").addClass('expanded');
             // $(this).find('.submenu').show();
           },
           out:function() {
           $(this).find('.submenu-container').slideUp(200);
+          $(this).parents("#top-menu").removeClass('expanded');
             //$(this).find('.submenu').hide();
           },
           timeout:300

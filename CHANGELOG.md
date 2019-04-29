@@ -1,3 +1,13 @@
+v4.22.37
+----------
+ * Update to flow-editor 1.4.12
+ * Remove footer gap on new editor
+
+v4.22.36
+----------
+ * allow Alpha users to build flows in new editor
+ * don't use RuleSets in figuring results, exports, categories
+
 v4.22.28
 ----------
  * Adjust `!=` search operator to include unset data

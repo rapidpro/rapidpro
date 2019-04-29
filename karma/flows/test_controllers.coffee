@@ -43,7 +43,7 @@ describe 'Controllers:', ->
         }
       )
 
-      $http.whenGET('/flow/revisions/' + config.id + '/').respond(
+      $http.whenGET('/flow/revisions/' + config.id + '/?version=11.11').respond(
         [],  {'content-type':'application/json'}
       )
 
@@ -53,7 +53,7 @@ describe 'Controllers:', ->
   $modalStack = null
   $timeout = null
 
-  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_, _$modalStack_, _$timeout_) ->
+  beforeEach inject((_$rootScope_, _$compile_, _$log_, _$modal_, _$modalStack_, _$timeout_, _$window_) ->
       $rootScope = _$rootScope_.$new()
       $scope = $rootScope.$new()
       $modal = _$modal_
@@ -66,6 +66,8 @@ describe 'Controllers:', ->
       $scope.$parent = $rootScope
       $compile = _$compile_
       $log = _$log_
+      $window = _$window_
+      $window.flowVersion = "11.11"
     )
 
   # TODO: FlowController does more than it should. It should not have knowledge of

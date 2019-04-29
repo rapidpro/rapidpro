@@ -51,12 +51,12 @@
 
   :javascript
     window.orgId = {{object.org.id}};
-    window.flowId = {{object.id}};
     window.flowUUID = '{{object.uuid}}';
+    window.flowVersion = '{{flow_version}}'
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
-    window.activityURL = '{% url "flows.flow_activity" object.pk %}';
+    window.activityURL = '{% url "flows.flow_activity" object.uuid %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
-    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.pk %}';
+    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.uuid %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = false;

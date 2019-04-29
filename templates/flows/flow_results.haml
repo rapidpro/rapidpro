@@ -296,12 +296,12 @@
     }
 
     var columns = [
-       {% for ruleset in rulesets %}
+       {% for result_field in result_fields %}
         {
           "id":"{{forloop.counter0}}",
-          "text":"{{ruleset.label|safe}}",
+          "text":"{{result_field.name|safe}}",
           "hidden": {% if forloop.counter > 3 %}true{%else%}false{%endif%},
-          "category": {{ruleset.category}}
+          "category": {{result_field.has_categories}}
         },
       {% endfor %}
     ]
@@ -641,13 +641,13 @@
                 .text
                   -trans "Contact"
 
-            -for ruleset in rulesets
+            -for result_field in result_fields
               %td.header
                 .details{ onclick: 'toggleValue({{forloop.counter0}});'}
                   .icons
                     .icon-tree-2.category
                     .icon-bubble-2.text
-                  {{ruleset.label}}
+                  {{result_field.name}}
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}

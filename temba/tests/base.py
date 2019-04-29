@@ -488,7 +488,7 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User")
+        self.user = self.create_user("User", ("Viewers",))
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
         self.surveyor = self.create_user("Surveyor")
@@ -615,6 +615,13 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)
+
+    def assertResponseError(self, response, field, message, status_code=400):
+        self.assertEqual(status_code, response.status_code)
+        body = response.json()
+        self.assertTrue(message, field in body)
+        self.assertTrue(message, isinstance(body[field], (list, tuple)))
+        self.assertIn(message, body[field])
 
 
 class FlowFileTest(TembaTest):
