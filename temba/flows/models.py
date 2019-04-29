@@ -196,6 +196,16 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
 
+    DEFINITION_NAME = "name"
+    DEFINITION_UUID = "uuid"
+    DEFINITION_SPEC_VERSION = "spec_version"
+    DEFINITION_TYPE = "type"
+    DEFINITION_LANGUAGE = "language"
+    DEFINITION_REVISION = "revision"
+    DEFINITION_EXPIRE_AFTER_MINUTES = "expire_after_minutes"
+    DEFINITION_METADATA = "metadata"
+    DEFINITION_NODES = "nodes"
+
     X = "x"
     Y = "y"
 
@@ -219,9 +229,6 @@ class Flow(TembaModel):
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
 
     START_MSG_FLOW_BATCH = "start_msg_flow_batch"
-
-    SPEC_VERSION = "spec_version"
-    REVISION = "revision"
 
     VERSIONS = [
         "1",
@@ -358,13 +365,13 @@ class Flow(TembaModel):
                 flow.save_revision(
                     user,
                     {
-                        "uuid": flow.uuid,
-                        "name": flow.name,
-                        "language": base_language,
-                        "type": Flow.GOFLOW_TYPES[flow_type],
-                        "spec_version": Flow.GOFLOW_VERSION,
-                        "nodes": [],
-                        "metadata": {"saved_on": timezone.now().isoformat()},
+                        Flow.DEFINITION_NAME: flow.name,
+                        Flow.DEFINITION_UUID: flow.uuid,
+                        Flow.DEFINITION_LANGUAGE: base_language,
+                        Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
+                        Flow.DEFINITION_NODES: [],
+                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
+                        Flow.DEFINITION_METADATA: {Flow.METADATA_SAVED_ON: timezone.now().isoformat()},
                     },
                 )
             else:
@@ -2295,11 +2302,8 @@ class Flow(TembaModel):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
-        # must be a new version for this method
-        metadata = definition.get(Flow.METADATA, {})
-
-        if Version(definition.get(Flow.SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
-            raise FlowVersionConflictException(metadata.get(Flow.SPEC_VERSION))
+        if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
+            raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
         # get our last revision
         revision = 1
@@ -2307,16 +2311,16 @@ class Flow(TembaModel):
 
         # check we aren't walking over someone else
         if last_revision:
-            if definition.get(Flow.REVISION) < last_revision.revision:
+            if definition.get(Flow.DEFINITION_REVISION) < last_revision.revision:
                 raise FlowUserConflictException(self.saved_by, self.saved_on)
 
             revision = last_revision.revision + 1
 
-        # update the revision on our definition
-        definition["revision"] = revision
-
-        # and our expiration
-        definition["expires_after_minutes"] = self.expires_after_minutes
+        # and our revision, expiration, name and uuid
+        definition[Flow.DEFINITION_REVISION] = revision
+        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+        definition[Flow.DEFINITION_UUID] = self.uuid
+        definition[Flow.DEFINITION_NAME] = self.name
 
         # try to validate the flow (will throw if not valid)
         validated_definition = mailroom.get_client().flow_validate(self.org, definition)
@@ -2325,7 +2329,7 @@ class Flow(TembaModel):
             dependencies = validated_definition["_dependencies"]
 
             # update our flow fields
-            self.base_language = validated_definition.get(Flow.LANGUAGE, None)
+            self.base_language = validated_definition.get(Flow.DEFINITION_LANGUAGE, None)
 
             self.metadata = {
                 Flow.METADATA_RESULTS: validated_definition["_results"],
@@ -4328,8 +4332,16 @@ class FlowRevision(SmartModel):
             if Flow.METADATA not in definition:
                 definition[Flow.METADATA] = {}
 
-            definition[Flow.METADATA][Flow.REVISION] = self.revision
+            definition[Flow.METADATA][Flow.METADATA_REVISION] = self.revision
             definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
+
+        # update variables from our db into our revision
+        flow = self.flow
+        definition[Flow.DEFINITION_NAME] = flow.name
+        definition[Flow.DEFINITION_UUID] = flow.uuid
+        definition[Flow.DEFINITION_REVISION] = self.revision
+        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = flow.expires_after_minutes
+
         return definition
 
     def as_json(self):

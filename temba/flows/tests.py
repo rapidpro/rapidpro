@@ -358,7 +358,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
         )
         new_revision = response.json()
-        self.assertEqual(2, new_revision[Flow.REVISION][Flow.REVISION])
+        self.assertEqual(2, new_revision["revision"][Flow.DEFINITION_REVISION])
 
         # but we can't save our old revision
         response = self.client.post(
@@ -378,7 +378,7 @@ class FlowTest(TembaTest):
 
         # or save an old version
         definition = flow.revisions.all().first().definition
-        definition[Flow.SPEC_VERSION] = "11.12"
+        definition[Flow.DEFINITION_SPEC_VERSION] = "11.12"
         response = self.client.post(
             reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
         )
