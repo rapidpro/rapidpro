@@ -4316,3 +4316,4 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number(""), None)
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
+        self.assertEqual(self.org.parse_number(0.001), Decimal("0.001"))

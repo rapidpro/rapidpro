@@ -1114,7 +1114,9 @@ class Org(SmartModel):
         parsed = None
 
         try:
-            parsed = Decimal(decimal_string)
+            # cast to string, decimal of a float, Decimal(1.1) ~= 1.100000000000000088817841970012523233890533447265625
+            parsed = Decimal(str(decimal_string))
+
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None
         except Exception:

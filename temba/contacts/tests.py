@@ -6270,7 +6270,7 @@ class ContactTest(TembaTest):
         self.assertEqual(joe.get_field_display(registration_field), "")
 
         joe.set_field(self.user, "registration_date", "2014-12-31T01:04:00Z")
-        joe.set_field(self.user, "weight", "75.888888")
+        joe.set_field(self.user, "weight", 75.888888)
         joe.set_field(self.user, "color", "green")
         joe.set_field(self.user, "state", "kigali city")
 
