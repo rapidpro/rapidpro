@@ -1,3 +1,8 @@
+v4.22.38
+----------
+ * update defs with db values both when writing and reading
+ * remove clearing of external ids for messages
+
 v4.22.37
 ----------
  * Update to flow-editor 1.4.12
