@@ -1,3 +1,7 @@
+v4.22.39
+----------
+ * latest editor
+
 v4.22.38
 ----------
  * update defs with db values both when writing and reading
