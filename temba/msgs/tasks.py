@@ -14,7 +14,7 @@ from celery.task import task
 from temba.channels.courier import handle_new_contact, handle_new_message
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
-from temba.utils import analytics, chunk_list, json
+from temba.utils import analytics, json
 from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
 
 from .models import (
@@ -392,19 +392,3 @@ def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
     BroadcastMsgCount.squash()
-
-
-@nonoverlapping_task(track_started=True, name="clear_old_msg_external_ids", time_limit=60 * 60 * 36)
-def clear_old_msg_external_ids():
-    """
-    Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced
-    anywhere and are only used for debugging channel issues, so are of limited usefulness on older messages.
-    """
-    threshold = timezone.now() - timedelta(days=30)  # 30 days ago
-
-    msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list("id", flat=True))
-
-    for msg_id_batch in chunk_list(msg_ids, 1000):
-        Msg.objects.filter(id__in=msg_id_batch).update(external_id=None)
-
-    print("Cleared external ids on %d messages" % len(msg_ids))

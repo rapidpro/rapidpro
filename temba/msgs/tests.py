@@ -51,7 +51,7 @@ from temba.utils.queues import Queue, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
-from .tasks import clear_old_msg_external_ids, process_message_task, squash_msgcounts
+from .tasks import process_message_task, squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -2729,26 +2729,6 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
         self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
-
-    def test_clear_old_msg_external_ids(self):
-        last_month = timezone.now() - timedelta(days=31)
-        msg1 = self.create_msg(
-            contact=self.joe, text="What's your name?", direction="O", external_id="ex101", created_on=last_month
-        )
-        msg2 = self.create_msg(
-            contact=self.joe, text="It's Joe", direction="I", external_id="ex102", created_on=last_month
-        )
-        msg3 = self.create_msg(contact=self.joe, text="Good name", direction="O", external_id="ex103")
-
-        clear_old_msg_external_ids()
-
-        msg1.refresh_from_db()
-        msg2.refresh_from_db()
-        msg3.refresh_from_db()
-
-        self.assertIsNone(msg1.external_id)
-        self.assertIsNone(msg2.external_id)
-        self.assertEqual(msg3.external_id, "ex103")
 
 
 class BroadcastCRUDLTest(TembaTest):
