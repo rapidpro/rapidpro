@@ -1,3 +1,7 @@
+v4.22.40
+----------
+ * Update editor to 1.4.14
+
 v4.22.39
 ----------
  * latest editor
