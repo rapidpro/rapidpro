@@ -1,3 +1,12 @@
+v4.22.41
+----------
+ * Update flow editor to 1.4.16
+ * View absolute attachments in old editor
+
+v4.22.40
+----------
+ * Update editor to 1.4.14
+
 v4.22.39
 ----------
  * latest editor
