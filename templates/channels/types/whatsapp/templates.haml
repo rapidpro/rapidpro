@@ -1,0 +1,20 @@
+-extends "channels/channel_read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+-block post-fields
+  %table
+    -for translation in translations
+      %tr
+        %td
+          {{ translation.template.name }}
+
+        %td
+          {{ translation.language }}
+
+        %td
+          {{ translation.content }}
+
+        %td
+          {{ translation.get_status_display }}

@@ -13,7 +13,7 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import CONFIG_FB_USER_ID, WhatsAppType
+from .type import CONFIG_FB_BUSINESS_ID, WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -41,7 +41,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["country"] = "RW"
         post_data["base_url"] = "https://whatsapp.foo.bar"
         post_data["facebook_namespace"] = "my-custom-app"
-        post_data["facebook_user_id"] = "1234"
+        post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
 
         # will fail with invalid phone number
@@ -230,7 +230,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
 
         # clear our FB ids, should cause refresh to be noop (but not fail)
-        del channel.config[CONFIG_FB_USER_ID]
+        del channel.config[CONFIG_FB_BUSINESS_ID]
         channel.save(update_fields=["config", "modified_on"])
         refresh_whatsapp_templates()
 
