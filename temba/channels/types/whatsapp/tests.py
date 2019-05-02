@@ -235,6 +235,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+            self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]

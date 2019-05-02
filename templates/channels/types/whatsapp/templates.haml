@@ -27,7 +27,7 @@
         %td.content
           {{ translation.content }}
 
-        %td
+        %td.language
           {{ translation.language }}
 
         %td{class:"tr-{{translation.get_status_display}}"}
@@ -55,6 +55,10 @@
     }
     tr.translation td {
       border-bottom: 1px solid #e6e6e6;
+    }
+    tr.translation td.language {
+      font-family: monospace;
+      color: #666;
     }
     td.content {
       font-style: italic;
