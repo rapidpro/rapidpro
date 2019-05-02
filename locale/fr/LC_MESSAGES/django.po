@@ -49,11 +49,11 @@ msgstr ""
 
 #: temba/api/models.py:135
 msgid "The URL that we will call when our ruleset is reached"
-msgstr ""
+msgstr "L'URL que nous appellerons lorsque notre ensemble de règles sera atteint"
 
 #: temba/api/models.py:588 temba/channels/models.py:2445
 msgid "Time it took to process this request"
-msgstr ""
+msgstr "Temps requis pour le traitement de cette demande"
 
 #: temba/api/v1/serializers.py:295
 #, fuzzy, python-format
@@ -64,7 +64,7 @@ msgstr "Groupe non valide ou Contact ID"
 #: temba/api/v1/serializers.py:306
 #, python-format
 msgid "Unable to find contact group with uuid: %s"
-msgstr ""
+msgstr "Impossible de trouver le groupe de contacts avec l'uuid: %s"
 
 #: temba/api/v1/serializers.py:334
 #, fuzzy
@@ -79,12 +79,12 @@ msgstr "Envoyer un SMS au contact"
 #: temba/api/v1/serializers.py:447
 #, python-format
 msgid "Generated key for '%s' is invalid or a reserved name"
-msgstr ""
+msgstr "La clé générée pour '%s' est invalide ou un nom réservé"
 
 #: temba/api/v1/serializers.py:597 temba/api/v1/serializers.py:607
 #, python-format
 msgid "Unable to find contact with uuid: %s"
-msgstr ""
+msgstr "Impossible de trouver le contact avec l'uuid: %s"
 
 #: temba/api/v2/views.py:223 temba/orgs/models.py:2047
 #: templates/orgs/org_manage_accounts.haml:193
@@ -98,7 +98,7 @@ msgstr "Editeur"
 
 #: temba/api/v2/views.py:223 temba/orgs/models.py:2050
 msgid "Surveyor"
-msgstr ""
+msgstr "Sondeur"
 
 #: temba/api/views.py:41
 #, fuzzy
@@ -121,27 +121,27 @@ msgstr "Tentative Suivant"
 #: temba/api/views.py:61
 #, python-format
 msgid "Around %s"
-msgstr ""
+msgstr "Approximativement %s"
 
 #: temba/api/views.py:64
 msgid "Never, three attempts errored, failed permanently"
-msgstr ""
+msgstr "Trois tentatives erronées, n'ont jamais échouées de façon permanente"
 
 #: temba/api/views.py:67
 msgid "Never, event delivered successfully"
-msgstr ""
+msgstr "Evénement, jamais livré avec succès"
 
 #: temba/api/views.py:69
 msgid "Never, event delivery failed permanently"
-msgstr ""
+msgstr "La livraison de l'événement n'a jamais échouée de façon permanente"
 
 #: temba/api/views.py:84
 msgid "Must include both 'url' and 'data' parameters."
-msgstr ""
+msgstr "Doit inclure à la fois les paramètres 'url' et 'data'."
 
 #: temba/assets/views.py:55
 msgid "File not found"
-msgstr ""
+msgstr "Fichier introuvable"
 
 #: temba/assets/views.py:57
 #, fuzzy
@@ -168,15 +168,15 @@ msgstr "Nombre de tentatives de message"
 
 #: temba/campaigns/models.py:252 templates/channels/channel_read.haml:724
 msgid "Minutes"
-msgstr ""
+msgstr "Minutes"
 
 #: temba/campaigns/models.py:253
 msgid "Hours"
-msgstr ""
+msgstr "Heures"
 
 #: temba/campaigns/models.py:254
 msgid "Days"
-msgstr ""
+msgstr "Jours"
 
 #: temba/campaigns/models.py:255
 #, fuzzy
@@ -187,40 +187,40 @@ msgstr "Hebdomadaire"
 #: temba/campaigns/views.py:217
 #, python-format
 msgid "A message is required for '%s'"
-msgstr ""
+msgstr "Un message est requis pour '%s'"
 
 #: temba/campaigns/views.py:224
 #, python-format
 msgid "Translation for '%s' exceeds the %d character limit."
-msgstr ""
+msgstr "La traduction de '%s' dépasse la limite de %d caractères."
 
 #: temba/campaigns/views.py:330
 msgid "Default"
-msgstr ""
+msgstr "Défaut"
 
 #: temba/channels/models.py:228
 msgid "Default Encoding"
-msgstr ""
+msgstr "Encodage par Défaut"
 
 #: temba/channels/models.py:229
 msgid "Smart Encoding"
-msgstr ""
+msgstr "Encodage Intelligent"
 
 #: temba/channels/models.py:230
 msgid "Unicode Encoding"
-msgstr ""
+msgstr "Encodage Unicode"
 
 #: temba/channels/models.py:263
 msgid "URL Encoded - application/x-www-form-urlencoded"
-msgstr ""
+msgstr "Url Encodée - application/x-www-form-urlencoded"
 
 #: temba/channels/models.py:264
 msgid "JSON - application/json"
-msgstr ""
+msgstr "JSON - application/json"
 
 #: temba/channels/models.py:265
 msgid "XML - text/xml; charset=utf-8"
-msgstr ""
+msgstr "XML - text/xml; charset=utf-8"
 
 #: temba/channels/models.py:342
 msgid "Channel Type"
@@ -246,7 +246,7 @@ msgstr "Adresse e-mail"
 
 #: temba/channels/models.py:348
 msgid "Address with which this channel communicates"
-msgstr ""
+msgstr "Adresse avec laquelle ce relayeur communique"
 
 #: temba/channels/models.py:350 temba/channels/types/clickatell/views.py:14
 #: temba/channels/types/external/views.py:26
@@ -337,7 +337,7 @@ msgstr "Quelle version d'Android cette relayeur fonctionne "
 
 #: temba/channels/models.py:374
 msgid "Alert Email"
-msgstr "alerte Email"
+msgstr "Alerte Email"
 
 #: temba/channels/models.py:375
 msgid ""
@@ -372,7 +372,7 @@ msgstr "Le relayeur à la place duquel ce relayeur fonctionne"
 
 #: temba/channels/models.py:389
 msgid "Optional Data"
-msgstr ""
+msgstr "Données Optionnelles"
 
 #: temba/channels/models.py:390
 msgid "Any channel specific state data"
@@ -380,7 +380,7 @@ msgstr ""
 
 #: temba/channels/models.py:392
 msgid "Maximum Transactions per Second"
-msgstr ""
+msgstr "Transactions Maximales par Seconde"
 
 #: temba/channels/models.py:393
 #, fuzzy
@@ -425,16 +425,16 @@ msgstr ""
 #: temba/channels/models.py:907 temba/channels/models.py:916
 #: templates/channels/channel_claim.haml:47
 msgid "Android Phone"
-msgstr "Android Phone"
+msgstr "Téléphone Android"
 
 #: temba/channels/models.py:918 temba/channels/views.py:1211
 #, fuzzy, python-format
 msgid "%s Channel"
-msgstr "Channel"
+msgstr "Canal"
 
 #: temba/channels/models.py:2048
 msgid "Message no longer has a way of being sent, marking as failed."
-msgstr ""
+msgstr "Les messages n'ayant plus de moyens d'être envoyés, marqués comme échoués."
 
 #: temba/channels/models.py:2247
 #, fuzzy
@@ -460,11 +460,11 @@ msgstr "Sortant"
 
 #: temba/channels/models.py:2251
 msgid "Success Log Record"
-msgstr ""
+msgstr "Enregistrement Log Réussie"
 
 #: temba/channels/models.py:2252
 msgid "Error Log Record"
-msgstr ""
+msgstr "Enregistrement Log Echoué"
 
 #: temba/channels/models.py:2255
 #, fuzzy
@@ -539,7 +539,7 @@ msgstr "L'org de ce message est connecté à"
 #: temba/triggers/views.py:255 temba/triggers/views.py:272
 #: temba/triggers/views.py:301 templates/channels/channel_read.haml:13
 msgid "Channel"
-msgstr "Channel"
+msgstr "Canal"
 
 #: temba/channels/models.py:2333
 #, fuzzy
@@ -581,7 +581,7 @@ msgstr "un code unique est associé à cette invitation"
 
 #: temba/channels/models.py:2340
 msgid "Extra"
-msgstr ""
+msgstr "Extra"
 
 #: temba/channels/models.py:2341
 msgid "Any extra properties on this event as JSON"
@@ -817,15 +817,15 @@ msgstr "Votre numero court sur Africa's Talking"
 
 #: temba/channels/types/africastalking/views.py:14
 msgid "Kenya"
-msgstr ""
+msgstr "Kenya"
 
 #: temba/channels/types/africastalking/views.py:14
 msgid "Uganda"
-msgstr ""
+msgstr "Ouganda"
 
 #: temba/channels/types/africastalking/views.py:14
 msgid "Malawi"
-msgstr ""
+msgstr "Malawi"
 
 #: temba/channels/types/africastalking/views.py:16
 #, fuzzy
@@ -926,7 +926,7 @@ msgstr "API Docs"
 
 #: temba/channels/types/clickatell/views.py:20
 msgid "Your API ID as provided by Clickatell"
-msgstr ""
+msgstr "Votre IP API tel que fourni par Clickatell"
 
 #: temba/channels/types/clickatell/views.py:21
 #: temba/channels/types/jasmin/views.py:19
@@ -957,7 +957,7 @@ msgstr "Mot de passe"
 
 #: temba/channels/types/clickatell/views.py:24
 msgid "The password for your Clickatell account"
-msgstr ""
+msgstr "Le mot de passe de votre compte Clickatell"
 
 #: temba/channels/types/clickatell/views.py:35
 #: temba/channels/types/jasmin/views.py:40 temba/channels/views.py:805
@@ -1010,7 +1010,7 @@ msgstr "Le numéro de téléphone pour cet appel"
 #: temba/channels/types/external/views.py:20 temba/channels/views.py:910
 #, fuzzy
 msgid "Handle"
-msgstr "manipulés"
+msgstr "Manipulés"
 
 #: temba/channels/types/external/views.py:21
 #, fuzzy
@@ -1058,7 +1058,7 @@ msgstr ""
 
 #: temba/channels/types/external/views.py:42
 msgid "Request Body"
-msgstr ""
+msgstr "Corps de la Demande"
 
 #: temba/channels/types/external/views.py:44
 msgid ""
@@ -1086,11 +1086,11 @@ msgstr ""
 #: temba/channels/types/facebook/type.py:152
 #, python-format
 msgid "Unable to update call to action: %s"
-msgstr ""
+msgstr "Impossible de mettre à jour l'appel à l'action: %s"
 
 #: temba/channels/types/facebook/views.py:16
 msgid "The Page Access Token for your Application"
-msgstr ""
+msgstr "La page de Jeton d'Accès pour votre Application"
 
 #: temba/channels/types/facebook/views.py:25
 #, fuzzy
@@ -1114,11 +1114,11 @@ msgstr "URL reçu"
 
 #: temba/channels/types/firebase/views.py:14
 msgid "FCM Key"
-msgstr ""
+msgstr "Clé FCM"
 
 #: temba/channels/types/firebase/views.py:15
 msgid "The key provided on the the Firebase Console when you created your app."
-msgstr ""
+msgstr "La clé fournie sur la console Firebase lorsque vous avez crée votre app."
 
 #: temba/channels/types/firebase/views.py:16
 #, fuzzy
@@ -1128,7 +1128,7 @@ msgstr "Les notifications par courriel"
 
 #: temba/channels/types/firebase/views.py:17
 msgid "Check if you want this channel to send notifications to contacts."
-msgstr ""
+msgstr "Verifier si vous souhaitez que ce canal emette des notifications aux contacts."
 
 #: temba/channels/types/globe/type.py:28
 #, fuzzy
@@ -1143,11 +1143,11 @@ msgstr ""
 
 #: temba/channels/types/globe/views.py:14
 msgid "The shortcode you have been assigned by Globe Labs ex: 15543"
-msgstr ""
+msgstr "Le code court qui vous a été assigné par Globe Labs ex: 15543"
 
 #: temba/channels/types/globe/views.py:16
 msgid "Application Id"
-msgstr ""
+msgstr "ID de l'Application"
 
 #: temba/channels/types/globe/views.py:17
 #, fuzzy
@@ -1157,11 +1157,11 @@ msgstr "Le nom de votre organisation"
 
 #: temba/channels/types/globe/views.py:18
 msgid "Application Secret"
-msgstr ""
+msgstr "Clé Secrète de l'Application"
 
 #: temba/channels/types/globe/views.py:19
 msgid "The secret assigned to your Globe Labs application"
-msgstr ""
+msgstr "Clé Secrète assignée à votre application Globe Labs"
 
 #: temba/channels/types/globe/views.py:20
 msgid "Passphrase"
@@ -1278,7 +1278,7 @@ msgstr ""
 
 #: temba/channels/types/jiochat/views.py:13
 msgid "The Jiochat App secret"
-msgstr ""
+msgstr "Clé secrète de l'App Jiochat"
 
 #: temba/channels/types/junebug/type.py:36
 #: temba/channels/types/junebug_ussd/type.py:22
@@ -1417,15 +1417,15 @@ msgstr "Signal API"
 
 #: temba/channels/types/line/views.py:18
 msgid "The Access Token of the LINE Bot"
-msgstr ""
+msgstr "Le Jeton d'Accès du Bot LINE"
 
 #: temba/channels/types/line/views.py:19
 msgid "The Secret of the LINE Bot"
-msgstr ""
+msgstr "La Clé Secrète du Bot LINE"
 
 #: temba/channels/types/line/views.py:49
 msgid "A channel with this configuration already exists."
-msgstr ""
+msgstr "Un canal avec cette configuration existe deja."
 
 #: temba/channels/types/m3tech/type.py:29
 #, fuzzy
@@ -1454,15 +1454,15 @@ msgstr ""
 
 #: temba/channels/types/telegram/views.py:15
 msgid "Authentication Token"
-msgstr ""
+msgstr "Jeton d'Authentification"
 
 #: temba/channels/types/telegram/views.py:16
 msgid "The Authentication token for your Telegram Bot"
-msgstr ""
+msgstr "Le Jeton d'Authentification de votre Bot Telegram"
 
 #: temba/channels/types/telegram/views.py:25
 msgid "A telegram channel for this bot already exists on your account."
-msgstr ""
+msgstr "Un canal telegram existe deja pour ce bot au sein de votre compte."
 
 #: temba/channels/types/telegram/views.py:31
 #, fuzzy
@@ -1508,7 +1508,7 @@ msgstr ""
 #, fuzzy
 #| msgid "API Token"
 msgid "Access Token Secret"
-msgstr "Signal API"
+msgstr "Jeton d'Accès Secret"
 
 #: temba/channels/types/twitter_activity/views.py:36
 msgid "A Twitter channel already exists for that handle."
@@ -1516,7 +1516,7 @@ msgstr ""
 
 #: temba/channels/types/twitter_activity/views.py:39
 msgid "The provided Twitter credentials do not appear to be valid."
-msgstr ""
+msgstr "Les accès Twitter fournis semble ne pas être valides."
 
 #: temba/channels/types/viber_public/type.py:28
 msgid ""
@@ -1541,7 +1541,7 @@ msgstr "États-Unis"
 
 #: temba/channels/views.py:734
 msgid "POST Required"
-msgstr "POST requis"
+msgstr "POST Requis"
 
 #: temba/channels/views.py:762
 #, fuzzy, python-format
@@ -1587,7 +1587,7 @@ msgstr "Numéro de téléphone incorrect, essayez à nouveau."
 
 #: temba/channels/views.py:870
 msgid "Another channel has this number. Please remove that channel first."
-msgstr ""
+msgstr "Un autre canal a ce numéro. Veuillez supprimer ce canal en premier."
 
 #: temba/channels/views.py:892
 #, fuzzy
@@ -1660,7 +1660,7 @@ msgstr "Sortant"
 
 #: temba/channels/views.py:1168
 msgid "An error occured contacting the Facebook API"
-msgstr ""
+msgstr "Une erreur s'est produite lors de la connexion à l'API Facebook"
 
 #: temba/channels/views.py:1173
 msgid "Remove Android"
@@ -1760,7 +1760,7 @@ msgstr "Le nom d'utilisateur fournit par l'opérateur pour utiliser leur API"
 #: temba/channels/views.py:1474
 #, fuzzy
 msgid "Sender ID"
-msgstr "Envoyer l'URL"
+msgstr "ID de l'emmeteur"
 
 #: temba/channels/views.py:1475
 #, fuzzy
@@ -1784,7 +1784,7 @@ msgstr "Le mot de passe fournit par l'opérateur pour utiliser leur API"
 #, fuzzy
 #| msgid "Device"
 msgid "Service ID"
-msgstr "Appareil"
+msgstr "ID du Service"
 
 #: temba/channels/views.py:1482
 #, fuzzy
@@ -1797,13 +1797,13 @@ msgstr "Le nom d'utilisateur fournit par l'opérateur pour utiliser leur API"
 #, fuzzy
 #| msgid "Connect Nexmo"
 msgid "Connect Macrokiosk"
-msgstr "Connectez Nexmo"
+msgstr "Connectez Macrokiosk"
 
 #: temba/channels/views.py:1570
 #, fuzzy
 #| msgid "Connect Kannel"
 msgid "Connect SMSCentral"
-msgstr "Connecter Kannel"
+msgstr "Connecter SMSCentral"
 
 #: temba/channels/views.py:1574
 #, fuzzy
@@ -1813,7 +1813,7 @@ msgstr "Connectez avec Twilio"
 #: temba/channels/views.py:1578
 #, fuzzy
 msgid "Connect Red Rabbit"
-msgstr "Connectez Vumi"
+msgstr "Connectez Red Rabbit"
 
 #: temba/channels/views.py:1588
 msgid "The username for your MBlox REST API service"
@@ -1822,26 +1822,26 @@ msgstr ""
 #: temba/channels/views.py:1589 temba/orgs/views.py:2144
 #: templates/channels/channel_configuration.haml:778
 msgid "API Token"
-msgstr "Signal API"
+msgstr "Jeton API"
 
 #: temba/channels/views.py:1590
 msgid "The API token for your MBlox REST API service"
-msgstr ""
+msgstr "Le Jeton API pour votre servicce MBlox REST API"
 
 #: temba/channels/views.py:1592
 #, fuzzy
 #| msgid "Connect Twilio"
 msgid "Connect MBlox"
-msgstr "Connectez avec Twilio"
+msgstr "Connectez avec MBlox"
 
 #: temba/channels/views.py:1602
 #, fuzzy
 msgid "The short code you are connecting."
-msgstr "Le pays ce numéro de téléphone est utilisé dans"
+msgstr "Le code court auquel vous vous connectez"
 
 #: temba/channels/views.py:1603
 msgid "Client Id"
-msgstr ""
+msgstr "ID Client"
 
 #: temba/channels/views.py:1604
 msgid "The Client Id found on your Chikka API credentials page"
@@ -2171,11 +2171,11 @@ msgstr "ID externe"
 #, fuzzy
 #| msgid "External ID"
 msgid "Jiochat identifier"
-msgstr "ID externe"
+msgstr "Identifiant Jiochat"
 
 #: temba/contacts/models.py:72
 msgid "Firebase Cloud Messaging identifier"
-msgstr ""
+msgstr "Identifiant Firebase Cloud Messaging"
 
 #: temba/contacts/models.py:338
 msgid "Label"
@@ -2201,7 +2201,7 @@ msgstr "L'organisation a qui ce contact appartient "
 #, fuzzy
 #| msgid "Block"
 msgid "Is Blocked"
-msgstr "Bloquer"
+msgstr "Est Bloqué"
 
 #: temba/contacts/models.py:472
 #, fuzzy
@@ -2211,7 +2211,7 @@ msgstr "Que ce contact a été archivé"
 
 #: temba/contacts/models.py:474
 msgid "Is Test"
-msgstr "est testé"
+msgstr "Est Testé"
 
 #: temba/contacts/models.py:475
 msgid "Whether this contact is for simulation"
@@ -2219,7 +2219,7 @@ msgstr "Ce contact est pour la simulation"
 
 #: temba/contacts/models.py:477
 msgid "Is Stopped"
-msgstr ""
+msgstr "Est Stoppé"
 
 #: temba/contacts/models.py:478
 #, fuzzy
@@ -2234,7 +2234,7 @@ msgstr "Langue"
 
 #: temba/contacts/models.py:481
 msgid "The preferred language for this contact"
-msgstr ""
+msgstr "Langague par defaut pour ce contact"
 
 #: temba/contacts/models.py:924
 msgid "Provided URNs belong to different existing contacts"
@@ -2258,7 +2258,7 @@ msgstr ""
 
 #: temba/contacts/models.py:1973
 msgid "Any authentication information needed by this URN"
-msgstr ""
+msgstr "Toute information d'authentification necessaire à cet URN"
 
 #: temba/contacts/models.py:2132
 #, fuzzy
@@ -2283,11 +2283,11 @@ msgstr "L'organisation de ce groupe fait partie de"
 
 #: temba/contacts/models.py:2144
 msgid "The membership query for this group"
-msgstr ""
+msgstr "Requête d'inscription pour ce groupe"
 
 #: temba/contacts/models.py:2146
 msgid "Query Fields"
-msgstr ""
+msgstr "Champs de Requête"
 
 #: temba/contacts/models.py:2461
 msgid "The unique group to export"
@@ -2295,17 +2295,17 @@ msgstr "Le groupe unique à exporter"
 
 #: temba/contacts/models.py:2462
 msgid "The search query"
-msgstr ""
+msgstr "La requête de recherche"
 
 #: temba/contacts/search/parser.py:96
 #, python-format
 msgid "Unrecognized field: %s"
-msgstr ""
+msgstr "Champ inconnu: %s"
 
 #: temba/contacts/search/parser.py:198
 #, python-format
 msgid "Can't query contact properties with %s"
-msgstr ""
+msgstr "Impossible d'interroger les propriétés du contact avec %s"
 
 #: temba/contacts/search/parser.py:205
 #, python-format
@@ -2351,15 +2351,15 @@ msgstr ""
 #, fuzzy
 #| msgid "days"
 msgid "day"
-msgstr "jours"
+msgstr "jour"
 
 #: temba/contacts/templatetags/contacts.py:162
 msgid "minute"
-msgstr ""
+msgstr "minute"
 
 #: temba/contacts/templatetags/contacts.py:164
 msgid "hour"
-msgstr ""
+msgstr "heure"
 
 #: temba/contacts/templatetags/contacts.py:167
 #: templates/partials/split_editor.haml:234
@@ -2370,11 +2370,11 @@ msgstr "jours"
 #, fuzzy
 #| msgid "After 5 minutes"
 msgid "minutes"
-msgstr "Après 5 minutes"
+msgstr "minutes"
 
 #: temba/contacts/templatetags/contacts.py:171
 msgid "hours"
-msgstr ""
+msgstr "heures"
 
 #: temba/contacts/views.py:83
 #, fuzzy
@@ -2387,15 +2387,15 @@ msgstr ""
 
 #: temba/contacts/views.py:142
 msgid "All Contacts"
-msgstr ""
+msgstr "Tous les contacts"
 
 #: temba/contacts/views.py:143
 msgid "Blocked"
-msgstr ""
+msgstr "Blocqué"
 
 #: temba/contacts/views.py:144
 msgid "Stopped"
-msgstr ""
+msgstr "Stoppé"
 
 #: temba/contacts/views.py:173
 msgid "Add to Group"
@@ -2419,18 +2419,18 @@ msgstr "Contacts Bloqués"
 
 #: temba/contacts/views.py:177 templates/contacts/contact_list.haml:322
 msgid "Delete Contacts"
-msgstr ""
+msgstr "contacts Supprimés"
 
 #: temba/contacts/views.py:178
 #, fuzzy
 #| msgid "Show Contacts"
 msgid "Unstop Contacts"
-msgstr "Afficher les contacts"
+msgstr "Autoriser les contacts"
 
 #: temba/contacts/views.py:277
 #, fuzzy
 msgid "Used by another contact"
-msgstr "Envoyer un SMS au contact"
+msgstr "Utilisé par un autre contact"
 
 #: temba/contacts/views.py:282
 #, fuzzy
@@ -2444,11 +2444,11 @@ msgstr ""
 
 #: temba/contacts/views.py:284
 msgid "Invalid format"
-msgstr ""
+msgstr "Format invalide"
 
 #: temba/contacts/views.py:288
 msgid "Invalid input"
-msgstr ""
+msgstr "Entrée invalide"
 
 #: temba/contacts/views.py:312 temba/msgs/models.py:179 temba/msgs/views.py:445
 #: temba/triggers/models.py:75 templates/contacts/contact_list.haml:54
@@ -2457,12 +2457,12 @@ msgstr "Groupes"
 
 #: temba/contacts/views.py:313
 msgid "Add or remove groups this contact belongs to"
-msgstr "Ajouter ou supprimer des groupes ce contact appartenant à"
+msgstr "Ajouter ou supprimer des groupes auxquels ce contact appartient"
 
 #: temba/contacts/views.py:324
 #, python-format
 msgid "%s (Missing)"
-msgstr ""
+msgstr "%s (Introuvable)"
 
 #: temba/contacts/views.py:333
 #, fuzzy
@@ -2562,7 +2562,7 @@ msgstr "Effacer"
 
 #: temba/contacts/views.py:856
 msgid "Save as Group"
-msgstr ""
+msgstr "Sauvegarder comme Groupe"
 
 #: temba/contacts/views.py:859 temba/contacts/views.py:902
 msgid "Manage Fields"
@@ -2591,7 +2591,7 @@ msgstr "Modifier un group"
 
 #: temba/contacts/views.py:915
 msgid "Delete Group"
-msgstr ""
+msgstr "Supprimer le groupe"
 
 #: temba/contacts/views.py:948 temba/contacts/views.py:1142
 #: temba/flows/views.py:1679 temba/msgs/views.py:755 temba/msgs/views.py:782
@@ -2617,7 +2617,7 @@ msgstr "Contact"
 #: temba/contacts/views.py:1197
 #, python-format
 msgid "You cannot remove this group while it has active triggers (%s)"
-msgstr ""
+msgstr "Vous ne pouvez supprimer ce groupe car il dispose de déclencheurs actifs (%s)"
 
 #: temba/contacts/views.py:1221
 msgid "Field names can only contain letters, numbers and hypens"
@@ -2626,12 +2626,12 @@ msgstr ""
 #: temba/contacts/views.py:1224
 #, python-format
 msgid "Field names must be unique. '%s' is duplicated"
-msgstr ""
+msgstr "Les noms des champs doivent être uniques. Doublon de %s"
 
 #: temba/contacts/views.py:1227
 #, python-format
 msgid "Field name '%s' is a reserved word"
-msgstr ""
+msgstr "Le nom du champ '%s' est un mot réservé"
 
 #: temba/contacts/views.py:1275 templates/contacts/contact_list.haml:528
 msgid "Manage Contact Fields"
@@ -2671,13 +2671,13 @@ msgstr "Flux d'appels de téléphone"
 #, fuzzy
 #| msgid "Android Phone"
 msgid "Android Survey"
-msgstr "Android Phone"
+msgstr "Sondage Android"
 
 #: temba/flows/models.py:188
 #, fuzzy
 #| msgid "SMS flow"
 msgid "USSD flow"
-msgstr "Flux de SMS"
+msgstr "Flux USSD"
 
 #: temba/flows/models.py:196
 msgid "The name for this flow"
@@ -2695,7 +2695,7 @@ msgstr "Tout label sur ce flux"
 
 #: temba/flows/models.py:206
 msgid "The type of node this flow starts with"
-msgstr ""
+msgstr "Type de noeud avec lequel le flux doit demarrer"
 
 #: temba/flows/models.py:209
 msgid "Whether this flow is archived"
@@ -2751,29 +2751,29 @@ msgstr "Le flux qui est démarrée"
 #: temba/flows/models.py:806
 #, python-format
 msgid "Saved '%s' as @flow.%s"
-msgstr ""
+msgstr "Sauvegarder '%s' comme @flow.%s"
 
 #: temba/flows/models.py:2443
 #, fuzzy
 #| msgid "Deleted"
 msgid "Completed"
-msgstr "Supprimé"
+msgstr "Fait"
 
 #: temba/flows/models.py:2444
 msgid "Interrupted"
-msgstr ""
+msgstr "Interrompu"
 
 #: temba/flows/models.py:2445
 #, fuzzy
 #| msgid "Expires on "
 msgid "Expired"
-msgstr "Expire le"
+msgstr "Expiré"
 
 #: temba/flows/models.py:2458 temba/flows/models.py:2461
 #, fuzzy
 #| msgid "The call that handled this flow run, only for voice flows"
 msgid "The session that handled this flow run, only for voice flows"
-msgstr "L'appel qui a traité ce terme de flux, seulement pour les flux voix"
+msgstr "La session qui a traité l'exécution de ce flux, seulement pour les flux voix"
 
 #: temba/flows/models.py:2464
 msgid "Whether this flow run is currently active"
@@ -2945,7 +2945,7 @@ msgstr "Quand ce jeu de règles a été mise à jour"
 
 #: temba/flows/models.py:3209
 msgid "Valid"
-msgstr ""
+msgstr "Valide"
 
 #: temba/flows/models.py:3356
 #, fuzzy
@@ -2975,15 +2975,15 @@ msgstr ""
 
 #: temba/flows/models.py:3694
 msgid "The flow where the activity occurred"
-msgstr ""
+msgstr "Le flux où l'activité est survenue"
 
 #: temba/flows/models.py:3695 temba/flows/models.py:3751
 msgid "Which flow node they came from"
-msgstr ""
+msgstr "De quel noeud de flux viennent t'il"
 
 #: temba/flows/models.py:3696 temba/flows/models.py:3752
 msgid "Which flow node they went to"
-msgstr ""
+msgstr "Vers quel noeud de flux se sont t'il rendu"
 
 #: temba/flows/models.py:3697
 msgid "When the activity occured with hourly precision"
@@ -2993,17 +2993,17 @@ msgstr ""
 #, fuzzy
 #| msgid "The message to send out"
 msgid "The message text"
-msgstr "Le message à envoyer"
+msgstr "Le texte du message"
 
 #: temba/flows/models.py:3755
 #, fuzzy
 #| msgid "When this message was created"
 msgid "When the message arrived"
-msgstr "Lorsque ce message a été créé"
+msgstr "Quand le message est arrivé"
 
 #: temba/flows/models.py:3912
 msgid "The flows to export"
-msgstr "Les flux d'exportation"
+msgstr "Les flux à expoorter"
 
 #: temba/flows/models.py:3915
 #, fuzzy
@@ -3021,21 +3021,21 @@ msgstr "Infobip"
 #, fuzzy
 #| msgid "Warning!"
 msgid "Warning"
-msgstr "Attention!"
+msgstr "Attention"
 
 #: temba/flows/models.py:4383 templates/channels/channellog_read.haml:90
 #: templates/contacts/contact_read.haml:624
 #, fuzzy
 msgid "Error"
-msgstr "Nombre d'erreurs"
+msgstr "Erreur"
 
 #: temba/flows/models.py:4387
 msgid "Log event text"
-msgstr ""
+msgstr "Texte des logs d'événements"
 
 #: temba/flows/models.py:4389
 msgid "Log event level"
-msgstr ""
+msgstr "niveau de log d'événement"
 
 #: temba/flows/models.py:4391
 #, fuzzy
@@ -3246,7 +3246,7 @@ msgstr "Après 30 minutes"
 #, fuzzy
 #| msgid "After 5 minutes"
 msgid "After 15 minutes"
-msgstr "Après 5 minutes"
+msgstr "Après 15 minutes"
 
 #: temba/flows/views.py:56
 msgid "After 30 minutes"
@@ -3292,25 +3292,25 @@ msgstr "Après 30 jours"
 #, fuzzy
 #| msgid "After 5 minutes"
 msgid "After 1 minute"
-msgstr "Après 5 minutes"
+msgstr "Après 1 minutes"
 
 #: temba/flows/views.py:71
 #, fuzzy
 #| msgid "After 5 minutes"
 msgid "After 2 minutes"
-msgstr "Après 5 minutes"
+msgstr "Après 2 minutes"
 
 #: temba/flows/views.py:72
 #, fuzzy
 #| msgid "After 30 minutes"
 msgid "After 3 minutes"
-msgstr "Après 30 minutes"
+msgstr "Après 3 minutes"
 
 #: temba/flows/views.py:73
 #, fuzzy
 #| msgid "After 5 minutes"
 msgid "After 4 minutes"
-msgstr "Après 5 minutes"
+msgstr "Après 4 minutes"
 
 #: temba/flows/views.py:108
 #, fuzzy, python-format
@@ -3393,7 +3393,7 @@ msgstr "Lorsque les contacts inactifs doivent être retirés du flux"
 #, fuzzy
 #| msgid "Create Contact"
 msgid "Create a contact "
-msgstr "Créer un contact"
+msgstr "Création de Contact"
 
 #: temba/flows/views.py:580
 msgid "Whether surveyor logins should be used as the contact for each run"
@@ -3401,11 +3401,11 @@ msgstr ""
 
 #: temba/flows/views.py:582
 msgid "For each run"
-msgstr ""
+msgstr "Pour chaque exécution"
 
 #: temba/flows/views.py:583
 msgid "For each login"
-msgstr ""
+msgstr "Pour chaque connexion"
 
 #: temba/flows/views.py:690 temba/flows/views.py:751 temba/msgs/views.py:150
 #: templates/flows/flow_list.haml:52
@@ -3436,11 +3436,11 @@ msgstr "Configurer la langue"
 #, fuzzy
 #| msgid "Email Address"
 msgid "Contact Email Address"
-msgstr "Adresse e-mail"
+msgstr "Adresse e-mail du contact"
 
 #: temba/flows/views.py:853 temba/msgs/views.py:48
 msgid "Contact Phone"
-msgstr "Contact"
+msgstr "Téléphone du Contact"
 
 #: temba/flows/views.py:854 temba/msgs/views.py:49
 msgid "Contact Phone - E164"
@@ -3449,18 +3449,18 @@ msgstr "Contact téléphone-E164"
 #: temba/flows/views.py:855 temba/msgs/views.py:50
 #, fuzzy
 msgid "Contact UUID"
-msgstr "Contact"
+msgstr "UUID du Contact"
 
 #: temba/flows/views.py:856
 #, fuzzy
 msgid "New Contact"
-msgstr "1 Contact"
+msgstr "Nouveau Contact"
 
 #: temba/flows/views.py:859 temba/msgs/views.py:60
 #, fuzzy, python-format
 #| msgid "Contacts"
 msgid "Contact %s"
-msgstr "Contacts"
+msgstr "Contact %s"
 
 #: temba/flows/views.py:867 temba/flows/views.py:868 temba/msgs/views.py:52
 #: temba/msgs/views.py:53
@@ -3603,15 +3603,15 @@ msgstr "Réinitialiser tous les contacts participent déjà à ce flux "
 #, fuzzy
 #| msgid "Archive Contacts"
 msgid "Include Active Contacts"
-msgstr "Archivés les contacts"
+msgstr "Inlcure les Contacts Actifs"
 
 #: temba/flows/views.py:1543
 msgid "Include contacts currently active in a flow"
-msgstr ""
+msgstr "Inclure les contact actuellement actifs dans un flux"
 
 #: temba/flows/views.py:1548
 msgid "You must specify at least one contact or one group to start a flow."
-msgstr ""
+msgstr "Vous devez spécifier au moins un contact ou un groupe pour démarrer le flux."
 
 #: temba/flows/views.py:1557
 msgid ""
@@ -3627,7 +3627,7 @@ msgstr ""
 
 #: temba/flows/views.py:1571
 msgid "Add Contacts to Flow"
-msgstr "Ajouter des contact à un flux"
+msgstr "Ajouter des contact au flux"
 
 #: temba/flows/views.py:1643
 msgid "Name already used"
@@ -3636,7 +3636,7 @@ msgstr "Nom déjà utilisé"
 #: temba/ivr/clients.py:83
 #, python-format
 msgid "Nexmo call failed, with error %s"
-msgstr ""
+msgstr "Appel Nexmo échoué, avec l'erreur %s"
 
 #: temba/ivr/clients.py:146
 msgid ""
@@ -3715,7 +3715,7 @@ msgstr "Contacts individuels inclus dans ce message"
 
 #: temba/msgs/models.py:185
 msgid "URNs"
-msgstr ""
+msgstr "URNs"
 
 #: temba/msgs/models.py:186
 #, fuzzy
@@ -3784,7 +3784,7 @@ msgstr "Lorsque ce journal d'action a été créé"
 
 #: temba/msgs/models.py:229
 msgid "Media"
-msgstr ""
+msgstr "Médias"
 
 #: temba/msgs/models.py:230
 #, fuzzy
@@ -3879,7 +3879,7 @@ msgstr ""
 
 #: temba/msgs/models.py:673
 msgid "Give this message higher priority than other messages"
-msgstr ""
+msgstr "Donner à ce message une plus grande priorité par rapport aux autres"
 
 #: temba/msgs/models.py:676
 msgid "When this message was created"
@@ -3889,13 +3889,13 @@ msgstr "Lorsque ce message a été créé"
 #, fuzzy
 #| msgid "Ended On"
 msgid "Modified On"
-msgstr "Terminé"
+msgstr "Modifié Le"
 
 #: temba/msgs/models.py:679
 #, fuzzy
 #| msgid "When this ruleset was last modified"
 msgid "When this message was last modified"
-msgstr "Quand ce jeu de règles a été mise à jour"
+msgstr "Quand a été modifié"
 
 #: temba/msgs/models.py:681
 msgid "Sent On"
@@ -3928,7 +3928,7 @@ msgstr "L'état actuel de ce message"
 
 #: temba/msgs/models.py:694
 msgid "Response To"
-msgstr "réponse Pour"
+msgstr "réponse à"
 
 #: temba/msgs/models.py:695
 msgid "The message that this message is in reply to"
@@ -3959,7 +3959,7 @@ msgstr "Si les données de substitution de variables sont manquantes"
 #: temba/msgs/models.py:707
 #, fuzzy
 msgid "Message Type"
-msgstr "Message"
+msgstr "Type de Message"
 
 #: temba/msgs/models.py:708
 msgid "The type of this message"
@@ -3989,7 +3989,7 @@ msgstr "Le nombre de fois où ce message est erronées"
 
 #: temba/msgs/models.py:716
 msgid "Next Attempt"
-msgstr "Tentative Suivant"
+msgstr "Tentative Suivante"
 
 #: temba/msgs/models.py:717
 msgid "When we should next attempt to deliver this message"
@@ -4036,7 +4036,7 @@ msgstr "Le nom de ce label"
 #, fuzzy
 #| msgid "Elderly"
 msgid "Folder"
-msgstr "assez âgé"
+msgstr "Dossier"
 
 #: temba/msgs/models.py:1850
 #, fuzzy
@@ -4046,16 +4046,16 @@ msgstr "Type de label"
 
 #: temba/msgs/models.py:2078
 msgid "The date for the oldest message to export"
-msgstr ""
+msgstr "La date du plus ancien message à exporter"
 
 #: temba/msgs/models.py:2080
 msgid "The date for the newest message to export"
-msgstr ""
+msgstr "La date du plus récent message à exporter"
 
 #: temba/msgs/models.py:2133 temba/msgs/models.py:2151
 #, python-format
 msgid "Messages %d"
-msgstr ""
+msgstr "Messages %d"
 
 #: temba/msgs/views.py:63
 #, python-format
@@ -4076,15 +4076,15 @@ msgstr "Boîte d'Envoi"
 
 #: temba/msgs/views.py:155
 msgid "Schedules"
-msgstr ""
+msgstr "Plannifications"
 
 #: temba/msgs/views.py:156 temba/utils/export.py:50
 msgid "Failed"
-msgstr "manqué"
+msgstr "Echoué"
 
 #: temba/msgs/views.py:204
 msgid "Schedule Message"
-msgstr "Messages planning"
+msgstr "Planifier les Messages"
 
 #: temba/msgs/views.py:207
 msgid "Scheduled Message"
@@ -4092,12 +4092,12 @@ msgstr "Message Plannifié"
 
 #: temba/msgs/views.py:259
 msgid "Scheduled Messages"
-msgstr "Messages planifiés"
+msgstr "Messages Planifiés"
 
 #: temba/msgs/views.py:275
 #, fuzzy
 msgid "Send"
-msgstr "Envoyer l'URL"
+msgstr "Envoyer"
 
 #: temba/msgs/views.py:291
 msgid "You must add a phone number before sending messages"
@@ -4121,7 +4121,7 @@ msgstr "Messages Supprimés"
 
 #: temba/msgs/views.py:424
 msgid "Which channel will deliver the message"
-msgstr "Quel channel livrera le message"
+msgstr "Quel canal livrera le message"
 
 #: temba/msgs/views.py:426
 msgid "The URN of the contact delivering this message"
@@ -4135,25 +4135,25 @@ msgstr "Le message qui est livré"
 #, fuzzy
 #| msgid "Must specify a label"
 msgid "Just this label"
-msgstr "Vous devez spécifier une étiquette"
+msgstr "Uniquement cette étiquette"
 
 #: temba/msgs/views.py:439 temba/msgs/views.py:440
 #, fuzzy
 #| msgid "messages"
 msgid "All messages"
-msgstr "messages"
+msgstr "Tous les messages"
 
 #: temba/msgs/views.py:440
 #, fuzzy
 #| msgid "The name of this label"
 msgid "Just this folder"
-msgstr "Le nom de ce label"
+msgstr "Uniquement ce dossier"
 
 #: temba/msgs/views.py:442
 #, fuzzy
 #| msgid "Direction"
 msgid "Selection"
-msgstr "Direction"
+msgstr "Selection"
 
 #: temba/msgs/views.py:447
 msgid ""
@@ -4175,11 +4175,11 @@ msgstr ""
 
 #: temba/msgs/views.py:469
 msgid "Start date can't be in the future."
-msgstr ""
+msgstr "La date de démarrage ne peut être dans le futur"
 
 #: temba/msgs/views.py:472
 msgid "End date can't be before start date"
-msgstr ""
+msgstr "La date de fin ne peut être antérieure à la date de démarrage"
 
 #: temba/msgs/views.py:598
 msgid "Flow Messages"
