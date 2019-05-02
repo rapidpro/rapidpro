@@ -46,12 +46,12 @@ msgstr "Ok"
 #: sitestatic/CACHE/js/textit.3ebbec7c3ab4.js:506
 #: sitestatic/CACHE/js/textit.5566e731dc41.js:502
 msgid "Processing.."
-msgstr "Traitement .."
+msgstr "Traitement.."
 
 #: sitestatic/CACHE/js/a62d07ed3102.js:102
 #: sitestatic/CACHE/js/formax.b41af9d07e7a.js:93
 msgid "Save"
-msgstr "sauver"
+msgstr "Enregistrer"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:156
 msgid "Add a field"
@@ -63,43 +63,43 @@ msgstr "Ajouter tous"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:174
 msgid " fields"
-msgstr "champ"
+msgstr " champs"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:179
 msgid " contact"
-msgstr "contact"
+msgstr " contact"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:971
 msgid "Save Report"
-msgstr ""
+msgstr "Enregistrer le Rapport"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1268
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1304
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1333
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1337
 msgid " of "
-msgstr "de"
+msgstr " de"
 
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1268
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1304
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1333
 #: sitestatic/CACHE/js/analytics.e9a5295ae7ad.js:1337
 msgid " responses"
-msgstr "réponses"
+msgstr " réponses"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:499
 #: sitestatic/CACHE/js/flows.1e504e308039.js:499
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:513
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:499
 msgid "Rule Variable"
-msgstr "Règle de variable"
+msgstr "Règle de Variable"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:554
 #: sitestatic/CACHE/js/flows.1e504e308039.js:554
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:568
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:554
 msgid "Call Webhook"
-msgstr "appelez Webhook"
+msgstr "Appel Webhook"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:684
 #: sitestatic/CACHE/js/flows.1e504e308039.js:684
@@ -115,14 +115,14 @@ msgstr ""
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:700
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:685
 msgid "Editing Conflict"
-msgstr ""
+msgstr "Conflit d'édition"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:687
 #: sitestatic/CACHE/js/flows.1e504e308039.js:687
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:702
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:687
 msgid "Reload"
-msgstr ""
+msgstr "Recharger"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:951
 #: sitestatic/CACHE/js/flows.0960713916d7.js:961
@@ -133,7 +133,7 @@ msgstr ""
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:951
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:961
 msgid "Note Title"
-msgstr "Noté le Titre"
+msgstr "Titre de la Note"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:1311
 #: sitestatic/CACHE/js/flows.0960713916d7.js:3363
@@ -155,7 +155,7 @@ msgstr "Supprimer"
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:1311
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:3363
 msgid "Are you sure you want to remove this connection?"
-msgstr "Etes-vous sûr de vouloir supprimer cette connexion?"
+msgstr "Êtes-vous sûr de vouloir supprimer cette connexion?"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:1348
 #: sitestatic/CACHE/js/flows.0960713916d7.js:1349
@@ -175,7 +175,7 @@ msgstr "Etes-vous sûr de vouloir supprimer cette connexion?"
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2178
 #, fuzzy
 msgid "Contact Response"
-msgstr "Réponse"
+msgstr "Réponse du Contact"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:1560
 #: sitestatic/CACHE/js/flows.1e504e308039.js:1560
@@ -249,28 +249,28 @@ msgstr "Quand quelqu'un arrive à ce point dans votre flux"
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2198
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2173
 msgid "Sent to"
-msgstr ""
+msgstr "Envoyé à"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2174
 #: sitestatic/CACHE/js/flows.1e504e308039.js:2174
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2199
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2174
 msgid "Sent to Name"
-msgstr ""
+msgstr "envoyé au Nom"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2175
 #: sitestatic/CACHE/js/flows.1e504e308039.js:2175
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2200
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2175
 msgid "Sent to Phone"
-msgstr ""
+msgstr "Envoyé au Téléphone"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2176
 #: sitestatic/CACHE/js/flows.1e504e308039.js:2176
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2201
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2176
 msgid "Sent to Phone - E164"
-msgstr ""
+msgstr "Envoyé au Téléphone - E164"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2185
 #: sitestatic/CACHE/js/flows.1e504e308039.js:2185
@@ -295,7 +295,7 @@ msgstr "Webhook"
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2307
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2282
 msgid "Click to set Webhook URL"
-msgstr "Cliquez pour définir l'URL de Webhook "
+msgstr "Cliquez pour définir l'URL de Webhook"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2330
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2690
@@ -306,7 +306,7 @@ msgstr "Cliquez pour définir l'URL de Webhook "
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2330
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:2690
 msgid "Send SMS"
-msgstr "Envoyer un SMS"
+msgstr "Envoi SMS"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:2500
 #: sitestatic/CACHE/js/flows.1e504e308039.js:2500
@@ -435,7 +435,7 @@ msgstr "doit être supérieure à la première"
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:4226
 #, fuzzy
 msgid "Save Response"
-msgstr "Réponse"
+msgstr "Enregistrer la Réponse"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:4348
 #: sitestatic/CACHE/js/flows.0960713916d7.js:4353
@@ -485,7 +485,7 @@ msgstr ""
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:4614
 msgid "Hi @contact.name, do you have a moment to participate in a short poll?"
 msgstr ""
-"Hi@contact.name, avez-vous un moment pour participer à un petit sondage?"
+"Salut @contact.name, avez-vous un moment pour participer à un petit sondage?"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:4617
 #: sitestatic/CACHE/js/flows.1e504e308039.js:4621
@@ -508,7 +508,7 @@ msgstr "Cliquez ici pour créer le premier message dans votre flux."
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:4618
 msgid "Hi @contact.name! Will you be able to attend the training on Saturday?"
 msgstr ""
-"Hi@contact.name! Serez-vous en mesure de participer à la formation le samedi?"
+"Salut @contact.name! Serez-vous en mesure de participer à la formation le samedi?"
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:4706
 #: sitestatic/CACHE/js/flows.1e504e308039.js:4710
@@ -522,7 +522,7 @@ msgstr "Enquête Archivée"
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:4863
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:4706
 msgid "This Survey is Archived."
-msgstr "Cette Étude est archivée."
+msgstr "Cette Enquête est Archivée."
 
 #: sitestatic/CACHE/js/flows.0960713916d7.js:4706
 #: sitestatic/CACHE/js/flows.1e504e308039.js:4710
@@ -543,15 +543,15 @@ msgstr ""
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:4962
 #: sitestatic/CACHE/js/flows.eb5d5b7978ff.js:4805
 msgid "Test Call"
-msgstr ""
+msgstr "Appel Test"
 
 #: sitestatic/CACHE/js/flows.75c71aba4a10.js:2917
 msgid "Set Language"
-msgstr ""
+msgstr "Définir la Langue"
 
 #: sitestatic/CACHE/js/simulator.06cb89629db6.js:263
 msgid "Start Test Call"
-msgstr ""
+msgstr "Lancer un Appel d'Essai"
 
 #~ msgid "Receiving Messages"
 #~ msgstr "Recevoir des messages"
@@ -561,7 +561,7 @@ msgstr ""
 
 #~ msgid "Hi @contact.name! Can you attend the training session on Saturday?"
 #~ msgstr ""
-#~ "Hi@contact.name! Pouvez-vous assister à la session de formation le samedi?"
+#~ "Salut @contact.name! Pouvez-vous assister à la session de formation le samedi?"
 
 #~ msgid "Message text"
 #~ msgstr "Le texte du message"
