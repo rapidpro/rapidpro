@@ -223,6 +223,13 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
             self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel).count())
 
+            # hit our template page
+            response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+
+            # should have our template translations
+            self.assertContains(response, "Bonjour")
+            self.assertContains(response, "Hello")
+
             ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
             self.assertEqual(2, ct.variable_count)
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)

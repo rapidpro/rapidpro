@@ -42,7 +42,7 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
 
     model = Channel
     fields = ()
-    permission = "channels.channel_claim"
+    permission = "channels.channel_read"
     slug_url_kwarg = "uuid"
     template_name = "channels/types/whatsapp/templates.html"
 
@@ -109,7 +109,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             from .type import TEMPLATE_LIST_URL
 
             response = requests.get(
-                TEMPLATE_LIST_URL % self.cleaned_data["facebook_user_id"],
+                TEMPLATE_LIST_URL % self.cleaned_data["facebook_business_id"],
                 params=dict(access_token=self.cleaned_data["facebook_access_token"]),
             )
 

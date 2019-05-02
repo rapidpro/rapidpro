@@ -93,6 +93,8 @@ class ChannelType(metaclass=ABCMeta):
     free_sending = False
     quick_reply_text_size = 20
 
+    extra_links = None
+
     ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
