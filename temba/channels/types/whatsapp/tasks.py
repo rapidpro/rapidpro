@@ -109,7 +109,13 @@ def refresh_whatsapp_templates():
     Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
     """
 
-    from .type import CONFIG_FB_USER_ID, CONFIG_FB_ACCESS_TOKEN, LANGUAGE_MAPPING, STATUS_MAPPING, TEMPLATE_LIST_URL
+    from .type import (
+        CONFIG_FB_BUSINESS_ID,
+        CONFIG_FB_ACCESS_TOKEN,
+        LANGUAGE_MAPPING,
+        STATUS_MAPPING,
+        TEMPLATE_LIST_URL,
+    )
 
     r = get_redis_connection()
     if r.get("refresh_whatsapp_templates"):  # pragma: no cover
@@ -120,7 +126,7 @@ def refresh_whatsapp_templates():
         for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
             # move on if we have no FB credentials
             if (
-                CONFIG_FB_USER_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config
+                CONFIG_FB_BUSINESS_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config
             ):  # pragma: no cover
                 continue
 
@@ -128,7 +134,7 @@ def refresh_whatsapp_templates():
             try:
                 # we should never need to paginate because facebook limits accounts to 255 templates
                 response = requests.get(
-                    TEMPLATE_LIST_URL % channel.config[CONFIG_FB_USER_ID],
+                    TEMPLATE_LIST_URL % channel.config[CONFIG_FB_BUSINESS_ID],
                     params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255),
                 )
 

@@ -24,7 +24,6 @@
           (v{{channel.os}})
 
     .channel-roles
-
       -for channel in object.get_delegate_channels
 
         %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
@@ -47,6 +46,10 @@
               <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
             - if caller and caller != sender
               <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
+
+      -for link in object.get_type.extra_links
+        <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
+
       .notice
         -if delayed_sync_event or unsent_msgs_count
           .icon.icon-warning.errored

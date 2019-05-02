@@ -1,11 +1,12 @@
 import requests
-from smartmin.views import SmartFormView, SmartUpdateView
+from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
+from temba.templates.models import TemplateTranslation
 from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
@@ -34,6 +35,29 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
         return obj
 
 
+class TemplatesView(OrgPermsMixin, SmartReadView):
+    """
+    Displays a simple table of all the templates synced on this whatsapp channel
+    """
+
+    model = Channel
+    fields = ()
+    permission = "channels.channel_read"
+    slug_url_kwarg = "uuid"
+    template_name = "channels/types/whatsapp/templates.html"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(org=self.get_user().get_org())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # include all our templates as well
+        context["translations"] = TemplateTranslation.objects.filter(channel=self.object).order_by("template__name")
+        return context
+
+
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
@@ -48,17 +72,15 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=64, help_text=_("The password to access your WhatsApp enterprise account")
         )
 
-        facebook_user_id = forms.CharField(
-            max_length=128, help_text=_("The Facebook user id that will be used for template syncing")
+        facebook_business_id = forms.CharField(
+            max_length=128, help_text=_("The Facebook waba-id that will be used for template syncing")
         )
 
         facebook_access_token = forms.CharField(
-            max_length=128, help_text=_("The Facebook access token for the above user")
+            max_length=128, help_text=_("The Facebook access token that will be used for syncing")
         )
 
-        facebook_namespace = forms.CharField(
-            max_length=128, help_text=_("The namespace for your Facebook application")
-        )
+        facebook_namespace = forms.CharField(max_length=128, help_text=_("The namespace for your WhatsApp templates"))
 
         def clean(self):
             # first check that our phone number looks sane
@@ -87,7 +109,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             from .type import TEMPLATE_LIST_URL
 
             response = requests.get(
-                TEMPLATE_LIST_URL % self.cleaned_data["facebook_user_id"],
+                TEMPLATE_LIST_URL % self.cleaned_data["facebook_business_id"],
                 params=dict(access_token=self.cleaned_data["facebook_access_token"]),
             )
 
@@ -104,7 +126,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        from .type import CONFIG_FB_ACCESS_TOKEN, CONFIG_FB_USER_ID, CONFIG_FB_NAMESPACE
+        from .type import CONFIG_FB_ACCESS_TOKEN, CONFIG_FB_BUSINESS_ID, CONFIG_FB_NAMESPACE
 
         user = self.request.user
         org = user.get_org()
@@ -119,9 +141,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_USERNAME: data["username"],
             Channel.CONFIG_PASSWORD: data["password"],
             Channel.CONFIG_AUTH_TOKEN: data["auth_token"],
-            CONFIG_FB_NAMESPACE: data["facebook_namespace"],
-            CONFIG_FB_USER_ID: data["facebook_user_id"],
+            CONFIG_FB_BUSINESS_ID: data["facebook_business_id"],
             CONFIG_FB_ACCESS_TOKEN: data["facebook_access_token"],
+            CONFIG_FB_NAMESPACE: data["facebook_namespace"],
         }
 
         self.object = Channel.create(

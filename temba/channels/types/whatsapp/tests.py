@@ -13,7 +13,7 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import CONFIG_FB_USER_ID, WhatsAppType
+from .type import CONFIG_FB_BUSINESS_ID, WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -41,7 +41,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["country"] = "RW"
         post_data["base_url"] = "https://whatsapp.foo.bar"
         post_data["facebook_namespace"] = "my-custom-app"
-        post_data["facebook_user_id"] = "1234"
+        post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
 
         # will fail with invalid phone number
@@ -223,14 +223,22 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
             self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel).count())
 
+            # hit our template page
+            response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+
+            # should have our template translations
+            self.assertContains(response, "Bonjour")
+            self.assertContains(response, "Hello")
+
             ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
             self.assertEqual(2, ct.variable_count)
             self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+            self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
         # clear our FB ids, should cause refresh to be noop (but not fail)
-        del channel.config[CONFIG_FB_USER_ID]
+        del channel.config[CONFIG_FB_BUSINESS_ID]
         channel.save(update_fields=["config", "modified_on"])
         refresh_whatsapp_templates()
 
