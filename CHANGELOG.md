@@ -1,3 +1,7 @@
+v4.22.42
+----------
+ * add page to view synched WhatsApp templates for a channel
+
 v4.22.41
 ----------
  * Update flow editor to 1.4.16
