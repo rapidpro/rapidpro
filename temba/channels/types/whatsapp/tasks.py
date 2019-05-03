@@ -154,12 +154,19 @@ def refresh_whatsapp_templates():
                         logger.error(f"unknown whatsapp status: {template['status']}")
                         continue
 
+                    # try to get the body out
+                    if template["components"][0]["type"] != "BODY":
+                        logger.error(f"unknown component type: {template['components'][0]}")
+                        continue
+
+                    content = template["components"][0]["text"]
+
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
                         language=LANGUAGE_MAPPING[template["language"]],
-                        content=template["content"],
-                        variable_count=_calculate_variable_count(template["content"]),
+                        content=content,
+                        variable_count=_calculate_variable_count(content),
                         status=STATUS_MAPPING[template["status"]],
                         external_id=template["id"],
                     )

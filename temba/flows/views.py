@@ -1833,7 +1833,7 @@ class FlowCRUDL(SmartCRUDL):
                     template = Template.objects.filter(org=org, uuid=ref["uuid"]).first()
                     if not template:
                         context["warnings"].append(
-                            _(f"The message template {ref.name} does not exist on your account and cannot be sent.")
+                            _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
                         )
                     elif not template.is_approved():
                         context["warnings"].append(

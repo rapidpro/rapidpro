@@ -92,7 +92,7 @@ CONFIG_FB_BUSINESS_ID = "fb_business_id"
 CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
 CONFIG_FB_NAMESPACE = "fb_namespace"
 
-TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.2/%s/message_templates"
+TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.3/%s/message_templates"
 
 
 class WhatsAppType(ChannelType):
