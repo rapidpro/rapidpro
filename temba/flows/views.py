@@ -44,6 +44,7 @@ from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, get_current_export_version
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
 from temba.utils.expressions import get_function_listing
@@ -1812,6 +1813,32 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
+
+            # if we have an active whatsapp channel
+            flow = self.get_object()
+            org = flow.org
+
+            context["warnings"] = []
+
+            # if we have a whatsapp channel
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            if whatsapp_channel:
+                # check to see we are using templates
+                templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
+                if not templates:
+                    context["warnings"].append(_("This flow does not use message templates."))
+
+                # check that this template is synced and ready to go
+                for ref in templates:
+                    template = Template.objects.filter(org=org, uuid=ref["uuid"]).first()
+                    if not template:
+                        context["warnings"].append(
+                            _(f"The message template {ref.name} does not exist on your account and cannot be sent.")
+                        )
+                    elif not template.is_approved():
+                        context["warnings"].append(
+                            _(f"Your message template {template.name} is not approved and cannot be sent.")
+                        )
 
             run_stats = self.object.get_run_stats()
             context["run_count"] = run_stats["total"]

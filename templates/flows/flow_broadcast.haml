@@ -71,6 +71,14 @@
               %label{ for:"id_include_active" }
                 -trans "Interrupt contacts currently active in flows"
 
+    -if warnings
+      %div.warning
+        -for warning in warnings
+          %p= warning
+
+        %p
+          -trans "WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive this flow."
+
 -block form-buttons
   -if send_channel
     .form-actions

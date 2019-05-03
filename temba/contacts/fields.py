@@ -64,7 +64,7 @@ class OmniboxWidget(widgets.TextInput):
 
 class OmniboxField(forms.Field):
     default_error_messages = {}
-    widget = OmniboxWidget(attrs={"class": "omni_widget", "style": "width:85%"})
+    widget = OmniboxWidget(attrs={"class": "omni_widget", "style": "width:90%"})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
