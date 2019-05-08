@@ -581,6 +581,7 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
 
+    @skip_if_no_mailroom
     def test_template_warnings(self):
         self.login(self.admin)
         flow = self.get_goflow("template_flow")
