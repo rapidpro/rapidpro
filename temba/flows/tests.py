@@ -599,6 +599,7 @@ class FlowTest(TembaTest):
 
         # template doesn't exit, will be warned
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        print(response.content)
         self.assertContains(response, "affirmation")
 
         # create the template, but no translations
