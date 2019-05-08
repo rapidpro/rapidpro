@@ -1,3 +1,8 @@
+v4.22.43
+----------
+ * Update flow editor to 1.4.17
+ * Warn users when starting a flow when they have a WhatsApp channel that they should use templates
+
 v4.22.42
 ----------
  * add page to view synched WhatsApp templates for a channel
