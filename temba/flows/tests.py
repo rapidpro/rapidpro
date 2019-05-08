@@ -597,6 +597,18 @@ class FlowTest(TembaTest):
         self.channel.schemes = [WHATSAPP_SCHEME]
         self.channel.save()
 
+        # clear dependencies, this will cause our flow to look like it isn't using templates
+        metadata = flow.metadata
+        flow.metadata = {}
+        flow.save(update_fields=["metadata"])
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(response, "does not use message")
+
+        # restore our dependency
+        flow.metadata = metadata
+        flow.save(update_fields=["metadata"])
+
         # template doesn't exit, will be warned
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
         self.assertContains(response, "affirmation")

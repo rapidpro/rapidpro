@@ -155,7 +155,7 @@ def refresh_whatsapp_templates():
                         continue
 
                     # try to get the body out
-                    if template["components"][0]["type"] != "BODY":
+                    if template["components"][0]["type"] != "BODY":  # pragma: no cover
                         logger.error(f"unknown component type: {template['components'][0]}")
                         continue
 
