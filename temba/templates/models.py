@@ -28,6 +28,20 @@ class Template(models.Model):
     # when this template was created
     created_on = models.DateTimeField(default=timezone.now)
 
+    def is_approved(self):
+        """
+        Returns whether this template has at least one translation and all are approved
+        """
+        translations = self.translations.all()
+        if len(translations) == 0:
+            return False
+
+        for tr in translations:
+            if tr.status != TemplateTranslation.STATUS_APPROVED:
+                return False
+
+        return True
+
     class Meta:
         unique_together = ("org", "name")
 

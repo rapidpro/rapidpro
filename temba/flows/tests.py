@@ -25,12 +25,13 @@ from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import TEL_SCHEME, URN, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language, get_current_export_version
+from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
@@ -579,6 +580,60 @@ class FlowTest(TembaTest):
         self.assertContains(response, "Start Notifications")
         self.assertContains(response, "Stop Notifications")
         self.assertContains(response, "Appointment Followup")
+
+    @skip_if_no_mailroom
+    def test_template_warnings(self):
+        self.login(self.admin)
+        flow = self.get_goflow("template_flow")
+
+        # bring up broadcast dialog
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+
+        # no warning, we don't have a whatsapp channel
+        self.assertNotContains(response, "affirmation")
+
+        # change our channel to use a whatsapp scheme
+        self.channel.schemes = [WHATSAPP_SCHEME]
+        self.channel.save()
+
+        # clear dependencies, this will cause our flow to look like it isn't using templates
+        metadata = flow.metadata
+        flow.metadata = {}
+        flow.save(update_fields=["metadata"])
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(response, "does not use message")
+
+        # restore our dependency
+        flow.metadata = metadata
+        flow.save(update_fields=["metadata"])
+
+        # template doesn't exit, will be warned
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(response, "affirmation")
+
+        # create the template, but no translations
+        Template.objects.create(org=self.org, name="affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
+
+        # will be warned again
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(response, "affirmation")
+
+        # create a translation, but not approved
+        TemplateTranslation.get_or_create(
+            self.channel, "affirmation", "eng", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
+        )
+
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertContains(response, "affirmation")
+
+        # finally, set our translation to approved
+        TemplateTranslation.objects.update(status=TemplateTranslation.STATUS_APPROVED)
+
+        # no warnings again
+        response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
+        self.assertNotContains(response, "affirmation")
 
     def test_flow_archive_with_campaign(self):
         self.login(self.admin)

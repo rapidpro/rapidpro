@@ -169,7 +169,12 @@ class WhatsAppTypeTest(TembaTest):
               "data": [
               {
                 "name": "hello",
-                "content": "Hello {{1}}",
+                "components": [
+                  {
+                    "type": "BODY",
+                    "text": "Hello {{1}}"
+                  }
+                ],
                 "language": "en",
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
@@ -177,7 +182,12 @@ class WhatsAppTypeTest(TembaTest):
               },
               {
                 "name": "hello",
-                "content": "Bonjour {{1}}",
+                "components": [
+                  {
+                    "type": "BODY",
+                    "text": "Bonjour {{1}}"
+                  }
+                ],
                 "language": "fr",
                 "status": "APPROVED",
                 "category": "ISSUE_RESOLUTION",
@@ -185,7 +195,12 @@ class WhatsAppTypeTest(TembaTest):
               },
               {
                 "name": "goodbye",
-                "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
+                "components": [
+                  {
+                    "type": "BODY",
+                    "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"
+                  }
+                ],
                 "language": "en",
                 "status": "PENDING",
                 "category": "ISSUE_RESOLUTION",
@@ -193,7 +208,12 @@ class WhatsAppTypeTest(TembaTest):
               },
               {
                 "name": "invalid_status",
-                "content": "This is an unknown status, it will be ignored",
+                "components": [
+                  {
+                    "type": "BODY",
+                    "text": "This is an unknown status, it will be ignored"
+                  }
+                ],
                 "language": "en",
                 "status": "UNKNOWN",
                 "category": "ISSUE_RESOLUTION",
@@ -201,7 +221,12 @@ class WhatsAppTypeTest(TembaTest):
               },
               {
                 "name": "invalid_language",
-                "content": "This is an unknown language, it will be ignored",
+                "components": [
+                  {
+                    "type": "BODY",
+                    "text": "This is an unknown language, it will be ignored"
+                  }
+                ],
                 "language": "kli",
                 "status": "UNKNOWN",
                 "category": "ISSUE_RESOLUTION",
