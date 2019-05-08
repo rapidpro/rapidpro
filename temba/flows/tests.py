@@ -590,7 +590,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
-        # no warning, we don't have a whatsapp dialog
+        # no warning, we don't have a whatsapp channel
         self.assertNotContains(response, "affirmation")
 
         # change our channel to use a whatsapp scheme
@@ -599,7 +599,6 @@ class FlowTest(TembaTest):
 
         # template doesn't exit, will be warned
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
-        print(response.content)
         self.assertContains(response, "affirmation")
 
         # create the template, but no translations
