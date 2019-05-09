@@ -1724,7 +1724,7 @@ class Org(SmartModel):
 
         # build an ordered dictionary of key->contact field
         fields = OrderedDict()
-        for cf in ContactField.user_fields.filter(org=self, is_active=True).order_by("key"):
+        for cf in ContactField.user_fields.active_for_org(org=self).order_by("key"):
             cf.org = self
             fields[cf.key] = cf
 

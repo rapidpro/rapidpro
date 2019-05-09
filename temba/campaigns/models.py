@@ -657,51 +657,6 @@ class EventFire(Model):
             EventFire.objects.bulk_create(events)
 
     @classmethod
-    def update_field_events(cls, contact_field):
-        """
-        Updates any events for the passed in contact field
-        """
-        if not contact_field.is_active:
-            # remove any scheduled fires for the passed in field
-            EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
-        else:
-            # cancel existing events, we are going to recreate them all
-            EventFire.objects.filter(event__relative_to=contact_field, fired=None).delete()
-
-            now = timezone.now()
-
-            org = contact_field.org
-            events = CampaignEvent.objects.filter(
-                relative_to=contact_field, campaign__is_active=True, campaign__is_archived=False, is_active=True
-            ).prefetch_related("relative_to")
-
-            for event in events:
-                field = event.relative_to
-
-                if field.field_type == ContactField.FIELD_TYPE_USER:
-                    field_uuid = str(field.uuid)
-                    contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False).extra(
-                        where=['%s::text[] <@ (extract_jsonb_keys("contacts_contact"."fields"))'],
-                        params=[[field_uuid]],
-                    )
-                elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
-                    contacts = event.campaign.group.contacts.filter(is_active=True, is_blocked=False)
-                else:  # pragma: no cover
-                    raise ValueError(f"Unhandled ContactField type {field.field_type}.")
-
-                events = []
-                for contact in contacts:
-                    contact.org = org
-                    scheduled = event.calculate_scheduled_fire_for_value(contact.get_field_value(field), now)
-
-                    # and if we have a date, then schedule it
-                    if scheduled:
-                        events.append(EventFire(event=event, contact=contact, scheduled=scheduled))
-
-                # bulk create our event fires
-                EventFire.objects.bulk_create(events)
-
-    @classmethod
     def update_events_for_contact_groups(cls, contact, groups):
         """
         Updates all the events for a contact, across all campaigns.

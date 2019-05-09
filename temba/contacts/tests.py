@@ -7534,6 +7534,38 @@ class ContactFieldTest(TembaTest):
         # newly created field is featured
         self.assertEqual(ContactField.user_fields.filter(show_in_table=True).count(), 1)
 
+    def test_view_create_field_with_same_name_as_deleted_field(self):
+        create_cf_url = reverse("contacts.contactfield_create")
+        self.login(self.admin)
+
+        # we have three fields
+        self.assertEqual(ContactField.user_fields.count(), 3)
+
+        old_first = ContactField.get_or_create(self.org, self.admin, "first")
+        # a valid form
+        post_data = {"label": old_first.label, "value_type": old_first.value_type}
+
+        response = self.client.post(create_cf_url, post_data)
+
+        # field cannot be created because there is an active field 'First'
+        self.assertFormError(response, "form", None, "Field names must be unique. 'First' is duplicated")
+
+        # then we hide the field
+        ContactField.hide_field(self.org, self.admin, key="first")
+
+        # and try to create a new field
+        response = self.client.post(create_cf_url, post_data)
+        self.assertNoFormErrors(response, post_data)
+
+        # after creating a field there should be 4
+        self.assertEqual(ContactField.user_fields.count(), 4)
+        # there are two fields with "First" label, but only one is active
+        self.assertEqual(ContactField.user_fields.filter(label="First").count(), 2)
+
+        new_first = ContactField.get_or_create(self.org, self.admin, "first")
+
+        self.assertNotEqual(new_first.uuid, old_first.uuid)
+
     def test_view_create_invalid(self):
         self.login(self.admin)
 

@@ -880,7 +880,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         queryset = queryset.prefetch_related(
             Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
-            Prefetch("relative_to", queryset=ContactField.all_fields.only("key", "label")),
+            Prefetch("relative_to", queryset=ContactField.all_fields.filter(is_active=True).only("key", "label")),
         )
 
         return queryset
@@ -1322,7 +1322,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         So that we only fetch active contact fields once for all contacts
         """
         context = super().get_serializer_context()
-        context["contact_fields"] = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.user_fields.active_for_org(org=self.request.user.get_org())
         return context
 
     def get_object(self):

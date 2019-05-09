@@ -360,6 +360,9 @@ class UserContactFieldsQuerySet(models.QuerySet):
             .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
         )
 
+    def active_for_org(self, org):
+        return self.filter(is_active=True, org=org)
+
 
 class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
@@ -371,10 +374,13 @@ class UserContactFieldsManager(models.Manager):
         return super().create(**kwargs)
 
     def count_active_for_org(self, org):
-        return self.get_queryset().filter(is_active=True, org=org).count()
+        return self.get_queryset().active_for_org(org=org).count()
 
     def collect_usage(self):
         return self.get_queryset().collect_usage()
+
+    def active_for_org(self, org):
+        return self.get_queryset().active_for_org(org=org)
 
 
 class SystemContactFieldsManager(models.Manager):
@@ -459,7 +465,7 @@ class ContactField(SmartModel):
 
     @classmethod
     def hide_field(cls, org, user, key):
-        existing = ContactField.user_fields.collect_usage().filter(org=org, key=key).first()
+        existing = ContactField.user_fields.collect_usage().active_for_org(org=org).filter(key=key).first()
 
         if existing:
 
@@ -474,11 +480,6 @@ class ContactField(SmartModel):
             existing.modified_by = user
             existing.save(update_fields=("is_active", "show_in_table", "modified_by", "modified_on"))
 
-            # cancel any events on this
-            from temba.campaigns.models import EventFire
-
-            EventFire.update_field_events(existing)
-
     @classmethod
     def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None, priority=None):
         """
@@ -490,7 +491,7 @@ class ContactField(SmartModel):
             label = label.strip()
 
         with org.lock_on(OrgLock.field, key):
-            field = ContactField.user_fields.filter(org=org, key__iexact=key).first()
+            field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
 
             if not field:
                 # try to lookup the existing field by label
@@ -501,14 +502,7 @@ class ContactField(SmartModel):
                 field = None
 
             if field:
-                update_events = False
                 changed = False
-
-                # make this as active
-                if not field.is_active:
-                    field.is_active = True
-                    update_events = True
-                    changed = True
 
                 # update whether we show in tables if passed in
                 if show_in_table is not None and show_in_table != field.show_in_table:
@@ -536,11 +530,6 @@ class ContactField(SmartModel):
                 if changed:
                     field.modified_by = user
                     field.save()
-
-                    if update_events:
-                        from temba.campaigns.models import EventFire
-
-                        EventFire.update_field_events(field)
 
             else:
                 # we need to create a new contact field, use our key with invalid chars removed
@@ -574,13 +563,13 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_by_label(cls, org, label):
-        return cls.user_fields.filter(org=org, is_active=True, label__iexact=label).first()
+        return cls.user_fields.active_for_org(org=org).filter(label__iexact=label).first()
 
     @classmethod
     def get_by_key(cls, org, key):
         field = org.cached_contact_fields.get(key)
         if field is None:
-            field = ContactField.user_fields.filter(org=org, is_active=True, key=key).first()
+            field = ContactField.user_fields.active_for_org(org=org).filter(key=key).first()
             if field:
                 org.cached_contact_fields[key] = field
 
@@ -588,7 +577,7 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_location_field(cls, org, type):
-        return cls.user_fields.filter(is_active=True, org=org, value_type=type).first()
+        return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
 
     def release(self, user):
         self.is_active = False
@@ -3169,9 +3158,7 @@ class ExportContactsTask(BaseExportTask):
                         fields.append(field_dict)
 
         contact_fields_list = (
-            ContactField.user_fields.filter(org=self.org, is_active=True)
-            .select_related("org")
-            .order_by("-priority", "pk")
+            ContactField.user_fields.active_for_org(org=self.org).select_related("org").order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(

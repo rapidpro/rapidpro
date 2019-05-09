@@ -981,7 +981,7 @@ class FlowCRUDL(SmartCRUDL):
 
             contact_variables += [
                 dict(name="contact.%s" % field.key, display=field.label)
-                for field in ContactField.user_fields.filter(org=org, is_active=True)
+                for field in ContactField.user_fields.active_for_org(org=org)
             ]
 
             date_variables = [
@@ -1246,8 +1246,8 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
-                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.filter(
-                    org=self.user.get_org(), is_active=True
+                self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
+                    org=self.user.get_org()
                 )
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
