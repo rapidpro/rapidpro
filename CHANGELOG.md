@@ -1,3 +1,10 @@
+v4.22.44
+----------
+ * Update to flow editor 1.4.18
+ * Add mailroom endpoints for functions, tweak styles for selection
+ * Honor is_active when creating contact fields
+ * Cache busting for flow editor
+
 v4.22.43
 ----------
  * Update flow editor to 1.4.17
