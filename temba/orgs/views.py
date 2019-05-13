@@ -2752,7 +2752,9 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             cache = OrgCache(int(request.POST["cache"]))
             num_deleted = self.get_object().clear_caches([cache])
-            self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
+            self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
+                name=cache.name, count=num_deleted
+            )
 
 
 class TopUpCRUDL(SmartCRUDL):

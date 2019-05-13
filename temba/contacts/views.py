@@ -665,7 +665,7 @@ class ContactCRUDL(SmartCRUDL):
                                     "'%(label)s' contact field has '%(key)s' key which is reserved name. "
                                     "Column cannot be imported"
                                 )
-                                % dic(label=value, key=existing_key)
+                                % dict(label=value, key=existing_key)
                             )
 
                         used_labels.append(field_label)
