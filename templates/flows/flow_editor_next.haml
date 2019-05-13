@@ -12,13 +12,6 @@
   :css
     body {
       line-height: inherit;
-
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
     }
 
     h2 .icon-phone {
@@ -182,6 +175,7 @@
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gcu',
 
+        functions: '/mr/docs/functions.json',
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/'
       }
