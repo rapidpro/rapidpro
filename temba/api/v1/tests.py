@@ -1556,7 +1556,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(phone="+250788123456", fields={"state": "VA"}))
         contact.refresh_from_db()
         self.assertEqual(response.status_code, 201)
-        self.assertEqual("VA", contact.get_field_value(state))  # unchanged
+        self.assertEqual("IL", contact.get_field_value(state))  # unchanged
 
         drdre = Contact.objects.get()
 

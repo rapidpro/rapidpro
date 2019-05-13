@@ -2697,7 +2697,7 @@ class Flow(TembaModel):
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
             active_org_fields = set(
-                ContactField.user_fields.filter(org=self.org, is_active=True).values_list("key", flat=True)
+                ContactField.user_fields.active_for_org(org=self.org).values_list("key", flat=True)
             )
 
             existing_fields = set(field_keys)

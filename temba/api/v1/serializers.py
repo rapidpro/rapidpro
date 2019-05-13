@@ -401,12 +401,12 @@ class ContactWriteSerializer(WriteSerializer):
         # update our fields
         if fields is not None:
             for key, value in fields.items():
-                existing_by_key = ContactField.user_fields.filter(
-                    org=self.org, key__iexact=key, is_active=True
-                ).first()
+                existing_by_key = ContactField.user_fields.active_for_org(org=self.org).filter(key__iexact=key).first()
+
                 if existing_by_key:
                     self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
+
                 elif self.new_fields and key in self.new_fields:
                     new_field = ContactField.get_or_create(
                         org=self.org, user=self.user, key=regex.sub("[^A-Za-z0-9]+", "_", key).lower(), label=key
