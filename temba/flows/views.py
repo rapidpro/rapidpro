@@ -137,8 +137,8 @@ class BaseFlowForm(forms.ModelForm):
 
         if wrong_format:
             raise forms.ValidationError(
-                _('"%s" must be a single word, less than %d characters, containing only letter ' "and numbers")
-                % (", ".join(wrong_format), Trigger.KEYWORD_MAX_LEN)
+                _('"%(keyword)s" must be a single word, less than %(limit)d characters, containing only letter ' "and numbers")
+                % dict(keyword=", ".join(wrong_format), limit=Trigger.KEYWORD_MAX_LEN)
             )
 
         if duplicates:

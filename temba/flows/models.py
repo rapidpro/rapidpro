@@ -499,7 +499,7 @@ class Flow(TembaModel):
     field_dependencies = models.ManyToManyField(
         ContactField,
         related_name="dependent_flows",
-        verbose_name=_(""),
+        verbose_name="",
         blank=True,
         help_text=("Any fields this flow depends on"),
     )
@@ -1239,7 +1239,7 @@ class Flow(TembaModel):
             if run.connection_interrupted:  # pragma: no cover
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
-                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (result_value, Flow.label_to_slug(ruleset.label)))
+                ActionLog.create(run, _("Saved '%(value)s' as @flow.%(key)s") % dict(value=result_value, key=Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not result_rule.destination:
@@ -3388,7 +3388,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             on_transaction_commit(lambda: send_email_action_task.delay(self.org_id, addresses, subject, body))
         else:  # pragma: no cover
             quoted_addresses = ['"%s"' % elt for elt in addresses]
-            ActionLog.info(self, _('"%s" would be sent to %s') % (event["body"], ", ".join(quoted_addresses)))
+            ActionLog.info(self, _('"%(body)s" would be sent to %(email)s') % dict(body=event["body"], email=", ".join(quoted_addresses)))
 
     def apply_contact_name_changed(self, event, msg_in):
         """
@@ -3421,7 +3421,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # don't really update URNs on test contacts
         if self.contact.is_test:
             scheme, path, query, display = URN.to_parts(event["urn"])
-            ActionLog.info(self, _("Added %s as @contact.%s - skipped in simulator" % (path, scheme)))
+            ActionLog.info(self, _("Added %(urn)s as @contact.%(scheme)s - skipped in simulator" % dict(urn=path, scheme=scheme)))
         else:
             self.contact.update_urns(user, urns)
 
@@ -3436,14 +3436,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         self.contact.set_field(user, field.key, value)
 
         if self.contact.is_test:
-            ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event["value"]))
+            ActionLog.create(self, _("Updated %(label)s to '%(value)s'") % dict(label=field.label, value=event["value"]))
 
     def apply_run_result_changed(self, event, msg_in):
         # flow results are actually saved in create_or_update_from_goflow
         if self.contact.is_test:
             ActionLog.create(
                 self,
-                _("Saved '%s' as @flow.%s") % (event["value"], slugify_with(event["name"])),
+                _("Saved '%(value)s' as @flow.%(key)s") % dict(value=event["value"], key=slugify_with(event["name"])),
                 created_on=iso8601.parse_date(event["created_on"]),
             )
 
@@ -3456,7 +3456,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if not self.contact.is_test:
                 label.toggle_label([msg_in], True)
             else:  # pragma: no cover
-                ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg_in.text))
+                ActionLog.info(self, _("Added %(label)s label to msg '%(text)s'") % dict(label=label.name, text=msg_in.text))
 
     def apply_contact_groups_added(self, event, msg_in):
         """
@@ -3469,7 +3469,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 group.update_contacts(user, [self.contact], add=True)
 
             if self.contact.is_test:  # pragma: no cover
-                ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
+                ActionLog.info(self, _("Added %(contact)s to %(group)s") % dict(contact=self.contact.name, group=group.name))
 
     def apply_contact_groups_removed(self, event, msg_in):
         """
@@ -3482,7 +3482,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 group.update_contacts(user, [self.contact], add=False)
 
             if self.contact.is_test:  # pragma: no cover
-                ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
+                ActionLog.info(self, _("Removed %(contact)s from %(group)s") % dict(contact=self.contact.name, group=group.name))
 
     def apply_session_triggered(self, event, msg_in):
         """
@@ -6137,7 +6137,7 @@ class EmailAction(Action):
         else:
             if valid_addresses:
                 valid_addresses = ['"%s"' % elt for elt in valid_addresses]
-                ActionLog.info(run, _('"%s" would be sent to %s') % (message, ", ".join(valid_addresses)))
+                ActionLog.info(run, _('"%(message)s" would be sent to %(addresses)s') % dict(message=message, addresses=", ".join(valid_addresses)))
             if invalid_addresses:
                 invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
@@ -6298,9 +6298,9 @@ class AddToGroupAction(Action):
                     group.update_contacts(user, [contact], add)
                     if run.contact.is_test:
                         if add:
-                            ActionLog.info(run, _("Added %s to %s") % (run.contact.name, group.name))
+                            ActionLog.info(run, _("Added %(contact)s to %(group)s") % dict(contact=run.contact.name, group=group.name))
                         else:
-                            ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                            ActionLog.info(run, _("Removed %(contact)s from %(group)s") % dict(contact=run.contact.name, group=group.name))
         return []
 
 
@@ -6339,7 +6339,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                 ):
                     group.update_contacts(user, [contact], False)
                     if run.contact.is_test:  # pragma: needs cover
-                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                        ActionLog.info(run, _("Removed %(contact)s from %(group)s") % dict(contact=run.contact.name, group=group.name))
             return []
         return AddToGroupAction.execute(self, run, context, actionset, msg, offline_on)
 
@@ -6417,7 +6417,7 @@ class AddLabelAction(Action):
             if label and msg and msg.pk:
                 if run.contact.is_test:  # pragma: needs cover
                     # don't really add labels to simulator messages
-                    ActionLog.info(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
+                    ActionLog.info(run, _("Added %(label)s label to msg '%(text)s'") % dict(label=label.name, text=msg.text))
                 else:
                     label.toggle_label([msg], True)
         return []
@@ -6937,7 +6937,7 @@ class TriggerFlowAction(VariableContactAction):
         if not run.contact.is_test:
             return None
 
-        log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
+        log_txt = _("Added %(count)d contact(s) to '%(flow)s' flow") % dict(count=contact_count, flow=flow.name)
         log = ActionLog.create(run, log_txt)
         return log
 
@@ -7158,7 +7158,7 @@ class SaveToContactAction(Action):
                     new_urn = False
                     if contact.is_test:
                         ActionLog.warn(
-                            run, _("Contact not updated, invalid connection for contact (%s:%s)" % (scheme, new_value))
+                            run, _("Contact not updated, invalid connection for contact (%(scheme)s:%(path)s)" % dict(scheme=scheme, path=new_value))
                         )
             else:
                 if contact.is_test:
@@ -7170,7 +7170,7 @@ class SaveToContactAction(Action):
 
                 # don't really update URNs on test contacts
                 if contact.is_test:
-                    ActionLog.info(run, _("Added %s as @contact.%s - skipped in simulator" % (new_value, scheme)))
+                    ActionLog.info(run, _("Added %(value)s as @contact.%(scheme)s - skipped in simulator" % dict(value=new_value, scheme=scheme)))
                 else:
                     contact.update_urns(user, urns)
 
@@ -7187,7 +7187,7 @@ class SaveToContactAction(Action):
             return False
 
         label = SaveToContactAction.get_label(run.flow.org, self.field, self.label)
-        log_txt = _("Updated %s to '%s'") % (label, new_value)
+        log_txt = _("Updated %(label)s to '%(value)s'") % dict(label=label, value=new_value)
 
         log = ActionLog.create(run, log_txt)
 
