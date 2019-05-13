@@ -2700,7 +2700,9 @@ class OrgCRUDL(SmartCRUDL):
             if lang_count == 2:
                 context["languages"] = _(" and ").join(languages)
             elif lang_count > 2:
-                context["languages"] = _("%(lang1)s and %(lang2)s") % dict(lang1=", ".join(languages[:-1]), lang2=languages[-1])
+                context["languages"] = _("%(lang1)s and %(lang2)s") % dict(
+                    lang1=", ".join(languages[:-1]), lang2=languages[-1]
+                )
             elif lang_count == 1:
                 context["languages"] = languages[0]
             return context
