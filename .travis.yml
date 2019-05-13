@@ -85,6 +85,12 @@ script:
   - python manage.py collectstatic --noinput --verbosity=0
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
+  # generate our locale messages
+  - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap
+
+  # fail if there are changes
+  - git diff --numstat | awk '{if ($1>1 || $2>1) { exit 1 } else { exit 0 }}'
+
   # fire up goflow
   - ./flowserver --log-level=warn &
   - jobs
