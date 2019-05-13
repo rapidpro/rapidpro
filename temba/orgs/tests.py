@@ -4096,6 +4096,61 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
+    def test_check_topup_expiration(self):
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            # get the topup, it expires in a year by default
+            topup = self.org.topups.order_by("-expires_on").first()
+
+            # there are no credit alerts
+            self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+
+            # check if credit alrets should be created
+            CreditAlert.check_topup_expiration()
+
+            # no alert since no expiring credits
+            self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+
+            # update topup to expire in 10 days
+            topup.expires_on = timezone.now() + timedelta(days=10)
+            topup.save()
+
+            # recheck the expiration
+            CreditAlert.check_topup_expiration()
+
+            # expiring credit alert created and email sent
+            self.assertEqual(
+                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+            )
+
+            self.assertEqual(len(mail.outbox), 1)
+
+            # email sent
+            sent_email = mail.outbox[0]
+            self.assertEqual(1, len(sent_email.to))
+            self.assertIn("RapidPro account for Temba", sent_email.body)
+            self.assertIn("expiring credits in less than one month.", sent_email.body)
+
+            # check topup expiration, it should no create a new one, becuse last one is still active
+            CreditAlert.check_topup_expiration()
+
+            # no new alrets, and no new emails have been sent
+            self.assertEqual(
+                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+            )
+            self.assertEqual(len(mail.outbox), 1)
+
+            # reset alerts, this is normal procedure after someone adds a new topup
+            CreditAlert.reset_for_org(self.org)
+            self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+
+            # check topup expiration, it should create a new topup alert email
+            CreditAlert.check_topup_expiration()
+
+            self.assertEqual(
+                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+            )
+            self.assertEqual(len(mail.outbox), 2)
+
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
         self.create_msg(contact=self.joe)
@@ -4178,59 +4233,6 @@ class CreditAlertTest(TembaTest):
                     self.assertEqual(4, len(mail.outbox))
 
                     mock_has_low_credits.return_value = False
-
-                    with patch("temba.orgs.models.Org.is_nearing_expiration") as is_nearing_expiration:
-                        is_nearing_expiration.return_value = False
-
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
-
-                        CreditAlert.check_org_credits()
-
-                        # no alert since no expiring credits
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
-
-                        is_nearing_expiration.return_value = True
-
-                        CreditAlert.check_org_credits()
-
-                        # expiring credit alert created and email sent
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(5, len(mail.outbox))
-
-                        # email sent
-                        sent_email = mail.outbox[4]
-                        self.assertEqual(len(sent_email.to), 1)
-                        self.assertIn("RapidPro account for Temba", sent_email.body)
-                        self.assertIn("expiring credits in less than one month.", sent_email.body)
-
-                        # no new alert if one is sent and no new email
-                        CreditAlert.check_org_credits()
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(5, len(mail.outbox))
-
-                        # reset alerts
-                        CreditAlert.reset_for_org(self.org)
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-                        # can resend a new alert
-                        CreditAlert.check_org_credits()
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(6, len(mail.outbox))
 
 
 class EmailContextProcessorsTest(SmartminTest):

@@ -27,7 +27,7 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.db.models import F, Prefetch, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
@@ -2869,5 +2869,38 @@ class CreditAlert(SmartModel):
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            elif org.is_nearing_expiration():  # pragma: needs cover
+
+    @classmethod
+    def check_topup_expiration(cls):
+        """
+        creates ORG_CREDIT_EXPIRING credit alert for any org that has it's last
+        active topup expiring in the next 30 days and still has available credits
+        """
+
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+with expiring_orgs as (
+    select org_id, max(expires_on) as expires_on
+    from orgs_topup where is_active=true and expires_on > now()
+    group by org_id
+    having max(expires_on) > now() and max(expires_on) <= now() + '30 days'::interval)
+
+select tp.id, tp.org_id, tp.expires_on, tp.credits - sum(coalesce(tc.used, 0))
+from orgs_topup tp JOIN expiring_orgs eo on tp.org_id = eo.org_id and tp.expires_on = eo.expires_on
+    LEFT JOIN orgs_topupcredits tc on tp.id = tc.topup_id
+group by tp.id, tp.org_id, tp.expires_on having tp.credits - sum(coalesce(tc.used, 0)) > 0;
+            """
+            )
+
+            org_ids = [tp_org_id for (tp_id, tp_org_id, tp_expires_on, tp_used) in cur.fetchall()]
+
+            # get the orgs that have an expiring topup, bud don't have an active creditalert email
+            expiring_orgs = (
+                Org.objects.filter(is_active=True, id__in=org_ids)
+                .exclude(creditalert__alert_type=ORG_CREDIT_EXPIRING, creditalert__is_active=True)
+                .iterator()
+            )
+
+            for org in expiring_orgs:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
