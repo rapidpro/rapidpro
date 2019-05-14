@@ -4135,6 +4135,42 @@ class CreditAlertTest(TembaTest):
             )
             self.assertEqual(len(mail.outbox), 2)
 
+    def test_creditalert_sendemail_all_org_admins(self):
+        # add some administrators to the org
+        self.org.administrators.add(self.user)
+        self.org.administrators.add(self.surveyor)
+
+        # create a CreditAlert
+        creditalert = CreditAlert.objects.create(
+            org=self.org, alert_type=ORG_CREDIT_EXPIRING, created_by=self.admin, modified_by=self.admin
+        )
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            creditalert.send_email()
+
+            self.assertEqual(len(mail.outbox), 1)
+
+            sent_email = mail.outbox[0]
+            self.assertIn("RapidPro account for Temba", sent_email.body)
+
+            # this email has been sent to multiple recipients
+            self.assertListEqual(
+                sent_email.recipients(), ["Administrator@nyaruka.com", "Surveyor@nyaruka.com", "User@nyaruka.com"]
+            )
+
+    def test_creditalert_sendemail_no_org_admins(self):
+        # remove administrators from org
+        self.org.administrators.clear()
+
+        # create a CreditAlert
+        creditalert = CreditAlert.objects.create(
+            org=self.org, alert_type=ORG_CREDIT_EXPIRING, created_by=self.admin, modified_by=self.admin
+        )
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            creditalert.send_email()
+
+            # no emails have been sent
+            self.assertEqual(len(mail.outbox), 0)
+
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
         self.create_msg(contact=self.joe)

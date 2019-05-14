@@ -2822,14 +2822,15 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        email = self.created_by.email
-        if not email:  # pragma: needs cover
+        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
+
+        if len(admin_emails) == 0:
             return
 
         branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
-        to_email = email
+        to_email = admin_emails
 
         context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
         context["subject"] = subject
