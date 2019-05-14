@@ -1369,16 +1369,6 @@ class Org(SmartModel):
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
 
-    def is_nearing_expiration(self):
-        """
-        Determines if the org is nearing expiration
-        """
-        newest_topup = TopUp.objects.filter(org=self, is_active=True).order_by("-created_on").first()
-        if newest_topup:
-            if timezone.now() + timedelta(days=30) > newest_topup.expires_on:
-                return newest_topup.get_remaining() > 0
-        return False
-
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
 
