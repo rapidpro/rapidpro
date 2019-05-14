@@ -81,16 +81,16 @@ script:
   # run our Javascript tests
   - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 
-  # check we can collect and compress all static files
-  - python manage.py collectstatic --noinput --verbosity=0
-  - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
-
   # generate our locale messages
   - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
 
   # fail if there are changes
   - git diff
   - git diff --numstat | awk '$1 > 1 { print "Uncommitted PO file changes"; exit 1 }'
+
+  # check we can collect and compress all static files
+  - python manage.py collectstatic --noinput --verbosity=0
+  - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # fire up goflow
   - ./flowserver --log-level=warn &
