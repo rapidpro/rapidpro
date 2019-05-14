@@ -90,7 +90,7 @@ script:
 
   # fail if there are changes
   - git diff
-  - git diff --numstat | awk '{if ($1>1 || $2>1) { exit 1 } else { exit 0 }}'
+  - git diff --numstat | awk '$1 > 1 { print "Uncommitted PO file changes"; exit 1 }'
 
   # fire up goflow
   - ./flowserver --log-level=warn &
