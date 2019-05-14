@@ -288,7 +288,8 @@ class CampaignEventForm(forms.ModelForm):
                 iso_code = lang["iso_code"]
                 if iso_code in self.data and len(self.data[iso_code].strip()) > Msg.MAX_TEXT_LEN:
                     raise ValidationError(
-                        _("Translation for '%s' exceeds the %d character limit.") % (lang["name"], Msg.MAX_TEXT_LEN)
+                        _("Translation for '%(language)s' exceeds the %(limit)d character limit.")
+                        % dict(language=lang["name"], limit=Msg.MAX_TEXT_LEN)
                     )
 
         return data
