@@ -75,18 +75,18 @@ script:
   # test PEP8 compliance on both Python 2 and 3
   - flake8
 
-  # check for model changes not reflected in a migration
-  - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
-
-  # run our Javascript tests
-  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-
   # generate our locale messages
   - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
 
   # fail if there are changes
   - git diff
   - git diff --numstat | awk '$1 > 1 { print "Uncommitted PO file changes"; exit 1 }'
+
+  # check for model changes not reflected in a migration
+  - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
+
+  # run our Javascript tests
+  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 
   # check we can collect and compress all static files
   - python manage.py collectstatic --noinput --verbosity=0
