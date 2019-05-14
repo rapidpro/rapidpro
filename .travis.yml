@@ -86,7 +86,7 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_compress | grep 'Error') || exit 1
 
   # generate our locale messages
-  - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | grep warning || exit 0 && exit 1
+  - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
 
   # fail if there are changes
   - git diff --numstat | awk '{if ($1>1 || $2>1) { exit 1 } else { exit 0 }}'
