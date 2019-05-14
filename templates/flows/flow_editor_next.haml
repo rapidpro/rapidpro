@@ -88,7 +88,7 @@
     }
 
     #toolbar {
-      visibility: hidden;
+      visibility: visible;
       position: relative;
       height: 40px;
       padding: 20px 30px;
@@ -99,7 +99,19 @@
     }
 
     #rp-flow-editor {
-      visibility: hidden;
+      visibility: visible;
+      min-height: 1000px;
+      width: 100%;
+      
+      background-color: #f9f9f9;
+      background-position: 13px 13px;
+      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
+      background-size: 40px 40px;
+    }
+
+    #rp-flow-editor > div {
+      opacity: 0;
+      transition: opacity 150ms linear;
     }
 
     #rp-flow-editor .language-selector {
@@ -139,8 +151,7 @@
     }
 
     function handleEditorLoaded() {
-      $('#rp-flow-editor').css('visibility', 'visible')
-      $('#toolbar').css('visibility', 'visible')
+      $('#rp-flow-editor > div').css('opacity', '1')
     }
 
     function handleActivityClicked(nodeUUID, count) {
@@ -184,6 +195,7 @@
     };
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
+   
 
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
@@ -248,4 +260,5 @@
       {{ flow.name }}
 
   #rp-flow-editor
+    %img{src:"{{STATIC_URL}}/images/loader-circles.gif", style:"position: relative; left: 20px; top: 4px; margin: 0 auto"}
 
