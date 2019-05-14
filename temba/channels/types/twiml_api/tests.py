@@ -1,5 +1,4 @@
-
-from mock import patch
+from unittest.mock import patch
 
 from django.urls import reverse
 
@@ -9,7 +8,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 class TwimlAPITypeTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
 
@@ -39,6 +38,7 @@ class TwimlAPITypeTest(TembaTest):
                 role="SR",
                 account_sid="abcd1234",
                 account_token="abcd1234",
+                max_concurrent_events=30,
             ),
         )
         channel = self.org.channels.all().first()
@@ -50,6 +50,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd1234",
                 send_url="https://twilio.com",
                 account_sid="abcd1234",
+                max_concurrent_events=30,
                 callback_domain=channel.callback_domain,
             ),
         )
@@ -74,6 +75,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd4321",
                 send_url="https://twilio.com",
                 account_sid="abcd4321",
+                max_concurrent_events=None,
                 callback_domain=channel.callback_domain,
             ),
         )
@@ -100,6 +102,7 @@ class TwimlAPITypeTest(TembaTest):
                 auth_token="abcd1234",
                 send_url="https://twilio.com",
                 account_sid="abcd1234",
+                max_concurrent_events=None,
                 callback_domain=channel.callback_domain,
             ),
         )

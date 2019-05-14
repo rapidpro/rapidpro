@@ -1,4 +1,3 @@
-
 import os
 import sys
 
@@ -27,7 +26,7 @@ app.autodiscover_tasks(
 
 # register raven if configured
 raven_config = getattr(settings, "RAVEN_CONFIG", None)
-if raven_config:  # pragma: no cover
+if raven_config and "dsn" in raven_config:  # pragma: no cover
     client = raven.Client(settings.RAVEN_CONFIG["dsn"])
     register_logger_signal(client)
     register_signal(client)

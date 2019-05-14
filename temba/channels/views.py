@@ -1,7 +1,7 @@
 import base64
 import hashlib
 import hmac
-import json
+import logging
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -20,31 +20,32 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 
 from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.channels.models import ChannelSession
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics
+from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+
+logger = logging.getLogger(__name__)
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")
@@ -487,7 +488,7 @@ def channel_status_processor(request):
     status = dict()
     user = request.user
 
-    if user.is_superuser or user.is_anonymous():
+    if user.is_superuser or user.is_anonymous:
         return status
 
     # from the logged in user get the channel
@@ -666,28 +667,16 @@ def sync(request, channel_id):
                                 pass
                         handled = True
 
-                    elif keyword == "gcm":
-                        gcm_id = cmd.get("gcm_id", None)
-                        uuid = cmd.get("uuid", None)
-                        if channel.gcm_id != gcm_id or channel.uuid != uuid:
-                            channel.gcm_id = gcm_id
-                            channel.uuid = uuid
-                            channel.save(update_fields=["gcm_id", "uuid"])
-
-                        # no acking the gcm
-                        handled = False
-
                     elif keyword == "fcm":
                         # update our fcm and uuid
 
-                        channel.gcm_id = None
                         config = channel.config
                         config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
                         channel.config = config
                         channel.uuid = cmd.get("uuid", None)
-                        channel.save(update_fields=["uuid", "config", "gcm_id"])
+                        channel.save(update_fields=["uuid", "config"])
 
-                        # no acking the gcm
+                        # no acking the fcm
                         handled = False
 
                     elif keyword == "reset":
@@ -1177,7 +1166,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
-        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on", "gcm_id")
+        exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
@@ -1488,10 +1477,9 @@ class ChannelCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
-            except Exception as e:  # pragma: no cover
-                import traceback
+            except Exception:  # pragma: no cover
+                logger.error("Error removing a channel", exc_info=True)
 
-                traceback.print_exc()
                 messages.error(request, _("We encountered an error removing your channel, please try again later."))
                 return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
@@ -1734,7 +1722,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
             org = None
 
-            if not user.is_anonymous():
+            if not user.is_anonymous:
                 org = user.get_org()
 
             org_id = self.request.session.get("org_id", None)
@@ -1798,16 +1786,22 @@ class ChannelCRUDL(SmartCRUDL):
         def search_available_numbers(self, client, **kwargs):
             available_numbers = []
 
-            kwargs["type"] = "local"
+            country = kwargs["country"]
+            del kwargs["country"]
+
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:  # pragma: no cover
+                available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
+            except TwilioException:  # pragma: no cover
                 pass
 
-            kwargs["type"] = "mobile"
             try:
-                available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:  # pragma: no cover
+                available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
+            except TwilioException:  # pragma: no cover
+                pass
+
+            try:
+                available_numbers += client.api.available_phone_numbers(country).toll_free.list(**kwargs)
+            except TwilioException:  # pragma: no cover
                 pass
 
             return available_numbers
@@ -1982,10 +1976,10 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .exclude(connection=None)
                     .values_list("connection_id", flat=True)
                 )
-                events = ChannelSession.objects.filter(id__in=logs).order_by("-created_on")
+                events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
-                    events = events.filter(status=ChannelSession.FAILED)
+                    events = events.filter(status=ChannelConnection.FAILED)
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
@@ -2007,7 +2001,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return context
 
     class Session(AnonMixin, OrgPermsMixin, SmartReadView):
-        model = ChannelSession
+        model = ChannelConnection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):
         fields = ("description", "created_on")

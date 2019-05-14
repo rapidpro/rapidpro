@@ -1,16 +1,15 @@
-import json
-
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from django.contrib import messages
-from django.core.urlresolvers import reverse
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
+from temba.utils import json
 
 
 class BoundaryCRUDL(SmartCRUDL):
@@ -46,7 +45,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
@@ -65,7 +64,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])

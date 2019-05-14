@@ -1,9 +1,10 @@
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
+from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -65,12 +66,12 @@ class UpdateCampaignForm(forms.ModelForm):
 
 class CampaignCRUDL(SmartCRUDL):
     model = Campaign
-    actions = ("create", "read", "update", "list", "archived")
+    actions = ("create", "read", "update", "list", "archived", "archive", "activate")
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated():  # pragma: no cover
+            if not self.request.user.is_authenticated:  # pragma: no cover
                 return queryset.exclude(pk__gt=0)
             else:
                 return queryset.filter(org=self.request.user.get_org())
@@ -79,6 +80,14 @@ class CampaignCRUDL(SmartCRUDL):
         fields = ("name", "group")
         success_message = ""
         form_class = UpdateCampaignForm
+
+        def pre_process(self, request, *args, **kwargs):
+            campaign_id = kwargs.get("pk")
+            if campaign_id:
+                campaign = Campaign.objects.filter(id=campaign_id, is_active=True, is_archived=False)
+
+                if not campaign.exists():
+                    raise Http404("Campaign not found")
 
         def get_success_url(self):
             return reverse("campaigns.campaign_read", args=[self.object.pk])
@@ -92,19 +101,12 @@ class CampaignCRUDL(SmartCRUDL):
             previous_group = self.get_object().group
             new_group = form.cleaned_data["group"]
 
-            group_changed = new_group != previous_group
-            if group_changed:
-                fires = EventFire.objects.filter(
-                    event__campaign=self.object, event__campaign__group=previous_group, fired=None
-                )
-                fires.delete()
-
             # save our campaign
             self.object = form.save(commit=False)
             self.save(self.object)
 
             # if our group changed, create our new fires
-            if group_changed:
+            if new_group != previous_group:
                 EventFire.update_campaign_events(self.object)
 
             response = self.render_to_response(
@@ -118,11 +120,31 @@ class CampaignCRUDL(SmartCRUDL):
     class Read(OrgMixin, SmartReadView):
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("campaigns.campaignevent_create"):
-                links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
 
-            if self.has_org_perm("campaigns.campaign_update"):
-                links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+            if self.object.is_archived:
+                if self.has_org_perm("campaigns.campaign_activate"):
+                    links.append(
+                        dict(
+                            title="Activate",
+                            js_class="posterize activate-campaign",
+                            href=reverse("campaigns.campaign_activate", args=[self.object.id]),
+                        )
+                    )
+            else:
+                if self.has_org_perm("campaigns.campaignevent_create"):
+                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
+
+                if self.has_org_perm("campaigns.campaign_update"):
+                    links.append(dict(title="Edit", js_class="update-campaign", href="#"))
+
+                if self.has_org_perm("campaigns.campaign_archive"):
+                    links.append(
+                        dict(
+                            title="Archive",
+                            js_class="posterize archive-campaign",
+                            href=reverse("campaigns.campaign_archive", args=[self.object.id]),
+                        )
+                    )
 
             return links
 
@@ -203,8 +225,27 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
 
+    class Archive(OrgMixin, OrgPermsMixin, SmartUpdateView):
 
-class EventForm(forms.ModelForm):
+        fields = ()
+        success_url = "id@campaigns.campaign_read"
+        success_message = _("Campaign archived")
+
+        def save(self, obj):
+            obj.apply_action_archive(self.request.user, Campaign.objects.filter(id=obj.id))
+            return obj
+
+    class Activate(OrgMixin, OrgPermsMixin, SmartUpdateView):
+        fields = ()
+        success_url = "id@campaigns.campaign_read"
+        success_message = _("Campaign activated")
+
+        def save(self, obj):
+            obj.apply_action_restore(self.request.user, Campaign.objects.filter(id=obj.id))
+            return obj
+
+
+class CampaignEventForm(forms.ModelForm):
 
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
@@ -218,6 +259,21 @@ class EventForm(forms.ModelForm):
     flow_to_start = forms.ModelChoiceField(queryset=Flow.objects.filter(is_active=True), required=False)
 
     delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
+
+    flow_start_mode = forms.ChoiceField(
+        choices=(
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and start this event")),
+            (CampaignEvent.MODE_SKIP, _("Skip this event")),
+        ),
+        required=False,
+    )
+    message_start_mode = forms.ChoiceField(
+        choices=(
+            (CampaignEvent.MODE_INTERRUPT, _("Stop it and send the message")),
+            (CampaignEvent.MODE_SKIP, _("Skip this message")),
+        ),
+        required=False,
+    )
 
     def clean(self):
         data = super().clean()
@@ -267,7 +323,7 @@ class EventForm(forms.ModelForm):
                 iso_code = language.language["iso_code"]
                 translations[iso_code] = self.cleaned_data.get(iso_code, "")
 
-            if not obj.flow_id or not obj.flow.is_active or obj.flow.flow_type != Flow.MESSAGE:
+            if not obj.flow_id or not obj.flow.is_active or not obj.flow.is_system:
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
             else:
                 # set our single message on our flow
@@ -275,10 +331,12 @@ class EventForm(forms.ModelForm):
 
             obj.message = translations
             obj.full_clean()
+            obj.start_mode = self.cleaned_data["message_start_mode"]
 
         # otherwise, it's an event that runs an existing flow
         else:
             obj.flow = Flow.objects.get(org=org, id=self.cleaned_data["flow_to_start"])
+            obj.start_mode = self.cleaned_data["flow_start_mode"]
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
@@ -287,13 +345,17 @@ class EventForm(forms.ModelForm):
         org = self.user.get_org()
 
         relative_to = self.fields["relative_to"]
-        relative_to.queryset = ContactField.objects.filter(
+        relative_to.queryset = ContactField.all_fields.filter(
             org=org, is_active=True, value_type=Value.TYPE_DATETIME
         ).order_by("label")
 
         flow = self.fields["flow_to_start"]
         flow.queryset = Flow.objects.filter(
-            org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE], is_active=True, is_archived=False
+            org=self.user.get_org(),
+            flow_type__in=[Flow.TYPE_MESSAGE, Flow.TYPE_VOICE],
+            is_active=True,
+            is_archived=False,
+            is_system=False,
         ).order_by("name")
 
         message = self.instance.message or {}
@@ -360,6 +422,12 @@ class CampaignEventCRUDL(SmartCRUDL):
     actions = ("create", "delete", "read", "update")
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        def pre_process(self, request, *args, **kwargs):
+            event = self.get_object()
+            if not event.is_active:
+                messages.error(self.request, "Campaign event no longer exists")
+                return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.pk]))
+
         def get_object_org(self):
             return self.get_object().campaign.org
 
@@ -367,7 +435,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             event_fires = self.get_object().event_fires.all()
 
-            fired_event_fires = event_fires.exclude(fired=None).order_by("fired", "pk")
+            fired_event_fires = event_fires.exclude(fired=None).order_by("-fired", "pk")
             scheduled_event_fires = event_fires.filter(fired=None).order_by("scheduled", "pk")
 
             fired = fired_event_fires[:25]
@@ -382,7 +450,10 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("campaigns.campaignevent_update"):
+
+            campaign_event = self.get_object()
+
+            if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
                 links.append(dict(title="Edit", js_class="update-event", href="#"))
 
             if self.has_org_perm("campaigns.campaignevent_delete"):
@@ -390,8 +461,8 @@ class CampaignEventCRUDL(SmartCRUDL):
                     dict(
                         title="Delete",
                         delete=True,
-                        success_url=reverse("campaigns.campaign_read", args=[self.get_object().campaign.pk]),
-                        href=reverse("campaigns.campaignevent_delete", args=[self.get_object().id]),
+                        success_url=reverse("campaigns.campaign_read", args=[campaign_event.campaign.pk]),
+                        href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
                     )
                 )
 
@@ -419,9 +490,24 @@ class CampaignEventCRUDL(SmartCRUDL):
 
     class Update(OrgPermsMixin, ModalMixin, SmartUpdateView):
         success_message = ""
-        form_class = EventForm
+        form_class = CampaignEventForm
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "message_start_mode",
+            "flow_start_mode",
+        ]
+
+        def pre_process(self, request, *args, **kwargs):
+            event = self.get_object()
+            if not event.is_active or not event.campaign.is_active or event.campaign.is_archived:
+                raise Http404("Event not found")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -461,26 +547,42 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             if self.object.event_type == "F":
                 initial["flow_to_start"] = self.object.flow
+                initial["flow_start_mode"] = self.object.start_mode
+            else:
+                initial["message_start_mode"] = self.object.start_mode
 
             return initial
 
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.update_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
 
+            obj = super().pre_save(obj)
+            self.form.pre_save(self.request, obj)
+
             prev = CampaignEvent.objects.get(pk=obj.pk)
-            if prev.event_type == "M" and obj.event_type == "F" and prev.flow:  # pragma: needs cover
+            if prev.event_type == "M" and (obj.event_type == "F" and prev.flow):  # pragma: needs cover
                 flow = prev.flow
                 flow.is_active = False
                 flow.save()
                 obj.message = None
 
-            obj = super().pre_save(obj)
-            self.form.pre_save(self.request, obj)
+            # if we changed anything, update our event fires
+            if (
+                prev.unit != obj.unit
+                or prev.offset != obj.offset
+                or prev.relative_to != obj.relative_to
+                or prev.delivery_hour != obj.delivery_hour
+                or prev.message != obj.message
+                or prev.flow != obj.flow
+                or prev.start_mode != obj.start_mode
+            ):
+                obj = obj.deactivate_and_copy()
+                EventFire.create_eventfires_for_event(obj)
+
             return obj
 
         def get_success_url(self):
@@ -488,10 +590,28 @@ class CampaignEventCRUDL(SmartCRUDL):
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
 
-        default_fields = ["event_type", "flow_to_start", "offset", "unit", "direction", "relative_to", "delivery_hour"]
-        form_class = EventForm
+        default_fields = [
+            "event_type",
+            "flow_to_start",
+            "offset",
+            "unit",
+            "direction",
+            "relative_to",
+            "delivery_hour",
+            "message_start_mode",
+            "flow_start_mode",
+        ]
+        form_class = CampaignEventForm
         success_message = ""
         template_name = "campaigns/campaignevent_update.haml"
+
+        def pre_process(self, request, *args, **kwargs):
+            campaign_id = request.GET.get("campaign", None)
+            if campaign_id:
+                campaign = Campaign.objects.filter(id=campaign_id, is_active=True, is_archived=False)
+
+                if not campaign.exists():
+                    raise Http404("Campaign not found")
 
         def derive_fields(self):
 
@@ -523,12 +643,18 @@ class CampaignEventCRUDL(SmartCRUDL):
             initial["unit"] = "D"
             initial["offset"] = "15"
             initial["direction"] = "A"
+
+            # default to our first date field
+            initial["relative_to"] = ContactField.all_fields.filter(
+                org=self.request.user.get_org(), is_active=True, value_type=Value.TYPE_DATETIME
+            ).first()
+
             return initial
 
         def post_save(self, obj):
             obj = super().post_save(obj)
             obj.update_flow_name()
-            EventFire.update_eventfires_for_event(obj)
+            EventFire.create_eventfires_for_event(obj)
             return obj
 
         def pre_save(self, obj):
@@ -536,3 +662,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get("campaign"))
             self.form.pre_save(self.request, obj)
             return obj
+
+        def form_invalid(self, form):
+            return super().form_invalid(form)

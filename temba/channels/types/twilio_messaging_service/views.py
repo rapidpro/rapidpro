@@ -1,6 +1,5 @@
-
 from smartmin.views import SmartFormView
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.http import HttpResponseRedirect
@@ -34,7 +33,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.client = org.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
-            self.account = self.client.accounts.get(org.config[ACCOUNT_SID])
+            self.account = self.client.api.account.fetch()
         except TwilioRestException:
             return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
 

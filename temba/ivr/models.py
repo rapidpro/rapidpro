@@ -1,25 +1,43 @@
 from datetime import timedelta
 
-from django.core.urlresolvers import reverse
+from django_redis import get_redis_connection
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelLog, ChannelSession, ChannelType
-from temba.utils import on_transaction_commit
+from temba.channels.models import Channel, ChannelConnection, ChannelLog, ChannelType
+from temba.utils.http import HttpEvent
 
 
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
-        return super().create(*args, session_type=IVRCall.IVR, **kwargs)
+        return super().create(*args, connection_type=IVRCall.IVR, **kwargs)
 
     def get_queryset(self):
-        return super().get_queryset().filter(session_type=IVRCall.IVR)
+        return super().get_queryset().filter(connection_type=IVRCall.IVR)
 
 
-class IVRCall(ChannelSession):
+class IVRCall(ChannelConnection):
     RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
+    MAX_ERROR_COUNT = 5
+    IGNORE_PENDING_CALLS_OLDER_THAN_DAYS = 7  # calls with modified_on older than 7 days are going to be ignored
+    DEFAULT_MAX_IVR_EXPIRATION_WINDOW_DAYS = 7
+
+    IVR_EXPIRES_CHOICES = (
+        (1, _("After 1 minute")),
+        (2, _("After 2 minutes")),
+        (3, _("After 3 minutes")),
+        (4, _("After 4 minutes")),
+        (5, _("After 5 minutes")),
+        (10, _("After 10 minutes")),
+        (15, _("After 15 minutes")),
+    )
+
+    IVR_RETRY_CHOICES = ((30, _("After 30 minutes")), (60, _("After 1 hour")), (1440, _("After 1 day")))
 
     objects = IVRManager()
 
@@ -35,7 +53,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.OUTGOING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             status=IVRCall.PENDING,
         )
 
@@ -48,7 +65,6 @@ class IVRCall(ChannelSession):
             direction=IVRCall.INCOMING,
             org=channel.org,
             created_by=user,
-            modified_by=user,
             external_id=external_id,
             status=IVRCall.PENDING,
         )
@@ -66,12 +82,18 @@ class IVRCall(ChannelSession):
                     test_call.close()
 
     def close(self):
-        if not self.is_done():
+        from temba.flows.models import FlowSession
 
+        if not self.is_done():
             # mark us as interrupted
-            self.status = ChannelSession.INTERRUPTED
+            self.status = ChannelConnection.INTERRUPTED
             self.ended_on = timezone.now()
-            self.save()
+            self.save(update_fields=("status", "ended_on"))
+
+            self.unregister_active_event()
+
+            if self.has_flow_session():
+                self.session.end(FlowSession.STATUS_INTERRUPTED)
 
             client = self.channel.get_ivr_client()
             if client and self.external_id:
@@ -84,7 +106,7 @@ class IVRCall(ChannelSession):
         from temba.ivr.clients import IVRException
         from temba.flows.models import ActionLog, FlowRun
 
-        if client:
+        if client and domain:
             try:
                 url = "https://%s%s" % (domain, reverse("ivr.ivrcall_handle", args=[self.pk]))
                 if qs:  # pragma: no cover
@@ -120,20 +142,27 @@ class IVRCall(ChannelSession):
 
                 traceback.print_exc()
 
+                ChannelLog.log_ivr_interaction(
+                    self, "Call failed unexpectedly", HttpEvent(method="INTERNAL", url=None, response_body=str(e))
+                )
+
                 self.status = self.FAILED
-                self.save()
+                self.save(update_fields=("status",))
 
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended.")
 
-    def start_call(self):
-        from temba.ivr.tasks import start_call_task
+        # client or domain are not known
+        else:
+            ChannelLog.log_ivr_interaction(
+                self,
+                "Unknown client or domain",
+                HttpEvent(method="INTERNAL", url=None, response_body=f"client={client} domain={domain}"),
+            )
 
-        self.status = IVRCall.QUEUED
-        self.save()
-
-        on_transaction_commit(lambda: start_call_task.delay(self.pk))
+            self.status = self.FAILED
+            self.save(update_fields=("status",))
 
     def schedule_call_retry(self, backoff_minutes: int):
         # retry the call if it has not been retried maximum number of times
@@ -142,6 +171,10 @@ class IVRCall(ChannelSession):
             self.retry_count += 1
         else:
             self.next_attempt = None
+
+    def schedule_failed_call_retry(self):
+        if self.error_count < IVRCall.MAX_ERROR_COUNT:
+            self.error_count += 1
 
     def update_status(self, status: str, duration: float, channel_type: str):
         """
@@ -168,15 +201,22 @@ class IVRCall(ChannelSession):
             self.started_on = timezone.now()
 
         # if we are done, mark our ended time
-        if self.status in ChannelSession.DONE:
+        if self.status in ChannelConnection.DONE:
             self.ended_on = timezone.now()
+
+            self.unregister_active_event()
+
+            from temba.flows.models import FlowSession
+
+            if self.has_flow_session():
+                self.session.end(FlowSession.STATUS_COMPLETED)
 
             if self.contact.is_test:
                 run = FlowRun.objects.filter(connection=self)
                 if run:
                     ActionLog.create(run[0], _("Call ended."))
 
-        if self.status in ChannelSession.RETRY_CALL and previous_status not in ChannelSession.RETRY_CALL:
+        if self.status in ChannelConnection.RETRY_CALL and previous_status not in ChannelConnection.RETRY_CALL:
             flow = self.get_flow()
             backoff_minutes = flow.metadata.get("ivr_retry", IVRCall.RETRY_BACKOFF_MINUTES)
 
@@ -190,9 +230,17 @@ class IVRCall(ChannelSession):
             self.IN_PROGRESS,
             self.RINGING,
         ):
-            runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
+            runs = FlowRun.objects.filter(connection=self, is_active=True)
             for run in runs:
-                run.update_expiration()
+                if not run.expires_on or (
+                    run.expires_on - run.modified_on > timedelta(minutes=self.IVR_EXPIRES_CHOICES[-1][0])
+                ):
+                    run.update_expiration()
+
+        if self.status == ChannelConnection.FAILED:
+            flow = self.get_flow()
+            if flow.metadata.get("ivr_retry_failed_events"):
+                self.schedule_failed_call_retry()
 
     @staticmethod
     def derive_ivr_status_twiml(status: str, previous_status: str) -> str:
@@ -277,3 +325,42 @@ class IVRCall(ChannelSession):
             return run.flow
         else:  # pragma: no cover
             raise ValueError(f"Cannot find flow for IVRCall id={self.id}")
+
+    def has_flow_session(self):
+        """
+        Checks whether this channel session has an associated flow session.
+        See https://docs.djangoproject.com/en/2.1/topics/db/examples/one_to_one/
+        """
+        try:
+            self.session
+            return True
+        except ObjectDoesNotExist:
+            return False
+
+    def register_active_event(self):
+        """
+        Helper function for registering active events on a throttled channel
+        """
+        r = get_redis_connection()
+
+        channel_key = Channel.redis_active_events_key(self.channel_id)
+
+        r.incr(channel_key)
+
+    def unregister_active_event(self):
+        """
+        Helper function for unregistering active events on a throttled channel
+        """
+        r = get_redis_connection()
+
+        channel_key = Channel.redis_active_events_key(self.channel_id)
+        # are we on a throttled channel?
+        current_tracked_events = r.get(channel_key)
+
+        if current_tracked_events:
+
+            value = int(current_tracked_events)
+            if value <= 0:  # pragma: no cover
+                raise ValueError("When this happens I'll quit my job and start producing moonshine/poitin/brlja !")
+
+            r.decr(channel_key)

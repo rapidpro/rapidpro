@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import OrderedDict
 from datetime import timedelta
@@ -22,12 +21,12 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -37,7 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, languages, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import Select2Field
 from temba.utils.text import slugify_with
@@ -57,7 +56,7 @@ from .models import (
 )
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query
-from .tasks import export_contacts_task
+from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +146,7 @@ class ContactGroupForm(forms.ModelForm):
             raise forms.ValidationError(str(e))
 
     class Meta:
-        fields = "__all__"
+        fields = ("name", "query")
         model = ContactGroup
 
 
@@ -196,7 +195,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
             )
         else:
             try:
-                contact_sort_field = ContactField.objects.values("value_type", "uuid").get(uuid=sort_field)
+                contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
             except ValidationError:
                 return None, None, None
             except ContactField.DoesNotExist:
@@ -277,7 +276,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context["object_list"])
-        Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
+        Contact.bulk_cache_initialize(org, contacts)
 
         context["contacts"] = contacts
         context["groups"] = self.get_user_groups(org)
@@ -627,7 +626,7 @@ class ContactCRUDL(SmartCRUDL):
 
             def clean(self):
 
-                existing_contact_fields = ContactField.objects.filter(org=self.org, is_active=True).values(
+                existing_contact_fields = ContactField.user_fields.filter(org=self.org, is_active=True).values(
                     "key", "label"
                 )
                 existing_contact_fields_map = {elt["label"]: elt["key"] for elt in existing_contact_fields}
@@ -761,7 +760,7 @@ class ContactCRUDL(SmartCRUDL):
             contact_fields = sorted(
                 [
                     dict(id=elt["label"], text=elt["label"])
-                    for elt in ContactField.objects.filter(org=org, is_active=True).values("label")
+                    for elt in ContactField.user_fields.filter(org=org, is_active=True).values("label")
                 ],
                 key=lambda k: k["text"].lower(),
             )
@@ -990,7 +989,10 @@ class ContactCRUDL(SmartCRUDL):
             context["contact_groups"] = contact.user_groups.order_by(Lower("name"))
 
             # event fires
-            event_fires = contact.fire_events.filter(scheduled__gte=timezone.now()).order_by("scheduled")
+            event_fires = contact.fire_events.filter(
+                event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
+            ).order_by("scheduled")
+
             scheduled_messages = contact.get_scheduled_messages()
 
             merged_upcoming_events = []
@@ -1041,7 +1043,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # lookup all of our contact fields
             contact_fields = []
-            fields = ContactField.objects.filter(org=contact.org, is_active=True).order_by("label", "pk")
+            fields = ContactField.user_fields.filter(org=contact.org, is_active=True).order_by("label", "pk")
             for field in fields:
                 value = contact.get_field_value(field)
                 if value:
@@ -1209,7 +1211,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             context["actions"] = ("label", "block")
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
             context["export_url"] = self.derive_export_url()
@@ -1271,7 +1273,7 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = actions
             context["current_group"] = group
-            context["contact_fields"] = ContactField.objects.filter(org=org, is_active=True).order_by(
+            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
                 "-priority", "pk"
             )
             context["export_url"] = self.derive_export_url()
@@ -1370,7 +1372,8 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             fields = [f.name for f in obj._meta.concrete_fields if f.name not in self.exclude]
-            obj.save(update_fields=fields)
+            obj.save(update_fields=fields, handle_update=True)
+
             self.save_m2m()
 
             new_groups = self.form.cleaned_data.get("groups")
@@ -1436,7 +1439,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             field_id = self.request.GET.get("field", 0)
             if field_id:
-                context["contact_field"] = org.contactfields.get(id=field_id)
+                context["contact_field"] = org.contactfields(manager="user_fields").get(id=field_id)
             return context
 
         def save(self, obj):
@@ -1444,7 +1447,9 @@ class ContactCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            contact_field = obj.org.contactfields.get(id=self.form.cleaned_data.get("contact_field"))
+            contact_field = obj.org.contactfields(manager="user_fields").get(
+                id=self.form.cleaned_data.get("contact_field")
+            )
             if contact_field:
                 obj.set_field(self.request.user, contact_field.key, self.form.cleaned_data.get("field_value", ""))
             return obj
@@ -1459,7 +1464,7 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             field_id = self.request.GET.get("field", 0)
             if field_id:
-                contact_field = ContactField.objects.filter(id=field_id).first()
+                contact_field = ContactField.user_fields.filter(id=field_id).first()
                 context["contact_field"] = contact_field
                 if contact_field:
                     context["value"] = self.get_object().get_field_display(contact_field)
@@ -1586,7 +1591,11 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["triggers"] = self.get_object().trigger_set.filter(is_archived=False)
+            group = self.get_object()
+
+            context["triggers"] = group.trigger_set.filter(is_archived=False)
+            context["campaigns"] = group.campaign_set.filter(is_archived=False)
+
             return context
 
         def get_success_url(self):
@@ -1601,17 +1610,22 @@ class ContactGroupCRUDL(SmartCRUDL):
             triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
             from temba.flows.models import Flow
 
             flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
             if flows.count():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # remove our group
-            group.release()
+            if group.campaign_set.filter(is_archived=False).exists():
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            # make is_active False for all its triggers too
-            group.trigger_set.all().update(is_active=False)
+            # deactivate the group, this makes it 'invisible'
+            group.is_active = False
+            group.save()
+
+            # release the group in a background task
+            on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
             response = self.render_to_response(
@@ -1668,6 +1682,8 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "managefields", "json")
 
     class List(OrgPermsMixin, SmartListView):
+        queryset = ContactField.user_fields
+
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = qs.filter(org=self.request.user.get_org(), is_active=True)
@@ -1681,6 +1697,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Json(OrgPermsMixin, SmartListView):
         paginate_by = None
+        queryset = ContactField.user_fields
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -1712,7 +1729,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
+            num_fields = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
             for field_idx in range(1, num_fields + 2):
@@ -1738,7 +1755,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             form.fields.clear()
 
             org = self.request.user.get_org()
-            contact_fields = ContactField.objects.filter(org=org, is_active=True).order_by("-priority", "pk")
+            contact_fields = ContactField.user_fields.filter(org=org, is_active=True).order_by("-priority", "pk")
 
             added_fields = []
 

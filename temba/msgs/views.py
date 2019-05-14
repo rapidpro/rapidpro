@@ -1,4 +1,3 @@
-import json
 from datetime import date, timedelta
 
 from smartmin.views import (
@@ -15,9 +14,9 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
@@ -29,7 +28,7 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, on_transaction_commit
+from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 
@@ -68,7 +67,7 @@ def send_message_auto_complete_processor(request):
             if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
                 completions.append(dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label))))
 
-        for field in org.contactfields.filter(is_active=True).order_by("label"):
+        for field in org.contactfields(manager="user_fields").filter(is_active=True).order_by("label"):
             display = str(_("Contact Field: %(label)s")) % {"label": field.label}
             completions.append(dict(name="contact.%s" % str(field.key), display=display))
 
@@ -693,7 +692,7 @@ class MsgCRUDL(SmartCRUDL):
 
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = Broadcast.objects.filter(
-                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING]
+                org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
             ).order_by("-created_on")
             return context
 

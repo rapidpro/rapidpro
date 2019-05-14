@@ -29,20 +29,13 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import (
-    analytics,
-    chunk_list,
-    dict_to_json,
-    extract_constants,
-    get_anonymous_user,
-    on_transaction_commit,
-)
+from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
 from temba.utils.cache import check_and_mark_in_timerange
 from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
-from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, push_task
+from temba.utils.queues import DEFAULT_PRIORITY, HIGH_PRIORITY, LOW_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
 from .handler import MessageHandler
@@ -50,10 +43,8 @@ from .handler import MessageHandler
 logger = logging.getLogger(__name__)
 __message_handlers = None
 
-MSG_QUEUE = "msgs"
 SEND_MSG_TASK = "send_msg_task"
 
-HANDLER_QUEUE = "handler"
 HANDLE_EVENT_TASK = "handle_event_task"
 MSG_EVENT = "msg"
 FIRE_EVENT = "fire"
@@ -375,7 +366,7 @@ class Broadcast(models.Model):
 
         # otherwise, create batches and fire those off
         else:
-            from temba.flows.models import FLOWS_QUEUE, Flow
+            from temba.flows.models import Flow
 
             for batch in chunk_list(urns, BATCH_SIZE):
                 kwargs = dict(
@@ -389,7 +380,7 @@ class Broadcast(models.Model):
                 )
                 push_task(
                     self.org,
-                    FLOWS_QUEUE,
+                    Queue.FLOWS,
                     Flow.START_MSG_FLOW_BATCH,
                     dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
                 )
@@ -478,7 +469,7 @@ class Broadcast(models.Model):
                 # arbitrary media urls don't have a full content type, so only
                 # make uploads into fully qualified urls
                 if media_url and len(media_type.split("/")) > 1:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    media = f"{media_type}:{settings.STORAGE_URL}/{media_url}"
 
             # build our message specific context
             if expressions_context is not None:
@@ -757,7 +748,7 @@ class Msg(models.Model):
     DELETE_FOR_ARCHIVE = "A"
     DELETE_FOR_USER = "U"
 
-    DELETE_CHOICES = (((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete"))),)
+    DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
     MEDIA_GPS = "geo"
     MEDIA_IMAGE = "image"
@@ -824,7 +815,9 @@ class Msg(models.Model):
 
     text = models.TextField(verbose_name=_("Text"), help_text=_("The actual message content that was sent"))
 
-    high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
+    high_priority = models.BooleanField(
+        null=True, help_text=_("Give this message higher priority than other messages")
+    )
 
     created_on = models.DateTimeField(
         verbose_name=_("Created On"), db_index=True, help_text=_("When this message was created")
@@ -934,7 +927,7 @@ class Msg(models.Model):
     )
 
     connection = models.ForeignKey(
-        "channels.ChannelSession",
+        "channels.ChannelConnection",
         on_delete=models.PROTECT,
         related_name="msgs",
         null=True,
@@ -1045,7 +1038,7 @@ class Msg(models.Model):
     @classmethod
     def _send_rapid_msg_batches(cls, batches):
         for batch in batches:
-            push_task(batch["org"], MSG_QUEUE, SEND_MSG_TASK, batch["msgs"], priority=batch["priority"])
+            push_task(batch["org"], Queue.MSGS, SEND_MSG_TASK, batch["msgs"], priority=batch["priority"])
 
     @classmethod
     def _send_courier_msg_batches(cls, batches):
@@ -1150,7 +1143,7 @@ class Msg(models.Model):
         if msg.error_count >= 3 or fatal:
             if isinstance(msg, Msg):
                 msg.status_fail()
-            else:
+            else:  # pragma: no cover
                 Msg.objects.select_related("org").get(pk=msg.id).status_fail()
 
             if channel:
@@ -1389,10 +1382,10 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection("default")
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
 
         # queue up our celery task
-        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
+        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
 
     def handle(self):
         if self.direction == OUTGOING:
@@ -1411,13 +1404,18 @@ class Msg(models.Model):
         value = str(self)
         attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
-        return {
+        context = {
             "__default__": value,
             "value": value,
             "text": self.text,
             "attachments": attachments,
             "time": datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone),
         }
+
+        if self.contact_urn:
+            context["urn"] = self.contact_urn.build_expressions_context(self.org)
+
+        return context
 
     def resend(self):
         """
@@ -1722,12 +1720,11 @@ class Msg(models.Model):
             evaluated_attachments = None
 
         # if we are doing a single message, check whether this might be a loop of some kind
-        if insert_object:
+        if insert_object and status != SENT and getattr(settings, "DEDUPE_OUTGOING", True):
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
             same_msgs = Msg.objects.filter(
                 contact_urn=contact_urn,
-                contact__is_test=False,
                 channel=channel,
                 attachments=evaluated_attachments,
                 text=text,
@@ -1748,7 +1745,6 @@ class Msg(models.Model):
             if tel and len(tel) < 6:
                 same_msg_count = Msg.objects.filter(
                     contact_urn=contact_urn,
-                    contact__is_test=False,
                     channel=channel,
                     text=text,
                     direction=OUTGOING,
@@ -2248,7 +2244,7 @@ class Label(TembaModel):
             return False
 
         # first character must be a word char
-        return regex.match("\w", name[0], flags=regex.UNICODE)
+        return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
     def filter_messages(self, queryset):
         if self.is_folder():
@@ -2471,7 +2467,9 @@ class ExportMessagesTask(BaseExportTask):
 
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
-        msgs_exported = 0
+        total_msgs_exported = 0
+        temp_msgs_exported = 0
+
         start = time.time()
 
         contact_uuids = set()
@@ -2491,12 +2489,15 @@ class ExportMessagesTask(BaseExportTask):
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date, contact_uuids):
             self._write_msgs(book, batch)
 
-            msgs_exported += len(batch)
-            if msgs_exported % 10000 == 0:  # pragma: needs cover
+            total_msgs_exported += len(batch)
+
+            # start logging
+            if (total_msgs_exported - temp_msgs_exported) > ExportMessagesTask.LOG_PROGRESS_PER_ROWS:
                 mins = (time.time() - start) / 60
                 logger.info(
-                    f"Msgs export #{self.id} for org #{self.org.id}: exported {msgs_exported} in {mins:.1f} mins"
+                    f"Msgs export #{self.id} for org #{self.org.id}: exported {total_msgs_exported} in {mins:.1f} mins"
                 )
+                temp_msgs_exported = total_msgs_exported
 
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)

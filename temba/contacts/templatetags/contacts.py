@@ -1,8 +1,8 @@
-
 from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
+from temba.campaigns.models import EventFire
 from temba.contacts.models import (
     EMAIL_SCHEME,
     EXTERNAL_SCHEME,
@@ -164,6 +164,9 @@ def history_class(item):
 
         if item["type"] == "call" and obj.status == IVRCall.FAILED:
             classes.append("warning")
+
+        if item["type"] == "event-fire" and obj.fired_result == EventFire.SKIPPED:
+            classes.append("skipped")
     return " ".join(classes)
 
 

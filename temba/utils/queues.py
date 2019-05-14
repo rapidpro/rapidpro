@@ -1,6 +1,4 @@
-
 import importlib
-import json
 import time
 from functools import wraps
 
@@ -11,7 +9,16 @@ from django.utils.encoding import force_text
 
 from celery import current_app, shared_task
 
-from temba.utils import dict_to_json
+from temba.utils import json
+
+
+# celery queue names
+class Queue:
+    CELERY = "celery"
+    FLOWS = "flows"
+    HANDLER = "handler"
+    MSGS = "msgs"
+
 
 LOW_PRIORITY = +10000000  # +10M ~ 110 days
 DEFAULT_PRIORITY = 0
@@ -38,7 +45,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
         org_id = org if isinstance(org, int) else org.id
-        pipe.zadd("%s:%d" % (task_name, org_id), score, dict_to_json(args))
+        pipe.zadd("%s:%d" % (task_name, org_id), score, json.dumps(args))
 
         # and make sure this key is in our list of queues so this job will get worked on
         pipe.zincrby("%s:active" % task_name, org_id, 0)
@@ -74,7 +81,11 @@ def start_task(task_name):
     while org_queue:
         # this lua script does both a "zpop" (popping the next highest thing off our sorted set) and
         # a clearing of our active set if there is no value in it as an atomic action
-        lua = "local val = redis.call('zrange', ARGV[2], 0, 0) \n" "if not next(val) then redis.call('zrem', ARGV[1], ARGV[3]) return nil \n" "else redis.call('zincrby', ARGV[1], 1, ARGV[3]); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
+        lua = (
+            "local val = redis.call('zrange', ARGV[2], 0, 0) \n"
+            "if not next(val) then redis.call('zrem', ARGV[1], ARGV[3]) return nil \n"
+            "else redis.call('zincrby', ARGV[1], 1, ARGV[3]); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
+        )
 
         task = r.eval(
             lua, 3, "active_set", "queue", "org", active_set, "%s:%d" % (task_name, int(org_queue[0])), org_queue[0]
@@ -99,7 +110,10 @@ def complete_task(task_name, org):
     active_set = "%s:active" % task_name
     key = "%d" % (org if isinstance(org, int) else org.id)
 
-    lua = "local val = redis.call('zscore', ARGV[1], ARGV[2]) \n" "if val then redis.call('zadd', ARGV[1], math.max(0, val-1), ARGV[2]) end \n"
+    lua = (
+        "local val = redis.call('zscore', ARGV[1], ARGV[2]) \n"
+        "if val then redis.call('zadd', ARGV[1], math.max(0, val-1), ARGV[2]) end \n"
+    )
 
     r.eval(lua, 2, "active_set", "queue", active_set, key)
 

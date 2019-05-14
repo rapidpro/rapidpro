@@ -1,5 +1,3 @@
-
-import json
 import logging
 import time
 from datetime import timedelta
@@ -13,11 +11,11 @@ from django.utils.encoding import force_text
 
 from celery.task import task
 
+from temba.channels.courier import handle_new_contact, handle_new_message
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
-from temba.utils import analytics, chunk_list
-from temba.utils.mage import handle_new_contact, handle_new_message
-from temba.utils.queues import complete_task, nonoverlapping_task, start_task
+from temba.utils import analytics, chunk_list, json
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
 
 from .models import (
     FIRE_EVENT,
@@ -143,11 +141,7 @@ def process_message_task(msg_event):
 
                 # make sure we are still pending
                 if msg and msg.status == PENDING:
-                    process_message(
-                        msg,
-                        msg_event.get("from_mage", msg_event.get("new_message", False)),
-                        msg_event.get("new_contact", False),
-                    )
+                    process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
                     return
 
     # backwards compatibility for events without contact ids, we handle the message directly
@@ -157,7 +151,7 @@ def process_message_task(msg_event):
             # grab our contact lock and handle this message
             key = "pcm_%d" % msg.contact_id
             with r.lock(key, timeout=120):
-                process_message(msg, msg_event.get("from_mage", False), msg_event.get("new_contact", False))
+                process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
 
 
 @task(track_started=True, name="send_broadcast")
@@ -216,7 +210,10 @@ def send_spam(user_id, contact_id):  # pragma: no cover
         print("Sorry, no channel to be all spammy with")
         return
 
-    long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " "selfish and the tyranny of evil men. Blessed is your face."
+    long_text = (
+        "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the "
+        "selfish and the tyranny of evil men. Blessed is your face."
+    )
 
     # only trigger sync on the last one
     for idx in range(10):
@@ -320,9 +317,9 @@ def check_messages_task():  # pragma: needs cover
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
-        send_msg_task.apply_async(queue="msgs")
-        handle_event_task.apply_async(queue="handler")
-        start_msg_flow_batch_task.apply_async(queue="flows")
+        send_msg_task.apply_async(queue=Queue.MSGS)
+        handle_event_task.apply_async(queue=Queue.HANDLER)
+        start_msg_flow_batch_task.apply_async(queue=Queue.FLOWS)
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
@@ -388,7 +385,7 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name="squash_msgcounts")
+@nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)
 def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()

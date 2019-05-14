@@ -1,14 +1,14 @@
-import json
 import time
 from datetime import datetime, timedelta
 
 import pytz
 
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
+from temba.utils import json
 
 from .models import Schedule
 

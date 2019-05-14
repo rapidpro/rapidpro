@@ -1,11 +1,8 @@
-
-import json
 from datetime import datetime, timedelta
-
-from mock import patch
+from unittest.mock import patch
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.channels.models import Channel
@@ -15,6 +12,7 @@ from temba.flows.models import FlowRun
 from temba.msgs.models import DELIVERED, FAILED, HANDLED, INCOMING, OUTGOING, SENT, USSD, WIRED, Msg
 from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
+from temba.utils import json
 
 from .models import USSDSession
 
@@ -172,6 +170,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.direction, USSDSession.USSD_PUSH)
         self.assertEqual(session.status, USSDSession.INITIATED)
         self.assertIsInstance(session.started_on, datetime)
+        self.assertIsNotNone(FlowRun.objects.filter(connection=session).first().expires_on)
 
         # send an interrupt "signal"
         session = USSDSession.handle_incoming(

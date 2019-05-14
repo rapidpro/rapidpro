@@ -40,6 +40,7 @@ class TwitterActivityType(ChannelType):
     show_config_page = False
     free_sending = True
     async_activation = False
+    attachment_support = True
 
     def activate(self, channel):
         config = channel.config

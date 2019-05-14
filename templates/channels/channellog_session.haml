@@ -4,7 +4,7 @@
 
 -block titles
   %h2
-    -if object.session_type == 'F'
+    -if object.connection_type == 'F'
       -trans "Call Log"
     -else
       -trans "USSD Log"

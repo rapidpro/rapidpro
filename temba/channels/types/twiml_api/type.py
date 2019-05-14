@@ -1,4 +1,3 @@
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.twiml_api.views import ClaimView

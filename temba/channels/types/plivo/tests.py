@@ -1,12 +1,10 @@
-
-import json
-
-from mock import patch
+from unittest.mock import patch
 
 from django.urls import reverse
 
 from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 
 class PlivoTypeTest(TembaTest):

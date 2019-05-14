@@ -1,4 +1,3 @@
-
 import pycountry
 
 iso_codes = {}

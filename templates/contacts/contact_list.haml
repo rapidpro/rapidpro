@@ -1,5 +1,5 @@
 -extends "smartmin/list.html"
--load smartmin sms contacts
+-load smartmin sms contacts temba
 -load i18n humanize
 
 -block page-title
@@ -139,7 +139,7 @@
                   %span.search-error
                     =search_error
                 -elif search
-                  -blocktrans count results_count=paginator.count
+                  -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
                     Found {{ results_count }} contact matching <i>{{search}}</i>.
                     -plural
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.
@@ -213,7 +213,7 @@
 
                         %td.value-received.field_received
                           %nobr
-                            {{ object.created_on|gmail_time }}
+                            {% short_datetime object.created_on %}
 
                         // This is needed for action buttons
                         %td.hide
@@ -481,7 +481,24 @@
         onFormLoaded:function() {
           useFontCheckbox("input[type=checkbox]", false);
         },
-        onSuccess: function() { refresh(function() { recheckIds(); }, true); }
+        onSuccess: function() {
+            // grab the current search string, sort_on/page/...
+            var url = window.location.search;
+
+            if (!url) {
+                url = '?'
+            }
+
+            // bust cache
+            url += '&ts=' + new Date().getTime();
+
+            fetchPJAXContent(url, '#pjax', {
+                forceReload: true,
+                onSuccess: function () {
+                    recheckIds();
+                }
+            })
+        }
       });
       modal.show();
     });

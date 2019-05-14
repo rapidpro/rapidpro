@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 # default manager for AdminBoundary, doesn't load geometries
-class NoGeometryManager(models.GeoManager):
+class NoGeometryManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().defer("geometry", "simplified_geometry")
 
 
 # optional 'geometries' manager for AdminBoundary, loads everything
-class GeometryManager(models.GeoManager):
+class GeometryManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset()
 
@@ -124,7 +124,9 @@ class AdminBoundary(MPTTModel, models.Model):
         _update_child_paths(self)
 
     def release(self):
-        AdminBoundary.objects.filter(parent=self).update(parent=None)
+        for child_boundary in AdminBoundary.objects.filter(parent=self):
+            child_boundary.release()
+
         self.delete()
 
     @classmethod

@@ -4,7 +4,7 @@ import pytz
 from smartmin.views import SmartCRUDL, SmartUpdateView
 
 from django import forms
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 

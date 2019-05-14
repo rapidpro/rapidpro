@@ -1,4 +1,3 @@
-
 import logging
 import time
 from datetime import timedelta
@@ -11,10 +10,9 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.msgs.models import MSG_QUEUE, SEND_MSG_TASK
+from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
-from temba.utils.mage import MageClient
-from temba.utils.queues import complete_task, nonoverlapping_task, push_task, start_task
+from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
@@ -25,12 +23,6 @@ class MageStreamAction(Enum):
     activate = 1
     refresh = 2
     deactivate = 3
-
-
-@task(track_started=True, name="sync_channel_gcm_task")
-def sync_channel_gcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
-    channel = Channel.objects.filter(pk=channel_id).first()
-    Channel.sync_channel_gcm(cloud_registration_id, channel)
 
 
 @task(track_started=True, name="sync_channel_fcm_task")
@@ -80,7 +72,7 @@ def send_msg_task():
         # if some msgs weren't sent for some reason, then requeue them for later sending
         if msg_tasks:
             # requeue any unsent msgs
-            push_task(org_id, MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
+            push_task(org_id, Queue.MSGS, SEND_MSG_TASK, msg_tasks)
 
 
 @nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")
@@ -90,6 +82,18 @@ def check_channels_task():
     time.  Triggers alert in that case
     """
     Alert.check_alerts()
+
+
+@nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
+def sync_old_seen_channels_task():
+    now = timezone.now()
+    window_end = now - timedelta(minutes=15)
+    window_start = now - timedelta(days=7)
+    old_seen_channels = Channel.objects.filter(
+        is_active=True, channel_type=Channel.TYPE_ANDROID, last_seen__lte=window_end, last_seen__gt=window_start
+    )
+    for channel in old_seen_channels:
+        channel.trigger_sync()
 
 
 @task(track_started=True, name="send_alert_task")
@@ -119,22 +123,8 @@ def trim_channel_log_task():  # pragma: needs cover
         ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
 
 
-@task(track_started=True, name="notify_mage_task")
-def notify_mage_task(channel_uuid, action):
-    """
-    Notifies Mage of a change to a Twitter channel
-    """
-    action = MageStreamAction[action]
-    mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)
-
-    if action == MageStreamAction.activate:
-        mage.activate_twitter_stream(channel_uuid)
-    elif action == MageStreamAction.deactivate:
-        mage.deactivate_twitter_stream(channel_uuid)
-    else:  # pragma: no cover
-        raise ValueError("Invalid action: %s" % action)
-
-
-@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts")
+@nonoverlapping_task(
+    track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200
+)
 def squash_channelcounts():
     ChannelCount.squash()

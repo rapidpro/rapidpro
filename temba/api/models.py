@@ -1,8 +1,6 @@
 import hmac
-import json
 import time
 import uuid
-from collections import OrderedDict
 from datetime import timedelta
 from hashlib import sha1
 from urllib.parse import urlencode
@@ -13,17 +11,17 @@ from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
-from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME
-from temba.flows.models import ActionLog, FlowRun
+from temba.flows.models import ActionLog, Flow, FlowRun
 from temba.orgs.models import Org
-from temba.utils import on_transaction_commit, prepped_request_to_str
+from temba.utils import json, on_transaction_commit, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
 from temba.utils.models import JSONAsTextField
@@ -38,7 +36,7 @@ class APIPermission(BasePermission):
 
         if getattr(view, "permission", None):
             # no anon access to API endpoints
-            if request.user.is_anonymous():
+            if request.user.is_anonymous:
                 return False
 
             org = request.user.get_org()
@@ -243,7 +241,7 @@ class WebHookEvent(SmartModel):
         on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_webhook(cls, run, webhook_url, node_uuid, msg, action="POST", resthook=None, headers=None):
+    def trigger_flow_webhook(cls, run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
 
         flow = run.flow
         contact = run.contact
@@ -324,18 +322,24 @@ class WebHookEvent(SmartModel):
                 body = "Skipped actual send"
                 status_code = 200
 
+            if ruleset:
+                run.update_fields({Flow.label_to_slug(ruleset.label): body}, do_save=False)
+            new_extra = {}
+
             # process the webhook response
             try:
-                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+                response_json = json.loads(body)
 
                 # only update if we got a valid JSON dictionary or list
                 if not isinstance(response_json, dict) and not isinstance(response_json, list):
                     raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
 
-                run.update_fields(response_json)
+                new_extra = response_json
                 message = "Webhook called successfully."
             except ValueError:
                 message = "Response must be a JSON dictionary, ignoring response."
+
+            run.update_fields(new_extra)
 
             if 200 <= status_code < 300:
                 webhook_event.status = cls.STATUS_COMPLETE
@@ -379,7 +383,7 @@ class WebHookEvent(SmartModel):
             )
 
             # if this is a test contact, add an entry to our action log
-            if run.contact.is_test:
+            if run.contact.is_test:  # pragma: no cover
                 log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (
                     reverse("api.log_read", args=[webhook_event.pk]),
                     status_code,
@@ -542,7 +546,7 @@ class WebHookEvent(SmartModel):
 
         # make the request
         try:
-            if not settings.SEND_WEBHOOKS:
+            if not settings.SEND_WEBHOOKS:  # pragma: no cover
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
 
             headers = http_headers(extra=self.org.get_webhook_headers())

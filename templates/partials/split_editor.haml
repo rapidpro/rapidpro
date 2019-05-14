@@ -48,7 +48,7 @@
         %p{class:"description"}
           -blocktrans
             Call out to another flow and return the results to this flow in the @child variable.
-        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl()]]",type:"hidden"}
+        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl(true)]]",type:"hidden"}
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
@@ -242,7 +242,7 @@
   .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
     [[characters]] characters remaining
 
-  .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
+  .timeout{ng-show:'flow.type == "M" && isPausingRuleset()', style:'float:left'}
 
     %label
       %input{type:'checkbox', ng-model:'formData.hasTimeout'}

@@ -1,4 +1,3 @@
-
 import requests
 
 from django.conf.urls import url
@@ -21,7 +20,7 @@ class WhatsAppType(ChannelType):
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
+    courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "WhatsApp"
     icon = "icon-whatsapp"
@@ -33,7 +32,7 @@ class WhatsAppType(ChannelType):
 
     schemes = [WHATSAPP_SCHEME]
     max_length = 4096
-    attachment_support = False
+    attachment_support = True
 
     def is_available_to(self, user):
         return user.groups.filter(name="Beta")

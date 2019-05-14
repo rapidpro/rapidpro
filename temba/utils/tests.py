@@ -1,14 +1,17 @@
 import copy
 import datetime
-import json
 import os
+from collections import OrderedDict
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest import mock
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import intercom.errors
 import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
-from mock import PropertyMock, patch
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
 from temba_expressions.evaluator import DateStyle, EvaluationContext
@@ -17,20 +20,21 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import checks
 from django.core.management import CommandError, call_command
-from django.core.urlresolvers import reverse
 from django.db import connection, models
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from celery.app.task import Task
 
+import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.utils import json
 
 from . import (
     chunk_list,
-    dict_to_json,
     dict_to_struct,
     format_number,
     get_country_code_by_name,
@@ -44,7 +48,6 @@ from .currencies import currency_for_country
 from .dates import (
     date_to_utc_range,
     datetime_to_epoch,
-    datetime_to_json_date,
     datetime_to_ms,
     datetime_to_str,
     ms_to_datetime,
@@ -66,6 +69,7 @@ from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
 from .queues import HIGH_PRIORITY, LOW_PRIORITY, complete_task, nonoverlapping_task, push_task, start_task
+from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
@@ -226,11 +230,8 @@ class DatesTest(TembaTest):
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
 
-        self.assertEqual(datetime_to_str(d2), "2014-01-02T01:04:05.000006Z")  # no format
-        self.assertEqual(datetime_to_str(d2, format="%Y-%m-%d"), "2014-01-02")  # format provided
-        self.assertEqual(datetime_to_str(d2, tz=tz), "2014-01-02T03:04:05.000006Z")  # in specific timezone
-        self.assertEqual(datetime_to_str(d2, ms=False), "2014-01-02T01:04:05Z")  # no ms
-        self.assertEqual(datetime_to_str(d2.date()), "2014-01-02T00:00:00.000000Z")  # no ms
+        self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
+        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
 
     def test_datetime_to_epoch(self):
         dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
@@ -435,6 +436,86 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("icon-tree", icon(flow))
         self.assertEqual("", icon(None))
 
+    def test_pretty_datetime(self):
+        import pytz
+        from temba.utils.templatetags.temba import pretty_datetime
+
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.org.date_format = "D"
+            self.org.save()
+
+            context = dict(user_org=self.org)
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20 July 2012 19:05", pretty_datetime(context, test_date))
+
+            # the org has month first configured
+            self.org.date_format = "M"
+            self.org.save()
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("July 20, 2012 7:05 pm", pretty_datetime(context, test_date))
+
+    def test_short_datetime(self):
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            self.org.date_format = "D"
+            self.org.save()
+
+            context = dict(user_org=self.org)
+
+            # date without timezone
+            test_date = datetime.datetime.now()
+            modified_now = test_date.replace(hour=17, minute=5)
+            self.assertEqual("19:05", short_datetime(context, modified_now))
+
+            # given the time as now, should display as 24 hour time
+            now = timezone.now()
+            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
+            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
+
+            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            test_date = now.replace(day=2)
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
+
+            # last month should still be pretty
+            test_date = test_date.replace(month=2)
+            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
+
+            # but a different year is different
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("20/7/12", short_datetime(context, jan_2))
+
+            # the org has month first configured
+            self.org.date_format = "M"
+            self.org.save()
+
+            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
+            now = timezone.now()
+            modified_now = now.replace(hour=17, minute=5)
+            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
+
+            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            test_date = now.replace(day=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # last month should still be pretty
+            test_date = test_date.replace(month=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # but a different year is different
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("7/20/12", short_datetime(context, jan_2))
+
+
+class TemplateTagTestSimple(TestCase):
     def test_format_seconds(self):
         from temba.utils.templatetags.temba import format_seconds
 
@@ -489,6 +570,25 @@ class TemplateTagTest(TembaTest):
         self.assertEqual(", ", oxford(forloop(1, 4)))
         self.assertEqual(", and ", oxford(forloop(2, 4)))
         self.assertEqual(".", oxford(forloop(3, 4), "."))
+
+    def test_to_json(self):
+        from temba.utils.templatetags.temba import to_json
+
+        # only works with plain str objects
+        self.assertRaises(ValueError, to_json, dict())
+
+        self.assertEqual(to_json(json.dumps({})), 'JSON.parse("{}")')
+        self.assertEqual(to_json(json.dumps({"a": 1})), 'JSON.parse("{\\u0022a\\u0022: 1}")')
+        self.assertEqual(
+            to_json(json.dumps({"special": '"'})),
+            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u005C\\u0022\\u0022}")',
+        )
+
+        # ecapes special <script>
+        self.assertEqual(
+            to_json(json.dumps({"special": '<script>alert("XSS");</script>'})),
+            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u003Cscript\\u003Ealert(\\u005C\\u0022XSS\\u005C\\u0022)\\u003B\\u003C/script\\u003E\\u0022}")',
+        )
 
 
 class CacheTest(TembaTest):
@@ -626,10 +726,10 @@ class EmailTest(TembaTest):
             "{@flow.email}",
             "Abc.example.com",
             "A@b@c@example.com",
-            'a"b(c)d,e:f;g<h>i[j\k]l@example.com'
+            r'a"b(c)d,e:f;g<h>i[j\k]l@example.com'
             'just"not"right@example.com'
             'this is"not\allowed@example.com'
-            'this\ still"not\\allowed@example.com'
+            r'this\ still"not\\allowed@example.com'
             "1234567890123456789012345678901234567890123456789012345678901234+x@example.com"
             "john..doe@example.com"
             "john.doe@example..com"
@@ -680,12 +780,14 @@ class JsonTest(TembaTest):
         now = timezone.now().replace(microsecond=1000)
 
         # our dictionary to encode
-        source = dict(name="Date Test", age=10, now=now)
+        source = dict(name="Date Test", age=Decimal("10"), now=now)
 
         # encode it
-        encoded = dict_to_json(source)
+        encoded = json.dumps(source)
 
-        self.assertEqual(json.loads(encoded), {"name": "Date Test", "age": 10, "now": datetime_to_json_date(now)})
+        self.assertEqual(
+            json.loads(encoded), {"name": "Date Test", "age": Decimal("10"), "now": json.encode_datetime(now)}
+        )
 
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
@@ -695,11 +797,15 @@ class JsonTest(TembaTest):
         source["now"] = timezone.now().replace(microsecond=0)
 
         # encode it
-        encoded = dict_to_json(source)
+        encoded = json.dumps(source)
 
         # test the same using our object mocking
         mock = dict_to_struct("Mock", json.loads(encoded), ["now"])
         self.assertEqual(mock.now, source["now"])
+
+        # test that we throw with unknown types
+        with self.assertRaises(TypeError):
+            json.dumps(dict(foo=Exception("invalid")))
 
 
 class QueueTest(TembaTest):
@@ -785,20 +891,28 @@ class QueueTest(TembaTest):
 
         self.create_secondary_org()
 
-        args = [dict(task=i) for i in range(6)]
+        org1_tasks = [dict(task=0), dict(task=2), dict(task=4)]
+        org2_tasks = [dict(task=1), dict(task=3), dict(task=5)]
 
-        push_task(self.org, None, "test", args[4], LOW_PRIORITY)
-        push_task(self.org, None, "test", args[2])
-        push_task(self.org, None, "test", args[0], HIGH_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[2], LOW_PRIORITY)
+        push_task(self.org, None, "test", org1_tasks[1])
+        push_task(self.org, None, "test", org1_tasks[0], HIGH_PRIORITY)
 
-        push_task(self.org2, None, "test", args[3])
-        push_task(self.org2, None, "test", args[1], HIGH_PRIORITY)
-        push_task(self.org2, None, "test", args[5], LOW_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[1])
+        push_task(self.org2, None, "test", org2_tasks[0], HIGH_PRIORITY)
+        push_task(self.org2, None, "test", org2_tasks[2], LOW_PRIORITY)
+
+        started_tasks = [start_task("test")[1]["task"] for _ in org1_tasks + org2_tasks]
+
+        # creates groups of started tasks, each group has tasks started on different orgs
+        actual_start_order = list(set(task_group) for task_group in zip(*[iter(started_tasks)] * 2))
 
         # order should alternate between the two orgs (based on # of active workers)
-        for i in range(6):
-            task = start_task("test")[1]["task"]
-            self.assertEqual(i, task)
+        expected_start_order = [{0, 1}, {2, 3}, {4, 5}]
+
+        # check if actual start order pairs, are the same as expected start order pairs
+        for idx, pair in enumerate(actual_start_order):
+            self.assertSetEqual(pair, expected_start_order[idx])
 
         # each org should show 3 active works
         self.assertEqual(r.zscore("test:active", self.org.id), 3)
@@ -967,7 +1081,7 @@ class ExpressionsTest(TembaTest):
             ("Bonjour world", []), evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))', self.context)
         )  # string arguments
         self.assertRegex(
-            evaluate_template("Today is @(TODAY())", self.context)[0], "Today is \d\d-\d\d-\d\d\d\d"
+            evaluate_template("Today is @(TODAY())", self.context)[0], r"Today is \d\d-\d\d-\d\d\d\d"
         )  # function with no args
         self.assertEqual(
             ("3", []), evaluate_template("@(LEN( 1.2 ))", self.context)
@@ -1166,6 +1280,11 @@ class GSM7Test(TembaTest):
         # non breaking space
         replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
         self.assertEqual("Pour chercher du boulot, comment fais-tu ?", replaced)
+        self.assertTrue(is_gsm7(replaced))
+
+        # no tabs
+        replaced = replace_non_gsm7_accents("I am followed by a\x09tab")
+        self.assertEqual("I am followed by a tab", replaced)
         self.assertTrue(is_gsm7(replaced))
 
     def test_num_segments(self):
@@ -1466,7 +1585,7 @@ class VoiceXMLTest(TembaTest):
         )
 
         response = voicexml.VXMLResponse()
-        response.gather(action="http://example.com", numDigits=1, timeout=45, finishOnKey="*")
+        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
 
         self.assertEqual(
             str(response),
@@ -1489,7 +1608,7 @@ class VoiceXMLTest(TembaTest):
         )
 
         response = voicexml.VXMLResponse()
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
 
         self.assertEqual(
             str(response),
@@ -1584,7 +1703,7 @@ class NCCOTest(TembaTest):
         response.say("Hello")
         response.redirect("http://example.com/")
         response.say("Please make a recording")
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
         response.say("Thanks")
         response.say("Allo")
         response.say("Cool")
@@ -1674,7 +1793,7 @@ class NCCOTest(TembaTest):
         )
 
         response = NCCOResponse()
-        response.gather(action="http://example.com", numDigits=1, timeout=45, finishOnKey="*")
+        response.gather(action="http://example.com", num_digits=1, timeout=45, finish_on_key="*")
 
         self.assertEqual(
             json.loads(str(response)),
@@ -1703,7 +1822,7 @@ class NCCOTest(TembaTest):
         )
 
         response = NCCOResponse()
-        response.record(action="http://example.com", method="post", maxLength=60)
+        response.record(action="http://example.com", method="post", max_length=60)
 
         self.assertEqual(
             json.loads(str(response)),
@@ -1722,7 +1841,7 @@ class NCCOTest(TembaTest):
             ],
         )
         response = NCCOResponse()
-        response.record(action="http://example.com?param=12", method="post", maxLength=60)
+        response.record(action="http://example.com?param=12", method="post", max_length=60)
 
         self.assertEqual(
             json.loads(str(response)),
@@ -1805,7 +1924,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         self.assertEqual(
             User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12
         )
-        assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
+        assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
         assertOrgCounts(Contact.objects.filter(is_test=False), [18, 8, 4])
@@ -1944,6 +2063,13 @@ class TestJSONAsTextField(TestCase):
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
 
 
+class TestJSONField(TembaTest):
+    def test_jsonfield_decimal_encoding(self):
+        contact = self.create_contact("Xavier", number="+5939790990001")
+        contact.fields = {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.45")}}
+        contact.save(update_fields=("fields",), handle_update=False)
+
+
 class MatchersTest(TembaTest):
     def test_string(self):
         self.assertEqual("abc", matchers.String())
@@ -1999,3 +2125,289 @@ class NonBlockingLockTest(TestCase):
 
         # any other exceptions are handled as usual
         self.assertRaises(Exception, raise_exception)
+
+
+class JSONTest(TestCase):
+    def test_json(self):
+        self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
+        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1535402488123))))
+
+
+class AnalyticsTest(TestCase):
+    def setUp(self):
+        super().setUp()
+
+        # create org and user stubs
+        self.org = SimpleNamespace(
+            id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
+        )
+        self.admin = SimpleNamespace(
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com"
+        )
+
+        self.intercom_mock = MagicMock()
+        temba.utils.analytics._intercom = self.intercom_mock
+        temba.utils.analytics.init_analytics()
+
+    @override_settings(IS_PROD=False)
+    def test_identify_not_prod_env(self):
+        result = temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        self.assertIsNone(result)
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_identify_intercom_exception(self):
+        self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=True)
+    def test_identify_intercom(self):
+        temba.utils.analytics.identify(self.admin, "test", self.org)
+
+        # assert mocks
+        self.intercom_mock.users.create.assert_called_with(
+            custom_attributes={
+                "brand": "test",
+                "segment": mock.ANY,
+                "org": self.org.name,
+                "paid": self.org.account_value(),
+            },
+            email=self.admin.email,
+            name=" ",
+        )
+        self.assertListEqual(
+            self.intercom_mock.users.create.return_value.companies,
+            [
+                {
+                    "company_id": self.org.id,
+                    "name": self.org.name,
+                    "created_at": mock.ANY,
+                    "custom_attributes": {"brand": self.org.brand, "org_id": self.org.id},
+                }
+            ],
+        )
+        # did we actually call save?
+        self.intercom_mock.users.save.assert_called_once()
+
+    @override_settings(IS_PROD=True)
+    def test_track_intercom(self):
+        temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        self.intercom_mock.events.create.assert_called_with(
+            event_name="test event", created_at=mock.ANY, email=self.admin.email, metadata={"plan": "free"}
+        )
+
+    @override_settings(IS_PROD=False)
+    def test_track_not_prod_env(self):
+        result = temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.events.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_track_intercom_exception(self):
+        self.intercom_mock.events.create.side_effect = Exception("It's raining today")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=True)
+    def test_consent_missing_user(self):
+        self.intercom_mock.users.find.return_value = None
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_consent_invalid_user_decline(self):
+        self.intercom_mock.users.find.return_value = None
+        temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.delete.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user(self):
+
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user_already_consented(self):
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": True})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=True)
+
+        self.intercom_mock.users.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_consent_valid_user_decline(self):
+
+        # valid user which did not consent
+        self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": False})
+
+        temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.intercom_mock.users.create.assert_called_with(
+            email=self.admin.email, custom_attributes=dict(consent=False, consent_changed=mock.ANY)
+        )
+        self.intercom_mock.users.delete.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_consent_exception(self):
+        self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
+
+        with patch("temba.utils.analytics.logger") as mocked_logging:
+            temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
+
+    @override_settings(IS_PROD=False)
+    def test_consent_not_prod_env(self):
+        result = temba.utils.analytics.change_consent(self.admin.email, consent=False)
+
+        self.assertIsNone(result)
+        self.intercom_mock.users.find.assert_not_called()
+        self.intercom_mock.users.create.assert_not_called()
+        self.intercom_mock.users.delete.assert_not_called()
+
+    def test_get_intercom_user(self):
+        temba.utils.analytics.get_intercom_user(email="an email")
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+    def test_get_intercom_user_resourcenotfound(self):
+        self.intercom_mock.users.find.side_effect = intercom.errors.ResourceNotFound
+
+        result = temba.utils.analytics.get_intercom_user(email="an email")
+
+        self.assertIsNone(result)
+
+    @override_settings(IS_PROD=False)
+    def test_set_orgs_not_prod_env(self):
+        result = temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.users.find.assert_not_called()
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_invalid_user(self):
+        self.intercom_mock.users.find.return_value = None
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+        self.intercom_mock.users.save.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_same_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertEqual(intercom_user.companies, [{"company_id": self.org.id, "name": self.org.name}])
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_new_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertListEqual(
+            intercom_user.companies,
+            [{"company_id": self.org.id, "name": self.org.name}, {"company_id": -1, "remove": True}],
+        )
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=True)
+    def test_set_orgs_valid_user_without_a_company(self):
+        intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
+        self.intercom_mock.users.find.return_value = intercom_user
+
+        # we are not setting any org for the user
+        temba.utils.analytics.set_orgs(email="an email", all_orgs=[])
+
+        self.intercom_mock.users.find.assert_called_with(email="an email")
+
+        self.assertListEqual(
+            intercom_user.companies, [{"company_id": -1, "remove": True}, {"company_id": self.org.id, "remove": True}]
+        )
+
+        self.intercom_mock.users.save.assert_called_with(mock.ANY)
+
+    @override_settings(IS_PROD=False)
+    def test_identify_org_not_prod_env(self):
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_identify_org_empty_attributes(self):
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_called_with(
+            company_id=self.org.id,
+            created_at=mock.ANY,
+            custom_attributes={"brand": self.org.brand, "org_id": self.org.id},
+            name=self.org.name,
+        )
+
+    @override_settings(IS_PROD=True)
+    def test_identify_org_with_attributes(self):
+        attributes = dict(
+            website="https://example.com",
+            industry="Mining",
+            monthly_spend="a lot",
+            this_is_not_an_intercom_attribute="or is it?",
+        )
+
+        result = temba.utils.analytics.identify_org(org=self.org, attributes=attributes)
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.companies.create.assert_called_with(
+            company_id=self.org.id,
+            created_at=mock.ANY,
+            custom_attributes={
+                "brand": self.org.brand,
+                "org_id": self.org.id,
+                "this_is_not_an_intercom_attribute": "or is it?",
+            },
+            name=self.org.name,
+            website="https://example.com",
+            industry="Mining",
+            monthly_spend="a lot",
+        )

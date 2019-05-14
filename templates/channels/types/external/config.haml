@@ -101,3 +101,19 @@
     id=2599235
 %hr
 
+
+%h4
+  -trans "Contact Opt out/Stopped URL"
+  %code
+    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+
+%p
+  -blocktrans
+    If this channel provides a way for contacts to opt out and stop receiving messages,
+    the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
+%pre.prettyprint.example<
+  :plain
+    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+    from=%2B250788123123
+%hr
+

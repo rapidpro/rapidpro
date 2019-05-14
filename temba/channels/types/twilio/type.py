@@ -1,5 +1,4 @@
-
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -52,16 +51,17 @@ class TwilioType(ChannelType):
         try:
             try:
                 number_sid = channel.bod or channel.config.get("number_sid")
-                client.phone_numbers.update(number_sid, **number_update_args)
+                client.api.incoming_phone_numbers.get(number_sid).update(**number_update_args)
             except Exception:
                 if client:
-                    matching = client.phone_numbers.list(phone_number=channel.address)
-                    if matching:
-                        client.phone_numbers.update(matching[0].sid, **number_update_args)
+                    matching = client.api.incoming_phone_numbers.stream(phone_number=channel.address)
+                    first_match = next(matching, None)
+                    if first_match:
+                        client.api.incoming_phone_numbers.get(first_match.sid).update(**number_update_args)
 
             if "application_sid" in config:
                 try:
-                    client.applications.delete(sid=config["application_sid"])
+                    client.api.applications.get(sid=config["application_sid"]).delete()
                 except TwilioRestException:  # pragma: no cover
                     pass
 

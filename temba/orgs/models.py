@@ -10,7 +10,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -27,9 +27,9 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.core.urlresolvers import reverse
 from django.db import models, transaction
 from django.db.models import F, Prefetch, Q, Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -46,6 +46,7 @@ from temba.utils.email import send_custom_smtp_email, send_simple_email, send_te
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
+from temba.values.constants import Value
 
 EARLIEST_IMPORT_VERSION = "3"
 
@@ -105,12 +106,7 @@ TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
 TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
 TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
 
-SMTP_FROM_EMAIL = "SMTP_FROM_EMAIL"
-SMTP_HOST = "SMTP_HOST"
-SMTP_USERNAME = "SMTP_USERNAME"
-SMTP_PASSWORD = "SMTP_PASSWORD"
-SMTP_PORT = "SMTP_PORT"
-SMTP_ENCRYPTION = "SMTP_ENCRYPTION"
+SMTP_SERVER = "smtp_server"
 
 CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
 CHATBASE_API_KEY = "CHATBASE_API_KEY"
@@ -173,6 +169,8 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     plan = models.CharField(
@@ -289,6 +287,10 @@ class Org(SmartModel):
 
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
+    )
+
+    flow_server_enabled = models.BooleanField(
+        default=False, help_text=_("Whether flows and messages should be handled by the flow server")
     )
 
     parent = models.ForeignKey(
@@ -531,14 +533,13 @@ class Org(SmartModel):
         from temba.contacts.models import ContactURN
 
         if contact_urn:
-            if contact_urn:
-                scheme = contact_urn.scheme
+            scheme = contact_urn.scheme
 
-                # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active:
-                    previous_sender = self.get_channel_delegate(contact_urn.channel, role)
-                    if previous_sender:
-                        return previous_sender
+            # if URN has a previously used channel that is still active, use that
+            if contact_urn.channel and contact_urn.channel.is_active:
+                previous_sender = self.get_channel_delegate(contact_urn.channel, role)
+                if previous_sender:
+                    return previous_sender
 
             if scheme == TEL_SCHEME:
                 path = contact_urn.path
@@ -556,7 +557,7 @@ class Org(SmartModel):
                 channels = []
                 if country_code:
                     for c in self.cached_channels:
-                        if c.country == country_code:
+                        if c.country == country_code and TEL_SCHEME in c.schemes:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
@@ -775,54 +776,39 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
-        smtp_config = {
-            SMTP_FROM_EMAIL: from_email.strip(),
-            SMTP_HOST: host,
-            SMTP_USERNAME: username,
-            SMTP_PASSWORD: password,
-            SMTP_PORT: port,
-            SMTP_ENCRYPTION: encryption,
-        }
+    def add_smtp_config(self, from_email, host, username, password, port, user):
+        query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
         config = self.config
-        config.update(smtp_config)
+        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password)}@{host}:{port}/?{query}"})
         self.config = config
         self.modified_by = user
         self.save()
 
     def remove_smtp_config(self, user):
         if self.config:
-
-            self.config.pop(SMTP_FROM_EMAIL)
-            self.config.pop(SMTP_HOST)
-            self.config.pop(SMTP_USERNAME)
-            self.config.pop(SMTP_PASSWORD)
-            self.config.pop(SMTP_PORT)
-            self.config.pop(SMTP_ENCRYPTION)
+            self.config.pop(SMTP_SERVER)
             self.modified_by = user
             self.save()
 
     def has_smtp_config(self):
         if self.config:
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-
-            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            return bool(smtp_server)
         else:
             return False
 
     def email_action_send(self, recipients, subject, body):
         if self.has_smtp_config():
-            smtp_from_email = self.config.get(SMTP_FROM_EMAIL, None)
-            smtp_host = self.config.get(SMTP_HOST, None)
-            smtp_port = self.config.get(SMTP_PORT, None)
-            smtp_username = self.config.get(SMTP_USERNAME, None)
-            smtp_password = self.config.get(SMTP_PASSWORD, None)
-            use_tls = self.config.get(SMTP_ENCRYPTION, None) == "T" or None
+            smtp_server = self.config.get(SMTP_SERVER, None)
+            parsed_smtp_server = urlparse(smtp_server)
+            smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
+            use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
+
+            smtp_host = parsed_smtp_server.hostname
+            smtp_port = parsed_smtp_server.port
+            smtp_username = unquote(parsed_smtp_server.username)
+            smtp_password = unquote(parsed_smtp_server.password)
 
             send_custom_smtp_email(
                 recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
@@ -1120,7 +1106,7 @@ class Org(SmartModel):
         """
         formats = get_datetime_format(self.get_dayfirst())
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, False, self.timezone)
+        return datetime_to_str(datetime, format, self.timezone)
 
     def parse_datetime(self, datetime_string):
         if isinstance(datetime_string, datetime):
@@ -1328,6 +1314,46 @@ class Org(SmartModel):
         self.all_groups.create(
             name="Stopped Contacts",
             group_type=ContactGroup.TYPE_STOPPED,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+
+    def create_system_contact_fields(self):
+        from temba.contacts.models import ContactField
+
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("ID"),
+            key="id",
+            value_type=Value.TYPE_NUMBER,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Created On"),
+            key="created_on",
+            value_type=Value.TYPE_DATETIME,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Contact Name"),
+            key="name",
+            value_type=Value.TYPE_TEXT,
+            show_in_table=False,
+            created_by=self.created_by,
+            modified_by=self.modified_by,
+        )
+        ContactField.system_fields.create(
+            org_id=self.id,
+            label=_("Language"),
+            key="language",
+            value_type=Value.TYPE_TEXT,
+            show_in_table=False,
             created_by=self.created_by,
             modified_by=self.modified_by,
         )
@@ -1707,7 +1733,7 @@ class Org(SmartModel):
 
         # build an ordered dictionary of key->contact field
         fields = OrderedDict()
-        for cf in ContactField.objects.filter(org=self, is_active=True).order_by("key"):
+        for cf in ContactField.user_fields.filter(org=self, is_active=True).order_by("key"):
             cf.org = self
             fields[cf.key] = cf
 
@@ -1836,7 +1862,7 @@ class Org(SmartModel):
         except ValidationError as e:
             raise e
 
-        except Exception as e:
+        except Exception:
             logger = logging.getLogger(__name__)
             logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(
@@ -1940,15 +1966,13 @@ class Org(SmartModel):
         campaign_prefetches = (
             Prefetch(
                 "events",
-                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE),
+                queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__is_system=True),
                 to_attr="flow_events",
             ),
             "flow_events__flow",
         )
 
-        all_flows = (
-            self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
-        )
+        all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
         all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:
@@ -2035,6 +2059,7 @@ class Org(SmartModel):
             branding = BrandingMiddleware.get_branding_for_host("")
 
         self.create_system_groups()
+        self.create_system_contact_fields()
         self.create_sample_flows(branding.get("api_link", ""))
         self.create_welcome_topup(topup_size)
 
@@ -2117,12 +2142,7 @@ class Org(SmartModel):
         path = "%s/%d/media/%s" % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = public_file_storage.save(path, file)
 
-        # force http for localhost
-        scheme = "https"
-        if "localhost" in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
-            scheme = "http"
-
-        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
+        return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, *, release_users=True, immediately=False):
 
@@ -2182,6 +2202,11 @@ class Org(SmartModel):
             contact.release(contact.modified_by)
             contact.delete()
 
+        # delete our contacts
+        for contactfield in self.contactfields(manager="all_fields").all():
+            contactfield.release(contactfield.modified_by)
+            contactfield.delete()
+
         # and all of the groups
         for group in self.all_groups.all():
             group.release()
@@ -2191,7 +2216,7 @@ class Org(SmartModel):
         for flow in self.flows.all():
 
             # we want to manually release runs so we dont fire a task to do it
-            flow.release(release_runs=False)
+            flow.release()
             flow.release_runs()
 
             for rev in flow.revisions.all():
@@ -2203,8 +2228,8 @@ class Org(SmartModel):
 
             flow.delete()
 
-        for archive in self.archives.all():
-            archive.release()
+        # release all archives objects and files for this org
+        Archive.release_org_archives(self)
 
         # return any unused credits to our parent
         if self.parent:
@@ -2332,7 +2357,7 @@ def _user_has_org_perm(user, org, permission):
     if user.is_superuser:  # pragma: needs cover
         return True
 
-    if user.is_anonymous():  # pragma: needs cover
+    if user.is_anonymous:  # pragma: needs cover
         return False
 
     # has it innately? (customer support)
@@ -2394,7 +2419,7 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text=None):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text=""):
         """
         Returns the appropriate translation to use.
         :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code

@@ -1,6 +1,6 @@
+from unittest.mock import patch
 
-from mock import patch
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django.urls import reverse
 
@@ -12,7 +12,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 class TwilioTypeTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
 
@@ -62,7 +62,7 @@ class TwilioTypeTest(TembaTest):
             self.assertIn("account_trial", response.context)
             self.assertTrue(response.context["account_trial"])
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.search") as mock_search:
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_search:
             search_url = reverse("channels.channel_search_numbers")
 
             # try making empty request
@@ -72,11 +72,11 @@ class TwilioTypeTest(TembaTest):
             # try searching for US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+12062345678")]
             response = self.client.post(search_url, {"country": "US", "area_code": "206"})
-            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678", "+1 206-234-5678"])
 
             # try searching without area code
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
-            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678"])
+            self.assertEqual(response.json(), ["+1 206-234-5678", "+1 206-234-5678", "+1 206-234-5678"])
 
             mock_search.return_value = []
             response = self.client.post(search_url, {"country": "US", "area_code": ""})
@@ -87,7 +87,7 @@ class TwilioTypeTest(TembaTest):
             # try searching for non-US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber("+442812345678")]
             response = self.client.post(search_url, {"country": "GB", "area_code": "028"})
-            self.assertEqual(response.json(), ["+44 28 1234 5678", "+44 28 1234 5678"])
+            self.assertEqual(response.json(), ["+44 28 1234 5678", "+44 28 1234 5678", "+44 28 1234 5678"])
 
             mock_search.return_value = []
             response = self.client.post(search_url, {"country": "GB", "area_code": ""})
@@ -95,11 +95,11 @@ class TwilioTypeTest(TembaTest):
                 response.json()["error"], "Sorry, no numbers found, please enter another pattern and try again."
             )
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
-            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+12062345678")]
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
+            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+12062345678")])
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
-                mock_short_codes.return_value = []
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
+                mock_short_codes.return_value = iter([])
 
                 response = self.client.get(claim_twilio)
                 self.assertContains(response, "206-234-5678")
@@ -121,29 +121,33 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         # voice only number
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
-            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+554139087835")]
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
+            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835")])
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
-                mock_short_codes.return_value = []
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
+                mock_short_codes.return_value = iter([])
                 Channel.objects.all().delete()
 
-                response = self.client.get(claim_twilio)
-                self.assertContains(response, "+55 41 3908-7835")
+                with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.get") as mock_numbers_get:
+                    mock_numbers_get.return_value = MockTwilioClient.MockPhoneNumber("+554139087835")
 
-                # claim it
-                response = self.client.post(claim_twilio, dict(country="BR", phone_number="554139087835"))
-                self.assertRedirects(response, reverse("public.public_welcome") + "?success")
+                    response = self.client.get(claim_twilio)
+                    self.assertContains(response, "+55 41 3908-7835")
 
-                # make sure it is actually connected
-                channel = Channel.objects.get(channel_type="T", org=self.org)
-                self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
+                    # claim it
+                    mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835")])
+                    response = self.client.post(claim_twilio, dict(country="BR", phone_number="554139087835"))
+                    self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
-            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber("+4545335500")]
+                    # make sure it is actually connected
+                    channel = Channel.objects.get(channel_type="T", org=self.org)
+                    self.assertEqual(channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
-                mock_short_codes.return_value = []
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
+            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+4545335500")])
+
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
+                mock_short_codes.return_value = iter([])
 
                 Channel.objects.all().delete()
 
@@ -158,27 +162,32 @@ class TwilioTypeTest(TembaTest):
                 # make sure it is actually connected
                 Channel.objects.get(channel_type="T", org=self.org)
 
-        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.list") as mock_numbers:
-            mock_numbers.return_value = []
+        with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
+            mock_numbers.return_value = iter([])
 
-            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.list") as mock_short_codes:
-                mock_short_codes.return_value = [MockTwilioClient.MockShortCode("8080")]
-                Channel.objects.all().delete()
+            with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
+                mock_short_codes.return_value = iter([MockTwilioClient.MockShortCode("8080")])
 
-                self.org.timezone = "America/New_York"
-                self.org.save()
+                with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.get") as mock_short_codes_get:
+                    mock_short_codes_get.return_value = MockTwilioClient.MockShortCode("8080")
 
-                response = self.client.get(claim_twilio)
-                self.assertContains(response, "8080")
-                self.assertContains(response, 'class="country">US')  # we look up the country from the timezone
+                    Channel.objects.all().delete()
 
-                # claim it
-                response = self.client.post(claim_twilio, dict(country="US", phone_number="8080"))
-                self.assertRedirects(response, reverse("public.public_welcome") + "?success")
-                self.assertEqual(mock_numbers.call_args_list[0][1], {"page_size": 1000})
+                    self.org.timezone = "America/New_York"
+                    self.org.save()
 
-                # make sure it is actually connected
-                Channel.objects.get(channel_type="T", org=self.org)
+                    response = self.client.get(claim_twilio)
+                    self.assertContains(response, "8080")
+                    self.assertContains(response, 'class="country">US')  # we look up the country from the timezone
+
+                    # claim it
+                    mock_short_codes.return_value = iter([MockTwilioClient.MockShortCode("8080")])
+                    response = self.client.post(claim_twilio, dict(country="US", phone_number="8080"))
+                    self.assertRedirects(response, reverse("public.public_welcome") + "?success")
+                    self.assertEqual(mock_numbers.call_args_list[0][1], {"page_size": 1000})
+
+                    # make sure it is actually connected
+                    Channel.objects.get(channel_type="T", org=self.org)
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications
@@ -187,7 +196,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual("T", twilio_channel.channel_type)
 
         with self.settings(IS_PROD=True):
-            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.update") as mock_numbers:
+            with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumber.update") as mock_numbers:
                 # our twilio channel removal should fail on bad auth
                 mock_numbers.side_effect = TwilioRestException(
                     401, "http://twilio", msg="Authentication Failure", code=20003
@@ -209,7 +218,7 @@ class TwilioTypeTest(TembaTest):
                 )
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):
 
         # make our channel of the twilio ilk

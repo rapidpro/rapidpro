@@ -1,6 +1,6 @@
-
 import logging
 import time
+from random import randint
 
 import analytics as segment_analytics
 from intercom.client import Client as IntercomClient
@@ -10,7 +10,7 @@ from librato_bg import Client as LibratoClient
 from django.conf import settings
 from django.utils import timezone
 
-from temba.utils.dates import datetime_to_json_date
+from temba.utils import json
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def init_analytics():  # pragma: no cover
         _librato = LibratoClient(librato_user, librato_token)
 
 
-def get_intercom_user(email):  # pragma: no cover
+def get_intercom_user(email):
     try:
         return _intercom.users.find(email=email)
     except ResourceNotFound:
@@ -73,12 +73,15 @@ def gauge(event, value=None):  # pragma: no cover
         _librato.gauge(event, value, reporting_hostname)
 
 
-def identify_org(org, attributes={}):  # pragma: no cover
+def identify_org(org, attributes=None):
     """
     Creates and identifies an org on our analytics backends where appropriate
     """
     if not settings.IS_PROD:
         return
+
+    if not attributes:
+        attributes = {}
 
     if _intercom:
 
@@ -94,13 +97,13 @@ def identify_org(org, attributes={}):  # pragma: no cover
         _intercom.companies.create(
             company_id=org.id,
             name=org.name,
-            created_at=datetime_to_json_date(org.created_on),
+            created_at=json.encode_datetime(org.created_on),
             custom_attributes=attributes,
-            **intercom_attributes
+            **intercom_attributes,
         )
 
 
-def identify(email, name, attributes, orgs=[]):  # pragma: no cover
+def identify(user, brand, org):
     """
     Creates and identifies a new user to our analytics backends. It is ok to call this with an
     existing user, their name and attributes will just be updated.
@@ -109,9 +112,17 @@ def identify(email, name, attributes, orgs=[]):  # pragma: no cover
     if not settings.IS_PROD:
         return
 
+    attributes = dict(
+        email=user.username, first_name=user.first_name, segment=randint(1, 10), last_name=user.last_name, brand=brand
+    )
+    user_name = f"{user.first_name} {user.last_name}"
+    if org:
+        attributes["org"] = org.name
+        attributes["paid"] = org.account_value()
+
     # post to segment if configured
-    if _segment:
-        segment_analytics.identify(email, attributes)
+    if _segment:  # pragma: no cover
+        segment_analytics.identify(user.username, attributes)
 
     # post to intercom if configured
     if _intercom:
@@ -120,24 +131,23 @@ def identify(email, name, attributes, orgs=[]):  # pragma: no cover
             for key in ("first_name", "last_name", "email"):
                 attributes.pop(key, None)
 
-            intercom_user = _intercom.users.create(email=email, name=name, custom_attributes=attributes)
+            intercom_user = _intercom.users.create(email=user.username, name=user_name, custom_attributes=attributes)
 
             intercom_user.companies = [
                 dict(
                     company_id=org.id,
                     name=org.name,
-                    created_at=datetime_to_json_date(org.created_on),
+                    created_at=json.encode_datetime(org.created_on),
                     custom_attributes=dict(brand=org.brand, org_id=org.id),
                 )
-                for org in orgs
             ]
 
             _intercom.users.save(intercom_user)
-        except:
+        except Exception:
             logger.error("error posting to intercom", exc_info=True)
 
 
-def set_orgs(email, all_orgs):  # pragma: no cover
+def set_orgs(email, all_orgs):
     """
     Sets a user's orgs to canonical set of orgs it they aren't archived
     """
@@ -152,16 +162,18 @@ def set_orgs(email, all_orgs):  # pragma: no cover
         # if the user is archived this is a noop
         if intercom_user:
             companies = [dict(company_id=org.id, name=org.name) for org in all_orgs]
+
             for company in intercom_user.companies:
                 if not any(int(company.company_id) == c.get("company_id") for c in companies):
                     companies.append(dict(company_id=company.company_id, remove=True))
+
             intercom_user.companies = companies
             _intercom.users.save(intercom_user)
 
 
-def change_consent(email, consent):  # pragma: no cover
+def change_consent(email, consent):
     """
-    Notities analytics backends of a user's consent status.
+    Notifies analytics backends of a user's consent status.
     """
     # no op if we aren't prod
     if not settings.IS_PROD:
@@ -169,13 +181,12 @@ def change_consent(email, consent):  # pragma: no cover
 
     if _intercom:
         try:
-            change_date = datetime_to_json_date(timezone.now())
+            change_date = json.encode_datetime(timezone.now())
 
             user = get_intercom_user(email)
 
             if consent:
                 if not user or not user.custom_attributes.get("consent", False):
-                    print(email, "consents")
                     _intercom.users.create(
                         email=email, custom_attributes=dict(consent=consent, consent_changed=change_date)
                     )
@@ -188,11 +199,11 @@ def change_consent(email, consent):  # pragma: no cover
                     # this archives a user on intercom so they are no longer processed
                     _intercom.users.delete(user)
 
-        except:
+        except Exception:
             logger.error("error posting to intercom", exc_info=True)
 
 
-def track(email, event, properties=None, context=None):  # pragma: no cover
+def track(email, event_name, properties=None, context=None):
     """
     Tracks the passed in event for the passed in user in all configured analytics backends.
     """
@@ -201,7 +212,7 @@ def track(email, event, properties=None, context=None):  # pragma: no cover
         return
 
     # post to segment if configured
-    if _segment:
+    if _segment:  # pragma: no cover
         # create a context if none was passed in
         if context is None:
             context = dict()
@@ -218,16 +229,16 @@ def track(email, event, properties=None, context=None):  # pragma: no cover
             properties["value"] = 1
 
         # call through to the real segment.io analytics
-        segment_analytics.track(email, event, properties, context)
+        segment_analytics.track(email, event_name, properties, context)
 
     # post to intercom if configured
     if _intercom:
         try:
             _intercom.events.create(
-                event_name=event,
+                event_name=event_name,
                 created_at=int(time.mktime(time.localtime())),
                 email=email,
                 metadata=properties if properties else {},
             )
-        except:
+        except Exception:
             logger.error("error posting to intercom", exc_info=True)

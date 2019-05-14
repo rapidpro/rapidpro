@@ -1,10 +1,9 @@
-# coding=utf-8
-
 import fnmatch
-import json
 import sys
 import time
 from datetime import datetime, timedelta
+
+import pytz
 
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
@@ -13,6 +12,7 @@ from django.utils.timezone import now
 
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
+from temba.utils import json
 from temba.utils.dates import datetime_to_str, get_datetime_format
 
 # default number of times per org to request each URL to determine min/max times
@@ -34,7 +34,9 @@ ALLOWED_CHANGE_PERCENTAGE = 5
 URL_CONTEXT_TEMPLATE = {
     "first-group": lambda org: ContactGroup.user_groups.filter(org=org).order_by("id").first().uuid,
     "last-group": lambda org: ContactGroup.user_groups.filter(org=org).order_by("-id").first().uuid,
-    "1-year-ago": lambda org: datetime_to_str(now() - timedelta(days=365), get_datetime_format(org.get_dayfirst())[0]),
+    "1-year-ago": lambda org: datetime_to_str(
+        now() - timedelta(days=365), get_datetime_format(org.get_dayfirst())[0], pytz.UTC
+    ),
 }
 
 TEST_URLS = (

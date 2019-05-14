@@ -1,4 +1,3 @@
-
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -32,6 +31,7 @@ class ExternalTypeTest(TembaTest):
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
         post_data["encoding"] = Channel.ENCODING_SMART
+        post_data["mt_response_check"] = "SENT"
 
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
@@ -45,6 +45,8 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
+        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
@@ -56,6 +58,7 @@ class ExternalTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "delivered"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "failed"]))
         self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "receive"]))
+        self.assertContains(response, reverse("courier.ex", args=[channel.uuid, "stopped"]))
 
         # test substitution in our url
         self.assertEqual(
@@ -86,3 +89,43 @@ class ExternalTypeTest(TembaTest):
             '{ body: "this is \\"quote\\"" }',
             channel.replace_variables(body, {"text": 'this is "quote"'}, Channel.CONTENT_TYPE_JSON),
         )
+
+    def test_claim_bulk_sender(self):
+        url = reverse("channels.types.external.claim") + "?role=S&channel=%s" % self.channel.pk
+
+        self.login(self.admin)
+
+        response = self.client.get(url)
+        self.assertEqual(
+            set(response.context["form"].fields.keys()),
+            set(["url", "method", "encoding", "content_type", "max_length", "body", "mt_response_check", "loc"]),
+        )
+
+        post_data = response.context["form"].initial
+
+        ext_url = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"
+
+        post_data["url"] = ext_url
+        post_data["method"] = "POST"
+        post_data["body"] = "send=true"
+        post_data["content_type"] = Channel.CONTENT_TYPE_JSON
+        post_data["max_length"] = 180
+        post_data["encoding"] = Channel.ENCODING_SMART
+        post_data["mt_response_check"] = "SENT"
+
+        response = self.client.post(url, post_data)
+        channel = Channel.objects.filter(org=self.org).exclude(pk=self.channel.pk).first()
+
+        self.assertEqual(channel.country, "RW")
+        self.assertTrue(channel.uuid)
+        self.assertEqual(self.channel.address, channel.address)
+        self.assertEqual(post_data["url"], channel.config[Channel.CONFIG_SEND_URL])
+        self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
+        self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
+        self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(channel.channel_type, "EX")
+        self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
+        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
+        self.assertEqual(channel.role, "S")
+        self.assertEqual(channel.parent, self.channel)

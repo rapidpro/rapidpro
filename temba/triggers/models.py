@@ -23,7 +23,6 @@ class Trigger(SmartModel):
     """
 
     TYPE_CATCH_ALL = "C"
-    TYPE_FOLLOW = "F"
     TYPE_KEYWORD = "K"
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"
@@ -38,7 +37,6 @@ class Trigger(SmartModel):
         (TYPE_INBOUND_CALL, _("Inbound Call Trigger")),
         (TYPE_MISSED_CALL, _("Missed Call Trigger")),
         (TYPE_CATCH_ALL, _("Catch All Trigger")),
-        (TYPE_FOLLOW, _("Follow Account Trigger")),
         (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
         (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
         (TYPE_REFERRAL, _("Referral Trigger")),
@@ -331,7 +329,7 @@ class Trigger(SmartModel):
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
-        if trigger_type in [Trigger.TYPE_FOLLOW, Trigger.TYPE_NEW_CONVERSATION, Trigger.TYPE_REFERRAL]:
+        if trigger_type in [Trigger.TYPE_NEW_CONVERSATION, Trigger.TYPE_REFERRAL]:
             triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
 
         if referrer_id is not None:
@@ -340,6 +338,8 @@ class Trigger(SmartModel):
             # if we catch more than one trigger with a referrer_id, ignore the catchall
             if len(triggers) > 1:
                 triggers = triggers.exclude(referrer_id="")
+        elif trigger_type == Trigger.TYPE_REFERRAL:
+            triggers = triggers.filter(referrer_id="")
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list("pk", flat=True)
@@ -449,7 +449,7 @@ class Trigger(SmartModel):
     @classmethod
     def find_trigger_for_ussd_session(cls, contact, starcode):
         # Determine keyword from starcode
-        matched_object = regex.match("(^\*[\d\*]+\#)((?:\d+\#)*)$", starcode)
+        matched_object = regex.match(r"(^\*[\d\*]+\#)((?:\d+\#)*)$", starcode)
         if matched_object:
             keyword = matched_object.group(1)
         else:

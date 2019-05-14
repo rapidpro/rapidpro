@@ -1,4 +1,3 @@
-
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -56,9 +55,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         encoding = forms.ChoiceField(
-            Channel.ENCODING_CHOICES,
+            choices=Channel.ENCODING_CHOICES,
             label=_("Encoding"),
-            help_text=_("What encoding to use for outgoing messages, used only for HTTP GET"),
+            help_text=_("What encoding to use for outgoing messages"),
         )
 
         content_type = forms.ChoiceField(
@@ -87,6 +86,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"),
         )
 
+        mt_response_check = forms.CharField(
+            max_length=2048,
+            label=_("MT Response check"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The content that must be in the response to consider the request successful"),
+        )
+
     class SendClaimForm(ClaimViewMixin.Form):
         url = forms.URLField(
             max_length=1024,
@@ -100,9 +107,37 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         encoding = forms.ChoiceField(
-            Channel.ENCODING_CHOICES,
+            choices=Channel.ENCODING_CHOICES,
             label=_("Encoding"),
-            help_text=_("What encoding to use for outgoing messages, used only for HTTP GET"),
+            help_text=_("What encoding to use for outgoing messages"),
+        )
+
+        content_type = forms.ChoiceField(
+            choices=Channel.CONTENT_TYPE_CHOICES, help_text=_("The content type used when sending the request")
+        )
+
+        max_length = forms.IntegerField(
+            initial=160,
+            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            help_text=_(
+                "The maximum length of any single message on this channel. " "(longer messages will be split)"
+            ),
+        )
+
+        body = forms.CharField(
+            max_length=2048,
+            label=_("Request Body"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"),
+        )
+
+        mt_response_check = forms.CharField(
+            max_length=2048,
+            label=_("MT Response check"),
+            required=False,
+            widget=forms.Textarea,
+            help_text=_("The content that must be in the response to consider the request successful"),
         )
 
     title = "Connect External Service"
@@ -158,6 +193,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         if "body" in data:
             config[Channel.CONFIG_SEND_BODY] = data["body"]
+
+        if "mt_response_check" in data:
+            config[Channel.CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
 
         self.object = Channel.add_config_external_channel(
             org, self.request.user, country, address, self.channel_type, config, role, [scheme], parent=channel

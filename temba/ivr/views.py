@@ -1,5 +1,3 @@
-import json
-
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -10,6 +8,7 @@ from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog, ChannelType
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
+from temba.utils import json
 from temba.utils.http import HttpEvent
 
 
@@ -41,7 +40,7 @@ class CallHandler(View):
         request_path = request.get_full_path()
 
         if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML and request.POST.get("hangup", 0):
-            if not request.user.is_anonymous():
+            if not request.user.is_anonymous:
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
                     client.hangup(call)

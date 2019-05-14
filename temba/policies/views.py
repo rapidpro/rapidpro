@@ -3,9 +3,9 @@ from gettext import gettext as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView
 
 from django import forms
-from django.core.urlresolvers import reverse
 from django.db.models import Max
 from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.orgs.views import OrgPermsMixin
@@ -65,6 +65,7 @@ class PolicyCRUDL(SmartCRUDL):
     class List(SmartListView):
         title = _("Your Privacy")
         permission = None
+        link_fields = ()
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
@@ -75,7 +76,7 @@ class PolicyCRUDL(SmartCRUDL):
 
             user = self.request.user
 
-            if not user.is_anonymous():
+            if not user.is_anonymous:
                 needs_consent = Policy.get_policies_needing_consent(user)
                 context["needs_consent"] = needs_consent
 

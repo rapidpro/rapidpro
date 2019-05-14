@@ -1,6 +1,6 @@
+from unittest.mock import patch
 
-from mock import patch
-from twilio import TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django.urls import reverse
 
@@ -12,7 +12,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 class TwilioMessagingServiceTypeTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
-    @patch("twilio.util.RequestValidator", MockRequestValidator)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
 
         self.login(self.admin)

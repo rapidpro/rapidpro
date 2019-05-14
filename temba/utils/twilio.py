@@ -1,9 +1,6 @@
-
-import json
 from urllib.parse import urlencode
 
-from twilio.rest import UNSET_TIMEOUT, Calls, Messages, TwilioRestClient
-from twilio.rest.resources import Resource, make_twilio_request
+from twilio.rest import Client
 
 from django.utils.encoding import force_text
 
@@ -19,20 +16,12 @@ def encode_atom(atom):  # pragma: no cover
         raise ValueError("list elements should be an integer, " "binary, or string")
 
 
-class LoggingResource(Resource):  # pragma: no cover
+class TembaTwilioRestClient(Client):  # pragma: no cover
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.events = []
 
     def request(self, method, uri, **kwargs):
-        """
-        Send an HTTP request to the resource.
-
-        :raises: a :exc:`~twilio.TwilioRestException`
-        """
-        if "timeout" not in kwargs and self.timeout is not UNSET_TIMEOUT:
-            kwargs["timeout"] = self.timeout
-
         data = kwargs.get("data")
         if data is not None:
             udata = {}
@@ -46,34 +35,14 @@ class LoggingResource(Resource):  # pragma: no cover
                     raise ValueError("data should be an integer, " "binary, or string, or sequence ")
             data = urlencode(udata, doseq=True)
 
+        del kwargs["auth"]
         event = HttpEvent(method, uri, data)
-        self.events.append(event)
-        resp = make_twilio_request(method, uri, auth=self.auth, **kwargs)
+        if "/messages" in uri.lower() or "/calls" in uri.lower():
+            self.events.append(event)
+        resp = super().request(method, uri, auth=self.auth, **kwargs)
 
-        event.url = resp.url
+        event.url = uri
         event.status_code = resp.status_code
         event.response_body = force_text(resp.content)
 
-        if method == "DELETE":
-            return resp, {}
-        else:
-            return resp, json.loads(resp.content)
-
-
-class LoggingCalls(LoggingResource, Calls):  # pragma: no cover
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class LoggingMessages(LoggingResource, Messages):  # pragma: nocover
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class TembaTwilioRestClient(TwilioRestClient):  # pragma: no cover
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # replace endpoints we want logging for
-        self.messages = LoggingMessages(self.account_uri, self.auth, self.timeout)
-        self.calls = LoggingCalls(self.account_uri, self.auth, self.timeout)
+        return resp

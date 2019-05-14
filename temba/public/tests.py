@@ -1,7 +1,7 @@
 from smartmin.tests import SmartminTest, _CRUDLTest
 
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from .models import Lead, Video
 from .views import VideoCRUDL
@@ -16,6 +16,11 @@ class PublicTest(SmartminTest):
         home_url = reverse("public.public_index")
         response = self.client.get(home_url, follow=True)
         self.assertEqual(response.request["PATH_INFO"], "/")
+
+        response = self.client.get(home_url + "?errors=&foo", follow=True)
+        self.assertEqual(response.request["PATH_INFO"], "/")
+        self.assertTrue(response.context["errors"])
+        self.assertFalse("error_msg" in response.context)
 
         # try to create a lead from the homepage
         lead_create_url = reverse("public.lead_create")

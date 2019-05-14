@@ -108,7 +108,7 @@
 
   -if contact_fields|length > 4
     %a.pull-right.show-all.fields
-        .icon-arrow-down
+      .icon-arrow-down
 
   -if upcoming_events
     %h5
@@ -137,14 +137,9 @@
           %td.details
 
             .activity-scheduled
-
               -if evt.event_type == 'M'
-                //.summary
-                //  Scheduled {{evt.event.campaign}} message
                 .activity-body
                   {{evt.message}}
-
-
 
               -elif evt.event_type == 'F'
                 -trans "Start"
@@ -320,6 +315,10 @@
 
             &.non-msg {
               background: #fafafa;
+
+              &.skipped {
+                background: #fafafa;
+              }
 
               .icon {
                 color: rgba(0, 0, 0, 0.20);

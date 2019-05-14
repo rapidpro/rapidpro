@@ -1,6 +1,7 @@
 import gzip
 import io
-import json
+
+from temba.utils import json
 
 
 class MockS3Client:
@@ -30,3 +31,11 @@ class MockS3Client:
     def delete_object(self, Bucket, Key, **kwargs):
         del self.objects[(Bucket, Key)]
         return {"DeleteMarker": False, "VersionId": "versionId", "RequestCharged": "requester"}
+
+    def list_objects_v2(self, Bucket, Prefix, **kwargs):
+        matches = []
+        for o in self.objects.keys():
+            if o[1].startswith(Prefix):
+                matches.append({"Key": o[1]})
+
+        return dict(Contents=matches)

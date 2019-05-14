@@ -1,9 +1,8 @@
-
 import time
 
 from django.conf import settings
-from django.core.urlresolvers import resolve
 from django.http import HttpResponseRedirect
+from django.urls import resolve
 
 from temba.orgs.context_processors import user_group_perms_processor
 
@@ -44,12 +43,11 @@ class Formax(object):
 
         # redirects don't do us any good
         if not isinstance(response, HttpResponseRedirect):
-            response.render()
             self.sections.append(
                 dict(
                     name=name,
                     url=url,
-                    response=response.content,
+                    response=response.rendered_content,
                     icon=icon,
                     action=action,
                     button=button,

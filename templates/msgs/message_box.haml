@@ -98,13 +98,13 @@
               -block search-details
                 .search-details
                   -if search
-                    -blocktrans count results_count=paginator.count|intcomma
+                    -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
                       Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
                       -plural
                         Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
                   -else
                     -if start_date
-                      -blocktrans count results_count=paginator.count|intcomma
+                      -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
                         {{ results_count }} message since {{ start_date}}.
                         -plural
                           {{ results_count }} messages since {{ start_date}}.
@@ -203,7 +203,7 @@
 
                       %td.created_on
                         %span.time
-                          {{object.created_on|gmail_time}}
+                          {% short_datetime object.created_on %}
 
                         .log-icon
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon

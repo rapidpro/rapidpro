@@ -1,8 +1,9 @@
-import json
 from cgi import parse_header, parse_multipart
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from urllib.parse import urlparse
+
+from temba.utils import json
 
 
 class MockServerRequestHandler(BaseHTTPRequestHandler):

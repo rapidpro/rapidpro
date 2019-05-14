@@ -49,9 +49,13 @@
             -trans "Referred"
           -elif event.event_type == 'follow'
             -trans "Followed"
-          -else
+          -elif event.event_type == 'stop_contact'
+            -trans "Stopped"
+          -elif event.event_type == 'mt_call' or event.event_type == 'mt_miss' or event.event_type == 'mo_call' or event.event_type == 'mo_miss'
             -trans "Phone call"
             ({{event.extra.duration|format_seconds}})
+          -else
+            -trans "Unknown/Unsupported"
 
       -elif item.type == 'call'
         -with item.obj as call
@@ -77,7 +81,10 @@
           %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
             {{eventfire.event.campaign.name}}
 
-          &nbsp;triggered
+          -if eventfire.fired_result == 'S'
+            &nbsp;skipped
+          -else
+            &nbsp;triggered
 
           %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
             {{eventfire.event|event_time}}
@@ -93,14 +100,20 @@
     %td.created_on
       %span.time
         %span.short
-          {{item.time|gmail_time}}
+          {% short_datetime item.time %}
         %span.long.hide
-          {{item.time}}
+          {% pretty_datetime item.time %}
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
           -if item.type == 'msg' or item.type == 'call'
             {% channel_log_link item.obj %}
+
+          -if perms.flows.flowsession_json
+            -if item.type == 'run-start' or item.type == 'run-exit'
+              -if item.obj.session_id
+                %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
+                  .icon-docs-2
 
           -if item.type == 'webhook-result'
             -with item.obj.event as event

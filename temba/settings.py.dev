@@ -14,7 +14,7 @@ import warnings
 
 from .settings_common import *  # noqa
 
-DEBUG_TOOLBAR = False
+STORAGE_URL = "http://localhost:8000/media"
 
 # -----------------------------------------------------------------------------------
 # Add a custom brand for development
@@ -51,18 +51,20 @@ CACHES = {
 INTERNAL_IPS = ("127.0.0.1",)
 
 # -----------------------------------------------------------------------------------
+# Mailroom - localhost for dev, no auth token
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = os.environ.get('MAILROOM_URL', '')
+MAILROOM_AUTH_TOKEN = None
+
+# -----------------------------------------------------------------------------------
 # Load development apps
 # -----------------------------------------------------------------------------------
 INSTALLED_APPS = INSTALLED_APPS + ("storages",)
-if DEBUG_TOOLBAR:
-    INSTALLED_APPS = INSTALLED_APPS + ("debug_toolbar",)
 
 # -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
-MIDDLEWARE_CLASSES = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE_CLASSES
-if DEBUG_TOOLBAR:
-    MIDDLEWARE_CLASSES = ("debug_toolbar.middleware.DebugToolbarMiddleware",) + MIDDLEWARE_CLASSES
+MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
 
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)

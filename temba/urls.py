@@ -1,13 +1,10 @@
-
 import importlib
-
-import debug_toolbar
 
 from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.contrib.auth.models import AnonymousUser, User
-from django.views.i18n import javascript_catalog
+from django.views.i18n import JavaScriptCatalog
 
 from celery.signals import worker_process_init
 
@@ -39,12 +36,11 @@ urlpatterns = [
     url(r"^users/", include("smartmin.users.urls")),
     url(r"^imports/", include("smartmin.csv_imports.urls")),
     url(r"^assets/", include("temba.assets.urls")),
-    url(r"^jsi18n/$", javascript_catalog, js_info_dict, name="django.views.i18n.javascript_catalog"),
+    url(r"^jsi18n/$", JavaScriptCatalog.as_view(), js_info_dict, name="django.views.i18n.javascript_catalog"),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += [url(r"^__debug__/", include(debug_toolbar.urls))]
 
 
 # import any additional urls
@@ -70,7 +66,7 @@ def track_user(self):  # pragma: no cover
         return False
 
     # nothing to report if they haven't logged in
-    if not self.is_authenticated() or self.is_anonymous():
+    if not self.is_authenticated or self.is_anonymous:
         return False
 
     return True

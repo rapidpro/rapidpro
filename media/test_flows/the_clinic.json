@@ -83,7 +83,7 @@
           }, 
           "offset": -1, 
           "delivery_hour": -1, 
-          "message": "Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", 
+          "message": "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
           "id": 9959, 
           "unit": "H"
         }, 

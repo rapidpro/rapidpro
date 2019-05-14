@@ -1,18 +1,16 @@
-import json
-from random import randint
 from urllib.parse import parse_qs, urlencode
 
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView, View
 
 from temba.public.models import Lead, Video
-from temba.utils import analytics, get_anonymous_user
+from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
 
 
@@ -31,7 +29,9 @@ class IndexView(SmartTemplateView):
         context["thanks"] = "thanks" in self.request.GET
         context["errors"] = "errors" in self.request.GET
         if context["errors"]:
-            context["error_msg"] = parse_qs(context["url_params"][1:])["errors"][0]
+            errors = parse_qs(context["url_params"][1:]).get("errors")
+            if isinstance(errors, list) and len(errors) > 0:
+                context["error_msg"] = errors[0]
 
         return context
 
@@ -52,25 +52,15 @@ class Welcome(SmartTemplateView):
 
         user = self.request.user
         org = user.get_org()
+        brand = self.request.branding["slug"]
 
         if org:
-            user_dict = dict(
-                email=user.email,
-                first_name=user.first_name,
-                segment=randint(1, 10),
-                last_name=user.last_name,
-                brand=self.request.branding["slug"],
-            )
-            if org:
-                user_dict["org"] = org.name
-                user_dict["paid"] = org.account_value()
-
-            analytics.identify(user.email, f"{user.first_name} {user.last_name}", user_dict, orgs=[org])
+            analytics.identify(user, brand, org=org)
 
         return context
 
     def has_permission(self, request, *args, **kwargs):
-        return request.user.is_authenticated()
+        return request.user.is_authenticated
 
 
 class LeadViewer(SmartCRUDL):

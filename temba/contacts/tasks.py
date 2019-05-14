@@ -1,4 +1,3 @@
-
 import logging
 from datetime import timedelta
 
@@ -6,7 +5,6 @@ import iso8601
 import pytz
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
@@ -26,7 +24,15 @@ def export_contacts_task(task_id):
     ExportContactsTask.objects.get(id=task_id).perform()
 
 
-@nonoverlapping_task(track_started=True, name="squash_contactgroupcounts")
+@nonoverlapping_task(track_started=True, name="release_group_task")
+def release_group_task(group_id):
+    """
+    Releases group
+    """
+    ContactGroup.all_groups.get(id=group_id).release()
+
+
+@nonoverlapping_task(track_started=True, name="squash_contactgroupcounts", lock_timeout=7200)
 def squash_contactgroupcounts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
@@ -43,12 +49,11 @@ def reevaluate_dynamic_group(group_id):
 
 
 @task(track_started=True, name="full_release_contact")
-def full_release_contact(contact_id, user_id):
+def full_release_contact(contact_id):
     contact = Contact.objects.filter(id=contact_id).first()
-    user = User.objects.filter(id=user_id).first()
 
     if contact and not contact.is_active:
-        contact._full_release(user)
+        contact._full_release()
 
 
 @task(name="check_elasticsearch_lag")

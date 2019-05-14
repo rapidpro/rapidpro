@@ -1,4 +1,3 @@
-
 from redis.lock import Lock
 
 
@@ -13,8 +12,8 @@ class NonBlockingLock(Lock):
     the duration of the lock with in context.
 
     Note:
-        After requesting the lock, the first MUST call the `exit_if_not_locked()` method that will do the right thing
-        and check if the lock was actually successfully acquired.
+        After requesting the lock, we MUST call the `exit_if_not_locked()` method that will do the right thing and
+        check if the lock was actually successfully acquired.
 
     Common usage pattern:
 

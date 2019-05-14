@@ -1,12 +1,10 @@
-
-import json
-
-from mock import patch
+from unittest.mock import patch
 
 from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 from ...models import Channel
 
@@ -58,6 +56,7 @@ class ViberPublicTypeTest(TembaTest):
         channel = Channel.objects.get(address="viberId")
         self.assertEqual(channel.config["auth_token"], "123456")
         self.assertEqual(channel.name, "viberName")
+        self.assertTrue(channel.get_type().has_attachment_support(channel))
 
         # should have been called with our webhook URL
         self.assertEqual(mock_post.call_args[0][0], "https://chatapi.viber.com/pa/set_webhook")

@@ -56,7 +56,7 @@ class ContactQuery(object):
     def evaluate(self, org, contact_json):
         prop_map = self.get_prop_map(org)
 
-        return self.root.evaluate(contact_json, prop_map)
+        return self.root.evaluate(org, contact_json, prop_map)
 
     def as_elasticsearch(self, org):
         prop_map = self.get_prop_map(org)
@@ -69,22 +69,21 @@ class ContactQuery(object):
         and URN schemes.
         """
 
-        searchable_attrs = {"name"}
-        if org.is_anon:
-            searchable_attrs.update(["id"])
-
         all_props = set(self.root.get_prop_names())
-
-        attr_props = all_props.difference(searchable_attrs)
 
         prop_map = {p: None for p in all_props}
 
-        for field in ContactField.objects.filter(org=org, key__in=attr_props, is_active=True):
+        all_contact_fields = ContactField.all_fields.filter(org=org, key__in=all_props, is_active=True)
+        if not org.is_anon:
+            all_contact_fields.exclude(key="id")
+
+        user_contactfields = (cf for cf in all_contact_fields if cf.field_type == ContactField.FIELD_TYPE_USER)
+        for field in user_contactfields:
             prop_map[field.key] = (self.PROP_FIELD, field)
 
-        for attr in searchable_attrs:
-            if attr in prop_map.keys():
-                prop_map[attr] = (self.PROP_ATTRIBUTE, attr)
+        system_contactfields = (cf for cf in all_contact_fields if cf.field_type == ContactField.FIELD_TYPE_SYSTEM)
+        for attr in system_contactfields:
+            prop_map[attr.key] = (self.PROP_ATTRIBUTE, attr)
 
         for scheme in self.SEARCHABLE_SCHEMES:
             if scheme in prop_map.keys():
@@ -92,12 +91,12 @@ class ContactQuery(object):
 
         for prop, prop_obj in prop_map.items():
             if not prop_obj:
-                raise SearchException(_("Unrecognized field: '%s'") % prop)
+                raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
 
     def can_be_dynamic_group(self):
-        props_not_allowed = {"name", "id"}
+        props_not_allowed = {"id"}
         prop_names = set(self.root.get_prop_names())
 
         return not (prop_names.intersection(props_not_allowed))
@@ -129,7 +128,7 @@ class QueryNode(object):
     def as_elasticsearch(self, org, prop_map):  # pragma: no cover
         pass
 
-    def evaluate(self, contact_json, prop_map):  # pragma: no cover
+    def evaluate(self, org, contact_json, prop_map):  # pragma: no cover
         pass
 
 
@@ -149,7 +148,7 @@ class Condition(QueryNode):
         try:
             return Decimal(val)
         except Exception:
-            raise SearchException(_("'%s' isn't a valid number") % val)
+            raise SearchException(_("f'{val}' isn't a valid number"))
 
     def as_text(self):
         try:
@@ -160,9 +159,9 @@ class Condition(QueryNode):
 
         value = self.value if is_decimal else '"%s"' % self.value
 
-        return "%s %s %s" % (self.prop, self.comparator, value)
+        return f"{self.prop} {self.comparator} {value}"
 
-    def evaluate(self, contact_json, prop_map):
+    def evaluate(self, org, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
@@ -179,7 +178,7 @@ class Condition(QueryNode):
                 if self.comparator == "=":
                     return contact_value == query_value
                 else:
-                    raise SearchException(_("Unknown text comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_NUMBER:
                 query_value = self._parse_number(self.value)
@@ -203,14 +202,14 @@ class Condition(QueryNode):
                 elif self.comparator == "<=":
                     return contact_value <= query_value
                 else:
-                    raise SearchException(_("Unknown number comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_DATETIME:
                 query_value = str_to_datetime(
                     self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False
                 )
                 if not query_value:
-                    raise SearchException(_("Unable to parse the date '%s'") % self.value)
+                    raise SearchException(_(f"Unable to parse the date '{self.value}'"))
 
                 datetime_value = contact_fields.get(field_uuid).get("datetime")
                 if datetime_value is None:
@@ -218,7 +217,7 @@ class Condition(QueryNode):
 
                 contact_value = str_to_datetime(datetime_value, field.org.timezone)
 
-                utc_range = date_to_utc_range(query_value.date(), field.org)
+                utc_range = calculate_utc_range(org, self.value)
 
                 if self.comparator == "=":
                     return contact_value >= utc_range[0] and contact_value < utc_range[1]
@@ -231,7 +230,7 @@ class Condition(QueryNode):
                 elif self.comparator == "<=":
                     return contact_value < utc_range[1]
                 else:
-                    raise SearchException(_("Unknown datetime comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
                 query_value = self.value.upper()
@@ -255,15 +254,15 @@ class Condition(QueryNode):
 
                     contact_value = state_value.upper().split(" > ")[-1]
                 else:  # pragma: no cover
-                    raise SearchException(_("Unknown location type: '%s'") % (field.value_type,))
+                    raise SearchException(_(f"Unknown location type: '{field.value_type}'"))
 
                 if self.comparator == "=":
                     return contact_value == query_value
                 else:
-                    raise SearchException(_("Unsupported comparator '%s' for location field") % self.comparator)
+                    raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
             else:  # pragma: no cover
-                raise SearchException(_("Unrecognized contact field type '%s'") % field.value_type)
+                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
 
         elif prop_type == ContactQuery.PROP_SCHEME:
             for urn in contact_json.get("urns"):
@@ -278,12 +277,58 @@ class Condition(QueryNode):
                         if query_value in contact_value:
                             return True
                     else:
-                        raise SearchException(_("Unknown urn scheme comparator: '%s'") % (self.comparator,))
+                        raise SearchException(_(f"Unknown urn scheme comparator: '{self.comparator}'"))
 
             return False
 
-        else:
-            raise SearchException(_("Unrecognized contact field type '%s'") % prop_type)
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            field_key = field.key
+
+            if field_key == "language":
+                query_value = self.value.upper()
+                raw_contact_value = contact_json.get("language")
+                if raw_contact_value is None:
+                    return False
+                else:
+                    contact_value = raw_contact_value.upper()
+                if self.comparator == "=":
+                    return contact_value == query_value
+                else:
+                    raise SearchException(_(f"Unknown language comparator: '{self.comparator}'"))
+            elif field_key == "created_on":
+                datetime_value = contact_json.get("created_on")
+                contact_value = str_to_datetime(datetime_value, org.timezone)
+                utc_range = calculate_utc_range(org, self.value)
+
+                if self.comparator == "=":
+                    return contact_value >= utc_range[0] and contact_value < utc_range[1]
+                elif self.comparator == ">":
+                    return contact_value >= utc_range[1]
+                elif self.comparator == ">=":
+                    return contact_value >= utc_range[0]
+                elif self.comparator == "<":
+                    return contact_value < utc_range[0]
+                elif self.comparator == "<=":
+                    return contact_value < utc_range[1]
+                else:
+                    raise SearchException(_(f"Unknown created_on comparator: '{self.comparator}'"))
+            elif field_key == "name":
+                query_value = self.value.upper()
+                raw_contact_value = contact_json.get("name")
+                if raw_contact_value is None:
+                    return False
+                else:
+                    contact_value = raw_contact_value.upper()
+                if self.comparator == "=":
+                    return contact_value == query_value
+                elif self.comparator == "~":
+                    return query_value in contact_value
+                else:  # pragma: no cover
+                    raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
+            else:
+                raise SearchException(_(f"No support for attribute field: '{field}'"))
+        else:  # pragma: no cover
+            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
     def as_elasticsearch(self, org, prop_map):
         prop_type, field = prop_map[self.prop]
@@ -299,7 +344,7 @@ class Condition(QueryNode):
                     es_query &= es_Q("term", **{"fields.text": query_value})
 
                 else:
-                    raise SearchException(_("Unknown text comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_NUMBER:
                 query_value = str(self._parse_number(self.value))
@@ -315,22 +360,15 @@ class Condition(QueryNode):
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.number": {"lte": query_value}})
                 else:
-                    raise SearchException(_("Unknown number comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown number comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_DATETIME:
-                query_value = str_to_datetime(
-                    self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False
-                )
-
-                if not query_value:
-                    raise SearchException(_("Unable to parse the date '%s'") % self.value)
-
-                utc_range = date_to_utc_range(query_value.date(), field.org)
+                utc_range = calculate_utc_range(org, self.value)
 
                 if self.comparator == "=":
                     es_query &= es_Q(
                         "range",
-                        **{"fields.datetime": {"gte": utc_range[0].isoformat(), "lt": utc_range[1].isoformat()}}
+                        **{"fields.datetime": {"gte": utc_range[0].isoformat(), "lt": utc_range[1].isoformat()}},
                     )
                 elif self.comparator == ">":
                     es_query &= es_Q("range", **{"fields.datetime": {"gte": utc_range[1].isoformat()}})
@@ -341,7 +379,7 @@ class Condition(QueryNode):
                 elif self.comparator == "<=":
                     es_query &= es_Q("range", **{"fields.datetime": {"lt": utc_range[1].isoformat()}})
                 else:
-                    raise SearchException(_("Unknown datetime comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown datetime comparator: '{self.comparator}'"))
 
             elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
                 query_value = self.value.lower()
@@ -353,22 +391,25 @@ class Condition(QueryNode):
                 elif field.value_type == Value.TYPE_STATE:
                     field_name = "fields.state"
                 else:  # pragma: no cover
-                    raise SearchException(_("Unknown location type: '%s'") % (field.value_type,))
+                    raise SearchException(_(f"Unknown location type: '{field.value_type}'"))
 
                 if self.comparator == "=":
                     field_name += "_keyword"
                     es_query &= es_Q("term", **{field_name: query_value})
                 else:
-                    raise SearchException(_("Unsupported comparator '%s' for location field") % self.comparator)
+                    raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
             else:  # pragma: no cover
-                raise SearchException(_("Unrecognized contact field type '%s'") % field.value_type)
+                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
 
             return es_Q("nested", path="fields", query=es_query)
 
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
             query_value = self.value.lower()
-            if field == "name":
+
+            field_key = field.key
+
+            if field_key == "name":
                 if self.comparator == "=":
                     field_name = "name.keyword"
                     es_query = es_Q("term", **{field_name: query_value})
@@ -376,11 +417,33 @@ class Condition(QueryNode):
                     field_name = "name"
                     es_query = es_Q("match", **{field_name: query_value})
                 else:
-                    raise SearchException(_("Unknown attribute comparator: '%s'") % (self.comparator,))
-            elif field == "id":
+                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
+            elif field_key == "id":
                 es_query = es_Q("ids", **{"values": [query_value]})
+            elif field_key == "language":
+                if self.comparator == "=":
+                    field_name = "language"
+                    es_query = es_Q("term", **{field_name: query_value})
+                else:
+                    raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
+            elif field_key == "created_on":
+                utc_range = calculate_utc_range(org, self.value)
+                if self.comparator == "=":
+                    es_query = es_Q(
+                        "range", **{"created_on": {"gte": utc_range[0].isoformat(), "lt": utc_range[1].isoformat()}}
+                    )
+                elif self.comparator == ">":
+                    es_query = es_Q("range", **{"created_on": {"gte": utc_range[1].isoformat()}})
+                elif self.comparator == ">=":
+                    es_query = es_Q("range", **{"created_on": {"gte": utc_range[0].isoformat()}})
+                elif self.comparator == "<":
+                    es_query = es_Q("range", **{"created_on": {"lt": utc_range[0].isoformat()}})
+                elif self.comparator == "<=":
+                    es_query = es_Q("range", **{"created_on": {"lt": utc_range[1].isoformat()}})
+                else:
+                    raise SearchException(_(f"Unknown created_on comparator: '{self.comparator}'"))
             else:  # pragma: no cover
-                raise SearchException(_("Unknown attribute field '%s'") % (field,))
+                raise SearchException(_(f"Unknown attribute field '{field}'"))
             return es_query
 
         elif prop_type == ContactQuery.PROP_SCHEME:
@@ -395,11 +458,11 @@ class Condition(QueryNode):
                 elif self.comparator == "~":
                     es_query &= es_Q("match_phrase", **{"urns.path": query_value})
                 else:
-                    raise SearchException(_("Unknown scheme comparator: '%s'") % (self.comparator,))
+                    raise SearchException(_(f"Unknown scheme comparator: '{self.comparator}'"))
 
                 return es_Q("nested", path="urns", query=es_query)
         else:  # pragma: no cover
-            raise SearchException(_("Unrecognized contact field type '%s'") % prop_type)
+            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
     def __eq__(self, other):
         return (
@@ -410,7 +473,7 @@ class Condition(QueryNode):
         )
 
     def __str__(self):
-        return "%s%s%s" % (self.prop, self.comparator, self.value)
+        return f"{self.prop}{self.comparator}{self.value}"
 
 
 class IsSetCondition(Condition):
@@ -426,7 +489,7 @@ class IsSetCondition(Condition):
     def __init__(self, prop, comparator):
         super().__init__(prop, comparator, "")
 
-    def evaluate(self, contact_json, prop_map):
+    def evaluate(self, org, contact_json, prop_map):
         prop_type, field = prop_map[self.prop]
 
         if self.comparator.lower() in self.IS_SET_LOOKUPS:
@@ -531,7 +594,7 @@ class IsSetCondition(Condition):
                             return True
 
                 else:  # pragma: no cover
-                    raise SearchException(_("Unrecognized contact field type '%s'") % field.value_type)
+                    raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
 
         elif prop_type == ContactQuery.PROP_SCHEME:
             urn_exists = next((urn for urn in contact_json.get("urns") if urn.get("scheme") == field), None)
@@ -546,9 +609,39 @@ class IsSetCondition(Condition):
                     return True
                 else:
                     return False
+        elif prop_type == ContactQuery.PROP_ATTRIBUTE:
+            field_key = field.key
 
-        else:
-            raise SearchException(_("Unrecognized contact field type '%s'") % prop_type)
+            if field_key == "language":
+                contact_value = contact_json.get("language")
+                if is_set:
+                    if contact_value is not None:
+                        return True
+                    else:
+                        return False
+                else:
+                    if contact_value is not None:
+                        return False
+                    else:
+                        return True
+
+            elif field_key == "name":
+                contact_value = contact_json.get("name")
+                if is_set:
+                    if contact_value is not None:
+                        return True
+                    else:
+                        return False
+                else:
+                    if contact_value is not None:
+                        return False
+                    else:
+                        return True
+
+            else:  # pragma: no cover
+                raise SearchException(_(f"No support for attribute field: '{field}'"))
+        else:  # pragma: no cover
+            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
     def as_elasticsearch(self, org, prop_map):
         prop_type, field = prop_map[self.prop]
@@ -577,7 +670,7 @@ class IsSetCondition(Condition):
             elif field.value_type == Value.TYPE_WARD:
                 field_name = "fields.ward"
             else:  # pragma: no cover
-                raise SearchException(_("Unrecognized contact field type '%s'") % (field.value_type,))
+                raise SearchException(_(f"Unrecognized contact field type '{field.value_type}'"))
 
             es_query &= es_Q("exists", **{"field": field_name})
 
@@ -596,18 +689,30 @@ class IsSetCondition(Condition):
             else:
                 return ~es_Q("nested", path="urns", query=es_query)
         elif prop_type == ContactQuery.PROP_ATTRIBUTE:
-            if field == "name":
+            field_key = field.key
+
+            if field_key == "name":
                 if is_set:
                     es_query = es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""})
                 else:
                     es_query = ~(es_Q("exists", **{"field": "name"}) & ~es_Q("term", **{"name.keyword": ""}))
                 return es_query
-            elif field == "id":
-                raise SearchException("All contacts have an ID, you cannot check if 'id' is set")
+            elif field_key == "language":
+                if is_set:
+                    es_query = es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""})
+                else:
+                    es_query = ~(es_Q("exists", **{"field": "language"}) & ~es_Q("term", **{"language": ""}))
+                return es_query
+            elif field_key == "id":
+                raise SearchException(_("All contacts have an 'id', it's not possible to check if 'id' is set"))
+            elif field_key == "created_on":
+                raise SearchException(
+                    _("All contacts have a 'created_on', it's not possible to check if 'created_on' is set")
+                )
             else:  # pragma: no cover
-                raise SearchException(_("Unknown attribute field '%s'") % (field,))
+                raise SearchException(_(f"Unknown attribute field '{field}'"))
         else:  # pragma: no cover
-            raise SearchException(_("Unrecognized contact field type '%s'") % (prop_type,))
+            raise SearchException(_(f"Unrecognized contact field type '{prop_type}'"))
 
 
 class BoolCombination(QueryNode):
@@ -673,8 +778,8 @@ class BoolCombination(QueryNode):
 
         return BoolCombination(self.op, *new_children)
 
-    def evaluate(self, contact_json, prop_map):
-        return reduce(self.op, [child.evaluate(contact_json, prop_map) for child in self.children])
+    def evaluate(self, org, contact_json, prop_map):
+        return reduce(self.op, [child.evaluate(org, contact_json, prop_map) for child in self.children])
 
     def as_elasticsearch(self, org, prop_map):
         return reduce(self.op, [child.as_elasticsearch(org, prop_map) for child in self.children])
@@ -716,7 +821,9 @@ class SinglePropCombination(BoolCombination):
 
     def __str__(self):
         op = "OR" if self.op == self.OR else "AND"
-        return "%s[%s](%s)" % (op, self.prop, ", ".join(["%s%s" % (c.comparator, c.value) for c in self.children]))
+        children = ", ".join(f"{c.comparator}{c.value}" for c in self.children)
+
+        return f"{op}[{self.prop}]({children})"
 
 
 class ContactQLVisitor(ParseTreeVisitor):
@@ -894,7 +1001,11 @@ def extract_fields(org, text):
     """
     parsed = parse_query(text, as_anon=org.is_anon)
     prop_map = parsed.get_prop_map(org)
-    return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]
+    return [
+        prop_obj
+        for (prop_type, prop_obj) in prop_map.values()
+        if prop_type in (ContactQuery.PROP_FIELD, ContactQuery.PROP_ATTRIBUTE)
+    ]
 
 
 def is_phonenumber(text):
@@ -906,3 +1017,13 @@ def is_phonenumber(text):
         return True, CLEAN_SPECIAL_CHARS_REGEX.sub("", text)
     else:
         return False, None
+
+
+def calculate_utc_range(org, input_value):
+    """
+    Calculates datetime range in UTC, we use it to check date containment
+    """
+    query_value = str_to_datetime(input_value, org.timezone, org.get_dayfirst(), fill_time=False)
+    if not query_value:
+        raise SearchException(_(f"Unable to parse the date '{input_value}'"))
+    return date_to_utc_range(query_value.date(), org)
