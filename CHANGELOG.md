@@ -1,3 +1,7 @@
+v4.22.45
+----------
+ * Tweak compress for vendor
+
 v4.22.44
 ----------
  * Update to flow editor 1.4.18
