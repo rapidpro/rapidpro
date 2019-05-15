@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-14 20:10+0000\n"
+"POT-Creation-Date: 2019-05-15 15:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,6 +54,10 @@ msgstr ""
 
 #, python-format
 msgid "Generated key for '%s' is invalid or a reserved name"
+msgstr ""
+
+#, python-format
+msgid "Unable to find flow with uuid: %s"
 msgstr ""
 
 #, python-format
@@ -134,6 +138,54 @@ msgstr ""
 msgid "Weeks"
 msgstr ""
 
+msgid "Interrupt"
+msgstr ""
+
+msgid "Skip"
+msgstr ""
+
+msgid "Passive"
+msgstr ""
+
+msgid "Fired"
+msgstr ""
+
+msgid "Skipped"
+msgstr ""
+
+msgid "The event that will be fired"
+msgstr ""
+
+msgid "The contact that is scheduled to have an event run"
+msgstr ""
+
+msgid "When this event is scheduled to run"
+msgstr ""
+
+msgid "When this event actually fired, null if not yet fired"
+msgstr ""
+
+msgid "Whether the event is fired or skipped, null if not yet fired"
+msgstr ""
+
+msgid "Campaign archived"
+msgstr ""
+
+msgid "Campaign activated"
+msgstr ""
+
+msgid "Stop it and start this event"
+msgstr ""
+
+msgid "Skip this event"
+msgstr ""
+
+msgid "Stop it and send the message"
+msgstr ""
+
+msgid "Skip this message"
+msgstr ""
+
 #, python-format
 msgid "A message is required for '%s'"
 msgstr ""
@@ -188,12 +240,6 @@ msgid "Org"
 msgstr ""
 
 msgid "Organization using this channel"
-msgstr ""
-
-msgid "GCM ID"
-msgstr ""
-
-msgid "The registration id for using Google Cloud Messaging"
 msgstr ""
 
 msgid "Claim Code"
@@ -321,9 +367,6 @@ msgid "New Conversation"
 msgstr ""
 
 msgid "Referral"
-msgstr ""
-
-msgid "Follow"
 msgstr ""
 
 msgid "The org this event is connected to"
@@ -489,22 +532,13 @@ msgstr ""
 msgid "Unknown alert type: %(alert)s"
 msgstr ""
 
-msgid "Contact URN"
-msgstr ""
-
-msgid "The URN this session is communicating with"
-msgstr ""
-
 msgid "Retry Count"
 msgstr ""
 
-msgid "The number of times this call has been retried"
+msgid "Error Count"
 msgstr ""
 
 msgid "Next Attempt"
-msgstr ""
-
-msgid "When we should next attempt to make this call"
 msgstr ""
 
 msgid ""
@@ -646,6 +680,40 @@ msgstr ""
 msgid "This endpoint should be called by Blackmyna when the message status changes. (delivery reports)"
 msgstr ""
 
+msgid ""
+"\n"
+"        If you have an <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a> number,\n"
+"        you can quickly connect it using their APIs.\n"
+"        "
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish connecting your channel, you need to have Bongo Live configure the URLs below for your shortcode.\n"
+"        "
+msgstr ""
+
+msgid "This URL should be called by Bongo Live when new messages are received."
+msgstr ""
+
+msgid "DLR callback URL"
+msgstr ""
+
+msgid "This URL should be called by Bongo Live when the status of an outgoing message is updated."
+msgstr ""
+
+msgid "Number"
+msgstr ""
+
+msgid "The number you are connecting."
+msgstr ""
+
+msgid "The username for your Bongo Live account"
+msgstr ""
+
+msgid "The password for your Bongo Live account"
+msgstr ""
+
 msgid "API Key"
 msgstr ""
 
@@ -677,9 +745,6 @@ msgstr ""
 msgid "This URL should be called by BurstSMS when new messages are received.You must set this for your number under the 'Inbound Settings' options.Select 'Yes' to the 'Forward to URL' option and enter this URL."
 msgstr ""
 
-msgid "DLR callback URL"
-msgstr ""
-
 msgid "This URL should be called by BurstSMS when the status of an outgoing message is updated.You can set it on your settings page."
 msgstr ""
 
@@ -707,9 +772,6 @@ msgid "Message Receiver URL"
 msgstr ""
 
 msgid "The country this phone number is used in"
-msgstr ""
-
-msgid "Number"
 msgstr ""
 
 msgid "The short code you are connecting."
@@ -848,7 +910,7 @@ msgstr ""
 msgid "Encoding"
 msgstr ""
 
-msgid "What encoding to use for outgoing messages, used only for HTTP GET"
+msgid "What encoding to use for outgoing messages"
 msgstr ""
 
 msgid "The content type used when sending the request"
@@ -867,6 +929,12 @@ msgid "Request Body"
 msgstr ""
 
 msgid "The request body if any, with variable substitutions (only used for PUT or POST)"
+msgstr ""
+
+msgid "MT Response check"
+msgstr ""
+
+msgid "The content that must be in the response to consider the request successful"
 msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
@@ -992,6 +1060,38 @@ msgid ""
 "                "
 msgstr ""
 
+msgid ""
+"If you have a long number or shortcode with <a href=\"https://www.i2sms.com/\">I2SMS</a> you can connect it in a few\n"
+"        easy steps."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as\n"
+"        below.\n"
+"        "
+msgstr ""
+
+msgid "Message URL"
+msgstr ""
+
+msgid ""
+"\n"
+"                You can set your message URL by visiting the <a href=\"https://mx.i2sms.net/\">I2SMS Dashboard</a>,\n"
+"                creating a DEFAULT keyword and using this URL as your message URL. Select POST HTTP Variables\n"
+"                and check the box for \"No URL Output\".\n"
+"                "
+msgstr ""
+
+msgid "The hash of your i2SMS channel"
+msgstr ""
+
+msgid "Your i2SMS username"
+msgstr ""
+
+msgid "Your i2SMS password"
+msgstr ""
+
 msgid "Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs."
 msgstr ""
 
@@ -1110,9 +1210,6 @@ msgid "The username to use to authenticate to Kannel, if left blank we will gene
 msgstr ""
 
 msgid "The password to use to authenticate to Kannel, if left blank we will generate one for you"
-msgstr ""
-
-msgid "What encoding to use for outgoing messages"
 msgstr ""
 
 msgid "Verify SSL"
@@ -1311,6 +1408,48 @@ msgstr ""
 msgid "There was a problem claiming that number, please check the balance on your account."
 msgstr ""
 
+msgid "If you are based in Trinidad & Tobago, you can purchase a short code from <a href=\"http://www.novotechnologyinc.com/\">Novo</a> and connect it in a few simple steps."
+msgstr ""
+
+msgid "To receive incoming messages, you need to set the receive URL for your Novo account."
+msgstr ""
+
+msgid "The Novo short code"
+msgstr ""
+
+msgid "Merchant ID"
+msgstr ""
+
+msgid "The merchant id to compose your Merchant URL provided by Novo"
+msgstr ""
+
+msgid "Merchant Secret"
+msgstr ""
+
+msgid "The merchant secret provided by Novo"
+msgstr ""
+
+msgid "If you are based in Uzbekistan, you can purchase a short code from <a href=\"http://playmobile.uz/\">Play Mobile</a> and connect it in a few simple steps."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL.\n"
+"        "
+msgstr ""
+
+msgid "To receive incoming messages, you need to set the receive URL for your Play Mobile account."
+msgstr ""
+
+msgid "Base URL"
+msgstr ""
+
+msgid "The base URL for PlayMobile"
+msgstr ""
+
+msgid "Shortcode"
+msgstr ""
+
 msgid "Easily add a two way number you have configured with <a href=\"https://www.plivo.com/\">Plivo</a> using their APIs."
 msgstr ""
 
@@ -1464,10 +1603,7 @@ msgstr ""
 msgid "The Account Token to use to authenticate to the TwiML REST API"
 msgstr ""
 
-msgid "Add a <a href=\"http://twitter.com\">Twitter</a> account to send messages as direct messages."
-msgstr ""
-
-msgid "A Twitter channel for that handle already exists, and must be removedbefore another channel can be created for that handle."
+msgid "Max active calls at the same time"
 msgstr ""
 
 msgid ""
@@ -1913,59 +2049,89 @@ msgstr ""
 msgid "The search query"
 msgstr ""
 
-#, python-format
-msgid "Unrecognized field: '%s'"
+#, python-brace-format
+msgid "Unrecognized field: '{prop}'"
 msgstr ""
 
-#, python-format
-msgid "'%s' isn't a valid number"
+#, python-brace-format
+msgid "f'{val}' isn't a valid number"
 msgstr ""
 
-#, python-format
-msgid "Unknown text comparator: '%s'"
+#, python-brace-format
+msgid "Unknown text comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown number comparator: '%s'"
+#, python-brace-format
+msgid "Unknown number comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unable to parse the date '%s'"
+#, python-brace-format
+msgid "Unable to parse the date '{self.value}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown datetime comparator: '%s'"
+#, python-brace-format
+msgid "Unknown datetime comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown location type: '%s'"
+#, python-brace-format
+msgid "Unknown location type: '{field.value_type}'"
 msgstr ""
 
-#, python-format
-msgid "Unsupported comparator '%s' for location field"
+#, python-brace-format
+msgid "Unsupported comparator '{self.comparator}' for location field"
 msgstr ""
 
-#, python-format
-msgid "Unrecognized contact field type '%s'"
+#, python-brace-format
+msgid "Unrecognized contact field type '{field.value_type}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown urn scheme comparator: '%s'"
+#, python-brace-format
+msgid "Unknown urn scheme comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown attribute comparator: '%s'"
+#, python-brace-format
+msgid "Unknown language comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown attribute field '%s'"
+#, python-brace-format
+msgid "Unknown created_on comparator: '{self.comparator}'"
 msgstr ""
 
-#, python-format
-msgid "Unknown scheme comparator: '%s'"
+#, python-brace-format
+msgid "Unknown name comparator: '{self.comparator}'"
+msgstr ""
+
+#, python-brace-format
+msgid "No support for attribute field: '{field}'"
+msgstr ""
+
+#, python-brace-format
+msgid "Unrecognized contact field type '{prop_type}'"
+msgstr ""
+
+#, python-brace-format
+msgid "Unknown attribute comparator: '{self.comparator}'"
+msgstr ""
+
+#, python-brace-format
+msgid "Unknown attribute field '{field}'"
+msgstr ""
+
+#, python-brace-format
+msgid "Unknown scheme comparator: '{self.comparator}'"
 msgstr ""
 
 msgid "Invalid operator for empty string comparison"
+msgstr ""
+
+msgid "All contacts have an 'id', it's not possible to check if 'id' is set"
+msgstr ""
+
+msgid "All contacts have a 'created_on', it's not possible to check if 'created_on' is set"
+msgstr ""
+
+#, python-brace-format
+msgid "Unable to parse the date '{input_value}'"
 msgstr ""
 
 msgid "day"
@@ -2172,16 +2338,25 @@ msgstr ""
 msgid "The channel connection used for flow sessions over IVR or USSD"
 msgstr ""
 
-msgid "Message flow"
+msgid "When this session was created"
 msgstr ""
 
-msgid "Single Message Flow"
+msgid "When this session ended"
+msgstr ""
+
+msgid "When this session's wait will time out (if at all)"
+msgstr ""
+
+msgid "When this session started waiting (if at all)"
+msgstr ""
+
+msgid "Message flow"
 msgstr ""
 
 msgid "Phone call flow"
 msgstr ""
 
-msgid "Android Survey"
+msgid "Surveyor flow"
 msgstr ""
 
 msgid "USSD flow"
@@ -2200,6 +2375,9 @@ msgid "The type of node this flow starts with"
 msgstr ""
 
 msgid "Whether this flow is archived"
+msgstr ""
+
+msgid "Whether this is a system created flow"
 msgstr ""
 
 msgid "The type of this flow"
@@ -2233,6 +2411,9 @@ msgid "Group Dependencies"
 msgstr ""
 
 msgid "Any groups this flow uses"
+msgstr ""
+
+msgid "Any fields this flow depends on"
 msgstr ""
 
 msgid "Run this flow using the flow server"
@@ -2316,45 +2497,6 @@ msgid "The current node location of this run in the flow"
 msgstr ""
 
 msgid "Why the run is being deleted"
-msgstr ""
-
-#, python-format
-msgid "\"%(body)s\" would be sent to %(email)s"
-msgstr ""
-
-#, python-format
-msgid "Updated name to '%s'"
-msgstr ""
-
-#, python-format
-msgid "Updated language to '%s'"
-msgstr ""
-
-#, python-format
-msgid "Added %(urn)s as @contact.%(scheme)s - skipped in simulator"
-msgstr ""
-
-#, python-format
-msgid "Updated %(label)s to '%(value)s'"
-msgstr ""
-
-#, python-format
-msgid "Added %(label)s label to msg '%(text)s'"
-msgstr ""
-
-#, python-format
-msgid "Added %(contact)s to %(group)s"
-msgstr ""
-
-#, python-format
-msgid "Removed %(contact)s from %(group)s"
-msgstr ""
-
-#, python-format
-msgid "Contact not updated, invalid connection for contact (%s)"
-msgstr ""
-
-msgid "Contact not updated, missing connection for contact"
 msgstr ""
 
 #, python-format
@@ -2476,6 +2618,9 @@ msgstr ""
 msgid "Include contacts currently active in flows"
 msgstr ""
 
+msgid "The campaign event which created this flow start"
+msgstr ""
+
 msgid "How many unique contacts were started down the flow"
 msgstr ""
 
@@ -2506,10 +2651,6 @@ msgid "Some email address appear to be invalid: %s"
 msgstr ""
 
 #, python-format
-msgid "URL appears to contain errors: %s"
-msgstr ""
-
-#, python-format
 msgid "Unable to find group with name '%s'"
 msgstr ""
 
@@ -2526,11 +2667,23 @@ msgid "%s is a dynamic group which we can't remove contacts from"
 msgstr ""
 
 #, python-format
+msgid "Added %(contact)s to %(group)s"
+msgstr ""
+
+#, python-format
+msgid "Removed %(contact)s from %(group)s"
+msgstr ""
+
+#, python-format
 msgid "Unable to find label with name '%s'"
 msgstr ""
 
 #, python-format
 msgid "Label name could not be evaluated: %s"
+msgstr ""
+
+#, python-format
+msgid "Added %(label)s label to msg '%(text)s'"
 msgstr ""
 
 #, python-format
@@ -2571,8 +2724,15 @@ msgstr ""
 msgid "Contact not updated, invalid connection for contact (%(scheme)s:%(path)s)"
 msgstr ""
 
+msgid "Contact not updated, missing connection for contact"
+msgstr ""
+
 #, python-format
 msgid "Added %(value)s as @contact.%(scheme)s - skipped in simulator"
+msgstr ""
+
+#, python-format
+msgid "Updated %(label)s to '%(value)s'"
 msgstr ""
 
 #, python-format
@@ -2622,18 +2782,6 @@ msgid "After 2 weeks"
 msgstr ""
 
 msgid "After 30 days"
-msgstr ""
-
-msgid "After 1 minute"
-msgstr ""
-
-msgid "After 2 minutes"
-msgstr ""
-
-msgid "After 3 minutes"
-msgstr ""
-
-msgid "After 4 minutes"
 msgstr ""
 
 #, python-format
@@ -2704,10 +2852,16 @@ msgstr ""
 msgid "Retries call three times for the chosen interval"
 msgstr ""
 
+msgid "Retry failed calls"
+msgstr ""
+
 msgid "Flows"
 msgstr ""
 
 msgid "Contact Name"
+msgstr ""
+
+msgid "Contact Creation Date"
 msgstr ""
 
 msgid "Contact First Name"
@@ -2751,6 +2905,18 @@ msgid "Yesterday's Date"
 msgstr ""
 
 msgid "Sent to"
+msgstr ""
+
+msgid "Sent to URN display"
+msgstr ""
+
+msgid "Sent to URN path"
+msgstr ""
+
+msgid "Sent to URN type"
+msgstr ""
+
+msgid "Sent to URN"
 msgstr ""
 
 msgid "All flow variables"
@@ -2884,6 +3050,18 @@ msgid "Could not authenticate with your Twilio account. Check your token and try
 msgstr ""
 
 msgid "Verboice connection failed."
+msgstr ""
+
+msgid "After 1 minute"
+msgstr ""
+
+msgid "After 2 minutes"
+msgstr ""
+
+msgid "After 3 minutes"
+msgstr ""
+
+msgid "After 4 minutes"
 msgstr ""
 
 msgid "Call ended."
@@ -3024,6 +3202,9 @@ msgstr ""
 msgid "The contact this message is communicating with"
 msgstr ""
 
+msgid "Contact URN"
+msgstr ""
+
 msgid "The URN this message is communicating with"
 msgstr ""
 
@@ -3097,9 +3278,6 @@ msgid "Message Count"
 msgstr ""
 
 msgid "The number of messages that were used to send this message, calculated on Twilio channels"
-msgstr ""
-
-msgid "Error Count"
 msgstr ""
 
 msgid "The number of times this message has errored"
@@ -3386,7 +3564,13 @@ msgstr ""
 msgid "A password that allows users to register as surveyors"
 msgstr ""
 
+msgid "Whether flows and messages should be handled by the flow server"
+msgstr ""
+
 msgid "The parent org that manages this org"
+msgstr ""
+
+msgid "ID"
 msgstr ""
 
 #, python-format
@@ -3678,15 +3862,6 @@ msgstr ""
 msgid "Port"
 msgstr ""
 
-msgid "No encryption"
-msgstr ""
-
-msgid "Use TLS"
-msgstr ""
-
-msgid "Encryption"
-msgstr ""
-
 msgid "You must enter a from email"
 msgstr ""
 
@@ -3948,9 +4123,6 @@ msgid "Missed Call Trigger"
 msgstr ""
 
 msgid "Catch All Trigger"
-msgstr ""
-
-msgid "Follow Account Trigger"
 msgstr ""
 
 msgid "New Conversation Trigger"
@@ -4255,6 +4427,21 @@ msgid ""
 "          "
 msgstr ""
 
+msgid "WebHook URL: "
+msgstr ""
+
+msgid "Webhook Docs"
+msgstr ""
+
+msgid "API Docs"
+msgstr ""
+
+msgid "Event"
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
 msgid "Archives"
 msgstr ""
 
@@ -4318,6 +4505,9 @@ msgstr ""
 msgid "Campaigns"
 msgstr ""
 
+msgid "(Archived)"
+msgstr ""
+
 msgid "No group assigned to this campaign"
 msgstr ""
 
@@ -4325,6 +4515,9 @@ msgid "No events in this campaign yet."
 msgstr ""
 
 msgid "Update Campaign"
+msgstr ""
+
+msgid "If the contact is already active in a flow"
 msgstr ""
 
 msgid "Add Bulk Sender"
@@ -5165,6 +5358,16 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Contact Opt out/Stopped URL"
+msgstr ""
+
+msgid ""
+"\n"
+"    If this channel provides a way for contacts to opt out and stop receiving messages,\n"
+"    the service should notify us with a POST to the following URL, passing the phone number as the parameter \"from\"\n"
+"  "
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -5471,6 +5674,21 @@ msgid ""
 "            "
 msgstr ""
 
+msgid ""
+"\n"
+"    To finish configuring your Novo connection you'll need to set the following callback URLs on your\n"
+"    Novo account.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid ""
+"\n"
+"      When a new message is received by your service, it should notify us with a POST to the following URL, passing\n"
+"      the following parameters: 'from' and 'text'.\n"
+"    "
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -5576,9 +5794,6 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "Authorize"
-msgstr ""
-
 msgid ""
 "\n"
 "        You can connect your <a href=\"http://verboice.instedd.org/\">Verboice</a> number by entering your credentials here.\n"
@@ -5659,6 +5874,9 @@ msgid "Followed"
 msgstr ""
 
 msgid "Phone call"
+msgstr ""
+
+msgid "Unknown/Unsupported"
 msgstr ""
 
 msgid "Call Started"
@@ -5984,6 +6202,32 @@ msgstr[1] ""
 #, python-format
 msgid ""
 "\n"
+"        There is an active campaign using this group. It cannot be deleted until it is removed from the\n"
+"\n"
+"        "
+msgid_plural ""
+"\n"
+"          There are %(counter)s campaigns using this group. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"\n"
+"        campaign.\n"
+"      "
+msgid_plural ""
+"\n"
+"        campaigns.\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid ""
+"\n"
 "        You are about to delete\n"
 "        <span class='group_name'>\n"
 "          %(object)s.\n"
@@ -6265,6 +6509,9 @@ msgstr ""
 msgid "Recent Messages"
 msgstr ""
 
+msgid "No recent messages to show"
+msgstr ""
+
 msgid "Wait for "
 msgstr ""
 
@@ -6384,51 +6631,6 @@ msgid ""
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
-msgstr ""
-
-msgid "Analytics"
-msgstr ""
-
-msgid "Reports"
-msgstr ""
-
-msgid "Filters"
-msgstr ""
-
-msgid "Segment Variable"
-msgstr ""
-
-msgid "Charts"
-msgstr ""
-
-msgid "Most Active"
-msgstr ""
-
-msgid "runs"
-msgstr ""
-
-msgid "run"
-msgstr ""
-
-msgid "No fields."
-msgstr ""
-
-msgid "1 field"
-msgstr ""
-
-msgid "{} fields"
-msgstr ""
-
-msgid "Created on"
-msgstr ""
-
-msgid "Most Recent"
-msgstr ""
-
-msgid "responses"
-msgstr ""
-
-msgid "Save Report"
 msgstr ""
 
 msgid ""
@@ -7402,6 +7604,16 @@ msgid ""
 "          "
 msgstr ""
 
+msgid "Webhook Log"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
+"  "
+msgstr ""
+
 msgid "TransferTo Account"
 msgstr ""
 
@@ -7498,15 +7710,6 @@ msgid "Outgoing Messages"
 msgstr ""
 
 msgid "Channel Alarms (low battery, loss of connectivity)"
-msgstr ""
-
-msgid "API Docs"
-msgstr ""
-
-msgid "Webhook Docs"
-msgstr ""
-
-msgid "Webhook Log"
 msgstr ""
 
 #, python-format
@@ -7934,20 +8137,12 @@ msgstr ""
 msgid "Buy an Android phone"
 msgstr ""
 
-msgid "We recommend using"
-msgstr ""
-
-msgid "inexpensive Samsung phones"
-msgstr ""
-
-msgid "which are available in many local markets around the world. In East Africa these devices can be had locally for around $90."
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
 "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
-"        is that Android phones are very inexpensive and getting more capable every day.\n"
+"        is that Android phones are very inexpensive and getting more capable every day. We recommend using a\n"
+"        current version of an inexpensive phone such as the Moto G.\n"
 "\n"
 "      "
 msgstr ""
@@ -8411,12 +8606,6 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr ""
 
-msgid "Start a flow after being followed by a new contact."
-msgstr ""
-
-msgid "Social media channel"
-msgstr ""
-
 msgid "Start a flow after receiving a call."
 msgstr ""
 
@@ -8436,9 +8625,6 @@ msgid "uncaught message"
 msgstr ""
 
 msgid "inbound call"
-msgstr ""
-
-msgid "follow"
 msgstr ""
 
 msgid "conversation"
@@ -8475,6 +8661,9 @@ msgid "Start a flow after a missed call."
 msgstr ""
 
 msgid "Start a flow when a conversation is started by a contact."
+msgstr ""
+
+msgid "Social media channel"
 msgstr ""
 
 msgid "Start a flow when Facebook refers a contact."
