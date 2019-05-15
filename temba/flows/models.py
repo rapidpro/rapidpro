@@ -2162,7 +2162,7 @@ class Flow(TembaModel):
                     lookup_action_contacts(action, contacts, groups)
 
             # load them all
-            contacts = dict((_.uuid, _) for _ in self.org.org_contacts.filter(uuid__in=contacts))
+            contacts = dict((_.uuid, _) for _ in self.org.contacts.filter(uuid__in=contacts))
             groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
 
             # and replace them
