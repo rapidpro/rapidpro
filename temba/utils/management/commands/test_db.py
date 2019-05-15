@@ -265,7 +265,7 @@ class Command(BaseCommand):
                 "channels": list(org.channels.order_by("id")),
                 "groups": list(ContactGroup.user_groups.filter(org=org).order_by("id")),
                 "flows": flows,
-                "contacts": list(org.org_contacts.values_list("id", flat=True)),  # only ids to save memory
+                "contacts": list(org.contacts.values_list("id", flat=True)),  # only ids to save memory
                 "activity": None,
             }
 

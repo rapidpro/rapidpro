@@ -2196,7 +2196,7 @@ class Org(SmartModel):
         self.airtime_transfers.all().delete()
 
         # delete our contacts
-        for contact in self.org_contacts.all():
+        for contact in self.contacts.all():
             contact.release(contact.modified_by)
             contact.delete()
 

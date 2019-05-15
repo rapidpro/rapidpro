@@ -593,30 +593,10 @@ MAX_HISTORY = 50
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
+
     name = models.CharField(
         verbose_name=_("Name"), max_length=128, blank=True, null=True, help_text=_("The name of this contact")
-    )
-
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        verbose_name=_("Org"),
-        related_name="org_contacts",
-        help_text=_("The organization that this contact belongs to"),
-    )
-
-    is_blocked = models.BooleanField(
-        verbose_name=_("Is Blocked"), default=False, help_text=_("Whether this contact has been blocked")
-    )
-
-    is_test = models.BooleanField(
-        verbose_name=_("Is Test"), default=False, help_text=_("Whether this contact is for simulation")
-    )
-
-    is_stopped = models.BooleanField(
-        verbose_name=_("Is Stopped"),
-        default=False,
-        help_text=_("Whether this contact has opted out of receiving messages"),
     )
 
     language = models.CharField(
@@ -627,25 +607,30 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         help_text=_("The preferred language for this contact"),
     )
 
-    fields = JSONField(
-        verbose_name=_("Fields"), null=True, help_text=_("The fields set for this contact, keyed by UUID")
-    )
+    # whether contact has been blocked by a user
+    is_blocked = models.BooleanField(default=False)
 
+    # whether contact has opted out of receiving messages
+    is_stopped = models.BooleanField(default=False)
+
+    # custom field values for this contact, keyed by field UUID
+    fields = JSONField(null=True)
+
+    # user that last modified this contact
     modified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
         on_delete=models.PROTECT,
         related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
     )
 
+    # user that created this contact
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        null=True,
-        help_text=_("The user which created this item"),
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
+
+    # to be dropped once no longer used by other applications (see https://github.com/rapidpro/rapidpro/issues/878)
+    is_test = models.BooleanField(default=False)
 
     NAME = "name"
     FIRST_NAME = "first_name"

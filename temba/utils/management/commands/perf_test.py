@@ -220,7 +220,7 @@ class Command(BaseCommand):  # pragma: no cover
         """
         self.stdout.write(
             self.style.MIGRATE_HEADING(
-                "Org #%d (%d contacts, %dms max allowed)" % (org.id, org.org_contacts.count(), org.allowed_max)
+                "Org #%d (%d contacts, %dms max allowed)" % (org.id, org.contacts.count(), org.allowed_max)
             )
         )
 
@@ -335,7 +335,7 @@ class Command(BaseCommand):  # pragma: no cover
             <th style="padding: 5px">Change (%%)</th>
         </tr>
         """
-            % (org.id, org.org_contacts.count(), org.allowed_max)
+            % (org.id, org.contacts.count(), org.allowed_max)
         )
 
         for test in tests:
