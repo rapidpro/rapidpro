@@ -3,7 +3,6 @@ import itertools
 import logging
 import mimetypes
 import os
-import random
 import re
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
@@ -2490,14 +2489,6 @@ class Invitation(SmartModel):
             self.secret = secret
 
         return super().save(*args, **kwargs)
-
-    @classmethod
-    def generate_random_string(cls, length):  # pragma: needs cover
-        """
-        Generates a [length] characters alpha numeric secret
-        """
-        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-        return "".join([random.choice(letters) for _ in range(length)])
 
     def send_invitation(self):
         from .tasks import send_invitation_email_task
