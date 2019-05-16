@@ -1,3 +1,9 @@
+v4.22.46
+----------
+ * add hormuud channel type
+ * newest editor
+ * update invitation secret when user is re-invited
+
 v4.22.45
 ----------
  * Tweak compress for vendor
