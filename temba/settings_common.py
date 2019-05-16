@@ -1015,6 +1015,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.globe.GlobeType",
     "temba.channels.types.highconnection.HighConnectionType",
+    "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
