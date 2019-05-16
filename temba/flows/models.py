@@ -475,8 +475,7 @@ class Flow(TembaModel):
 
         # fetch or create all the flow db objects
         for flow_def in exported_json["flows"]:
-            is_legacy = Flow.METADATA in flow_def
-            if is_legacy:
+            if FlowRevision.is_legacy_definition(flow_def):
                 flow_metadata = flow_def[Flow.METADATA]
                 flow_version = Version(flow_metadata["version"]) if "version" in flow_metadata else version
                 flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
@@ -550,7 +549,7 @@ class Flow(TembaModel):
         # remap flow references in imported flows and save their definitions
         for flow, definition in created_flows:
             json.find_nodes(definition, lambda n: isinstance(n, dict) and "uuid" in n, remap_reference)
-            flow.import_definition(definition, uuid_map)
+            flow.import_definition(user, definition, uuid_map)
 
         # remap flow UUIDs in any campaign events
         if "campaigns" in exported_json:
@@ -579,7 +578,7 @@ class Flow(TembaModel):
         # grab the json of our original
         flow_json = flow.as_json()
 
-        copy.import_definition(flow_json)
+        copy.import_definition(user, flow_json, {})
 
         # copy our expiration as well
         copy.expires_after_minutes = flow.expires_after_minutes
@@ -1207,14 +1206,22 @@ class Flow(TembaModel):
 
         return Language.get_localized_text(text_translations, preferred_languages)
 
-    def import_definition(self, flow_json, uuid_map=None):
+    def import_definition(self, user, definition, uuid_map):
         """
-        Allows setting the definition for a flow from another definition.  All uuid's will be
-        remmaped accordingly.
+        Allows setting the definition for a flow from another definition. All UUID's will be remapped.
         """
-        # uuid mappings
-        if not uuid_map:
-            uuid_map = {}
+        if FlowRevision.is_legacy_definition(definition):
+            self.import_legacy_definition(definition, uuid_map)
+            return
+
+        # TODO create dependencies
+
+        self.save_revision(user, definition)
+
+    def import_legacy_definition(self, flow_json, uuid_map):
+        """
+        Imports a legacy definition
+        """
 
         def copy_recording(url, path):
             if not url:
@@ -1352,7 +1359,6 @@ class Flow(TembaModel):
 
         # now update with our remapped values
         self.update(flow_json, validate_dependencies=False)
-        return self
 
     def archive(self):
         self.is_archived = True
@@ -4213,19 +4219,23 @@ class FlowRevision(SmartModel):
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
     @classmethod
-    def validate_legacy_definition(cls, flow_spec):
+    def is_legacy_definition(cls, definition):
+        return Flow.METADATA in definition
 
-        if flow_spec["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+    @classmethod
+    def validate_legacy_definition(cls, definition):
+
+        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError(_("Unsupported flow type"))
 
         non_localized_error = _("Malformed flow, encountered non-localized definition")
 
         # should always have a base_language
-        if "base_language" not in flow_spec or not flow_spec["base_language"]:
+        if "base_language" not in definition or not definition["base_language"]:
             raise ValueError(non_localized_error)
 
         # language should match values in definition
-        base_language = flow_spec["base_language"]
+        base_language = definition["base_language"]
 
         def validate_localization(lang_dict):
 
@@ -4237,12 +4247,12 @@ class FlowRevision(SmartModel):
             if base_language not in lang_dict:  # pragma: needs cover
                 raise ValueError(non_localized_error)
 
-        for actionset in flow_spec["action_sets"]:
+        for actionset in definition["action_sets"]:
             for action in actionset["actions"]:
                 if "msg" in action and action["type"] != "email":
                     validate_localization(action["msg"])
 
-        for ruleset in flow_spec["rule_sets"]:
+        for ruleset in definition["rule_sets"]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 

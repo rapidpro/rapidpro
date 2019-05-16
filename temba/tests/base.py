@@ -197,20 +197,6 @@ class TembaTestMixin:
                     return action
         self.fail("Couldn't find action with uuid %s" % uuid)
 
-    def get_goflow(self, filename, substitutions=None):
-        definition = json.loads(self.get_import_json("goflow/" + filename, substitutions=substitutions))
-
-        # get our name
-        name = definition["name"]
-
-        # create the flow
-        flow = Flow.create(self.org, self.admin, name, use_new_editor=True)
-
-        # save a revision
-        flow.save_revision(self.admin, definition)
-
-        return flow
-
     def get_flow(self, filename, substitutions=None):
         last_flow = Flow.objects.all().order_by("-pk").first()
         self.import_file(filename, substitutions=substitutions)

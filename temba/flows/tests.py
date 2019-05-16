@@ -584,7 +584,7 @@ class FlowTest(TembaTest):
     @skip_if_no_mailroom
     def test_template_warnings(self):
         self.login(self.admin)
-        flow = self.get_goflow("template_flow")
+        flow = self.get_flow("whatsapp_template")
 
         # bring up broadcast dialog
         self.login(self.admin)
