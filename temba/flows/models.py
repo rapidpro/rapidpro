@@ -468,89 +468,91 @@ class Flow(TembaModel):
         """
         Import flows from our flow export file
         """
-        version = float(exported_json.get("version", 0))
+        version = Version(str(exported_json.get("version", "0")))
         created_flows = []
         uuid_map = dict()
+        db_types = {value: key for key, value in cls.GOFLOW_TYPES.items()}
 
-        # create all the flow containers first
-        for flow_spec in exported_json["flows"]:
+        # fetch or create all the flow db objects
+        for flow_def in exported_json["flows"]:
+            is_legacy = Flow.METADATA in flow_def
+            if is_legacy:
+                flow_metadata = flow_def[Flow.METADATA]
+                flow_version = Version(flow_metadata["version"]) if "version" in flow_metadata else version
+                flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
+                flow_uuid = flow_metadata["uuid"]
+                flow_name = flow_metadata["name"]
+                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
 
-            FlowRevision.validate_flow_definition(flow_spec)
-
-            flow_type = flow_spec.get("flow_type", Flow.TYPE_MESSAGE)
-            name = flow_spec[Flow.METADATA]["name"][:64].strip()
+                FlowRevision.validate_legacy_definition(flow_def)
+            else:
+                flow_version = Version(flow_def["version"])
+                flow_type = db_types[flow_def["type"]]
+                flow_uuid = flow_def["uuid"]
+                flow_name = flow_def["name"]
+                flow_expires = flow_def.get("expire_after_minutes", FLOW_DEFAULT_EXPIRES_AFTER)
 
             flow = None
+            flow_name = flow_name[:64].strip()
 
             # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
             # these here as they'll be created by the campaign event itself.
-            if version <= 3.0 and flow_type == "M":  # pragma: no cover
+            if flow_version <= Version("3.0") and flow_type == "M":  # pragma: no cover
                 continue
 
             # M used to mean single message flow and regular flows were F, now all messaging flows are M
             if flow_type == "F":
                 flow_type = Flow.TYPE_MESSAGE
 
-            # check if we can find that flow by id first
-            if same_site:
-                flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec["metadata"]["uuid"]).first()
-                if flow:  # pragma: needs cover
-                    expires_minutes = flow_spec[Flow.METADATA].get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
-                    if flow_type == Flow.TYPE_VOICE:
-                        expires_minutes = min([expires_minutes, 15])
+            if flow_type == Flow.TYPE_VOICE:
+                flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
 
-                    flow.expires_after_minutes = expires_minutes
-                    flow.name = Flow.get_unique_name(org, name, ignore=flow)
-                    flow.save(update_fields=["name", "expires_after_minutes"])
+            # check if we can find that flow by UUID first
+            if same_site:
+                flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
+                if flow:  # pragma: needs cover
+                    flow.expires_after_minutes = flow_expires
+                    flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
+                    flow.save(update_fields=("name", "expires_after_minutes"))
 
             # if it's not of our world, let's try by name
             if not flow:
-                flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
+                flow = Flow.objects.filter(org=org, is_active=True, name=flow_name).first()
 
             # if there isn't one already, create a new flow
             if not flow:
-                expires_minutes = flow_spec[Flow.METADATA].get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
-                if flow_type == Flow.TYPE_VOICE:
-                    expires_minutes = min([expires_minutes, 15])
-
                 flow = Flow.create(
                     org,
                     user,
-                    Flow.get_unique_name(org, name),
+                    Flow.get_unique_name(org, flow_name),
                     flow_type=flow_type,
-                    expires_after_minutes=expires_minutes,
+                    expires_after_minutes=flow_expires,
                 )
 
-            created_flows.append(dict(flow=flow, flow_spec=flow_spec))
+            uuid_map[flow_uuid] = flow.uuid
+            created_flows.append((flow, flow_def))
 
-            if "uuid" in flow_spec[Flow.METADATA]:
-                uuid_map[flow_spec[Flow.METADATA]["uuid"]] = flow.uuid
+        def remap_reference(ref):
+            """
+            Remaps a flow reference (i.e. object with uuid field and optional name)
+            """
+            if ref["uuid"] in uuid_map:
+                ref["uuid"] = uuid_map[ref["uuid"]]
+                return
 
-        # now let's update our flow definitions with any referenced flows
-        def remap_flow(element):
-            # first map our id accordingly
-            if element["uuid"] in uuid_map:
-                element["uuid"] = uuid_map[element["uuid"]]
+            existing_flow = Flow.objects.filter(uuid=ref["uuid"], org=org, is_active=True).first()
+            if not existing_flow and "name" in ref:
+                existing_flow = Flow.objects.filter(org=org, name=ref["name"], is_active=True).first()
 
-            existing_flow = Flow.objects.filter(uuid=element["uuid"], org=org, is_active=True).first()
-            if not existing_flow:
-                existing_flow = Flow.objects.filter(org=org, name=element["name"], is_active=True).first()
-                if existing_flow:
-                    element["uuid"] = existing_flow.uuid
+            if existing_flow:
+                ref["uuid"] = existing_flow.uuid
 
-        for created in created_flows:
-            for ruleset in created["flow_spec"][Flow.RULE_SETS]:
-                if ruleset["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
-                    remap_flow(ruleset["config"]["flow"])
+        # remap flow references in imported flows and save their definitions
+        for flow, definition in created_flows:
+            json.find_nodes(definition, lambda n: isinstance(n, dict) and "uuid" in n, remap_reference)
+            flow.import_definition(definition, uuid_map)
 
-            for actionset in created["flow_spec"][Flow.ACTION_SETS]:
-                for action in actionset["actions"]:
-                    if action["type"] in ["flow", "trigger-flow"]:
-                        remap_flow(action["flow"])
-            remap_flow(created["flow_spec"]["metadata"])
-            created["flow"].import_definition(created["flow_spec"], uuid_map)
-
-        # remap our flow ids according to how they were resolved
+        # remap flow UUIDs in any campaign events
         if "campaigns" in exported_json:
             for campaign in exported_json["campaigns"]:
                 for event in campaign["events"]:
@@ -559,6 +561,7 @@ class Flow(TembaModel):
                         if flow_uuid in uuid_map:
                             event["flow"]["uuid"] = uuid_map[flow_uuid]
 
+        # remap flow UUIDs in any triggers
         if "triggers" in exported_json:
             for trigger in exported_json["triggers"]:
                 if "flow" in trigger:
@@ -566,7 +569,8 @@ class Flow(TembaModel):
                     if flow_uuid in uuid_map:
                         trigger["flow"]["uuid"] = uuid_map[flow_uuid]
 
-        return [f["flow"] for f in created_flows]
+        # return the created flows
+        return [f[0] for f in created_flows]
 
     @classmethod
     def copy(cls, flow, user):
@@ -4209,7 +4213,7 @@ class FlowRevision(SmartModel):
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
     @classmethod
-    def validate_flow_definition(cls, flow_spec):
+    def validate_legacy_definition(cls, flow_spec):
 
         if flow_spec["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError(_("Unsupported flow type"))

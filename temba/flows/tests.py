@@ -6594,24 +6594,24 @@ class FlowsTest(FlowFileTest):
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
-    def test_validate_flow_definition(self):
+    def test_validate_legacy_definition(self):
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition({"flow_type": "U", "nodes": []})
+            FlowRevision.validate_legacy_definition({"flow_type": "U", "nodes": []})
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("not_fully_localized"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("not_fully_localized"))
 
         # base_language of null, but spec version 8
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("no_base_language_v8"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("no_base_language_v8"))
 
         # base_language of 'eng' but non localized actions
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("non_localized_with_language"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_with_language"))
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("non_localized_ruleset"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
 
     def test_start_flow_queueing(self):
         self.get_flow("start_flow_queued")

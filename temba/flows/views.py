@@ -310,7 +310,7 @@ class FlowCRUDL(SmartCRUDL):
                     # validate the flow definition before presenting it to the user
                     try:
                         # can only validate up to our last python version
-                        FlowRevision.validate_flow_definition(revision.get_definition_json())
+                        FlowRevision.validate_legacy_definition(revision.get_definition_json())
                         revisions.append(revision.as_json())
 
                     except ValueError:

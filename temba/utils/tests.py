@@ -807,6 +807,39 @@ class JsonTest(TembaTest):
         with self.assertRaises(TypeError):
             json.dumps(dict(foo=Exception("invalid")))
 
+    def test_find_nodes(self):
+        # find any node
+        nodes = []
+        json.find_nodes({"foo": 1}, lambda n: True, nodes.append)
+        self.assertEqual(nodes, [{"foo": 1}, 1])
+
+        # find any object
+        nodes = []
+        json.find_nodes({"foo": 1, "bar": {}}, lambda n: isinstance(n, dict), nodes.append)
+        self.assertEqual(nodes, [{"foo": 1, "bar": {}}, {}])
+
+        # find any object with an id property
+        nodes = []
+        json.find_nodes(
+            [{"id": 1}, {}, {"x": 4}, {"id": 2}], lambda n: isinstance(n, dict) and "id" in n, nodes.append
+        )
+        self.assertEqual(nodes, [{"id": 1}, {"id": 2}])
+
+    def test_remap_values(self):
+        self.assertEqual(json.remap_values(None, lambda v: v), None)
+        self.assertEqual(json.remap_values([], lambda v: v), [])
+        self.assertEqual(json.remap_values({}, lambda v: v), {})
+        self.assertEqual(json.remap_values({"foo": "1"}, lambda v: v), {"foo": "1"})
+
+        def mapper(v):
+            return {"1": "2", "A": "B"}.get(v, v)
+
+        self.assertEqual(json.remap_values({"foo": "A"}, mapper), {"foo": "B"})
+        self.assertEqual(json.remap_values({"foo": "1", "bar": "A"}, mapper), {"foo": "2", "bar": "B"})
+        self.assertEqual(json.remap_values(["1", "2", "A", "B"], mapper), ["2", "2", "B", "B"])
+        self.assertEqual(json.remap_values(["1", "2", "3", "A", "B", "C"], mapper), ["2", "2", "3", "B", "B", "C"])
+        self.assertEqual(json.remap_values({"foo": [{"bar": "A"}]}, mapper), {"foo": [{"bar": "B"}]})
+
 
 class QueueTest(TembaTest):
     def test_queueing(self):
