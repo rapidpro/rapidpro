@@ -1,3 +1,7 @@
+v4.22.47
+----------
+ * tweak to WA language mapping
+
 v4.22.46
 ----------
  * add hormuud channel type
