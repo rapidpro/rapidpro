@@ -1146,7 +1146,32 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
+            scripts = []
+            styles = []
+
+            # get our list of assets to incude
+            with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                data = json.load(json_file)
+                for key, filename in data.get("files").items():
+                    if filename.startswith("/"):
+                        filename = filename[1:]
+
+                    # ignore precache manifest
+                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                        continue
+
+                    # css files
+                    if key.endswith(".css") and filename.endswith(".css"):
+                        styles.append(filename)
+
+                    # javascript
+                    if key.endswith(".js") and filename.endswith(".js"):
+                        scripts.append(filename)
+
             flow = self.object
+
+            context["scripts"] = scripts
+            context["styles"] = styles
 
             if flow.is_archived:
                 context["mutable"] = False
