@@ -53,6 +53,7 @@ from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.http import http_headers
+from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
@@ -1409,6 +1410,8 @@ class OrgCRUDL(SmartCRUDL):
 
                         invitation.user_group = invite_group
                         invitation.is_active = True
+                        # generate new secret for this invitation
+                        invitation.secret = random_string(64)
                         invitation.save()
                     else:
                         invitation = Invitation.create(org, self.request.user, email, invite_group)

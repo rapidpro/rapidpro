@@ -968,6 +968,8 @@ class OrgTest(TembaTest):
         self.assertEqual(invitation.email, "norkans7@gmail.com")
         self.assertEqual(invitation.user_group, "A")
 
+        old_secret = invitation.secret
+
         # and sent by email
         self.assertTrue(len(mail.outbox) == 1)
 
@@ -984,6 +986,8 @@ class OrgTest(TembaTest):
         invitation.refresh_from_db()
         self.assertEqual(invitation.user_group, "E")
         self.assertTrue(invitation.is_active)
+        # make sure that new invitation has a new secret
+        self.assertNotEqual(old_secret, invitation.secret)
 
         # and new email sent
         self.assertEqual(len(mail.outbox), 2)
