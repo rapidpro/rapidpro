@@ -8,10 +8,8 @@
 -block extra-style
   %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
 
-  {% if not dev_mode %}
   -for css in styles
     %link{rel:'stylesheet', type:'text/css', href:'{{STATIC_URL}}{{css}}'}
-  {% endif %}
 
   :css
     body {
@@ -125,40 +123,8 @@
 -block extra-script
   {{ block.super }}
 
-  {% if dev_mode %}
-  :javascript
-    function loadScripts(uris, whenDone){
-      if (!uris.length) whenDone && whenDone();
-      else {
-        for (var wait=[],i=uris.length;i--;){
-          var tag  = document.createElement('script');
-          tag.type = 'text/javascript';
-          tag.src  = uris[i];
-          if (whenDone){
-            wait.push(tag)
-            tag.onload = maybeDone; 
-            tag.onreadystatechange = maybeDone; // For IE8-
-          }
-          document.body.appendChild(tag);
-        }
-      }
-
-      function maybeDone() {
-        if (this.readyState===undefined || this.readyState==='complete'){
-          for (var i=wait.length;i--;) if (wait[i]==this) wait.splice(i,1);
-          if (!wait.length) whenDone();
-        }
-      }
-    }
-
-    function loadStyle(src) {
-      (function() { document.write(unescape('%3Cstyle src="' + src + '"%3E%3C/style%3E')); })();
-    }
-  {% else %}
   -for script in scripts
     %script{type:'text/javascript', src:'{{STATIC_URL}}{{script}}'}
-  {% endif %}
-
 
   :javascript
     const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
@@ -217,38 +183,7 @@
       }
     };
 
-    {% if dev_mode %}
-    $.getJSON('/asset-manifest.json', ( data ) => {
-      data = data.files;
-      var scripts = [];
-      var styles = [];
-      for ( var i in Object.keys( data ) ) {
-          const key = Object.keys( data )[i];
-          if (key.indexOf(".map") > -1) {
-            continue;
-          }
-          if (key.indexOf('.js') !== -1 && key.indexOf('service-worker') === -1) {
-              var path = data[key];
-              scripts.push(path)
-          } else if (key.indexOf('.css') > -1) {
-              var path = prefix + data[key];
-              styles.push(path);
-          }
-      } 
-
-      loadScripts(scripts, ()=>{
-        showFlowEditor(document.getElementById('rp-flow-editor'), config);
-      });
-
-      for (var i in styles) {
-        loadStyle(styles[i]);
-      }
-    });
-
-    {% else %}
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
-    {% endif %}
-
 
     {% if org_perms.flows.flow_update %}
     $(".update-rulesflow").live('click', function(){
