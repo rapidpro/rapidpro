@@ -470,7 +470,7 @@ class Flow(TembaModel):
         """
         version = Version(str(exported_json.get("version", "0")))
         created_flows = []
-        uuid_map = dict()
+        dependency_map = {}  # dependency identifiers in import => new references
         db_types = {value: key for key, value in cls.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
@@ -528,28 +528,12 @@ class Flow(TembaModel):
                     expires_after_minutes=flow_expires,
                 )
 
-            uuid_map[flow_uuid] = flow.uuid
+            dependency_map[flow_uuid] = {"uuid": str(flow.uuid), "name": flow.name}
             created_flows.append((flow, flow_def))
 
-        def remap_reference(ref):
-            """
-            Remaps a flow reference (i.e. object with uuid field and optional name)
-            """
-            if ref["uuid"] in uuid_map:
-                ref["uuid"] = uuid_map[ref["uuid"]]
-                return
-
-            existing_flow = Flow.objects.filter(uuid=ref["uuid"], org=org, is_active=True).first()
-            if not existing_flow and "name" in ref:
-                existing_flow = Flow.objects.filter(org=org, name=ref["name"], is_active=True).first()
-
-            if existing_flow:
-                ref["uuid"] = existing_flow.uuid
-
-        # remap flow references in imported flows and save their definitions
+        # import each definition (includes re-mapping dependency references)
         for flow, definition in created_flows:
-            json.find_nodes(definition, lambda n: isinstance(n, dict) and "uuid" in n, remap_reference)
-            flow.import_definition(user, definition, uuid_map)
+            flow.import_definition(user, definition, dependency_map)
 
         # remap flow UUIDs in any campaign events
         if "campaigns" in exported_json:
@@ -557,16 +541,18 @@ class Flow(TembaModel):
                 for event in campaign["events"]:
                     if "flow" in event:
                         flow_uuid = event["flow"]["uuid"]
-                        if flow_uuid in uuid_map:
-                            event["flow"]["uuid"] = uuid_map[flow_uuid]
+                        if flow_uuid in dependency_map:
+                            event["flow"]["uuid"] = dependency_map[flow_uuid]["uuid"]
+                            event["flow"]["name"] = dependency_map[flow_uuid]["name"]
 
         # remap flow UUIDs in any triggers
         if "triggers" in exported_json:
             for trigger in exported_json["triggers"]:
                 if "flow" in trigger:
                     flow_uuid = trigger["flow"]["uuid"]
-                    if flow_uuid in uuid_map:
-                        trigger["flow"]["uuid"] = uuid_map[flow_uuid]
+                    if flow_uuid in dependency_map:
+                        trigger["flow"]["uuid"] = dependency_map[flow_uuid]["uuid"]
+                        trigger["flow"]["name"] = dependency_map[flow_uuid]["name"]
 
         # return the created flows
         return [f[0] for f in created_flows]
@@ -1206,15 +1192,56 @@ class Flow(TembaModel):
 
         return Language.get_localized_text(text_translations, preferred_languages)
 
-    def import_definition(self, user, definition, uuid_map):
+    def import_definition(self, user, definition, dependency_map):
         """
         Allows setting the definition for a flow from another definition. All UUID's will be remapped.
         """
         if FlowRevision.is_legacy_definition(definition):
+            uuid_map = {k: r["uuid"] for k, r in dependency_map.items()}
             self.import_legacy_definition(definition, uuid_map)
             return
 
-        # TODO create dependencies
+        validated = mailroom.get_client().flow_validate(None, definition)
+        dependencies = validated["_dependencies"]
+
+        # ensure any channel dependencies exist
+        for channel_ref in dependencies["channels"]:
+            pass
+
+        # ensure any field dependencies exist
+        for ref in dependencies["fields"]:
+            ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
+
+        # lookup additional flow dependencies by name (i.e. for flows not in the import itself)
+        for ref in dependencies["flows"]:
+            if ref["uuid"] not in dependency_map:
+                flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
+                if not flow:
+                    flow = self.org.flows.filter(name=ref["name"], is_active=True).first()
+                if flow:
+                    dependency_map[ref["uuid"]] = {"uuid": str(flow.uuid), "name": flow.name}
+
+        # ensure any group dependencies exist
+        for ref in dependencies["groups"]:
+            group = ContactGroup.get_or_create(self.org, user, ref["name"], ref["uuid"])
+            dependency_map[ref["uuid"]] = {"uuid": str(group.uuid), "name": group.name}
+
+        # ensure any label dependencies exist
+        for ref in dependencies["labels"]:
+            label = Label.get_or_create(self.org, user, ref["name"])
+            dependency_map[ref["uuid"]] = {"uuid": str(label.uuid), "name": label.name}
+
+        def update_ref(ref_node):
+            """
+            Updates a dependency reference with a UUID value according to the dependency mapping dict
+            """
+            new_ref = dependency_map.get(ref["uuid"])
+            if new_ref:
+                ref_node["uuid"] = new_ref["uuid"]
+                ref_node["name"] = new_ref["name"]
+
+        # rewrite all reference nodes in the definition with new UUIDs
+        json.find_nodes(definition, lambda n: isinstance(n, dict) and "uuid" in n, update_ref)
 
         self.save_revision(user, definition)
 
@@ -1284,8 +1311,22 @@ class Flow(TembaModel):
                 elif group["uuid"] in uuid_map:
                     group["uuid"] = uuid_map[group["uuid"]]
 
+        def remap_flow(element):
+            # first map our id accordingly
+            if element["uuid"] in uuid_map:
+                element["uuid"] = uuid_map[element["uuid"]]
+
+            existing_flow = Flow.objects.filter(uuid=element["uuid"], org=self.org, is_active=True).first()
+            if not existing_flow:
+                existing_flow = Flow.objects.filter(org=self.org, name=element["name"], is_active=True).first()
+                if existing_flow:
+                    element["uuid"] = existing_flow.uuid
+
+        remap_uuid(flow_json[Flow.METADATA], "uuid")
         remap_uuid(flow_json, "entry")
+
         needs_move_entry = False
+
         for actionset in flow_json[Flow.ACTION_SETS]:
             remap_uuid(actionset, "uuid")
             remap_uuid(actionset, "exit_uuid")
@@ -1334,6 +1375,9 @@ class Flow(TembaModel):
                         action["channel"] = channel.uuid
                         action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
 
+                if action["type"] in ["flow", "trigger-flow"]:
+                    remap_flow(action["flow"])
+
                 valid_actions.append(action)
 
             actionset["actions"] = valid_actions
@@ -1349,6 +1393,10 @@ class Flow(TembaModel):
 
         for ruleset in flow_json[Flow.RULE_SETS]:
             remap_uuid(ruleset, "uuid")
+
+            if ruleset["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+                remap_flow(ruleset["config"]["flow"])
+
             for rule in ruleset.get(Flow.RULES, []):
                 remap_uuid(rule, "uuid")
                 remap_uuid(rule, "destination")

@@ -62,19 +62,3 @@ def find_nodes(j, matcher, callback):
     elif isinstance(j, list):
         for i in j:
             find_nodes(i, matcher, callback)
-
-
-def remap_values(j, mapper):
-    """
-    Recursively remaps string values in parsed JSON
-    :param j: the current parsed JSON
-    :param mapper: a callable map function
-    :return: the remapped JSON
-    """
-    if isinstance(j, dict):
-        return {k: remap_values(v, mapper) for k, v in j.items()}
-    elif isinstance(j, list):
-        return [remap_values(i, mapper) for i in j]
-    elif isinstance(j, str):
-        return mapper(j)
-    return j

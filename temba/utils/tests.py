@@ -825,21 +825,6 @@ class JsonTest(TembaTest):
         )
         self.assertEqual(nodes, [{"id": 1}, {"id": 2}])
 
-    def test_remap_values(self):
-        self.assertEqual(json.remap_values(None, lambda v: v), None)
-        self.assertEqual(json.remap_values([], lambda v: v), [])
-        self.assertEqual(json.remap_values({}, lambda v: v), {})
-        self.assertEqual(json.remap_values({"foo": "1"}, lambda v: v), {"foo": "1"})
-
-        def mapper(v):
-            return {"1": "2", "A": "B"}.get(v, v)
-
-        self.assertEqual(json.remap_values({"foo": "A"}, mapper), {"foo": "B"})
-        self.assertEqual(json.remap_values({"foo": "1", "bar": "A"}, mapper), {"foo": "2", "bar": "B"})
-        self.assertEqual(json.remap_values(["1", "2", "A", "B"], mapper), ["2", "2", "B", "B"])
-        self.assertEqual(json.remap_values(["1", "2", "3", "A", "B", "C"], mapper), ["2", "2", "3", "B", "B", "C"])
-        self.assertEqual(json.remap_values({"foo": [{"bar": "A"}]}, mapper), {"foo": [{"bar": "B"}]})
-
 
 class QueueTest(TembaTest):
     def test_queueing(self):
