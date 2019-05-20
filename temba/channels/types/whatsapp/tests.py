@@ -13,7 +13,8 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import CONFIG_FB_BUSINESS_ID, WhatsAppType
+from .type import CONFIG_FB_TEMPLATE_LIST_DOMAIN, CONFIG_FB_BUSINESS_ID, WhatsAppType
+from .views import FACEBOOK_HOSTED, SELF_HOSTED
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -43,6 +44,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
+        post_data["facebook_template_list_domain"] = FACEBOOK_HOSTED
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
@@ -69,6 +71,9 @@ class WhatsAppTypeTest(TembaTest):
                 response = self.client.post(url, post_data)
                 self.assertEqual(200, response.status_code)
                 self.assertFalse(Channel.objects.all())
+                mock_get.assert_called_with(
+                    "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+                )
 
                 self.assertContains(response, "check user id and access token")
 
@@ -243,6 +248,10 @@ class WhatsAppTypeTest(TembaTest):
                 )
             ]
             refresh_whatsapp_templates()
+            mock_get.assert_called_with(
+                "https://graph.facebook.com/v3.3/1234/message_templates",
+                params={"access_token": "token123", "limit": 255},
+            )
 
             # should have two templates
             self.assertEqual(2, Template.objects.filter(org=self.org).count())
@@ -273,3 +282,52 @@ class WhatsAppTypeTest(TembaTest):
 
         # all our templates should be inactive now
         self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+
+    def test_claim_self_hosted_templates(self):
+        Channel.objects.all().delete()
+
+        url = reverse("channels.types.whatsapp.claim")
+        self.login(self.admin)
+
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertNotContains(response, url)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        post_data = response.context["form"].initial
+
+        post_data["number"] = "0788123123"
+        post_data["username"] = "temba"
+        post_data["password"] = "tembapasswd"
+        post_data["country"] = "RW"
+        post_data["base_url"] = "https://whatsapp.foo.bar"
+        post_data["facebook_namespace"] = "my-custom-app"
+        post_data["facebook_business_id"] = "1234"
+        post_data["facebook_access_token"] = "token123"
+        post_data["facebook_template_list_domain"] = SELF_HOSTED
+
+        # success claim
+        with patch("requests.post") as mock_post:
+            with patch("requests.get") as mock_get:
+
+                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+                mock_get.return_value = MockResponse(200, '{"data": []}')
+
+                response = self.client.post(url, post_data)
+                self.assertEqual(302, response.status_code)
+                mock_get.assert_called_with(
+                    "https://whatsapp.foo.bar/v3.3/1234/message_templates", params={"access_token": "token123"}
+                )
+
+        # test the template syncing task calls the correct domain
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            refresh_whatsapp_templates()
+            mock_get.assert_called_with(
+                "https://whatsapp.foo.bar/v3.3/1234/message_templates",
+                params={"access_token": "token123", "limit": 255},
+            )
+
+        channel = Channel.objects.get()
+
+        self.assertEqual("whatsapp.foo.bar", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
