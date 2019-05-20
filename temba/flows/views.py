@@ -1147,14 +1147,14 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
-            dev_mode = getattr(settings, "DEV_MODE", False)
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "dev/" if dev_mode else ""
 
+            # get our list of assets to incude
             scripts = []
             styles = []
 
-            # get our list of assets to incude
-            if dev_mode:
+            if dev_mode:  # pragma: no cover
                 response = requests.get("http://localhost:3000/asset-manifest.json")
                 data = response.json()
             else:
