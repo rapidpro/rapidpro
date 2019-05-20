@@ -46,7 +46,7 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-STORAGE_URL = "/media"  # may be local /media or AWS S3
+STORAGE_URL = None  # may be local /media or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # -----------------------------------------------------------------------------------
@@ -805,8 +805,8 @@ TEST_EXCLUDE = ("smartmin",)
 _default_database_config = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
     "NAME": "temba",
-    "USER": "sdehaan",
-    "PASSWORD": "",
+    "USER": "temba",
+    "PASSWORD": "temba",
     "HOST": "localhost",
     "PORT": "5432",
     "ATOMIC_REQUESTS": True,
