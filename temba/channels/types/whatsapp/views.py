@@ -1,7 +1,6 @@
 import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
-from urllib.parse import urlparse
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
@@ -14,8 +13,6 @@ from temba.utils.views import PostOnlyMixin
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
 from .tasks import refresh_whatsapp_contacts
-
-from . import type
 
 
 class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
