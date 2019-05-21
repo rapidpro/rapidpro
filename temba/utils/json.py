@@ -4,6 +4,14 @@ import pytz
 import simplejson
 
 
+def load(value):
+    """
+    Reads the passed in file to a JSON dictionary. The dictionary passed back will be ordered
+    and decimal values will be represented as a decimal.Decimal.
+    """
+    return simplejson.load(value, use_decimal=True)
+
+
 def loads(value):
     """
     Converts the passed in string to a JSON dictionary. The dictionary passed back will be ordered

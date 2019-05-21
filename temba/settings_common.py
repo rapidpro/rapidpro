@@ -127,7 +127,7 @@ TESTFILES_DIR = os.path.join(PROJECT_DIR, "../testfiles")
 STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
-    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/build"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
@@ -1015,6 +1015,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.globe.GlobeType",
     "temba.channels.types.highconnection.HighConnectionType",
+    "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",

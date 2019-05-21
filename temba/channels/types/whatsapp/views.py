@@ -1,6 +1,7 @@
 import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
+
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -72,6 +73,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=64, help_text=_("The password to access your WhatsApp enterprise account")
         )
 
+        facebook_template_list_domain = forms.CharField(
+            label=_("Templates Domain"),
+            help_text=_("Which domain to retrieve the message templates from"),
+            initial="graph.facebook.com",
+        )
+
         facebook_business_id = forms.CharField(
             max_length=128, help_text=_("The Facebook waba-id that will be used for template syncing")
         )
@@ -109,7 +116,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             from .type import TEMPLATE_LIST_URL
 
             response = requests.get(
-                TEMPLATE_LIST_URL % self.cleaned_data["facebook_business_id"],
+                TEMPLATE_LIST_URL
+                % (self.cleaned_data["facebook_template_list_domain"], self.cleaned_data["facebook_business_id"]),
                 params=dict(access_token=self.cleaned_data["facebook_access_token"]),
             )
 
@@ -120,13 +128,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                         + "the whatsapp_business_management permission is enabled"
                     )
                 )
-
             return self.cleaned_data
 
     form_class = Form
 
     def form_valid(self, form):
-        from .type import CONFIG_FB_ACCESS_TOKEN, CONFIG_FB_BUSINESS_ID, CONFIG_FB_NAMESPACE
+        from .type import (
+            CONFIG_FB_ACCESS_TOKEN,
+            CONFIG_FB_BUSINESS_ID,
+            CONFIG_FB_NAMESPACE,
+            CONFIG_FB_TEMPLATE_LIST_DOMAIN,
+        )
 
         user = self.request.user
         org = user.get_org()
@@ -144,6 +156,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             CONFIG_FB_BUSINESS_ID: data["facebook_business_id"],
             CONFIG_FB_ACCESS_TOKEN: data["facebook_access_token"],
             CONFIG_FB_NAMESPACE: data["facebook_namespace"],
+            CONFIG_FB_TEMPLATE_LIST_DOMAIN: data["facebook_template_list_domain"],
         }
 
         self.object = Channel.create(
