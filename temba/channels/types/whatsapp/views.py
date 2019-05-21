@@ -78,7 +78,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         facebook_template_list_domain = forms.CharField(
             label=_("Templates Domain"),
-            help_text=_("Which domain to retrieve the message templates from."),
+            help_text=_("Which domain to retrieve the message templates from"),
             initial="graph.facebook.com",
         )
 
