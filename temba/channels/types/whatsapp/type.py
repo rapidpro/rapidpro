@@ -91,8 +91,9 @@ LANGUAGE_MAPPING = dict(
 CONFIG_FB_BUSINESS_ID = "fb_business_id"
 CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
 CONFIG_FB_NAMESPACE = "fb_namespace"
+CONFIG_FB_TEMPLATE_LIST_DOMAIN = "fb_template_list_domain"
 
-TEMPLATE_LIST_URL = "https://graph.facebook.com/v3.3/%s/message_templates"
+TEMPLATE_LIST_URL = "https://%s/v3.3/%s/message_templates"
 
 
 class WhatsAppType(ChannelType):
