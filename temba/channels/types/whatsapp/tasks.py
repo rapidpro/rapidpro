@@ -113,7 +113,6 @@ def refresh_whatsapp_templates():
         CONFIG_FB_BUSINESS_ID,
         CONFIG_FB_ACCESS_TOKEN,
         CONFIG_FB_TEMPLATE_LIST_DOMAIN,
-        DEFAULT_FB_TEMPLATE_LIST_DOMAIN,
         LANGUAGE_MAPPING,
         STATUS_MAPPING,
         TEMPLATE_LIST_URL,
@@ -136,9 +135,7 @@ def refresh_whatsapp_templates():
             try:
                 # Retrieve the template domain, fallback to the default for channels
                 # that have been setup earlier for backwards compatibility
-                facebook_template_domain = channel.config.get(
-                    CONFIG_FB_TEMPLATE_LIST_DOMAIN, DEFAULT_FB_TEMPLATE_LIST_DOMAIN
-                )
+                facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
                 facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
                 # we should never need to paginate because facebook limits accounts to 255 templates
                 response = requests.get(

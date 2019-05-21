@@ -14,7 +14,6 @@ from .tasks import (
     refresh_whatsapp_tokens,
 )
 from .type import CONFIG_FB_TEMPLATE_LIST_DOMAIN, CONFIG_FB_BUSINESS_ID, WhatsAppType
-from .views import FACEBOOK_HOSTED, SELF_HOSTED
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -44,7 +43,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
-        post_data["facebook_template_list_domain"] = FACEBOOK_HOSTED
+        post_data["facebook_template_list_domain"] = "graph.facebook.com"
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
@@ -304,7 +303,7 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_namespace"] = "my-custom-app"
         post_data["facebook_business_id"] = "1234"
         post_data["facebook_access_token"] = "token123"
-        post_data["facebook_template_list_domain"] = SELF_HOSTED
+        post_data["facebook_template_list_domain"] = "example.org"
 
         # success claim
         with patch("requests.post") as mock_post:
@@ -316,7 +315,7 @@ class WhatsAppTypeTest(TembaTest):
                 response = self.client.post(url, post_data)
                 self.assertEqual(302, response.status_code)
                 mock_get.assert_called_with(
-                    "https://whatsapp.foo.bar/v3.3/1234/message_templates", params={"access_token": "token123"}
+                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
                 )
 
         # test the template syncing task calls the correct domain
@@ -324,10 +323,9 @@ class WhatsAppTypeTest(TembaTest):
             mock_get.return_value = MockResponse(200, '{"data": []}')
             refresh_whatsapp_templates()
             mock_get.assert_called_with(
-                "https://whatsapp.foo.bar/v3.3/1234/message_templates",
-                params={"access_token": "token123", "limit": 255},
+                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123", "limit": 255}
             )
 
         channel = Channel.objects.get()
 
-        self.assertEqual("whatsapp.foo.bar", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
+        self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])

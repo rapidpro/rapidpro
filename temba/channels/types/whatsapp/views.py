@@ -15,6 +15,8 @@ from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
 from .tasks import refresh_whatsapp_contacts
 
+from . import type
+
 
 class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     """
@@ -60,14 +62,6 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
         return context
 
 
-FACEBOOK_HOSTED = "_facebook"
-SELF_HOSTED = "_self_hosted"
-ALL_TEMPLATE_LIST_DOMAINS = (
-    (FACEBOOK_HOSTED, "Graph API hosted by Facebook"),
-    (SELF_HOSTED, "Graph API on base URL domain"),
-)
-
-
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
@@ -82,10 +76,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             max_length=64, help_text=_("The password to access your WhatsApp enterprise account")
         )
 
-        facebook_template_list_domain = forms.ChoiceField(
-            choices=ALL_TEMPLATE_LIST_DOMAINS,
-            label=_("Templates"),
-            help_text=_("Where to retrieve the message templates from."),
+        facebook_template_list_domain = forms.CharField(
+            label=_("Templates Domain"),
+            help_text=_("Which domain to retrieve the message templates from."),
+            initial="graph.facebook.com",
         )
 
         facebook_business_id = forms.CharField(
@@ -122,13 +116,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 )
 
             # check we can access their facebook templates
-            from .type import TEMPLATE_LIST_URL, DEFAULT_FB_TEMPLATE_LIST_DOMAIN
-
-            if self.cleaned_data["facebook_template_list_domain"] == SELF_HOSTED:
-                parsed_base_url = urlparse(self.cleaned_data["base_url"])
-                self.cleaned_data["facebook_template_list_domain"] = parsed_base_url.netloc
-            else:
-                self.cleaned_data["facebook_template_list_domain"] = DEFAULT_FB_TEMPLATE_LIST_DOMAIN
+            from .type import TEMPLATE_LIST_URL
 
             response = requests.get(
                 TEMPLATE_LIST_URL
