@@ -9747,6 +9747,42 @@ class FlowMigrationTest(FlowFileTest):
         action_sets = flow.action_sets.all()
         self.assertEqual(len(action_sets), 0)
 
+    def test_migrate_to_11_12_other_org_new_flow(self):
+        # change ownership of the channel it's referencing
+        self.create_secondary_org()
+        self.channel.org = self.org2
+        self.channel.save(update_fields=("org",))
+
+        flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
+
+        # check action was removed
+        definition = flow.revisions.order_by("revision").last().definition
+        self.assertEqual(len(definition["action_sets"]), 1)
+        self.assertEqual(len(definition["action_sets"][0]["actions"]), 0)
+
+    def test_migrate_to_11_12_other_org_existing_flow(self):
+        # import a flow but don't yet migrate it to 11.12
+        with patch("temba.orgs.models.get_current_export_version") as mock_get_current_export_version1:
+            with patch("temba.flows.models.get_current_export_version") as mock_get_current_export_version2:
+                mock_get_current_export_version1.return_value = "11.11"
+                mock_get_current_export_version2.return_value = "11.11"
+
+                flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
+
+        self.assertEqual(flow.version_number, "11.11")
+        self.assertEqual(flow.revisions.order_by("revision").last().spec_version, "11.11")
+
+        # change ownership of the channel it's referencing
+        self.create_secondary_org()
+        self.channel.org = self.org2
+        self.channel.save(update_fields=("org",))
+
+        flow.ensure_current_version()
+
+        # check action set was removed
+        definition = flow.revisions.order_by("revision").last().definition
+        self.assertEqual(len(definition["action_sets"]), 0)
+
     def test_migrate_to_11_11(self):
 
         flow = self.get_flow("migrate_to_11_11")
