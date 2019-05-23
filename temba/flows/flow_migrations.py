@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import regex
 
-from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import (
     ContainsAnyTest,
@@ -53,10 +52,10 @@ def migrate_to_version_11_12(json_flow, flow=None):
                 channel_uuid = action.get("channel")
                 channel_name = action.get("name")
                 if channel_uuid is not None:
-                    channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+                    channel = flow.org.channels.filter(is_active=True, uuid=channel_uuid).first()
 
                 if channel is None and channel_name is not None:
-                    channel = Channel.objects.filter(is_active=True, name=channel_name).first()
+                    channel = flow.org.channels.filter(is_active=True, name=channel_name).first()
 
                 if channel is None:
                     # skip this action it is invalid
