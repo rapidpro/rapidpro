@@ -1347,7 +1347,7 @@ class Flow(TembaModel):
                     remap_group(group)
 
         # now update with our remapped values
-        self.update(flow_json, validate_dependencies=False)
+        self.update(flow_json)
         return self
 
     def archive(self):
@@ -2354,7 +2354,7 @@ class Flow(TembaModel):
 
         return revision
 
-    def update(self, json_dict, user=None, force=False, validate_dependencies=True):
+    def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow and returns the new revision
         """
@@ -2393,7 +2393,7 @@ class Flow(TembaModel):
                     actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
                     actionset[Flow.ACTIONS] = actions
 
-            validated = mailroom.get_client().flow_validate(self.org if validate_dependencies else None, json_dict)
+            validated = mailroom.get_client().flow_validate(org=None, definition=json_dict)
             dependencies = validated["_dependencies"]
 
             with transaction.atomic():
