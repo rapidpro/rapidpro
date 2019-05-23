@@ -1,3 +1,7 @@
+v4.22.49
+----------
+ * Only do mailroom validation on new flows
+
 v4.22.48
 ----------
  * Fix 11.12 migration and importing flows when flow contains a reference to a channel in a different org
