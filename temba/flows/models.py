@@ -1363,11 +1363,11 @@ class Flow(TembaModel):
                     channel_name = action.get("name")
 
                     if channel_uuid is not None:
-                        channel = Channel.objects.filter(is_active=True, uuid=channel_uuid).first()
+                        channel = self.org.channels.filter(is_active=True, uuid=channel_uuid).first()
 
                     if channel is None and channel_name is not None:
                         name = channel_name.split(":")[-1].strip()
-                        channel = Channel.objects.filter(is_active=True, name=name).first()
+                        channel = self.org.channels.filter(is_active=True, name=name).first()
 
                     if channel is None:
                         continue
@@ -4370,7 +4370,9 @@ class FlowRevision(SmartModel):
 
         return json_flow
 
-    def get_definition_json(self, to_version=get_current_export_version()):
+    def get_definition_json(self, to_version=None):
+        if not to_version:
+            to_version = get_current_export_version()
 
         definition = self.definition
 

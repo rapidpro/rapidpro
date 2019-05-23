@@ -1,3 +1,8 @@
+v4.22.48
+----------
+ * Fix 11.12 migration and importing flows when flow contains a reference to a channel in a different org
+ * Make WhatsApp endpoint configurable, either FB or self-hosted
+
 v4.22.47
 ----------
  * tweak to WA language mapping
