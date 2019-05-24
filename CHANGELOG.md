@@ -1,3 +1,7 @@
+v4.22.50
+----------
+ * Update to floweditor v1.5.2
+
 v4.22.49
 ----------
  * Only do mailroom validation on new flows
