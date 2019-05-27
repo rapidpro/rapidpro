@@ -1105,17 +1105,18 @@ class Org(SmartModel):
         return datetime_to_str(datetime, format, self.timezone)
 
     def parse_datetime(self, datetime_string):
-        if isinstance(datetime_string, datetime):
-            return datetime_string
+        if not (isinstance(datetime_string, str)):
+            raise ValueError(f"parse_datetime called with param of type: {type(datetime_string)}, expected string")
 
         return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
 
     def parse_number(self, decimal_string):
-        parsed = None
+        if not (isinstance(decimal_string, str)):
+            raise ValueError(f"parse_number called with param of type: {type(decimal_string)}, expected string")
 
+        parsed = None
         try:
-            # cast to string, decimal of a float, Decimal(1.1) ~= 1.100000000000000088817841970012523233890533447265625
-            parsed = Decimal(str(decimal_string))
+            parsed = Decimal(decimal_string)
 
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None

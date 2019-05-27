@@ -1259,7 +1259,7 @@ class CampaignTest(TembaTest):
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
         )
-        self.farmer1.set_field(self.admin, "planting_date", timezone.now())
+        self.farmer1.set_field(self.admin, "planting_date", self.org.format_datetime(timezone.now()))
 
         trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
         ev = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
@@ -1281,7 +1281,7 @@ class CampaignTest(TembaTest):
         planting_date = timezone.now()
         field_created_on = self.org.contactfields.get(key="created_on")
 
-        self.farmer1.set_field(self.admin, "planting_date", planting_date)
+        self.farmer1.set_field(self.admin, "planting_date", self.org.format_datetime(planting_date))
 
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 

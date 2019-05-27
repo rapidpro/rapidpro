@@ -1,3 +1,4 @@
+import datetime
 import io
 from datetime import timedelta
 from decimal import Decimal
@@ -4307,7 +4308,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_location_path("Nigeria > Lagos "), lagos)
         self.assertEqual(self.org.parse_location_path(" Nigeria > Lagos "), lagos)
 
-    def test_parse_decimal(self):
+    def test_parse_number(self):
         self.assertEqual(self.org.parse_number("Not num"), None)
         self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
         self.assertEqual(self.org.parse_number("6e33"), None)
@@ -4316,4 +4317,14 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number(""), None)
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
-        self.assertEqual(self.org.parse_number(0.001), Decimal("0.001"))
+
+        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+
+    def test_parse_datetime(self):
+        self.assertEqual(self.org.parse_datetime("Not num"), None)
+        self.assertEqual(
+            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
+            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
+        )
+
+        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())

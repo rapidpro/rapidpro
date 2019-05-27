@@ -944,7 +944,7 @@ class APITest(TembaTest):
         # create our contact and set a registration date
         contact = self.create_contact("Joe", "+12065551515")
         reporters.contacts.add(contact)
-        contact.set_field(self.admin, "registration", timezone.now())
+        contact.set_field(self.admin, "registration", self.org.format_datetime(timezone.now()))
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
