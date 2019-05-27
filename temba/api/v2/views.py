@@ -1768,14 +1768,17 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "archived": false,
                     "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                     "expires": 600,
-                    "created_on": "2016-01-06T15:33:00.813162Z",
-                    "modified_on": "2017-01-07T13:14:00.453567Z",
                     "runs": {
                         "active": 47,
                         "completed": 123,
                         "interrupted": 2,
                         "expired": 34
-                    }
+                    },
+                    "results": [
+                        {"key": "has_water", "name": "Has Water", "categories": ["Yes", "No", "Other"]}
+                    ],
+                    "created_on": "2016-01-06T15:33:00.813162Z",
+                    "modified_on": "2017-01-07T13:14:00.453567Z"
                 },
                 ...
             ]

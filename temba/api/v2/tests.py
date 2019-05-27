@@ -2354,6 +2354,15 @@ class APITest(TembaTest):
                     "labels": [],
                     "expires": 720,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                        {
+                            "key": "beer",
+                            "name": "Beer",
+                            "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                        },
+                        {"key": "name", "name": "Name", "categories": ["All Responses"]},
+                    ],
                     "created_on": format_datetime(archived.created_on),
                     "modified_on": format_datetime(archived.modified_on),
                 },
@@ -2365,6 +2374,9 @@ class APITest(TembaTest):
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
                     "expires": 720,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {"key": "color", "name": "color", "categories": ["Orange", "Blue", "Other", "Nothing"]}
+                    ],
                     "created_on": format_datetime(color.created_on),
                     "modified_on": format_datetime(color.modified_on),
                 },
@@ -2376,6 +2388,12 @@ class APITest(TembaTest):
                     "labels": [],
                     "expires": 10080,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {"key": "name", "name": "Name", "categories": ["All Responses"]},
+                        {"key": "photo", "name": "Photo", "categories": ["All Responses"]},
+                        {"key": "location", "name": "Location", "categories": ["All Responses"]},
+                        {"key": "video", "name": "Video", "categories": ["All Responses"]},
+                    ],
                     "created_on": format_datetime(survey.created_on),
                     "modified_on": format_datetime(survey.modified_on),
                 },

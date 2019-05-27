@@ -741,6 +741,7 @@ class FlowReadSerializer(ReadSerializer):
     labels = serializers.SerializerMethodField()
     expires = serializers.ReadOnlyField(source="expires_after_minutes")
     runs = serializers.SerializerMethodField()
+    results = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
@@ -759,9 +760,23 @@ class FlowReadSerializer(ReadSerializer):
             "expired": stats["expired"],
         }
 
+    def get_results(self, obj):
+        return obj.metadata.get(Flow.METADATA_RESULTS, [])
+
     class Meta:
         model = Flow
-        fields = ("uuid", "name", "type", "archived", "labels", "expires", "runs", "created_on", "modified_on")
+        fields = (
+            "uuid",
+            "name",
+            "type",
+            "archived",
+            "labels",
+            "expires",
+            "runs",
+            "results",
+            "created_on",
+            "modified_on",
+        )
 
 
 class FlowRunReadSerializer(ReadSerializer):
