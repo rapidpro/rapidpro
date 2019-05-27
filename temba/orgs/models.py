@@ -27,8 +27,8 @@ from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import connection, models, transaction
-from django.db.models import F, Prefetch, Q, Sum
+from django.db import models, transaction
+from django.db.models import F, Max, Prefetch, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -2803,7 +2803,7 @@ class CreditAlert(SmartModel):
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
         # is there already an active alert at this threshold? if so, exit
-        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):  # pragma: needs cover
+        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type).exists():
             return None
 
         print("triggering %s credits alert type for %s" % (alert_type, org.name))
@@ -2868,30 +2868,31 @@ class CreditAlert(SmartModel):
         active topup expiring in the next 30 days and still has available credits
         """
 
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-with expiring_orgs as (
-    select org_id, max(expires_on) as expires_on
-    from orgs_topup where is_active=true and expires_on > now()
-    group by org_id
-    having max(expires_on) > now() and max(expires_on) <= now() + '30 days'::interval)
+        expiring_topups = (
+            TopUp.objects.filter(is_active=True, credits__gt=0)
+            .filter(expires_on__gt=timezone.now(), expires_on__lte=(timezone.now() + timedelta(days=30)))
+            .filter(org__is_active=True)
+            .exclude(org__creditalert__alert_type=ORG_CREDIT_EXPIRING, org__creditalert__is_active=True)
+            .annotate(used_credits=Sum("topupcredits__used"))
+            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
+            .select_related("org")
+            .order_by("org_id", "-expires_on")
+        )
 
-select tp.id, tp.org_id, tp.expires_on, tp.credits - sum(coalesce(tc.used, 0))
-from orgs_topup tp JOIN expiring_orgs eo on tp.org_id = eo.org_id and tp.expires_on = eo.expires_on
-    LEFT JOIN orgs_topupcredits tc on tp.id = tc.topup_id
-group by tp.id, tp.org_id, tp.expires_on having tp.credits - sum(coalesce(tc.used, 0)) > 0;
-            """
-            )
+        orgs_newest_topup = (
+            TopUp.objects.filter(is_active=True, expires_on__gt=timezone.now())
+            .values("org_id")
+            .annotate(max_expires_on=Max("expires_on"))
+            .filter(max_expires_on__gt=timezone.now(), max_expires_on__lte=timezone.now() + timedelta(days=30))
+            .values("org_id", "max_expires_on")
+        ).all()
 
-            org_ids = [tp_org_id for (tp_id, tp_org_id, tp_expires_on, tp_used) in cur.fetchall()]
+        orgs_newest_topup_mapping = {topup.get("org_id"): topup.get("max_expires_on") for topup in orgs_newest_topup}
 
-            # get the orgs that have an expiring topup, bud don't have an active creditalert email
-            expiring_orgs = (
-                Org.objects.filter(is_active=True, id__in=org_ids)
-                .exclude(creditalert__alert_type=ORG_CREDIT_EXPIRING, creditalert__is_active=True)
-                .iterator()
-            )
+        for topup in expiring_topups.iterator():
 
-            for org in expiring_orgs:
-                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
+            is_most_recent_topup = topup.expires_on == orgs_newest_topup_mapping.get(topup.org_id, datetime(1, 1, 1))
+
+            # trigger credit alerts ONLY if expiring topup is the most recent topup for the org
+            if is_most_recent_topup:
+                CreditAlert.trigger_credit_alert(topup.org, ORG_CREDIT_EXPIRING)

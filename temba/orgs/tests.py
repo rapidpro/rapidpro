@@ -4096,7 +4096,10 @@ class CreditAlertTest(TembaTest):
 
             # update topup to expire in 10 days
             topup.expires_on = timezone.now() + timedelta(days=10)
-            topup.save()
+            topup.save(update_fields=("expires_on",))
+
+            # create another expiring topup, newer than the most recent one
+            TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
 
             # recheck the expiration
             CreditAlert.check_topup_expiration()
