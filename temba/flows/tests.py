@@ -2042,7 +2042,7 @@ class FlowTest(TembaTest):
 
         # test export with a contact field
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age")
-        self.contact.set_field(self.admin, "age", 36)
+        self.contact.set_field(self.admin, "age", "36")
 
         with self.assertNumQueries(43):
             workbook = self.export_flow_results(
@@ -2055,7 +2055,7 @@ class FlowTest(TembaTest):
             )
 
         # try setting the field again
-        self.contact.set_field(self.admin, "age", 36)
+        self.contact.set_field(self.admin, "age", "36")
 
         tz = self.org.timezone
         sheet_runs, = workbook.worksheets
@@ -8055,7 +8055,7 @@ class FlowsTest(FlowFileTest):
         flow = self.get_flow("numeric_rule_allows_variables")
 
         zinedine = self.create_contact("Zinedine", "+12065550100")
-        zinedine.set_field(self.user, "age", 25)
+        zinedine.set_field(self.user, "age", "25")
 
         self.assertEqual("Good count", self.send_message(flow, "35", contact=zinedine))
 

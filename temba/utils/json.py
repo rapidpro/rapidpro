@@ -1,5 +1,7 @@
 import datetime
 
+import psycopg2.extensions
+import psycopg2.extras
 import pytz
 import simplejson
 
@@ -41,19 +43,6 @@ def encode_datetime(dt, micros=False):
     return (as_str if micros else as_str[:-3]) + "Z"
 
 
-class TembaEncoder(simplejson.JSONEncoder):
-    """
-    Our own encoder for datetimes.. we always convert to UTC and always include milliseconds
-    """
-
-    def default(self, o):
-        # See "Date Time String Format" in the ECMA-262 specification.
-        if isinstance(o, datetime.datetime):
-            return encode_datetime(o)
-        else:
-            return super().default(o)
-
-
 def find_nodes(j, matcher, callback):
     """
     Recursively looks for nodes in parsed JSON that match
@@ -70,3 +59,32 @@ def find_nodes(j, matcher, callback):
     elif isinstance(j, list):
         for i in j:
             find_nodes(i, matcher, callback)
+
+
+class TembaEncoder(simplejson.JSONEncoder):
+    """
+    Our own encoder for datetimes.. we always convert to UTC and always include milliseconds
+    """
+
+    def default(self, o):
+        # See "Date Time String Format" in the ECMA-262 specification.
+        if isinstance(o, datetime.datetime):
+            return encode_datetime(o)
+        else:
+            return super().default(o)
+
+
+class TembaJsonAdapter(psycopg2.extras.Json):
+    """
+    Json adapter for psycopg2 that uses Temba specific `dumps` that serializes numbers as Decimal types
+    """
+
+    def dumps(self, o, **kwargs):
+        return dumps(o, **kwargs)
+
+
+# register UJsonAdapter for all dict Python types
+psycopg2.extensions.register_adapter(dict, TembaJsonAdapter)
+# register global json python encoders
+psycopg2.extras.register_default_jsonb(loads=loads, globally=True)
+psycopg2.extras.register_default_json(loads=loads, globally=True)
