@@ -32,6 +32,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.orgs.models import Org, UserSettings
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
+from temba.utils.json import TembaJsonAdapter
 
 from . import (
     chunk_list,
@@ -2061,8 +2062,28 @@ class TestJSONAsTextField(TestCase):
 class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
         contact = self.create_contact("Xavier", number="+5939790990001")
-        contact.fields = {"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.45")}}
-        contact.save(update_fields=("fields",), handle_update=False)
+
+        with connection.cursor() as cur:
+            cur.execute(
+                "UPDATE contacts_contact SET fields = %s where id = %s",
+                (
+                    TembaJsonAdapter({"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": Decimal("123.45")}}),
+                    contact.id,
+                ),
+            )
+
+            cur.execute("SELECT cast(fields as text) from contacts_contact where id = %s", (contact.id,))
+
+            raw_fields = cur.fetchone()[0]
+
+            self.assertEqual(raw_fields, '{"1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722": {"number": 123.45}}')
+
+            cur.execute("SELECT fields from contacts_contact where id = %s", (contact.id,))
+
+            dict_fields = cur.fetchone()[0]
+            number_field = dict_fields.get("1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722", {}).get("number")
+
+            self.assertEqual(number_field, Decimal("123.45"))
 
 
 class MatchersTest(TembaTest):
