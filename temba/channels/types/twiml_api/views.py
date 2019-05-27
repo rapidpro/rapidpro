@@ -65,7 +65,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             Channel.CONFIG_SEND_URL: url,
             Channel.CONFIG_ACCOUNT_SID: data.get("account_sid", None),
-            Channel.CONFIG_AUTH_TOKEN: data.get("account_token", None),
+            Channel.CONFIG_AUTH_TOKEN: data.get("account_token", str(uuid4())),
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
             Channel.CONFIG_MAX_CONCURRENT_EVENTS: data.get("max_concurrent_events", None),
         }
@@ -74,46 +74,22 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         if not is_short_code:
             phone_number = phonenumbers.parse(number=number, region=country)
-            number = "{0}{1}".format(str(phone_number.country_code), str(phone_number.national_number))
+            address = f"+{str(phone_number.country_code)}{str(phone_number.national_number)}"
 
-        address = number
-
-        is_short_code = len(address) <= 6
-
-        name = address
-
-        if is_short_code:
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-        else:
-            address = "+%s" % address
             name = phonenumbers.format_number(
                 phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL
             )
-
-        existing = Channel.objects.filter(address=address, org=org, channel_type="TW").first()
-        if existing:
-            existing.name = name
-            existing.address = address
-            existing.config = config
-            existing.country = country
-            existing.role = role
-            existing.save()
-            self.object = existing
         else:
-            self.object = Channel.create(
-                org, user, country, "TW", name=name, address=address, config=config, role=role
-            )
+            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+            address = number
+            name = number
 
-        # if they didn't set a username or password, generate them, we do this after the addition above
-        # because we use the channel id in the configuration
-        config = self.object.config
-        if not config.get(Channel.CONFIG_ACCOUNT_SID, None):  # pragma: needs cover
-            config[Channel.CONFIG_ACCOUNT_SID] = "%s_%d" % (self.request.branding["name"].lower(), self.object.pk)
+        self.object = Channel.create(org, user, country, "TW", name=name, address=address, config=config, role=role)
 
-        if not config.get(Channel.CONFIG_AUTH_TOKEN, None):  # pragma: needs cover
-            config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
+        if not data.get("account_sid", None):
+            config[Channel.CONFIG_ACCOUNT_SID] = f"{self.request.branding['name'].lower()}_{self.object.pk}"
 
-        self.object.config = config
-        self.object.save()
+            self.object.config = config
+            self.object.save(update_fields=("config",))
 
         return super().form_valid(form)
