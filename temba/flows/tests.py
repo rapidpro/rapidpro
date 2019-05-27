@@ -6879,7 +6879,7 @@ class FlowsTest(FlowFileTest):
             )
 
         # check that flow validation failing is returned as an error message to the user
-        flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
+        flow_json["action_sets"][0]["exit_uuid"] = flow_json["action_sets"][1]["exit_uuid"]
 
         with self.assertRaises(FlowValidationException):
             flow.update(flow_json, self.admin)
