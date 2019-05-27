@@ -1162,8 +1162,6 @@ class FlowCRUDL(SmartCRUDL):
                     data = json.load(json_file)
 
             for key, filename in data.get("files").items():
-                if filename.startswith("/"):
-                    filename = filename[1:]
 
                 # tack on our prefix for dev mode
                 filename = prefix + filename
