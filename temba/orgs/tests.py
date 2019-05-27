@@ -2409,13 +2409,8 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
-    def test_sub_orgs(self):
+    def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-
-        # lets start with two topups
-        expires = timezone.now() + timedelta(days=400)
-        first_topup = TopUp.objects.filter(org=self.org).first()
-        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2426,6 +2421,9 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         sub_org = self.org.create_sub_org("Sub Org")
 
+        # suborg has been created
+        self.assertIsNotNone(sub_org)
+
         # suborgs can't create suborgs
         self.assertIsNone(sub_org.create_sub_org("Grandchild Org"))
 
@@ -2433,9 +2431,37 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
 
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 1)
+
+        # sub_org is deleted
+        sub_org.release()
+
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 0)
+
+    def test_sub_orgs(self):
+        # lets start with two topups
+        oldest_topup = TopUp.objects.filter(org=self.org).first()
+
+        expires = timezone.now() + timedelta(days=400)
+        newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        sub_org = self.org.create_sub_org("Sub Org")
+
+        # send a message as sub_org
         Channel.create(
             sub_org,
             self.user,
@@ -2449,17 +2475,17 @@ class OrgTest(TembaTest):
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
         msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
-        self.assertFalse(msg.topup)
 
-        # default values should be the same as parent
-        self.assertEqual(self.org.timezone, sub_org.timezone)
-        self.assertEqual(self.org.created_by, sub_org.created_by)
+        # there is no topup on suborg, and this msg won't be credited
+        self.assertFalse(msg.topup)
 
         # now allocate some credits to our sub org
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
 
         msg.refresh_from_db()
+        # allocating credits will execute apply_topups_task and assign a topup
         self.assertTrue(msg.topup)
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
 
@@ -2470,10 +2496,13 @@ class OrgTest(TembaTest):
         debit = debits.first()
         self.assertEqual(700, debit.amount)
         self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
-        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+        # newest topup has been used first
+        self.assertEqual(newer_topup.expires_on, debit.beneficiary.expires_on)
+        self.assertEqual(debit.amount, 700)
 
         # try allocating more than we have
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
         self.assertEqual(700, self.org._calculate_credits_used()[0])
@@ -2495,26 +2524,18 @@ class OrgTest(TembaTest):
         debits = Debit.objects.filter(topup__org=self.org).order_by("id")
         self.assertEqual(3, len(debits))
 
-        # the last two debits should expire at same time as topup they were funded by
-        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
-        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+        # verify that we used most recent topup first
+        self.assertEqual(newer_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(debits[1].amount, 300)
+        # and debited missing amount from the next topup
+        self.assertEqual(oldest_topup.expires_on, debits[2].topup.expires_on)
+        self.assertEqual(debits[2].amount, 900)
 
         # allocate the exact number of credits remaining
         self.org.allocate_credits(self.admin, sub_org, 100)
+
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
-
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 1)
-
-        # sub_org is deleted
-        sub_org.release()
-
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 0)
 
     def test_sub_org_ui(self):
 
