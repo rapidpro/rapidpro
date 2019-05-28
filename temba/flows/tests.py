@@ -6879,7 +6879,7 @@ class FlowsTest(FlowFileTest):
             )
 
         # check that flow validation failing is returned as an error message to the user
-        flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
+        flow_json["action_sets"][0]["uuid"] = flow_json["action_sets"][1]["uuid"]
 
         with self.assertRaises(FlowValidationException):
             flow.update(flow_json, self.admin)
@@ -6896,6 +6896,7 @@ class FlowsTest(FlowFileTest):
         )
 
         # create an invalid loop in the flow definition
+        flow_json = flow.as_json()
         flow_json["action_sets"][0]["destination"] = flow_json["action_sets"][0]["uuid"]
 
         with self.assertRaises(FlowInvalidCycleException):
