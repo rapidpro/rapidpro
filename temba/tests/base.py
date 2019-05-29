@@ -203,8 +203,12 @@ class TembaTestMixin:
         self.import_file(filename, substitutions=substitutions)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
+        flow = imported_flows.order_by("id").last()
 
-        return imported_flows.order_by("id").first()
+        assert flow, f"no flow imported from {filename}.json"
+
+        flow.org = self.org
+        return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
