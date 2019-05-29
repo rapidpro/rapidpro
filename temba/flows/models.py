@@ -1244,7 +1244,9 @@ class Flow(TembaModel):
         # clone definition so that all flow elements get new random UUIDs
         cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)
 
-        self.save_revision(user, cloned_definition)
+        # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
+        # won't see any new database objects
+        self.save_revision(user, cloned_definition, validate=False)
 
     def import_legacy_definition(self, flow_json, uuid_map):
         """
@@ -2366,7 +2368,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("-revision").first()
 
-    def save_revision(self, user, definition):
+    def save_revision(self, user, definition, validate=True):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
@@ -2390,19 +2392,19 @@ class Flow(TembaModel):
         definition[Flow.DEFINITION_UUID] = self.uuid
         definition[Flow.DEFINITION_NAME] = self.name
 
-        # try to validate the flow (will throw if not valid)
-        validated_definition = mailroom.get_client().flow_validate(self.org, definition)
+        # inspect the flow (with optional validation)
+        flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
 
         with transaction.atomic():
-            dependencies = validated_definition["_dependencies"]
+            dependencies = flow_info["dependencies"]
 
             # update our flow fields
-            self.base_language = validated_definition.get(Flow.DEFINITION_LANGUAGE, None)
+            self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
 
             self.metadata = {
-                Flow.METADATA_RESULTS: validated_definition["_results"],
-                Flow.METADATA_DEPENDENCIES: validated_definition["_dependencies"],
-                Flow.METADATA_WAITING_EXIT_UUIDS: validated_definition["_waiting_exits"],
+                Flow.METADATA_RESULTS: flow_info["results"],
+                Flow.METADATA_DEPENDENCIES: flow_info["dependencies"],
+                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info["waiting_exits"],
             }
             self.saved_by = user
             self.saved_on = timezone.now()
@@ -2411,7 +2413,7 @@ class Flow(TembaModel):
 
             # create our new revision
             revision = self.revisions.create(
-                definition=validated_definition,
+                definition=definition,
                 created_by=user,
                 modified_by=user,
                 spec_version=Flow.GOFLOW_VERSION,
@@ -2461,8 +2463,8 @@ class Flow(TembaModel):
                     actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
                     actionset[Flow.ACTIONS] = actions
 
-            validated = mailroom.get_client().flow_validate(org=None, definition=json_dict)
-            dependencies = validated["_dependencies"]
+            flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
+            dependencies = flow_info["dependencies"]
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
@@ -2473,8 +2475,8 @@ class Flow(TembaModel):
 
                 # set our metadata
                 self.metadata = json_dict.get(Flow.METADATA, {})
-                self.metadata[Flow.METADATA_RESULTS] = validated["_results"]
-                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = validated["_waiting_exits"]
+                self.metadata[Flow.METADATA_RESULTS] = flow_info["results"]
+                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info["waiting_exits"]
 
                 if user:
                     self.saved_by = user
