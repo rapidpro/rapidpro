@@ -365,92 +365,230 @@ TWILIO_SUPPORTED_COUNTRY_CODES = list(
 )
 
 NEXMO_SUPPORTED_COUNTRIES_CONFIG = (
-    "DZ",  # Algeria
+    "AC",  # scension Island
+    "AD",  # Andorra
+    "AE",  # United Arab Emirates
+    "AF",  # Afghanistan
+    "AG",  # Antigua and Barbuda
+    "AI",  # Anguilla
+    "AL",  # Albania
+    "AM",  # Armenia
+    "AO",  # Angola
     "AR",  # Argentina
-    "AU",  # Australia
+    "AS",  # American Samoa
     "AT",  # Austria
-    "BH",  # Bahrain
+    "AU",  # Australia
+    "AW",  # Aruba
+    "AZ",  # Azerbaijan
+    "BA",  # Bosnia and Herzegovina
+    "BB",  # Barbados
+    "BD",  # Bangladesh
     "BE",  # Belgium
-    "BJ",  # Benin
-    "BO",  # Bolivia
-    "BR",  # Brazil
+    "BF",  # Burkina Faso
     "BG",  # Bulgaria
-    "KH",  # Cambodia
+    "BH",  # Bahrain
+    "BI",  # Burundi
+    "BJ",  # Benin
+    "BM",  # Bermuda
+    "BN",  # Brunei
+    "BO",  # Bolivia
+    "BQ",  # Bonaire, Sint Eustatius and Saba
+    "BR",  # Brazil
+    "BS",  # Bahamas
+    "BT",  # Bhutan
+    "BW",  # Botswana
+    "BY",  # Belarus
+    "BZ",  # Belize
     "CA",  # Canada
-    "KY",  # Cayman Islands
+    "CD",  # Democratic Republic of the Congo
+    "CF",  # Central African Republic
+    "CG",  # Republic Of The Congo
+    "CH",  # Switzerland
+    "CI",  # Ivory Coast
+    "CK",  # Cook Islands
     "CL",  # Chile
+    "CM",  # Cameroon
     "CN",  # China
     "CO",  # Colombia
     "CR",  # Costa Rica
-    "HR",  # Croatia
+    "CU",  # Cuba
+    "CV",  # Cape Verde
+    "CW",  # Curacao
     "CY",  # Cyprus
-    "CZ",  # Czech Republic
-    "DK",  # Denmark
-    "DO",  # Dominican Republic
-    "SV",  # El Salvador
-    "EE",  # Estonia
-    "FI",  # Finland
-    "FR",  # France
-    "GE",  # Georgia
+    "CZ",  # Czechia
     "DE",  # Germany
+    "DJ",  # Djibouti
+    "DK",  # Denmark
+    "DM",  # Dominica
+    "DO",  # Dominican Republic
+    "DZ",  # Algeria
+    "EC",  # Ecuador
+    "EE",  # Estonia
+    "EG",  # Egypt
+    "ER",  # Eritrea
+    "ES",  # Spain
+    "ET",  # Ethiopia
+    "FI",  # Finland
+    "FJ",  # Fiji
+    "FM",  # Micronesia
+    "FO",  # Faroe Islands
+    "FR",  # France
+    "GA",  # Gabon
+    "GB",  # United Kingdom
+    "GD",  # Grenada
+    "GE",  # Georgia
+    "GF",  # French Guiana
     "GH",  # Ghana
+    "GI",  # Gibraltar
+    "GL",  # Greenland
+    "GM",  # Gambia
+    "GN",  # Guinea
+    "GP",  # Guadeloupe
+    "GQ",  # Equatorial Guinea
     "GR",  # Greece
-    "GD",  # Grenanda
     "GT",  # Guatemala
-    "HN",  # Honduras
+    "GU",  # Guam
+    "GW",  # Guinea-Bissau
+    "GY",  # Guyana
     "HK",  # Hong Kong
+    "HN",  # Honduras
+    "HR",  # Croatia
+    "HT",  # Haiti
     "HU",  # Hungary
-    "IS",  # Iceland
-    "IN",  # India
     "ID",  # Indonesia
     "IE",  # Ireland
     "IL",  # Israel
+    "IN",  # India
+    "IQ",  # Iraq
+    "IR",  # Iran
+    "IS",  # Iceland
     "IT",  # Italy
     "JM",  # Jamaica
+    "JO",  # Jordan
     "JP",  # Japan
     "KE",  # Kenya
-    "LV",  # Latvia
+    "KG",  # Kyrgyzstan
+    "KH",  # Cambodia
+    "KI",  # Kiribati
+    "KM",  # Comoros
+    "KN",  # Saint Kitts and Nevis
+    "KR",  # South Korea
+    "KW",  # Kuwait
+    "KY",  # Cayman Islands
+    "KZ",  # Kazakhstan
+    "LA",  # Laos
+    "LB",  # Lebanon
+    "LC",  # Saint Lucia
     "LI",  # Liechtenstein
+    "LK",  # Sri Lanka
+    "LR",  # Liberia
+    "LS",  # Lesotho
     "LT",  # Lithuania
     "LU",  # Luxembourg
-    "MO",  # Macau
-    "MY",  # Malaysia
-    "MT",  # Malta
-    "MX",  # Mexico
+    "LV",  # Latvia
+    "LY",  # Libya
+    "MA",  # Morocco
+    "MC",  # Monaco
     "MD",  # Moldova
-    "NL",  # Netherlands
-    "NZ",  # New Zealand
+    "ME",  # Montenegro
+    "MG",  # Madagascar
+    "MH",  # Marshall Islands
+    "MK",  # Macedonia
+    "ML",  # Mali
+    "MM",  # Myanmar
+    "MN",  # Mongolia
+    "MO",  # Macau
+    "MP",  # Northern Mariana Islands
+    "MQ",  # Martinique
+    "MR",  # Mauritania
+    "MS",  # Montserrat
+    "MT",  # Malta
+    "MU",  # Mauritius
+    "MV",  # Maldives
+    "MW",  # Malawi
+    "MX",  # Mexico
+    "MY",  # Malaysia
+    "MZ",  # Mozambique
+    "NA",  # Namibia
+    "NC",  # New Caledonia
+    "NE",  # Niger
     "NG",  # Nigeria
+    "NI",  # Nicaragua
+    "NL",  # Netherlands
     "NO",  # Norway
-    "PK",  # Pakistan
+    "NP",  # Nepal
+    "NR",  # Nauru
+    "NZ",  # New Zealand
+    "OM",  # Oman
     "PA",  # Panama
     "PE",  # Peru
+    "PF",  # French Polynesia
+    "PG",  # Papua New Guinea
     "PH",  # Philippines
+    "PK",  # Pakistan
     "PL",  # Poland
-    "PT",  # Portugal
+    "PM",  # Saint Pierre and Miquelon
     "PR",  # Puerto Rico
+    "PS",  # Palestinian Territory
+    "PT",  # Portugal
+    "PW",  # Palau
+    "PY",  # Paraguay
+    "QA",  # Qatar
+    "RE",  # Réunion Island
     "RO",  # Romania
+    "RS",  # Serbia
     "RU",  # Russia
     "RW",  # Rwanda
     "SA",  # Saudi Arabia
-    "SG",  # Singapore
-    "SK",  # Slovakia
-    "SI",  # Slovenia
-    "ZA",  # South Africa
-    "KR",  # South Korea
-    "ES",  # Spain
+    "SB",  # Solomon Islands
+    "SC",  # Seychelles
+    "SD",  # Sudan
     "SE",  # Sweden
-    "CH",  # Switzerland
-    "TW",  # Taiwan
-    "TJ",  # Tajikistan
+    "SG",  # Singapore
+    "SI",  # Slovenia
+    "SK",  # Slovakia
+    "SL",  # Sierra Leone
+    "SM",  # San Marino
+    "SN",  # Senegal
+    "SO",  # Somalia
+    "SR",  # Suriname
+    "SS",  # South Sudan
+    "ST",  # Sao Tome and Principe
+    "SV",  # El Salvador
+    "SX",  # Sint Maarten (Dutch Part)
+    "SY",  # Syria
+    "SZ",  # Swaziland
+    "TC",  # Turks and Caicos Islands
+    "TD",  # Chad
+    "TG",  # Togo
     "TH",  # Thailand
-    "TT",  # Trinidad and Tobago
+    "TJ",  # Tajikistan
+    "TL",  # East Timor
+    "TM",  # Turkmenistan
+    "TN",  # Tunisia
+    "TO",  # Tonga
     "TR",  # Turkey
-    "GB",  # United Kingdom
+    "TT",  # Trinidad and Tobago
+    "TW",  # Taiwan
+    "TZ",  # Tanzania
+    "UA",  # Ukraine
+    "UG",  # Uganda
     "US",  # United States
     "UY",  # Uruguay
-    "VE",  # Venezuala
+    "UZ",  # Uzbekistan
+    "VC",  # Saint Vincent and The Grenadines
+    "VE",  # Venezuela
+    "VG",  # Virgin Islands, British
+    "VI",  # Virgin Islands, US
+    "VN",  # Vietnam
+    "VU",  # Vanuatu
+    "WS",  # Samoa
+    "XK",  # Kosovo
+    "YE",  # Yemen
+    "YT",  # Mayotte
+    "ZA",  # South Africa
     "ZM",  # Zambia
+    "ZW",  # Zimbabwe
 )
 
 NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
