@@ -15,13 +15,18 @@ def populate_flow_metadata(apps, schema_editor):
         revision = flow.last_revision()
 
         # validate it
-        validated_definition = client.flow_validate(None, revision.definition)
-        flow.metadata = {
-            "results": validated_definition["_results"],
-            "dependencies": validated_definition["_dependencies"],
-            "waiting_exit_uuids": validated_definition["_waiting_exits"],
-        }
-        flow.save(update_fields=["metadata"])
+        try:
+            validated_definition = client.flow_validate(None, revision.definition)
+
+            flow.metadata = {
+                "results": validated_definition["_results"],
+                "dependencies": validated_definition["_dependencies"],
+                "waiting_exit_uuids": validated_definition["_waiting_exits"],
+            }
+            flow.save(update_fields=["metadata"])
+
+        except mailroom.FlowValidationException as e:
+            print(f"Error validating flow: {flow.id} - {e}")
 
         if num_updated % 1000 == 0:
             print(f"Updated {num_updated} flow metadata")
