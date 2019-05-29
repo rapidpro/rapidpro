@@ -1,3 +1,7 @@
+v4.22.54
+----------
+ * rename migration, better printing
+
 v4.22.53
 ----------
  * add migration to repopulate metadata for all flows
