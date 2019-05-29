@@ -2144,6 +2144,19 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "like"})
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
 
+    def test_definitions_with_non_legacy_flow(self):
+        url = reverse("api.v2.definitions")
+
+        self.login(self.admin)
+
+        self.import_file("favorites_v13")
+        flow = Flow.objects.filter(name="Favorites").first()
+
+        response = self.fetchJSON(url, "flow=%s" % flow.uuid)
+
+        self.assertEqual(len(response.json()["flows"]), 1)
+        self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
+
     def test_definitions(self):
         url = reverse("api.v2.definitions")
 
