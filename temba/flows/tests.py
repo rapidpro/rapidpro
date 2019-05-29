@@ -6879,7 +6879,7 @@ class FlowsTest(FlowFileTest):
             )
 
         # check that flow validation failing is returned as an error message to the user
-        flow_json["action_sets"][0]["destination"] = "95d97cbd-4dca-40bc-aad0-c0e8cc69ddde"  # no such node
+        flow_json["action_sets"][0]["uuid"] = flow_json["action_sets"][1]["uuid"]
 
         with self.assertRaises(FlowValidationException):
             flow.update(flow_json, self.admin)
@@ -6896,6 +6896,7 @@ class FlowsTest(FlowFileTest):
         )
 
         # create an invalid loop in the flow definition
+        flow_json = flow.as_json()
         flow_json["action_sets"][0]["destination"] = flow_json["action_sets"][0]["uuid"]
 
         with self.assertRaises(FlowInvalidCycleException):
@@ -8189,9 +8190,24 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(
             flow.metadata["results"],
             [
-                {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
-                {"key": "beer", "name": "Beer", "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"]},
-                {"key": "name", "name": "Name", "categories": ["All Responses"]},
+                {
+                    "key": "color",
+                    "name": "Color",
+                    "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
+                    "node_uuids": [matchers.UUID4String()],
+                },
+                {
+                    "key": "beer",
+                    "name": "Beer",
+                    "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                    "node_uuids": [matchers.UUID4String()],
+                },
+                {
+                    "key": "name",
+                    "name": "Name",
+                    "categories": ["All Responses"],
+                    "node_uuids": [matchers.UUID4String()],
+                },
             ],
         )
         self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)

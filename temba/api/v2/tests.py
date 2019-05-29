@@ -28,7 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -2355,13 +2355,24 @@ class APITest(TembaTest):
                     "expires": 720,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
                     "results": [
-                        {"key": "color", "name": "Color", "categories": ["Red", "Green", "Blue", "Cyan", "Other"]},
+                        {
+                            "key": "color",
+                            "name": "Color",
+                            "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
                         {
                             "key": "beer",
                             "name": "Beer",
                             "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                            "node_uuids": [matchers.UUID4String()],
                         },
-                        {"key": "name", "name": "Name", "categories": ["All Responses"]},
+                        {
+                            "key": "name",
+                            "name": "Name",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
                     ],
                     "created_on": format_datetime(archived.created_on),
                     "modified_on": format_datetime(archived.modified_on),
@@ -2375,7 +2386,12 @@ class APITest(TembaTest):
                     "expires": 720,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
-                        {"key": "color", "name": "color", "categories": ["Orange", "Blue", "Other", "Nothing"]}
+                        {
+                            "key": "color",
+                            "name": "color",
+                            "categories": ["Orange", "Blue", "Other", "Nothing"],
+                            "node_uuids": [matchers.UUID4String()],
+                        }
                     ],
                     "created_on": format_datetime(color.created_on),
                     "modified_on": format_datetime(color.modified_on),
@@ -2389,10 +2405,30 @@ class APITest(TembaTest):
                     "expires": 10080,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
                     "results": [
-                        {"key": "name", "name": "Name", "categories": ["All Responses"]},
-                        {"key": "photo", "name": "Photo", "categories": ["All Responses"]},
-                        {"key": "location", "name": "Location", "categories": ["All Responses"]},
-                        {"key": "video", "name": "Video", "categories": ["All Responses"]},
+                        {
+                            "key": "name",
+                            "name": "Name",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "photo",
+                            "name": "Photo",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "location",
+                            "name": "Location",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "video",
+                            "name": "Video",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
                     ],
                     "created_on": format_datetime(survey.created_on),
                     "modified_on": format_datetime(survey.modified_on),
