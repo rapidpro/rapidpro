@@ -63,9 +63,12 @@ logger = logging.getLogger(__name__)
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")
 COUNTRIES_NAMES["US"] = _("United States")
+COUNTRIES_NAMES["AC"] = _("Scension Island")
+COUNTRIES_NAMES["XK"] = _("Kosovo")
 
 
 COUNTRY_CALLING_CODES = {
+    "AC": (247,),  # Scension Island
     "AF": (93,),  # Afghanistan
     "AX": (35818,),  # Åland Islands
     "AL": (355,),  # Albania
@@ -312,6 +315,7 @@ COUNTRY_CALLING_CODES = {
     "VI": (),  # Virgin Islands (U.S.)
     "WF": (681,),  # Wallis and Futuna
     "EH": (),  # Western Sahara
+    "XK": (383,),  # Kosovo
     "YE": (967,),  # Yemen
     "ZM": (260,),  # Zambia
     "ZW": (263,),  # Zimbabwe
