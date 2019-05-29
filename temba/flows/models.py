@@ -485,7 +485,7 @@ class Flow(TembaModel):
 
                 FlowRevision.validate_legacy_definition(flow_def)
             else:
-                flow_version = Version(flow_def["version"])
+                flow_version = Version(flow_def["spec_version"])
                 flow_type = db_types[flow_def["type"]]
                 flow_uuid = flow_def["uuid"]
                 flow_name = flow_def["name"]
@@ -1202,9 +1202,13 @@ class Flow(TembaModel):
         dependencies = flow_info["dependencies"]
 
         # ensure any channel dependencies exist
-        for channel_ref in dependencies.get("channels", []):
-            # TODO
-            pass
+        for ref in dependencies.get("channels", []):
+            channel = self.org.channels.filter(is_active=True, uuid=ref["uuid"]).first()
+            if not channel and ref["name"]:
+                name = ref["name"].split(":")[-1].strip()
+                channel = self.org.channels.filter(is_active=True, name=name).first()
+
+            dependency_mapping[ref["uuid"]] = str(channel.uuid) if channel else ref["uuid"]
 
         # ensure any field dependencies exist
         for ref in dependencies.get("fields", []):
@@ -1214,10 +1218,10 @@ class Flow(TembaModel):
         for ref in dependencies.get("flows", []):
             if ref["uuid"] not in dependency_mapping:
                 flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
-                if not flow:
+                if not flow and ref["name"]:
                     flow = self.org.flows.filter(name=ref["name"], is_active=True).first()
-                if flow:
-                    dependency_mapping[ref["uuid"]] = str(flow.uuid)
+
+                dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
 
         # ensure any group dependencies exist
         for ref in dependencies.get("groups", []):
@@ -1228,6 +1232,14 @@ class Flow(TembaModel):
         for ref in dependencies.get("labels", []):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
+
+        # ensure any template dependencies exist
+        for ref in dependencies.get("templates", []):
+            template = self.org.templates.filter(uuid=ref["uuid"]).first()
+            if not template and ref["name"]:
+                template = self.org.templates.filter(name=ref["name"]).first()
+
+            dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
         cloned_definition = mailroom.get_client().flow_clone(dependency_mapping, definition)

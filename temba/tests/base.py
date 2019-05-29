@@ -198,17 +198,13 @@ class TembaTestMixin:
         self.fail("Couldn't find action with uuid %s" % uuid)
 
     def get_flow(self, filename, substitutions=None):
-        last_flow = Flow.objects.all().order_by("-pk").first()
+        now = timezone.now()
+
         self.import_file(filename, substitutions=substitutions)
 
-        if last_flow:
-            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
-            flow.org = self.org
-            return flow
+        imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
 
-        flow = Flow.objects.all().order_by("-created_on").first()
-        flow.org = self.org
-        return flow
+        return imported_flows.order_by("id").first()
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)

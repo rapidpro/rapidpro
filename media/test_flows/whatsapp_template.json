@@ -45,8 +45,7 @@
             "type": "execute_actions"
           }
         }
-      },
-      "version": "13.0.0"
+      }
     }
   ]
 }

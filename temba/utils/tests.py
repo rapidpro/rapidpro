@@ -808,24 +808,6 @@ class JsonTest(TembaTest):
         with self.assertRaises(TypeError):
             json.dumps(dict(foo=Exception("invalid")))
 
-    def test_find_nodes(self):
-        # find any node
-        nodes = []
-        json.find_nodes({"foo": 1}, lambda n: True, nodes.append)
-        self.assertEqual(nodes, [{"foo": 1}, 1])
-
-        # find any object
-        nodes = []
-        json.find_nodes({"foo": 1, "bar": {}}, lambda n: isinstance(n, dict), nodes.append)
-        self.assertEqual(nodes, [{"foo": 1, "bar": {}}, {}])
-
-        # find any object with an id property
-        nodes = []
-        json.find_nodes(
-            [{"id": 1}, {}, {"x": 4}, {"id": 2}], lambda n: isinstance(n, dict) and "id" in n, nodes.append
-        )
-        self.assertEqual(nodes, [{"id": 1}, {"id": 2}])
-
 
 class QueueTest(TembaTest):
     def test_queueing(self):

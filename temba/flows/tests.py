@@ -8185,32 +8185,34 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(2, group_count)
 
     def test_flow_metadata(self):
-        flow = self.get_flow("favorites")
+        # test importing both old and new flow formats
+        for flow_file in ("favorites", "favorites_v13"):
+            flow = self.get_flow(flow_file)
 
-        self.assertEqual(
-            flow.metadata["results"],
-            [
-                {
-                    "key": "color",
-                    "name": "Color",
-                    "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-                {
-                    "key": "beer",
-                    "name": "Beer",
-                    "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-                {
-                    "key": "name",
-                    "name": "Name",
-                    "categories": ["All Responses"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-            ],
-        )
-        self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(
+                flow.metadata["results"],
+                [
+                    {
+                        "key": "color",
+                        "name": "Color",
+                        "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                    {
+                        "key": "beer",
+                        "name": "Beer",
+                        "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                    {
+                        "key": "name",
+                        "name": "Name",
+                        "categories": ["All Responses"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                ],
+            )
+            self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     def test_group_split(self):
         flow = self.get_flow("group_split")
