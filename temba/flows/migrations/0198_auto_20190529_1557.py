@@ -7,12 +7,14 @@ from temba import mailroom
 
 def populate_flow_metadata(apps, schema_editor):
     Flow = apps.get_model("flows", "Flow")
+    FlowRevision = apps.get_model("flows", "FlowRevision")
+
     client = mailroom.get_client()
 
     num_updated = 0
     for flow in Flow.objects.filter(is_active=True):
         # get our last revision
-        revision = flow.last_revision()
+        revision = FlowRevision.objects.filter(flow=flow).order_by("-revision").first()
 
         # validate it
         try:
@@ -28,9 +30,9 @@ def populate_flow_metadata(apps, schema_editor):
         except mailroom.FlowValidationException as e:
             print(f"Error validating flow: {flow.id} - {e}")
 
+        num_updated += 1
         if num_updated % 1000 == 0:
             print(f"Updated {num_updated} flow metadata")
-        num_updated += 1
 
 
 def apply_manual():
