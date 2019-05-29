@@ -32,7 +32,10 @@ def populate_flow_metadata(apps, schema_editor):
 
         num_updated += 1
         if num_updated % 1000 == 0:
-            print(f"Updated {num_updated} flow metadata")
+            print(f"Updated metadata for {num_updated} flows")
+
+    if num_updated > 0:
+        print(f"Updated metadata for {num_updated} flows")
 
 
 def apply_manual():
