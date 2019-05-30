@@ -2154,6 +2154,7 @@ class Flow(TembaModel):
             situations such as the flow editor.
 
         """
+
         if not self.is_legacy():
             return self.revisions.order_by("revision").last().definition
 

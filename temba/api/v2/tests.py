@@ -2150,12 +2150,14 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         self.import_file("favorites_v13")
+
         flow = Flow.objects.filter(name="Favorites").first()
 
         response = self.fetchJSON(url, "flow=%s" % flow.uuid)
 
         self.assertEqual(len(response.json()["flows"]), 1)
         self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
+        self.assertEqual(response.json()["flows"][0]["spec_version"], "13.0.0")
 
     def test_definitions(self):
         url = reverse("api.v2.definitions")
