@@ -2071,6 +2071,12 @@ class Flow(TembaModel):
 
         return dependencies
 
+    def is_legacy(self):
+        """
+        Returns whether this flow still uses a legacy definition
+        """
+        return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
+
     def as_json(self, expand_contacts=False):
         """
         Returns the JSON definition for this flow.
@@ -2080,6 +2086,10 @@ class Flow(TembaModel):
             situations such as the flow editor.
 
         """
+
+        if not self.is_legacy():
+            return self.revisions.order_by("revision").last().definition
+
         flow = dict()
 
         if self.entry_uuid:
