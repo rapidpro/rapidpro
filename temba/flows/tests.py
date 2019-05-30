@@ -9471,7 +9471,7 @@ class FlowMigrationTest(FlowFileTest):
             created_by=self.admin,
             modified_by=self.admin,
             saved_by=self.admin,
-            version_number=7,
+            version_number="7",
             flow_type="M",
         )
 
