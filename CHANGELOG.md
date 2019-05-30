@@ -1,3 +1,11 @@
+v4.22.54
+----------
+ * rename migration, better printing
+
+v4.22.53
+----------
+ * add migration to repopulate metadata for all flows
+
 v4.22.52
 ----------
  * Expose result specs in flow metadata on flows API endpoint
