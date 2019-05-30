@@ -187,6 +187,7 @@ class Flow(TembaModel):
     FLOW_TYPE = "flow_type"
     ID = "id"
 
+    # items in Flow.metadata
     METADATA = "metadata"
     METADATA_SAVED_ON = "saved_on"
     METADATA_NAME = "name"
@@ -196,6 +197,12 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
 
+    # items in the response from mailroom flow inspection
+    INSPECT_RESULTS = "results"
+    INSPECT_DEPENDENCIES = "dependencies"
+    INSPECT_WAITING_EXITS = "waiting_exits"
+
+    # items in the flow definition JSON
     DEFINITION_NAME = "name"
     DEFINITION_UUID = "uuid"
     DEFINITION_SPEC_VERSION = "spec_version"
@@ -471,7 +478,7 @@ class Flow(TembaModel):
         version = Version(str(exported_json.get("version", "0")))
         created_flows = []
         dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
-        db_types = {value: key for key, value in cls.GOFLOW_TYPES.items()}
+        db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
         for flow_def in exported_json["flows"]:
@@ -485,11 +492,11 @@ class Flow(TembaModel):
 
                 FlowRevision.validate_legacy_definition(flow_def)
             else:
-                flow_version = Version(flow_def["spec_version"])
-                flow_type = db_types[flow_def["type"]]
-                flow_uuid = flow_def["uuid"]
-                flow_name = flow_def["name"]
-                flow_expires = flow_def.get("expire_after_minutes", FLOW_DEFAULT_EXPIRES_AFTER)
+                flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
+                flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
+                flow_uuid = flow_def[Flow.DEFINITION_UUID]
+                flow_name = flow_def[Flow.DEFINITION_NAME]
+                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, FLOW_DEFAULT_EXPIRES_AFTER)
 
             flow = None
             flow_name = flow_name[:64].strip()
@@ -2396,15 +2403,15 @@ class Flow(TembaModel):
         flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
 
         with transaction.atomic():
-            dependencies = flow_info["dependencies"]
+            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
 
             self.metadata = {
-                Flow.METADATA_RESULTS: flow_info["results"],
-                Flow.METADATA_DEPENDENCIES: flow_info["dependencies"],
-                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info["waiting_exits"],
+                Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
+                Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
+                Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             }
             self.saved_by = user
             self.saved_on = timezone.now()
@@ -2464,7 +2471,7 @@ class Flow(TembaModel):
                     actionset[Flow.ACTIONS] = actions
 
             flow_info = mailroom.get_client().flow_inspect(flow=json_dict)
-            dependencies = flow_info["dependencies"]
+            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
             with transaction.atomic():
                 # TODO remove this when we no longer need rulesets or actionsets
@@ -2475,8 +2482,8 @@ class Flow(TembaModel):
 
                 # set our metadata
                 self.metadata = json_dict.get(Flow.METADATA, {})
-                self.metadata[Flow.METADATA_RESULTS] = flow_info["results"]
-                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info["waiting_exits"]
+                self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
+                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
 
                 if user:
                     self.saved_by = user
@@ -4285,17 +4292,17 @@ class FlowRevision(SmartModel):
     @classmethod
     def validate_legacy_definition(cls, definition):
 
-        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+        if definition[Flow.FLOW_TYPE] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError(_("Unsupported flow type"))
 
         non_localized_error = _("Malformed flow, encountered non-localized definition")
 
         # should always have a base_language
-        if "base_language" not in definition or not definition["base_language"]:
+        if Flow.BASE_LANGUAGE not in definition or not definition[Flow.BASE_LANGUAGE]:
             raise ValueError(non_localized_error)
 
         # language should match values in definition
-        base_language = definition["base_language"]
+        base_language = definition[Flow.BASE_LANGUAGE]
 
         def validate_localization(lang_dict):
 
@@ -4307,12 +4314,12 @@ class FlowRevision(SmartModel):
             if base_language not in lang_dict:  # pragma: needs cover
                 raise ValueError(non_localized_error)
 
-        for actionset in definition["action_sets"]:
+        for actionset in definition[Flow.ACTION_SETS]:
             for action in actionset["actions"]:
                 if "msg" in action and action["type"] != "email":
                     validate_localization(action["msg"])
 
-        for ruleset in definition["rule_sets"]:
+        for ruleset in definition[Flow.RULE_SETS]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
