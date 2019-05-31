@@ -37,7 +37,7 @@ from temba.orgs.models import (
     NEXMO_UUID,
     Org,
 )
-from temba.tests import MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -2602,20 +2602,153 @@ class ChannelLogTest(TembaTest):
         self.assertEqual(1, self.channel.get_success_log_count())
         self.assertEqual(1, self.channel.get_error_log_count())
 
-        # change our org to anonymous
-        self.org.is_anon = True
-        self.org.save()
+    def test_channellog_connection_anonymous(self):
+        url = reverse("channels.channellog_connection", args=(1,))
 
-        # should no longer be able to see read page
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        self.assertTrue(response.status_code, 200)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(url)
+            # admin has no access
+            self.assertLoginRedirect(response)
+
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(url)
+            # customer_support has access
+            self.assertTrue(response.status_code, 200)
+
+    def test_channellog_anonymous_org(self):
+        fb_urn = "facebook:2150393045080607"
+
+        fb_contact = self.create_contact("Fred Jones", fb_urn)
+        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+
+        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=fb_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=f"https://textit.in/c/fb/{fb_channel.uuid}/receive",
+            method="POST",
+            request="""POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1
+Host: textit.in
+Accept: */*
+Accept-Encoding: deflate, gzip
+Content-Length: 314
+Content-Type: application/json
+User-Agent: facebookexternalua
+X-Amzn-Trace-Id: Root=1-5cee039c-6489b45d859adb735973ed6f
+X-Forwarded-For: 173.252.95.32
+X-Forwarded-Port: 443
+X-Forwarded-Proto: https
+X-Hub-Signature: sha1=34faa3f332b2a42d0e0aec4eada1eaedda182e17
+
+{"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}
+""",
+            response="""HTTP/1.1 200 OK
+Content-Encoding: gzip
+Content-Type: application/json
+
+{"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}
+
+""",
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        response = self.client.get(list_url)
+
+        self.assertContains(response, "2150393045080607", count=1)
+        self.assertContains(response, "facebook:2150393045080607", count=0)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(list_url)
+
+            self.assertContains(response, "2150393045080607", count=0)
+            self.assertContains(response, "facebook:2150393045080607", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+
         response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
 
-        # but if our admin is a superuser they can
-        self.admin.is_superuser = True
-        self.admin.save()
+        self.assertContains(response, "2150393045080607", count=3)
+        self.assertContains(response, "facebook:2150393045080607", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, "2150393045080607", count=0)
+            self.assertContains(response, "facebook:", count=1)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+
+    def test_channellog_anonymous_org_no_msg(self):
+        tw_urn = "15128505839"
+
+        tw_channel = Channel.create(self.org, self.user, None, "TW", name="Test TW Channel")
+
+        failed_log = ChannelLog.objects.create(
+            channel=tw_channel,
+            msg=None,
+            description="Channel Error",
+            is_error=True,
+            url=f"https://textit.in/c/tw/{tw_channel.uuid}/status?action=callback&id=58027120",
+            method="POST",
+            request="""
+POST /c/tw/8388f8cd-658f-4fae-925e-ee0792588e68/status?action=callback&id=58027120 HTTP/1.1
+Host: textit.in
+Accept: */*
+Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+Content-Length: 343
+Content-Type: application/x-www-form-urlencoded
+User-Agent: SignalwireCallback/1.0
+X-Amzn-Trace-Id: Root=1-5ce48425-9b491180a8927360f6390fe0
+X-Forwarded-For: 35.232.172.41
+X-Forwarded-Port: 443
+X-Forwarded-Proto: https
+
+MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=318dee7a-9e7c-49a1-b3ff-cc4c366b4c73&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
+            response="""
+HTTP/1.1 400 Bad Request
+Content-Encoding: gzip
+Content-Type: application/json
+
+{"message":"Error","data":[{"type":"error","error":"missing request signature"}]}
+
+
+Error: missing request signature""",
+            response_status=400,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
 
         response = self.client.get(read_url)
-        self.assertContains(response, "invalid credentials")
+
+        # non anon user can see contact identifying data (in the request)
+        self.assertContains(response, tw_urn, count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, tw_urn, count=0)
+
+            # when we can't identify the contact, url, request and response objects are completely masked
+            self.assertContains(response, ContactURN.ANON_MASK, count=3)
 
 
 class FacebookWhitelistTest(TembaTest):

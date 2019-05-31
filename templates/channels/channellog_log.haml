@@ -17,10 +17,7 @@
         {{ log.response_status }}
     %span.url
       %span.method= log.method
-      -if log.method == 'GET'
-        {{ log.get_url_host }}
-      -else
-        {{ log.url }}
+        {{ log.get_url_host_display }}
   .details.hide
     %pre.prettyprint.request<
       :plain
