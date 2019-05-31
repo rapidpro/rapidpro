@@ -3744,6 +3744,10 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.group_dependencies.all()), set())
 
+        dep_graph = self.org.generate_dependency_graph()
+        self.assertEqual(dep_graph[child], {parent})
+        self.assertEqual(dep_graph[parent], {child})
+
     def test_import_group_remapping(self):
         self.import_file("cataclysm")
         flow = Flow.objects.get(name="Cataclysmic")
