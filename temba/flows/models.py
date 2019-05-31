@@ -484,8 +484,8 @@ class Flow(TembaModel):
         # fetch or create all the flow db objects
         for flow_def in exported_json["flows"]:
             if FlowRevision.is_legacy_definition(flow_def):
+                flow_version = Version(flow_def["version"]) if "version" in flow_def else version
                 flow_metadata = flow_def[Flow.METADATA]
-                flow_version = Version(flow_metadata["version"]) if "version" in flow_metadata else version
                 flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
                 flow_uuid = flow_metadata["uuid"]
                 flow_name = flow_metadata["name"]
