@@ -203,8 +203,8 @@ class Flow(TembaModel):
     INSPECT_WAITING_EXITS = "waiting_exits"
 
     # items in the flow definition JSON
-    DEFINITION_NAME = "name"
     DEFINITION_UUID = "uuid"
+    DEFINITION_NAME = "name"
     DEFINITION_SPEC_VERSION = "spec_version"
     DEFINITION_TYPE = "type"
     DEFINITION_LANGUAGE = "language"
@@ -212,6 +212,7 @@ class Flow(TembaModel):
     DEFINITION_EXPIRE_AFTER_MINUTES = "expire_after_minutes"
     DEFINITION_METADATA = "metadata"
     DEFINITION_NODES = "nodes"
+    DEFINITION_UI = "_ui"
 
     X = "x"
     Y = "y"
@@ -378,6 +379,7 @@ class Flow(TembaModel):
                         Flow.DEFINITION_LANGUAGE: base_language,
                         Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
                         Flow.DEFINITION_NODES: [],
+                        Flow.DEFINITION_UI: {},
                     },
                 )
             else:
