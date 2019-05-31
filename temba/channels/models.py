@@ -33,6 +33,7 @@ from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NE
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
+from temba.utils.masking import apply_mask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
@@ -1521,19 +1522,52 @@ class ChannelLog(models.Model):
             request_time=request_time_ms,
         )
 
-    def get_url_host(self):
-        parsed = urlparse(self.url)
-        return "%s://%s%s" % (parsed.scheme, parsed.hostname, parsed.path)
-
     def log_group(self):
         if self.msg:
             return ChannelLog.objects.filter(msg=self.msg).order_by("-created_on")
 
         return ChannelLog.objects.filter(id=self.id)
 
+    def get_url_host_display(self):
+        from temba.contacts.models import ContactURN
+
+        if self.method == "GET":
+            parsed = urlparse(self.url)
+            formatted_url = f"{parsed.scheme}://{parsed.hostname}{parsed.path}"
+        else:
+            formatted_url = self.url
+
+        if self.channel.org.is_anon is True:
+            # default, in case nothing is matched, mask the whole url
+            masked_url = ContactURN.ANON_MASK
+
+            if self.msg_id:
+                masked_url = apply_mask(formatted_url, self.msg.contact_urn.path)
+
+                if not masked_url:
+                    masked_url = ContactURN.ANON_MASK
+
+            return masked_url
+        else:
+            return formatted_url
+
     def get_request_formatted(self):
+        from temba.contacts.models import ContactURN
+
         if not self.request:  # pragma: no cover
-            return "%s %s" % (self.method, self.url)
+            return f"{self.method} {self.get_url_host_display()}"
+
+        if self.channel.org.is_anon is True:
+            # default, in case nothing is matched, mask the whole request
+            masked_request = ContactURN.ANON_MASK
+
+            if self.msg_id:
+                masked_request = apply_mask(self.request, self.msg.contact_urn.path)
+
+                if not masked_request:
+                    masked_request = ContactURN.ANON_MASK
+
+            return masked_request
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
@@ -1541,6 +1575,20 @@ class ChannelLog(models.Model):
             return self.request
 
     def get_response_formatted(self):
+        from temba.contacts.models import ContactURN
+
+        if self.channel.org.is_anon is True:
+            # default, in case nothing is matched, mask the whole response
+            masked_response = ContactURN.ANON_MASK
+
+            if self.msg_id:
+                masked_response = apply_mask(self.response, self.msg.contact_urn.path)
+
+                if not masked_response:
+                    masked_response = ContactURN.ANON_MASK
+
+            return masked_response
+
         try:
             return json.dumps(json.loads(self.response), indent=2)
         except Exception:
