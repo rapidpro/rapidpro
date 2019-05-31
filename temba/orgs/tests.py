@@ -3728,6 +3728,22 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
+    def test_import_mixed_flow_versions(self):
+        self.import_file("mixed_versions")
+
+        group = ContactGroup.user_groups.get(name="Survey Audience")
+        self.assertNotEqual(str(group.uuid), "7faadc84-73f6-49c4-812a-d49ed1c8c1ce")  # should be created with new UUID
+
+        child = Flow.objects.get(name="New Child")
+        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(set(child.flow_dependencies.all()), set())
+        self.assertEqual(set(child.group_dependencies.all()), {group})
+
+        parent = Flow.objects.get(name="Legacy Parent")
+        self.assertEqual(parent.version_number, get_current_export_version())
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.group_dependencies.all()), set())
+
     def test_import_group_remapping(self):
         self.import_file("cataclysm")
         flow = Flow.objects.get(name="Cataclysmic")

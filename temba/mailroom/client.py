@@ -57,7 +57,7 @@ class MailroomClient:
         payload = {"flow": flow}
 
         # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:
+        if validate_with_org and not settings.TESTING:  # pragma: no cover
             payload["validate_with_org_id"] = validate_with_org.id
 
         return self._request("flow/inspect", payload)
@@ -66,7 +66,7 @@ class MailroomClient:
         payload = {"dependency_mapping": dependency_mapping, "flow": flow}
 
         # can't do validation during tests because mailroom can't see unit test data created in a transaction
-        if validate_with_org and not settings.TESTING:
+        if validate_with_org and not settings.TESTING:  # pragma: no cover
             payload["validate_with_org_id"] = validate_with_org.id
 
         return self._request("flow/clone", payload)

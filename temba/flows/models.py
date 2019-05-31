@@ -374,11 +374,10 @@ class Flow(TembaModel):
                     {
                         Flow.DEFINITION_NAME: flow.name,
                         Flow.DEFINITION_UUID: flow.uuid,
+                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
                         Flow.DEFINITION_LANGUAGE: base_language,
                         Flow.DEFINITION_TYPE: Flow.GOFLOW_TYPES[flow_type],
                         Flow.DEFINITION_NODES: [],
-                        Flow.DEFINITION_SPEC_VERSION: Flow.GOFLOW_VERSION,
-                        Flow.DEFINITION_METADATA: {Flow.METADATA_SAVED_ON: timezone.now().isoformat()},
                     },
                 )
             else:
@@ -4288,7 +4287,7 @@ class FlowRevision(SmartModel):
 
     @classmethod
     def is_legacy_definition(cls, definition):
-        return Flow.METADATA in definition
+        return Flow.DEFINITION_SPEC_VERSION not in definition
 
     @classmethod
     def validate_legacy_definition(cls, definition):
