@@ -1,3 +1,8 @@
+v4.22.55
+----------
+ * Enable export of new flows
+ * Update Nexmo supported countries list
+
 v4.22.54
 ----------
  * rename migration, better printing
