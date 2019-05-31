@@ -332,9 +332,7 @@ class FlowTest(TembaTest):
 
     @skip_if_no_mailroom
     def test_goflow_revisions(self):
-        # make admin alpha
         self.login(self.admin)
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
@@ -6730,16 +6728,20 @@ class FlowsTest(FlowFileTest):
     def test_save_definitions(self):
         self.login(self.admin)
 
+        # old flow definition
         self.client.post(
             reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true"),
+            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="0"),
         )
-        Flow.objects.get(
+        flow = Flow.objects.get(
             org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=get_current_export_version()
         )
 
-        # make admin alpha
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
+        # old editor
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
+
+        # new flow definition
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
@@ -6753,9 +6755,6 @@ class FlowsTest(FlowFileTest):
 
     def test_save_revision(self):
         self.login(self.admin)
-
-        # make admin alpha
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )

@@ -394,7 +394,7 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             use_new_editor = forms.TypedChoiceField(
-                label=_("New Editor (Alpha)"),
+                label=_("New Editor (Beta)"),
                 help_text=_("Use new editor when authoring this flow"),
                 choices=((1, "Yes"), (0, "No")),
                 initial=0,
@@ -438,9 +438,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if not org.primary_language:
                 exclude.append("base_language")
-
-            if not self.get_user().is_alpha():
-                exclude.append("use_new_editor")
 
             return exclude
 
