@@ -12,7 +12,7 @@ asn1crypto==0.22.0        # via cryptography
 attrs==18.1.0             # via black
 beautifulsoup4==4.7.1
 billiard==3.5.0.2         # via celery
-black==18.9b0
+black==19.3b0
 boto3==1.4.4
 botocore==1.5.71          # via boto3, s3transfer
 celery[redis]==4.2.1
@@ -63,7 +63,7 @@ nexmo==2.3.0
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.3
 phonenumbers
-pip-tools==3.2.0
+pip-tools==3.5.0
 psycopg2-binary==2.7.6.1
 pycodestyle==2.4.0        # via flake8
 pycountry==17.5.14
@@ -83,7 +83,7 @@ python-intercom==3.1.0
 python-magic==0.4.15
 python-telegram-bot==11.1.0
 pytz
-rapidpro-expressions==1.7
+rapidpro-expressions==1.8
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
 redis==2.10.5

@@ -782,9 +782,9 @@ class BaseLabelForm(forms.ModelForm):
         if labels_count >= Label.MAX_ORG_LABELS:
             raise forms.ValidationError(
                 _(
-                    "This org has %s labels and the limit is %s. "
+                    "This org has %(count)d labels and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                    "create new ones." % dict(count=labels_count, limit=Label.MAX_ORG_LABELS)
                 )
             )
 
