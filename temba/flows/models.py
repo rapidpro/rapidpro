@@ -2130,17 +2130,20 @@ class Flow(TembaModel):
         return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
 
     def as_json(self, expand_contacts=False):
+        if self.is_legacy():
+            return self.get_legacy_definition(expand_contacts)
+
+        return self.get_definition()
+
+    def get_legacy_definition(self, expand_contacts=False):
         """
-        Returns the JSON definition for this flow.
+        Builds the JSON definition for a legacy flow from its action sets and rule sets.
 
           expand_contacts:
             Add names for contacts and groups that are just ids. This is useful for human readable
             situations such as the flow editor.
 
         """
-
-        if not self.is_legacy():
-            return self.revisions.order_by("revision").last().definition
 
         flow = dict()
 
@@ -2251,7 +2254,7 @@ class Flow(TembaModel):
         exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS)
         metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
 
-        revision = self.revisions.all().order_by("-revision").first()
+        revision = self.get_current_revision()
 
         last_saved = self.saved_on
         if self.saved_by == get_flow_user(self.org):
@@ -2345,7 +2348,7 @@ class Flow(TembaModel):
 
         if Flow.is_before_version(self.version_number, to_version):
             with self.lock_on(FlowLock.definition):
-                revision = self.revisions.all().order_by("-revision").all().first()
+                revision = self.get_current_revision()
                 if revision:
                     json_flow = revision.get_definition_json(to_version)
                 else:  # pragma: needs cover
@@ -2354,11 +2357,27 @@ class Flow(TembaModel):
                 self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
 
-    def last_revision(self):
+    def get_definition(self):
+        """
+        Returns the current definition of this flow
+        """
+        rev = self.get_current_revision()
+
+        assert rev, "can't get definition of flow with no revisions"
+
+        # update metadata in definition from database object as it may be out of date
+        definition = rev.definition
+        definition[Flow.DEFINITION_UUID] = self.uuid
+        definition[Flow.DEFINITION_NAME] = self.name
+        definition[Flow.DEFINITION_REVISION] = rev.revision
+        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+        return definition
+
+    def get_current_revision(self):
         """
         Returns the last saved revision for this flow if any
         """
-        return self.revisions.order_by("-revision").first()
+        return self.revisions.order_by("revision").last()
 
     def save_revision(self, user, definition, validate=True):
         """
@@ -2367,22 +2386,22 @@ class Flow(TembaModel):
         if Version(definition.get(Flow.DEFINITION_SPEC_VERSION)) < Version(Flow.GOFLOW_VERSION):
             raise FlowVersionConflictException(definition.get(Flow.DEFINITION_SPEC_VERSION))
 
-        # get our last revision
-        revision = 1
-        last_revision = self.last_revision()
+        current_revision = self.get_current_revision()
 
-        # check we aren't walking over someone else
-        if last_revision:
-            if definition.get(Flow.DEFINITION_REVISION) < last_revision.revision:
+        if current_revision:
+            # check we aren't walking over someone else
+            if definition.get(Flow.DEFINITION_REVISION) < current_revision.revision:
                 raise FlowUserConflictException(self.saved_by, self.saved_on)
 
-            revision = last_revision.revision + 1
+            revision = current_revision.revision + 1
+        else:
+            revision = 1
 
-        # and our revision, expiration, name and uuid
-        definition[Flow.DEFINITION_REVISION] = revision
-        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+        # update metadata from database object
         definition[Flow.DEFINITION_UUID] = self.uuid
         definition[Flow.DEFINITION_NAME] = self.name
+        definition[Flow.DEFINITION_REVISION] = revision
+        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
 
         # inspect the flow (with optional validation)
         flow_info = mailroom.get_client().flow_inspect(definition, validate_with_org=self.org if validate else None)
@@ -2494,7 +2513,7 @@ class Flow(TembaModel):
 
                 # last version
                 revision_num = 1
-                last_revision = self.revisions.order_by("-revision").first()
+                last_revision = self.get_current_revision()
                 if last_revision:
                     revision_num = last_revision.revision + 1
 

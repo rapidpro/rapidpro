@@ -275,6 +275,36 @@ class FlowTest(TembaTest):
             % (settings.STORAGE_URL, self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
         )
 
+    def test_flow_get_definition(self):
+        favorites = self.get_flow("favorites_v13")
+
+        # fill the definition with junk metadata
+        rev = favorites.get_current_revision()
+        rev.definition["uuid"] = "Nope"
+        rev.definition["name"] = "Not the name"
+        rev.definition["revision"] = 1234567
+        rev.definition["expire_after_minutes"] = 7654
+        rev.save(update_fields=("definition",))
+
+        # definition should use values from flow db object
+        definition = favorites.get_definition()
+        self.assertEqual(definition["uuid"], str(favorites.uuid))
+        self.assertEqual(definition["name"], "Favorites")
+        self.assertEqual(definition["revision"], 1)
+        self.assertEqual(definition["expire_after_minutes"], 720)
+
+        # when saving a new revision we overwrite metadata
+        favorites.save_revision(self.admin, rev.definition)
+        rev = favorites.get_current_revision()
+        self.assertEqual(rev.definition["uuid"], str(favorites.uuid))
+        self.assertEqual(rev.definition["name"], "Favorites")
+        self.assertEqual(rev.definition["revision"], 2)
+        self.assertEqual(rev.definition["expire_after_minutes"], 720)
+
+        # can't get definition of a flow with no revisions
+        favorites.revisions.all().delete()
+        self.assertRaises(AssertionError, favorites.get_definition)
+
     def test_revision_history(self):
         # we should initially have one revision
         revision = self.flow.revisions.get()
