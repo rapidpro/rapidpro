@@ -3777,7 +3777,9 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child1})
 
         # create child with that UUID and re-import
-        child2 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181")
+        child2 = Flow.create(
+            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+        )
 
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
