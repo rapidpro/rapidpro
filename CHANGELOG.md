@@ -1,3 +1,8 @@
+v4.22.60
+----------
+ * Update flow editor to 1.5.4
+ * Allow imports and exports of v13 flows
+
 v4.22.55
 ----------
  * Enable export of new flows
