@@ -4,34 +4,16 @@ This webcomponent follows the [open-wc](https://github.com/open-wc/open-wc) reco
 
 ## Installation
 ```bash
-npm i alias-editor
+yarn install
 ```
 
 ## Usage
 ```html
-<script type="module">
-  import 'leaflet-map/leaflet-map.js';
-</script>
 
-<leaflet-map></leaflet-map>
-```
+  <script type="module">
+    import '{{STATIC_URL}}components/rp-components.js';
+  </script>
 
-## Testing using karma (if applied by author)
-```bash
-npm run test
-```
+  <alias-editor endpoint="/adminboundary/" osmid="{{ object.osm_id }}"></alias-editor>
 
-## Testing using karma via browserstack (if applied by author)
-```bash
-npm run test:bs
-```
-
-## Demoing using storybook (if applied by author)
-```bash
-npm run storybook
-```
-
-## Linting (if applied by author)
-```bash
-npm run lint
 ```

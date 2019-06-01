@@ -1,11 +1,11 @@
 {
-  "name": "asset-editor",
-  "version": "0.0.0",
-  "description": "Webcomponent alias-editor following open-wc recommendations",
-  "author": "alias-editor",
-  "homepage": "https://github.com/open-wc/open-wc/",
-  "license": "MIT",
-  "repository": "https://github.com/open-wc/open-wc/",
+  "name": "rp-components",
+  "version": "0.0.1",
+  "description": "Web Components for rapid pro",
+  "author": "Nyaruka",
+  "homepage": "https://github.com/rapidpro/rapidpro/",
+  "license": "AGPL-3.0-only",
+  "repository": "https://github.com/rapidpro/rapidpro/",
   "scripts": {
     "build": "webpack --mode production",
     "start": "webpack-dev-server --mode development --open",
