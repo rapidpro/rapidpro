@@ -275,6 +275,36 @@ class FlowTest(TembaTest):
             % (settings.STORAGE_URL, self.flow.org.pk, self.flow.pk, "33333-333-33", ".m4a"),
         )
 
+    def test_flow_get_definition(self):
+        favorites = self.get_flow("favorites_v13")
+
+        # fill the definition with junk metadata
+        rev = favorites.get_current_revision()
+        rev.definition["uuid"] = "Nope"
+        rev.definition["name"] = "Not the name"
+        rev.definition["revision"] = 1234567
+        rev.definition["expire_after_minutes"] = 7654
+        rev.save(update_fields=("definition",))
+
+        # definition should use values from flow db object
+        definition = favorites.get_definition()
+        self.assertEqual(definition["uuid"], str(favorites.uuid))
+        self.assertEqual(definition["name"], "Favorites")
+        self.assertEqual(definition["revision"], 1)
+        self.assertEqual(definition["expire_after_minutes"], 720)
+
+        # when saving a new revision we overwrite metadata
+        favorites.save_revision(self.admin, rev.definition)
+        rev = favorites.get_current_revision()
+        self.assertEqual(rev.definition["uuid"], str(favorites.uuid))
+        self.assertEqual(rev.definition["name"], "Favorites")
+        self.assertEqual(rev.definition["revision"], 2)
+        self.assertEqual(rev.definition["expire_after_minutes"], 720)
+
+        # can't get definition of a flow with no revisions
+        favorites.revisions.all().delete()
+        self.assertRaises(AssertionError, favorites.get_definition)
+
     def test_revision_history(self):
         # we should initially have one revision
         revision = self.flow.revisions.get()
@@ -332,9 +362,7 @@ class FlowTest(TembaTest):
 
     @skip_if_no_mailroom
     def test_goflow_revisions(self):
-        # make admin alpha
         self.login(self.admin)
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
@@ -584,7 +612,7 @@ class FlowTest(TembaTest):
     @skip_if_no_mailroom
     def test_template_warnings(self):
         self.login(self.admin)
-        flow = self.get_goflow("template_flow")
+        flow = self.get_flow("whatsapp_template")
 
         # bring up broadcast dialog
         self.login(self.admin)
@@ -6594,24 +6622,24 @@ class FlowsTest(FlowFileTest):
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
-    def test_validate_flow_definition(self):
+    def test_validate_legacy_definition(self):
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition({"flow_type": "U", "nodes": []})
+            FlowRevision.validate_legacy_definition({"flow_type": "U", "nodes": []})
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("not_fully_localized"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("not_fully_localized"))
 
         # base_language of null, but spec version 8
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("no_base_language_v8"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("no_base_language_v8"))
 
         # base_language of 'eng' but non localized actions
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("non_localized_with_language"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_with_language"))
 
         with self.assertRaises(ValueError):
-            FlowRevision.validate_flow_definition(self.get_flow_json("non_localized_ruleset"))
+            FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
 
     def test_start_flow_queueing(self):
         self.get_flow("start_flow_queued")
@@ -6730,16 +6758,20 @@ class FlowsTest(FlowFileTest):
     def test_save_definitions(self):
         self.login(self.admin)
 
+        # old flow definition
         self.client.post(
             reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="true"),
+            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="0"),
         )
-        Flow.objects.get(
+        flow = Flow.objects.get(
             org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=get_current_export_version()
         )
 
-        # make admin alpha
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
+        # old editor
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
+
+        # new flow definition
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
@@ -6753,9 +6785,6 @@ class FlowsTest(FlowFileTest):
 
     def test_save_revision(self):
         self.login(self.admin)
-
-        # make admin alpha
-        self.admin.groups.add(Group.objects.get(name="Alpha"))
         self.client.post(
             reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
         )
@@ -8185,32 +8214,34 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(2, group_count)
 
     def test_flow_metadata(self):
-        flow = self.get_flow("favorites")
+        # test importing both old and new flow formats
+        for flow_file in ("favorites", "favorites_v13"):
+            flow = self.get_flow(flow_file)
 
-        self.assertEqual(
-            flow.metadata["results"],
-            [
-                {
-                    "key": "color",
-                    "name": "Color",
-                    "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-                {
-                    "key": "beer",
-                    "name": "Beer",
-                    "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-                {
-                    "key": "name",
-                    "name": "Name",
-                    "categories": ["All Responses"],
-                    "node_uuids": [matchers.UUID4String()],
-                },
-            ],
-        )
-        self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
+            self.assertEqual(
+                flow.metadata["results"],
+                [
+                    {
+                        "key": "color",
+                        "name": "Color",
+                        "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                    {
+                        "key": "beer",
+                        "name": "Beer",
+                        "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                    {
+                        "key": "name",
+                        "name": "Name",
+                        "categories": ["All Responses"],
+                        "node_uuids": [matchers.UUID4String()],
+                    },
+                ],
+            )
+            self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     def test_group_split(self):
         flow = self.get_flow("group_split")

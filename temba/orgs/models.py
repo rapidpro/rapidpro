@@ -1983,7 +1983,7 @@ class Org(SmartModel):
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
         """
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactGroup
+        from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import Flow
 
         flow_prefetches = ("action_sets", "rule_sets")
@@ -1997,7 +1997,6 @@ class Org(SmartModel):
         )
 
         all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
-        all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:
             all_campaigns = (
@@ -2013,7 +2012,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies(all_flow_map)
+            dependencies[flow] = flow.get_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -2027,6 +2026,9 @@ class Org(SmartModel):
         for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
+                    # not interested in groups or fields for now
+                    if isinstance(d, ContactField):
+                        deps.remove(d)
                     if isinstance(d, ContactGroup):
                         deps.remove(d)
                         deps.update(campaigns_by_group[d])

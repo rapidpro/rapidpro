@@ -2149,7 +2149,7 @@ class APITest(TembaTest):
 
         self.login(self.admin)
 
-        self.get_goflow("favorites_v13")
+        self.import_file("favorites_v13")
 
         flow = Flow.objects.filter(name="Favorites").first()
 

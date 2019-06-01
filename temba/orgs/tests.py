@@ -3728,6 +3728,62 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
+    def test_import_mixed_flow_versions(self):
+        self.import_file("mixed_versions")
+
+        group = ContactGroup.user_groups.get(name="Survey Audience")
+
+        child = Flow.objects.get(name="New Child")
+        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(set(child.flow_dependencies.all()), set())
+        self.assertEqual(set(child.group_dependencies.all()), {group})
+
+        parent = Flow.objects.get(name="Legacy Parent")
+        self.assertEqual(parent.version_number, get_current_export_version())
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.group_dependencies.all()), set())
+
+        dep_graph = self.org.generate_dependency_graph()
+        self.assertEqual(dep_graph[child], {parent})
+        self.assertEqual(dep_graph[parent], {child})
+
+    def test_import_dependency_types(self):
+        self.import_file("all_dependency_types")
+
+        parent = Flow.objects.get(name="All Dep Types")
+        child = Flow.objects.get(name="New Child")
+
+        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        gender = ContactField.user_fields.get(key="gender")  # created from action reference
+
+        farmers = ContactGroup.user_groups.get(name="Farmers")
+        self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
+
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
+        self.assertEqual(set(parent.group_dependencies.all()), {farmers})
+
+    def test_import_missing_flow_dependency(self):
+        # in production this would blow up validating the flow but we can't do that during tests
+        self.import_file("parent_without_its_child")
+
+        parent = Flow.objects.get(name="Single Parent")
+        self.assertEqual(set(parent.flow_dependencies.all()), set())
+
+        # create child with that name and re-import
+        child1 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE)
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child1})
+
+        # create child with that UUID and re-import
+        child2 = Flow.create(
+            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+        )
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child2})
+
     def test_import_group_remapping(self):
         self.import_file("cataclysm")
         flow = Flow.objects.get(name="Cataclysmic")
