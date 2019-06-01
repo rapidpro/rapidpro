@@ -52,6 +52,7 @@ class BoundaryCRUDL(SmartCRUDL):
 
         def render_to_response(self, context):
             if self.object.children.all().count() > 0:
+                print(self.object)
                 return HttpResponse(self.object.get_children_geojson(), content_type="application/json")
             return HttpResponse(self.object.get_geojson(), content_type="application/json")
 
@@ -129,6 +130,9 @@ class BoundaryCRUDL(SmartCRUDL):
             )
 
             boundaries = [top.as_json() for top in tops]
+
+            if True:
+                return JsonResponse(boundaries, safe=False)
 
             current_top = None
             match = ""

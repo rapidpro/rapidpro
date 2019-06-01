@@ -9,12 +9,25 @@
 -block page-top
 
 -block content
-  <style>
-    :css
-      [ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
-        display: none !important;
-      }
-  </style>
+
+  <script type="module">
+    import '{{STATIC_URL}}components/rp-components.js';
+  </script>
+
+  :css
+    leaflet-map {
+      height: 350px;
+      width: 300px;
+      border: 1px solid #999;
+      border-radius: 5px;
+    }
+
+  <alias-editor endpoint="/adminboundary/" osmid="{{ object.osm_id }}"></alias-editor>
+
+  :css
+    [ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+      display: none !important;
+    }
 
   #ctrl{ng-controller:'BoundaryController'}
     #editor
@@ -119,7 +132,6 @@
             [[ward.name]]
           .aliases{ng-show:'ward.aliases.strip().length > 0'}
             [[ward.aliases | collapse ]]
-
 
     <div id="map" class="ng-cloak" leaflet="" ng-cloak="true" ng-show="boundaries" osm-id="'{{ object.osm_id }}'" boundaries="boundaries" root="root" selected-layer="selectedLayer" state-boundary="stateBoundary" district-boundary="districtBoundary" ward-boundary="wardBoundary" hovered-boundary="hoveredBoundary"></div>
 

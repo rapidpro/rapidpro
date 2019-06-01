@@ -1183,6 +1183,8 @@ class FlowCRUDL(SmartCRUDL):
             context["scripts"] = scripts
             context["styles"] = styles
 
+            print(context["styles"])
+
             if flow.is_archived:
                 context["mutable"] = False
                 context["can_start"] = False
