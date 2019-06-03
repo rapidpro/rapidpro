@@ -1,3 +1,7 @@
+v4.22.61
+----------
+ * add clicksend channel type
+
 v4.22.60
 ----------
  * Update flow editor to 1.5.4
