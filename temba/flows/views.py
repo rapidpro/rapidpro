@@ -1205,7 +1205,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
 
             versions = Flow.get_versions_before(Flow.GOFLOW_VERSION)
-            has_legacy_revision = flow.revisions.exists(spec_version__in=versions)
+            has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
 
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
