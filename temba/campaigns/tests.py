@@ -11,7 +11,7 @@ from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
 from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart
 from temba.msgs.models import Msg
-from temba.orgs.models import Language, Org, get_current_export_version
+from temba.orgs.models import Language, Org
 from temba.tests import ESMockWithScroll, TembaTest
 from temba.utils import json
 from temba.values.constants import Value
@@ -103,7 +103,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, get_current_export_version())
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
     def test_message_event_start_mode_interrupt(self):
         # create a campaign with a message event 1 day after planting date

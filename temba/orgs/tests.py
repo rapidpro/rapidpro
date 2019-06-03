@@ -64,7 +64,6 @@ from .models import (
     Org,
     TopUp,
     TopUpCredits,
-    get_current_export_version,
 )
 from .tasks import squash_topupcredits
 
@@ -3584,7 +3583,9 @@ class BulkExportTest(TembaTest):
         # try to import the flow
         flow.release()
         response.json()
-        Flow.import_flows(exported, self.org, self.admin)
+
+        dep_mapping = {}
+        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
 
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
@@ -3739,7 +3740,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
         parent = Flow.objects.get(name="Legacy Parent")
-        self.assertEqual(parent.version_number, get_current_export_version())
+        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.group_dependencies.all()), set())
 
@@ -3924,12 +3925,13 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse("orgs.org_export"), post_data)
         exported = response.json()
-        self.assertEqual(get_current_export_version(), exported.get("version", 0))
-        self.assertEqual("https://app.rapidpro.io", exported.get("site", None))
+        self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
+        self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
+        self.assertEqual(3, len(exported.get("groups", [])))
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")
@@ -3950,34 +3952,35 @@ class BulkExportTest(TembaTest):
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name="Confirm Appointment")
         flow.name = "A new flow"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign = Campaign.objects.all().first()
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign = Campaign.objects.get()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.filter(name="Pending Appointments").first()
+        group = ContactGroup.user_groups.get(name="Pending Appointments")
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
-        # it should fall back on ids and not create new objects even though the names changed
+        # it should fall back on UUIDs and not create new objects even though the names changed
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
+
         assert_object_counts()
 
-        # and our objets should have the same names as before
+        # and our objects should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
         self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
         # now import the same import but pretend its from a different site
         self.org.import_app(exported, self.admin, site="http://temba.io")

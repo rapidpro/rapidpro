@@ -10,7 +10,7 @@ import django.utils.timezone
 from django.conf import settings
 from django.db import migrations, models
 
-import temba.orgs.models
+import temba.flows.models
 import temba.utils.models
 
 
@@ -230,7 +230,7 @@ class Migration(migrations.Migration):
                 (
                     "version_number",
                     models.CharField(
-                        default=temba.orgs.models.get_current_export_version,
+                        default=temba.flows.models.Flow.FINAL_LEGACY_VERSION,
                         help_text="The flow version this definition is in",
                         max_length=8,
                     ),
@@ -423,7 +423,7 @@ class Migration(migrations.Migration):
                 (
                     "spec_version",
                     models.CharField(
-                        default=temba.orgs.models.get_current_export_version,
+                        default=temba.flows.models.Flow.FINAL_LEGACY_VERSION,
                         help_text="The flow version this definition is in",
                         max_length=8,
                     ),

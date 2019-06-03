@@ -43,7 +43,7 @@ from temba.flows.server.serialize import serialize_environment, serialize_langua
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org, get_current_export_version
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -1055,7 +1055,7 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.object
             org = self.request.user.get_org()
 
-            context["flow_version"] = get_current_export_version()
+            context["flow_version"] = Flow.FINAL_LEGACY_VERSION
             flow.ensure_current_version()
 
             if org:

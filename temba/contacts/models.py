@@ -731,11 +731,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return obj
 
-    def groups_as_text(self):
-        groups = self.user_groups.all().order_by("name")
-        groups_name_list = [group.name for group in groups]
-        return ", ".join(groups_name_list)
-
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
         from .search import contact_es_search, SearchException
@@ -2596,6 +2591,14 @@ class UserContactGroupManager(models.Manager):
 
 
 class ContactGroup(TembaModel):
+    """
+    A static or dynamic group of contacts
+    """
+
+    EXPORT_UUID = "uuid"
+    EXPORT_NAME = "name"
+    EXPORT_QUERY = "query"
+
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
@@ -2681,11 +2684,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_uuid=None):
+    def get_or_create(cls, org, user, name, query=None, uuid=None):
         existing = None
 
-        if group_uuid is not None:
-            existing = org.get_group(group_uuid)
+        if uuid:
+            existing = org.get_group(uuid)
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
@@ -2693,7 +2696,10 @@ class ContactGroup(TembaModel):
         if existing:
             return existing
 
-        return cls.create_static(org, user, name)
+        if query:
+            return cls.create_dynamic(org, user, name, query)
+        else:
+            return cls.create_static(org, user, name)
 
     @classmethod
     def create_static(cls, org, user, name, task=None):
@@ -3023,9 +3029,27 @@ class ContactGroup(TembaModel):
     def is_dynamic(self):
         return self.query is not None
 
-    def analytics_json(self):
-        if self.get_member_count() > 0:
-            return dict(name=self.name, id=self.pk, count=self.get_member_count())
+    @classmethod
+    def import_groups(cls, org, user, groups_json, dependency_mapping):
+        """
+        Import groups from a list of exported groups
+        """
+
+        for group_json in groups_json:
+            group_uuid = group_json.get(ContactGroup.EXPORT_UUID)
+            group_name = group_json.get(ContactGroup.EXPORT_NAME)
+            group_query = group_json.get(ContactGroup.EXPORT_QUERY)
+
+            group = ContactGroup.get_or_create(org, user, group_name, group_query, uuid=group_uuid)
+
+            dependency_mapping[group_uuid] = str(group.uuid)
+
+    def as_export_json(self):
+        return {
+            ContactGroup.EXPORT_UUID: str(self.uuid),
+            ContactGroup.EXPORT_NAME: self.name,
+            ContactGroup.EXPORT_QUERY: self.query,
+        }
 
     def __str__(self):
         return self.name

@@ -30,7 +30,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
-from temba.orgs.models import Language, get_current_export_version
+from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
@@ -322,9 +322,9 @@ class FlowTest(TembaTest):
         self.assertEqual(1, revisions[0].revision)
         self.assertEqual(2, revisions[1].revision)
 
-        self.assertEqual(get_current_export_version(), revisions[0].spec_version)
-        self.assertEqual(get_current_export_version(), revisions[0].as_json()["version"])
-        self.assertEqual("base", revisions[0].get_definition_json()["base_language"])
+        self.assertEqual(revisions[0].spec_version, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(revisions[0].as_json()["version"], Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(revisions[0].get_definition_json()["base_language"], "base")
 
         # now make one revision invalid
         revision = revisions[1]
@@ -342,7 +342,7 @@ class FlowTest(TembaTest):
         revision_id = response.json()["results"][0]["id"]
         response = self.client.get(
             "%s%s/?version=%s"
-            % (reverse("flows.flow_revisions", args=[self.flow.uuid]), revision_id, get_current_export_version())
+            % (reverse("flows.flow_revisions", args=[self.flow.uuid]), revision_id, Flow.FINAL_LEGACY_VERSION)
         )
 
         # make sure we can read the definition
@@ -2655,7 +2655,7 @@ class FlowTest(TembaTest):
         # back out as json
         json_dict = self.flow.as_json()
 
-        self.assertEqual(json_dict["version"], get_current_export_version())
+        self.assertEqual(json_dict["version"], Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(json_dict["flow_type"], self.flow.flow_type)
         self.assertEqual(
             json_dict["metadata"],
@@ -6764,7 +6764,7 @@ class FlowsTest(FlowFileTest):
             data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="0"),
         )
         flow = Flow.objects.get(
-            org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=get_current_export_version()
+            org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.FINAL_LEGACY_VERSION
         )
 
         # old editor
@@ -6794,7 +6794,7 @@ class FlowsTest(FlowFileTest):
 
         # can't save old version over new
         definition = flow.revisions.all().order_by("-id").first().definition
-        definition["spec_version"] = get_current_export_version()
+        definition["spec_version"] = Flow.FINAL_LEGACY_VERSION
         with self.assertRaises(FlowVersionConflictException):
             flow.save_revision(flow.created_by, definition)
 
@@ -6886,8 +6886,7 @@ class FlowsTest(FlowFileTest):
         flow.refresh_from_db()
         flow_json = flow.as_json()
 
-        with patch("temba.flows.models.get_current_export_version") as mock_version:
-            mock_version.return_value = "1.234"
+        with patch("temba.flows.models.Flow.FINAL_LEGACY_VERSION", "1.234"):
 
             with self.assertRaises(FlowVersionConflictException):
                 flow.update(flow_json, self.admin)
@@ -9470,12 +9469,12 @@ class FlowMigrationTest(FlowFileTest):
         self.assertFalse(Flow.is_before_version("200", "5"))
         self.assertFalse(Flow.is_before_version("3.1", "3.5"))
 
-        self.assertFalse(Flow.is_before_version(get_current_export_version(), 10))
+        self.assertFalse(Flow.is_before_version(Flow.FINAL_LEGACY_VERSION, 10))
 
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
-            to_version = get_current_export_version()
+            to_version = Flow.FINAL_LEGACY_VERSION
 
         flow_json = flow.as_json()
         if Flow.is_before_version(flow.version_number, "6"):
@@ -9572,7 +9571,7 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(len(flow_json["action_sets"]), 1)
         self.assertEqual(len(flow_json["rule_sets"]), 0)
-        self.assertEqual(flow_json["version"], get_current_export_version())
+        self.assertEqual(flow_json["version"], Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(flow_json["metadata"]["revision"], 2)
 
     def test_update_with_ruleset_to_actionset_change(self):
@@ -9809,12 +9808,8 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_11_12_other_org_existing_flow(self):
         # import a flow but don't yet migrate it to 11.12
-        with patch("temba.orgs.models.get_current_export_version") as mock_get_current_export_version1:
-            with patch("temba.flows.models.get_current_export_version") as mock_get_current_export_version2:
-                mock_get_current_export_version1.return_value = "11.11"
-                mock_get_current_export_version2.return_value = "11.11"
-
-                flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
+        with patch("temba.flows.models.Flow.FINAL_LEGACY_VERSION", "11.11"):
+            flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
 
         self.assertEqual(flow.version_number, "11.11")
         self.assertEqual(flow.revisions.order_by("revision").last().spec_version, "11.11")
@@ -10376,7 +10371,7 @@ class FlowMigrationTest(FlowFileTest):
         exported = favorites.as_json()
         flow = Flow.objects.filter(name="Favorites").first()
         self.assertEqual(exported, flow.as_json())
-        self.assertEqual(flow.version_number, get_current_export_version())
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
@@ -10710,11 +10705,11 @@ class FlowMigrationTest(FlowFileTest):
         rev.save()
 
         new_rev = flow.update(rev.get_definition_json())
-        self.assertEqual(new_rev.spec_version, get_current_export_version())
+        self.assertEqual(new_rev.spec_version, Flow.FINAL_LEGACY_VERSION)
 
         flow.refresh_from_db()
         self.assertEqual(flow.revisions.all().count(), 2)
-        self.assertEqual(flow.version_number, get_current_export_version())
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows("https://app.rapidpro.io")
@@ -10746,7 +10741,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertTrue(ContactGroup.user_groups.filter(name="Contacts > 100").exists(), error % ("> 100", v))
 
             ContactGroup.user_groups.all().delete()
-            self.assertEqual(get_current_export_version(), flow.version_number)
+            self.assertEqual(Flow.FINAL_LEGACY_VERSION, flow.version_number)
             flow.release()
 
     def test_migrate_malformed_groups(self):

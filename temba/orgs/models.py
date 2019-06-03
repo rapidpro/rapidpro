@@ -54,13 +54,6 @@ EARLIEST_IMPORT_VERSION = "3"
 logger = logging.getLogger(__name__)
 
 
-# making this a function allows it to be used as a default for Django fields
-def get_current_export_version():
-    from temba.flows.models import Flow
-
-    return Flow.VERSIONS[-1]
-
-
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
 MT_CALL_EVENTS = 1 << 2
@@ -172,6 +165,16 @@ class Org(SmartModel):
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
     """
+
+    # items in export JSON
+    EXPORT_VERSION = "version"
+    EXPORT_SITE = "site"
+    EXPORT_FLOWS = "flows"
+    EXPORT_CAMPAIGNS = "campaigns"
+    EXPORT_TRIGGERS = "triggers"
+    EXPORT_GROUPS = "groups"
+
+    CURRENT_EXPORT_VERSION = "13"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -437,42 +440,52 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(ORG_STATUS, None) == WHITELISTED
 
-    def import_app(self, data, user, site=None):
-        from temba.flows.models import Flow
+    def import_app(self, export_json, user, site=None):
+        """
+        Imports previously exported JSON
+        """
+
         from temba.campaigns.models import Campaign
+        from temba.contacts.models import ContactGroup
+        from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
 
-        # determine if this app is being imported from the same site
-        data_site = data.get("site", None)
-        same_site = False
+        export_version = export_json.get(Org.EXPORT_VERSION, 0)
+        export_site = export_json.get(Org.EXPORT_SITE)
 
-        # compare the hosts of the sites to see if they are the same
-        if data_site and site:
-            same_site = urlparse(data_site).netloc == urlparse(site).netloc
+        # determine if this app is being imported from the same site
+        same_site = False
+        if export_site and site:
+            same_site = urlparse(export_site).netloc == urlparse(site).netloc
 
         # see if our export needs to be updated
-        export_version = data.get("version", 0)
         if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % data.get("version", 0)))
+            raise ValueError(_("Unknown version (%s)" % export_version))
 
-        if Flow.is_before_version(export_version, get_current_export_version()):
-            from temba.flows.models import FlowRevision
+        if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
 
-            data = FlowRevision.migrate_export(self, data, same_site, export_version)
+        export_groups = export_json.get(Org.EXPORT_GROUPS, [])
+        export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
+        export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
+
+        dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
         with transaction.atomic():
-            # we need to import flows first, they will resolve to
-            # the appropriate ids and update our definition accordingly
-            new_flows = Flow.import_flows(data, self, user, same_site)
-            Campaign.import_campaigns(data, self, user, same_site)
-            Trigger.import_triggers(data, self, user, same_site)
+            ContactGroup.import_groups(self, user, export_groups, dependency_mapping)
+
+            new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
+
+            # these depend on flows so are imported last
+            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            Trigger.import_triggers(self, user, export_triggers, same_site)
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
             mailroom.get_client().flow_validate(self, flow.as_json())
 
     @classmethod
-    def export_definitions(cls, site_link, components):
+    def export_definitions(cls, site_link, components, include_groups=True):
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
@@ -481,22 +494,37 @@ class Org(SmartModel):
         exported_campaigns = []
         exported_triggers = []
 
+        # users can choose which groups to export - we just include all the dependent groups
+        groups = set()
+
         for component in components:
             if isinstance(component, Flow):
                 component.ensure_current_version()  # only export current versions
                 exported_flows.append(component.as_json(expand_contacts=True))
-            elif isinstance(component, Campaign):
-                exported_campaigns.append(component.as_json())
-            elif isinstance(component, Trigger):
-                exported_triggers.append(component.as_json())
 
-        return dict(
-            version=get_current_export_version(),
-            site=site_link,
-            flows=exported_flows,
-            campaigns=exported_campaigns,
-            triggers=exported_triggers,
-        )
+                if include_groups:
+                    groups.update(component.group_dependencies.all())
+
+            elif isinstance(component, Campaign):
+                exported_campaigns.append(component.as_export_json())
+
+                if include_groups:
+                    groups.add(component.group)
+
+            elif isinstance(component, Trigger):
+                exported_triggers.append(component.as_export_json())
+
+                if include_groups:
+                    groups.update(component.groups.all())
+
+        return {
+            Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
+            Org.EXPORT_SITE: site_link,
+            Org.EXPORT_FLOWS: exported_flows,
+            Org.EXPORT_CAMPAIGNS: exported_campaigns,
+            Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_GROUPS: [g.as_export_json() for g in groups],
+        }
 
     def can_add_sender(self):  # pragma: needs cover
         """
