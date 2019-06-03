@@ -457,10 +457,10 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
-        if f"{to_check}" not in Flow.VERSIONS:
+        if str(to_check) not in Flow.VERSIONS:
             return False
 
-        return Version(f"{to_check}") < Version(f"{version}")
+        return Version(str(to_check)) < Version(str(version))
 
     @classmethod
     def get_triggerable_flows(cls, org):

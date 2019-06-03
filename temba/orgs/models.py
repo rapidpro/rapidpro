@@ -17,6 +17,7 @@ import stripe
 import stripe.error
 from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
+from packaging.version import Version
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -47,9 +48,6 @@ from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
 from temba.values.constants import Value
-
-EARLIEST_IMPORT_VERSION = "3"
-
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +172,7 @@ class Org(SmartModel):
     EXPORT_TRIGGERS = "triggers"
     EXPORT_GROUPS = "groups"
 
+    EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
@@ -450,7 +449,11 @@ class Org(SmartModel):
         from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
 
-        export_version = export_json.get(Org.EXPORT_VERSION, 0)
+        # only required field is version
+        if Org.EXPORT_VERSION not in export_json:
+            raise ValueError("Export missing version field")
+
+        export_version = Version(str(export_json[Org.EXPORT_VERSION]))
         export_site = export_json.get(Org.EXPORT_SITE)
 
         # determine if this app is being imported from the same site
@@ -458,10 +461,11 @@ class Org(SmartModel):
         if export_site and site:
             same_site = urlparse(export_site).netloc == urlparse(site).netloc
 
-        # see if our export needs to be updated
-        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % export_version))
+        # do we have a supported export version?
+        if not (Version(Org.EARLIEST_IMPORT_VERSION) <= export_version <= Version(Org.CURRENT_EXPORT_VERSION)):
+            raise ValueError(f"Unsupported export version {export_version}")
 
+        # do we need to migrate the export forward?
         if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
             export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
 

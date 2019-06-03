@@ -3495,6 +3495,19 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
+    def test_import_validation(self):
+        # export must include version field
+        with self.assertRaises(ValueError):
+            self.org.import_app({"flows": []}, self.admin)
+
+        # export version can't be older than Org.EARLIEST_IMPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "2", "flows": []}, self.admin)
+
+        # export version can't be newer than Org.CURRENT_EXPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "21415", "flows": []}, self.admin)
+
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
