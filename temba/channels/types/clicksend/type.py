@@ -43,8 +43,18 @@ class ClickSendType(ChannelType):
         "America/Nome",
         "America/Adak",
         "Pacific/Honolulu",
+        "US/Alaska",
+        "US/Aleutian",
+        "US/Arizona",
+        "US/Central",
+        "US/East-Indiana",
+        "US/Eastern",
+        "US/Hawaii",
+        "US/Indiana-Starke",
+        "US/Michigan",
+        "US/Mountain",
+        "US/Pacific",
     ]
-    recommended_timezones = available_timezones
     category = ChannelType.Category.PHONE
     schemes = [TEL_SCHEME]
     max_length = 1224
