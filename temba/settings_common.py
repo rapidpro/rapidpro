@@ -1046,6 +1046,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.i2sms.I2SMSType",
+    "temba.channels.types.clicksend.ClickSendType",
 ]
 
 # -----------------------------------------------------------------------------------
