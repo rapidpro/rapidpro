@@ -1,3 +1,7 @@
+v4.22.62
+----------
+ * add US/ timezones for clicksend as well
+
 v4.22.61
 ----------
  * add clicksend channel type
