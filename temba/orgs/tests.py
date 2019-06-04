@@ -22,6 +22,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -3784,14 +3785,13 @@ class BulkExportTest(TembaTest):
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
+    def test_import_group_remapping_legacy(self):
+        self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
-        rev = flow.revisions.all().first()
 
         from temba.flows.tests import get_groups
 
-        definition_groups = get_groups(rev.get_definition_json())
+        definition_groups = get_groups(flow.as_json())
 
         # we should have 5 groups
         self.assertEqual(5, len(definition_groups))
@@ -3801,6 +3801,21 @@ class BulkExportTest(TembaTest):
             self.assertTrue(
                 ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
+            )
+
+    def test_import_group_remapping(self):
+        self.import_file("cataclysm")
+        flow = Flow.objects.get(name="Cataclysmic")
+
+        # we should have 5 groups
+        self.assertEqual(5, ContactGroup.user_groups.all().count())
+
+        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
+
+        for ref in flow_info["dependencies"]["groups"]:
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
+                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
             )
 
     def test_export_import(self):
