@@ -6686,7 +6686,9 @@ class InGroupTest(Test):
         return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid=uuid))
 
     def as_json(self):
-        group = ContactGroup.get_or_create(self.group.org, self.group.org.created_by, self.group.name, uuid=self.group.uuid)
+        group = ContactGroup.get_or_create(
+            self.group.org, self.group.org.created_by, self.group.name, uuid=self.group.uuid
+        )
         return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
     def evaluate(self, run, sms, context, text):

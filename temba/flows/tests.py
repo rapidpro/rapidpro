@@ -145,7 +145,7 @@ from .tasks import (
 from .views import FlowCRUDL
 
 
-def get_groups(definition):
+def get_legacy_groups(definition):
     groups = {}
     for actionset in definition[Flow.ACTION_SETS]:
         for action in actionset[Flow.ACTIONS]:
@@ -9991,7 +9991,7 @@ class FlowMigrationTest(FlowFileTest):
         flow_json = self.get_flow_json("migrate_to_11_6")
 
         migrated = migrate_to_version_11_6(flow_json, flow)
-        migrated_groups = get_groups(migrated)
+        migrated_groups = get_legacy_groups(migrated)
         for uuid, name in migrated_groups.items():
             self.assertTrue(ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(), msg="Group UUID mismatch")
 
