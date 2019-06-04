@@ -3040,6 +3040,15 @@ class ContactGroup(TembaModel):
             group_name = group_json.get(ContactGroup.EXPORT_NAME)
             group_query = group_json.get(ContactGroup.EXPORT_QUERY)
 
+            if group_query:
+                from .search import parse_query
+
+                parsed = parse_query(group_query, as_anon=org.is_anon)
+                for prop, obj in parsed.get_prop_map(org, validate=False).items():
+                    # if search property didn't match a URN, attribute or existing field, we need to create the field
+                    if obj is None:
+                        ContactField.get_or_create(org, user, key=prop)
+
             group = ContactGroup.get_or_create(org, user, group_name, group_query, uuid=group_uuid)
 
             dependency_mapping[group_uuid] = str(group.uuid)

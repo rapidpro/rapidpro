@@ -42,7 +42,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest, ESMockWithScroll
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -3799,7 +3799,7 @@ class BulkExportTest(TembaTest):
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
-    def test_import_group_remapping_legacy(self):
+    def test_implicit_group_imports_legacy(self):
         self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
@@ -3817,12 +3817,40 @@ class BulkExportTest(TembaTest):
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
             )
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
+    def test_implicit_group_imports(self):
+        with ESMockWithScroll():
+            self.import_file("cataclysm_without_groups")
+
         flow = Flow.objects.get(name="Cataclysmic")
 
-        # we should have 5 groups
-        self.assertEqual(5, ContactGroup.user_groups.all().count())
+        # we should have 5 groups (all static since we can only create static groups from group references)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+
+        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
+
+        for ref in flow_info["dependencies"]["groups"]:
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
+                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
+            )
+
+    def test_explicit_group_imports(self):
+        with ESMockWithScroll():
+            self.import_file("cataclysm")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+
+        # we should have 5 groups (1 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 4)
+
+        # new field should have been created for the dynamic group
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+
+        dynamic_group = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(dynamic_group.query, 'likes_cats = "true"')
+        self.assertEqual(set(dynamic_group.query_fields.all()), {likes_cats})
 
         flow_info = mailroom.get_client().flow_inspect(flow.as_json())
 
