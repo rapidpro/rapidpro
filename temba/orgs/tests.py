@@ -3826,8 +3826,6 @@ class BulkExportTest(TembaTest):
 
         flow_info = mailroom.get_client().flow_inspect(flow.as_json())
 
-        # breakpoint()
-
         for ref in flow_info["dependencies"]["groups"]:
             self.assertTrue(
                 ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
