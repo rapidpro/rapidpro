@@ -778,7 +778,7 @@ class FlowTest(TembaTest):
         self.login(csrep)
         response = self.client.get(reverse("flows.flow_editor_next", args=[self.flow.uuid]))
         gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Service")
+        self.assertEqual(gear_links[-1]["title"], "Previous Editor")
 
         # viewing flows that are archived can't be started
         self.login(self.admin)
@@ -831,6 +831,8 @@ class FlowTest(TembaTest):
                 "Revision History",
                 "Delete",
                 None,
+                "New Editor",
+                None,
                 "Service",
             ],
         )
@@ -849,7 +851,7 @@ class FlowTest(TembaTest):
         # cannot 'Edit' an archived Flow
         self.assertListEqual(
             [link.get("title") for link in gear_links],
-            ["Results", "Copy", "Export", None, "Revision History", "Delete"],
+            ["Results", "Copy", "Export", None, "Revision History", "Delete", None, "New Editor"],
         )
 
     def test_flow_editor_for_inactive_flow(self):
