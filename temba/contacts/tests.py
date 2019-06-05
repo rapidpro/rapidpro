@@ -115,10 +115,10 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
 
     def testList(self):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
-        self.joe.set_field(self.user, "age", 20)
+        self.joe.set_field(self.user, "age", "20")
         self.joe.set_field(self.user, "home", "Kigali")
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name="Frank")
-        self.frank.set_field(self.user, "age", 18)
+        self.frank.set_field(self.user, "age", "18")
 
         response = self._do_test_view("list")
         self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
@@ -289,9 +289,9 @@ class ContactGroupTest(TembaTest):
         name = ContactField.system_fields.filter(org=self.org, key="name").get()
         age = ContactField.get_or_create(self.org, self.admin, "age", value_type=Value.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
-        self.joe.set_field(self.admin, "age", 17)
+        self.joe.set_field(self.admin, "age", "17")
         self.joe.set_field(self.admin, "gender", "male")
-        self.mary.set_field(self.admin, "age", 21)
+        self.mary.set_field(self.admin, "age", "21")
         self.mary.set_field(self.admin, "gender", "female")
 
         # create a dynamic group using a query
@@ -1549,7 +1549,7 @@ class ContactTest(TembaTest):
             self.org, self.admin, "nick", "Nickname", value_type="T", show_in_table=False
         )
 
-        self.joe.set_field(self.user, "age", 32)
+        self.joe.set_field(self.user, "age", "32")
         self.joe.set_field(self.user, "nick", "Joey")
         self.joe = Contact.objects.get(pk=self.joe.pk)
 
@@ -1686,7 +1686,7 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
 
-        self.joe.set_field(self.admin, "age", 18)
+        self.joe.set_field(self.admin, "age", "18")
         self.assertTrue(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
         self.assertFalse(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
         self.assertTrue(evaluate_query(self.org, "age = 18", contact_json=self.joe.as_search_json()))
@@ -3075,7 +3075,7 @@ class ContactTest(TembaTest):
 
         # field update works as expected
         contact.set_field(self.user, "gender", "male")
-        contact.set_field(self.user, "age", 20)
+        contact.set_field(self.user, "age", "20")
 
         self.assertCountEqual(
             [group.name for group in contact.user_groups.filter(is_active=True).all()],
@@ -6215,7 +6215,7 @@ class ContactTest(TembaTest):
         self.assertEqual(None, self.joe.get_field_serialized(abc))
 
         # try storing an integer, should get turned into a string
-        self.joe.set_field(self.user, "abc_1234", 1)
+        self.joe.set_field(self.user, "abc_1234", "1")
         self.assertEqual("1", self.joe.get_field_serialized(abc))
 
         # we should have a field with the key
@@ -6534,17 +6534,17 @@ class ContactTest(TembaTest):
 
             self.mary = self.create_contact("Mary", "+250783333333")
             self.mary.set_field(self.user, "gender", "Female")
-            self.mary.set_field(self.user, "age", 21)
+            self.mary.set_field(self.user, "age", "21")
             self.mary.set_field(self.user, "joined", "31/12/2013")
             self.annie = self.create_contact("Annie", "7879")
             self.annie.set_field(self.user, "gender", "Female")
-            self.annie.set_field(self.user, "age", 9)
+            self.annie.set_field(self.user, "age", "9")
             self.annie.set_field(self.user, "joined", "31/12/2013")
             self.joe.set_field(self.user, "gender", "Male")
-            self.joe.set_field(self.user, "age", 25)
+            self.joe.set_field(self.user, "age", "25")
             self.joe.set_field(self.user, "joined", "1/1/2014")
             self.frank.set_field(self.user, "gender", "Male")
-            self.frank.set_field(self.user, "age", 50)
+            self.frank.set_field(self.user, "age", "50")
             self.frank.set_field(self.user, "joined", "1/1/2014")
 
             # create more groups based on fields (checks that contacts are added correctly on group create)

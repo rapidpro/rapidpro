@@ -1105,16 +1105,19 @@ class Org(SmartModel):
         return datetime_to_str(datetime, format, self.timezone)
 
     def parse_datetime(self, datetime_string):
-        if isinstance(datetime_string, datetime):
-            return datetime_string
+        if not (isinstance(datetime_string, str)):
+            raise ValueError(f"parse_datetime called with param of type: {type(datetime_string)}, expected string")
 
         return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
 
     def parse_number(self, decimal_string):
-        parsed = None
+        if not (isinstance(decimal_string, str)):
+            raise ValueError(f"parse_number called with param of type: {type(decimal_string)}, expected string")
 
+        parsed = None
         try:
             parsed = Decimal(decimal_string)
+
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None
         except Exception:
@@ -1490,6 +1493,35 @@ class Org(SmartModel):
         """
         return self.get_credits_total() - self.get_credits_used()
 
+    def select_most_recent_topup(self, amount):
+        """
+        Determines the active topup with latest expiry date and returns that
+        along with how many credits we will be able to decrement from it. Amount
+        decremented is not guaranteed to be the full amount requested.
+        """
+        # if we have an active topup cache, we need to decrement the amount remaining
+        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by(
+            "-expires_on", "id"
+        )
+        active_topups = (
+            non_expired_topups.annotate(used_credits=Sum("topupcredits__used"))
+            .filter(credits__gt=0)
+            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
+        )
+        active_topup = active_topups.first()
+
+        if active_topup:
+            available_credits = active_topup.get_remaining()
+
+            if amount > available_credits:
+                # use only what is available
+                return active_topup.id, available_credits
+            else:
+                # use the full amount
+                return active_topup.id, amount
+        else:  # pragma: no cover
+            return None, 0
+
     def allocate_credits(self, user, org, amount):
         """
         Allocates credits to a sub org of the current org, but only if it
@@ -1505,7 +1537,7 @@ class Org(SmartModel):
                     while amount or debited == 0:
 
                         # remove the credits from ourselves
-                        (topup_id, debited) = self.decrement_credit(amount)
+                        (topup_id, debited) = self.select_most_recent_topup(amount)
 
                         if topup_id:
                             topup = TopUp.objects.get(id=topup_id)
@@ -1543,24 +1575,27 @@ class Org(SmartModel):
         # couldn't allocate credits
         return False
 
-    def decrement_credit(self, amount=1):
+    def decrement_credit(self):
         """
         Decrements this orgs credit by amount.
 
         Determines the active topup and returns that along with how many credits we were able
         to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
         """
+        # amount is hardcoded to `1` in database triggers that handle TopUpCredits relation when sending messages
+        AMOUNT = 1
+
         r = get_redis_connection()
 
         # we always consider this a credit 'used' since un-applied msgs are pending
         # credit expenses for the next purchased topup
-        incrby_existing(ORG_CREDITS_USED_CACHE_KEY % self.id, amount)
+        incrby_existing(ORG_CREDITS_USED_CACHE_KEY % self.id, AMOUNT)
 
         # if we have an active topup cache, we need to decrement the amount remaining
         active_topup_id = self.get_active_topup_id()
         if active_topup_id:
 
-            remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), amount)
+            remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
 
             # near the edge, clear out our cache and calculate from the db
             if not remaining or int(remaining) < 100:
@@ -1572,13 +1607,11 @@ class Org(SmartModel):
             active_topup = self.get_active_topup(force_dirty=True)
             if active_topup:
                 active_topup_id = active_topup.id
-                remaining = active_topup.get_remaining()
-                if amount > remaining:
-                    amount = remaining
-                r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), amount)
+
+                r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
 
         if active_topup_id:
-            return (active_topup_id, amount)
+            return (active_topup_id, AMOUNT)
 
         return None, 0
 
@@ -1950,7 +1983,7 @@ class Org(SmartModel):
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
         """
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactGroup
+        from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import Flow
 
         flow_prefetches = ("action_sets", "rule_sets")
@@ -1964,7 +1997,6 @@ class Org(SmartModel):
         )
 
         all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
-        all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:
             all_campaigns = (
@@ -1980,7 +2012,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies(all_flow_map)
+            dependencies[flow] = flow.get_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -1994,6 +2026,9 @@ class Org(SmartModel):
         for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
+                    # not interested in groups or fields for now
+                    if isinstance(d, ContactField):
+                        deps.remove(d)
                     if isinstance(d, ContactGroup):
                         deps.remove(d)
                         deps.update(campaigns_by_group[d])

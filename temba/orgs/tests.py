@@ -1,3 +1,4 @@
+import datetime
 import io
 from datetime import timedelta
 from decimal import Decimal
@@ -21,6 +22,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -2409,13 +2411,8 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
-    def test_sub_orgs(self):
+    def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-
-        # lets start with two topups
-        expires = timezone.now() + timedelta(days=400)
-        first_topup = TopUp.objects.filter(org=self.org).first()
-        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2426,6 +2423,9 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         sub_org = self.org.create_sub_org("Sub Org")
 
+        # suborg has been created
+        self.assertIsNotNone(sub_org)
+
         # suborgs can't create suborgs
         self.assertIsNone(sub_org.create_sub_org("Grandchild Org"))
 
@@ -2433,9 +2433,37 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
 
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 1)
+
+        # sub_org is deleted
+        sub_org.release()
+
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 0)
+
+    def test_sub_orgs(self):
+        # lets start with two topups
+        oldest_topup = TopUp.objects.filter(org=self.org).first()
+
+        expires = timezone.now() + timedelta(days=400)
+        newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        sub_org = self.org.create_sub_org("Sub Org")
+
+        # send a message as sub_org
         Channel.create(
             sub_org,
             self.user,
@@ -2449,17 +2477,17 @@ class OrgTest(TembaTest):
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
         msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
-        self.assertFalse(msg.topup)
 
-        # default values should be the same as parent
-        self.assertEqual(self.org.timezone, sub_org.timezone)
-        self.assertEqual(self.org.created_by, sub_org.created_by)
+        # there is no topup on suborg, and this msg won't be credited
+        self.assertFalse(msg.topup)
 
         # now allocate some credits to our sub org
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
 
         msg.refresh_from_db()
+        # allocating credits will execute apply_topups_task and assign a topup
         self.assertTrue(msg.topup)
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
 
@@ -2470,10 +2498,13 @@ class OrgTest(TembaTest):
         debit = debits.first()
         self.assertEqual(700, debit.amount)
         self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
-        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+        # newest topup has been used first
+        self.assertEqual(newer_topup.expires_on, debit.beneficiary.expires_on)
+        self.assertEqual(debit.amount, 700)
 
         # try allocating more than we have
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
         self.assertEqual(700, self.org._calculate_credits_used()[0])
@@ -2495,26 +2526,18 @@ class OrgTest(TembaTest):
         debits = Debit.objects.filter(topup__org=self.org).order_by("id")
         self.assertEqual(3, len(debits))
 
-        # the last two debits should expire at same time as topup they were funded by
-        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
-        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+        # verify that we used most recent topup first
+        self.assertEqual(newer_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(debits[1].amount, 300)
+        # and debited missing amount from the next topup
+        self.assertEqual(oldest_topup.expires_on, debits[2].topup.expires_on)
+        self.assertEqual(debits[2].amount, 900)
 
         # allocate the exact number of credits remaining
         self.org.allocate_credits(self.admin, sub_org, 100)
+
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
-
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 1)
-
-        # sub_org is deleted
-        sub_org.release()
-
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 0)
 
     def test_sub_org_ui(self):
 
@@ -3706,14 +3729,69 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
+    def test_import_mixed_flow_versions(self):
+        self.import_file("mixed_versions")
+
+        group = ContactGroup.user_groups.get(name="Survey Audience")
+
+        child = Flow.objects.get(name="New Child")
+        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(set(child.flow_dependencies.all()), set())
+        self.assertEqual(set(child.group_dependencies.all()), {group})
+
+        parent = Flow.objects.get(name="Legacy Parent")
+        self.assertEqual(parent.version_number, get_current_export_version())
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.group_dependencies.all()), set())
+
+        dep_graph = self.org.generate_dependency_graph()
+        self.assertEqual(dep_graph[child], {parent})
+        self.assertEqual(dep_graph[parent], {child})
+
+    def test_import_dependency_types(self):
+        self.import_file("all_dependency_types")
+
+        parent = Flow.objects.get(name="All Dep Types")
+        child = Flow.objects.get(name="New Child")
+
+        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        gender = ContactField.user_fields.get(key="gender")  # created from action reference
+
+        farmers = ContactGroup.user_groups.get(name="Farmers")
+        self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
+
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
+        self.assertEqual(set(parent.group_dependencies.all()), {farmers})
+
+    def test_import_missing_flow_dependency(self):
+        # in production this would blow up validating the flow but we can't do that during tests
+        self.import_file("parent_without_its_child")
+
+        parent = Flow.objects.get(name="Single Parent")
+        self.assertEqual(set(parent.flow_dependencies.all()), set())
+
+        # create child with that name and re-import
+        child1 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE)
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child1})
+
+        # create child with that UUID and re-import
+        child2 = Flow.create(
+            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+        )
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child2})
+
+    def test_import_group_remapping_legacy(self):
+        self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
-        rev = flow.revisions.all().first()
 
         from temba.flows.tests import get_groups
 
-        definition_groups = get_groups(rev.get_definition_json())
+        definition_groups = get_groups(flow.as_json())
 
         # we should have 5 groups
         self.assertEqual(5, len(definition_groups))
@@ -3723,6 +3801,21 @@ class BulkExportTest(TembaTest):
             self.assertTrue(
                 ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
+            )
+
+    def test_import_group_remapping(self):
+        self.import_file("cataclysm")
+        flow = Flow.objects.get(name="Cataclysmic")
+
+        # we should have 5 groups
+        self.assertEqual(5, ContactGroup.user_groups.all().count())
+
+        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
+
+        for ref in flow_info["dependencies"]["groups"]:
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
+                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
             )
 
     def test_export_import(self):
@@ -4307,7 +4400,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_location_path("Nigeria > Lagos "), lagos)
         self.assertEqual(self.org.parse_location_path(" Nigeria > Lagos "), lagos)
 
-    def test_parse_decimal(self):
+    def test_parse_number(self):
         self.assertEqual(self.org.parse_number("Not num"), None)
         self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
         self.assertEqual(self.org.parse_number("6e33"), None)
@@ -4316,3 +4409,14 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number(""), None)
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
+
+        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+
+    def test_parse_datetime(self):
+        self.assertEqual(self.org.parse_datetime("Not num"), None)
+        self.assertEqual(
+            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
+            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
+        )
+
+        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())

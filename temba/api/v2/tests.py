@@ -28,7 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -944,7 +944,7 @@ class APITest(TembaTest):
         # create our contact and set a registration date
         contact = self.create_contact("Joe", "+12065551515")
         reporters.contacts.add(contact)
-        contact.set_field(self.admin, "registration", timezone.now())
+        contact.set_field(self.admin, "registration", self.org.format_datetime(timezone.now()))
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(
@@ -2144,6 +2144,21 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"contacts": [contact3.uuid], "action": "like"})
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
 
+    def test_definitions_with_non_legacy_flow(self):
+        url = reverse("api.v2.definitions")
+
+        self.login(self.admin)
+
+        self.import_file("favorites_v13")
+
+        flow = Flow.objects.filter(name="Favorites").first()
+
+        response = self.fetchJSON(url, "flow=%s" % flow.uuid)
+
+        self.assertEqual(len(response.json()["flows"]), 1)
+        self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
+        self.assertEqual(response.json()["flows"][0]["spec_version"], "13.0.0")
+
     def test_definitions(self):
         url = reverse("api.v2.definitions")
 
@@ -2354,6 +2369,26 @@ class APITest(TembaTest):
                     "labels": [],
                     "expires": 720,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {
+                            "key": "color",
+                            "name": "Color",
+                            "categories": ["Red", "Green", "Blue", "Cyan", "Other"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "beer",
+                            "name": "Beer",
+                            "categories": ["Mutzig", "Primus", "Turbo King", "Skol", "Other"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "name",
+                            "name": "Name",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                    ],
                     "created_on": format_datetime(archived.created_on),
                     "modified_on": format_datetime(archived.modified_on),
                 },
@@ -2365,6 +2400,14 @@ class APITest(TembaTest):
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
                     "expires": 720,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {
+                            "key": "color",
+                            "name": "color",
+                            "categories": ["Orange", "Blue", "Other", "Nothing"],
+                            "node_uuids": [matchers.UUID4String()],
+                        }
+                    ],
                     "created_on": format_datetime(color.created_on),
                     "modified_on": format_datetime(color.modified_on),
                 },
@@ -2376,6 +2419,32 @@ class APITest(TembaTest):
                     "labels": [],
                     "expires": 10080,
                     "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "results": [
+                        {
+                            "key": "name",
+                            "name": "Name",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "photo",
+                            "name": "Photo",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "location",
+                            "name": "Location",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                        {
+                            "key": "video",
+                            "name": "Video",
+                            "categories": ["All Responses"],
+                            "node_uuids": [matchers.UUID4String()],
+                        },
+                    ],
                     "created_on": format_datetime(survey.created_on),
                     "modified_on": format_datetime(survey.modified_on),
                 },
