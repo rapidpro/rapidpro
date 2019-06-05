@@ -1033,12 +1033,13 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def get(self, request, *args, **kwargs):
+            flow = self.get_object()
+            if "legacy" in self.request.GET:
+                flow.version_number = get_current_export_version()
+                flow.save()
 
             # require update permissions
-            if (
-                Version(self.get_object().version_number) >= Version(Flow.GOFLOW_VERSION)
-                and "legacy" not in self.request.GET
-            ):
+            if Version(flow.version_number) >= Version(Flow.GOFLOW_VERSION):
                 return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
 
             return super().get(request, *args, **kwargs)
@@ -1118,6 +1119,11 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_delete"):
                 links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
 
+            links.append(dict(divider=True))
+            links.append(
+                dict(title=_("New Editor"), flag="beta", href=reverse("flows.flow_editor_next", args=[flow.uuid]))
+            )
+
             user = self.get_user()
             if user.is_superuser or user.is_staff:
                 if len(links) > 1:
@@ -1145,7 +1151,8 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
 
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            prefix = "dev/" if dev_mode else ""
+            getattr(settings, "EDITOR_DEV_MODE", False)
+            prefix = "/dev" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to incude
             scripts = []
@@ -1197,6 +1204,9 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.object
 
+            versions = Flow.get_versions_before(Flow.GOFLOW_VERSION)
+            has_legacy_revision = flow.revisions.filter(spec_version__in=versions).exists()
+
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
@@ -1236,6 +1246,10 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
+            # show previous editor option if we have a legacy revision
+            if has_legacy_revision:
+                links.append(dict(divider=True))
+                links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
