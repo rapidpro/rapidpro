@@ -42,7 +42,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import MockResponse, TembaTest, ESMockWithScroll
+from temba.tests import MockResponse, TembaTest, ESMockWithScroll, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -3987,7 +3987,23 @@ class BulkExportTest(TembaTest):
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
-        self.assertEqual(3, len(exported.get("groups", [])))
+        self.assertEqual(exported["groups"], [
+            {
+                'uuid': matchers.UUID4String(),
+                'name': 'Delay Notification',
+                'query': None,
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'name': 'Pending Appointments',
+                'query': None,
+            },
+            {
+                'uuid': matchers.UUID4String(),
+                'name': 'Unsatisfied Customers',
+                'query': None,
+            },
+        ])
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")

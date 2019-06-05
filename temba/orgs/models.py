@@ -527,7 +527,7 @@ class Org(SmartModel):
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
-            Org.EXPORT_GROUPS: [g.as_export_json() for g in groups],
+            Org.EXPORT_GROUPS: [g.as_export_json() for g in sorted(groups, key=lambda g: g.name)],
         }
 
     def can_add_sender(self):  # pragma: needs cover
