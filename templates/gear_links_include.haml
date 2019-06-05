@@ -1,5 +1,14 @@
 -load public
 
+:css
+  .gear-flag {
+    display: inline-block;
+    margin: 0px 3px;
+    font-size: 80%;
+    color: #ccc;
+    float: right;
+  }
+
 -with gear_links=view.get_gear_links
   -if gear_links
 
@@ -33,9 +42,13 @@
                     -if link.ngClick
                       %a{href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
+                        .gear-flag
+                          {{link.flag}}
                     -else
                       %a{href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
+                        %span{class:'gear-flag'}
+                          {{link.flag}}
 
 
       :javascript
