@@ -17,6 +17,11 @@ from temba.values.constants import Value
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
+    EXPORT_UUID = "uuid"
+    EXPORT_NAME = "name"
+    EXPORT_GROUP = "group"
+    EXPORT_EVENTS = "events"
+
     name = models.CharField(max_length=MAX_NAME_LEN, help_text="The name of this campaign")
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, help_text="The group this campaign operates on")
     is_archived = models.BooleanField(default=False, help_text="Whether this campaign is archived or not")
@@ -54,32 +59,34 @@ class Campaign(TembaModel):
         """
 
         for campaign_spec in campaigns_json:
-            name = campaign_spec["name"]
+            name = campaign_spec[Campaign.EXPORT_NAME]
             campaign = None
             group = None
 
             # first check if we have the objects by UUID
             if same_site:
-                group = ContactGroup.user_groups.filter(uuid=campaign_spec["group"]["uuid"], org=org).first()
+                group = ContactGroup.user_groups.filter(
+                    uuid=campaign_spec[Campaign.EXPORT_GROUP]["uuid"], org=org
+                ).first()
                 if group:  # pragma: needs cover
-                    group.name = campaign_spec["group"]["name"]
+                    group.name = campaign_spec[Campaign.EXPORT_GROUP]["name"]
                     group.save()
 
-                campaign = Campaign.objects.filter(org=org, uuid=campaign_spec["uuid"]).first()
+                campaign = Campaign.objects.filter(org=org, uuid=campaign_spec[Campaign.EXPORT_UUID]).first()
                 if campaign:  # pragma: needs cover
                     campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                     campaign.save()
 
             # fall back to lookups by name
             if not group:
-                group = ContactGroup.get_user_group(org, campaign_spec["group"]["name"])
+                group = ContactGroup.get_user_group(org, campaign_spec[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign = Campaign.objects.filter(org=org, name=name).first()
 
             # all else fails, create the objects from scratch
             if not group:
-                group = ContactGroup.create_static(org, user, campaign_spec["group"]["name"])
+                group = ContactGroup.create_static(org, user, campaign_spec[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign_name = Campaign.get_unique_name(org, name)
@@ -93,7 +100,7 @@ class Campaign(TembaModel):
                 event.release()
 
             # fill our campaign with events
-            for event_spec in campaign_spec["events"]:
+            for event_spec in campaign_spec[Campaign.EXPORT_EVENTS]:
                 field_key = event_spec["relative_to"]["key"]
 
                 if field_key == "created_on":
@@ -191,7 +198,6 @@ class Campaign(TembaModel):
         The JSON representation of this campaign for export. Note this only includes references to the dependent
         flows which will be exported separately.
         """
-        definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
         for event in self.events.filter(is_active=True).order_by("flow__uuid"):
@@ -216,8 +222,12 @@ class Campaign(TembaModel):
 
             events.append(event_definition)
 
-        definition["events"] = events
-        return definition
+        return {
+            Campaign.EXPORT_UUID: str(self.uuid),
+            Campaign.EXPORT_NAME: self.name,
+            Campaign.EXPORT_GROUP: {"uuid": str(self.group.uuid), "name": self.group.name},
+            Campaign.EXPORT_EVENTS: events,
+        }
 
     def get_sorted_events(self):
         """

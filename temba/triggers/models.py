@@ -51,6 +51,12 @@ class Trigger(SmartModel):
         (MATCH_ONLY_WORD, _("Message contains only the keyword")),
     )
 
+    EXPORT_TYPE = "trigger_type"
+    EXPORT_KEYWORD = "keyword"
+    EXPORT_FLOW = "flow"
+    EXPORT_GROUPS = "groups"
+    EXPORT_CHANNEL = "channel"
+
     org = models.ForeignKey(
         Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to")
     )
@@ -235,7 +241,7 @@ class Trigger(SmartModel):
 
             # resolve our groups
             groups = []
-            for group_spec in trigger_spec["groups"]:
+            for group_spec in trigger_spec[Trigger.EXPORT_GROUPS]:
 
                 group = None
 
@@ -254,13 +260,13 @@ class Trigger(SmartModel):
 
                 groups.append(group)
 
-            flow = Flow.objects.get(org=org, uuid=trigger_spec["flow"]["uuid"], is_active=True)
+            flow = Flow.objects.get(org=org, uuid=trigger_spec[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
-            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec["trigger_type"])
+            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec[Trigger.EXPORT_TYPE])
 
-            if trigger_spec["keyword"]:
-                trigger = trigger.filter(keyword__iexact=trigger_spec["keyword"])
+            if trigger_spec[Trigger.EXPORT_KEYWORD]:
+                trigger = trigger.filter(keyword__iexact=trigger_spec[Trigger.EXPORT_KEYWORD])
 
             if groups:
                 trigger = trigger.filter(groups__in=groups)
@@ -273,14 +279,14 @@ class Trigger(SmartModel):
             else:
 
                 # if we have a channel resolve it
-                channel = trigger_spec.get("channel", None)  # older exports won't have a channel
+                channel = trigger_spec.get(Trigger.EXPORT_CHANNEL, None)  # older exports won't have a channel
                 if channel:
                     channel = Channel.objects.filter(uuid=channel, org=org).first()
 
                 trigger = Trigger.objects.create(
                     org=org,
-                    trigger_type=trigger_spec["trigger_type"],
-                    keyword=trigger_spec["keyword"],
+                    trigger_type=trigger_spec[Trigger.EXPORT_TYPE],
+                    keyword=trigger_spec[Trigger.EXPORT_KEYWORD],
                     flow=flow,
                     created_by=user,
                     modified_by=user,
@@ -487,9 +493,9 @@ class Trigger(SmartModel):
         The JSON representation of this trigger for export.
         """
         return {
-            "trigger_type": self.trigger_type,
-            "keyword": self.keyword,
-            "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
-            "groups": [{"uuid": str(group.uuid), "name": group.name} for group in self.groups.all()],
-            "channel": self.channel.uuid if self.channel else None,
+            Trigger.EXPORT_TYPE: self.trigger_type,
+            Trigger.EXPORT_KEYWORD: self.keyword,
+            Trigger.EXPORT_FLOW: {"uuid": str(self.flow.uuid), "name": self.flow.name},
+            Trigger.EXPORT_GROUPS: [{"uuid": str(group.uuid), "name": group.name} for group in self.groups.all()],
+            Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
         }

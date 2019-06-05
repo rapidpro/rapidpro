@@ -477,6 +477,10 @@ class Flow(TembaModel):
         """
         Import flows from our flow export file
         """
+
+        from temba.campaigns.models import Campaign
+        from temba.triggers.models import Trigger
+
         version = Version(str(export_json.get("version", "0")))
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
@@ -545,7 +549,7 @@ class Flow(TembaModel):
 
         # remap flow UUIDs in any campaign events
         for campaign in export_json.get(Org.EXPORT_CAMPAIGNS, []):
-            for event in campaign["events"]:
+            for event in campaign[Campaign.EXPORT_EVENTS]:
                 if "flow" in event:
                     flow_uuid = event["flow"]["uuid"]
                     if flow_uuid in dependency_mapping:
@@ -553,10 +557,10 @@ class Flow(TembaModel):
 
         # remap flow UUIDs in any triggers
         for trigger in export_json.get(Org.EXPORT_TRIGGERS, []):
-            if "flow" in trigger:
-                flow_uuid = trigger["flow"]["uuid"]
+            if Trigger.EXPORT_FLOW in trigger:
+                flow_uuid = trigger[Trigger.EXPORT_FLOW]["uuid"]
                 if flow_uuid in dependency_mapping:
-                    trigger["flow"]["uuid"] = dependency_mapping[flow_uuid]
+                    trigger[Trigger.EXPORT_FLOW]["uuid"] = dependency_mapping[flow_uuid]
 
         # return the created flows
         return [f[0] for f in created_flows]

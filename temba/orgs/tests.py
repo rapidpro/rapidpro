@@ -3928,8 +3928,6 @@ class BulkExportTest(TembaTest):
         self.assertEqual(cat_blasts.query, "facts_per_day = 1")
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
-        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
-
     def test_export_import(self):
         def assert_object_counts():
             # the regular flows

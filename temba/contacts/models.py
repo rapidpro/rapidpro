@@ -398,10 +398,6 @@ class ContactField(SmartModel):
     Represents a type of field that can be put on Contacts.
     """
 
-    EXPORT_KEY = "key"
-    EXPORT_NAME = "name"
-    EXPORT_VALUE_TYPE = "value_type"
-
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
@@ -419,8 +415,11 @@ class ContactField(SmartModel):
 
     FIELD_TYPE_SYSTEM = "S"
     FIELD_TYPE_USER = "U"
-
     FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
+
+    EXPORT_KEY = "key"
+    EXPORT_NAME = "name"
+    EXPORT_VALUE_TYPE = "value_type"
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -2618,10 +2617,6 @@ class ContactGroup(TembaModel):
     A static or dynamic group of contacts
     """
 
-    EXPORT_UUID = "uuid"
-    EXPORT_NAME = "name"
-    EXPORT_QUERY = "query"
-
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
@@ -2651,6 +2646,10 @@ class ContactGroup(TembaModel):
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     REEVALUATE_LOCK_KEY = "contactgroup_reevaluating_%d"
+
+    EXPORT_UUID = "uuid"
+    EXPORT_NAME = "name"
+    EXPORT_QUERY = "query"
 
     name = models.CharField(
         verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
