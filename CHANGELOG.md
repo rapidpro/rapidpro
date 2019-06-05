@@ -1,3 +1,7 @@
+v4.23.0
+----------
+ * Save channel and message label dependencies on flows
+
 v4.22.63
 ----------
  * Update to latest floweditor v1.5.5
