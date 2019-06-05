@@ -3987,23 +3987,14 @@ class BulkExportTest(TembaTest):
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
-        self.assertEqual(exported["groups"], [
-            {
-                'uuid': matchers.UUID4String(),
-                'name': 'Delay Notification',
-                'query': None,
-            },
-            {
-                'uuid': matchers.UUID4String(),
-                'name': 'Pending Appointments',
-                'query': None,
-            },
-            {
-                'uuid': matchers.UUID4String(),
-                'name': 'Unsatisfied Customers',
-                'query': None,
-            },
-        ])
+        self.assertEqual(
+            exported["groups"],
+            [
+                {"uuid": matchers.UUID4String(), "name": "Delay Notification", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Pending Appointments", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Unsatisfied Customers", "query": None},
+            ],
+        )
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")
