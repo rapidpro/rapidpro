@@ -339,6 +339,10 @@ class Flow(TembaModel):
         help_text=_("Any fields this flow depends on"),
     )
 
+    channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
+
+    label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
+
     flow_server_enabled = models.BooleanField(default=False, help_text=_("Run this flow using the flow server"))
 
     @classmethod
@@ -1058,6 +1062,8 @@ class Flow(TembaModel):
         self.group_dependencies.clear()
         self.flow_dependencies.clear()
         self.field_dependencies.clear()
+        self.channel_dependencies.clear()
+        self.label_dependencies.clear()
 
         # interrupt our runs in the background
         on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
@@ -2774,6 +2780,8 @@ class Flow(TembaModel):
         field_keys = [f["key"] for f in dependencies.get("fields", [])]
         flow_uuids = [f["uuid"] for f in dependencies.get("flows", [])]
         group_uuids = [g["uuid"] for g in dependencies.get("groups", [])]
+        channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
+        label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
 
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
@@ -2794,6 +2802,8 @@ class Flow(TembaModel):
         fields = ContactField.user_fields.filter(org=self.org, key__in=field_keys)
         flows = self.org.flows.filter(uuid__in=flow_uuids)
         groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
+        channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
+        labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
 
         self.field_dependencies.clear()
         self.field_dependencies.add(*fields)
@@ -2803,6 +2813,12 @@ class Flow(TembaModel):
 
         self.group_dependencies.clear()
         self.group_dependencies.add(*groups)
+
+        self.channel_dependencies.clear()
+        self.channel_dependencies.add(*channels)
+
+        self.label_dependencies.clear()
+        self.label_dependencies.add(*labels)
 
     def __str__(self):
         return self.name

@@ -477,6 +477,31 @@ class ChannelTest(TembaTest):
         # channel trigger should have be removed
         self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
 
+    def test_failed_channel_delete(self):
+        # create a channel
+        channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            "Test Channel-deps",
+            "0785551212",
+            secret=Channel.generate_secret(),
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+        from temba.flows.models import Flow
+
+        self.get_flow("dependencies")
+        flow = Flow.objects.filter(name="Dependencies").first()
+
+        flow.channel_dependencies.add(channel)
+
+        response = self.fetch_protected(
+            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+        )
+        self.assertTrue("Cannot delete Channel" in response.cookies.get("messages").coded_value)
+        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+
     def test_list(self):
         # de-activate existing channels
         Channel.objects.all().update(is_active=False)
@@ -1414,6 +1439,31 @@ class ChannelTest(TembaTest):
             response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
 
             self.assertContains(response, "Bad request")
+
+    def test_release_with_flow_dependencies(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
+        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
+
+        android = Channel.objects.get()
+        self.client.post(
+            reverse("channels.channel_claim_android"), dict(claim_code=android.claim_code, phone_number="0788123123")
+        )
+
+        from temba.flows.models import Flow
+
+        self.get_flow("dependencies")
+        flow = Flow.objects.filter(name="Dependencies").first()
+
+        flow.channel_dependencies.add(android)
+
+        # release method raises ValueError
+        with self.assertRaises(ValueError) as release_error:
+            android.release()
+
+        self.assertEqual(str(release_error.exception), "Cannot delete Channel: Nexus, used by 1 flows")
 
     def test_release(self):
         Channel.objects.all().delete()
