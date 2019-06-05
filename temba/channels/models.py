@@ -98,7 +98,7 @@ class ChannelType(metaclass=ABCMeta):
     ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
-    #  during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
+    # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
     def is_available_to(self, user):
@@ -274,6 +274,7 @@ class Channel(TembaModel):
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_URL = "send_url"
+    CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
     CONFIG_MT_RESPONSE_CHECK = "mt_response_check"

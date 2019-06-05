@@ -1001,6 +1001,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
+    "temba.channels.types.signalwire.SignalWireType",
     "temba.channels.types.nexmo.NexmoType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
