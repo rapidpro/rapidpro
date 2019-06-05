@@ -1035,8 +1035,8 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
             if "legacy" in self.request.GET:
-                flow.version_number = get_current_export_version()
-                flow.save()
+                flow.version_number = Flow.FINAL_LEGACY_VERSION
+                flow.save(update_fields=("version_number",))
 
             # require update permissions
             if Version(flow.version_number) >= Version(Flow.GOFLOW_VERSION):

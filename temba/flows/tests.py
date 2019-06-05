@@ -784,7 +784,7 @@ class FlowTest(TembaTest):
         response = self.client.get(f"{reverse('flows.flow_editor', args=[self.flow.uuid])}?legacy=true")
         gear_links = response.context["view"].get_gear_links()
         self.flow.refresh_from_db()
-        self.assertEqual(self.flow.version_number, get_current_export_version())
+        self.assertEqual(self.flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
         # viewing flows that are archived can't be started
         self.login(self.admin)
