@@ -398,6 +398,10 @@ class ContactField(SmartModel):
     Represents a type of field that can be put on Contacts.
     """
 
+    EXPORT_KEY = "key"
+    EXPORT_NAME = "name"
+    EXPORT_VALUE_TYPE = "value_type"
+
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
     MAX_ORG_CONTACTFIELDS = 200
@@ -578,6 +582,25 @@ class ContactField(SmartModel):
     @classmethod
     def get_location_field(cls, org, type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
+
+    @classmethod
+    def import_fields(cls, org, user, fields_json):
+        """
+        Import fields from a list of exported fields
+        """
+
+        for field_json in fields_json:
+            field_key = field_json.get(ContactField.EXPORT_KEY)
+            field_name = field_json.get(ContactField.EXPORT_NAME)
+            field_value_type = field_json.get(ContactField.EXPORT_VALUE_TYPE)
+            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=field_value_type)
+
+    def as_export_json(self):
+        return {
+            ContactField.EXPORT_KEY: self.key,
+            ContactField.EXPORT_NAME: self.label,
+            ContactField.EXPORT_VALUE_TYPE: self.value_type,
+        }
 
     def release(self, user):
         self.is_active = False

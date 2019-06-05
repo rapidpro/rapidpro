@@ -3517,7 +3517,7 @@ class BulkExportTest(TembaTest):
         flow = self.get_flow("triggered", substitutions)
 
         # read in the old version 8 raw json
-        old_json = json.loads(self.get_import_json("triggered", substitutions))
+        old_json = self.get_import_json("triggered", substitutions)
         old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
 
         # splice our actionset with old bits
@@ -3817,48 +3817,118 @@ class BulkExportTest(TembaTest):
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
             )
 
-    def test_implicit_group_imports(self):
+    def validate_flow_dependencies(self, definition):
+        flow_info = mailroom.get_client().flow_inspect(definition)
+        deps = flow_info["dependencies"]
+
+        for ref in deps.get("fields", []):
+            self.assertTrue(
+                ContactField.user_fields.filter(key=ref["key"]).exists(),
+                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+            )
+        for ref in deps.get("flows", []):
+            self.assertTrue(
+                Flow.objects.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+        for ref in deps.get("groups", []):
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+
+    def test_implicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions without fields and groups included in the export
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+        del data["groups"]
+
         with ESMockWithScroll():
-            self.import_file("cataclysm_without_groups")
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
 
         # we should have 5 groups (all static since we can only create static groups from group references)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
         self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
 
-        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
+        # and so no fields created
+        self.assertEqual(ContactField.user_fields.all().count(), 0)
 
-        for ref in flow_info["dependencies"]["groups"]:
-            self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
-                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
-            )
+    def test_implicit_field_and_explicit_group_imports(self):
+        """
+        Tests importing flow definitions with groups included in the export but not fields
+        """
 
-    def test_explicit_group_imports(self):
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # but without implicit fields in the export, the details aren't correct
+        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.value_type, "T")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
+
+    def test_explicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions with groups and fields included in the export
+        """
+
         with ESMockWithScroll():
             self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
 
-        # we should have 5 groups (1 dynamic)
+        # we should have 5 groups (2 dynamic)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
-        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 4)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
 
-        # new field should have been created for the dynamic group
+        # new fields should have been created for the dynamic groups
         likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
 
-        dynamic_group = ContactGroup.user_groups.get(name="Cat Fanciers")
-        self.assertEqual(dynamic_group.query, 'likes_cats = "true"')
-        self.assertEqual(set(dynamic_group.query_fields.all()), {likes_cats})
+        # and with implicit fields in the export, the details should be correct
+        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.value_type, "N")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
         flow_info = mailroom.get_client().flow_inspect(flow.as_json())
-
-        for ref in flow_info["dependencies"]["groups"]:
-            self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
-                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
-            )
 
     def test_export_import(self):
         def assert_object_counts():
@@ -3987,6 +4057,14 @@ class BulkExportTest(TembaTest):
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
+        self.assertEqual(
+            exported["fields"],
+            [
+                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "value_type": "T"},
+                {"key": "next_appointment", "name": "Next Appointment", "value_type": "D"},
+                {"key": "rating", "name": "Rating", "value_type": "T"},
+            ],
+        )
         self.assertEqual(
             exported["groups"],
             [

@@ -10438,7 +10438,7 @@ class FlowMigrationTest(FlowFileTest):
             label_id=label.pk,
         )
 
-        exported_json = json.loads(self.get_import_json("migrate_to_9", substitutions))
+        exported_json = self.get_import_json("migrate_to_9", substitutions)
         exported_json = migrate_export_to_version_9(exported_json, self.org, True)
 
         # our campaign events shouldn't have ids
@@ -10500,12 +10500,12 @@ class FlowMigrationTest(FlowFileTest):
         self.assertNotIn("id", flow_json["metadata"])
 
         # import the same thing again, should have the same uuids
-        new_exported_json = json.loads(self.get_import_json("migrate_to_9", substitutions))
+        new_exported_json = self.get_import_json("migrate_to_9", substitutions)
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, True)
         self.assertEqual(flow_json["metadata"]["uuid"], new_exported_json["flows"][0]["metadata"]["uuid"])
 
         # but when done as a different site, it should be unique
-        new_exported_json = json.loads(self.get_import_json("migrate_to_9", substitutions))
+        new_exported_json = self.get_import_json("migrate_to_9", substitutions)
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, False)
         self.assertNotEqual(flow_json["metadata"]["uuid"], new_exported_json["flows"][0]["metadata"]["uuid"])
 
@@ -10516,13 +10516,13 @@ class FlowMigrationTest(FlowFileTest):
         flow.update(FlowRevision.migrate_definition(exported_json["flows"][0], flow))
 
         # can also just import a single flow
-        exported_json = json.loads(self.get_import_json("migrate_to_9", substitutions))
+        exported_json = self.get_import_json("migrate_to_9", substitutions)
         flow_json = migrate_to_version_9(exported_json["flows"][0], flow)
         self.assertIn("uuid", flow_json["metadata"])
         self.assertNotIn("id", flow_json["metadata"])
 
         # try it with missing metadata
-        flow_json = json.loads(self.get_import_json("migrate_to_9", substitutions))["flows"][0]
+        flow_json = self.get_import_json("migrate_to_9", substitutions)["flows"][0]
         del flow_json["metadata"]
         flow_json = migrate_to_version_9(flow_json, flow)
         self.assertEqual(1, flow_json["metadata"]["revision"])
@@ -10976,7 +10976,7 @@ class SendActionTest(FlowFileTest):
         contact2 = self.create_contact("Gregg", "+12065551212")
 
         substitutions = dict(contact1_id=contact1.id, contact2_id=contact2.id)
-        exported_json = json.loads(self.get_import_json("bad_send_action", substitutions))
+        exported_json = self.get_import_json("bad_send_action", substitutions)
 
         # create a flow object, we just need this to test our flow revision
         flow = Flow.objects.create(

@@ -170,6 +170,7 @@ class Org(SmartModel):
     EXPORT_FLOWS = "flows"
     EXPORT_CAMPAIGNS = "campaigns"
     EXPORT_TRIGGERS = "triggers"
+    EXPORT_FIELDS = "fields"
     EXPORT_GROUPS = "groups"
 
     EARLIEST_IMPORT_VERSION = "3"
@@ -445,7 +446,7 @@ class Org(SmartModel):
         """
 
         from temba.campaigns.models import Campaign
-        from temba.contacts.models import ContactGroup
+        from temba.contacts.models import ContactField, ContactGroup
         from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
 
@@ -469,6 +470,7 @@ class Org(SmartModel):
         if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
             export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
 
+        export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
         export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
         export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
@@ -476,6 +478,7 @@ class Org(SmartModel):
         dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
         with transaction.atomic():
+            ContactField.import_fields(self, user, export_fields)
             ContactGroup.import_groups(self, user, export_groups, dependency_mapping)
 
             new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
@@ -489,7 +492,8 @@ class Org(SmartModel):
             mailroom.get_client().flow_validate(self, flow.as_json())
 
     @classmethod
-    def export_definitions(cls, site_link, components, include_groups=True):
+    def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
+        from temba.contacts.models import ContactField
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
@@ -498,7 +502,8 @@ class Org(SmartModel):
         exported_campaigns = []
         exported_triggers = []
 
-        # users can choose which groups to export - we just include all the dependent groups
+        # users can't choose which fields/groups to export - we just include all the dependencies
+        fields = set()
         groups = set()
 
         for component in components:
@@ -508,12 +513,18 @@ class Org(SmartModel):
 
                 if include_groups:
                     groups.update(component.group_dependencies.all())
+                if include_fields:
+                    fields.update(component.field_dependencies.all())
 
             elif isinstance(component, Campaign):
                 exported_campaigns.append(component.as_export_json())
 
                 if include_groups:
                     groups.add(component.group)
+                if include_fields:
+                    for event in component.events.all():
+                        if event.relative_to.field_type == ContactField.FIELD_TYPE_USER:
+                            fields.add(event.relative_to)
 
             elif isinstance(component, Trigger):
                 exported_triggers.append(component.as_export_json())
@@ -527,6 +538,7 @@ class Org(SmartModel):
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_FIELDS: [f.as_export_json() for f in sorted(fields, key=lambda f: f.key)],
             Org.EXPORT_GROUPS: [g.as_export_json() for g in sorted(groups, key=lambda g: g.name)],
         }
 
