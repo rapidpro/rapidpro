@@ -23,7 +23,7 @@ from django.utils.encoding import force_text
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, URN, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
@@ -127,6 +127,7 @@ from .models import (
     get_flow_user,
 )
 from .tasks import (
+    check_flows_task,
     check_flow_timeouts_task,
     squash_flowpathcounts,
     squash_flowruncounts,
@@ -588,8 +589,6 @@ class FlowTest(TembaTest):
         # should have a list of four flows for our appointment schedule
         response = self.client.get(reverse("flows.flow_list"))
         self.assertContains(response, "Appointment Schedule (4)")
-
-        from temba.campaigns.models import Campaign
 
         campaign = Campaign.objects.filter(name="Appointment Schedule").first()
         self.assertIsNotNone(campaign)
@@ -7748,8 +7747,6 @@ class FlowsTest(FlowFileTest):
         run.save(update_fields=("expires_on",))
 
         # now trigger the checking task and make sure it is removed from our activity
-        from .tasks import check_flows_task
-
         check_flows_task()
         (active, visited) = flow.get_activity()
         self.assertEqual(active, {})
@@ -8473,8 +8470,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(response.status_code, 404)
 
     def test_flow_delete(self):
-        from temba.campaigns.models import Campaign, CampaignEvent
-
         flow = self.get_flow("favorites")
 
         # create a campaign that contains this flow
@@ -8844,8 +8839,6 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
 
     def test_parent_child(self):
-        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-
         favorites = self.get_flow("favorites")
 
         # do a dry run once so that the groups and fields get created
@@ -11106,8 +11099,6 @@ class ExitTest(FlowFileTest):
         self.assertTrue(second_run.is_active)
 
     def test_exit_via_campaign(self):
-        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-
         # start contact in one flow
         first_flow = self.get_flow("substitution")
         first_flow.start([], [self.contact])

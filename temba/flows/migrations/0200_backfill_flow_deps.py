@@ -103,6 +103,6 @@ def apply_manual():
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0198_auto_20190523_1935")]
+    dependencies = [("flows", "0199_auto_20190523_1935")]
 
     operations = [migrations.RunPython(apply_migration)]

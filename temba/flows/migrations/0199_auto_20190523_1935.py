@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("msgs", "0131_auto_20190422_2045"),
         ("channels", "0118_auto_20190307_0930"),
-        ("flows", "0197_update_categorycount_trigger"),
+        ("flows", "0198_repopulate_flow_metadata"),
     ]
 
     operations = [
