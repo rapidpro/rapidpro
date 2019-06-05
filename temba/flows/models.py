@@ -48,7 +48,6 @@ from temba.msgs.models import (
     DELIVERED,
     FAILED,
     FLOW,
-    HANDLED,
     INBOX,
     INCOMING,
     INITIALIZING,

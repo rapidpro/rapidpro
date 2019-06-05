@@ -29,6 +29,7 @@ def validate_bulk_fetch(fetched, uuids):
 # Field types
 # ------------------------------------------------------------------------------------------
 
+
 class StringArrayField(serializers.ListField):
     """
     List of strings or a single string
@@ -82,6 +83,7 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
 # ------------------------------------------------------------------------------------------
 # Serializers
 # ------------------------------------------------------------------------------------------
+
 
 class MsgCreateSerializer(serializers.Serializer):
     channel = ChannelField(required=False)
