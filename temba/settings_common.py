@@ -953,9 +953,6 @@ for brand in BRANDING.values():
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
-MAGE_API_URL = "http://localhost:8026/api/v1"
-MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
-
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
 # -----------------------------------------------------------------------------------
