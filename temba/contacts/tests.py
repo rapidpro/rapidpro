@@ -13,6 +13,7 @@ from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
@@ -8155,9 +8156,6 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
 
         self.client.login(username=self.admin.username, password=self.admin.username)
 
-        # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_blocked=True)
-
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.admin, "join_date", "Join Date", value_type="D")
         ContactField.get_or_create(self.org, self.admin, "state", "Home State", value_type="S")
@@ -8172,12 +8170,15 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         wards = ["Kageyo", "Kabara", "Bukure", None]
         date_format = get_datetime_format(True)[0]
 
-        # create some contacts
+        # reset contact ids so we don't get unexpected collisions with phone numbers
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT setval(pg_get_serial_sequence('"contacts_contact"','id'), 900)""")
 
+        # create some contacts
         for i in range(90):
             name = names[i % len(names)]
 
-            number = "0700382%s" % str(i).zfill(3)
+            number = "0188382%s" % str(i).zfill(3)
             twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
             contact = self.create_contact(name=name, number=number, twitter=twitter)
             join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
@@ -8218,8 +8219,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q("trey"), 15)
         self.assertEqual(q("MIKE"), 15)
         self.assertEqual(q("  paige  "), 15)
-        self.assertEqual(q("0700382011"), 1)
-        self.assertEqual(q("trey 0700382"), 15)
+        self.assertEqual(q("0188382011"), 1)
+        self.assertEqual(q("trey 0188382"), 15)
 
         # name as property
         self.assertEqual(q('name is "trey"'), 15)
@@ -8231,8 +8232,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertEqual(q('name != "Mike"'), 75)
 
         # URN as property
-        self.assertEqual(q("tel is +250700382011"), 1)
-        self.assertEqual(q("tel has 0700382011"), 1)
+        self.assertEqual(q("tel is +250188382011"), 1)
+        self.assertEqual(q("tel has 0188382011"), 1)
         self.assertEqual(q("twitter = tweep_13"), 1)
         self.assertEqual(q('twitter = ""'), 60)
         self.assertEqual(q('twitter != ""'), 30)
@@ -8310,8 +8311,8 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             self.assertEqual(q("age > 30"), 69)
 
             # don't allow matching on URNs
-            self.assertEqual(q("0700382011"), 0)
-            self.assertEqual(q("tel is +250700382011"), 0)
+            self.assertEqual(q("0188382011"), 0)
+            self.assertEqual(q("tel is +250188382011"), 0)
             self.assertEqual(q("twitter has tweep"), 0)
             self.assertEqual(q('twitter = ""'), 0)
 
@@ -8332,7 +8333,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         self.assertRaises(SearchException, q, "join_date > xxxxx")  # unparseable date-field comparison
         self.assertRaises(SearchException, q, "home > kigali")  # unrecognized location-field operator
         self.assertRaises(SearchException, q, "credits > 10")  # non-existent field or attribute
-        self.assertRaises(SearchException, q, "tel < +250700382011")  # unsupported comparator for a URN   # ValueError
+        self.assertRaises(SearchException, q, "tel < +250188382011")  # unsupported comparator for a URN   # ValueError
         self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
         self.assertRaises(SearchException, q, "data=“not empty”")  # unicode “,” are not accepted characters
 
