@@ -16,8 +16,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelEvent
-from temba.flows.models import Flow, FlowRun
+from temba.channels.models import ChannelEvent
+from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.utils import json, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
@@ -206,23 +206,11 @@ class WebHookEvent(models.Model):
     # the status of this event
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P")
 
-    # the flow run this event is associated with if any
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="webhook_events", null=True)
-
-    # the channel this event is for if any
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, blank=True)
-
     # the type of event
     event = models.CharField(max_length=16, choices=TYPE_CHOICES)
 
     # the data that would have been POSTed to this event
     data = JSONAsTextField(default=dict)
-
-    # how many times we have tried to deliver this event
-    try_count = models.IntegerField(default=0)
-
-    # the next time we will attempt this event if any
-    next_attempt = models.DateTimeField(null=True, blank=True)
 
     # the method for our request
     action = models.CharField(max_length=8, default="POST")
@@ -265,14 +253,7 @@ class WebHookEvent(models.Model):
             action = "POST"
 
         webhook_event = cls.objects.create(
-            org=org,
-            event=cls.TYPE_FLOW,
-            channel=channel,
-            data=post_data,
-            run=run,
-            try_count=1,
-            action=action,
-            resthook=resthook,
+            org=org, event=cls.TYPE_FLOW, data=post_data, action=action, resthook=resthook
         )
 
         status_code = -1
@@ -364,8 +345,8 @@ class WebHookEvent(models.Model):
             request_time = (time.time() - start) * 1000
 
             contact = None
-            if webhook_event.run:
-                contact = webhook_event.run.contact
+            if run:
+                contact = run.contact
 
             result = WebHookResult.objects.create(
                 contact=contact,
