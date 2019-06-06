@@ -23,7 +23,7 @@ def trim_webhook_event_task():
 
     if success_logs_trim_time:
         success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
-        event_ids = WebHookEvent.objects.filter(created_on__lte=success_log_later, status=WebHookEvent.STATUS_COMPLETE)
+        event_ids = WebHookEvent.objects.filter(created_on__lte=success_log_later)
         event_ids = event_ids.values_list("id", flat=True)
         for batch in chunk_list(event_ids, 1000):
             for event in WebHookEvent.objects.filter(id__in=batch):

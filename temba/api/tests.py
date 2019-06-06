@@ -79,12 +79,12 @@ class APITokenTest(TembaTest):
 
 
 class WebHookTest(TembaTest):
-    def test_webhook_event_trim_task(self):
+    def test_trim_events_and_results(self):
         five_hours_ago = timezone.now() - timedelta(hours=5)
 
         # create some events and results
         resthook = Resthook.get_or_create(org=self.org, slug="registration", user=self.admin)
-        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, status="C", created_on=five_hours_ago)
+        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, created_on=five_hours_ago)
         WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
 
         with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
@@ -102,7 +102,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(WebHookEvent.objects.all())
             self.assertFalse(WebHookResult.objects.all())
 
-        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, status="F", created_on=five_hours_ago)
+        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, created_on=five_hours_ago)
         WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
         WebHookResult.objects.create(org=self.org, status_code=401, created_on=five_hours_ago)
 

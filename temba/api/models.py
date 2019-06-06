@@ -16,7 +16,6 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelEvent
 from temba.flows.models import Flow
 from temba.orgs.models import Org
 from temba.utils import json, prepped_request_to_str
@@ -163,51 +162,11 @@ class WebHookEvent(models.Model):
     Represents a payload to be sent to a resthook
     """
 
-    TYPE_SMS_RECEIVED = "mo_sms"
-    TYPE_SMS_SENT = "mt_sent"
-    TYPE_SMS_DELIVERED = "mt_dlvd"
-    TYPE_SMS_FAIL = "mt_fail"
-    TYPE_RELAYER_ALARM = "alarm"
-    TYPE_FLOW = "flow"
-    TYPE_CATEGORIZE = "categorize"
-
-    TYPE_CHOICES = (
-        (TYPE_SMS_RECEIVED, "Incoming SMS Message"),
-        (TYPE_SMS_SENT, "Outgoing SMS Sent"),
-        (TYPE_SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-        (TYPE_SMS_FAIL, "Outgoing SMS Failed to be Delivered to Recipient"),
-        (ChannelEvent.TYPE_CALL_OUT, "Outgoing Call"),
-        (ChannelEvent.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
-        (ChannelEvent.TYPE_CALL_IN, "Incoming Call"),
-        (ChannelEvent.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
-        (TYPE_RELAYER_ALARM, "Channel Alarm"),
-        (TYPE_FLOW, "Flow Step Reached"),
-        (TYPE_CATEGORIZE, "Flow Categorization"),
-    )
-
-    STATUS_PENDING = "P"
-    STATUS_COMPLETE = "C"
-    STATUS_FAILED = "F"
-    STATUS_ERRORED = "E"
-
-    STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_ERRORED, "Errored"),
-        (STATUS_FAILED, "Failed"),
-    )
-
     # the organization this event is tied to
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
-    # the resthook this event is for if any
-    resthook = models.ForeignKey(Resthook, on_delete=models.PROTECT, null=True)
-
-    # the status of this event
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P")
-
-    # the type of event
-    event = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    # the resthook this event is for
+    resthook = models.ForeignKey(Resthook, on_delete=models.PROTECT)
 
     # the data that would have been POSTed to this event
     data = JSONAsTextField(default=dict)
@@ -216,7 +175,11 @@ class WebHookEvent(models.Model):
     action = models.CharField(max_length=8, default="POST")
 
     # when this event was created
-    created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO drop these when mailroom no longer writes them
+    status = models.CharField(max_length=1, null=True)
+    event = models.CharField(max_length=16, null=True)
 
     @classmethod
     def trigger_flow_webhook(cls, run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
@@ -252,9 +215,8 @@ class WebHookEvent(models.Model):
         if not action:  # pragma: needs cover
             action = "POST"
 
-        webhook_event = cls.objects.create(
-            org=org, event=cls.TYPE_FLOW, data=post_data, action=action, resthook=resthook
-        )
+        if resthook:
+            cls.objects.create(org=org, data=post_data, action=action, resthook=resthook)
 
         status_code = -1
         message = "None"
@@ -315,26 +277,19 @@ class WebHookEvent(models.Model):
 
             run.update_fields(new_extra)
 
-            if 200 <= status_code < 300:
-                webhook_event.status = cls.STATUS_COMPLETE
-            else:
-                webhook_event.status = cls.STATUS_FAILED
+            if not (200 <= status_code < 300):
                 message = "Got non 200 response (%d) from webhook." % response.status_code
                 raise ValueError("Got non 200 response (%d) from webhook." % response.status_code)
 
         except (requests.ReadTimeout, ValueError) as e:
-            webhook_event.status = cls.STATUS_FAILED
             message = f"Error calling webhook: {str(e)}"
 
         except Exception as e:
             logger.error(f"Could not trigger flow webhook: {str(e)}", exc_info=True)
 
-            webhook_event.status = cls.STATUS_FAILED
             message = "Error calling webhook: %s" % str(e)
 
         finally:
-            webhook_event.save(update_fields=("status",))
-
             # make sure our message isn't too long
             if message:
                 message = message[:255]
