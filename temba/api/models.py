@@ -215,7 +215,7 @@ class WebHookResult(models.Model):
     @classmethod
     def get_recent_errored(cls, org):
         past_hour = timezone.now() - timedelta(hours=1)
-        return cls.objects.filter(org=org, status__gte=400, created_on__gte=past_hour)
+        return cls.objects.filter(org=org, status_code__gte=400, created_on__gte=past_hour)
 
     @classmethod
     def record_result(cls, event, result):
