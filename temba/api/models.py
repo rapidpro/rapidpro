@@ -4,7 +4,6 @@ import time
 import uuid
 from datetime import timedelta
 from hashlib import sha1
-from urllib.parse import urlencode
 
 import requests
 from rest_framework.permissions import BasePermission
@@ -18,10 +17,9 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import Org
-from temba.utils import json, on_transaction_commit, prepped_request_to_str
+from temba.utils import json, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.http import http_headers
 from temba.utils.models import JSONAsTextField
@@ -162,7 +160,7 @@ class ResthookSubscriber(SmartModel):
 
 class WebHookEvent(models.Model):
     """
-    Represents an event that needs to be sent to the web hook for a channel.
+    Represents a payload to be sent to a resthook
     """
 
     TYPE_SMS_RECEIVED = "mo_sms"
@@ -231,19 +229,6 @@ class WebHookEvent(models.Model):
 
     # when this event was created
     created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
-
-    @classmethod
-    def get_recent_errored(cls, org):
-        past_hour = timezone.now() - timedelta(hours=1)
-        return cls.objects.filter(
-            org=org, status__in=(cls.STATUS_FAILED, cls.STATUS_ERRORED), created_on__gte=past_hour
-        )
-
-    def fire(self):
-        # start our task with this event id
-        from .tasks import deliver_event_task
-
-        on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
     def trigger_flow_webhook(cls, run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
@@ -394,169 +379,17 @@ class WebHookEvent(models.Model):
 
         return result
 
-    @classmethod
-    def trigger_sms_event(cls, event, msg, time):
-        if not msg.channel:
-            return
-
-        org = msg.org
-
-        # no-op if no webhook configured
-        if not org or not org.get_webhook_url():
-            return
-
-        # if the org doesn't care about this type of message, ignore it
-        if (
-            (event == cls.TYPE_SMS_RECEIVED and not org.is_notified_of_mo_sms())
-            or (event == cls.TYPE_SMS_SENT and not org.is_notified_of_mt_sms())
-            or (event == cls.TYPE_SMS_DELIVERED and not org.is_notified_of_mt_sms())
-        ):
-            return
-
-        json_time = time.strftime("%Y-%m-%dT%H:%M:%S.%f")
-        data = dict(
-            sms=msg.id,
-            phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
-            contact=msg.contact.uuid,
-            contact_name=msg.contact.name,
-            urn=str(msg.contact_urn),
-            text=msg.text,
-            attachments=[a.url for a in msg.get_attachments()],
-            time=json_time,
-            status=msg.status,
-            direction=msg.direction,
-        )
-
-        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=data)
-        hook_event.fire()
-        return hook_event
-
-    @classmethod
-    def trigger_channel_alarm(cls, sync_event):
-        channel = sync_event.channel
-        org = channel.org
-
-        # no-op if no webhook configured
-        if not org or not org.get_webhook_url():  # pragma: no cover
-            return
-
-        if not org.is_notified_of_alarms():
-            return
-
-        json_time = channel.last_seen.strftime("%Y-%m-%dT%H:%M:%S.%f")
-        data = dict(
-            channel=channel.pk,
-            channel_uuid=channel.uuid,
-            power_source=sync_event.power_source,
-            power_status=sync_event.power_status,
-            power_level=sync_event.power_level,
-            network_type=sync_event.network_type,
-            pending_message_count=sync_event.pending_message_count,
-            retry_message_count=sync_event.retry_message_count,
-            last_seen=json_time,
-        )
-
-        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=data)
-        hook_event.fire()
-        return hook_event
-
-    def deliver(self):
-        from .v1.serializers import MsgCreateSerializer
-
-        start = time.time()
-
-        # create our post parameters
-        post_data = self.data
-        post_data["event"] = self.event
-        post_data["relayer"] = self.channel.pk if self.channel else ""
-        post_data["channel"] = self.channel.pk if self.channel else ""
-        post_data["relayer_phone"] = self.channel.address if self.channel else ""
-
-        # look up the endpoint for this channel
-        result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
-
-        if not self.org.get_webhook_url():  # pragma: no cover
-            result["status_code"] = 0
-            result["response"] = "No webhook registered for this org, ignoring event"
-            self.status = self.STATUS_FAILED
-            self.next_attempt = None
-            return result
-
-        # get our org user
-        user = self.org.get_user()
-
-        # no user?  we shouldn't be doing webhooks shtuff
-        if not user:
-            result["status_code"] = 0
-            result["response"] = "No active user for this org, ignoring event"
-            self.status = self.STATUS_FAILED
-            self.next_attempt = None
-            return result
-
-        # make the request
-        try:
-            if not settings.SEND_WEBHOOKS:  # pragma: no cover
-                raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-
-            headers = http_headers(extra=self.org.get_webhook_headers())
-
-            s = requests.Session()
-            prepped = requests.Request("POST", self.org.get_webhook_url(), data=post_data, headers=headers).prepare()
-            result["url"] = prepped.url
-            result["request"] = prepped_request_to_str(prepped)
-            r = s.send(prepped, timeout=5)
-
-            result["status_code"] = r.status_code
-            result["body"] = r.text.strip()
-
-            r.raise_for_status()
-
-            # any 200 code is ok by us
-            self.status = self.STATUS_COMPLETE
-            result["request_time"] = (time.time() - start) * 1000
-
-            # read our body if we have one
-            if result["body"]:
-                try:
-                    data = r.json()
-                    serializer = MsgCreateSerializer(data=data, user=user, org=self.org)
-
-                    if serializer.is_valid():
-                        result["serializer"] = serializer
-
-                except ValueError:
-                    pass
-
-        except Exception:
-            # we had an error, log it
-            self.status = self.STATUS_ERRORED
-            result["request_time"] = time.time() - start
-
-        # if we had an error of some kind, schedule a retry for five minutes from now
-        self.try_count += 1
-
-        if self.status == self.STATUS_ERRORED:
-            if self.try_count < 3:
-                self.next_attempt = timezone.now() + timedelta(minutes=5)
-            else:
-                self.next_attempt = None
-                self.status = "F"
-        else:
-            self.next_attempt = None
-
-        return result
-
     def release(self):
         self.delete()
-
-    def __str__(self):  # pragma: needs cover
-        return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
 
 class WebHookResult(models.Model):
     """
-    Represents the result of trying to deliver an event to a web hook
+    Represents the result of trying to make a webhook call in a flow
     """
+
+    # the org this result belongs to
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
 
     # the url this result is for
     url = models.TextField(null=True, blank=True)
@@ -578,11 +411,13 @@ class WebHookResult(models.Model):
         "contacts.Contact", on_delete=models.PROTECT, null=True, related_name="webhook_results"
     )
 
-    # the org this result belongs to
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="webhook_results")
-
     # when this result was created
     created_on = models.DateTimeField(default=timezone.now, editable=False, blank=True)
+
+    @classmethod
+    def get_recent_errored(cls, org):
+        past_hour = timezone.now() - timedelta(hours=1)
+        return cls.objects.filter(org=org, status__gte=400, created_on__gte=past_hour)
 
     @classmethod
     def record_result(cls, event, result):
