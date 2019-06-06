@@ -605,9 +605,6 @@ class ContactField(SmartModel):
             field_type = field_def.get(ContactField.EXPORT_TYPE)
             ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=db_types[field_type])
 
-    def as_export_ref(self):
-        return {ContactField.EXPORT_KEY: self.key, ContactField.EXPORT_NAME: self.label}
-
     def as_export_def(self):
         return {
             ContactField.EXPORT_KEY: self.key,
