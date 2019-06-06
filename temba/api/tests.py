@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import Group
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
@@ -120,3 +121,17 @@ class WebHookTest(TembaTest):
             trim_webhook_event_task()
             self.assertFalse(WebHookEvent.objects.all())
             self.assertFalse(WebHookResult.objects.all())
+
+
+class WebHookCRUDLTest(TembaTest):
+    def test_list(self):
+        WebHookResult.objects.create(org=self.org, status_code=200, created_on=timezone.now())
+        WebHookResult.objects.create(org=self.org, status_code=201, created_on=timezone.now())
+        WebHookResult.objects.create(org=self.org, status_code=202, created_on=timezone.now())
+        WebHookResult.objects.create(org=self.org, status_code=404, created_on=timezone.now())
+
+        url = reverse("api.webhookresult_list")
+
+        response = self.fetch_protected(url, self.admin)
+
+        self.assertEqual(response.context["object_list"].count(), 4)

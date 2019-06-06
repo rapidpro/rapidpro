@@ -217,25 +217,6 @@ class WebHookResult(models.Model):
         past_hour = timezone.now() - timedelta(hours=1)
         return cls.objects.filter(org=org, status_code__gte=400, created_on__gte=past_hour)
 
-    @classmethod
-    def record_result(cls, event, result):
-        # save our event
-        event.save()
-
-        # if our serializer was valid, save it, this will send the message out
-        serializer = result.get("serializer", None)
-        if serializer and serializer.is_valid():
-            serializer.save()
-
-        cls.objects.create(
-            url=result["url"],
-            request=result.get("request"),
-            status_code=result.get("status_code", 503),
-            response=result.get("body"),
-            request_time=result.get("request_time", None),
-            org=event.org,
-        )
-
     @property
     def is_success(self):
         return 200 <= self.status_code < 300
