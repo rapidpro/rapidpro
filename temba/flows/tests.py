@@ -127,8 +127,8 @@ from .models import (
     get_flow_user,
 )
 from .tasks import (
-    check_flows_task,
     check_flow_timeouts_task,
+    check_flows_task,
     squash_flowpathcounts,
     squash_flowruncounts,
     start_flow_task,
@@ -7242,43 +7242,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(replies.count(), 2)
         self.assertIsNotNone(replies.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(replies.filter(contact_urn__path="+12078778899").first())
-
-        Broadcast.objects.all().delete()
-        Msg.objects.all().delete()
-
-        # For offline survey runs with send to all URN
-        survey_url = reverse("api.v1.steps")
-        definition = flow.as_json()
-        node_uuid = definition["action_sets"][0]["uuid"]
-
-        flow.update(definition)
-
-        self.login(self.surveyor)
-        data = dict(
-            flow=flow.uuid,
-            revision=2,
-            contact=contact.uuid,
-            submitted_by=self.admin.username,
-            started="2015-08-25T11:09:29.088Z",
-            steps=[
-                dict(
-                    node=node_uuid,
-                    arrived_on="2015-08-25T11:09:30.088Z",
-                    actions=[dict(type="reply", msg="What is your favorite color?", send_all=True)],
-                )
-            ],
-            completed=False,
-        )
-
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
-            self.client.post(
-                survey_url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
-            )
-
-        out_msgs = Msg.objects.filter(direction="O").order_by("pk")
-        self.assertEqual(len(out_msgs), 2)
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
         Broadcast.objects.all().delete()
         Msg.objects.all().delete()

@@ -48,7 +48,6 @@ from temba.msgs.models import (
     DELIVERED,
     FAILED,
     FLOW,
-    HANDLED,
     INBOX,
     INCOMING,
     INITIALIZING,
@@ -3050,140 +3049,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
 
-    def update_from_surveyor(self, revision, step_dicts):
-        """
-        Updates this run with the given Surveyor step JSON. For example an actionset might generate a step like:
-            {
-                "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
-                "arrived_on": "2015-08-25T11:59:30.088Z",
-                "actions": [{"msg":"Hi Joe","type":"reply"}],
-                "errors": []
-            }
-        Whereas a ruleset might generate a step like:
-            {
-                "node": "32cf414b-35e3-4c75-8a78-d5f4de925e13",
-                "arrived_on": "2015-08-25T11:59:30.088Z",
-                "rule": {
-                    "uuid": "7b2fa286-5ef0-4c6a-a770-45dd65384b50",
-                    "text": "I like blue",
-                    "value": "blue",
-                    "category": "Blue",
-                    "media": null
-                },
-                "errors": []
-            }
-        """
-
-        # load the specific revision of the flow and migrate to latest spec
-        flow_rev = self.flow.revisions.filter(revision=revision).first()
-        definition = FlowRevision.migrate_definition(flow_rev.definition, self.flow, Flow.FINAL_LEGACY_VERSION)
-
-        rev_action_sets = {a["uuid"]: a for a in definition.get("action_sets", [])}
-        rev_rule_sets = {r["uuid"]: r for r in definition.get("rule_sets", [])}
-
-        msgs = []
-
-        for step_dict in step_dicts:
-            node_uuid = step_dict["node"]
-            arrived_on = iso8601.parse_date(step_dict["arrived_on"])
-
-            prev_step = self.path[-1] if self.path else None
-            if prev_step:
-                # was the previous step an actionset that we need to complete with an exit UUID ?
-                prev_action_set = rev_action_sets.get(prev_step[FlowRun.PATH_NODE_UUID])
-
-                if prev_action_set and FlowRun.PATH_EXIT_UUID not in prev_step:
-                    prev_step[FlowRun.PATH_EXIT_UUID] = prev_action_set["exit_uuid"]
-
-            if node_uuid in rev_rule_sets:
-                node_json = rev_rule_sets[node_uuid]
-                rule_dict = step_dict.get("rule")
-                if rule_dict:
-                    exit_uuid = step_dict["rule"]["uuid"]
-
-                    if "media" in rule_dict:
-                        rule_media = rule_dict["media"]
-                        (media_type, url) = rule_media.split(":", 1)
-                        rule_value = url
-                        rule_input = url
-                    else:
-                        rule_value = rule_dict["value"]
-                        rule_input = rule_dict["text"]
-                        rule_media = None
-
-                    self.path.append(
-                        {
-                            FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node_uuid,
-                            FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
-                            FlowRun.PATH_EXIT_UUID: exit_uuid,
-                        }
-                    )
-
-                    # if a msg was sent to this ruleset, create it
-                    if node_json["ruleset_type"] in RuleSet.TYPE_WAIT:
-                        incoming = Msg.create_incoming(
-                            org=self.org,
-                            contact=self.contact,
-                            text=rule_input,
-                            attachments=[rule_media] if rule_media else None,
-                            msg_type=FLOW,
-                            status=HANDLED,
-                            sent_on=arrived_on,
-                            channel=None,
-                            urn=None,
-                        )
-                        self.add_messages([incoming])
-
-                    # look for an exact rule match by UUID
-                    ruleset_rules = Rule.from_json_array(self.flow.org, node_json["rules"])
-                    rule = None
-                    for r in ruleset_rules:
-                        if r.uuid == exit_uuid:
-                            rule = r
-                            break
-
-                    if rule:
-                        ruleset_obj = RuleSet(uuid=node_uuid, label=node_json.get("label"))
-                        ruleset_obj.save_run_value(self, rule, rule_value, rule_input, org=self.org)
-                else:
-                    self.path.append(
-                        {
-                            FlowRun.PATH_STEP_UUID: str(uuid4()),
-                            FlowRun.PATH_NODE_UUID: node_uuid,
-                            FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
-                        }
-                    )
-
-            # node is an actionset
-            else:
-                self.path.append(
-                    {
-                        FlowRun.PATH_STEP_UUID: str(uuid4()),
-                        FlowRun.PATH_NODE_UUID: node_uuid,
-                        FlowRun.PATH_ARRIVED_ON: arrived_on.isoformat(),
-                    }
-                )
-
-                actions = Action.from_json_array(self.org, step_dict["actions"])
-
-                last_incoming = self.get_messages().filter(direction=INCOMING).order_by("-pk").first()
-
-                for action in actions:
-                    context = self.flow.build_expressions_context(self.contact, last_incoming)
-                    msgs += action.execute(self, context, node_uuid, msg=last_incoming, offline_on=arrived_on)
-                    self.add_messages(msgs)
-
-        try:
-            self.current_node_uuid = self.path[-1][FlowRun.PATH_NODE_UUID]
-            self.save(update_fields=("path", "current_node_uuid"))
-        except Exception as e:  # pragma: no cover
-            logger.error(
-                f"unable save path for surveyor run: {str(e)}",
-                extra={"flow": {"uuid": str(self.flow.uuid), "name": str(self.flow.name)}, "path": self.path},
-                exc_info=True,
-            )
-
     @classmethod
     def create(
         cls,
@@ -5539,7 +5404,7 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
@@ -5633,7 +5498,7 @@ class AddToGroupAction(Action):
     def get_type(self):
         return AddToGroupAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
         user = get_flow_user(run.org)
@@ -5687,7 +5552,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
 
-    def execute(self, run, context, actionset, msg, offline_on=None):
+    def execute(self, run, context, actionset, msg):
         if len(self.groups) == 0:
             contact = run.contact
             user = get_flow_user(run.org)
@@ -5698,7 +5563,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                 ):
                     group.update_contacts(user, [contact], False)
             return []
-        return AddToGroupAction.execute(self, run, context, actionset, msg, offline_on)
+        return AddToGroupAction.execute(self, run, context, actionset, msg)
 
 
 class AddLabelAction(Action):
@@ -5755,7 +5620,7 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
@@ -5793,7 +5658,7 @@ class SayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
-    def execute(self, run, context, actionset_uuid, event, offline_on=None):
+    def execute(self, run, context, actionset_uuid, event):
 
         media_url = None
         if self.recording:
@@ -5839,7 +5704,7 @@ class PlayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
-    def execute(self, run, context, actionset_uuid, event, offline_on=None):
+    def execute(self, run, context, actionset_uuid, event):
         (recording_url, errors) = Msg.evaluate_template(self.url, context)
         msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
 
@@ -5914,7 +5779,7 @@ class ReplyAction(Action):
 
         return language_metadata
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         replies = []
 
         if self.msg or self.media:
@@ -5940,12 +5805,6 @@ class ReplyAction(Action):
                 else:
                     attachments = [f"{media_type}:{media_url}"]
 
-            if offline_on:
-                context = None
-                sent_on = offline_on
-            else:
-                sent_on = None
-
             if msg and msg.id:
                 replies = msg.reply(
                     text,
@@ -5957,7 +5816,7 @@ class ReplyAction(Action):
                     quick_replies=quick_replies,
                     attachments=attachments,
                     send_all=self.send_all,
-                    sent_on=sent_on,
+                    sent_on=None,
                 )
             else:
                 # if our run has been responded to or any of our parent runs have
@@ -5972,7 +5831,7 @@ class ReplyAction(Action):
                     msg_type=self.MSG_TYPE,
                     attachments=attachments,
                     quick_replies=quick_replies,
-                    sent_on=sent_on,
+                    sent_on=None,
                     all_urns=self.send_all,
                     high_priority=high_priority,
                 )
@@ -6138,7 +5997,7 @@ class TriggerFlowAction(VariableContactAction):
             variables=variables,
         )
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         if self.flow:
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
             # start our contacts down the flow
@@ -6180,7 +6039,7 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         old_value = run.contact.language
 
         if len(self.lang) != 3:
@@ -6225,7 +6084,7 @@ class StartFlowAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
-    def execute(self, run, context, actionset_uuid, msg, started_flows, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg, started_flows):
         msgs = []
 
         # our extra will be our flow variables in our message context
@@ -6314,7 +6173,7 @@ class SaveToContactAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         # evaluate our value
         contact = run.contact
         user = get_flow_user(run.org)
@@ -6400,7 +6259,7 @@ class SetChannelAction(Action):
         )
         return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         # if we found the channel to set
         if self.channel:
             run.contact.set_preferred_channel(self.channel)
@@ -6454,7 +6313,7 @@ class SendAction(VariableContactAction):
             media=self.media,
         )
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         if self.msg or self.media:
             flow = run.flow
             (groups, contacts) = self.build_groups_and_contacts(run, msg)

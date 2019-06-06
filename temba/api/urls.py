@@ -14,7 +14,6 @@ from .views import (
 
 urlpatterns = [
     url(r"^api/$", RedirectView.as_view(pattern_name="api.v2", permanent=False), name="api"),
-    url(r"^api/v1/", include("temba.api.v1.urls")),
     url(r"^api/v2/", include("temba.api.v2.urls")),
     url(r"^api/apitoken/refresh/$", RefreshAPITokenView.as_view(), name="api.apitoken_refresh"),
     url(
