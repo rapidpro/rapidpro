@@ -21,12 +21,13 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.models import WebHookEvent, WebHookResult
+from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
+from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -3551,9 +3552,7 @@ class ContactTest(TembaTest):
             )
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_webhook(
-                FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None
-            )
+            legacy.call_webhook(FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -3785,7 +3784,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
+        legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}

@@ -39,6 +39,7 @@ from temba.utils import json
 from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
+from . import legacy
 from .checks import mailroom_url
 from .flow_migrations import (
     map_actions,
@@ -6615,7 +6616,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(ruleset_get.data)
 
         # make sure triggering without a url fails properly
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, "", msg)
+        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
