@@ -1960,7 +1960,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urn.release()
 
             # release our channel events
-            for event in self.channel_events.all():
+            for event in self.channel_events.all():  # pragma: needs cover
                 event.release()
 
             # release our runs too

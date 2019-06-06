@@ -30,7 +30,7 @@ def validate_bulk_fetch(fetched, uuids):
 # ------------------------------------------------------------------------------------------
 
 
-class StringArrayField(serializers.ListField):
+class StringArrayField(serializers.ListField):  # pragma: no cover
     """
     List of strings or a single string
     """
@@ -51,7 +51,7 @@ class StringArrayField(serializers.ListField):
         return super().to_internal_value(data)
 
 
-class PhoneArrayField(serializers.ListField):
+class PhoneArrayField(serializers.ListField):  # pragma: no cover
     """
     List of phone numbers or a single phone number
     """
@@ -85,7 +85,7 @@ class ChannelField(serializers.PrimaryKeyRelatedField):
 # ------------------------------------------------------------------------------------------
 
 
-class MsgCreateSerializer(serializers.Serializer):
+class MsgCreateSerializer(serializers.Serializer):  # pragma: no cover
     channel = ChannelField(required=False)
     text = serializers.CharField(required=True, max_length=480)
     urn = StringArrayField(required=False)
@@ -125,10 +125,10 @@ class MsgCreateSerializer(serializers.Serializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn, country)
-                except ValueError as e:  # pragma: needs cover
+                except ValueError as e:
                     raise serializers.ValidationError(str(e))
 
-                if not URN.validate(normalized, country):  # pragma: needs cover
+                if not URN.validate(normalized, country):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
                 urns.append(normalized)
 
@@ -150,7 +150,7 @@ class MsgCreateSerializer(serializers.Serializer):
             data["channel"] = channel
 
         if phones:
-            if self.org.is_anon:  # pragma: needs cover
+            if self.org.is_anon:
                 raise serializers.ValidationError("Cannot create messages for anonymous organizations")
 
             # check our numbers for validity

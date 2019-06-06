@@ -5404,7 +5404,7 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
@@ -5498,7 +5498,7 @@ class AddToGroupAction(Action):
     def get_type(self):
         return AddToGroupAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
         user = get_flow_user(run.org)
@@ -5552,7 +5552,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
 
-    def execute(self, run, context, actionset, msg, offline_on=None):
+    def execute(self, run, context, actionset, msg):
         if len(self.groups) == 0:
             contact = run.contact
             user = get_flow_user(run.org)
@@ -5563,7 +5563,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                 ):
                     group.update_contacts(user, [contact], False)
             return []
-        return AddToGroupAction.execute(self, run, context, actionset, msg, offline_on)
+        return AddToGroupAction.execute(self, run, context, actionset, msg)
 
 
 class AddLabelAction(Action):
@@ -5620,7 +5620,7 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
@@ -5658,7 +5658,7 @@ class SayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
-    def execute(self, run, context, actionset_uuid, event, offline_on=None):
+    def execute(self, run, context, actionset_uuid, event):
 
         media_url = None
         if self.recording:
@@ -5704,7 +5704,7 @@ class PlayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
-    def execute(self, run, context, actionset_uuid, event, offline_on=None):
+    def execute(self, run, context, actionset_uuid, event):
         (recording_url, errors) = Msg.evaluate_template(self.url, context)
         msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
 
@@ -5779,7 +5779,7 @@ class ReplyAction(Action):
 
         return language_metadata
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         replies = []
 
         if self.msg or self.media:
@@ -5805,12 +5805,6 @@ class ReplyAction(Action):
                 else:
                     attachments = [f"{media_type}:{media_url}"]
 
-            if offline_on:
-                context = None
-                sent_on = offline_on
-            else:
-                sent_on = None
-
             if msg and msg.id:
                 replies = msg.reply(
                     text,
@@ -5822,7 +5816,7 @@ class ReplyAction(Action):
                     quick_replies=quick_replies,
                     attachments=attachments,
                     send_all=self.send_all,
-                    sent_on=sent_on,
+                    sent_on=None,
                 )
             else:
                 # if our run has been responded to or any of our parent runs have
@@ -5837,7 +5831,7 @@ class ReplyAction(Action):
                     msg_type=self.MSG_TYPE,
                     attachments=attachments,
                     quick_replies=quick_replies,
-                    sent_on=sent_on,
+                    sent_on=None,
                     all_urns=self.send_all,
                     high_priority=high_priority,
                 )
@@ -6003,7 +5997,7 @@ class TriggerFlowAction(VariableContactAction):
             variables=variables,
         )
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         if self.flow:
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
             # start our contacts down the flow
@@ -6045,7 +6039,7 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         old_value = run.contact.language
 
         if len(self.lang) != 3:
@@ -6090,7 +6084,7 @@ class StartFlowAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
-    def execute(self, run, context, actionset_uuid, msg, started_flows, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg, started_flows):
         msgs = []
 
         # our extra will be our flow variables in our message context
@@ -6179,7 +6173,7 @@ class SaveToContactAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         # evaluate our value
         contact = run.contact
         user = get_flow_user(run.org)
@@ -6265,7 +6259,7 @@ class SetChannelAction(Action):
         )
         return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         # if we found the channel to set
         if self.channel:
             run.contact.set_preferred_channel(self.channel)
@@ -6319,7 +6313,7 @@ class SendAction(VariableContactAction):
             media=self.media,
         )
 
-    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg):
         if self.msg or self.media:
             flow = run.flow
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
