@@ -517,7 +517,7 @@ class Org(SmartModel):
                     fields.update(component.field_dependencies.all())
 
             elif isinstance(component, Campaign):
-                exported_campaigns.append(component.as_export_json())
+                exported_campaigns.append(component.as_export_def())
 
                 if include_groups:
                     groups.add(component.group)
@@ -527,7 +527,7 @@ class Org(SmartModel):
                             fields.add(event.relative_to)
 
             elif isinstance(component, Trigger):
-                exported_triggers.append(component.as_export_json())
+                exported_triggers.append(component.as_export_def())
 
                 if include_groups:
                     groups.update(component.groups.all())
@@ -538,8 +538,8 @@ class Org(SmartModel):
             Org.EXPORT_FLOWS: exported_flows,
             Org.EXPORT_CAMPAIGNS: exported_campaigns,
             Org.EXPORT_TRIGGERS: exported_triggers,
-            Org.EXPORT_FIELDS: [f.as_export_json() for f in sorted(fields, key=lambda f: f.key)],
-            Org.EXPORT_GROUPS: [g.as_export_json() for g in sorted(groups, key=lambda g: g.name)],
+            Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
+            Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }
 
     def can_add_sender(self):  # pragma: needs cover
