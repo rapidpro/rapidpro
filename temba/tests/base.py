@@ -154,7 +154,7 @@ class TembaTestMixin:
 
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(json.loads(data), self.admin, site=site)
+        self.org.import_app(data, self.admin, site=site)
 
     def get_import_json(self, filename, substitutions=None):
         handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
@@ -166,7 +166,7 @@ class TembaTestMixin:
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
-        return data
+        return json.loads(data)
 
     def update_action_field(self, flow, action_uuid, key, value):
         action_json = self.get_action_json(flow, action_uuid)
@@ -212,7 +212,7 @@ class TembaTestMixin:
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        return json.loads(data)["flows"][0]
+        return data["flows"][0]
 
     def create_secondary_org(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")

@@ -396,7 +396,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
 
         # fetching by id shouldn't modify original group
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", group.uuid), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", uuid=group.uuid), group)
 
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
@@ -4128,12 +4128,6 @@ class ContactTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
         self.joe_and_frank = ContactGroup.user_groups.get(pk=self.joe_and_frank.pk)
-
-        self.assertEqual(self.joe.groups_as_text(), "Joe and Frank, Just Joe")
-        group_analytic_json = self.joe_and_frank.analytics_json()
-        self.assertEqual(group_analytic_json["id"], self.joe_and_frank.pk)
-        self.assertEqual(group_analytic_json["name"], "Joe and Frank")
-        self.assertEqual(2, group_analytic_json["count"])
 
         # try to list contacts as a user not in the organization
         self.login(self.user1)

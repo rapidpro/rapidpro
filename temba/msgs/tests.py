@@ -3092,6 +3092,23 @@ class LabelCRUDLTest(TembaTest):
         response = self.client.get(delete_url)
         self.assertEqual(response.status_code, 200)
 
+    def test_label_delete_with_flow_dependency(self):
+
+        label_one = Label.get_or_create(self.org, self.user, "label1")
+
+        from temba.flows.models import Flow
+
+        self.get_flow("dependencies")
+        flow = Flow.objects.filter(name="Dependencies").first()
+
+        flow.label_dependencies.add(label_one)
+
+        # release method raises ValueError
+        with self.assertRaises(ValueError) as release_error:
+            label_one.release()
+
+        self.assertEqual(str(release_error.exception), f"Cannot delete Label: {label_one.name}, used by 1 flows")
+
     def test_list(self):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
         Label.get_or_create(self.org, self.user, "Spam", folder=folder)

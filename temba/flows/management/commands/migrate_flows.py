@@ -3,12 +3,11 @@ import traceback
 from django.core.management.base import BaseCommand
 
 from temba.flows.models import Flow
-from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
 
 
 def migrate_flows(min_version=None):  # pragma: no cover
-    to_version = min_version or get_current_export_version()
+    to_version = min_version or Flow.FINAL_LEGACY_VERSION
 
     # get all flows below the min version
     old_versions = Flow.get_versions_before(to_version)

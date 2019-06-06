@@ -42,7 +42,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import MockResponse, TembaTest
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -65,7 +65,6 @@ from .models import (
     Org,
     TopUp,
     TopUpCredits,
-    get_current_export_version,
 )
 from .tasks import squash_topupcredits
 
@@ -3497,6 +3496,19 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
+    def test_import_validation(self):
+        # export must include version field
+        with self.assertRaises(ValueError):
+            self.org.import_app({"flows": []}, self.admin)
+
+        # export version can't be older than Org.EARLIEST_IMPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "2", "flows": []}, self.admin)
+
+        # export version can't be newer than Org.CURRENT_EXPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "21415", "flows": []}, self.admin)
+
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
@@ -3505,7 +3517,7 @@ class BulkExportTest(TembaTest):
         flow = self.get_flow("triggered", substitutions)
 
         # read in the old version 8 raw json
-        old_json = json.loads(self.get_import_json("triggered", substitutions))
+        old_json = self.get_import_json("triggered", substitutions)
         old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
 
         # splice our actionset with old bits
@@ -3585,7 +3597,9 @@ class BulkExportTest(TembaTest):
         # try to import the flow
         flow.release()
         response.json()
-        Flow.import_flows(exported, self.org, self.admin)
+
+        dep_mapping = {}
+        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
 
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
@@ -3740,7 +3754,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
         parent = Flow.objects.get(name="Legacy Parent")
-        self.assertEqual(parent.version_number, get_current_export_version())
+        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.group_dependencies.all()), set())
 
@@ -3785,13 +3799,13 @@ class BulkExportTest(TembaTest):
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
-    def test_import_group_remapping_legacy(self):
+    def test_implicit_group_imports_legacy(self):
         self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
-        from temba.flows.tests import get_groups
+        from temba.flows.tests import get_legacy_groups
 
-        definition_groups = get_groups(flow.as_json())
+        definition_groups = get_legacy_groups(flow.as_json())
 
         # we should have 5 groups
         self.assertEqual(5, len(definition_groups))
@@ -3803,20 +3817,116 @@ class BulkExportTest(TembaTest):
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
             )
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
-        flow = Flow.objects.get(name="Cataclysmic")
+    def validate_flow_dependencies(self, definition):
+        flow_info = mailroom.get_client().flow_inspect(definition)
+        deps = flow_info["dependencies"]
 
-        # we should have 5 groups
-        self.assertEqual(5, ContactGroup.user_groups.all().count())
-
-        flow_info = mailroom.get_client().flow_inspect(flow.as_json())
-
-        for ref in flow_info["dependencies"]["groups"]:
+        for ref in deps.get("fields", []):
             self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=ref["uuid"], name=ref["name"]).exists(),
-                msg=f"imported group[uuid={ref['uuid']}, name={ref['name']}] not created",
+                ContactField.user_fields.filter(key=ref["key"]).exists(),
+                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
             )
+        for ref in deps.get("flows", []):
+            self.assertTrue(
+                Flow.objects.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+        for ref in deps.get("groups", []):
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+
+    def test_implicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions without fields and groups included in the export
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+        del data["groups"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (all static since we can only create static groups from group references)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+
+        # and so no fields created
+        self.assertEqual(ContactField.user_fields.all().count(), 0)
+
+    def test_implicit_field_and_explicit_group_imports(self):
+        """
+        Tests importing flow definitions with groups included in the export but not fields
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # but without implicit fields in the export, the details aren't correct
+        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.value_type, "T")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
+
+    def test_explicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions with groups and fields included in the export
+        """
+
+        with ESMockWithScroll():
+            self.import_file("cataclysm")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # and with implicit fields in the export, the details should be correct
+        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.value_type, "N")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_export_import(self):
         def assert_object_counts():
@@ -3939,12 +4049,28 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse("orgs.org_export"), post_data)
         exported = response.json()
-        self.assertEqual(get_current_export_version(), exported.get("version", 0))
-        self.assertEqual("https://app.rapidpro.io", exported.get("site", None))
+        self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
+        self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
+        self.assertEqual(
+            exported["fields"],
+            [
+                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "type": "text"},
+                {"key": "next_appointment", "name": "Next Appointment", "type": "datetime"},
+                {"key": "rating", "name": "Rating", "type": "text"},
+            ],
+        )
+        self.assertEqual(
+            exported["groups"],
+            [
+                {"uuid": matchers.UUID4String(), "name": "Delay Notification", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Pending Appointments", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Unsatisfied Customers", "query": None},
+            ],
+        )
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")
@@ -3965,34 +4091,35 @@ class BulkExportTest(TembaTest):
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name="Confirm Appointment")
         flow.name = "A new flow"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign = Campaign.objects.all().first()
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign = Campaign.objects.get()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.filter(name="Pending Appointments").first()
+        group = ContactGroup.user_groups.get(name="Pending Appointments")
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
-        # it should fall back on ids and not create new objects even though the names changed
+        # it should fall back on UUIDs and not create new objects even though the names changed
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
+
         assert_object_counts()
 
-        # and our objets should have the same names as before
+        # and our objects should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
         self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
         # now import the same import but pretend its from a different site
         self.org.import_app(exported, self.admin, site="http://temba.io")

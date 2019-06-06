@@ -415,8 +415,20 @@ class ContactField(SmartModel):
 
     FIELD_TYPE_SYSTEM = "S"
     FIELD_TYPE_USER = "U"
-
     FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
+
+    EXPORT_KEY = "key"
+    EXPORT_NAME = "name"
+    EXPORT_TYPE = "type"
+
+    GOFLOW_TYPES = {
+        Value.TYPE_TEXT: "text",
+        Value.TYPE_NUMBER: "number",
+        Value.TYPE_DATETIME: "datetime",
+        Value.TYPE_STATE: "state",
+        Value.TYPE_DISTRICT: "district",
+        Value.TYPE_WARD: "ward",
+    }
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -579,6 +591,27 @@ class ContactField(SmartModel):
     def get_location_field(cls, org, type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
 
+    @classmethod
+    def import_fields(cls, org, user, field_defs):
+        """
+        Import fields from a list of exported fields
+        """
+
+        db_types = {value: key for key, value in ContactField.GOFLOW_TYPES.items()}
+
+        for field_def in field_defs:
+            field_key = field_def.get(ContactField.EXPORT_KEY)
+            field_name = field_def.get(ContactField.EXPORT_NAME)
+            field_type = field_def.get(ContactField.EXPORT_TYPE)
+            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=db_types[field_type])
+
+    def as_export_def(self):
+        return {
+            ContactField.EXPORT_KEY: self.key,
+            ContactField.EXPORT_NAME: self.label,
+            ContactField.EXPORT_TYPE: ContactField.GOFLOW_TYPES[self.value_type],
+        }
+
     def release(self, user):
         self.is_active = False
         self.modified_by = user
@@ -730,11 +763,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         obj["id"] = self.id
 
         return obj
-
-    def groups_as_text(self):
-        groups = self.user_groups.all().order_by("name")
-        groups_name_list = [group.name for group in groups]
-        return ", ".join(groups_name_list)
 
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
@@ -2596,6 +2624,10 @@ class UserContactGroupManager(models.Manager):
 
 
 class ContactGroup(TembaModel):
+    """
+    A static or dynamic group of contacts
+    """
+
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
@@ -2625,6 +2657,10 @@ class ContactGroup(TembaModel):
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     REEVALUATE_LOCK_KEY = "contactgroup_reevaluating_%d"
+
+    EXPORT_UUID = "uuid"
+    EXPORT_NAME = "name"
+    EXPORT_QUERY = "query"
 
     name = models.CharField(
         verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
@@ -2681,11 +2717,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_uuid=None):
+    def get_or_create(cls, org, user, name, query=None, uuid=None):
         existing = None
 
-        if group_uuid is not None:
-            existing = org.get_group(group_uuid)
+        if uuid:
+            existing = org.get_group(uuid)
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
@@ -2693,7 +2729,10 @@ class ContactGroup(TembaModel):
         if existing:
             return existing
 
-        return cls.create_static(org, user, name)
+        if query:
+            return cls.create_dynamic(org, user, name, query)
+        else:
+            return cls.create_static(org, user, name)
 
     @classmethod
     def create_static(cls, org, user, name, task=None):
@@ -3023,9 +3062,39 @@ class ContactGroup(TembaModel):
     def is_dynamic(self):
         return self.query is not None
 
-    def analytics_json(self):
-        if self.get_member_count() > 0:
-            return dict(name=self.name, id=self.pk, count=self.get_member_count())
+    @classmethod
+    def import_groups(cls, org, user, group_defs, dependency_mapping):
+        """
+        Import groups from a list of exported groups
+        """
+
+        for group_def in group_defs:
+            group_uuid = group_def.get(ContactGroup.EXPORT_UUID)
+            group_name = group_def.get(ContactGroup.EXPORT_NAME)
+            group_query = group_def.get(ContactGroup.EXPORT_QUERY)
+
+            if group_query:
+                from .search import parse_query
+
+                parsed = parse_query(group_query, as_anon=org.is_anon)
+                for prop, obj in parsed.get_prop_map(org, validate=False).items():
+                    # if search property didn't match a URN, attribute or existing field, we need to create the field
+                    if obj is None:
+                        ContactField.get_or_create(org, user, key=prop)
+
+            group = ContactGroup.get_or_create(org, user, group_name, group_query, uuid=group_uuid)
+
+            dependency_mapping[group_uuid] = str(group.uuid)
+
+    def as_export_ref(self):
+        return {ContactGroup.EXPORT_UUID: str(self.uuid), ContactGroup.EXPORT_NAME: self.name}
+
+    def as_export_def(self):
+        return {
+            ContactGroup.EXPORT_UUID: str(self.uuid),
+            ContactGroup.EXPORT_NAME: self.name,
+            ContactGroup.EXPORT_QUERY: self.query,
+        }
 
     def __str__(self):
         return self.name

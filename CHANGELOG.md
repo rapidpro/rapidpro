@@ -1,3 +1,13 @@
+v4.23.0
+----------
+ * Save channel and message label dependencies on flows
+
+v4.22.63
+----------
+ * Update to latest floweditor v1.5.5
+ * Allow switching between editors
+ * Update Django to version 2.1.9
+
 v4.22.62
 ----------
  * add US/ timezones for clicksend as well
