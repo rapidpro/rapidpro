@@ -419,7 +419,16 @@ class ContactField(SmartModel):
 
     EXPORT_KEY = "key"
     EXPORT_NAME = "name"
-    EXPORT_VALUE_TYPE = "value_type"
+    EXPORT_TYPE = "type"
+
+    GOFLOW_TYPES = {
+        Value.TYPE_TEXT: "text",
+        Value.TYPE_NUMBER: "number",
+        Value.TYPE_DATETIME: "datetime",
+        Value.TYPE_STATE: "state",
+        Value.TYPE_DISTRICT: "district",
+        Value.TYPE_WARD: "ward",
+    }
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -583,22 +592,24 @@ class ContactField(SmartModel):
         return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
 
     @classmethod
-    def import_fields(cls, org, user, fields_json):
+    def import_fields(cls, org, user, field_defs):
         """
         Import fields from a list of exported fields
         """
 
-        for field_json in fields_json:
-            field_key = field_json.get(ContactField.EXPORT_KEY)
-            field_name = field_json.get(ContactField.EXPORT_NAME)
-            field_value_type = field_json.get(ContactField.EXPORT_VALUE_TYPE)
-            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=field_value_type)
+        db_types = {value: key for key, value in ContactField.GOFLOW_TYPES.items()}
 
-    def as_export_json(self):
+        for field_def in field_defs:
+            field_key = field_def.get(ContactField.EXPORT_KEY)
+            field_name = field_def.get(ContactField.EXPORT_NAME)
+            field_type = field_def.get(ContactField.EXPORT_TYPE)
+            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=db_types[field_type])
+
+    def as_export_def(self):
         return {
             ContactField.EXPORT_KEY: self.key,
             ContactField.EXPORT_NAME: self.label,
-            ContactField.EXPORT_VALUE_TYPE: self.value_type,
+            ContactField.EXPORT_TYPE: ContactField.GOFLOW_TYPES[self.value_type],
         }
 
     def release(self, user):
@@ -3052,15 +3063,15 @@ class ContactGroup(TembaModel):
         return self.query is not None
 
     @classmethod
-    def import_groups(cls, org, user, groups_json, dependency_mapping):
+    def import_groups(cls, org, user, group_defs, dependency_mapping):
         """
         Import groups from a list of exported groups
         """
 
-        for group_json in groups_json:
-            group_uuid = group_json.get(ContactGroup.EXPORT_UUID)
-            group_name = group_json.get(ContactGroup.EXPORT_NAME)
-            group_query = group_json.get(ContactGroup.EXPORT_QUERY)
+        for group_def in group_defs:
+            group_uuid = group_def.get(ContactGroup.EXPORT_UUID)
+            group_name = group_def.get(ContactGroup.EXPORT_NAME)
+            group_query = group_def.get(ContactGroup.EXPORT_QUERY)
 
             if group_query:
                 from .search import parse_query
@@ -3075,7 +3086,10 @@ class ContactGroup(TembaModel):
 
             dependency_mapping[group_uuid] = str(group.uuid)
 
-    def as_export_json(self):
+    def as_export_ref(self):
+        return {ContactGroup.EXPORT_UUID: str(self.uuid), ContactGroup.EXPORT_NAME: self.name}
+
+    def as_export_def(self):
         return {
             ContactGroup.EXPORT_UUID: str(self.uuid),
             ContactGroup.EXPORT_NAME: self.name,

@@ -232,16 +232,16 @@ class Trigger(SmartModel):
                 trigger.archive(user)
 
     @classmethod
-    def import_triggers(cls, org, user, triggers_json, same_site=False):
+    def import_triggers(cls, org, user, trigger_defs, same_site=False):
         """
         Import triggers from a list of exported triggers
         """
 
-        for trigger_spec in triggers_json:
+        for trigger_def in trigger_defs:
 
             # resolve our groups
             groups = []
-            for group_spec in trigger_spec[Trigger.EXPORT_GROUPS]:
+            for group_spec in trigger_def[Trigger.EXPORT_GROUPS]:
 
                 group = None
 
@@ -260,13 +260,13 @@ class Trigger(SmartModel):
 
                 groups.append(group)
 
-            flow = Flow.objects.get(org=org, uuid=trigger_spec[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
+            flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
-            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec[Trigger.EXPORT_TYPE])
+            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
 
-            if trigger_spec[Trigger.EXPORT_KEYWORD]:
-                trigger = trigger.filter(keyword__iexact=trigger_spec[Trigger.EXPORT_KEYWORD])
+            if trigger_def[Trigger.EXPORT_KEYWORD]:
+                trigger = trigger.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
 
             if groups:
                 trigger = trigger.filter(groups__in=groups)
@@ -279,14 +279,14 @@ class Trigger(SmartModel):
             else:
 
                 # if we have a channel resolve it
-                channel = trigger_spec.get(Trigger.EXPORT_CHANNEL, None)  # older exports won't have a channel
+                channel = trigger_def.get(Trigger.EXPORT_CHANNEL, None)  # older exports won't have a channel
                 if channel:
                     channel = Channel.objects.filter(uuid=channel, org=org).first()
 
                 trigger = Trigger.objects.create(
                     org=org,
-                    trigger_type=trigger_spec[Trigger.EXPORT_TYPE],
-                    keyword=trigger_spec[Trigger.EXPORT_KEYWORD],
+                    trigger_type=trigger_def[Trigger.EXPORT_TYPE],
+                    keyword=trigger_def[Trigger.EXPORT_KEYWORD],
                     flow=flow,
                     created_by=user,
                     modified_by=user,
@@ -488,14 +488,14 @@ class Trigger(SmartModel):
 
         self.save()
 
-    def as_export_json(self):
+    def as_export_def(self):
         """
-        The JSON representation of this trigger for export.
+        The definition of this trigger for export.
         """
         return {
             Trigger.EXPORT_TYPE: self.trigger_type,
             Trigger.EXPORT_KEYWORD: self.keyword,
-            Trigger.EXPORT_FLOW: {"uuid": str(self.flow.uuid), "name": self.flow.name},
-            Trigger.EXPORT_GROUPS: [{"uuid": str(group.uuid), "name": group.name} for group in self.groups.all()],
+            Trigger.EXPORT_FLOW: self.flow.as_export_ref(),
+            Trigger.EXPORT_GROUPS: [group.as_export_ref() for group in self.groups.all()],
             Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
         }
