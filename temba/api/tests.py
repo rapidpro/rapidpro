@@ -1,16 +1,12 @@
 from datetime import timedelta
-from unittest.mock import patch
 
-from django.conf import settings
 from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.api.models import APIToken, WebHookEvent, WebHookResult
+from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.api.tasks import trim_webhook_event_task
-from temba.msgs.models import FAILED
-from temba.orgs.models import ALL_EVENTS
-from temba.tests import MockResponse, TembaTest
+from temba.tests import TembaTest
 
 
 class APITokenTest(TembaTest):
@@ -83,76 +79,44 @@ class APITokenTest(TembaTest):
 
 
 class WebHookTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-        self.joe = self.create_contact("Joe Blow", "0788123123")
-        settings.SEND_WEBHOOKS = True
-
-    def tearDown(self):
-        super().tearDown()
-        settings.SEND_WEBHOOKS = False
-
-    def setupChannel(self):
-        org = self.channel.org
-        org.webhook = {"url": "http://fake.com/webhook.php"}
-        org.webhook_events = ALL_EVENTS
-        org.save()
-
-        self.channel.address = "+250788123123"
-        self.channel.save()
-
     def test_webhook_event_trim_task(self):
-        sms = self.create_msg(contact=self.joe, direction="I", status="H", text="I'm gonna pop some tags")
-        self.setupChannel()
-        now = timezone.now()
+        five_hours_ago = timezone.now() - timedelta(hours=5)
 
-        with patch("requests.Session.send") as mock:
-            mock.return_value = MockResponse(200, "Hello World")
+        # create some events and results
+        resthook = Resthook.get_or_create(org=self.org, slug="registration", user=self.admin)
+        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, status="C", created_on=five_hours_ago)
+        WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
 
-            # trigger an event
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
+        with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
+            trim_webhook_event_task()
+            self.assertTrue(WebHookEvent.objects.all())
+            self.assertTrue(WebHookResult.objects.all())
 
-            five_hours_ago = timezone.now() - timedelta(hours=5)
-            event.created_on = five_hours_ago
-            event.save()
-            WebHookResult.objects.all().update(created_on=five_hours_ago)
+        with override_settings(SUCCESS_LOGS_TRIM_TIME=12):
+            trim_webhook_event_task()
+            self.assertTrue(WebHookEvent.objects.all())
+            self.assertTrue(WebHookResult.objects.all())
 
-            with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
-                trim_webhook_event_task()
-                self.assertTrue(WebHookEvent.objects.all())
-                self.assertTrue(WebHookResult.objects.all())
+        with override_settings(SUCCESS_LOGS_TRIM_TIME=2):
+            trim_webhook_event_task()
+            self.assertFalse(WebHookEvent.objects.all())
+            self.assertFalse(WebHookResult.objects.all())
 
-            with override_settings(SUCCESS_LOGS_TRIM_TIME=12):
-                trim_webhook_event_task()
-                self.assertTrue(WebHookEvent.objects.all())
-                self.assertTrue(WebHookResult.objects.all())
+        WebHookEvent.objects.create(org=self.org, resthook=resthook, data={}, status="F", created_on=five_hours_ago)
+        WebHookResult.objects.create(org=self.org, status_code=200, created_on=five_hours_ago)
+        WebHookResult.objects.create(org=self.org, status_code=401, created_on=five_hours_ago)
 
-            with override_settings(SUCCESS_LOGS_TRIM_TIME=2):
-                trim_webhook_event_task()
-                self.assertFalse(WebHookEvent.objects.all())
-                self.assertFalse(WebHookResult.objects.all())
+        with override_settings(ALL_LOGS_TRIM_TIME=0):
+            trim_webhook_event_task()
+            self.assertTrue(WebHookEvent.objects.all())
+            self.assertTrue(WebHookResult.objects.all())
 
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
-            event = WebHookEvent.objects.get()
+        with override_settings(ALL_LOGS_TRIM_TIME=12):
+            trim_webhook_event_task()
+            self.assertTrue(WebHookEvent.objects.all())
+            self.assertTrue(WebHookResult.objects.all())
 
-            five_hours_ago = timezone.now() - timedelta(hours=5)
-            event.created_on = five_hours_ago
-            event.status = FAILED
-            event.save()
-            WebHookResult.objects.all().update(status_code=401, created_on=five_hours_ago)
-
-            with override_settings(ALL_LOGS_TRIM_TIME=0):
-                trim_webhook_event_task()
-                self.assertTrue(WebHookEvent.objects.all())
-                self.assertTrue(WebHookResult.objects.all())
-
-            with override_settings(ALL_LOGS_TRIM_TIME=12):
-                trim_webhook_event_task()
-                self.assertTrue(WebHookEvent.objects.all())
-                self.assertTrue(WebHookResult.objects.all())
-
-            with override_settings(ALL_LOGS_TRIM_TIME=2):
-                trim_webhook_event_task()
-                self.assertFalse(WebHookEvent.objects.all())
-                self.assertFalse(WebHookResult.objects.all())
+        with override_settings(ALL_LOGS_TRIM_TIME=2):
+            trim_webhook_event_task()
+            self.assertFalse(WebHookEvent.objects.all())
+            self.assertFalse(WebHookResult.objects.all())
