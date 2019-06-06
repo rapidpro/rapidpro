@@ -1580,14 +1580,22 @@ class DefinitionsEndpoint(BaseAPIView):
         else:
             campaigns = set()
 
+        include_fields_and_groups = False
+
         if include == DefinitionsEndpoint.Depends.none:
             components = set(itertools.chain(flows, campaigns))
         elif include == DefinitionsEndpoint.Depends.flows:
             components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
         else:
             components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
+            include_fields_and_groups = True
 
-        export = org.export_definitions(self.request.branding["link"], components)
+        export = org.export_definitions(
+            self.request.branding["link"],
+            components,
+            include_fields=include_fields_and_groups,
+            include_groups=include_fields_and_groups,
+        )
 
         return Response(export, status=status.HTTP_200_OK)
 

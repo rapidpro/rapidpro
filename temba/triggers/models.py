@@ -51,6 +51,12 @@ class Trigger(SmartModel):
         (MATCH_ONLY_WORD, _("Message contains only the keyword")),
     )
 
+    EXPORT_TYPE = "trigger_type"
+    EXPORT_KEYWORD = "keyword"
+    EXPORT_FLOW = "flow"
+    EXPORT_GROUPS = "groups"
+    EXPORT_CHANNEL = "channel"
+
     org = models.ForeignKey(
         Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to")
     )
@@ -155,18 +161,6 @@ class Trigger(SmartModel):
             return self.keyword
         return self.get_trigger_type_display()  # pragma: needs cover
 
-    def as_json(self):
-        """
-        An exportable dict representing our trigger
-        """
-        return dict(
-            trigger_type=self.trigger_type,
-            keyword=self.keyword,
-            flow=dict(uuid=self.flow.uuid, name=self.flow.name),
-            groups=[dict(uuid=group.uuid, name=group.name) for group in self.groups.all()],
-            channel=self.channel.uuid if self.channel else None,
-        )
-
     def trigger_scopes(self):
         """
         Returns keys that represents the scopes that this trigger can operate against (and might conflict with other triggers with)
@@ -238,75 +232,69 @@ class Trigger(SmartModel):
                 trigger.archive(user)
 
     @classmethod
-    def import_triggers(cls, exported_json, org, user, same_site=False):
+    def import_triggers(cls, org, user, triggers_json, same_site=False):
         """
-        Import triggers from our export file
+        Import triggers from a list of exported triggers
         """
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
-        if Flow.is_before_version(exported_json.get("version", 0), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % exported_json.get("version", 0)))
+        for trigger_spec in triggers_json:
 
-        # first things first, let's create our groups if necesary and map their ids accordingly
-        if "triggers" in exported_json:
-            for trigger_spec in exported_json["triggers"]:
+            # resolve our groups
+            groups = []
+            for group_spec in trigger_spec[Trigger.EXPORT_GROUPS]:
 
-                # resolve our groups
-                groups = []
-                for group_spec in trigger_spec["groups"]:
+                group = None
 
-                    group = None
+                if same_site:  # pragma: needs cover
+                    group = ContactGroup.user_groups.filter(org=org, uuid=group_spec["uuid"]).first()
 
-                    if same_site:  # pragma: needs cover
-                        group = ContactGroup.user_groups.filter(org=org, uuid=group_spec["uuid"]).first()
+                if not group:
+                    group = ContactGroup.get_user_group(org, group_spec["name"])
 
-                    if not group:
-                        group = ContactGroup.get_user_group(org, group_spec["name"])
+                if not group:
+                    group = ContactGroup.create_static(org, user, group_spec["name"])  # pragma: needs cover
 
-                    if not group:
-                        group = ContactGroup.create_static(org, user, group_spec["name"])  # pragma: needs cover
+                if not group.is_active:  # pragma: needs cover
+                    group.is_active = True
+                    group.save()
 
-                    if not group.is_active:  # pragma: needs cover
-                        group.is_active = True
-                        group.save()
+                groups.append(group)
 
-                    groups.append(group)
+            flow = Flow.objects.get(org=org, uuid=trigger_spec[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
-                flow = Flow.objects.get(org=org, uuid=trigger_spec["flow"]["uuid"], is_active=True)
+            # see if that trigger already exists
+            trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec[Trigger.EXPORT_TYPE])
 
-                # see if that trigger already exists
-                trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec["trigger_type"])
+            if trigger_spec[Trigger.EXPORT_KEYWORD]:
+                trigger = trigger.filter(keyword__iexact=trigger_spec[Trigger.EXPORT_KEYWORD])
 
-                if trigger_spec["keyword"]:
-                    trigger = trigger.filter(keyword__iexact=trigger_spec["keyword"])
+            if groups:
+                trigger = trigger.filter(groups__in=groups)
 
-                if groups:
-                    trigger = trigger.filter(groups__in=groups)
+            trigger = trigger.first()
+            if trigger:
+                trigger.is_archived = False
+                trigger.flow = flow
+                trigger.save()
+            else:
 
-                trigger = trigger.first()
-                if trigger:
-                    trigger.is_archived = False
-                    trigger.flow = flow
-                    trigger.save()
-                else:
+                # if we have a channel resolve it
+                channel = trigger_spec.get(Trigger.EXPORT_CHANNEL, None)  # older exports won't have a channel
+                if channel:
+                    channel = Channel.objects.filter(uuid=channel, org=org).first()
 
-                    # if we have a channel resolve it
-                    channel = trigger_spec.get("channel", None)  # older exports won't have a channel
-                    if channel:
-                        channel = Channel.objects.filter(uuid=channel, org=org).first()
+                trigger = Trigger.objects.create(
+                    org=org,
+                    trigger_type=trigger_spec[Trigger.EXPORT_TYPE],
+                    keyword=trigger_spec[Trigger.EXPORT_KEYWORD],
+                    flow=flow,
+                    created_by=user,
+                    modified_by=user,
+                    channel=channel,
+                )
 
-                    trigger = Trigger.objects.create(
-                        org=org,
-                        trigger_type=trigger_spec["trigger_type"],
-                        keyword=trigger_spec["keyword"],
-                        flow=flow,
-                        created_by=user,
-                        modified_by=user,
-                        channel=channel,
-                    )
-
-                    for group in groups:
-                        trigger.groups.add(group)
+                for group in groups:
+                    trigger.groups.add(group)
 
     @classmethod
     def get_triggers_of_type(cls, org, trigger_type):
@@ -499,3 +487,15 @@ class Trigger(SmartModel):
             start.async_start()
 
         self.save()
+
+    def as_export_json(self):
+        """
+        The JSON representation of this trigger for export.
+        """
+        return {
+            Trigger.EXPORT_TYPE: self.trigger_type,
+            Trigger.EXPORT_KEYWORD: self.keyword,
+            Trigger.EXPORT_FLOW: {"uuid": str(self.flow.uuid), "name": self.flow.name},
+            Trigger.EXPORT_GROUPS: [{"uuid": str(group.uuid), "name": group.name} for group in self.groups.all()],
+            Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
+        }

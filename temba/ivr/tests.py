@@ -22,7 +22,6 @@ from temba.channels.models import Channel, ChannelConnection, ChannelLog
 from temba.flows.models import Flow, FlowRevision, FlowRun
 from temba.ivr.tasks import check_calls_task, start_call_task
 from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
-from temba.orgs.models import get_current_export_version
 from temba.tests import FlowFileTest, MockResponse
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.utils import json
@@ -1318,7 +1317,7 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, "No call found")
 
         flow.refresh_from_db()
-        self.assertEqual(get_current_export_version(), flow.version_number)
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
         # now try an inbound call after remove our channel
         self.channel.is_active = False
@@ -1478,7 +1477,7 @@ class IVRTests(FlowFileTest):
         self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
 
         flow.refresh_from_db()
-        self.assertEqual(get_current_export_version(), flow.version_number)
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
         self.assertIsNot(call.status, IVRCall.COMPLETED)
 

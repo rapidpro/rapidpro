@@ -595,8 +595,6 @@ class OrgCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
             def clean_import_file(self):
-                from temba.orgs.models import EARLIEST_IMPORT_VERSION
-
                 # make sure they are in the proper tier
                 if not self.org.is_import_flows_tier():
                     raise ValidationError(_("Sorry, import is a premium feature"))
@@ -608,7 +606,7 @@ class OrgCRUDL(SmartCRUDL):
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
-                if Flow.is_before_version(json_data.get("version", 0), EARLIEST_IMPORT_VERSION):
+                if Flow.is_before_version(json_data.get("version", 0), Org.EARLIEST_IMPORT_VERSION):
                     raise ValidationError(
                         _("This file is no longer valid. Please export a new version and try again.")
                     )

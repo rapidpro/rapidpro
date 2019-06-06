@@ -63,7 +63,7 @@ class ContactQuery(object):
 
         return self.root.as_elasticsearch(org, prop_map)
 
-    def get_prop_map(self, org):
+    def get_prop_map(self, org, validate=True):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
         and URN schemes.
@@ -89,9 +89,10 @@ class ContactQuery(object):
             if scheme in prop_map.keys():
                 prop_map[scheme] = (self.PROP_SCHEME, scheme)
 
-        for prop, prop_obj in prop_map.items():
-            if not prop_obj:
-                raise SearchException(_(f"Unrecognized field: '{prop}'"))
+        if validate:
+            for prop, prop_obj in prop_map.items():
+                if not prop_obj:
+                    raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
 
