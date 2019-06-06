@@ -57,7 +57,7 @@ from temba.msgs.models import (
     Label,
     Msg,
 )
-from temba.orgs.models import Language, Org, get_current_export_version
+from temba.orgs.models import Language, Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
@@ -267,6 +267,7 @@ class Flow(TembaModel):
         "11.12",
     ]
 
+    FINAL_LEGACY_VERSION = VERSIONS[-1]
     GOFLOW_VERSION = "13.0.0"
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
@@ -311,7 +312,7 @@ class Flow(TembaModel):
     )
 
     version_number = models.CharField(
-        default=get_current_export_version, max_length=8, help_text=_("The flow version this definition is in")
+        default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
 
     flow_dependencies = models.ManyToManyField(
@@ -367,7 +368,7 @@ class Flow(TembaModel):
             created_by=user,
             modified_by=user,
             flow_server_enabled=org.flow_server_enabled,
-            version_number=Flow.GOFLOW_VERSION if use_new_editor else get_current_export_version(),
+            version_number=Flow.GOFLOW_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
             **kwargs,
         )
 
@@ -459,10 +460,10 @@ class Flow(TembaModel):
 
     @classmethod
     def is_before_version(cls, to_check, version):
-        if f"{to_check}" not in Flow.VERSIONS:
+        if str(to_check) not in Flow.VERSIONS:
             return False
 
-        return Version(f"{to_check}") < Version(f"{version}")
+        return Version(str(to_check)) < Version(str(version))
 
     @classmethod
     def get_triggerable_flows(cls, org):
@@ -475,17 +476,20 @@ class Flow(TembaModel):
         )
 
     @classmethod
-    def import_flows(cls, exported_json, org, user, same_site=False):
+    def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
         """
         Import flows from our flow export file
         """
-        version = Version(str(exported_json.get("version", "0")))
+
+        from temba.campaigns.models import Campaign
+        from temba.triggers.models import Trigger
+
+        version = Version(str(export_json.get("version", "0")))
         created_flows = []
-        dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
-        for flow_def in exported_json["flows"]:
+        for flow_def in export_json[Org.EXPORT_FLOWS]:
             if FlowRevision.is_legacy_definition(flow_def):
                 flow_version = Version(flow_def["version"]) if "version" in flow_def else version
                 flow_metadata = flow_def[Flow.METADATA]
@@ -547,21 +551,19 @@ class Flow(TembaModel):
             flow.import_definition(user, definition, dependency_mapping)
 
         # remap flow UUIDs in any campaign events
-        if "campaigns" in exported_json:
-            for campaign in exported_json["campaigns"]:
-                for event in campaign["events"]:
-                    if "flow" in event:
-                        flow_uuid = event["flow"]["uuid"]
-                        if flow_uuid in dependency_mapping:
-                            event["flow"]["uuid"] = dependency_mapping[flow_uuid]
+        for campaign in export_json.get(Org.EXPORT_CAMPAIGNS, []):
+            for event in campaign[Campaign.EXPORT_EVENTS]:
+                if "flow" in event:
+                    flow_uuid = event["flow"]["uuid"]
+                    if flow_uuid in dependency_mapping:
+                        event["flow"]["uuid"] = dependency_mapping[flow_uuid]
 
         # remap flow UUIDs in any triggers
-        if "triggers" in exported_json:
-            for trigger in exported_json["triggers"]:
-                if "flow" in trigger:
-                    flow_uuid = trigger["flow"]["uuid"]
-                    if flow_uuid in dependency_mapping:
-                        trigger["flow"]["uuid"] = dependency_mapping[flow_uuid]
+        for trigger in export_json.get(Org.EXPORT_TRIGGERS, []):
+            if Trigger.EXPORT_FLOW in trigger:
+                flow_uuid = trigger[Trigger.EXPORT_FLOW]["uuid"]
+                if flow_uuid in dependency_mapping:
+                    trigger[Trigger.EXPORT_FLOW]["uuid"] = dependency_mapping[flow_uuid]
 
         # return the created flows
         return [f[0] for f in created_flows]
@@ -1227,7 +1229,7 @@ class Flow(TembaModel):
         for ref in dependencies.get("fields", []):
             ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
 
-        # lookup additional flow dependencies by name (i.e. for flows not in the import itself)
+        # lookup additional flow dependencies by name (i.e. for flows not in the export itself)
         for ref in dependencies.get("flows", []):
             if ref["uuid"] not in dependency_mapping:
                 flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
@@ -1236,10 +1238,11 @@ class Flow(TembaModel):
 
                 dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
 
-        # ensure any group dependencies exist
+        # lookup/create additional group dependencies (i.e. for flows not in the export itself)
         for ref in dependencies.get("groups", []):
-            group = ContactGroup.get_or_create(self.org, user, ref["name"], ref["uuid"])
-            dependency_mapping[ref["uuid"]] = str(group.uuid)
+            if ref["uuid"] not in dependency_mapping and "name" in ref:
+                group = ContactGroup.get_or_create(self.org, user, ref["name"], uuid=ref["uuid"])
+                dependency_mapping[ref["uuid"]] = str(group.uuid)
 
         # ensure any label dependencies exist
         for ref in dependencies.get("labels", []):
@@ -1314,7 +1317,7 @@ class Flow(TembaModel):
                 # we haven't been mapped yet (also, non-uuid groups can't be mapped)
                 if "uuid" not in group or group["uuid"] not in uuid_map:
                     group_instance = ContactGroup.get_or_create(
-                        self.org, self.created_by, group["name"], group.get("uuid", None)
+                        self.org, self.created_by, group["name"], uuid=group.get("uuid", None)
                     )
 
                     # map group references that started with a uuid
@@ -1450,7 +1453,7 @@ class Flow(TembaModel):
             raise ValueError("Must include translation for base language")
 
         self.base_language = base_language
-        self.version_number = get_current_export_version()
+        self.version_number = Flow.FINAL_LEGACY_VERSION
         self.save(update_fields=("name", "base_language", "version_number"))
 
         entry_uuid = str(uuid4())
@@ -2251,7 +2254,7 @@ class Flow(TembaModel):
         # required flow running details
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.VERSION] = get_current_export_version()
+        flow[Flow.VERSION] = Flow.FINAL_LEGACY_VERSION
         flow[Flow.METADATA] = self.get_legacy_metadata()
         return flow
 
@@ -2349,7 +2352,7 @@ class Flow(TembaModel):
         migrate the definition forward updating the flow accordingly.
         """
 
-        to_version = min_version or get_current_export_version()
+        to_version = min_version or Flow.FINAL_LEGACY_VERSION
 
         if Flow.is_before_version(self.version_number, to_version):
             with self.lock_on(FlowLock.definition):
@@ -2450,7 +2453,7 @@ class Flow(TembaModel):
             raise FlowInvalidCycleException(cycle_node_uuids)
 
         # make sure the flow version hasn't changed out from under us
-        if Version(json_dict.get(Flow.VERSION)) != Version(get_current_export_version()):
+        if Version(json_dict.get(Flow.VERSION)) != Version(Flow.FINAL_LEGACY_VERSION):
             raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
 
         flow_user = get_flow_user(self.org)
@@ -2501,7 +2504,7 @@ class Flow(TembaModel):
                 if user and user != flow_user:
                     self.saved_on = timezone.now()
 
-                self.version_number = get_current_export_version()
+                self.version_number = Flow.FINAL_LEGACY_VERSION
                 self.save()
 
                 # clear property cache
@@ -2527,7 +2530,7 @@ class Flow(TembaModel):
                     definition=json_dict,
                     created_by=user,
                     modified_by=user,
-                    spec_version=get_current_export_version(),
+                    spec_version=Flow.FINAL_LEGACY_VERSION,
                     revision=revision_num,
                 )
 
@@ -4165,7 +4168,7 @@ class FlowRevision(SmartModel):
     definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
 
     spec_version = models.CharField(
-        default=get_current_export_version, max_length=8, help_text=_("The flow version this definition is in")
+        default=Flow.FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
@@ -4213,7 +4216,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = get_current_export_version()
+            to_version = Flow.FINAL_LEGACY_VERSION
 
         for version in Flow.get_versions_after(version):
             version_slug = version.replace(".", "_")
@@ -4255,7 +4258,7 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
 
         if not to_version:
-            to_version = get_current_export_version()
+            to_version = Flow.FINAL_LEGACY_VERSION
 
         versions = Flow.get_versions_after(json_flow[Flow.VERSION])
         for version in versions:
@@ -4276,7 +4279,7 @@ class FlowRevision(SmartModel):
 
     def get_definition_json(self, to_version=None):
         if not to_version:
-            to_version = get_current_export_version()
+            to_version = Flow.FINAL_LEGACY_VERSION
 
         definition = self.definition
 
@@ -5466,7 +5469,7 @@ class AddToGroupAction(Action):
                 group_uuid = g.get("uuid", None)
                 group_name = g.get("name")
 
-                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_uuid)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, uuid=group_uuid)
                 groups.append(group)
             else:
                 if g and g[0] == "@":
@@ -5873,7 +5876,7 @@ class VariableContactAction(Action):
             if not group_name:
                 group_name = "Missing"
 
-            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, uuid=group_uuid)
             groups.append(group)
 
         return groups
@@ -6565,10 +6568,12 @@ class InGroupTest(Test):
         group = json.get(InGroupTest.TEST)
         name = group.get(InGroupTest.NAME)
         uuid = group.get(InGroupTest.UUID)
-        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
+        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid=uuid))
 
     def as_json(self):
-        group = ContactGroup.get_or_create(self.group.org, self.group.org.created_by, self.group.name, self.group.uuid)
+        group = ContactGroup.get_or_create(
+            self.group.org, self.group.org.created_by, self.group.name, uuid=self.group.uuid
+        )
         return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
     def evaluate(self, run, sms, context, text):

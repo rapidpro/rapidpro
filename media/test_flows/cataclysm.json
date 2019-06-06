@@ -279,5 +279,44 @@
     }
   ],
   "campaigns": [],
-  "triggers": []
+  "triggers": [],
+  "fields": [
+    {
+      "key": "likes_cats",
+      "name": "Really Likes Cats",
+      "value_type": "T"
+    },
+    {
+      "key": "facts_per_day",
+      "name": "Facts-Per-Day",
+      "value_type": "N"
+    }
+  ],
+  "groups": [
+    {
+      "uuid": "22a48356-71e9-4ae1-9f93-4021855c0bd5",
+      "name": "Cat Alerts",
+      "query": ""
+    },
+    {
+      "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9",
+      "name": "Cat Facts",
+      "query": ""
+    },
+    {
+      "uuid": "47b1b36c-7736-47b9-b63a-c0ebfb610e61",
+      "name": "Cat Blasts",
+      "query": "facts_per_day = 1"
+    },
+    {
+      "uuid": "1966e54a-fc30-4a96-81ea-9b0185b8b7de",
+      "name": "Cat Fanciers",
+      "query": "likes_cats = true"
+    },
+    {
+      "uuid": "bc4d7100-60ac-44f0-aa78-0ec9373d2c2f",
+      "name": "Catnado",
+      "query": ""
+    }
+  ]
 }

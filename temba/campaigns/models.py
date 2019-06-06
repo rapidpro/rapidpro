@@ -17,6 +17,11 @@ from temba.values.constants import Value
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
+    EXPORT_UUID = "uuid"
+    EXPORT_NAME = "name"
+    EXPORT_GROUP = "group"
+    EXPORT_EVENTS = "events"
+
     name = models.CharField(max_length=MAX_NAME_LEN, help_text="The name of this campaign")
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, help_text="The group this campaign operates on")
     is_archived = models.BooleanField(default=False, help_text="Whether this campaign is archived or not")
@@ -48,114 +53,111 @@ class Campaign(TembaModel):
         return name
 
     @classmethod
-    def import_campaigns(cls, exported_json, org, user, same_site=False):
+    def import_campaigns(cls, org, user, campaigns_json, same_site=False):
         """
-        Import campaigns from our export file
+        Import campaigns from a list of exported campaigns
         """
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
-        if Flow.is_before_version(exported_json.get("version", "0"), EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % exported_json.get("version", 0)))
+        for campaign_spec in campaigns_json:
+            name = campaign_spec[Campaign.EXPORT_NAME]
+            campaign = None
+            group = None
 
-        if "campaigns" in exported_json:
-            for campaign_spec in exported_json["campaigns"]:
-                name = campaign_spec["name"]
-                campaign = None
-                group = None
+            # first check if we have the objects by UUID
+            if same_site:
+                group = ContactGroup.user_groups.filter(
+                    uuid=campaign_spec[Campaign.EXPORT_GROUP]["uuid"], org=org
+                ).first()
+                if group:  # pragma: needs cover
+                    group.name = campaign_spec[Campaign.EXPORT_GROUP]["name"]
+                    group.save()
 
-                # first check if we have the objects by id
-                if same_site:
-                    group = ContactGroup.user_groups.filter(uuid=campaign_spec["group"]["uuid"], org=org).first()
-                    if group:  # pragma: needs cover
-                        group.name = campaign_spec["group"]["name"]
-                        group.save()
-
-                    campaign = Campaign.objects.filter(org=org, uuid=campaign_spec["uuid"]).first()
-                    if campaign:  # pragma: needs cover
-                        campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
-                        campaign.save()
-
-                # fall back to lookups by name
-                if not group:
-                    group = ContactGroup.get_user_group(org, campaign_spec["group"]["name"])
-
-                if not campaign:
-                    campaign = Campaign.objects.filter(org=org, name=name).first()
-
-                # all else fails, create the objects from scratch
-                if not group:
-                    group = ContactGroup.create_static(org, user, campaign_spec["group"]["name"])
-
-                if not campaign:
-                    campaign_name = Campaign.get_unique_name(org, name)
-                    campaign = Campaign.create(org, user, campaign_name, group)
-                else:
-                    campaign.group = group
+                campaign = Campaign.objects.filter(org=org, uuid=campaign_spec[Campaign.EXPORT_UUID]).first()
+                if campaign:  # pragma: needs cover
+                    campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                     campaign.save()
 
-                # deactivate all of our events, we'll recreate these
-                for event in campaign.events.all():
-                    event.release()
+            # fall back to lookups by name
+            if not group:
+                group = ContactGroup.get_user_group(org, campaign_spec[Campaign.EXPORT_GROUP]["name"])
 
-                # fill our campaign with events
-                for event_spec in campaign_spec["events"]:
-                    field_key = event_spec["relative_to"]["key"]
+            if not campaign:
+                campaign = Campaign.objects.filter(org=org, name=name).first()
 
-                    if field_key == "created_on":
-                        relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
-                    else:
-                        relative_to = ContactField.get_or_create(
-                            org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
-                        )
+            # all else fails, create the objects from scratch
+            if not group:
+                group = ContactGroup.create_static(org, user, campaign_spec[Campaign.EXPORT_GROUP]["name"])
 
-                    start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
+            if not campaign:
+                campaign_name = Campaign.get_unique_name(org, name)
+                campaign = Campaign.create(org, user, campaign_name, group)
+            else:
+                campaign.group = group
+                campaign.save()
 
-                    # create our message flow for message events
-                    if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
+            # deactivate all of our events, we'll recreate these
+            for event in campaign.events.all():
+                event.release()
 
-                        message = event_spec["message"]
-                        base_language = event_spec.get("base_language")
+            # fill our campaign with events
+            for event_spec in campaign_spec[Campaign.EXPORT_EVENTS]:
+                field_key = event_spec["relative_to"]["key"]
 
-                        if not isinstance(message, dict):
-                            try:
-                                message = json.loads(message)
-                            except ValueError:
-                                # if it's not a language dict, turn it into one
-                                message = dict(base=message)
-                                base_language = "base"
+                if field_key == "created_on":
+                    relative_to = ContactField.system_fields.filter(org=org, key=field_key).first()
+                else:
+                    relative_to = ContactField.get_or_create(
+                        org, user, key=field_key, label=event_spec["relative_to"]["label"], value_type="D"
+                    )
 
-                        event = CampaignEvent.create_message_event(
+                start_mode = event_spec.get("start_mode", CampaignEvent.MODE_INTERRUPT)
+
+                # create our message flow for message events
+                if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
+
+                    message = event_spec["message"]
+                    base_language = event_spec.get("base_language")
+
+                    if not isinstance(message, dict):
+                        try:
+                            message = json.loads(message)
+                        except ValueError:
+                            # if it's not a language dict, turn it into one
+                            message = dict(base=message)
+                            base_language = "base"
+
+                    event = CampaignEvent.create_message_event(
+                        org,
+                        user,
+                        campaign,
+                        relative_to,
+                        event_spec["offset"],
+                        event_spec["unit"],
+                        message,
+                        event_spec["delivery_hour"],
+                        base_language=base_language,
+                        start_mode=start_mode,
+                    )
+                    event.update_flow_name()
+                else:
+                    flow = Flow.objects.filter(
+                        org=org, is_active=True, is_system=False, uuid=event_spec["flow"]["uuid"]
+                    ).first()
+                    if flow:
+                        CampaignEvent.create_flow_event(
                             org,
                             user,
                             campaign,
                             relative_to,
                             event_spec["offset"],
                             event_spec["unit"],
-                            message,
+                            flow,
                             event_spec["delivery_hour"],
-                            base_language=base_language,
                             start_mode=start_mode,
                         )
-                        event.update_flow_name()
-                    else:
-                        flow = Flow.objects.filter(
-                            org=org, is_active=True, is_system=False, uuid=event_spec["flow"]["uuid"]
-                        ).first()
-                        if flow:
-                            CampaignEvent.create_flow_event(
-                                org,
-                                user,
-                                campaign,
-                                relative_to,
-                                event_spec["offset"],
-                                event_spec["unit"],
-                                flow,
-                                event_spec["delivery_hour"],
-                                start_mode=start_mode,
-                            )
 
-                # update our scheduled events for this campaign
-                EventFire.update_campaign_events(campaign)
+            # update our scheduled events for this campaign
+            EventFire.update_campaign_events(campaign)
 
     @classmethod
     def restore_flows(cls, campaign):
@@ -191,12 +193,11 @@ class Campaign(TembaModel):
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")
 
-    def as_json(self):
+    def as_export_json(self):
         """
-        A json representation of this event, suitable for export. Note this only returns the ids and names
-        of the dependent flows. You will want to export these flows seperately using get_all_flows()
+        The JSON representation of this campaign for export. Note this only includes references to the dependent
+        flows which will be exported separately.
         """
-        definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
         for event in self.events.filter(is_active=True).order_by("flow__uuid"):
@@ -221,8 +222,12 @@ class Campaign(TembaModel):
 
             events.append(event_definition)
 
-        definition["events"] = events
-        return definition
+        return {
+            Campaign.EXPORT_UUID: str(self.uuid),
+            Campaign.EXPORT_NAME: self.name,
+            Campaign.EXPORT_GROUP: {"uuid": str(self.group.uuid), "name": self.group.name},
+            Campaign.EXPORT_EVENTS: events,
+        }
 
     def get_sorted_events(self):
         """
