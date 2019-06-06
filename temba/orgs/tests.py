@@ -301,7 +301,8 @@ class OrgDeleteTest(TembaTest):
             self.assertEqual(5, len(self.mock_s3.objects))
 
             # add in some webhook results
-            WebHookEvent.objects.create(org=org, event=WebHookEvent.TYPE_RELAYER_ALARM, data=dict())
+            resthook = Resthook.get_or_create(org, "registration", self.admin)
+            WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )

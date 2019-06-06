@@ -2320,6 +2320,10 @@ class Org(SmartModel):
         for event in self.webhookevent_set.all():
             event.release()
 
+        for resthook in self.resthooks.all():
+            resthook.release(self.modified_by)
+            resthook.delete()
+
         # now what we've all been waiting for
         self.delete()
 
