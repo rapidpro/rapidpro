@@ -274,7 +274,6 @@ class Channel(TembaModel):
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_URL = "send_url"
-    CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_METHOD = "method"
     CONFIG_SEND_BODY = "body"
     CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
