@@ -284,12 +284,12 @@
     {
       "key": "likes_cats",
       "name": "Really Likes Cats",
-      "value_type": "T"
+      "type": "text"
     },
     {
       "key": "facts_per_day",
       "name": "Facts-Per-Day",
-      "value_type": "N"
+      "type": "number"
     }
   ],
   "groups": [

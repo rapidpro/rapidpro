@@ -2137,6 +2137,9 @@ class Flow(TembaModel):
         """
         return Version(self.version_number) < Version(Flow.GOFLOW_VERSION)
 
+    def as_export_ref(self):
+        return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
+
     def as_json(self, expand_contacts=False):
         if self.is_legacy():
             return self.get_legacy_definition(expand_contacts)

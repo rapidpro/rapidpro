@@ -4058,9 +4058,9 @@ class BulkExportTest(TembaTest):
         self.assertEqual(
             exported["fields"],
             [
-                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "value_type": "T"},
-                {"key": "next_appointment", "name": "Next Appointment", "value_type": "D"},
-                {"key": "rating", "name": "Rating", "value_type": "T"},
+                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "type": "text"},
+                {"key": "next_appointment", "name": "Next Appointment", "type": "datetime"},
+                {"key": "rating", "name": "Rating", "type": "text"},
             ],
         )
         self.assertEqual(
