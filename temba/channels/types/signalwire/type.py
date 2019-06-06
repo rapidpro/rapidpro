@@ -149,7 +149,6 @@ class SignalWireType(ChannelType):
                 ),
                 auth=(sid, token),
             )
-            print(response.content)
             response.raise_for_status()
 
         except Exception:

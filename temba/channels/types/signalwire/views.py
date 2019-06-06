@@ -67,7 +67,7 @@ class SignalWireClaimView(ClaimViewMixin, SmartFormView):
                 raise ValidationError("Unable to connect to SignalWire, please check your domain, key and token")
 
             if phone_sid == "":
-                raise ValidationError("Unable to find phone with number {number} on your account")
+                raise ValidationError(f"Unable to find phone with number {number} on your account")
 
             return self.cleaned_data
 
