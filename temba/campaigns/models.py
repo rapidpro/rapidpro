@@ -53,40 +53,40 @@ class Campaign(TembaModel):
         return name
 
     @classmethod
-    def import_campaigns(cls, org, user, campaigns_json, same_site=False):
+    def import_campaigns(cls, org, user, campaign_defs, same_site=False):
         """
         Import campaigns from a list of exported campaigns
         """
 
-        for campaign_spec in campaigns_json:
-            name = campaign_spec[Campaign.EXPORT_NAME]
+        for campaign_def in campaign_defs:
+            name = campaign_def[Campaign.EXPORT_NAME]
             campaign = None
             group = None
 
             # first check if we have the objects by UUID
             if same_site:
                 group = ContactGroup.user_groups.filter(
-                    uuid=campaign_spec[Campaign.EXPORT_GROUP]["uuid"], org=org
+                    uuid=campaign_def[Campaign.EXPORT_GROUP]["uuid"], org=org
                 ).first()
                 if group:  # pragma: needs cover
-                    group.name = campaign_spec[Campaign.EXPORT_GROUP]["name"]
+                    group.name = campaign_def[Campaign.EXPORT_GROUP]["name"]
                     group.save()
 
-                campaign = Campaign.objects.filter(org=org, uuid=campaign_spec[Campaign.EXPORT_UUID]).first()
+                campaign = Campaign.objects.filter(org=org, uuid=campaign_def[Campaign.EXPORT_UUID]).first()
                 if campaign:  # pragma: needs cover
                     campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                     campaign.save()
 
             # fall back to lookups by name
             if not group:
-                group = ContactGroup.get_user_group(org, campaign_spec[Campaign.EXPORT_GROUP]["name"])
+                group = ContactGroup.get_user_group(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign = Campaign.objects.filter(org=org, name=name).first()
 
             # all else fails, create the objects from scratch
             if not group:
-                group = ContactGroup.create_static(org, user, campaign_spec[Campaign.EXPORT_GROUP]["name"])
+                group = ContactGroup.create_static(org, user, campaign_def[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign_name = Campaign.get_unique_name(org, name)
@@ -100,7 +100,7 @@ class Campaign(TembaModel):
                 event.release()
 
             # fill our campaign with events
-            for event_spec in campaign_spec[Campaign.EXPORT_EVENTS]:
+            for event_spec in campaign_def[Campaign.EXPORT_EVENTS]:
                 field_key = event_spec["relative_to"]["key"]
 
                 if field_key == "created_on":
@@ -193,9 +193,9 @@ class Campaign(TembaModel):
     def get_events(self):
         return self.events.filter(is_active=True).order_by("relative_to", "offset")
 
-    def as_export_json(self):
+    def as_export_def(self):
         """
-        The JSON representation of this campaign for export. Note this only includes references to the dependent
+        The definition of this campaign for export. Note this only includes references to the dependent
         flows which will be exported separately.
         """
         events = []
@@ -208,13 +208,13 @@ class Campaign(TembaModel):
                 event_type=event.event_type,
                 delivery_hour=event.delivery_hour,
                 message=event.message,
-                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
+                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),  # TODO should be key/name
                 start_mode=event.start_mode,
             )
 
             # only include the flow definition for standalone flows
             if event.event_type == CampaignEvent.TYPE_FLOW:
-                event_definition["flow"] = dict(uuid=event.flow.uuid, name=event.flow.name)
+                event_definition["flow"] = event.flow.as_export_ref()
 
             # include the flow base language for message flows
             elif event.event_type == CampaignEvent.TYPE_MESSAGE:
@@ -225,7 +225,7 @@ class Campaign(TembaModel):
         return {
             Campaign.EXPORT_UUID: str(self.uuid),
             Campaign.EXPORT_NAME: self.name,
-            Campaign.EXPORT_GROUP: {"uuid": str(self.group.uuid), "name": self.group.name},
+            Campaign.EXPORT_GROUP: self.group.as_export_ref(),
             Campaign.EXPORT_EVENTS: events,
         }
 

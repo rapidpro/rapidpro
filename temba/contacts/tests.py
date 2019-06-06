@@ -13,6 +13,7 @@ from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
@@ -8155,9 +8156,6 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
 
         self.client.login(username=self.admin.username, password=self.admin.username)
 
-        # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_blocked=True)
-
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.admin, "join_date", "Join Date", value_type="D")
         ContactField.get_or_create(self.org, self.admin, "state", "Home State", value_type="S")
@@ -8172,8 +8170,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         wards = ["Kageyo", "Kabara", "Bukure", None]
         date_format = get_datetime_format(True)[0]
 
-        # create some contacts
+        # reset contact ids so we don't get unexpected collisions with phone numbers
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT setval(pg_get_serial_sequence('"contacts_contact"','id'), 900)""")
 
+        # create some contacts
         for i in range(90):
             name = names[i % len(names)]
 

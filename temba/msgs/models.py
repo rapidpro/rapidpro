@@ -1616,24 +1616,20 @@ class Msg(models.Model):
         else:
             role = Channel.ROLE_SEND
 
-        if status != SENT:
-            # if message will be sent, resolve the recipient to a contact and URN
-            contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
+        # if message will be sent, resolve the recipient to a contact and URN
+        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
 
-            if not contact_urn:
-                raise UnreachableException("No suitable URN found for contact")
+        if not contact_urn:
+            raise UnreachableException("No suitable URN found for contact")
 
-            if not channel:
-                if msg_type == IVR:
-                    channel = org.get_call_channel()
-                else:
-                    channel = org.get_send_channel(contact_urn=contact_urn)
+        if not channel:
+            if msg_type == IVR:
+                channel = org.get_call_channel()
+            else:
+                channel = org.get_send_channel(contact_urn=contact_urn)
 
-                if not channel:  # pragma: needs cover
-                    raise UnreachableException("No suitable channel available for this org")
-        else:
-            # if message has already been sent, recipient must be a tuple of contact and URN
-            contact, contact_urn = recipient
+            if not channel:  # pragma: needs cover
+                raise UnreachableException("No suitable channel available for this org")
 
         # evaluate expressions in the text and attachments if a context was provided
         if expressions_context is not None:

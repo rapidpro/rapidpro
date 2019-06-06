@@ -1755,7 +1755,7 @@ class CampaignTest(TembaTest):
         # check that her event fire is now removed
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
-    def test_model_as_export_json(self):
+    def test_model_as_export_def(self):
         field_created_on = self.org.contactfields.get(key="created_on")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -1765,7 +1765,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign.as_export_json(),
+            campaign.as_export_def(),
             {
                 "name": "Planting Reminders",
                 "uuid": campaign.uuid,
@@ -1792,7 +1792,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign2.as_export_json(),
+            campaign2.as_export_def(),
             {
                 "name": "Planting Reminders 2",
                 "uuid": campaign2.uuid,
@@ -1819,7 +1819,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign3.as_export_json(),
+            campaign3.as_export_def(),
             {
                 "name": "Planting Reminders 2",
                 "uuid": campaign3.uuid,
