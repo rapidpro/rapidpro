@@ -4,14 +4,6 @@ from rest_framework import serializers
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact
 from temba.msgs.models import Broadcast
-from temba.utils import json
-
-
-def format_datetime(value):
-    """
-    Datetime fields are limited to millisecond accuracy for v1
-    """
-    return json.encode_datetime(value, micros=False) if value else None
 
 
 def validate_bulk_fetch(fetched, uuids):
