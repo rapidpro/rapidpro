@@ -180,6 +180,7 @@ class WebHookEvent(models.Model):
     # TODO drop these when mailroom no longer writes them
     status = models.CharField(max_length=1, null=True)
     event = models.CharField(max_length=16, null=True)
+    try_count = models.IntegerField(null=True)
 
     @classmethod
     def trigger_flow_webhook(cls, run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):

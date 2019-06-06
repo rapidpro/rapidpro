@@ -20,13 +20,13 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="webhookevent", name="channel"),
         migrations.RemoveField(model_name="webhookevent", name="next_attempt"),
         migrations.RemoveField(model_name="webhookevent", name="run"),
-        migrations.RemoveField(model_name="webhookevent", name="try_count"),
         migrations.AlterField(
             model_name="webhookevent", name="event", field=models.CharField(max_length=16, null=True)
         ),
         migrations.AlterField(
             model_name="webhookevent", name="status", field=models.CharField(max_length=1, null=True)
         ),
+        migrations.AlterField(model_name="webhookevent", name="try_count", field=models.IntegerField(null=True)),
         migrations.AlterField(
             model_name="webhookevent", name="created_on", field=models.DateTimeField(default=django.utils.timezone.now)
         ),
