@@ -2864,9 +2864,21 @@ class CreditAlert(SmartModel):
     @classmethod
     def check_topup_expiration(cls):
         """
-        creates ORG_CREDIT_EXPIRING credit alert for any org that has it's last
+        creates ORG_CREDIT_EXPIRING credit alert for any org that has its last
         active topup expiring in the next 30 days and still has available credits
         """
+
+        orgs_newest_topup = (
+            TopUp.objects.filter(is_active=True, expires_on__gt=timezone.now())
+            .filter(org__is_active=True)
+            .exclude(org__creditalert__alert_type=ORG_CREDIT_EXPIRING, org__creditalert__is_active=True)
+            .values("org_id")
+            .annotate(max_expires_on=Max("expires_on"))
+            .filter(max_expires_on__gt=timezone.now(), max_expires_on__lte=timezone.now() + timedelta(days=30))
+            .values("org_id", "max_expires_on")
+        ).all()
+
+        orgs_newest_topup_mapping = {topup.get("org_id"): topup.get("max_expires_on") for topup in orgs_newest_topup}
 
         expiring_topups = (
             TopUp.objects.filter(is_active=True, credits__gt=0)
@@ -2878,16 +2890,6 @@ class CreditAlert(SmartModel):
             .select_related("org")
             .order_by("org_id", "-expires_on")
         )
-
-        orgs_newest_topup = (
-            TopUp.objects.filter(is_active=True, expires_on__gt=timezone.now())
-            .values("org_id")
-            .annotate(max_expires_on=Max("expires_on"))
-            .filter(max_expires_on__gt=timezone.now(), max_expires_on__lte=timezone.now() + timedelta(days=30))
-            .values("org_id", "max_expires_on")
-        ).all()
-
-        orgs_newest_topup_mapping = {topup.get("org_id"): topup.get("max_expires_on") for topup in orgs_newest_topup}
 
         for topup in expiring_topups.iterator():
 

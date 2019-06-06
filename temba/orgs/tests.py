@@ -4080,63 +4080,64 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
+    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_check_topup_expiration(self):
-        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
-            # get the topup, it expires in a year by default
-            topup = self.org.topups.order_by("-expires_on").first()
 
-            # there are no credit alerts
-            self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+        # get the topup, it expires in a year by default
+        topup = self.org.topups.order_by("-expires_on").first()
 
-            # check if credit alrets should be created
-            CreditAlert.check_topup_expiration()
+        # there are no credit alerts
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-            # no alert since no expiring credits
-            self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
+        # check if credit alerts should be created
+        CreditAlert.check_topup_expiration()
 
-            # update topup to expire in 10 days
-            topup.expires_on = timezone.now() + timedelta(days=10)
-            topup.save(update_fields=("expires_on",))
+        # no alert since no expiring credits
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
-            # create another expiring topup, newer than the most recent one
-            TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
+        # update topup to expire in 10 days
+        topup.expires_on = timezone.now() + timedelta(days=10)
+        topup.save(update_fields=("expires_on",))
 
-            # recheck the expiration
-            CreditAlert.check_topup_expiration()
+        # create another expiring topup, newer than the most recent one
+        TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
 
-            # expiring credit alert created and email sent
-            self.assertEqual(
-                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
-            )
+        # recheck the expiration
+        CreditAlert.check_topup_expiration()
 
-            self.assertEqual(len(mail.outbox), 1)
+        # expiring credit alert created and email sent
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+        )
 
-            # email sent
-            sent_email = mail.outbox[0]
-            self.assertEqual(1, len(sent_email.to))
-            self.assertIn("RapidPro account for Temba", sent_email.body)
-            self.assertIn("expiring credits in less than one month.", sent_email.body)
+        self.assertEqual(len(mail.outbox), 1)
 
-            # check topup expiration, it should no create a new one, becuse last one is still active
-            CreditAlert.check_topup_expiration()
+        # email sent
+        sent_email = mail.outbox[0]
+        self.assertEqual(1, len(sent_email.to))
+        self.assertIn("RapidPro account for Temba", sent_email.body)
+        self.assertIn("expiring credits in less than one month.", sent_email.body)
 
-            # no new alrets, and no new emails have been sent
-            self.assertEqual(
-                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
-            )
-            self.assertEqual(len(mail.outbox), 1)
+        # check topup expiration, it should no create a new one, becuse last one is still active
+        CreditAlert.check_topup_expiration()
 
-            # reset alerts, this is normal procedure after someone adds a new topup
-            CreditAlert.reset_for_org(self.org)
-            self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+        # no new alrets, and no new emails have been sent
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 1)
 
-            # check topup expiration, it should create a new topup alert email
-            CreditAlert.check_topup_expiration()
+        # reset alerts, this is normal procedure after someone adds a new topup
+        CreditAlert.reset_for_org(self.org)
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
 
-            self.assertEqual(
-                CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
-            )
-            self.assertEqual(len(mail.outbox), 2)
+        # check topup expiration, it should create a new topup alert email
+        CreditAlert.check_topup_expiration()
+
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 2)
 
     def test_creditalert_sendemail_all_org_admins(self):
         # add some administrators to the org
