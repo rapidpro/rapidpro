@@ -419,7 +419,16 @@ class ContactField(SmartModel):
 
     EXPORT_KEY = "key"
     EXPORT_NAME = "name"
-    EXPORT_VALUE_TYPE = "value_type"
+    EXPORT_TYPE = "type"
+
+    GOFLOW_TYPES = {
+        Value.TYPE_TEXT: "text",
+        Value.TYPE_NUMBER: "number",
+        Value.TYPE_DATETIME: "datetime",
+        Value.TYPE_STATE: "state",
+        Value.TYPE_DISTRICT: "district",
+        Value.TYPE_WARD: "ward",
+    }
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -588,17 +597,22 @@ class ContactField(SmartModel):
         Import fields from a list of exported fields
         """
 
+        db_types = {value: key for key, value in ContactField.GOFLOW_TYPES.items()}
+
         for field_json in fields_json:
             field_key = field_json.get(ContactField.EXPORT_KEY)
             field_name = field_json.get(ContactField.EXPORT_NAME)
-            field_value_type = field_json.get(ContactField.EXPORT_VALUE_TYPE)
-            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=field_value_type)
+            field_type = field_json.get(ContactField.EXPORT_TYPE)
+            ContactField.get_or_create(org, user, key=field_key, label=field_name, value_type=db_types[field_type])
+
+    def as_export_ref(self):
+        return {ContactField.EXPORT_KEY: self.key, ContactField.EXPORT_NAME: self.label}
 
     def as_export_json(self):
         return {
             ContactField.EXPORT_KEY: self.key,
             ContactField.EXPORT_NAME: self.label,
-            ContactField.EXPORT_VALUE_TYPE: self.value_type,
+            ContactField.EXPORT_TYPE: ContactField.GOFLOW_TYPES[self.value_type],
         }
 
     def release(self, user):
@@ -3074,6 +3088,9 @@ class ContactGroup(TembaModel):
             group = ContactGroup.get_or_create(org, user, group_name, group_query, uuid=group_uuid)
 
             dependency_mapping[group_uuid] = str(group.uuid)
+
+    def as_export_ref(self):
+        return {ContactGroup.EXPORT_UUID: str(self.uuid), ContactGroup.EXPORT_NAME: self.name}
 
     def as_export_json(self):
         return {

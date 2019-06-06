@@ -495,7 +495,7 @@ class Trigger(SmartModel):
         return {
             Trigger.EXPORT_TYPE: self.trigger_type,
             Trigger.EXPORT_KEYWORD: self.keyword,
-            Trigger.EXPORT_FLOW: {"uuid": str(self.flow.uuid), "name": self.flow.name},
-            Trigger.EXPORT_GROUPS: [{"uuid": str(group.uuid), "name": group.name} for group in self.groups.all()],
+            Trigger.EXPORT_FLOW: self.flow.as_export_ref(),
+            Trigger.EXPORT_GROUPS: [group.as_export_ref() for group in self.groups.all()],
             Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
         }

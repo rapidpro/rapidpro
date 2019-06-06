@@ -208,13 +208,13 @@ class Campaign(TembaModel):
                 event_type=event.event_type,
                 delivery_hour=event.delivery_hour,
                 message=event.message,
-                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),
+                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key),  # TODO should be key/name
                 start_mode=event.start_mode,
             )
 
             # only include the flow definition for standalone flows
             if event.event_type == CampaignEvent.TYPE_FLOW:
-                event_definition["flow"] = dict(uuid=event.flow.uuid, name=event.flow.name)
+                event_definition["flow"] = event.flow.as_export_ref()
 
             # include the flow base language for message flows
             elif event.event_type == CampaignEvent.TYPE_MESSAGE:
@@ -225,7 +225,7 @@ class Campaign(TembaModel):
         return {
             Campaign.EXPORT_UUID: str(self.uuid),
             Campaign.EXPORT_NAME: self.name,
-            Campaign.EXPORT_GROUP: {"uuid": str(self.group.uuid), "name": self.group.name},
+            Campaign.EXPORT_GROUP: self.group.as_export_ref(),
             Campaign.EXPORT_EVENTS: events,
         }
 
