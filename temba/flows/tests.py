@@ -29,7 +29,7 @@ from temba.contacts.models import TEL_SCHEME, URN, WHATSAPP_SCHEME, Contact, Con
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
@@ -5062,19 +5062,24 @@ class ActionTest(TembaTest):
         msg_body = "I am a media message message"
 
         action = SendAction(
-            str(uuid4()), dict(base=msg_body), [], [self.contact2], [], dict(base="image/jpeg:attachments/picture.jpg")
+            str(uuid4()),
+            dict(base=msg_body),
+            [],
+            [self.contact2],
+            [],
+            dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"),
         )
         self.execute_action(action, run, None)
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
         self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media["base"], "image/jpeg:attachments/picture.jpg")
+        self.assertEqual(action.media["base"], f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg")
 
         self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
 
         broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.media, dict(base="image/jpeg:attachments/picture.jpg"))
+        self.assertEqual(broadcast.media, dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"))
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -10898,44 +10903,6 @@ class TriggerStartTest(FlowFileTest):
         self.assertEqual(contact.name, "Rudolph")
 
         self.assertLastResponse("Hi Rudolph, how old are you?")
-
-
-@patch("temba.flows.models.START_FLOW_BATCH_SIZE", 10)
-class FlowBatchTest(FlowFileTest):
-    def test_flow_batch_start(self):
-        """
-        Tests starting a flow for a group of contacts
-        """
-        flow = self.get_flow("two_in_row")
-
-        # create 11 contacts
-        contacts = []
-        for i in range(11):
-            contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
-
-        # stop our last contact
-        stopped = contacts[10]
-        stopped.stop(self.admin)
-
-        # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=204, stack_count=10, skip_unique_queries=True):
-            flow.start([], contacts)
-
-        # ensure 11 flow runs were created
-        self.assertEqual(11, FlowRun.objects.all().count())
-
-        # ensure 20 outgoing messages were created (2 for each successful run)
-        self.assertEqual(20, Msg.objects.all().exclude(contact=stopped).count())
-
-        # but only one broadcast
-        self.assertEqual(1, Broadcast.objects.all().count())
-
-        # broadcast should be marked as sent
-        self.assertEqual(SENT, Broadcast.objects.get().status)
-
-        # our stopped contact should have only received one msg before blowing up
-        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
 
 class TwoInRowTest(FlowFileTest):

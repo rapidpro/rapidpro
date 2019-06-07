@@ -44,19 +44,7 @@ from temba.contacts.models import (
     ContactURN,
 )
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import (
-    DELIVERED,
-    FAILED,
-    FLOW,
-    INBOX,
-    INCOMING,
-    INITIALIZING,
-    OUTGOING,
-    PENDING,
-    Broadcast,
-    Label,
-    Msg,
-)
+from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -70,7 +58,7 @@ from temba.utils.models import (
     TembaModel,
     generate_uuid,
 )
-from temba.utils.queues import Queue, push_task
+from temba.utils.queues import Queue
 from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
@@ -234,8 +222,6 @@ class Flow(TembaModel):
     NODE_TYPE_ACTIONSET = "A"
 
     ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
-
-    START_MSG_FLOW_BATCH = "start_msg_flow_batch"
 
     VERSIONS = [
         "1",
@@ -1708,7 +1694,6 @@ class Flow(TembaModel):
                 start_msg=start_msg,
                 extra=extra,
                 flow_start=flow_start,
-                campaign_event=campaign_event,
                 parent_run=parent_run,
             )
 
@@ -1772,17 +1757,8 @@ class Flow(TembaModel):
         return runs
 
     def start_msg_flow(
-        self,
-        all_contact_ids,
-        started_flows=None,
-        start_msg=None,
-        extra=None,
-        flow_start=None,
-        campaign_event=None,
-        parent_run=None,
+        self, all_contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
     ):
-        start_msg_id = start_msg.id if start_msg else None
-        flow_start_id = flow_start.id if flow_start else None
 
         if started_flows is None:
             started_flows = []
@@ -1820,52 +1796,20 @@ class Flow(TembaModel):
         else:
             parent_context = None
 
-        # if there are fewer contacts than our batch size, do it immediately
-        if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
-            return self.start_msg_flow_batch(
-                all_contact_ids,
-                broadcasts=broadcasts,
-                started_flows=started_flows,
-                start_msg=start_msg,
-                extra=extra,
-                flow_start=flow_start,
-                parent_run=parent_run,
-                parent_context=parent_context,
-            )
+        return self._start_msg_flow(
+            all_contact_ids,
+            broadcasts=broadcasts,
+            started_flows=started_flows,
+            start_msg=start_msg,
+            extra=extra,
+            flow_start=flow_start,
+            parent_run=parent_run,
+            parent_context=parent_context,
+        )
 
-        # otherwise, create batches instead
-        else:
-            # for all our contacts, build up start sms batches
-            task_context = dict(
-                task_type=FLOW_BATCH,
-                contacts=[],
-                flow=self.pk,
-                flow_start=flow_start_id,
-                started_flows=started_flows,
-                broadcasts=[b.id for b in broadcasts],
-                start_msg=start_msg_id,
-                extra=extra,
-            )
-
-            batch_contacts = task_context["contacts"]
-            for contact_id in all_contact_ids:
-                batch_contacts.append(contact_id)
-
-                if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                    push_task(self.org, Queue.FLOWS, Flow.START_MSG_FLOW_BATCH, task_context)
-                    batch_contacts = []
-                    task_context["contacts"] = batch_contacts
-
-            if batch_contacts:
-                print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context["contacts"])))
-                push_task(self.org, Queue.FLOWS, Flow.START_MSG_FLOW_BATCH, task_context)
-
-            return []
-
-    def start_msg_flow_batch(
+    def _start_msg_flow(
         self,
-        batch_contact_ids,
+        contact_ids,
         broadcasts,
         started_flows,
         start_msg=None,
@@ -1875,7 +1819,7 @@ class Flow(TembaModel):
         parent_context=None,
     ):
 
-        batch_contacts = Contact.objects.filter(id__in=batch_contact_ids)
+        batch_contacts = Contact.objects.filter(id__in=contact_ids)
         Contact.bulk_cache_initialize(self.org, batch_contacts)
         contact_map = {c.id: c for c in batch_contacts}
 
@@ -1890,7 +1834,7 @@ class Flow(TembaModel):
         batch = []
         now = timezone.now()
 
-        for contact_id in batch_contact_ids:
+        for contact_id in contact_ids:
             contact = contact_map[contact_id]
             run = FlowRun.create(
                 self,
@@ -1937,18 +1881,10 @@ class Flow(TembaModel):
                 broadcast.org = self.org
 
                 # create the messages
-                msg_ids = broadcast.send_batch(
-                    contacts=batch_contacts,
-                    expressions_context=expressions_context_base,
-                    trigger_send=False,
-                    response_to=start_msg,
-                    status=INITIALIZING,
-                    msg_type=FLOW,
-                    run_map=run_map,
-                )
+                broadcast.send(expressions_context=expressions_context_base, response_to=start_msg, msg_type=FLOW)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.objects.filter(id__in=msg_ids).select_related("channel", "contact_urn"):
+                for msg in broadcast.msgs.all().select_related("channel", "contact_urn"):
                     msg.broadcast = broadcast
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]

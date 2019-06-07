@@ -864,7 +864,6 @@ CELERYBEAT_SCHEDULE = {
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
 CELERY_TASK_MAP = {
     "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "start_msg_flow_batch": "temba.flows.tasks.start_msg_flow_batch_task",
     "handle_event_task": "temba.msgs.tasks.handle_event_task",
 }
 
