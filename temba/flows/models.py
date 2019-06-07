@@ -4618,7 +4618,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
 
     analytics_key = "flowresult_export"
-    email_subject = "Your results export is ready"
+    email_subject = "Your results export from %s is ready"
     email_template = "flows/email/flow_export_download"
 
     INCLUDE_MSGS = "include_msgs"
