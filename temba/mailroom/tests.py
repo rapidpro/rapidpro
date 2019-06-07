@@ -63,28 +63,10 @@ class MailroomQueueTest(TembaTest):
     def test_msg_task(self):
         msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
-        # assert all looks good
-        r = get_redis_connection()
-
-        # org is queued
-        self.assertEqual(1, r.zcard(f"handler:active"))
-        org_task = json.loads(r.zrange(f"handler:active", 0, 1)[0])
-        self.assertEqual(self.org.id, org_task)
-
-        # contact is queued
-        self.assertEqual(1, r.zcard(f"handler:{self.org.id}"))
-        contact_task = json.loads(r.zrange(f"handler:{self.org.id}", 0, 1)[0])
-        self.assertEqual("handle_contact_event", contact_task["type"])
-        self.assertEqual(self.org.id, contact_task["org_id"])
-        self.assertEqual({"contact_id": msg.contact_id}, contact_task["task"])
-
-        # check msg event is valid
-        self.assertEqual(r.llen(f"c:{self.org.id}:{msg.contact_id}"), 1)
-
-        task = json.loads(r.rpop(f"c:{self.org.id}:{msg.contact_id}"))
-
-        self.assertEqual(
-            task,
+        self.assert_org_queued(self.org, "handler")
+        self.assert_contact_queued(msg.contact)
+        self.assert_queued_handler_task(
+            msg.contact,
             {
                 "type": "msg_event",
                 "org_id": self.org.id,
@@ -100,60 +82,6 @@ class MailroomQueueTest(TembaTest):
                     "text": "Hello World",
                     "attachments": None,
                     "new_contact": True,
-                },
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
-    def test_broadcast_task(self):
-        jim = self.create_contact("Jim", "+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
-
-        bcast = Broadcast.create(
-            self.org,
-            self.admin,
-            {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
-            groups=[bobs],
-            contacts=[jim],
-            urns=[jim.urns.get()],
-            base_language="eng",
-        )
-
-        with override_settings(TESTING=False):
-            bcast.send()
-
-        # assert all looks good
-        r = get_redis_connection()
-
-        # check org is queued
-        self.assertEqual(r.zcard(f"batch:active"), 1)
-
-        org_task = json.loads(r.zrange(f"batch:active", 0, 1)[0])
-
-        self.assertEqual(org_task, self.org.id)
-
-        # check broadcast task is valid
-        self.assertEqual(r.zcard(f"batch:{self.org.id}"), 1)
-
-        task = json.loads(r.zrange(f"batch:{self.org.id}", 0, 1)[0])
-
-        self.assertEqual(
-            task,
-            {
-                "type": "send_broadcast",
-                "org_id": self.org.id,
-                "task": {
-                    "translations": {
-                        "eng": {"text": "Welcome to mailroom!"},
-                        "spa": {"text": "\u00a1Bienvenidx a mailroom!"},
-                    },
-                    "template_state": "legacy",
-                    "base_language": "eng",
-                    "urns": ["tel:+12065551212"],
-                    "contact_ids": [jim.id],
-                    "group_ids": [bobs.id],
-                    "broadcast_id": bcast.id,
-                    "org_id": self.org.id,
                 },
                 "queued_on": matchers.ISODate(),
             },
@@ -176,22 +104,115 @@ class MailroomQueueTest(TembaTest):
             self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now()
         )
 
-        # org is queued
-        self.assertEqual(1, r.zcard(f"handler:active"))
-        org_task = json.loads(r.zrange(f"handler:active", 0, 1)[0])
-        self.assertEqual(self.org.id, org_task)
+        self.assert_org_queued(self.org, "handler")
+        self.assert_contact_queued(event.contact)
+        self.assert_queued_handler_task(
+            event.contact,
+            {
+                "type": "mo_miss",
+                "org_id": event.contact.org.id,
+                "task": {
+                    "channel_id": self.channel.id,
+                    "contact_id": event.contact.id,
+                    "event_type": "mo_miss",
+                    "extra": None,
+                    "id": event.id,
+                    "new_contact": True,
+                    "org_id": event.contact.org.id,
+                    "urn": "tel:+12065551515",
+                    "urn_id": event.contact.urns.get().id,
+                },
+                "queued_on": matchers.ISODate(),
+            },
+        )
 
-        # contact is queued
-        self.assertEqual(1, r.zcard(f"handler:{self.org.id}"))
-        contact_task = json.loads(r.zrange(f"handler:{self.org.id}", 0, 1)[0])
-        self.assertEqual("handle_contact_event", contact_task["type"])
-        self.assertEqual(self.org.id, contact_task["org_id"])
-        self.assertEqual({"contact_id": event.contact_id}, contact_task["task"])
+    def test_broadcast_task(self):
+        jim = self.create_contact("Jim", "+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
 
-        # event event is valid
-        self.assertEqual(1, r.llen(f"c:{self.org.id}:{event.contact_id}"))
-        event_task = json.loads(r.rpop(f"c:{self.org.id}:{event.contact_id}"))
-        self.assertEqual("mo_miss", event_task["type"])
-        self.assertEqual(event.contact_id, event_task["task"]["contact_id"])
-        self.assertEqual("tel:+12065551515", event_task["task"]["urn"])
-        self.assertTrue(event_task["task"]["new_contact"])
+        bcast = Broadcast.create(
+            self.org,
+            self.admin,
+            {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
+            groups=[bobs],
+            contacts=[jim],
+            urns=[jim.urns.get()],
+            base_language="eng",
+        )
+
+        with override_settings(TESTING=False):
+            bcast.send()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "send_broadcast",
+                "org_id": self.org.id,
+                "task": {
+                    "translations": {
+                        "eng": {"text": "Welcome to mailroom!"},
+                        "spa": {"text": "\u00a1Bienvenidx a mailroom!"},
+                    },
+                    "template_state": "legacy",
+                    "base_language": "eng",
+                    "urns": ["tel:+12065551212"],
+                    "contact_ids": [jim.id],
+                    "group_ids": [bobs.id],
+                    "broadcast_id": bcast.id,
+                    "org_id": self.org.id,
+                },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def assert_org_queued(self, org, queue):
+        r = get_redis_connection()
+
+        # check we have one org with active tasks
+        self.assertEqual(r.zcard(f"{queue}:active"), 1)
+
+        queued_org = json.loads(r.zrange(f"{queue}:active", 0, 1)[0])
+
+        self.assertEqual(queued_org, org.id)
+
+    def assert_contact_queued(self, contact):
+        r = get_redis_connection()
+
+        # check we have one contact handle event queued for its org
+        self.assertEqual(r.zcard(f"handler:{contact.org.id}"), 1)
+
+        # load and check that task
+        task = json.loads(r.zrange(f"handler:{contact.org.id}", 0, 1)[0])
+
+        self.assertEqual(
+            task,
+            {
+                "type": "handle_contact_event",
+                "org_id": contact.org.id,
+                "task": {"contact_id": contact.id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def assert_queued_handler_task(self, contact, expected_task):
+        r = get_redis_connection()
+
+        # check we have one task in the contact's queue
+        self.assertEqual(r.llen(f"c:{contact.org.id}:{contact.id}"), 1)
+
+        # load and check that task
+        actual_task = json.loads(r.rpop(f"c:{contact.org.id}:{contact.id}"))
+
+        self.assertEqual(actual_task, expected_task)
+
+    def assert_queued_batch_task(self, org, expected_task):
+        r = get_redis_connection()
+
+        # check we have one task in the org's queue
+        self.assertEqual(r.zcard(f"batch:{org.id}"), 1)
+
+        # load and check that task
+        actual_task = json.loads(r.zrange(f"batch:{org.id}", 0, 1)[0])
+
+        self.assertEqual(actual_task, expected_task)
