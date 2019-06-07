@@ -1881,7 +1881,9 @@ class Flow(TembaModel):
                 broadcast.org = self.org
 
                 # create the messages
-                broadcast.send(expressions_context=expressions_context_base, response_to=start_msg, msg_type=FLOW)
+                broadcast.send(
+                    expressions_context=expressions_context_base, response_to=start_msg, msg_type=FLOW, run_map=run_map
+                )
 
                 # map all the messages we just created back to our contact
                 for msg in broadcast.msgs.all().select_related("channel", "contact_urn"):

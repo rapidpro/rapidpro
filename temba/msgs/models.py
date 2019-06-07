@@ -36,6 +36,7 @@ from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, Tra
 from temba.utils.queues import HIGH_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
+from . import legacy
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -301,48 +302,14 @@ class Broadcast(models.Model):
 
         # for the purposes of testing.. just create some almost correct messages
         if settings.TESTING:
-            contacts = set(self.contacts.all())
-            for group in self.groups.all():
-                contacts.update(group.contacts.all())
-
-            urns = set(self.urns.all())
-            for contact in contacts:
-                if self.send_all:
-                    urns.update(contact.urns.all())
-                else:
-                    urns.add(contact.urns.first())
-
-            for urn in urns:
-                text = self.get_translated_text(urn.contact)
-                media = self.get_translated_media(urn.contact)
-                quick_replies = self._get_translated_quick_replies(urn.contact)
-
-                if expressions_context is not None:
-                    message_context = expressions_context.copy()
-                    if "contact" not in message_context:
-                        message_context["contact"] = urn.contact.build_expressions_context()
-                else:
-                    message_context = None
-
-                Msg.create_outgoing(
-                    self.org,
-                    self.created_by,
-                    urn,
-                    text,
-                    self,
-                    attachments=[media] if media else None,
-                    quick_replies=quick_replies,
-                    response_to=response_to,
-                    high_priority=high_priority,
-                    msg_type=msg_type,
-                    expressions_context=message_context,
-                )
-
-            self.recipient_count = len(urns)
-            self.status = SENT
-            self.save(update_fields=("recipient_count", "status"))
-
-            self.org.trigger_send(self.msgs.all())
+            legacy.send_broadcast(
+                self,
+                expressions_context=expressions_context,
+                response_to=response_to,
+                msg_type=msg_type,
+                run_map=run_map,
+                high_priority=high_priority,
+            )
             return
 
         queue_mailroom_broadcast_task(self)
@@ -375,13 +342,6 @@ class Broadcast(models.Model):
 
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
-
-    def get_translated_media(self, contact, org=None):
-        """
-        Gets the appropriate media for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.media, preferred_languages)
 
     def get_default_text(self):
         """
@@ -442,33 +402,6 @@ class Broadcast(models.Model):
         # set an estimate of our number of recipients, we calculate this more carefully when actually sent
         self.recipient_count = recipient_count
         self.save(update_fields=["recipient_count"])
-
-    def _get_unique_contact_ids(self, *, groups=[], contacts=[]):
-        """
-        Builds a list of the unique contacts and groups
-        """
-        unique_contacts = set([c.id for c in contacts])
-
-        # for each group add in those IDs as well
-        for group in groups:
-            for contact in group.contacts.all().values_list("id", flat=True):
-                unique_contacts.add(contact)
-
-        return unique_contacts
-
-    def _get_translated_quick_replies(self, contact, org=None):
-        """
-        Gets the appropriate quick replies translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        language_metadata = []
-        metadata = self.metadata
-
-        for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
-            language_metadata.append(text)
-
-        return language_metadata
 
     def _get_preferred_languages(self, contact=None, org=None):
         """
