@@ -10,22 +10,19 @@ HIGH_PRIORITY = -10000000
 DEFAULT_PRIORITY = 0
 
 QUEUE_PATTERN = "%s:%d"
-
 ACTIVE_PATTERN = "%s:active"
 
+# task queues
 CONTACT_QUEUE = "c:%d:%d"
-
 BATCH_QUEUE = "batch"
-
 HANDLER_QUEUE = "handler"
 
+# task types
 START_FLOW_TASK = "start_flow"
-
 HANDLE_CONTACT_EVENT_TASK = "handle_contact_event"
-
 MSG_EVENT_TASK = "msg_event"
-
 MO_MISS_EVENT_TASK = "mo_miss"
+SEND_BROADCAST_TASK = "send_broadcast"
 
 
 def queue_mailroom_msg_task(msg):
@@ -64,6 +61,23 @@ def queue_mailroom_mo_miss_task(event):
         "new_contact": getattr(event.contact, "is_new", False),
     }
     queue_mailroom_contact_task(event.org_id, event.contact_id, MO_MISS_EVENT_TASK, event_task)
+
+
+def queue_mailroom_broadcast_task(broadcast):
+    """
+    Queues the passed in broadcast for sending by mailroom
+    """
+
+    task = {
+        "translations": dict(broadcast.text),
+        "base_language": broadcast.base_language,
+        "urns": list(broadcast.urns.all()),
+        "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
+        "group_ids": list(broadcast.groups.values_list("id", flat=True)),
+        "broadcast_id": broadcast.id,
+        "org_id": broadcast.org_id,
+    }
+    queue_mailroom_task(broadcast.org_id, BATCH_QUEUE, SEND_BROADCAST_TASK, task, DEFAULT_PRIORITY)
 
 
 def queue_mailroom_task(org_id, queue, task_type, task, priority):

@@ -25,7 +25,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.mailroom.queue import queue_mailroom_msg_task
+from temba.mailroom.queue import queue_mailroom_broadcast_task, queue_mailroom_msg_task
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
@@ -299,6 +299,10 @@ class Broadcast(models.Model):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
+
+        if not settings.TESTING:  # pragma: no cover
+            queue_mailroom_broadcast_task(self)
+
         # if we are sending to groups and any of them are big, make sure we aren't spamming
         for group in self.groups.all():
             if group.get_member_count() > 30:
