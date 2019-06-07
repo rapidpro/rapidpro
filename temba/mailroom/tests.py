@@ -9,7 +9,7 @@ from django.utils import timezone
 from temba.channels.models import ChannelEvent
 from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
-from temba.msgs.models import Msg
+from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
 from temba.utils import json
 
@@ -78,13 +78,86 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual(self.org.id, contact_task["org_id"])
         self.assertEqual({"contact_id": msg.contact_id}, contact_task["task"])
 
-        # msg event is valid
-        self.assertEqual(1, r.llen(f"c:{self.org.id}:{msg.contact_id}"))
-        msg_task = json.loads(r.rpop(f"c:{self.org.id}:{msg.contact_id}"))
-        self.assertEqual("msg_event", msg_task["type"])
-        self.assertEqual(msg.contact_id, msg_task["task"]["contact_id"])
-        self.assertEqual("Hello World", msg_task["task"]["text"])
-        self.assertTrue(msg_task["task"]["new_contact"])
+        # check msg event is valid
+        self.assertEqual(r.llen(f"c:{self.org.id}:{msg.contact_id}"), 1)
+
+        task = json.loads(r.rpop(f"c:{self.org.id}:{msg.contact_id}"))
+
+        self.assertEqual(
+            task,
+            {
+                "type": "msg_event",
+                "org_id": self.org.id,
+                "task": {
+                    "org_id": self.org.id,
+                    "channel_id": self.channel.id,
+                    "contact_id": msg.contact_id,
+                    "msg_id": msg.id,
+                    "msg_uuid": str(msg.uuid),
+                    "msg_external_id": None,
+                    "urn": "tel:+12065551212",
+                    "urn_id": msg.contact.urns.get().id,
+                    "text": "Hello World",
+                    "attachments": None,
+                    "new_contact": True,
+                },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_broadcast_task(self):
+        jim = self.create_contact("Jim", "+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+
+        bcast = Broadcast.create(
+            self.org,
+            self.admin,
+            {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
+            groups=[bobs],
+            contacts=[jim],
+            urns=[jim.urns.get()],
+            base_language="eng",
+        )
+
+        with override_settings(TESTING=False):
+            bcast.send()
+
+        # assert all looks good
+        r = get_redis_connection()
+
+        # check org is queued
+        self.assertEqual(r.zcard(f"batch:active"), 1)
+
+        org_task = json.loads(r.zrange(f"batch:active", 0, 1)[0])
+
+        self.assertEqual(org_task, self.org.id)
+
+        # check broadcast task is valid
+        self.assertEqual(r.zcard(f"batch:{self.org.id}"), 1)
+
+        task = json.loads(r.zrange(f"batch:{self.org.id}", 0, 1)[0])
+
+        self.assertEqual(
+            task,
+            {
+                "type": "send_broadcast",
+                "org_id": self.org.id,
+                "task": {
+                    "translations": {
+                        "eng": {"text": "Welcome to mailroom!"},
+                        "spa": {"text": "\u00a1Bienvenidx a mailroom!"},
+                    },
+                    "template_state": "legacy",
+                    "base_language": "eng",
+                    "urns": ["tel:+12065551212"],
+                    "contact_ids": [jim.id],
+                    "group_ids": [bobs.id],
+                    "broadcast_id": bcast.id,
+                    "org_id": self.org.id,
+                },
+                "queued_on": matchers.ISODate(),
+            },
+        )
 
     def test_event_task(self):
         get_redis_connection("default").flushall()

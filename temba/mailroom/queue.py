@@ -69,9 +69,10 @@ def queue_mailroom_broadcast_task(broadcast):
     """
 
     task = {
-        "translations": dict(broadcast.text),
+        "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
+        "template_state": "legacy",
         "base_language": broadcast.base_language,
-        "urns": list(broadcast.urns.all()),
+        "urns": [u.urn for u in broadcast.urns.all()],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,
