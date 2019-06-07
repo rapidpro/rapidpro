@@ -1716,7 +1716,7 @@ class MsgTest(TembaTest):
         # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
         export = ExportMessagesTask.objects.order_by("-id").first()
-        self.assertEqual(email_args[0], "Your messages export is ready")
+        self.assertEqual(email_args[0], "Your messages export from %s is ready" % self.org.name)
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[1])
         self.assertNotIn("{{", email_args[1])
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[2])
