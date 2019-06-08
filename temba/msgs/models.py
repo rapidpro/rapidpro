@@ -300,7 +300,6 @@ class Broadcast(models.Model):
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
 
-        # for the purposes of testing.. just create some almost correct messages
         if settings.TESTING:
             legacy.send_broadcast(
                 self,
@@ -310,9 +309,8 @@ class Broadcast(models.Model):
                 run_map=run_map,
                 high_priority=high_priority,
             )
-            return
-
-        mailroom.queue_broadcast(self)
+        else:  # pragma: no cover
+            mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()

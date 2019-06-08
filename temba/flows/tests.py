@@ -130,7 +130,6 @@ from .tasks import (
     check_flows_task,
     squash_flowpathcounts,
     squash_flowruncounts,
-    start_flow_task,
     trim_flow_sessions,
     update_run_expirations_task,
 )
@@ -11588,14 +11587,7 @@ class FlowTriggerTest(TembaTest):
         )
         group_trigger.groups.add(group)
 
-        real_func = start_flow_task.apply_async
-        with patch("temba.flows.tasks.start_flow_task.apply_async") as mock_start_flow_task:
-            mock_start_flow_task.side_effect = real_func
-
-            group_trigger.fire()
-
-            start = FlowStart.objects.get()
-            mock_start_flow_task.assert_called_once_with(args=[start.id], queue="handler")
+        group_trigger.fire()
 
         # contact should be added to flow again
         self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())

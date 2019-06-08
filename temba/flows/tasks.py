@@ -24,7 +24,6 @@ from .models import (
     FlowRun,
     FlowRunCount,
     FlowSession,
-    FlowStart,
     FlowStartCount,
 )
 
@@ -107,12 +106,6 @@ def export_flow_results_task(export_id):
     Export a flow to a file and e-mail a link to the user
     """
     ExportFlowResultsTask.objects.select_related("org").get(id=export_id).perform()
-
-
-@task(track_started=True, name="start_flow_task")
-def start_flow_task(start_id):
-    flow_start = FlowStart.objects.get(pk=start_id)
-    flow_start.start()
 
 
 @nonoverlapping_task(

@@ -58,7 +58,6 @@ from temba.utils.models import (
     TembaModel,
     generate_uuid,
 )
-from temba.utils.queues import Queue
 from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
@@ -1549,9 +1548,7 @@ class Flow(TembaModel):
         """
         Causes us to schedule a flow to start in a background thread.
         """
-        from .tasks import start_flow_task
 
-        # create a flow start object
         flow_start = FlowStart.objects.create(
             flow=self,
             restart_participants=restart_participants,
@@ -1566,10 +1563,7 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        if self.flow_server_enabled:
-            on_transaction_commit(lambda: flow_start.start_in_mailroom())
-        else:
-            on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
+        on_transaction_commit(lambda: flow_start.async_start())
 
     def start(
         self,
@@ -4946,12 +4940,10 @@ class FlowStart(SmartModel):
         return start
 
     def async_start(self):
-        if self.flow.flow_server_enabled:  # pragma: no cover
+        if settings.TESTING:
+            self.start()
+        else:  # pragma: no cover
             mailroom.queue_flow_start(self)
-        else:
-            from temba.flows.tasks import start_flow_task
-
-            on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=Queue.HANDLER))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
