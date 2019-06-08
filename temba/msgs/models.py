@@ -295,7 +295,7 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, run_map=None, high_priority=False):
+    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, high_priority=False):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
@@ -306,7 +306,6 @@ class Broadcast(models.Model):
                 expressions_context=expressions_context,
                 response_to=response_to,
                 msg_type=msg_type,
-                run_map=run_map,
                 high_priority=high_priority,
             )
         else:  # pragma: no cover

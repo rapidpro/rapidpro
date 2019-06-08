@@ -1,9 +1,7 @@
 from temba.orgs.models import Language
 
 
-def send_broadcast(
-    bcast, *, expressions_context=None, response_to=None, msg_type="I", run_map=None, high_priority=False
-):
+def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_type="I", high_priority=False):
     """
     Only used for testing to approximate how mailroom sends a broadcast
     """
@@ -36,14 +34,6 @@ def send_broadcast(
                 message_context["contact"] = contact.build_expressions_context()
         else:
             message_context = None
-
-        # add in our parent context if the message references @parent
-        if run_map:
-            run = run_map.get(contact.id, None)
-            if run:
-                if "parent" in text:
-                    if run.parent:
-                        message_context.update(dict(parent=run.parent.build_expressions_context()))
 
         try:
             Msg.create_outgoing(
