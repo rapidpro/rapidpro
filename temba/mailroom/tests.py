@@ -169,8 +169,6 @@ class MailroomQueueTest(TembaTest):
 
     def test_queue_flow_start(self):
         flow = self.get_flow("favorites")
-        flow.flow_server_enabled = True
-
         jim = self.create_contact("Jim", "+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
 
@@ -183,7 +181,9 @@ class MailroomQueueTest(TembaTest):
             extra={"foo": "bar"},
             include_active=True,
         )
-        start.async_start()
+
+        with override_settings(TESTING=False):
+            start.async_start()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
