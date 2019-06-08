@@ -1757,71 +1757,20 @@ class Flow(TembaModel):
         return runs
 
     def start_msg_flow(
-        self, all_contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
+        self, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
     ):
 
         if started_flows is None:
             started_flows = []
-
-        # for each send action, we need to create a broadcast, we'll group our created messages under these
-        broadcasts = []
-
-        if len(all_contact_ids) > 1:
-
-            # create the broadcast for this flow
-            send_actions = self.get_entry_send_actions()
-
-            for send_action in send_actions:
-                # check that we either have text or media, available for the base language
-                if (send_action.msg and send_action.msg.get(self.base_language)) or (
-                    send_action.media and send_action.media.get(self.base_language)
-                ):
-
-                    broadcast = Broadcast.create(
-                        self.org,
-                        self.created_by,
-                        send_action.msg,
-                        contact_ids=all_contact_ids,
-                        media=send_action.media,
-                        base_language=self.base_language,
-                        send_all=send_action.send_all,
-                        quick_replies=send_action.quick_replies,
-                    )
-
-                    # add it to the list of broadcasts in this flow start
-                    broadcasts.append(broadcast)
 
         if parent_run:
             parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
         else:
             parent_context = None
 
-        return self._start_msg_flow(
-            all_contact_ids,
-            broadcasts=broadcasts,
-            started_flows=started_flows,
-            start_msg=start_msg,
-            extra=extra,
-            flow_start=flow_start,
-            parent_run=parent_run,
-            parent_context=parent_context,
-        )
-
-    def _start_msg_flow(
-        self,
-        contact_ids,
-        broadcasts,
-        started_flows,
-        start_msg=None,
-        extra=None,
-        flow_start=None,
-        parent_run=None,
-        parent_context=None,
-    ):
-
-        batch_contacts = Contact.objects.filter(id__in=contact_ids)
-        Contact.bulk_cache_initialize(self.org, batch_contacts)
-        contact_map = {c.id: c for c in batch_contacts}
+        contacts = Contact.objects.filter(id__in=contact_ids)
+        Contact.bulk_cache_initialize(self.org, contacts)
+        contact_map = {c.id: c for c in contacts}
 
         # these fields are the initial state for our flow run
         run_fields = {}  # this should be the default value of the FlowRun.fields
@@ -1868,31 +1817,6 @@ class Flow(TembaModel):
                 expires_on=run.expires_on, modified_on=timezone.now()
             )
 
-        # if we have some broadcasts to optimize for
-        message_map = dict()
-        if broadcasts:
-            # create our expressions context
-            expressions_context_base = self.build_expressions_context(None, start_msg)
-            if extra:
-                expressions_context_base["extra"] = extra
-
-            # and add each contact and message to each broadcast
-            for broadcast in broadcasts:
-                broadcast.org = self.org
-
-                # create the messages
-                broadcast.send(
-                    expressions_context=expressions_context_base, response_to=start_msg, msg_type=FLOW, run_map=run_map
-                )
-
-                # map all the messages we just created back to our contact
-                for msg in broadcast.msgs.all().select_related("channel", "contact_urn"):
-                    msg.broadcast = broadcast
-                    if msg.contact_id not in message_map:
-                        message_map[msg.contact_id] = [msg]
-                    else:  # pragma: needs cover
-                        message_map[msg.contact_id].append(msg)
-
         # now execute our actual flow steps
         (entry_actions, entry_rules) = (None, None)
         if self.entry_type == Flow.NODE_TYPE_ACTIONSET:
@@ -1906,7 +1830,6 @@ class Flow(TembaModel):
                 entry_rules.flow = self
 
         msgs_to_send = []
-        optimize_sending_action = len(broadcasts) > 0
 
         for run in runs:
             contact = run.contact
@@ -1914,17 +1837,11 @@ class Flow(TembaModel):
             # each contact maintains its own list of started flows
             started_flows_by_contact = list(started_flows)
             run_msgs = [start_msg] if start_msg else []
-            run_msgs += message_map.get(contact.id, [])
             arrived_on = timezone.now()
 
             try:
                 if entry_actions:
-                    run_msgs += entry_actions.execute_actions(
-                        run,
-                        start_msg,
-                        started_flows_by_contact,
-                        skip_leading_reply_actions=not optimize_sending_action,
-                    )
+                    run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact)
 
                     self.add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
@@ -4042,23 +3959,14 @@ class ActionSet(models.Model):
     def get_step_type(self):
         return Flow.NODE_TYPE_ACTIONSET
 
-    def execute_actions(self, run, msg, started_flows, skip_leading_reply_actions=True):
+    def execute_actions(self, run, msg, started_flows):
         actions = self.get_actions()
         msgs = []
 
         run.contact.org = run.org
         context = run.flow.build_expressions_context(run.contact, msg, run=run)
 
-        seen_other_action = False
         for a, action in enumerate(actions):
-            if not isinstance(action, ReplyAction):
-                seen_other_action = True
-
-            # to optimize large flow starts, leading reply actions are handled as a single broadcast so don't repeat
-            # them here
-            if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
-                continue
-
             if isinstance(action, StartFlowAction):
                 if action.flow.pk in started_flows:
                     pass
@@ -5039,16 +4947,11 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         if self.flow.flow_server_enabled:  # pragma: no cover
-            self.start_in_mailroom()
+            mailroom.queue_flow_start(self)
         else:
             from temba.flows.tasks import start_flow_task
 
-            # we prioritize the case where a specific contact is being started by themselves
-            prioritize = self.contacts.count() == 1 and self.groups.count() == 0
-
-            queue = Queue.HANDLER if prioritize else Queue.FLOWS
-
-            on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=queue))
+            on_transaction_commit(lambda: start_flow_task.apply_async(args=[self.id], queue=Queue.HANDLER))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -5083,30 +4986,6 @@ class FlowStart(SmartModel):
         if FlowStartCount.get_count(self) == self.contact_count:
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=["status"])
-
-    def start_in_mailroom(self):
-        """
-        Starts this flow start in mailroom
-        """
-        org_id = self.flow.org_id
-
-        # build our task
-        task = dict(
-            start_id=self.id,
-            org_id=org_id,
-            flow_id=self.flow_id,
-            flow_type=self.flow.flow_type,
-            group_ids=[g.id for g in self.groups.all()],
-            contact_ids=[c.id for c in self.contacts.all()],
-            restart_participants=self.restart_participants,
-            include_active=self.include_active,
-            extra=self.extra,
-        )
-
-        # queue to mailroom
-        mailroom.queue_mailroom_task(
-            org_id, mailroom.BATCH_QUEUE, mailroom.START_FLOW_TASK, task, mailroom.HIGH_PRIORITY
-        )
 
     def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)

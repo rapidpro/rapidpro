@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
+from temba.flows.models import FlowStart
 from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
@@ -60,7 +61,7 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
         r.execute_command("select", settings.REDIS_DB)
 
-    def test_msg_task(self):
+    def test_queue_msg_handling(self):
         msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
         self.assert_org_queued(self.org, "handler")
@@ -87,7 +88,7 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_event_task(self):
+    def test_queue_mo_miss_event(self):
         get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
@@ -126,7 +127,7 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_broadcast_task(self):
+    def test_queue_broadcast(self):
         jim = self.create_contact("Jim", "+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
 
@@ -161,6 +162,45 @@ class MailroomQueueTest(TembaTest):
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
                     "org_id": self.org.id,
+                },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_flow_start(self):
+        flow = self.get_flow("favorites")
+        flow.flow_server_enabled = True
+
+        jim = self.create_contact("Jim", "+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+
+        start = FlowStart.create(
+            flow,
+            self.admin,
+            groups=[bobs],
+            contacts=[jim],
+            restart_participants=True,
+            extra={"foo": "bar"},
+            include_active=True,
+        )
+        start.async_start()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "start_flow",
+                "org_id": self.org.id,
+                "task": {
+                    "start_id": start.id,
+                    "org_id": self.org.id,
+                    "flow_id": flow.id,
+                    "flow_type": "M",
+                    "contact_ids": [jim.id],
+                    "group_ids": [bobs.id],
+                    "restart_participants": True,
+                    "include_active": True,
+                    "extra": {"foo": "bar"},
                 },
                 "queued_on": matchers.ISODate(),
             },

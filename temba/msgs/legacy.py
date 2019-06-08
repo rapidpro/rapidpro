@@ -8,7 +8,7 @@ def send_broadcast(
     Only used for testing to approximate how mailroom sends a broadcast
     """
 
-    from temba.msgs.models import Msg, SENT
+    from temba.msgs.models import Msg, SENT, UnreachableException
 
     contacts = set(bcast.contacts.all())
     for group in bcast.groups.all():
@@ -19,7 +19,8 @@ def send_broadcast(
         if bcast.send_all:
             urns.update(contact.urns.all())
         else:
-            urns.add(contact.urns.first())
+            urn = Msg.resolve_recipient(bcast.org, bcast.created_by, contact, None)[1]
+            urns.add(urn)
 
     for urn in urns:
         text = bcast.get_translated_text(urn.contact)
@@ -44,19 +45,22 @@ def send_broadcast(
                     if run.parent:
                         message_context.update(dict(parent=run.parent.build_expressions_context()))
 
-        Msg.create_outgoing(
-            bcast.org,
-            bcast.created_by,
-            urn,
-            text,
-            bcast,
-            attachments=[media] if media else None,
-            quick_replies=quick_replies,
-            response_to=response_to,
-            high_priority=high_priority,
-            msg_type=msg_type,
-            expressions_context=message_context,
-        )
+        try:
+            Msg.create_outgoing(
+                bcast.org,
+                bcast.created_by,
+                urn,
+                text,
+                bcast,
+                attachments=[media] if media else None,
+                quick_replies=quick_replies,
+                response_to=response_to,
+                high_priority=high_priority,
+                msg_type=msg_type,
+                expressions_context=message_context,
+            )
+        except UnreachableException:
+            pass
 
     bcast.recipient_count = len(urns)
     bcast.status = SENT

@@ -10,7 +10,6 @@ from uuid import uuid4
 
 import iso8601
 import pytz
-from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -881,16 +880,8 @@ class FlowTest(TembaTest):
             {"total": 2, "active": 2, "completed": 0, "expired": 0, "interrupted": 0, "completion": 0},
         )
 
-        # should have created a single broadcast
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(
-            broadcast.text, {"base": "What is your favorite color?", "fra": "Quelle est votre couleur préférée?"}
-        )
-        self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
-        self.assertEqual(broadcast.base_language, "base")
-
         # each contact should have received a single message
-        contact1_msg = broadcast.msgs.get(contact=self.contact)
+        contact1_msg = self.contact.msgs.get()
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
         self.assertEqual(contact1_msg.status, WIRED)
         self.assertFalse(contact1_msg.high_priority)
@@ -4158,50 +4149,6 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
 
         self.assertEqual(response.status_code, 404)
-
-    @patch("temba.mailroom.BATCH_QUEUE", "test_batch")
-    def test_mailroom_starts(self):
-        """
-        Test flow starts being directed to the mailroom queue - however we need to temporarily change the name
-        of the mailroom queue to prevent a running mailroom instance from picking up the task.
-        """
-
-        self.login(self.admin)
-
-        # mark our flow as being flow server enabled
-        self.flow.flow_server_enabled = True
-        self.flow.save()
-
-        # start a contact in our flow
-        response = self.client.get(reverse("flows.flow_broadcast", args=[self.flow.id]))
-        self.assertEqual(len(response.context["form"].fields), 4)
-        self.assertIn("omnibox", response.context["form"].fields)
-        self.assertIn("restart_participants", response.context["form"].fields)
-        self.assertIn("include_active", response.context["form"].fields)
-
-        post_data = dict()
-        post_data["omnibox"] = "c-%s" % self.contact.uuid
-        post_data["restart_participants"] = "on"
-        self.client.post(reverse("flows.flow_broadcast", args=[self.flow.id]), post_data, follow=True)
-
-        # should now have our flow start queued
-        r = get_redis_connection()
-        self.assertEqual(1, r.zcard("test_batch:%d" % self.org.id))
-        self.assertEqual(1, r.zcard("test_batch:active"))
-
-        start = FlowStart.objects.last()
-
-        # pop our task off
-        task_json = r.zrange("test_batch:%d" % self.org.id, 0, 0)
-        task = json.loads(task_json[0].decode("utf8"))
-        self.assertEqual("start_flow", task["type"])
-        self.assertEqual(self.flow.id, task["task"]["flow_id"])
-        self.assertEqual(self.org.id, task["task"]["org_id"])
-        self.assertEqual([self.contact.id], task["task"]["contact_ids"])
-        self.assertEqual([], task["task"]["group_ids"])
-        self.assertEqual(True, task["task"]["restart_participants"])
-        self.assertEqual(False, task["task"]["include_active"])
-        self.assertTrue(start.id, task["task"]["start_id"])
 
     def test_views_viewers(self):
         # create a viewer
@@ -8845,7 +8792,6 @@ class FlowsTest(FlowFileTest):
         parent.start([], [self.contact, joe])
 
         self.assertEqual(8, Msg.objects.filter(direction="O").count())
-        self.assertEqual(2, Broadcast.objects.all().count())
 
         # all messages so far are low prioirty as well because of no inbound
         self.assertEqual(8, Msg.objects.filter(direction="O", high_priority=False).count())
@@ -11649,7 +11595,7 @@ class FlowTriggerTest(TembaTest):
             group_trigger.fire()
 
             start = FlowStart.objects.get()
-            mock_start_flow_task.assert_called_once_with(args=[start.id], queue="flows")
+            mock_start_flow_task.assert_called_once_with(args=[start.id], queue="handler")
 
         # contact should be added to flow again
         self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())

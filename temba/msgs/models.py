@@ -21,11 +21,11 @@ from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 
+from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.mailroom.queue import queue_mailroom_broadcast_task, queue_mailroom_msg_task
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
@@ -312,7 +312,7 @@ class Broadcast(models.Model):
             )
             return
 
-        queue_mailroom_broadcast_task(self)
+        mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
@@ -1206,7 +1206,7 @@ class Msg(models.Model):
         WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, received_on)
 
         # pass off handling of the message to mailroom after we commit
-        on_transaction_commit(lambda: queue_mailroom_msg_task(msg))
+        on_transaction_commit(lambda: mailroom.queue_msg_handling(msg))
 
         return msg
 
