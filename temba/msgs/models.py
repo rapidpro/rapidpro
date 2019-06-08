@@ -419,8 +419,8 @@ class Broadcast(models.Model):
 
         return preferred_languages
 
-    def __str__(self):
-        return f"Broadcast[{self.pk}]{self.text}"
+    def __str__(self):  # pragma: no cover
+        return f"Broadcast[id={self.id}, text={self.text}]"
 
 
 class Attachment(object):

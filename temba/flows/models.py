@@ -1508,7 +1508,7 @@ class Flow(TembaModel):
 
             run_context = run.fields
             flow_context = run.build_expressions_context(contact_context, message_context.get("text"))
-        else:
+        else:  # pragma: no cover
             run_context = {}
             flow_context = {}
 
@@ -1945,30 +1945,6 @@ class Flow(TembaModel):
 
         run.current_node_uuid = run.path[-1][FlowRun.PATH_NODE_UUID]
         run.save(update_fields=update_fields)
-
-    def get_entry_send_actions(self):
-        """
-        Returns all the entry actions (the first actions in a flow) that are reply actions. This is used
-        for grouping all our outgoing messages into a single Broadcast.
-        """
-        if not self.entry_uuid or self.entry_type != Flow.NODE_TYPE_ACTIONSET:
-            return []
-
-        # get our entry actions
-        entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
-        send_actions = []
-
-        if entry_actions:
-            actions = entry_actions.get_actions()
-
-            for action in actions:
-                # if this isn't a reply action, bail, they might be modifying the contact
-                if not isinstance(action, ReplyAction):
-                    break
-
-                send_actions.append(action)
-
-        return send_actions
 
     def get_dependencies(self):
         """
@@ -2967,7 +2943,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         context["__default__"] = "\n".join(default_lines)
 
         # if we don't have a contact context, build one
-        if not contact_context:
+        if not contact_context:  # pragma: no cover
             self.contact.org = self.org
             contact_context = self.contact.build_expressions_context()
 

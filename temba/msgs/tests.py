@@ -2286,6 +2286,11 @@ class BroadcastTest(TembaTest):
         self.assertEqual(4, broadcast.recipient_count)
         self.assertEqual(broadcast.get_message_count(), 4)
 
+        broadcast.release()
+
+        self.assertEqual(Msg.objects.count(), 0)
+        self.assertEqual(Broadcast.objects.count(), 0)
+
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")
 
