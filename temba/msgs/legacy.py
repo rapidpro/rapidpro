@@ -8,39 +8,39 @@ def send_broadcast(
     Only used for testing to approximate how mailroom sends a broadcast
     """
 
+    from temba.contacts.models import Contact
     from temba.msgs.models import Msg, SENT, UnreachableException
 
     contacts = set(bcast.contacts.all())
     for group in bcast.groups.all():
         contacts.update(group.contacts.all())
 
-    urns = set(bcast.urns.all())
+    recipients = set(bcast.urns.all())
+
     for contact in contacts:
         if bcast.send_all:
-            urns.update(contact.urns.all())
+            recipients.update(contact.urns.all())
         else:
-            urn = Msg.resolve_recipient(bcast.org, bcast.created_by, contact, None)[1]
-            urns.add(urn)
+            recipients.add(contact)
 
-    for urn in urns:
-        text = bcast.get_translated_text(urn.contact)
-        media = get_translated_media(bcast, urn.contact)
-        quick_replies = get_translated_quick_replies(bcast, urn.contact)
+    for recipient in recipients:
+        contact = recipient if isinstance(recipient, Contact) else recipient.contact
+
+        text = bcast.get_translated_text(contact)
+        media = get_translated_media(bcast, contact)
+        quick_replies = get_translated_quick_replies(bcast, contact)
 
         if expressions_context is not None:
             message_context = expressions_context.copy()
             if "contact" not in message_context:
-                message_context["contact"] = urn.contact.build_expressions_context()
+                message_context["contact"] = contact.build_expressions_context()
         else:
             message_context = None
 
         # add in our parent context if the message references @parent
         if run_map:
-            run = run_map.get(urn.contact.id, None)
-            if run and run.flow:
-                # a bit kludgy here, but should avoid most unnecessary context creations.
-                # since this path is an optimization for flow starts, we don't need to
-                # worry about the @child context.
+            run = run_map.get(contact.id, None)
+            if run:
                 if "parent" in text:
                     if run.parent:
                         message_context.update(dict(parent=run.parent.build_expressions_context()))
@@ -49,9 +49,10 @@ def send_broadcast(
             Msg.create_outgoing(
                 bcast.org,
                 bcast.created_by,
-                urn,
+                recipient,
                 text,
                 bcast,
+                channel=bcast.channel,
                 attachments=[media] if media else None,
                 quick_replies=quick_replies,
                 response_to=response_to,
@@ -62,7 +63,7 @@ def send_broadcast(
         except UnreachableException:
             pass
 
-    bcast.recipient_count = len(urns)
+    bcast.recipient_count = len(recipients)
     bcast.status = SENT
     bcast.save(update_fields=("recipient_count", "status"))
 
