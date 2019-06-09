@@ -15,7 +15,6 @@ from temba.utils import json
 # celery queue names
 class Queue:
     CELERY = "celery"
-    FLOWS = "flows"
     HANDLER = "handler"
 
 

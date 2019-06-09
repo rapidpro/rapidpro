@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-import pytz
 from django_redis import get_redis_connection
 
 from django.utils import timezone
@@ -117,38 +116,3 @@ class QueueRecord(object):
             pipe.execute()
 
         r.expire(self.today_set_key, 86400)  # 24 hours
-
-
-def check_and_mark_in_timerange(base_key, hours, value):
-    """
-    Utility function to check whether the passed in `value` has been set within the past `hours` (times 2).
-    If it has been set in that time period, returns True, otherwise False. (setting it for the future)
-    """
-    r = get_redis_connection()
-
-    # figure out our range
-    now = timezone.now().astimezone(pytz.utc)
-    now_range = now.hour / hours
-
-    prev = now - timedelta(hours=hours)
-    prev_range = prev.hour / hours
-
-    # build our keys
-    now_key = "%s_%s_%d" % (base_key, now.strftime("%y_%m_%d"), now_range)
-    prev_key = "%s_%s_%d" % (base_key, prev.strftime("%y_%m_%d"), prev_range)
-
-    # see it is set for either
-    with r.pipeline() as pipe:
-        pipe.sismember(now_key, value)
-        pipe.sismember(prev_key, value)
-        (now_found, prev_found) = pipe.execute()
-
-        if now_found or prev_found:
-            return True
-
-    with r.pipeline() as pipe:
-        pipe.sadd(now_key, value)
-        pipe.expire(now_key, 3600 * hours)
-        pipe.execute()
-
-    return False

@@ -21,15 +21,14 @@ from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 
+from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.mailroom.queue import queue_mailroom_msg_task
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
-from temba.utils.cache import check_and_mark_in_timerange
 from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
@@ -37,6 +36,7 @@ from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, Tra
 from temba.utils.queues import HIGH_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
+from . import legacy
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -295,217 +295,21 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, run_map=None, high_priority=False):
+    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, high_priority=False):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
-        # if we are sending to groups and any of them are big, make sure we aren't spamming
-        for group in self.groups.all():
-            if group.get_member_count() > 30:
-                bcast_value = "%d_%s" % (group.id, self.text)
 
-                # have we sent this exact message in the past few hours?
-                if check_and_mark_in_timerange("bcasts", 1, bcast_value):
-                    self.status = FAILED
-                    self.save(update_fields=["status"])
-                    raise Exception("Not sending broadcast %d due to duplicate" % self.id)
-
-        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-
-        # calculate a more accurate recipient count, each of these will map to a message created
-        contact_ids = self._get_unique_contact_ids(groups=self.groups.all(), contacts=self.contacts.all())
-        urns = set(ContactURN.get_urns_for_contacts(contact_ids, schemes, all_urns=self.send_all))
-
-        # add in any URNs as well (a URN specified is always honored, even if that means two msgs for a contact)
-        for urn in self.urns.all():
-            urns.add(urn)
-
-        # update our recipient count
-        self.recipient_count = len(urns)
-        self.save(update_fields=["recipient_count"])
-
-        # if we are fewer than on batch, send right away
-        if len(urns) <= BATCH_SIZE:
-            self.send_batch(
-                urns=urns,
-                trigger_send=True,
+        if settings.TESTING:
+            legacy.send_broadcast(
+                self,
                 expressions_context=expressions_context,
                 response_to=response_to,
                 msg_type=msg_type,
-                run_map=run_map,
                 high_priority=high_priority,
             )
-
-        # otherwise, create batches and fire those off
-        else:
-            from temba.flows.models import Flow
-
-            for batch in chunk_list(urns, BATCH_SIZE):
-                kwargs = dict(
-                    urn_ids=[u.id for u in batch],
-                    trigger_send=True,
-                    expressions_context=expressions_context,
-                    response_to=response_to,
-                    msg_type=msg_type,
-                    run_map=run_map,
-                    high_priority=high_priority,
-                )
-                push_task(
-                    self.org,
-                    Queue.FLOWS,
-                    Flow.START_MSG_FLOW_BATCH,
-                    dict(task_type=BROADCAST_BATCH, broadcast=self.id, kwargs=kwargs),
-                )
-
-    def send_batch(
-        self,
-        *,
-        urn_ids=None,
-        urns=None,
-        contacts=None,
-        trigger_send=True,
-        expressions_context=None,
-        response_to=None,
-        status=PENDING,
-        msg_type=INBOX,
-        run_map=None,
-        high_priority=False,
-    ):
-        """
-        Sends this broadcast to the passed in URNs
-        """
-        # load urns if we have ids
-        if urn_ids:
-            urns = ContactURN.objects.filter(org=self.org, id__in=urn_ids)
-
-        # can pass either contacts or urns, not both
-        if (contacts and urns) or (contacts is None and urns is None):
-            raise ValueError("Must pass either contacts or urns")
-
-        # the count of recipients we are batching
-        batch_count = len(urns) if urns is not None else len(contacts)
-
-        # Update the number of recipients that have been batched for this broadcast. This can't be counted via
-        # our squashable model as not all recipients end up resolving to a message being created (due to duplicates
-        # between groups/contacts for example or because they aren't addressable by any channel)
-        bcast_key = f"bcast_{self.id}_count"
-        r = get_redis_connection()
-        with r.pipeline() as pipe:
-            pipe.incrby(bcast_key, batch_count)
-            pipe.expire(bcast_key, 60 * 60)
-            pipe.execute()
-
-        # ignore mock messages
-        if response_to and not response_to.id:  # pragma: no cover
-            response_to = None
-
-        schemes = set(self.channel.schemes) if self.channel else self.org.get_schemes(Channel.ROLE_SEND)
-
-        # if we are passed URNs, map them to contacts
-        if urns is not None:
-            # build our list of contacts that map to our URNs
-            contact_map = {c.id: c for c in Contact.objects.filter(urns__in=urns)}
-
-            # bulk initialize them
-            Contact.bulk_cache_initialize(self.org, contact_map.values())
-
-        # otherwise build our list of URNs we are sending to from our contacts
-        else:
-            contact_map = {}
-            urns = []
-            for c in contacts:
-                contact_map[c.id] = c
-                contact_urn = c.get_urn(schemes)
-
-                # if we can address this contact, add it to our list of urns to send to
-                if contact_urn:
-                    urns.append(contact_urn)
-
-        batch = []
-        batch_ids = []
-
-        for urn in urns:
-            contact = contact_map[urn.contact_id]
-            contact.org = self.org
-            urn.contact = contact
-
-            # get the appropriate translation for this contact
-            text = self.get_translated_text(contact)
-
-            # get the appropriate quick replies translation for this contact
-            quick_replies = self._get_translated_quick_replies(contact)
-
-            media = self.get_translated_media(contact)
-            if media:
-                media_type, media_url = media.split(":", 1)
-                # arbitrary media urls don't have a full content type, so only
-                # make uploads into fully qualified urls
-                if media_url and len(media_type.split("/")) > 1:
-                    media = f"{media_type}:{settings.STORAGE_URL}/{media_url}"
-
-            # build our message specific context
-            if expressions_context is not None:
-                message_context = expressions_context.copy()
-                if "contact" not in message_context:
-                    message_context["contact"] = contact.build_expressions_context()
-            else:
-                message_context = None
-
-            # add in our parent context if the message references @parent
-            if run_map:
-                run = run_map.get(contact.pk, None)
-                if run and run.flow:
-                    # a bit kludgy here, but should avoid most unnecessary context creations.
-                    # since this path is an optimization for flow starts, we don't need to
-                    # worry about the @child context.
-                    if "parent" in text:
-                        if run.parent:
-                            run.parent.org = self.org
-                            message_context.update(dict(parent=run.parent.build_expressions_context()))
-
-            try:
-                msg = Msg.create_outgoing(
-                    self.org,
-                    self.created_by,
-                    urn,
-                    text,
-                    broadcast=self,
-                    channel=self.channel,
-                    response_to=response_to,
-                    expressions_context=message_context,
-                    status=status,
-                    msg_type=msg_type,
-                    high_priority=high_priority,
-                    insert_object=False,
-                    attachments=[media] if media else None,
-                    quick_replies=quick_replies,
-                )
-
-            except UnreachableException:
-                # there was no way to reach this contact, do not create a message
-                msg = None
-
-            # only add it to our batch if it was legit
-            if msg:
-                batch.append(msg)
-
-        # commit any remaining objects
-        if batch:
-            batch_msgs = Msg.objects.bulk_create(batch)
-            batch_ids = [m.id for m in batch_msgs]
-
-            if trigger_send:
-                self.org.trigger_send(
-                    Msg.objects.filter(id__in=batch_ids).select_related("contact", "contact_urn", "channel")
-                )
-
-        # mark ourselves as sent if appropriate
-        sent_count = int(r.get(bcast_key)) if r.get(bcast_key) else 0
-        if sent_count >= self.recipient_count:
-            self.status = SENT
-            self.save(update_fields=("status",))
-
-        return batch_ids
+        else:  # pragma: no cover
+            mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
@@ -535,13 +339,6 @@ class Broadcast(models.Model):
 
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
-
-    def get_translated_media(self, contact, org=None):
-        """
-        Gets the appropriate media for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.media, preferred_languages)
 
     def get_default_text(self):
         """
@@ -603,33 +400,6 @@ class Broadcast(models.Model):
         self.recipient_count = recipient_count
         self.save(update_fields=["recipient_count"])
 
-    def _get_unique_contact_ids(self, *, groups=[], contacts=[]):
-        """
-        Builds a list of the unique contacts and groups
-        """
-        unique_contacts = set([c.id for c in contacts])
-
-        # for each group add in those IDs as well
-        for group in groups:
-            for contact in group.contacts.all().values_list("id", flat=True):
-                unique_contacts.add(contact)
-
-        return unique_contacts
-
-    def _get_translated_quick_replies(self, contact, org=None):
-        """
-        Gets the appropriate quick replies translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        language_metadata = []
-        metadata = self.metadata
-
-        for item in metadata.get(self.METADATA_QUICK_REPLIES, []):
-            text = Language.get_localized_text(text_translations=item, preferred_languages=preferred_languages)
-            language_metadata.append(text)
-
-        return language_metadata
-
     def _get_preferred_languages(self, contact=None, org=None):
         """
         Gets the ordered list of language preferences for the given contact
@@ -648,8 +418,8 @@ class Broadcast(models.Model):
 
         return preferred_languages
 
-    def __str__(self):
-        return f"Broadcast[{self.pk}]{self.text}"
+    def __str__(self):  # pragma: no cover
+        return f"Broadcast[id={self.id}, text={self.text}]"
 
 
 class Attachment(object):
@@ -1433,7 +1203,7 @@ class Msg(models.Model):
         WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, received_on)
 
         # pass off handling of the message to mailroom after we commit
-        on_transaction_commit(lambda: queue_mailroom_msg_task(msg))
+        on_transaction_commit(lambda: mailroom.queue_msg_handling(msg))
 
         return msg
 
