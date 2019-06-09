@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactURN
 from temba.flows.models import RuleSet
 from temba.msgs.models import (
     DELIVERED,
@@ -840,21 +840,6 @@ class MsgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
         self.assertEqual(response.context["actions"], ["label"])
-
-    def test_footgun(self):
-        # create a bunch of contacts
-        group = ContactGroup.get_or_create(org=self.org, user=self.admin, name="Spam")
-        for i in range(51):
-            (contact, urn) = Contact.get_or_create(org=self.org, urn="tel:+1206779%04d" % i, user=self.admin)
-            group.contacts.add(contact)
-
-        # create a broadcast and send it off
-        bcast = Broadcast.create(self.org, self.admin, "This is my spam message", groups=[group])
-        bcast.send()
-
-        bcast2 = Broadcast.create(self.org, self.admin, "This is my spam message", groups=[group])
-        with self.assertRaises(Exception):
-            bcast2.send()
 
     def test_failed(self):
         failed_url = reverse("msgs.msg_failed")
@@ -1716,7 +1701,7 @@ class MsgTest(TembaTest):
         # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
         export = ExportMessagesTask.objects.order_by("-id").first()
-        self.assertEqual(email_args[0], "Your messages export is ready")
+        self.assertEqual(email_args[0], "Your messages export from %s is ready" % self.org.name)
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[1])
         self.assertNotIn("{{", email_args[1])
         self.assertIn("https://app.rapidpro.io/assets/download/message_export/%d/" % export.id, email_args[2])
@@ -2290,42 +2275,6 @@ class BroadcastTest(TembaTest):
             }
         )
 
-    @patch("temba.msgs.models.BATCH_SIZE", 2)
-    def test_broadcast_batch(self):
-        # create a contact we can't reach
-        tg_contact, __ = Contact.get_or_create(self.org, "telegram:12345", user=self.admin)
-        broadcast = Broadcast.create(
-            self.org, self.user, "Broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, tg_contact]
-        )
-
-        # downsize our batches and send it (this tests other code paths)
-        self.assertEqual(4, broadcast.recipient_count)
-        broadcast.send()
-        broadcast.refresh_from_db()
-
-        # should have 3 recipients and 3 messages sent
-        self.assertEqual(3, broadcast.recipient_count)
-        self.assertEqual(broadcast.get_message_count(), 3)
-        self.assertEqual(SENT, broadcast.status)
-
-        # do it again but add contacts by hand (like flow batch starts)
-        broadcast = Broadcast.create(
-            self.org, self.user, "Flow broadcast", contacts=[tg_contact.id, self.kevin.id, self.joe.id, self.frank.id]
-        )
-        self.assertEqual(4, broadcast.recipient_count)
-        broadcast.send_batch(contacts=[tg_contact, self.kevin, self.joe, self.frank])
-        broadcast.refresh_from_db()
-
-        # 4 recipients, but only 3 messages sent, but we end up as sent
-        self.assertEqual(f"Broadcast[{broadcast.id}]{broadcast.text}", str(broadcast))
-        self.assertEqual(4, broadcast.recipient_count)
-        self.assertEqual(broadcast.get_message_count(), 3)
-        self.assertEqual(SENT, broadcast.status)
-
-        # release the broadcast
-        broadcast.release()
-        self.assertFalse(Broadcast.objects.filter(id=broadcast.id))
-
     def test_broadcast_model(self):
         broadcast = Broadcast.create(
             self.org, self.user, "Like a tweet", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
@@ -2337,12 +2286,13 @@ class BroadcastTest(TembaTest):
         self.assertEqual(4, broadcast.recipient_count)
         self.assertEqual(broadcast.get_message_count(), 4)
 
-        with self.assertRaises(ValueError):
-            Broadcast.create(self.org, self.user, "no recipients")
+        broadcast.release()
+
+        self.assertEqual(Msg.objects.count(), 0)
+        self.assertEqual(Broadcast.objects.count(), 0)
 
         with self.assertRaises(ValueError):
-            broadcast = Broadcast.create(self.org, self.user, "batch", contacts=[self.kevin, self.lucy])
-            broadcast.send_batch()
+            Broadcast.create(self.org, self.user, "no recipients")
 
     def test_send(self):
         # remove all channels first
@@ -2463,53 +2413,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.groups.count(), 0)
         self.assertEqual(broadcast.contacts.count(), 1)
         self.assertTrue(self.joe in broadcast.contacts.all())
-
-    def test_unreachable(self):
-        no_urns = Contact.get_or_create_by_urns(self.org, self.admin, name="Ben Haggerty", urns=[])
-        tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
-        twitter_contact = self.create_contact("Lucy", twitter="lucy", force_urn_update=True)
-
-        # send a broadcast to all (org has a tel and a twitter channel)
-        broadcast = Broadcast.create(
-            self.org, self.admin, "Want to go thrift shopping?", contacts=[no_urns, tel_contact, twitter_contact]
-        )
-        broadcast.send()
-
-        # should have only messages for Ryan and Lucy
-        msgs = broadcast.msgs.all()
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(sorted([m.contact.name for m in msgs]), ["Lucy", "Ryan Lewis"])
-
-        # send another broadcast to all and force use of the twitter channel
-        broadcast = Broadcast.create(
-            self.org,
-            self.admin,
-            "Want to go thrift shopping?",
-            contacts=[no_urns, tel_contact, twitter_contact],
-            channel=self.twitter,
-        )
-        broadcast.send()
-
-        # should have only one message created to Lucy
-        msgs = broadcast.msgs.all()
-        self.assertEqual(len(msgs), 1)
-        self.assertTrue(msgs[0].contact, twitter_contact)
-
-        # remove twitter relayer
-        self.twitter.release(trigger_sync=False)
-        self.org.clear_cached_channels()
-
-        # send another broadcast to all
-        broadcast = Broadcast.create(
-            self.org, self.admin, "Want to go thrift shopping?", contacts=[no_urns, tel_contact, twitter_contact]
-        )
-        broadcast.send()
-        self.assertEqual(1, broadcast.recipient_count)
-
-        # should have only one message created to Ryan
-        msgs = broadcast.msgs.all()
-        self.assertEqual(len(msgs), 1)
-        self.assertTrue(msgs[0].contact, tel_contact)
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", "+12067778811")
@@ -3280,8 +3183,8 @@ class BroadcastLanguageTest(TembaTest):
         eng_msg = "Please see attachment"
         fra_msg = "SVP regardez l'attachement."
 
-        eng_attachment = "image/jpeg:attachments/eng_picture.jpg"
-        fra_attachment = "image/jpeg:attachments/fre_picture.jpg"
+        eng_attachment = f"image/jpeg:{settings.STORAGE_URL}/attachments/eng_picture.jpg"
+        fra_attachment = f"image/jpeg:{settings.STORAGE_URL}/attachments/fre_picture.jpg"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
         bcast = Broadcast.create(
@@ -3299,19 +3202,15 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by("-created_on").first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by("-created_on").first()
 
-        francois_media_url = f"image/jpeg:{settings.STORAGE_URL}/{fra_attachment.split(':', 1)[1]}"
-        greg_media_url = f"image/jpeg:{settings.STORAGE_URL}/{eng_attachment.split(':', 1)[1]}"
-        wilbert_media_url = f"image/jpeg:{settings.STORAGE_URL}/{fra_attachment.split(':', 1)[1]}"
-
         # assert the right language was used for each contact on both text and media
         self.assertEqual(francois_media.text, fra_msg)
-        self.assertEqual(francois_media.attachments, [francois_media_url])
+        self.assertEqual(francois_media.attachments, [fra_attachment])
 
         self.assertEqual(greg_media.text, eng_msg)
-        self.assertEqual(greg_media.attachments, [greg_media_url])
+        self.assertEqual(greg_media.attachments, [eng_attachment])
 
         self.assertEqual(wilbert_media.text, fra_msg)
-        self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
+        self.assertEqual(wilbert_media.attachments, [fra_attachment])
 
 
 class SystemLabelTest(TembaTest):

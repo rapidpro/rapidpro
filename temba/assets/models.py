@@ -2,6 +2,7 @@ import os
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils.text import slugify
 
 from temba.utils.s3 import public_file_storage
 
@@ -78,7 +79,7 @@ class BaseAssetStore(object):
 
         # create a more friendly download filename
         remainder, extension = path.rsplit(".", 1)
-        filename = "%s_%s.%s" % (self.key, pk, extension)
+        filename = f"{self.key}_{pk}_{slugify(asset.org.name)}.{extension}"
 
         # if our storage backend is S3
         if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto.S3BotoStorage":  # pragma: needs cover

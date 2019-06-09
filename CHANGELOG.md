@@ -1,3 +1,9 @@
+v4.24.0
+----------
+ * Add org name in the export email subject and filename
+ * Update flow editor to 1.5.9
+ * Remove functionality for handling legacy surveyor submissions
+
 v4.23.1
 ----------
  * Make exported fields match goflow representation and add .as_export_ref() to exportable classes
