@@ -296,7 +296,7 @@ class Org(SmartModel):
     )
 
     flow_server_enabled = models.BooleanField(
-        default=False, help_text=_("Whether flows and messages should be handled by the flow server")
+        default=True, help_text=_("Whether flows and messages should be handled by mailroom")
     )
 
     parent = models.ForeignKey(
