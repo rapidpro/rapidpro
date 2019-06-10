@@ -35,7 +35,6 @@ from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest,
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
 from . import legacy
