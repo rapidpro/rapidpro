@@ -38,8 +38,6 @@ from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
-# the event type for channel events in the handler queue
-CHANNEL_EVENT = "channel_event"
 
 
 class Encoding(Enum):

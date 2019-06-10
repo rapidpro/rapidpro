@@ -38,11 +38,6 @@ from . import legacy
 
 logger = logging.getLogger(__name__)
 
-
-HANDLE_EVENT_TASK = "handle_event_task"
-MSG_EVENT = "msg"
-FIRE_EVENT = "fire"
-
 BATCH_SIZE = 500
 
 INITIALIZING = "I"

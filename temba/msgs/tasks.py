@@ -1,55 +1,17 @@
 import logging
-import time
 from datetime import timedelta
-
-from django_redis import get_redis_connection
 
 from django.core.cache import cache
 from django.utils import timezone
 
 from celery.task import task
 
-from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.utils import analytics
-from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
+from temba.utils.queues import nonoverlapping_task
 
-from .models import (
-    FIRE_EVENT,
-    HANDLE_EVENT_TASK,
-    Broadcast,
-    BroadcastMsgCount,
-    ExportMessagesTask,
-    LabelCount,
-    Msg,
-    SystemLabelCount,
-)
+from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Msg, SystemLabelCount
 
 logger = logging.getLogger(__name__)
-
-
-def process_fire_events(fire_ids):
-    from temba.campaigns.models import EventFire
-
-    # every event fire in the batch will be for the same flow... but if the flow has been deleted then fires won't exist
-    single_fire = EventFire.objects.filter(id__in=fire_ids).first()
-    if not single_fire:  # pragma: no cover
-        return
-
-    flow = single_fire.event.flow
-
-    # lock on the flow so we know non-one else is updating these event fires
-    r = get_redis_connection()
-    with r.lock("process_fire_events:%d" % flow.id, timeout=300):
-
-        # only fetch fires that haven't been somehow already handled
-        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related("contact"))
-        if fires:
-            print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
-
-            start = time.time()
-            EventFire.batch_fire(fires, flow)
-
-            print("E[%s][%s] Finished batch firing events in %.3f s" % (flow.org.name, flow.name, time.time() - start))
 
 
 @task(track_started=True, name="send_broadcast")
@@ -194,66 +156,12 @@ def collect_message_metrics_task():  # pragma: needs cover
     cache.set("last_cron", timezone.now())
 
 
-@nonoverlapping_task(track_started=True, name="check_messages_task", time_limit=900)
-def check_messages_task():  # pragma: needs cover
-    """
-    Checks to see if any of our aggregators have errored messages that need to be retried.
-    Also takes care of flipping Contacts from Failed to Normal and back based on their status.
-    """
-
-    from temba.orgs.models import Org
-
-    now = timezone.now()
-    five_minutes_ago = now - timedelta(minutes=5)
-    r = get_redis_connection()
-
-    # for any org that sent messages in the past five minutes, check for pending messages
-    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago, flow_server_enabled=False).distinct():
-        # more than 1,000 messages queued? don't do anything, wait for our queue to go down
-        queued = r.zcard("send_message_task:%d" % org.id)
-        if queued < 1000:
-            org.trigger_send()
-
-    # fire a few tasks in case we dropped one somewhere during a restart
-    # (these will be no-ops if there is nothing to do)
-    for i in range(100):
-        handle_event_task.apply_async(queue=Queue.HANDLER)
-
-
 @task(track_started=True, name="export_sms_task")
 def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
     """
     ExportMessagesTask.objects.get(id=export_id).perform()
-
-
-@task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
-def handle_event_task():
-    """
-    Priority queue task that handles both event fires (when fired) and new incoming
-    messages that need to be handled.
-    """
-    # pop off the next task
-    org_id, event_task = start_task(HANDLE_EVENT_TASK)
-
-    # it is possible we have no message to send, if so, just return
-    if not event_task:  # pragma: needs cover
-        return
-
-    try:
-        if event_task["type"] == FIRE_EVENT:
-            fire_ids = event_task.get("fires") if "fires" in event_task else [event_task.get("id")]
-            process_fire_events(fire_ids)
-
-        elif event_task["type"] == CHANNEL_EVENT:
-            event = ChannelEvent.objects.get(id=event_task["event_id"])
-            event.handle()
-
-        else:  # pragma: needs cover
-            raise Exception("Unexpected event type: %s" % event_task)
-    finally:
-        complete_task(HANDLE_EVENT_TASK, org_id)
 
 
 @nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)

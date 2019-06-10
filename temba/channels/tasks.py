@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from enum import Enum
 
 from django.conf import settings
 from django.utils import timezone
@@ -12,12 +11,6 @@ from temba.utils.queues import nonoverlapping_task
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
 logger = logging.getLogger(__name__)
-
-
-class MageStreamAction(Enum):
-    activate = 1
-    refresh = 2
-    deactivate = 3
 
 
 @task(track_started=True, name="sync_channel_fcm_task")

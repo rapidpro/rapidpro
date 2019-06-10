@@ -836,7 +836,6 @@ CELERYBEAT_SCHEDULE = {
     "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
     "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-messages-task": {"task": "check_messages_task", "schedule": timedelta(seconds=300)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
     "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
     "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
@@ -860,10 +859,7 @@ CELERYBEAT_SCHEDULE = {
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
-CELERY_TASK_MAP = {
-    "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "handle_event_task": "temba.msgs.tasks.handle_event_task",
-}
+CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
 
 # -----------------------------------------------------------------------------------
 # Async tasks with celery
