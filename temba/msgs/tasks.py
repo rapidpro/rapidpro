@@ -330,6 +330,9 @@ def handle_event_task():
     if not event_task:  # pragma: needs cover
         return
 
+    # shouldn't be finding tasks here any longer!!!
+    logger.error("received task in handler queue", extra=event_task)
+
     try:
         if event_task["type"] == MSG_EVENT:
             process_message_task(event_task)
