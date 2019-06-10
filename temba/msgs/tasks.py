@@ -2,7 +2,6 @@ import logging
 import time
 from datetime import timedelta
 
-import iso8601
 from django_redis import get_redis_connection
 
 from django.core.cache import cache
@@ -22,7 +21,6 @@ from .models import (
     HANDLE_EVENT_TASK,
     MSG_EVENT,
     PENDING,
-    TIMEOUT_EVENT,
     Broadcast,
     BroadcastMsgCount,
     ExportMessagesTask,
@@ -32,33 +30,6 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def process_run_timeout(run_id, timeout_on):
-    """
-    Processes a single run timeout
-    """
-    from temba.flows.models import FlowRun
-
-    r = get_redis_connection()
-    run = FlowRun.objects.filter(id=run_id, is_active=True, flow__is_active=True).first()
-
-    if run:
-        key = "pcm_%d" % run.contact_id
-        if not r.get(key):
-            with r.lock(key, timeout=120):
-                print("T[%09d] Processing timeout" % run.id)
-                start = time.time()
-
-                run.refresh_from_db()
-
-                # this is still the timeout to process (json doesn't have microseconds so close enough)
-                if run.timeout_on and abs(run.timeout_on - timeout_on) < timedelta(milliseconds=1):
-                    run.resume_after_timeout(timeout_on)
-                else:
-                    print("T[%09d] .. skipping timeout, already handled" % run.id)
-
-                print("T[%09d] %08.3f s" % (run.id, time.time() - start))
 
 
 def process_fire_events(fire_ids):
@@ -366,10 +337,6 @@ def handle_event_task():
         elif event_task["type"] == FIRE_EVENT:
             fire_ids = event_task.get("fires") if "fires" in event_task else [event_task.get("id")]
             process_fire_events(fire_ids)
-
-        elif event_task["type"] == TIMEOUT_EVENT:
-            timeout_on = iso8601.parse_date(event_task["timeout_on"])
-            process_run_timeout(event_task["run"], timeout_on)
 
         elif event_task["type"] == STOP_CONTACT_EVENT:
             contact = Contact.objects.get(id=event_task["contact_id"])

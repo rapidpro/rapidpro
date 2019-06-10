@@ -45,7 +45,6 @@ __message_handlers = None
 HANDLE_EVENT_TASK = "handle_event_task"
 MSG_EVENT = "msg"
 FIRE_EVENT = "fire"
-TIMEOUT_EVENT = "timeout"
 
 BATCH_SIZE = 500
 
