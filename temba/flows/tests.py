@@ -7227,7 +7227,7 @@ class FlowsTest(FlowFileTest):
         assert_recent(self.client.get(recent_messages_url), [])
 
         flow.start([], [self.contact])
-        self.create_msg(direction=INCOMING, contact=self.contact, text="chartreuse").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="chartreuse").handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
@@ -7244,7 +7244,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + invalid_params)
         assert_recent(response, [])
 
-        self.create_msg(direction=INCOMING, contact=self.contact, text="mauve").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="mauve").handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
@@ -7255,7 +7255,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(recent_messages_url + blue_params)
         assert_recent(response, [])
 
-        self.create_msg(direction=INCOMING, contact=self.contact, text="blue").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="blue").handle()
 
         response = self.client.get(recent_messages_url + entry_params)
         assert_recent(response, ["What is your favorite color?"])
@@ -7404,7 +7404,7 @@ class FlowsTest(FlowFileTest):
 
         # we don't know this shade of green, it should route us to the beginning again
         run1, = flow.start([], [self.contact])
-        self.create_msg(direction=INCOMING, contact=self.contact, text="chartreuse").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="chartreuse").handle()
 
         (active, visited) = flow.get_activity()
 
@@ -7425,7 +7425,7 @@ class FlowsTest(FlowFileTest):
 
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
-        self.create_msg(direction=INCOMING, contact=self.contact, text="mauve").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="mauve").handle()
         (active, visited) = flow.get_activity()
 
         self.assertEqual(active, {color.uuid: 1})
@@ -7440,7 +7440,7 @@ class FlowsTest(FlowFileTest):
 
         # this time a color we know takes us elsewhere, activity will move
         # to another node, but still just one entry
-        self.create_msg(direction=INCOMING, contact=self.contact, text="blue").queue_handling()
+        self.create_msg(direction=INCOMING, contact=self.contact, text="blue").handle()
         (active, visited) = flow.get_activity()
 
         self.assertEqual(active, {beer.uuid: 1})
@@ -8566,7 +8566,7 @@ class FlowsTest(FlowFileTest):
         # send some input to complete the child flows
         for contact in contacts:
             msg = self.create_msg(contact=contact, direction="I", text="OK", channel=self.channel)
-            msg.queue_handling()
+            msg.handle()
 
         # all of the runs should now be completed
         self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 20)
@@ -10964,7 +10964,7 @@ class ExitTest(FlowFileTest):
 
         # start it via the keyword
         msg = self.create_msg(contact=self.contact, direction=INCOMING, text="favorites")
-        msg.queue_handling()
+        msg.handle()
 
         second_run = FlowRun.objects.get(is_active=True)
         first_run.refresh_from_db()
@@ -11184,8 +11184,7 @@ class StackedExitsTest(FlowFileTest):
         )
 
         # ok, send a response, should unwind all our flows
-        msg = self.create_msg(contact=self.contact, direction="I", text="something")
-        Msg.process_message(msg)
+        self.create_msg(contact=self.contact, direction="I", text="something").handle()
 
         msgs = Msg.objects.filter(contact=self.contact, direction="O").order_by("sent_on")
         self.assertEqual(3, msgs.count())

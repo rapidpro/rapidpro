@@ -975,9 +975,6 @@ class Msg(models.Model):
         return handled
 
     def handle(self):
-        self.queue_handling()
-
-    def queue_handling(self):
         """
         Queues this message to be handled
         """
@@ -1114,7 +1111,7 @@ class Msg(models.Model):
         )
 
         # pass off handling of the message after we commit
-        on_transaction_commit(lambda: msg.queue_handling())
+        on_transaction_commit(lambda: msg.handle())
 
         return msg
 
@@ -1209,8 +1206,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge("temba.msg_incoming_%s" % channel.channel_type.lower())
 
-        if settings.TESTING and status == PENDING and msg_type != IVR:
-            legacy.handle_message(msg)
+        if status == PENDING and msg_type != IVR:
+            msg.handle()
 
         return msg
 
