@@ -1,3 +1,13 @@
+v4.25.0
+----------
+ * Add sentry error to handle_event_task as it shouldnt be handling anything
+ * Remove processing of timeouts which is now handled by mailroom
+ * Start broadcast mailroom tasks with HIGH_PRIORITY
+ * Fix EX settings page load
+ * Migration to convert any remaining orgs to use mailroom
+ * Fix broken links to webhook docs
+ * Simplify WebHookEvent model
+
 v4.23.3
 ----------
  * Send broadcasts through mailroom
