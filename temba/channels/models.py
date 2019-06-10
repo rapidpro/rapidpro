@@ -28,7 +28,7 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
-from temba.mailroom.queue import queue_mailroom_mo_miss_task
+from temba import mailroom
 from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
@@ -1436,7 +1436,7 @@ class ChannelEvent(models.Model):
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
             # pass off handling of the message to mailroom after we commit
-            on_transaction_commit(lambda: queue_mailroom_mo_miss_task(event))
+            on_transaction_commit(lambda: mailroom.queue_mo_miss_event(event))
 
         return event
 

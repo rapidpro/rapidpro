@@ -10,7 +10,6 @@ from uuid import uuid4
 
 import iso8601
 import pytz
-from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -29,16 +28,16 @@ from temba.contacts.models import TEL_SCHEME, URN, WHATSAPP_SCHEME, Contact, Con
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import FAILED, INCOMING, OUTGOING, SENT, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
+from . import legacy
 from .checks import mailroom_url
 from .flow_migrations import (
     map_actions,
@@ -131,7 +130,6 @@ from .tasks import (
     check_flows_task,
     squash_flowpathcounts,
     squash_flowruncounts,
-    start_flow_task,
     trim_flow_sessions,
     update_run_expirations_task,
 )
@@ -881,16 +879,8 @@ class FlowTest(TembaTest):
             {"total": 2, "active": 2, "completed": 0, "expired": 0, "interrupted": 0, "completion": 0},
         )
 
-        # should have created a single broadcast
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(
-            broadcast.text, {"base": "What is your favorite color?", "fra": "Quelle est votre couleur préférée?"}
-        )
-        self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
-        self.assertEqual(broadcast.base_language, "base")
-
         # each contact should have received a single message
-        contact1_msg = broadcast.msgs.get(contact=self.contact)
+        contact1_msg = self.contact.msgs.get()
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
         self.assertEqual(contact1_msg.status, WIRED)
         self.assertFalse(contact1_msg.high_priority)
@@ -4159,50 +4149,6 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
-    @patch("temba.mailroom.BATCH_QUEUE", "test_batch")
-    def test_mailroom_starts(self):
-        """
-        Test flow starts being directed to the mailroom queue - however we need to temporarily change the name
-        of the mailroom queue to prevent a running mailroom instance from picking up the task.
-        """
-
-        self.login(self.admin)
-
-        # mark our flow as being flow server enabled
-        self.flow.flow_server_enabled = True
-        self.flow.save()
-
-        # start a contact in our flow
-        response = self.client.get(reverse("flows.flow_broadcast", args=[self.flow.id]))
-        self.assertEqual(len(response.context["form"].fields), 4)
-        self.assertIn("omnibox", response.context["form"].fields)
-        self.assertIn("restart_participants", response.context["form"].fields)
-        self.assertIn("include_active", response.context["form"].fields)
-
-        post_data = dict()
-        post_data["omnibox"] = "c-%s" % self.contact.uuid
-        post_data["restart_participants"] = "on"
-        self.client.post(reverse("flows.flow_broadcast", args=[self.flow.id]), post_data, follow=True)
-
-        # should now have our flow start queued
-        r = get_redis_connection()
-        self.assertEqual(1, r.zcard("test_batch:%d" % self.org.id))
-        self.assertEqual(1, r.zcard("test_batch:active"))
-
-        start = FlowStart.objects.last()
-
-        # pop our task off
-        task_json = r.zrange("test_batch:%d" % self.org.id, 0, 0)
-        task = json.loads(task_json[0].decode("utf8"))
-        self.assertEqual("start_flow", task["type"])
-        self.assertEqual(self.flow.id, task["task"]["flow_id"])
-        self.assertEqual(self.org.id, task["task"]["org_id"])
-        self.assertEqual([self.contact.id], task["task"]["contact_ids"])
-        self.assertEqual([], task["task"]["group_ids"])
-        self.assertEqual(True, task["task"]["restart_participants"])
-        self.assertEqual(False, task["task"]["include_active"])
-        self.assertTrue(start.id, task["task"]["start_id"])
-
     def test_views_viewers(self):
         # create a viewer
         self.viewer = self.create_user("Viewer")
@@ -5062,19 +5008,24 @@ class ActionTest(TembaTest):
         msg_body = "I am a media message message"
 
         action = SendAction(
-            str(uuid4()), dict(base=msg_body), [], [self.contact2], [], dict(base="image/jpeg:attachments/picture.jpg")
+            str(uuid4()),
+            dict(base=msg_body),
+            [],
+            [self.contact2],
+            [],
+            dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"),
         )
         self.execute_action(action, run, None)
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
         self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media["base"], "image/jpeg:attachments/picture.jpg")
+        self.assertEqual(action.media["base"], f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg")
 
         self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
 
         broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.media, dict(base="image/jpeg:attachments/picture.jpg"))
+        self.assertEqual(broadcast.media, dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"))
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -5673,11 +5624,9 @@ class FlowRunTest(TembaTest):
     def test_run_release(self):
         run = FlowRun.create(self.flow, self.contact)
 
-        # give our run some webhook data
-        WebHookEvent.objects.create(org=self.org, run=run, channel=self.channel)
-
         # our run go bye bye
         run.release()
+
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     def test_session_release(self):
@@ -6617,7 +6566,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(ruleset_get.data)
 
         # make sure triggering without a url fails properly
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, "", msg)
+        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
@@ -8840,7 +8789,6 @@ class FlowsTest(FlowFileTest):
         parent.start([], [self.contact, joe])
 
         self.assertEqual(8, Msg.objects.filter(direction="O").count())
-        self.assertEqual(2, Broadcast.objects.all().count())
 
         # all messages so far are low prioirty as well because of no inbound
         self.assertEqual(8, Msg.objects.filter(direction="O", high_priority=False).count())
@@ -10900,44 +10848,6 @@ class TriggerStartTest(FlowFileTest):
         self.assertLastResponse("Hi Rudolph, how old are you?")
 
 
-@patch("temba.flows.models.START_FLOW_BATCH_SIZE", 10)
-class FlowBatchTest(FlowFileTest):
-    def test_flow_batch_start(self):
-        """
-        Tests starting a flow for a group of contacts
-        """
-        flow = self.get_flow("two_in_row")
-
-        # create 11 contacts
-        contacts = []
-        for i in range(11):
-            contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
-
-        # stop our last contact
-        stopped = contacts[10]
-        stopped.stop(self.admin)
-
-        # start our flow, this will take two batches
-        with QueryTracker(assert_query_count=204, stack_count=10, skip_unique_queries=True):
-            flow.start([], contacts)
-
-        # ensure 11 flow runs were created
-        self.assertEqual(11, FlowRun.objects.all().count())
-
-        # ensure 20 outgoing messages were created (2 for each successful run)
-        self.assertEqual(20, Msg.objects.all().exclude(contact=stopped).count())
-
-        # but only one broadcast
-        self.assertEqual(1, Broadcast.objects.all().count())
-
-        # broadcast should be marked as sent
-        self.assertEqual(SENT, Broadcast.objects.get().status)
-
-        # our stopped contact should have only received one msg before blowing up
-        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
-
-
 class TwoInRowTest(FlowFileTest):
     def test_two_in_row(self):
         flow = self.get_flow("two_in_row")
@@ -11612,19 +11522,6 @@ class AndroidChildStatus(FlowFileTest):
         self.assertEqual(msgs[1].text, "Child Msg 2")
 
 
-class QueryTest(FlowFileTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    def test_num_queries(self):
-
-        self.get_flow("query_test")
-        flow = Flow.objects.filter(name="Query Test").first()
-
-        # mock our webhook call which will get triggered in the flow
-        self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
-            flow.start([], [self.contact])
-
-
 class FlowChannelSelectionTest(FlowFileTest):
     def setUp(self):
         super().setUp()
@@ -11675,14 +11572,7 @@ class FlowTriggerTest(TembaTest):
         )
         group_trigger.groups.add(group)
 
-        real_func = start_flow_task.apply_async
-        with patch("temba.flows.tasks.start_flow_task.apply_async") as mock_start_flow_task:
-            mock_start_flow_task.side_effect = real_func
-
-            group_trigger.fire()
-
-            start = FlowStart.objects.get()
-            mock_start_flow_task.assert_called_once_with(args=[start.id], queue="flows")
+        group_trigger.fire()
 
         # contact should be added to flow again
         self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())

@@ -304,7 +304,6 @@ def check_messages_task():  # pragma: needs cover
     """
     from .models import INCOMING, PENDING
     from temba.orgs.models import Org
-    from temba.flows.tasks import start_msg_flow_batch_task
 
     now = timezone.now()
     five_minutes_ago = now - timedelta(minutes=5)
@@ -321,7 +320,6 @@ def check_messages_task():  # pragma: needs cover
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
         handle_event_task.apply_async(queue=Queue.HANDLER)
-        start_msg_flow_batch_task.apply_async(queue=Queue.FLOWS)
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)

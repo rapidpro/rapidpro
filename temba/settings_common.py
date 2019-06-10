@@ -830,7 +830,6 @@ INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24"
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
-    "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
@@ -864,7 +863,6 @@ CELERYBEAT_SCHEDULE = {
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
 CELERY_TASK_MAP = {
     "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "start_msg_flow_batch": "temba.flows.tasks.start_msg_flow_batch_task",
     "handle_event_task": "temba.msgs.tasks.handle_event_task",
 }
 

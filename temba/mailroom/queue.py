@@ -10,28 +10,26 @@ HIGH_PRIORITY = -10000000
 DEFAULT_PRIORITY = 0
 
 QUEUE_PATTERN = "%s:%d"
-
 ACTIVE_PATTERN = "%s:active"
 
+# task queues
 CONTACT_QUEUE = "c:%d:%d"
-
 BATCH_QUEUE = "batch"
-
 HANDLER_QUEUE = "handler"
 
+# task types
 START_FLOW_TASK = "start_flow"
-
 HANDLE_CONTACT_EVENT_TASK = "handle_contact_event"
-
 MSG_EVENT_TASK = "msg_event"
-
 MO_MISS_EVENT_TASK = "mo_miss"
+SEND_BROADCAST_TASK = "send_broadcast"
 
 
-def queue_mailroom_msg_task(msg):
+def queue_msg_handling(msg):
     """
-    Queues the passed in message to mailroom for handling
+    Queues the passed in message for handling in mailroom
     """
+
     msg_task = {
         "org_id": msg.org_id,
         "channel_id": msg.channel_id,
@@ -45,13 +43,15 @@ def queue_mailroom_msg_task(msg):
         "attachments": msg.attachments,
         "new_contact": getattr(msg.contact, "is_new", False),
     }
-    queue_mailroom_contact_task(msg.org_id, msg.contact_id, MSG_EVENT_TASK, msg_task)
+
+    _queue_handler_task(msg.org_id, msg.contact_id, MSG_EVENT_TASK, msg_task)
 
 
-def queue_mailroom_mo_miss_task(event):
+def queue_mo_miss_event(event):
     """
     Queues the passed in channel event to mailroom for handling
     """
+
     event_task = {
         "id": event.id,
         "event_type": MO_MISS_EVENT_TASK,
@@ -63,23 +63,67 @@ def queue_mailroom_mo_miss_task(event):
         "extra": event.extra,
         "new_contact": getattr(event.contact, "is_new", False),
     }
-    queue_mailroom_contact_task(event.org_id, event.contact_id, MO_MISS_EVENT_TASK, event_task)
+
+    _queue_handler_task(event.org_id, event.contact_id, MO_MISS_EVENT_TASK, event_task)
 
 
-def queue_mailroom_task(org_id, queue, task_type, task, priority):
+def queue_broadcast(broadcast):
     """
-    Adds the passed in task to the proper mailroom queue
+    Queues the passed in broadcast for sending by mailroom
     """
+
+    task = {
+        "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
+        "template_state": "legacy",
+        "base_language": broadcast.base_language,
+        "urns": [u.urn for u in broadcast.urns.all()],
+        "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
+        "group_ids": list(broadcast.groups.values_list("id", flat=True)),
+        "broadcast_id": broadcast.id,
+        "org_id": broadcast.org_id,
+    }
+
+    _queue_batch_task(broadcast.org_id, SEND_BROADCAST_TASK, task, HIGH_PRIORITY)
+
+
+def queue_flow_start(start):
+    """
+    Queues the passed in flow start for starting by mailroom
+    """
+
+    org_id = start.flow.org_id
+
+    task = {
+        "start_id": start.id,
+        "org_id": org_id,
+        "flow_id": start.flow_id,
+        "flow_type": start.flow.flow_type,
+        "contact_ids": list(start.contacts.values_list("id", flat=True)),
+        "group_ids": list(start.groups.values_list("id", flat=True)),
+        "restart_participants": start.restart_participants,
+        "include_active": start.include_active,
+        "extra": start.extra,
+    }
+
+    _queue_batch_task(org_id, START_FLOW_TASK, task, HIGH_PRIORITY)
+
+
+def _queue_batch_task(org_id, task_type, task, priority):
+    """
+    Adds the passed in task to the mailroom batch queue
+    """
+
     r = get_redis_connection("default")
     pipe = r.pipeline()
-    _queue_mailroom_task(pipe, org_id, queue, task_type, task, priority)
+    _queue_task(pipe, org_id, BATCH_QUEUE, task_type, task, priority)
     pipe.execute()
 
 
-def queue_mailroom_contact_task(org_id, contact_id, task_type, task):
+def _queue_handler_task(org_id, contact_id, task_type, task):
     """
     Adds the passed in task to the contact's queue for mailroom to process
     """
+
     contact_queue = CONTACT_QUEUE % (org_id, contact_id)
     contact_task = _create_mailroom_task(org_id, task_type, task)
 
@@ -91,11 +135,11 @@ def queue_mailroom_contact_task(org_id, contact_id, task_type, task):
 
     # then push a contact handling event to the org queue
     event_task = {"contact_id": contact_id}
-    _queue_mailroom_task(pipe, org_id, HANDLER_QUEUE, HANDLE_CONTACT_EVENT_TASK, event_task, HIGH_PRIORITY)
+    _queue_task(pipe, org_id, HANDLER_QUEUE, HANDLE_CONTACT_EVENT_TASK, event_task, HIGH_PRIORITY)
     pipe.execute()
 
 
-def _queue_mailroom_task(pipe, org_id, queue, task_type, task, priority):
+def _queue_task(pipe, org_id, queue, task_type, task, priority):
     """
     Queues a task to mailroom
 
@@ -108,6 +152,7 @@ def _queue_mailroom_task(pipe, org_id, queue, task_type, task, priority):
         priority: the priority of this task
 
     """
+
     # our score is the time in milliseconds since epoch + any priority modifier
     score = int(round(time.time() * 1000)) + priority
 
