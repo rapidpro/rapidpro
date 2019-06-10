@@ -61,6 +61,7 @@ from temba.utils.models import (
 from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
+from . import legacy
 from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
@@ -3301,10 +3302,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
-            # release our webhook events
-            for event in self.webhook_events.all():
-                event.release()
-
             # and any recent runs
             for recent in FlowPathRecentRun.objects.filter(run=self):
                 recent.release()
@@ -3765,12 +3762,8 @@ class RuleSet(models.Model):
             last_success, last_failure = None, None
 
             for url in urls:
-                from temba.api.models import WebHookEvent
-
                 (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
-                result = WebHookEvent.trigger_flow_webhook(
-                    run, evaled_url, self, msg, action, resthook=resthook, headers=header
-                )
+                result = legacy.call_webhook(run, evaled_url, self, msg, action, resthook=resthook, headers=header)
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
                 if resthook and url and result.status_code == 410:

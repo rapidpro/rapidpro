@@ -35,9 +35,9 @@ from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest,
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
+from . import legacy
 from .checks import mailroom_url
 from .flow_migrations import (
     map_actions,
@@ -5624,11 +5624,9 @@ class FlowRunTest(TembaTest):
     def test_run_release(self):
         run = FlowRun.create(self.flow, self.contact)
 
-        # give our run some webhook data
-        WebHookEvent.objects.create(org=self.org, run=run, channel=self.channel)
-
         # our run go bye bye
         run.release()
+
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     def test_session_release(self):
@@ -6568,7 +6566,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(ruleset_get.data)
 
         # make sure triggering without a url fails properly
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, "", msg)
+        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
@@ -11522,19 +11520,6 @@ class AndroidChildStatus(FlowFileTest):
         msgs = Msg.objects.filter(contact=self.contact, status=WIRED, direction=OUTGOING).order_by("created_on")
         self.assertEqual(msgs[0].text, "Child Msg 1")
         self.assertEqual(msgs[1].text, "Child Msg 2")
-
-
-class QueryTest(FlowFileTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    def test_num_queries(self):
-
-        self.get_flow("query_test")
-        flow = Flow.objects.filter(name="Query Test").first()
-
-        # mock our webhook call which will get triggered in the flow
-        self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
-            flow.start([], [self.contact])
 
 
 class FlowChannelSelectionTest(FlowFileTest):

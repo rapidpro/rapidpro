@@ -1007,7 +1007,6 @@ class Msg(models.Model):
         """
         Updates our message according to the provided client command
         """
-        from temba.api.models import WebHookEvent
 
         date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
 
@@ -1021,18 +1020,15 @@ class Msg(models.Model):
         elif keyword == "mt_fail":
             self.status = FAILED
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_FAIL, self, date)
 
         elif keyword == "mt_sent":
             self.status = SENT
             self.sent_on = date
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_SENT, self, date)
 
         elif keyword == "mt_dlvd":
             self.status = DELIVERED
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
         self.save(
             update_fields=["status", "sent_on"]
@@ -1168,8 +1164,6 @@ class Msg(models.Model):
 
     @classmethod
     def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):
-        from temba.api.models import WebHookEvent
-
         # get / create our contact and URN
         contact, contact_urn = Contact.get_or_create(org, urn, channel, init_new=False)
 
@@ -1199,9 +1193,6 @@ class Msg(models.Model):
             status=PENDING,
         )
 
-        # trigger a webhook event for the MO message
-        WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, received_on)
-
         # pass off handling of the message to mailroom after we commit
         on_transaction_commit(lambda: mailroom.queue_msg_handling(msg))
 
@@ -1224,8 +1215,6 @@ class Msg(models.Model):
         external_id=None,
         connection=None,
     ):
-
-        from temba.api.models import WebHookEvent
 
         if not org and channel:
             org = channel.org
@@ -1303,9 +1292,6 @@ class Msg(models.Model):
         # ivr messages are handled in handle_call
         if status == PENDING and msg_type != IVR:
             msg.handle()
-
-            # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, sent_on)
 
         return msg
 
