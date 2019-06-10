@@ -9,7 +9,7 @@ from celery.task import task
 from temba.channels.models import Channel, ChannelLog
 from temba.utils.http import HttpEvent
 from temba.utils.locks import NonBlockingLock
-from temba.utils.queues import Queue, nonoverlapping_task
+from temba.utils.queues import nonoverlapping_task
 
 from .models import IVRCall
 
@@ -125,4 +125,4 @@ def task_enqueue_call_events():
         call.status = IVRCall.QUEUED
         call.save(update_fields=("status",))
 
-        start_call_task.apply_async(kwargs={"call_pk": call.id}, queue=Queue.HANDLER)
+        start_call_task.apply_async(kwargs={"call_pk": call.id})
