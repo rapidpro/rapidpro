@@ -6,21 +6,17 @@ from django_redis import get_redis_connection
 
 from django.core.cache import cache
 from django.utils import timezone
-from django.utils.encoding import force_text
 
 from celery.task import task
 
-from temba.channels.courier import handle_new_contact, handle_new_message
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
 from temba.contacts.models import STOP_CONTACT_EVENT, Contact
-from temba.utils import analytics, json
+from temba.utils import analytics
 from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
 
 from .models import (
     FIRE_EVENT,
     HANDLE_EVENT_TASK,
-    MSG_EVENT,
-    PENDING,
     Broadcast,
     BroadcastMsgCount,
     ExportMessagesTask,
@@ -55,74 +51,6 @@ def process_fire_events(fire_ids):
             EventFire.batch_fire(fires, flow)
 
             print("E[%s][%s] Finished batch firing events in %.3f s" % (flow.org.name, flow.name, time.time() - start))
-
-
-def process_message(msg, new_message=False, new_contact=False):
-    """
-    Processes the passed in message dealing with new contacts or mage messages appropriately.
-    """
-    print("M[%09d] Processing - %s" % (msg.id, msg.text))
-    start = time.time()
-
-    # if message was created in Mage...
-    if new_message:
-        handle_new_message(msg.org, msg)
-        if new_contact:
-            handle_new_contact(msg.org, msg.contact)
-
-    Msg.process_message(msg)
-    print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
-
-
-@task(track_started=True, name="process_message_task")
-def process_message_task(msg_event):
-    """
-    Given the task JSON from our queue, processes the message, is two implementations to deal with
-    backwards compatibility of using contact queues (second branch can be removed later)
-    """
-    r = get_redis_connection()
-
-    # we have a contact id, we want to get the msg from that queue after acquiring our lock
-    if msg_event.get("contact_id"):
-        key = "pcm_%d" % msg_event["contact_id"]
-        contact_queue = Msg.CONTACT_HANDLING_QUEUE % msg_event["contact_id"]
-
-        # wait for the lock as we want to make sure to process the next message as soon as we are free
-        with r.lock(key, timeout=120):
-
-            # pop the next message off our contact queue until we find one that needs handling
-            while True:
-                with r.pipeline() as pipe:
-                    pipe.zrange(contact_queue, 0, 0)
-                    pipe.zremrangebyrank(contact_queue, 0, 0)
-                    (contact_msg, deleted) = pipe.execute()
-
-                # no more messages in the queue for this contact, we're done
-                if not contact_msg:
-                    return
-
-                # we have a message in our contact queue, look it up
-                msg_event = json.loads(force_text(contact_msg[0]))
-                msg = (
-                    Msg.objects.filter(id=msg_event["id"])
-                    .order_by()
-                    .select_related("org", "contact", "contact_urn", "channel")
-                    .first()
-                )
-
-                # make sure we are still pending
-                if msg and msg.status == PENDING:
-                    process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
-                    return
-
-    # backwards compatibility for events without contact ids, we handle the message directly
-    else:
-        msg = Msg.objects.filter(id=msg_event["id"]).select_related("org", "contact", "contact_urn", "channel").first()
-        if msg and msg.status == PENDING:
-            # grab our contact lock and handle this message
-            key = "pcm_%d" % msg.contact_id
-            with r.lock(key, timeout=120):
-                process_message(msg, msg_event.get("new_message", False), msg_event.get("new_contact", False))
 
 
 @task(track_started=True, name="send_broadcast")
@@ -273,7 +201,7 @@ def check_messages_task():  # pragma: needs cover
     Checks to see if any of our aggregators have errored messages that need to be retried.
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
     """
-    from .models import INCOMING, PENDING
+
     from temba.orgs.models import Org
 
     now = timezone.now()
@@ -291,16 +219,6 @@ def check_messages_task():  # pragma: needs cover
     # (these will be no-ops if there is nothing to do)
     for i in range(100):
         handle_event_task.apply_async(queue=Queue.HANDLER)
-
-    # also check any incoming messages that are still pending somehow, reschedule them to be handled
-    unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-    unhandled_messages = unhandled_messages.exclude(channel__is_active=False).exclude(org__flow_server_enabled=True)
-    unhandled_count = unhandled_messages.count()
-
-    if unhandled_count:
-        print("** Found %d unhandled messages" % unhandled_count)
-        for msg in unhandled_messages[:100]:
-            msg.handle()
 
 
 @task(track_started=True, name="export_sms_task")
@@ -331,10 +249,7 @@ def handle_event_task():
         return
 
     try:
-        if event_task["type"] == MSG_EVENT:
-            process_message_task(event_task)
-
-        elif event_task["type"] == FIRE_EVENT:
+        if event_task["type"] == FIRE_EVENT:
             fire_ids = event_task.get("fires") if "fires" in event_task else [event_task.get("id")]
             process_fire_events(fire_ids)
 

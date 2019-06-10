@@ -984,12 +984,6 @@ SEND_CHATBASE = False
 #         could cause calls in test environments
 SEND_CALLS = False
 
-MESSAGE_HANDLERS = [
-    "temba.triggers.handlers.TriggerHandler",
-    "temba.flows.handlers.FlowHandler",
-    "temba.triggers.handlers.CatchAllHandler",
-]
-
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",

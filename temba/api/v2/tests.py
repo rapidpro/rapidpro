@@ -2346,7 +2346,7 @@ class APITest(TembaTest):
 
         # run joe through through a flow
         color.start([], [self.joe])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
+        self.create_msg(direction="I", contact=self.joe, text="it is blue").queue_handling()
 
         # flow belong to other org
         self.create_flow(org=self.org2, name="Other")
@@ -3091,8 +3091,8 @@ class APITest(TembaTest):
 
         joe_run1, = start1.start()
         frank_run1, = flow1.start([], [self.frank])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
-        self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()
+        self.create_msg(direction="I", contact=self.joe, text="it is blue").queue_handling()
+        self.create_msg(direction="I", contact=self.frank, text="Indigo").queue_handling()
 
         joe_run2, = flow1.start([], [self.joe], restart_participants=True)
         frank_run2, = flow1.start([], [self.frank], restart_participants=True)
