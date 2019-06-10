@@ -83,7 +83,7 @@ def queue_broadcast(broadcast):
         "org_id": broadcast.org_id,
     }
 
-    _queue_batch_task(broadcast.org_id, SEND_BROADCAST_TASK, task, DEFAULT_PRIORITY)
+    _queue_batch_task(broadcast.org_id, SEND_BROADCAST_TASK, task, HIGH_PRIORITY)
 
 
 def queue_flow_start(start):
