@@ -659,7 +659,9 @@ class Flow(TembaModel):
 
         # if we handled it, mark it so
         if handled and msg.id:
-            Msg.mark_handled(msg)
+            from temba.msgs import legacy
+
+            legacy.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -759,7 +761,6 @@ class Flow(TembaModel):
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
                 run.set_completed(exit_uuid=None)
-                Msg.mark_handled(msg)
                 return True, []
 
             (handled, msgs) = Flow.handle_destination(

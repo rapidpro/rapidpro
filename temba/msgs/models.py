@@ -474,8 +474,6 @@ class Msg(models.Model):
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
-    CONTACT_HANDLING_QUEUE = "ch:%d"
-
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     STATUSES = extract_constants(STATUS_CONFIG)
@@ -764,23 +762,6 @@ class Msg(models.Model):
 
         # fail our messages
         failed_messages.update(status="F", modified_on=timezone.now())
-
-    @classmethod
-    def mark_handled(cls, msg):
-        """
-        Marks an incoming message as HANDLED
-        """
-        update_fields = ["status", "modified_on"]
-
-        # if flows or IVR haven't claimed this message, then it's going to the inbox
-        if not msg.msg_type:
-            msg.msg_type = INBOX
-            update_fields.append("msg_type")
-
-        msg.status = HANDLED
-
-        # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=update_fields)
 
     @classmethod
     def mark_error(cls, r, channel, msg, fatal=False):
