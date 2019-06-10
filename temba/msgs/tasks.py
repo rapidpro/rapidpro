@@ -10,7 +10,6 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.channels.models import CHANNEL_EVENT, ChannelEvent
-from temba.contacts.models import STOP_CONTACT_EVENT, Contact
 from temba.utils import analytics
 from temba.utils.queues import Queue, complete_task, nonoverlapping_task, start_task
 
@@ -234,12 +233,6 @@ def handle_event_task():
     """
     Priority queue task that handles both event fires (when fired) and new incoming
     messages that need to be handled.
-
-    Currently three types of events may be "popped" from our queue:
-             msg - Which contains the id of the Msg to be processed
-            fire - Which contains the id of the EventFire that needs to be fired
-         timeout - Which contains a run that timed out and needs to be resumed
-    stop_contact - Which contains the contact id to stop
     """
     # pop off the next task
     org_id, event_task = start_task(HANDLE_EVENT_TASK)
@@ -252,10 +245,6 @@ def handle_event_task():
         if event_task["type"] == FIRE_EVENT:
             fire_ids = event_task.get("fires") if "fires" in event_task else [event_task.get("id")]
             process_fire_events(fire_ids)
-
-        elif event_task["type"] == STOP_CONTACT_EVENT:
-            contact = Contact.objects.get(id=event_task["contact_id"])
-            contact.stop(contact.modified_by)
 
         elif event_task["type"] == CHANNEL_EVENT:
             event = ChannelEvent.objects.get(id=event_task["event_id"])
