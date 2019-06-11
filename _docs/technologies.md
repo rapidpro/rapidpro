@@ -32,7 +32,7 @@ make heavy use of [Hamlpy](https://github.com/jessemiller/HamlPy) instead of
 writing raw HTML templates. We've found this to greatly increase the quality
 and clarify of our templates.
 
-## CoffeeScript
+## CoffeeScript (though moving to Typescript)
 
 In a similar vain, we use [CoffeeScript](http://coffeescript.org/) for most of
 our front end Javascript as it leads to more readable code that is compatible
@@ -43,12 +43,12 @@ across all browsers.
 For writing stylesheets, we use [LESS](http://lesscss.org/) as a preprocessor.
 This lets us easily use variables for colors and fonts and leads to more readable selectors.
 
-## Angular
+## React
 
-The more complicated Javascript pages on the site use [AngularJS](https://angularjs.org/)
-in order to provide a good, interactive, experience to the end users. Although
-it has a steep learning curve, we've found the long term maintainability of
-Angular to be much higher than custom Javascript.
+Our new editor has been rewritten from AngularJS to the more modern
+[React Framework](https://reactjs.org/). This has provided us a big increase
+in the performance of the editor as well as allowing us to add new features
+with more confidence of not breaking existing functionality.
 
 # Backend
 
@@ -58,9 +58,14 @@ We depend on [PostgreSQL](http://www.postgresql.org/) as a SQL server.
 We do not support any other RDBMS. This is primarily due to the PostGIS support
 provided by PostgreSQL.
 
+## ElasticSearch
+
+In order to enable performant searching across millions of contacts, we index
+them in [ElasticSearch](https://www.elastic.co/).
+
 ## Celery
 
-For backgrounds tasks and batch jobs we lean heavily on the excellent
+For backgrounds tasks and batch jobs we lean on
 [Celery](http://www.celeryproject.org/) distributed task queue.
 
 ## Redis
@@ -69,10 +74,10 @@ We are big, big, fans of [Redis](http://redis.io/) as a fast, reliable and light
 store. We use it as a backend for Celery processes, as a caching framework and as
 a locking mechanism for our distributed systems.
 
-## DropWizard
+## Golang
 
-Our Message Mage component uses the lightweight and performant
-[DropWizard](http://dropwizard.io/) Java framework.
+For the highest performance pieces of RapidPro we use [Golang](https://golang.org/),
+which we have found to be a perfect fit for us.
 
 # Android
 

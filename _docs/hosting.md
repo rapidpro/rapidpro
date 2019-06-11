@@ -12,13 +12,16 @@ one of the hosted service providers that have expertise in doing so.
 
 For a highly available installation, you will require:
 
- * n+1 load balancers routing internet traffic to the Django and Message Mage components
- * n+1 web server front ends running the Django frontend
- * n+1 web servers front ends running the Message Mage frontend
+ * n+1 instances running the RapidPro Django frontend
+ * n+1 instances for the RapidPro Celery queue
+ * n+1 instances running Courier for sending and receiving of messages
+ * n+1 instances running Mailroom for handling of flows
+ * 1 instance running rp-archiver to archive messages and flows to S3
+ * 1 instance running rp-indexer to index contacts
  * A PostgreSQL server with a hot standby
  * A Redis server with a hot standby
  * An ElasticSearch instance with a hot standby
- * n+1 Celery instances for each of the RapidPro queues. (celery, msgs, flows, handler)
+ * A load balancer routing traffic to Django, Courier and Mailroom
 
 <img src="{{site.baseurl}}/images/hosting.png" widht="100%">
 
@@ -38,21 +41,20 @@ Though the hardware required to run RapidPro at scale changes based on various
 optimizations made in the code, here are some rough guidelines for running a cluster
 capable of handling millions of messages per week.
 
- * Web and Celery Servers - 3 servers - 4 Xeon CPUs, 16 gigs of RAM
+ * Django, Courier and Mailroom Servers - 2 servers - 4 Xeon CPUs, 16 gigs of RAM
  * Redis Servers - 2 servers - 2 Xeon CPUs, 8 gigs of RAM
- * ElasticSearch Servers - 2 servers - 16 gigr of RAM each, sufficient space for indexes
- * DB Servers - 8 Xeon CPUs, 30 gigs of RAM
+ * ElasticSearch Servers - 2 servers - 16 gigs of RAM each, sufficient space for indexes
+ * DB Servers - 4 Xeon CPUs, 16 gigs of RAM
 
 The configuration of gunicorn and celery workers is highly dependent on the kind
 of hardware you have, but given the above, these should get you started:
 
  * Django - 10 gunicorn workers
  * Default Celery Queue - 1-8 dynamic workers
- * Handler Celery Queue - 1-8 dynamic workers
- * Flow Celery Queue - 1-6 dynamic workers
- * Msgs Celery Queue - 1-12 dynamic workers
+ * Courier - 32 workers
+ * Mailroom - 4 batch workers, 32 handler workers
 
-# RapidPro management features for hosting providers & administrators
+# Management features
 
 On the administration side, there are a few features that can be enabled for hosting staff to manage your RapidPro installation.
 These are controlled via groups and permissions and are defined in [`settings_common.py`](https://github.com/rapidpro/rapidpro/blob/master/temba/settings_common.py#L480) alongside the roles for regular users (admin, editor, viewer).

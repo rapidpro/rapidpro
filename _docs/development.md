@@ -14,34 +14,28 @@ and Ubuntu, you'll likely need to modify the directions below if using Windows.
 
 You'll need the following to get started:
 
- * PostgreSQL 9.3 or later along with the PostGIS extensions. You probably want
-   to refer to Django's [installation instructions](https://docs.djangoproject.com/en/dev/ref/contrib/gis/install/postgis/)
-   to help get this working.
- * [Redis](https://redis.io) 2.8 or later installed and listening on localhost.
-   By default the development server uses database 15.
- * [lessc](http://lesscss.org), the Less compiler.
- * [coffee](http://coffeescript.org), the Coffee script compiler.
- * [bower](http://bower.io), package manager for javascript libraries.
- * [libmagic](http://brewformulas.org/Libmagic) or [libmagic-dev](https://packages.ubuntu.com/search?keywords=libmagic-dev) depending on your development platform. Required by https://github.com/dveselov/python-libmagic.
+ * [Python](https://www.python.org/) 3.6.5 or later
+ * [PostgreSQL](https://www.postgresql.org/) 9.6 or later along with the PostGIS extensions
+ * [Redis](https://redis.io) 3.2 or later installed and listening on localhost
+ * [NPM](https://www.npmjs.com/) which handles our JS dependencies
 
 ## Create temba user for PostgreSQL
 
+Create a temba user with password temba:
 {% highlight bash %}
 $ createuser temba --pwprompt -d
-Enter password for new role:
-Enter it again:
+Enter password for new role: (enter temba)
+Enter it again: (enter temba)
 {% endhighlight %}
 
 ## Create temba database, add PostGIS
 
-Create the database as temba user:
+Create the database making temba the owner:
 {% highlight bash %}
-$ psql --user=temba postgres
-postgres=> create database temba;
-CREATE DATABASE
+$ createdb temba
 {% endhighlight %}
 
-Now connect as a superuser that can install extensions:
+Now connect as a superuser that can install extensions and install postgis, hstore and uuid extensions:
 {% highlight bash %}
 $ psql
 postgres=# \c temba
@@ -62,8 +56,9 @@ Now clone the RapidPro repository and link up the development settings:
 
 {% highlight bash %}
 $ git clone git@github.com:rapidpro/rapidpro.git
-$ cd rapidpro
-$ ln -s temba/settings.py.dev temba/settings.py
+$ cd rapidpro/temba
+$ ln -s temba/settings.py.dev settings.py
+$ cd ..
 {% endhighlight %}
 
 ## Build virtual environment
@@ -73,7 +68,7 @@ pinned dependencies for RapidPro can be found in ```pip-freeze.txt```. You can
 build the needed environment as follows (from the root rapidpro directory):
 
 {% highlight bash %}
-$ virtualenv env
+$ virtualenv -p python3 env
 $ source env/bin/activate
 (env) $ pip install -r pip-freeze.txt
 {% endhighlight %}
@@ -88,23 +83,47 @@ initializes all the user groups and permissions.
 $ python manage.py migrate
 {% endhighlight %}
 
-## Install bower scripts
+## Install javascript dependencies
 
-Before you can run your server, you will need the web-tier dependencies. These
-are managed by bower (see bower.json in the root for more details).
+Before you can run your server, you will need the javascript dependencies. You
+can install them using NPM:
 
 {% highlight bash %}
-$ bower install
+$ npm install
 {% endhighlight %}
 
+## Install lessc and coffeescript
 
-## Run development server
+Because our templates and CSS files need compilation, you'll need to use NPM
+to install `coffeescript` and `lessc` globally:
+
+{% highlight bash %}
+$ sudo npm install less -g
+$ sudo npm install coffeescript -g
+{% endhighlight %}
+
+## Start Django server
 
 At this point you'll be able to run the development server and run RapidPro. It
 will be available at ```http://localhost:8000```
 
 {% highlight bash %}
 $ python manage.py runserver
+{% endhighlight %}
+
+## Start Mailroom
+
+If you wish to edit and run flows in your development environment, you will also
+need to run mailroom locally.
+
+You can do so by just downloading the latest mailroom version from the Mailroom
+[releases](https://github.com/nyaruka/mailroom/releases) and running the
+executable. The default options should work without any changes for your development
+server. (you will see warnings about S3 buckets but these can be ignored for
+  development)
+
+{% highlight bash %}
+$ ./mailroom
 {% endhighlight %}
 
 
