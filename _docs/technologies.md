@@ -34,7 +34,7 @@ and clarify of our templates.
 
 ## CoffeeScript (though moving to Typescript)
 
-In a similar vain, we use [CoffeeScript](http://coffeescript.org/) for most of
+In a similar vein, we use [CoffeeScript](http://coffeescript.org/) for most of
 our front end Javascript as it leads to more readable code that is compatible
 across all browsers.
 
