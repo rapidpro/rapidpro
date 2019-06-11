@@ -2695,6 +2695,28 @@ Content-Type: application/json
 
             self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "2150393045080607", count=3)
+        self.assertContains(response, "facebook:2150393045080607", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "2150393045080607", count=2)
+            self.assertContains(response, "facebook:", count=1)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
 
