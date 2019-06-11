@@ -14,10 +14,10 @@ def check_schedule_task(sched_id=None):
     """
     logger = check_schedule_task.get_logger()
 
+    schedules = Schedule.objects.filter(status="S", is_active=True, next_fire__lt=timezone.now())
+
     if sched_id:
-        schedules = [Schedule.objects.get(id=sched_id)]
-    else:
-        schedules = Schedule.objects.filter(status="S", is_active=True, next_fire__lt=timezone.now())
+        schedules = schedules.filter(id=sched_id)
 
     r = get_redis_connection()
 
@@ -25,7 +25,7 @@ def check_schedule_task(sched_id=None):
     for sched in schedules:
         try:
             # try to acquire a lock
-            key = "fire_schedule_%d" % sched.id
+            key = f"fire_schedule_{sched.id}"
             if not r.get(key):
                 with r.lock(key, timeout=1800):
                     # refetch our schedule as it may have been updated
