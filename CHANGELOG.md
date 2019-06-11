@@ -1,3 +1,7 @@
+v4.26.1
+----------
+ * Remove no longer used check_campaigns_task
+
 v4.26.0
 ----------
  * Remove handling of incoming messages, channel events and campaigns.. all of which is now handled by mailroom
