@@ -125,13 +125,7 @@ from .models import (
     VariableContactAction,
     get_flow_user,
 )
-from .tasks import (
-    check_flows_task,
-    squash_flowpathcounts,
-    squash_flowruncounts,
-    trim_flow_sessions,
-    update_run_expirations_task,
-)
+from .tasks import squash_flowpathcounts, squash_flowruncounts, trim_flow_sessions, update_run_expirations_task
 from .views import FlowCRUDL
 
 
@@ -7659,13 +7653,13 @@ class FlowsTest(FlowFileTest):
             {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "completion": 0},
         )
 
-        # set the run to be ready for expiration
+        # now mark run has expired and make sure it is removed from our activity
         run = tupac.runs.first()
-        run.expires_on = timezone.now() - timedelta(days=1)
-        run.save(update_fields=("expires_on",))
+        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
+        run.exited_on = timezone.now()
+        run.is_active = False
+        run.save(update_fields=("exit_type", "exited_on", "is_active"))
 
-        # now trigger the checking task and make sure it is removed from our activity
-        check_flows_task()
         (active, visited) = flow.get_activity()
         self.assertEqual(active, {})
         self.assertEqual(
@@ -8708,21 +8702,10 @@ class FlowsTest(FlowFileTest):
         # this normally gets run on FlowCRUDL.Update
         update_run_expirations_task(flow.id)
 
-        # check that our run is expired
+        # check that our run has a new expiration
         run = flow.runs.all()[0]
 
-        self.assertFalse(run.is_active)
         self.assertEqual(run.expires_on, iso8601.parse_date(run.path[-1]["arrived_on"]) + timedelta(minutes=5))
-
-        # we will be starting a new run now, since the other expired
-        self.assertEqual(
-            "I don't know that color. Try again.", self.send_message(flow, "Michael Jordan", restart_participants=True)
-        )
-        self.assertEqual(2, flow.runs.count())
-
-        now = timezone.now()
-        run.update_expiration(None)
-        self.assertGreater(run.expires_on, now + timedelta(minutes=5))
 
     def test_parsing(self):
         # test a preprocess url

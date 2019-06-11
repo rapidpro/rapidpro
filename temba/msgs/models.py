@@ -957,8 +957,8 @@ class Msg(models.Model):
 
         if settings.TESTING:
             legacy.handle_message(self)
-
-        mailroom.queue_msg_handling(self)
+        else:  # pragma: no cover
+            mailroom.queue_msg_handling(self)
 
     def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
