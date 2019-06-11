@@ -131,4 +131,4 @@ class ScheduleCRUDL(SmartCRUDL):
             if schedule.is_expired():
                 from .tasks import check_schedule_task
 
-                on_transaction_commit(lambda: check_schedule_task.delay(schedule.pk))
+                on_transaction_commit(lambda: check_schedule_task.delay(schedule.id))
