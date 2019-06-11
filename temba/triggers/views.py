@@ -517,7 +517,7 @@ class TriggerCRUDL(SmartCRUDL):
                 if trigger.schedule.is_expired():
                     from temba.schedules.tasks import check_schedule_task
 
-                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.pk))
+                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.id))
 
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
@@ -760,7 +760,7 @@ class TriggerCRUDL(SmartCRUDL):
             if obj.schedule.is_expired():
                 from temba.schedules.tasks import check_schedule_task
 
-                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.pk))
+                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.id))
 
             return obj
 
