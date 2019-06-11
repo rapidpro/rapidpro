@@ -1,4 +1,4 @@
--load humanize
+-load humanize channels
 
 .log<
   .summary{id:"{{log.id}}"}
@@ -17,11 +17,11 @@
         {{ log.response_status }}
     %span.url
       %span.method= log.method
-        {{ log.get_url_host_display }}
+        {% anonymize_channellog_url log %}
   .details.hide
     %pre.prettyprint.request<
       :plain
-        {{ log.get_request_formatted|default:"" }}
+        {% anonymize_channellog_request log %}
     %pre.prettyprint.response<
       :plain
-        {{log.get_response_formatted}}
+        {% anonymize_channellog_response log %}

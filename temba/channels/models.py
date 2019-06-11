@@ -248,6 +248,74 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return ""
 
+    def anonymize_channellog_url(self, channellog):
+        from temba.contacts.models import ContactURN
+
+        # default, in case nothing is matched, mask the whole url
+        masked_url = ContactURN.ANON_MASK
+
+        if channellog.msg_id:
+            masked_url = apply_mask(self.format_channellog_url(channellog), channellog.msg.contact_urn.path)
+
+            if not masked_url:
+                masked_url = ContactURN.ANON_MASK
+
+        return masked_url
+
+    def format_channellog_url(self, channellog):
+        if channellog.method == "GET":
+            parsed = urlparse(channellog.url)
+            formatted_url = f"{parsed.scheme}://{parsed.hostname}{parsed.path}"
+        else:
+            formatted_url = channellog.url
+
+        return formatted_url
+
+    def anonymize_channellog_request(self, channellog):
+        from temba.contacts.models import ContactURN
+
+        # default, in case nothing is matched, mask the whole request
+        masked_request = ContactURN.ANON_MASK
+
+        if channellog.msg_id:
+            masked_request = apply_mask(self.format_channellog_request(channellog), channellog.msg.contact_urn.path)
+
+            if not masked_request:
+                masked_request = ContactURN.ANON_MASK
+
+        return masked_request
+
+    def format_channellog_request(self, channellog):
+        if not channellog.request:  # pragma: no cover
+            return f"{channellog.method} {self.format_channellog_url(channellog)}"
+
+        try:
+            return json.dumps(json.loads(channellog.request), indent=2)
+        except Exception:
+            return channellog.request
+
+    def anonymize_channellog_response(self, channellog):
+        from temba.contacts.models import ContactURN
+
+        masked_response = ContactURN.ANON_MASK
+
+        if channellog.msg_id:
+            masked_response = apply_mask(self.format_channellog_response(channellog), channellog.msg.contact_urn.path)
+
+            if not masked_response:
+                masked_response = ContactURN.ANON_MASK
+
+        return masked_response
+
+    def format_channellog_response(self, channellog):
+        try:
+            return json.dumps(json.loads(channellog.response), indent=2)
+        except Exception:
+            if not channellog.response:
+                return channellog.description
+            else:
+                return channellog.response
+
     def __str__(self):
         return self.name
 
@@ -1527,74 +1595,6 @@ class ChannelLog(models.Model):
             return ChannelLog.objects.filter(msg=self.msg).order_by("-created_on")
 
         return ChannelLog.objects.filter(id=self.id)
-
-    def get_url_host_display(self):
-        from temba.contacts.models import ContactURN
-
-        if self.method == "GET":
-            parsed = urlparse(self.url)
-            formatted_url = f"{parsed.scheme}://{parsed.hostname}{parsed.path}"
-        else:
-            formatted_url = self.url
-
-        if self.channel.org.is_anon is True:
-            # default, in case nothing is matched, mask the whole url
-            masked_url = ContactURN.ANON_MASK
-
-            if self.msg_id:
-                masked_url = apply_mask(formatted_url, self.msg.contact_urn.path)
-
-                if not masked_url:
-                    masked_url = ContactURN.ANON_MASK
-
-            return masked_url
-        else:
-            return formatted_url
-
-    def get_request_formatted(self):
-        from temba.contacts.models import ContactURN
-
-        if not self.request:  # pragma: no cover
-            return f"{self.method} {self.get_url_host_display()}"
-
-        if self.channel.org.is_anon is True:
-            # default, in case nothing is matched, mask the whole request
-            masked_request = ContactURN.ANON_MASK
-
-            if self.msg_id:
-                masked_request = apply_mask(self.request, self.msg.contact_urn.path)
-
-                if not masked_request:
-                    masked_request = ContactURN.ANON_MASK
-
-            return masked_request
-
-        try:
-            return json.dumps(json.loads(self.request), indent=2)
-        except Exception:
-            return self.request
-
-    def get_response_formatted(self):
-        from temba.contacts.models import ContactURN
-
-        if self.channel.org.is_anon is True:
-            # default, in case nothing is matched, mask the whole response
-            masked_response = ContactURN.ANON_MASK
-
-            if self.msg_id:
-                masked_response = apply_mask(self.response, self.msg.contact_urn.path)
-
-                if not masked_response:
-                    masked_response = ContactURN.ANON_MASK
-
-            return masked_response
-
-        try:
-            return json.dumps(json.loads(self.response), indent=2)
-        except Exception:
-            if not self.response:
-                self.response = self.description
-            return self.response
 
 
 class SyncEvent(SmartModel):
