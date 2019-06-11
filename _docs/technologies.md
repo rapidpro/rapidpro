@@ -65,8 +65,8 @@ them in [ElasticSearch](https://www.elastic.co/).
 
 ## Celery
 
-For backgrounds tasks and batch jobs we lean on
-[Celery](http://www.celeryproject.org/) distributed task queue.
+For backgrounds tasks and batch jobs we lean on a [Celery](http://www.celeryproject.org/) 
+distributed task queue.
 
 ## Redis
 
