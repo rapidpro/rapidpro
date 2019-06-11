@@ -10973,42 +10973,6 @@ class ExitTest(FlowFileTest):
 
         self.assertTrue(second_run.is_active)
 
-    def test_exit_via_campaign(self):
-        # start contact in one flow
-        first_flow = self.get_flow("substitution")
-        first_flow.start([], [self.contact])
-
-        # should have one active flow run
-        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
-
-        # start in second via a campaign event
-        second_flow = self.get_flow("favorites")
-        self.farmers = self.create_group("Farmers", [self.contact])
-
-        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
-        )
-        CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, planting_date, offset=1, unit="W", flow=second_flow, delivery_hour="13"
-        )
-
-        self.contact.set_field(self.user, "planting_date", "05-10-2020 12:30:10")
-
-        # update our campaign events
-        EventFire.update_campaign_events(campaign)
-        fire = EventFire.objects.get(event__is_active=True)
-
-        # fire it, this will start our second flow
-        EventFire.batch_fire([fire], fire.event.flow)
-
-        second_run = FlowRun.objects.get(is_active=True)
-        first_run.refresh_from_db()
-        self.assertFalse(first_run.is_active)
-        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertTrue(second_run.is_active)
-
 
 class MigrationUtilsTest(TembaTest):
     def test_map_actions(self):
@@ -11184,8 +11148,7 @@ class StackedExitsTest(FlowFileTest):
         )
 
         # ok, send a response, should unwind all our flows
-        msg = self.create_msg(contact=self.contact, direction="I", text="something")
-        Msg.process_message(msg)
+        self.create_msg(contact=self.contact, direction="I", text="something").handle()
 
         msgs = Msg.objects.filter(contact=self.contact, direction="O").order_by("sent_on")
         self.assertEqual(3, msgs.count())

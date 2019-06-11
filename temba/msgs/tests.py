@@ -12,18 +12,16 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import STOP_CONTACT_EVENT, TEL_SCHEME, Contact, ContactField, ContactURN
+from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
 from temba.flows.models import RuleSet
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
     FAILED,
     FLOW,
-    HANDLE_EVENT_TASK,
     HANDLED,
     INBOX,
     INCOMING,
-    MSG_EVENT,
     OUTGOING,
     PENDING,
     QUEUED,
@@ -45,13 +43,12 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.utils import dict_to_struct, json
-from temba.utils.dates import datetime_to_s, datetime_to_str
+from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.queues import Queue, push_task
 from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
-from .tasks import process_message_task, squash_msgcounts
+from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
 
@@ -412,10 +409,6 @@ class MsgTest(TembaTest):
         with self.assertRaises(UnreachableException):
             Msg.create_outgoing(self.org, self.admin, twitter_contact, "Hello 1", channel=self.channel)
 
-        # Can't handle outgoing messages
-        with self.assertRaises(ValueError):
-            msg.handle()
-
         # can't create outgoing messages without org or user
         with self.assertRaises(ValueError):
             Msg.create_outgoing(None, self.admin, "tel:250783835665", "Hello World")
@@ -437,32 +430,6 @@ class MsgTest(TembaTest):
         msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello at time", channel=self.channel, sent_on=t)
         self.assertEqual(msg.sent_on, t)
         self.assertGreater(msg.created_on, msg.sent_on)
-
-    def test_contact_queue_flushing(self):
-
-        # change our channel type to one that uses the queue
-        self.channel.channel_type = "T"
-        self.channel.save(update_fields=("channel_type",))
-
-        msg1 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 1")
-        contact_id = msg1.contact_id
-
-        r = get_redis_connection()
-        contact_queue = Msg.CONTACT_HANDLING_QUEUE % contact_id
-
-        # even though we already handled it, push it back on our queue to test flushing
-        payload = dict(type=MSG_EVENT, contact_id=contact_id, id=msg1.id, new_message=True, new_contact=False)
-        r.zadd(contact_queue, datetime_to_s(timezone.now()), json.dumps(payload))
-
-        msg2 = Msg.create_incoming(self.channel, "tel:250788382382", "Message 2")
-
-        # our new message should be handled and queue should be empty
-        msg2.refresh_from_db()
-        self.assertEqual(HANDLED, msg2.status)
-        self.assertEqual(0, len(r.zrange(contact_queue, 0, 1)))
-
-        # calling it again shouldn't do anything, but should return
-        process_message_task(dict(contact_id=contact_id))
 
     def test_create_incoming(self):
         Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
@@ -3469,27 +3436,3 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
-
-
-class HandleEventTest(TembaTest):
-    def test_stop_contact_task(self):
-        self.joe = self.create_contact("Joe", "+12065551212")
-        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
-        self.joe.refresh_from_db()
-        self.assertTrue(self.joe.is_stopped)
-
-    def test_unstop_contact(self):
-        self.joe = self.create_contact("Joe", "+12065551212")
-
-        # create a new incoming message with a status of H so that it isn't handled right away
-        msg = Msg.create_incoming(self.channel, "tel:+12065551212", "incoming message", status=HANDLED)
-        msg.status = PENDING
-        msg.save()
-        self.joe.stop(self.admin)
-
-        # then queue it the same way courier would
-        msg.queue_handling(new_message=True)
-
-        # joe should be unstopped
-        self.joe.refresh_from_db()
-        self.assertFalse(self.joe.is_stopped)

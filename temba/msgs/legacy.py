@@ -1,6 +1,48 @@
 from temba.orgs.models import Language
 
 
+def handle_message(msg):
+    """
+    Only used for testing to approximate how mailroom handles a message
+    """
+
+    from temba.flows.models import Flow
+    from temba.msgs.models import Msg
+    from temba.triggers.models import Trigger
+
+    if msg.contact.is_blocked:
+        msg.visibility = Msg.VISIBILITY_ARCHIVED
+        msg.save(update_fields=["visibility", "modified_on"])
+    else:
+        handled = Trigger.find_and_handle(msg)
+
+        if not handled:
+            handled, msgs = Flow.find_and_handle(msg)
+
+        if not handled:
+            Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
+
+    mark_handled(msg)
+
+
+def mark_handled(msg):
+    """
+    Marks an incoming message as HANDLED
+    """
+
+    from temba.msgs.models import INBOX, HANDLED
+
+    update_fields = ["status", "modified_on"]
+
+    # if flows or IVR haven't claimed this message, then it's going to the inbox
+    if not msg.msg_type:
+        msg.msg_type = INBOX
+        update_fields.append("msg_type")
+
+    msg.status = HANDLED
+    msg.save(update_fields=update_fields)
+
+
 def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_type="I", high_priority=False):
     """
     Only used for testing to approximate how mailroom sends a broadcast

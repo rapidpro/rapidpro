@@ -301,7 +301,7 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):
+    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):  # pragma: no cover
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity

@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
@@ -583,30 +583,6 @@ class EventFire(Model):
     def get_relative_to_value(self):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
-
-    @classmethod
-    def batch_fire(cls, fires, flow):
-        """
-        Starts a batch of event fires that are for events which use the same flow
-        """
-        fired = timezone.now()
-        contacts = [f.contact for f in fires]
-        event = fires[0].event
-
-        include_active = event.start_mode != CampaignEvent.MODE_SKIP
-        if event.is_active and not event.campaign.is_archived:
-            if len(contacts) == 1:
-                flow.start(
-                    [], contacts, restart_participants=True, include_active=include_active, campaign_event=event
-                )
-            else:
-                start = FlowStart.create(
-                    flow, flow.created_by, contacts=contacts, include_active=include_active, campaign_event=event
-                )
-                start.async_start()
-            EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
-        else:
-            EventFire.objects.filter(id__in=[f.id for f in fires]).delete()
 
     @classmethod
     def update_campaign_events(cls, campaign):

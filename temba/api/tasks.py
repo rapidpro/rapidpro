@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from temba.utils import chunk_list
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import WebHookEvent, WebHookResult
 

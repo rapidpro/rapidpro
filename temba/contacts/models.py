@@ -85,8 +85,6 @@ URN_SCHEME_CONFIG = (
 
 IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
-STOP_CONTACT_EVENT = "stop_contact"
-
 
 class URN(object):
     """
