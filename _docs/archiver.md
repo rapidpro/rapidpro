@@ -12,5 +12,5 @@ this is an optional component, we highly recommend running it with the `delete` 
 set to true for installations that are dealing with large scale as otherwise
  the database will grow unbounded and query performance will suffer.
 
-Refer to the [README](https://github.com/nyaruka/rp-archiver) for the options available
+Refer to the [README](https://github.com/nyaruka/rp-archiver/blob/master/README.md) for the options available
 when running the archiver.

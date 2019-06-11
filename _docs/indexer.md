@@ -11,5 +11,5 @@ that takes care of creating and keeping your ElasticSearch indexes up to date wi
 changes for the contacts in RapidPro. It is meant to run continuously in the background,
 it will query for changed contacts and update the indexes appropriately.
 
-Refer to the [README](https://github.com/nyaruka/rp-indexer) for the options available
+Refer to the [README](https://github.com/nyaruka/rp-indexer/blob/master/README.md) for the options available
 when running the indexer.
