@@ -1,3 +1,7 @@
+v4.26.0
+----------
+ * Remove handling of incoming messages, channel events and campaigns.. all of which is now handled by mailroom
+
 v4.25.0
 ----------
  * Add sentry error to handle_event_task as it shouldnt be handling anything
