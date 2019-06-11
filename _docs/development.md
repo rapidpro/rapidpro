@@ -85,7 +85,7 @@ $ python manage.py migrate
 
 ## Install javascript dependencies
 
-Before you can run your server, you will need the javascript dependencies. You
+Before you can run your server, you will need the Javascript dependencies. You
 can install them using NPM:
 
 {% highlight bash %}
