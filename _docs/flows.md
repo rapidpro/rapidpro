@@ -15,7 +15,7 @@ different flow revisions and the setting up of triggers and schedules of flows.
 
 A FlowSession represents the entire session for a contact passing through a set
 of flows before exiting the session either via expiration or because they were
-interrupted somehow. (by say sending another keyword) FlowSessions are used
+interrupted somehow (by say sending another keyword). FlowSessions are used
 by Mailroom to track the state of a contact in a flow and are very verbose. They
 are only kept in the database for a short period while the flow is active. More
 permanent storage is done via the FlowRun model. Note that there may be more
