@@ -11228,11 +11228,9 @@ class FlowTriggerTest(TembaTest):
         # fire it manually
         contact_trigger.fire()
 
-        # contact should be added to flow
-        self.assertEqual(1, FlowRun.objects.filter(flow=flow, contact=contact).count())
-
-        # but no flow starts were created
-        self.assertEqual(0, FlowStart.objects.all().count())
+        # contact should be added to flow with a flow start
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 1)
+        self.assertEqual(FlowStart.objects.count(), 1)
 
         # now create a trigger for the group
         group_trigger = Trigger.objects.create(
@@ -11243,12 +11241,9 @@ class FlowTriggerTest(TembaTest):
         group_trigger.fire()
 
         # contact should be added to flow again
-        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
-
-        # and we should have a flow start
-        start = FlowStart.objects.get()
-        self.assertEqual(0, start.contacts.all().count())
-        self.assertEqual(1, start.groups.filter(id=group.id).count())
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
+        self.assertEqual(FlowStart.objects.count(), 2)
+        self.assertEqual(FlowStart.objects.filter(groups=group).count(), 1)
 
         # clear our the group on our group trigger
         group_trigger.groups.clear()
@@ -11257,8 +11252,8 @@ class FlowTriggerTest(TembaTest):
         group_trigger.fire()
 
         # nothing should have changed
-        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
-        self.assertEqual(1, FlowStart.objects.all().count())
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
+        self.assertEqual(FlowStart.objects.all().count(), 2)
 
 
 class TypeTest(TembaTest):
