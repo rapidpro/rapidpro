@@ -1251,9 +1251,6 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 
-        def post_save(self, obj):
-            return super().post_save(obj)
-
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
             surveyor_password = forms.CharField(max_length=128)
