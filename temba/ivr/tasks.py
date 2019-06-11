@@ -7,9 +7,9 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.channels.models import Channel, ChannelLog
+from temba.utils.celery import nonoverlapping_task
 from temba.utils.http import HttpEvent
 from temba.utils.locks import NonBlockingLock
-from temba.utils.queues import nonoverlapping_task
 
 from .models import IVRCall
 

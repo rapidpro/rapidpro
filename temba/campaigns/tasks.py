@@ -11,7 +11,7 @@ from celery.task import task
 
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.utils import chunk_list
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 logger = logging.getLogger(__name__)
 

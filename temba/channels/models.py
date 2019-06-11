@@ -1442,33 +1442,6 @@ class ChannelEvent(models.Model):
     def get_all(cls, org):
         return cls.objects.filter(org=org)
 
-    def handle(self):
-        """
-        Handles takes care of any processing of this channel event that needs to take place, such as
-        trigger any flows based on new conversations or referrals.
-        """
-        from temba.contacts.models import Contact
-        from temba.triggers.models import Trigger
-
-        handled = False
-
-        if self.event_type == ChannelEvent.TYPE_NEW_CONVERSATION:
-            handled = Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
-
-        elif self.event_type == ChannelEvent.TYPE_REFERRAL:
-            handled = Trigger.catch_triggers(
-                self, Trigger.TYPE_REFERRAL, self.channel, referrer_id=self.extra.get("referrer_id"), extra=self.extra
-            )
-
-        elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
-            user = get_anonymous_user()
-            contact, urn_obj = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)
-
-            contact.stop(user)
-            handled = True
-
-        return handled
-
     def release(self):
         self.delete()
 

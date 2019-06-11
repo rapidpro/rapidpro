@@ -10,7 +10,7 @@ from django.utils.timesince import timesince
 from celery.task import task
 
 from temba.orgs.models import Org
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import (
     ExportFlowResultsTask,

@@ -45,6 +45,7 @@ from . import (
     voicexml,
 )
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
     date_to_utc_range,
@@ -69,7 +70,6 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
-from .queues import nonoverlapping_task
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -788,7 +788,7 @@ class JsonTest(TembaTest):
             json.dumps(dict(foo=Exception("invalid")))
 
 
-class QueueTest(TembaTest):
+class CeleryTest(TembaTest):
     @patch("redis.client.StrictRedis.lock")
     @patch("redis.client.StrictRedis.get")
     def test_nonoverlapping_task(self, mock_redis_get, mock_redis_lock):

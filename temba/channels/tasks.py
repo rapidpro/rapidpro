@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
