@@ -34,7 +34,7 @@ and clarify of our templates.
 
 ## CoffeeScript (though moving to Typescript)
 
-In a similar vain, we use [CoffeeScript](http://coffeescript.org/) for most of
+In a similar vein, we use [CoffeeScript](http://coffeescript.org/) for most of
 our front end Javascript as it leads to more readable code that is compatible
 across all browsers.
 
@@ -65,8 +65,8 @@ them in [ElasticSearch](https://www.elastic.co/).
 
 ## Celery
 
-For backgrounds tasks and batch jobs we lean on
-[Celery](http://www.celeryproject.org/) distributed task queue.
+For backgrounds tasks and batch jobs we lean on a [Celery](http://www.celeryproject.org/) 
+distributed task queue.
 
 ## Redis
 
