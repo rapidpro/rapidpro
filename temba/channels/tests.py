@@ -2704,6 +2704,72 @@ Content-Type: application/json
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
+    def test_channellog_anonymous_org_apply_mask_cant_find_match(self):
+        # in this case we are paranoid and mask everything
+        fb_urn = "facebook:2150393045080607"
+
+        fb_contact = self.create_contact("Fred Jones", fb_urn)
+        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+
+        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=fb_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request="""There is no contact identifying information""",
+            response="""There is no contact identifying information""",
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        response = self.client.get(list_url)
+
+        self.assertContains(response, "2150393045080607", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(list_url)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "2150393045080607", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
+
+            self.assertContains(response, "2150393045080607", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "2150393045080607", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "There is no contact identifying information", count=3)
+
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
 
