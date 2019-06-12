@@ -661,49 +661,6 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
         self.assertEqual(1, FlowRun.objects.all().count())
 
-    def test_webhook_headers(self):
-        update_url = reverse("orgs.org_webhook")
-        login_url = reverse("users.user_login")
-
-        # no access if anonymous
-        response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
-
-        self.login(self.admin)
-
-        response = self.client.get(update_url)
-        self.assertEqual(302, response.status_code)
-
-        self.assertRedirect(response, reverse("orgs.org_token"))
-
-        # simulate an org that had the old config set
-        org = Org.objects.get(pk=self.org.pk)
-        org.webhook = dict(url="Set")
-        org.save()
-
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-
-        # set a webhook with headers
-        post_data = response.context["form"].initial
-        post_data["webhook_url"] = "http://webhooks.uniceflabs.org"
-        post_data["header_1_key"] = "Authorization"
-        post_data["header_1_value"] = "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # check that our webhook settings have changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("http://webhooks.uniceflabs.org", org.get_webhook_url())
-        self.assertDictEqual(
-            {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
-        )
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, update_url)
-
     def test_org_administration(self):
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
@@ -763,8 +720,6 @@ class OrgTest(TembaTest):
             "timezone": pytz.timezone("Africa/Kigali"),
             "config": "{}",
             "date_format": "D",
-            "webhook": None,
-            "webhook_events": 0,
             "parent": parent.id,
             "viewers": [self.user.id],
             "editors": [self.editor.id],
@@ -3011,25 +2966,6 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertEqual(200, response.status_code)
-
-        # simulate old webhook config was set
-        org = Org.objects.get(name="Relieves World")
-        org.webhook = dict(url="SET")
-        org.save()
-
-        # try setting our webhook and subscribe to one of the events
-        response = self.client.post(
-            reverse("orgs.org_webhook"), dict(webhook_url="http://fake.com/webhook.php", mt_sms=1)
-        )
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        org = Org.objects.get(name="Relieves World")
-        self.assertEqual("http://fake.com/webhook.php", org.get_webhook_url())
-        self.assertTrue(org.is_notified_of_mt_sms())
-        self.assertFalse(org.is_notified_of_mo_sms())
-        self.assertFalse(org.is_notified_of_mt_call())
-        self.assertFalse(org.is_notified_of_mo_call())
-        self.assertFalse(org.is_notified_of_alarms())
 
         # try changing our username, wrong password
         post_data = dict(email="myal@wr.org", current_password="HelloWorld")
