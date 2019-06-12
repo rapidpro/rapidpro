@@ -833,7 +833,6 @@ CELERYBEAT_SCHEDULE = {
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
-    "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
     "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},

@@ -329,7 +329,8 @@ class Flow(TembaModel):
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
-    flow_server_enabled = models.BooleanField(default=False, help_text=_("Run this flow using the flow server"))
+    # TODO remove once mailroom and courier stop reading it
+    flow_server_enabled = models.BooleanField(default=True)
 
     @classmethod
     def create(
@@ -353,7 +354,6 @@ class Flow(TembaModel):
             saved_by=user,
             created_by=user,
             modified_by=user,
-            flow_server_enabled=org.flow_server_enabled,
             version_number=Flow.GOFLOW_VERSION if use_new_editor else Flow.FINAL_LEGACY_VERSION,
             **kwargs,
         )

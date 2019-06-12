@@ -3,12 +3,36 @@
 from django.db import migrations, models
 
 
+def enable_flow_server(org):
+    """
+    Enables the flow server for an org. This switches all flows to be flow-server-enabled and switched all handling
+    to take place through Mailroom going forward. Note that people currently in flows will be interrupted and there's
+    no going back after doing this.
+    """
+    from temba.flows.models import FlowRun
+
+    # update all channels (we do this first as this may throw and we don't want to do the rest unless it succeeds)
+    for channel in org.channels.filter(is_active=True):
+        channel_type = channel.get_type()
+        channel_type.enable_flow_server(channel)
+
+    # interrupt all active runs
+    FlowRun.bulk_exit(org.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
+    # flip all flows
+    org.flows.filter(is_active=True).update(flow_server_enabled=True)
+
+    # finally flip our org
+    org.flow_server_enabled = True
+    org.save(update_fields=["flow_server_enabled", "modified_on"])
+
+
 def migrate_all_orgs(apps, schema_editor):
     from temba.orgs.models import Org
 
     num_converted = 0
     for org in Org.objects.filter(flow_server_enabled=False):
-        org.enable_flow_server()
+        enable_flow_server(org)
         num_converted += 1
 
     if num_converted:
