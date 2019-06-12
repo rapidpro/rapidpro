@@ -1,3 +1,8 @@
+v4.27.0
+----------
+ * Cleanup webhook fields left on Org
+ * Stop checking flow_server_enabled and remove support for editing it
+
 v4.26.1
 ----------
  * Remove no longer used check_campaigns_task
