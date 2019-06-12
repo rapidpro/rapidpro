@@ -60,15 +60,10 @@ from temba.utils.views import NonAtomicMixin
 from .models import (
     ACCOUNT_SID,
     ACCOUNT_TOKEN,
-    ALARM_EVENTS,
     CHATBASE_AGENT_NAME,
     CHATBASE_API_KEY,
     CHATBASE_VERSION,
-    MO_CALL_EVENTS,
-    MO_SMS_EVENTS,
     MONTHFIRST,
-    MT_CALL_EVENTS,
-    MT_SMS_EVENTS,
     NEXMO_KEY,
     NEXMO_SECRET,
     NEXMO_UUID,
@@ -547,7 +542,6 @@ class OrgCRUDL(SmartCRUDL):
         "signup",
         "home",
         "token",
-        "webhook",
         "edit",
         "edit_sub_org",
         "join",
@@ -2157,86 +2151,6 @@ class OrgCRUDL(SmartCRUDL):
             context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
-    class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class WebhookForm(forms.ModelForm):
-            webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
-            headers = forms.CharField(required=False)
-            mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
-            mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
-            mt_call = forms.BooleanField(required=False, label=_("Incoming Calls"))
-            mo_call = forms.BooleanField(required=False, label=_("Outgoing Calls"))
-            alarm = forms.BooleanField(required=False, label=_("Channel Alarms"))
-
-            class Meta:
-                model = Org
-                fields = ("webhook_url", "headers", "mt_sms", "mo_sms", "mt_call", "mo_call", "alarm")
-
-            def clean_headers(self):
-                idx = 1
-                headers = dict()
-                key = "header_%d_key" % idx
-                value = "header_%d_value" % idx
-
-                while key in self.data:
-                    if self.data.get(value, ""):
-                        headers[self.data[key]] = self.data[value]
-
-                    idx += 1
-                    key = "header_%d_key" % idx
-                    value = "header_%d_value" % idx
-
-                return headers
-
-        form_class = WebhookForm
-        success_url = "@orgs.org_home"
-        success_message = ""
-
-        def pre_process(self, request, *args, **kwargs):
-            org = self.get_object()
-            if not org.get_webhook_url():
-                return HttpResponseRedirect(reverse("orgs.org_token"))
-            return None
-
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-
-            data = self.form.cleaned_data
-
-            webhook_events = 0
-            if data["mt_sms"]:
-                webhook_events = MT_SMS_EVENTS
-            if data["mo_sms"]:  # pragma: needs cover
-                webhook_events |= MO_SMS_EVENTS
-            if data["mt_call"]:  # pragma: needs cover
-                webhook_events |= MT_CALL_EVENTS
-            if data["mo_call"]:  # pragma: needs cover
-                webhook_events |= MO_CALL_EVENTS
-            if data["alarm"]:  # pragma: needs cover
-                webhook_events |= ALARM_EVENTS
-
-            analytics.track(self.request.user.username, "temba.org_configured_webhook")
-
-            obj.webhook_events = webhook_events
-
-            webhook_data = dict()
-            if data["webhook_url"]:
-                webhook_data.update({"url": data["webhook_url"]})
-                webhook_data.update({"method": "POST"})
-
-            if data["headers"]:
-                webhook_data.update({"headers": data["headers"]})
-
-            obj.webhook = webhook_data
-
-            return obj
-
-        def get_context_data(self, **kwargs):
-            from temba.api.models import WebHookResult
-
-            context = super().get_context_data(**kwargs)
-            context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
-            return context
-
     class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(
@@ -2419,9 +2333,7 @@ class OrgCRUDL(SmartCRUDL):
                         nobutton=True,
                     )
 
-            if self.has_org_perm("orgs.org_webhook") and org.get_webhook_url():
-                formax.add_section("webhook", reverse("orgs.org_webhook"), icon="icon-cloud-upload")
-            elif self.has_org_perm("orgs.org_token"):
+            if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):

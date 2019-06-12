@@ -381,7 +381,6 @@ PERMISSIONS = {
         "twilio_account",
         "twilio_connect",
         "token",
-        "webhook",
     ),
     "orgs.usersettings": ("phone",),
     "channels.channel": (
@@ -577,7 +576,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
         "orgs.org_token",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -675,7 +673,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",

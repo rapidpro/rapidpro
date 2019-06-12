@@ -52,14 +52,6 @@ from temba.values.constants import Value
 logger = logging.getLogger(__name__)
 
 
-MT_SMS_EVENTS = 1 << 0
-MO_SMS_EVENTS = 1 << 1
-MT_CALL_EVENTS = 1 << 2
-MO_CALL_EVENTS = 1 << 3
-ALARM_EVENTS = 1 << 4
-
-ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
-
 FREE_PLAN = "FREE"
 TRIAL_PLAN = "TRIAL"
 TIER1_PLAN = "TIER1"
@@ -237,14 +229,6 @@ class Org(SmartModel):
         choices=DATE_PARSING,
         default=DAYFIRST,
         help_text=_("Whether day comes first or month comes first in dates"),
-    )
-
-    webhook = JSONAsTextField(
-        null=True, verbose_name=_("Webhook"), default=dict, help_text=_("Webhook endpoint and configuration")
-    )
-
-    webhook_events = models.IntegerField(
-        default=0, verbose_name=_("Webhook Events"), help_text=_("Which type of actions will trigger webhook events.")
     )
 
     country = models.ForeignKey(
@@ -762,20 +746,6 @@ class Org(SmartModel):
         Returns the resthooks configured on this Org
         """
         return self.resthooks.filter(is_active=True).order_by("slug")
-
-    def get_webhook_url(self):
-        """
-        Returns a string with webhook url.
-        """
-        return self.webhook.get("url") if self.webhook else None
-
-    def get_webhook_headers(self):
-        """
-        Returns a dictionary of any webhook headers, e.g.:
-        {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
-         'X-My-Special-Header': 'woo'}
-        """
-        return self.webhook.get("headers", {})
 
     def get_channel_countries(self):
         channel_countries = []
@@ -1422,21 +1392,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def is_notified_of_mt_sms(self):
-        return self.webhook_events & MT_SMS_EVENTS > 0
-
-    def is_notified_of_mo_sms(self):
-        return self.webhook_events & MO_SMS_EVENTS > 0
-
-    def is_notified_of_mt_call(self):
-        return self.webhook_events & MT_CALL_EVENTS > 0
-
-    def is_notified_of_mo_call(self):
-        return self.webhook_events & MO_CALL_EVENTS > 0
-
-    def is_notified_of_alarms(self):
-        return self.webhook_events & ALARM_EVENTS > 0
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
