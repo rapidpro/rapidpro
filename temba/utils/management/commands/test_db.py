@@ -348,7 +348,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\nInitializing orgs... ")
 
         for o, org in enumerate(orgs):
-            org.initialize(topup_size=max((1000 - o), 1) * 1000, flow_server_enabled=False)
+            org.initialize(topup_size=max((1000 - o), 1) * 1000)
 
             # we'll cache some metadata on each org as it's created to save re-fetching things
             org.cache = {

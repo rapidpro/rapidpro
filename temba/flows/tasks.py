@@ -45,20 +45,6 @@ def update_run_expirations_task(flow_id):
             last_arrived_on = iso8601.parse_date(run.path[-1]["arrived_on"])
             run.update_expiration(last_arrived_on)
 
-    # force an expiration update
-    check_flows_task.apply()
-
-
-@nonoverlapping_task(track_started=True, name="check_flows_task", lock_key="check_flows")  # pragma: no cover
-def check_flows_task():
-    """
-    See if any flow runs need to be expired
-    """
-    runs = FlowRun.objects.filter(
-        is_active=True, expires_on__lte=timezone.now(), org__flow_server_enabled=False
-    ).order_by("expires_on")
-    FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
-
 
 @task(track_started=True, name="continue_parent_flows")  # pragma: no cover
 def continue_parent_flows(run_ids):

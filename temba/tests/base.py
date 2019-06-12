@@ -226,7 +226,7 @@ class TembaTestMixin:
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 
-        self.org2.initialize(topup_size=topup_size, flow_server_enabled=False)
+        self.org2.initialize(topup_size=topup_size)
 
     def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, **kwargs):
         """
@@ -517,7 +517,7 @@ class TembaTest(TembaTestMixin, SmartminTest):
             modified_by=self.user,
         )
 
-        self.org.initialize(topup_size=1000, flow_server_enabled=False)
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)

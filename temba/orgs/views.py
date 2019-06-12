@@ -1165,7 +1165,7 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ("name", "brand", "parent", "is_anon", "flow_server_enabled")
+        fields = ("name", "brand", "parent", "is_anon")
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
@@ -1177,16 +1177,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = (
-                    "name",
-                    "slug",
-                    "stripe_customer",
-                    "is_active",
-                    "is_anon",
-                    "flow_server_enabled",
-                    "brand",
-                    "parent",
-                )
+                fields = ("name", "slug", "stripe_customer", "is_active", "is_anon", "brand", "parent")
 
         form_class = OrgUpdateForm
 
@@ -1253,18 +1244,6 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
-
-        def pre_save(self, obj):
-            # figure out what our previous value was
-            obj.was_flow_server_enabled = Org.objects.get(id=obj.id).flow_server_enabled
-            return super().pre_save(obj)
-
-        def post_save(self, obj):
-            # if we are being changed to flow server enabled, do so
-            if not obj.was_flow_server_enabled and obj.flow_server_enabled:
-                obj.enable_flow_server()
-
-            return super().post_save(obj)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):

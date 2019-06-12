@@ -291,29 +291,6 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
-    def enable_flow_server(self):
-        """
-        Enables the flow server for this org. This switches all flows to be flow-server-enabled and switched all handling
-        to take place through Mailroom going forward. Note that people currently in flows will be interrupted and there's
-        no going back after doing this.
-        """
-        from temba.flows.models import FlowRun
-
-        # update all channels (we do this first as this may throw and we don't want to do the rest unless it succeeds)
-        for channel in self.channels.filter(is_active=True):
-            channel_type = channel.get_type()
-            channel_type.enable_flow_server(channel)
-
-        # interrupt all active runs
-        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        # flip all flows
-        self.flows.filter(is_active=True).update(flow_server_enabled=True)
-
-        # finally flip our org
-        self.flow_server_enabled = True
-        self.save(update_fields=["flow_server_enabled", "modified_on"])
-
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -2074,16 +2051,13 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None, flow_server_enabled=True):
+    def initialize(self, branding=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
         with transaction.atomic():
-            self.flow_server_enabled = flow_server_enabled
-            self.save(update_fields=["flow_server_enabled"])
-
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 

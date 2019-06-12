@@ -62,7 +62,8 @@ class MailroomQueueTest(TembaTest):
         r.execute_command("select", settings.REDIS_DB)
 
     def test_queue_msg_handling(self):
-        msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
+        with override_settings(TESTING=False):
+            msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
         self.assert_org_queued(self.org, "handler")
         self.assert_contact_queued(msg.contact)
