@@ -23,6 +23,10 @@ def reverse(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("schedules", "0006_initial")]
+    dependencies = [
+        ("schedules", "0006_initial"),
+        ("triggers", "0014_remove_follows"),
+        ("msgs", "0131_auto_20190422_2045"),
+    ]
 
     operations = [migrations.RunPython(remove_orphans, reverse)]
