@@ -329,7 +329,7 @@ class Broadcast(models.Model):
         if self.schedule:
             self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+    def update_recipients(self, *, groups=None, contacts=None, urns=None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -1374,37 +1374,6 @@ class Msg(models.Model):
             raise ValueError("Message recipient must be a Contact, ContactURN or URN string")
 
         return contact, contact_urn
-
-    def status_fail(self):
-        """
-        Update the message status to FAILED
-        """
-        self.status = FAILED
-        self.save(update_fields=("status", "modified_on"))
-
-        Channel.track_status(self.channel, "Failed")
-
-    def status_sent(self):
-        """
-        Update the message status to SENT
-        """
-        now = timezone.now()
-        self.status = SENT
-        self.sent_on = now
-        self.save(update_fields=("status", "sent_on", "modified_on"))
-
-        Channel.track_status(self.channel, "Sent")
-
-    def status_delivered(self):
-        """
-        Update the message status to DELIVERED
-        """
-        self.status = DELIVERED
-        if not self.sent_on:
-            self.sent_on = timezone.now()
-        self.save(update_fields=("status", "modified_on", "sent_on"))
-
-        Channel.track_status(self.channel, "Delivered")
 
     def archive(self):
         """

@@ -3210,8 +3210,10 @@ class SystemLabelTest(TembaTest):
         msg1.archive()
         msg3.release()  # deleting an archived msg
         msg4.release()  # deleting a visible msg
-        msg5.status_fail()
-        msg6.status_sent()
+        msg5.status = "F"
+        msg5.save(update_fields=("status",))
+        msg6.status = "S"
+        msg6.save(update_fields=("status",))
         call1.release()
 
         self.assertEqual(
@@ -3229,8 +3231,10 @@ class SystemLabelTest(TembaTest):
         )
 
         msg1.restore()
-        msg5.status_fail()  # already failed
-        msg6.status_delivered()
+        msg5.status = "F"  # already failed
+        msg5.save(update_fields=("status",))
+        msg6.status = "D"
+        msg6.save(update_fields=("status",))
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),

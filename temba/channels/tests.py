@@ -2520,10 +2520,15 @@ class ChannelLogTest(TembaTest):
         incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
         self.assertEqual(self.contact, incoming_msg.contact)
 
-        success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
-        success_msg.status_delivered()
-
-        self.assertIsNotNone(success_msg.sent_on)
+        success_msg = Msg.create_outgoing(
+            self.org,
+            self.admin,
+            self.contact,
+            "success message",
+            channel=self.channel,
+            status="D",
+            sent_on=timezone.now(),
+        )
 
         success_log = ChannelLog.objects.create(
             channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False
