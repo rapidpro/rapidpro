@@ -1,3 +1,26 @@
+v4.27.0
+----------
+ * Cleanup webhook fields left on Org
+ * Stop checking flow_server_enabled and remove support for editing it
+
+v4.26.1
+----------
+ * Remove no longer used check_campaigns_task
+
+v4.26.0
+----------
+ * Remove handling of incoming messages, channel events and campaigns.. all of which is now handled by mailroom
+
+v4.25.0
+----------
+ * Add sentry error to handle_event_task as it shouldnt be handling anything
+ * Remove processing of timeouts which is now handled by mailroom
+ * Start broadcast mailroom tasks with HIGH_PRIORITY
+ * Fix EX settings page load
+ * Migration to convert any remaining orgs to use mailroom
+ * Fix broken links to webhook docs
+ * Simplify WebHookEvent model
+
 v4.23.3
 ----------
  * Send broadcasts through mailroom

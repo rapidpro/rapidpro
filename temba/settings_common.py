@@ -381,7 +381,6 @@ PERMISSIONS = {
         "twilio_account",
         "twilio_connect",
         "token",
-        "webhook",
     ),
     "orgs.usersettings": ("phone",),
     "channels.channel": (
@@ -577,7 +576,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
         "orgs.org_token",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -675,7 +673,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -830,15 +827,10 @@ INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24"
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
-    "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
-    "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
-    "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
-    "check-flow-timeouts": {"task": "check_flow_timeouts_task", "schedule": timedelta(seconds=20)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-messages-task": {"task": "check_messages_task", "schedule": timedelta(seconds=300)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
     "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
     "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
@@ -862,10 +854,7 @@ CELERYBEAT_SCHEDULE = {
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
-CELERY_TASK_MAP = {
-    "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "handle_event_task": "temba.msgs.tasks.handle_event_task",
-}
+CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
 
 # -----------------------------------------------------------------------------------
 # Async tasks with celery
@@ -986,12 +975,6 @@ SEND_CHATBASE = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause calls in test environments
 SEND_CALLS = False
-
-MESSAGE_HANDLERS = [
-    "temba.triggers.handlers.TriggerHandler",
-    "temba.flows.handlers.FlowHandler",
-    "temba.triggers.handlers.CatchAllHandler",
-]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",

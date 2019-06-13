@@ -1134,3 +1134,53 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
+
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_fire(self, mock_async_start):
+        flow = self.create_flow()
+        group = self.create_group("Trigger Group", [])
+
+        # an archived trigger shouldn't do anything
+        Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=True,
+            is_active=True,
+        ).fire()
+
+        mock_async_start.assert_not_called()
+
+        # an inactive trigger shouldn't do anything
+        Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=False,
+            is_active=False,
+        ).fire()
+
+        mock_async_start.assert_not_called()
+
+        # an trigger with no groups or contacts shouldn't do anything
+        trigger = Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=False,
+            is_active=True,
+        )
+        trigger.fire()
+
+        mock_async_start.assert_not_called()
+
+        trigger.groups.add(group)
+        trigger.fire()
+
+        mock_async_start.assert_called_once()

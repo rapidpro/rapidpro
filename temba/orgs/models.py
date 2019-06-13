@@ -52,14 +52,6 @@ from temba.values.constants import Value
 logger = logging.getLogger(__name__)
 
 
-MT_SMS_EVENTS = 1 << 0
-MO_SMS_EVENTS = 1 << 1
-MT_CALL_EVENTS = 1 << 2
-MO_CALL_EVENTS = 1 << 3
-ALARM_EVENTS = 1 << 4
-
-ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
-
 FREE_PLAN = "FREE"
 TRIAL_PLAN = "TRIAL"
 TIER1_PLAN = "TIER1"
@@ -239,14 +231,6 @@ class Org(SmartModel):
         help_text=_("Whether day comes first or month comes first in dates"),
     )
 
-    webhook = JSONAsTextField(
-        null=True, verbose_name=_("Webhook"), default=dict, help_text=_("Webhook endpoint and configuration")
-    )
-
-    webhook_events = models.IntegerField(
-        default=0, verbose_name=_("Webhook Events"), help_text=_("Which type of actions will trigger webhook events.")
-    )
-
     country = models.ForeignKey(
         "locations.AdminBoundary",
         null=True,
@@ -296,7 +280,7 @@ class Org(SmartModel):
     )
 
     flow_server_enabled = models.BooleanField(
-        default=False, help_text=_("Whether flows and messages should be handled by the flow server")
+        default=True, help_text=_("Whether flows and messages should be handled by mailroom")
     )
 
     parent = models.ForeignKey(
@@ -306,29 +290,6 @@ class Org(SmartModel):
         blank=True,
         help_text=_("The parent org that manages this org"),
     )
-
-    def enable_flow_server(self):
-        """
-        Enables the flow server for this org. This switches all flows to be flow-server-enabled and switched all handling
-        to take place through Mailroom going forward. Note that people currently in flows will be interrupted and there's
-        no going back after doing this.
-        """
-        from temba.flows.models import FlowRun
-
-        # update all channels (we do this first as this may throw and we don't want to do the rest unless it succeeds)
-        for channel in self.channels.filter(is_active=True):
-            channel_type = channel.get_type()
-            channel_type.enable_flow_server(channel)
-
-        # interrupt all active runs
-        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        # flip all flows
-        self.flows.filter(is_active=True).update(flow_server_enabled=True)
-
-        # finally flip our org
-        self.flow_server_enabled = True
-        self.save(update_fields=["flow_server_enabled", "modified_on"])
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -762,20 +723,6 @@ class Org(SmartModel):
         Returns the resthooks configured on this Org
         """
         return self.resthooks.filter(is_active=True).order_by("slug")
-
-    def get_webhook_url(self):
-        """
-        Returns a string with webhook url.
-        """
-        return self.webhook.get("url") if self.webhook else None
-
-    def get_webhook_headers(self):
-        """
-        Returns a dictionary of any webhook headers, e.g.:
-        {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
-         'X-My-Special-Header': 'woo'}
-        """
-        return self.webhook.get("headers", {})
 
     def get_channel_countries(self):
         channel_countries = []
@@ -1422,21 +1369,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def is_notified_of_mt_sms(self):
-        return self.webhook_events & MT_SMS_EVENTS > 0
-
-    def is_notified_of_mo_sms(self):
-        return self.webhook_events & MO_SMS_EVENTS > 0
-
-    def is_notified_of_mt_call(self):
-        return self.webhook_events & MT_CALL_EVENTS > 0
-
-    def is_notified_of_mo_call(self):
-        return self.webhook_events & MO_CALL_EVENTS > 0
-
-    def is_notified_of_alarms(self):
-        return self.webhook_events & ALARM_EVENTS > 0
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
@@ -2119,16 +2051,13 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None, flow_server_enabled=True):
+    def initialize(self, branding=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
         with transaction.atomic():
-            self.flow_server_enabled = flow_server_enabled
-            self.save(update_fields=["flow_server_enabled"])
-
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 
@@ -2319,6 +2248,10 @@ class Org(SmartModel):
 
         for event in self.webhookevent_set.all():
             event.release()
+
+        for resthook in self.resthooks.all():
+            resthook.release(self.modified_by)
+            resthook.delete()
 
         # now what we've all been waiting for
         self.delete()

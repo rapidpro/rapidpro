@@ -26,7 +26,7 @@ class ScheduleTest(TembaTest):
         super().setUp()
         self.joe = self.create_contact(name="Joe Blow", number="123")
 
-    def create_schedule(self, repeat_period, repeat_days=[], start_date=None):
+    def create_schedule(self, repeat_period, repeat_days=(), start_date=None):
 
         if not start_date:
             # Test date is 10am on a Thursday, Jan 3rd
@@ -39,10 +39,18 @@ class ScheduleTest(TembaTest):
 
         return Schedule.create_schedule(start_date, repeat_period, self.user, bitmask)
 
-    def test_get_days_bitmask(self):
-        now = timezone.now()
-        sched = Schedule.create_schedule(now, "W", self.user, 244)
-        self.assertEqual(sched.get_days_bitmask(), ["4", "16", "32", "64", "128"])
+    def test_get_repeat_days_display(self):
+        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=2)
+        self.assertEqual(sched.get_repeat_days_display(), ["Monday"])
+
+        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=244)
+        self.assertEqual(sched.get_repeat_days_display(), ["Tuesday", "Thursday", "Friday", "Saturday", "Sunday"])
+
+        sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=255)
+        self.assertEqual(
+            sched.get_repeat_days_display(),
+            ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        )
 
     def test_schedule(self):
         # updates two days later on Saturday

@@ -44,7 +44,8 @@ from . import (
     str_to_bool,
     voicexml,
 )
-from .cache import QueueRecord, get_cacheable_attr, get_cacheable_result, incrby_existing
+from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
     date_to_utc_range,
@@ -69,7 +70,6 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField
 from .nexmo import NCCOException, NCCOResponse
-from .queues import HIGH_PRIORITY, LOW_PRIORITY, complete_task, nonoverlapping_task, push_task, start_task
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -649,27 +649,6 @@ class CacheTest(TembaTest):
         incrby_existing("xxx", -2, r)  # non-existent key
         self.assertIsNone(r.get("xxx"))
 
-    def test_queue_record(self):
-        items1 = [dict(id=1), dict(id=2), dict(id=3)]
-        lock = QueueRecord("test_items", lambda i: i["id"])
-        self.assertEqual(lock.filter_unqueued(items1), [dict(id=1), dict(id=2), dict(id=3)])
-
-        lock.set_queued(items1)  # mark those items as queued now
-
-        self.assertTrue(lock.is_queued(dict(id=3)))
-        self.assertFalse(lock.is_queued(dict(id=4)))
-
-        # try getting access to queued item #3 and a new item #4
-        items2 = [dict(id=3), dict(id=4)]
-        self.assertEqual(lock.filter_unqueued(items2), [dict(id=4)])
-
-        # check locked items are still locked tomorrow
-        with patch("temba.utils.cache.timezone") as mock_timezone:
-            mock_timezone.now.return_value = timezone.now() + datetime.timedelta(days=1)
-
-            lock = QueueRecord("test_items", lambda i: i["id"])
-            self.assertEqual(lock.filter_unqueued([dict(id=3)]), [])
-
 
 class EmailTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
@@ -809,122 +788,7 @@ class JsonTest(TembaTest):
             json.dumps(dict(foo=Exception("invalid")))
 
 
-class QueueTest(TembaTest):
-    def test_queueing(self):
-        r = get_redis_connection()
-
-        args1 = dict(task=1)
-
-        # basic push and pop
-        push_task(self.org, None, "test", args1)
-        org_id, task = start_task("test")
-        self.assertEqual(args1, task)
-        self.assertEqual(org_id, self.org.id)
-
-        # should show as having one worker on that worker
-        self.assertEqual(r.zscore("test:active", self.org.id), 1)
-
-        # there aren't any more tasks so this will actually clear our active worker count
-        self.assertFalse(start_task("test")[1])
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-
-        # marking the task as complete should also be a no-op
-        complete_task("test", self.org.id)
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-
-        # pop on another task and start it and complete it
-        push_task(self.org, None, "test", args1)
-        self.assertEqual(args1, start_task("test")[1])
-        complete_task("test", self.org.id)
-
-        # should have no active workers
-        self.assertEqual(r.zscore("test:active", self.org.id), 0)
-
-        # ok, try pushing and popping multiple on now
-        args2 = dict(task=2)
-
-        push_task(self.org, None, "test", args1)
-        push_task(self.org, None, "test", args2)
-
-        # should come back in order of insertion
-        self.assertEqual(args1, start_task("test")[1])
-        self.assertEqual(args2, start_task("test")[1])
-
-        # two active workers
-        self.assertEqual(r.zscore("test:active", self.org.id), 2)
-
-        # mark one as complete
-        complete_task("test", self.org.id)
-        self.assertEqual(r.zscore("test:active", self.org.id), 1)
-
-        # start another, this will clear our counts
-        self.assertFalse(start_task("test")[1])
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-
-        complete_task("test", self.org.id)
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-
-        # ok, same set up
-        push_task(self.org, None, "test", args1)
-        push_task(self.org, None, "test", args2)
-
-        # but add a high priority item this time
-        args3 = dict(task=3)
-        push_task(self.org, None, "test", args3, HIGH_PRIORITY)
-
-        # and a low priority task
-        args4 = dict(task=4)
-        push_task(self.org, None, "test", args4, LOW_PRIORITY)
-
-        # high priority should be first out, then defaults, then low
-        self.assertEqual(args3, start_task("test")[1])
-        self.assertEqual(args1, start_task("test")[1])
-        self.assertEqual(args2, start_task("test")[1])
-        self.assertEqual(args4, start_task("test")[1])
-
-        self.assertEqual(r.zscore("test:active", self.org.id), 4)
-
-        self.assertFalse(start_task("test")[1])
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-
-    def test_org_queuing(self):
-        r = get_redis_connection()
-
-        self.create_secondary_org()
-
-        org1_tasks = [dict(task=0), dict(task=2), dict(task=4)]
-        org2_tasks = [dict(task=1), dict(task=3), dict(task=5)]
-
-        push_task(self.org, None, "test", org1_tasks[2], LOW_PRIORITY)
-        push_task(self.org, None, "test", org1_tasks[1])
-        push_task(self.org, None, "test", org1_tasks[0], HIGH_PRIORITY)
-
-        push_task(self.org2, None, "test", org2_tasks[1])
-        push_task(self.org2, None, "test", org2_tasks[0], HIGH_PRIORITY)
-        push_task(self.org2, None, "test", org2_tasks[2], LOW_PRIORITY)
-
-        started_tasks = [start_task("test")[1]["task"] for _ in org1_tasks + org2_tasks]
-
-        # creates groups of started tasks, each group has tasks started on different orgs
-        actual_start_order = list(set(task_group) for task_group in zip(*[iter(started_tasks)] * 2))
-
-        # order should alternate between the two orgs (based on # of active workers)
-        expected_start_order = [{0, 1}, {2, 3}, {4, 5}]
-
-        # check if actual start order pairs, are the same as expected start order pairs
-        for idx, pair in enumerate(actual_start_order):
-            self.assertSetEqual(pair, expected_start_order[idx])
-
-        # each org should show 3 active works
-        self.assertEqual(r.zscore("test:active", self.org.id), 3)
-        self.assertEqual(r.zscore("test:active", self.org2.id), 3)
-
-        self.assertFalse(start_task("test")[1])
-
-        # no more tasks to do, both should now be empty
-        self.assertIsNone(r.zscore("test:active", self.org.id))
-        self.assertIsNone(r.zscore("test:active", self.org2.id))
-
+class CeleryTest(TembaTest):
     @patch("redis.client.StrictRedis.lock")
     @patch("redis.client.StrictRedis.get")
     def test_nonoverlapping_task(self, mock_redis_get, mock_redis_lock):

@@ -35,9 +35,9 @@ from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest,
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
+from . import legacy
 from .checks import mailroom_url
 from .flow_migrations import (
     map_actions,
@@ -125,14 +125,7 @@ from .models import (
     VariableContactAction,
     get_flow_user,
 )
-from .tasks import (
-    check_flow_timeouts_task,
-    check_flows_task,
-    squash_flowpathcounts,
-    squash_flowruncounts,
-    trim_flow_sessions,
-    update_run_expirations_task,
-)
+from .tasks import squash_flowpathcounts, squash_flowruncounts, trim_flow_sessions, update_run_expirations_task
 from .views import FlowCRUDL
 
 
@@ -5624,11 +5617,9 @@ class FlowRunTest(TembaTest):
     def test_run_release(self):
         run = FlowRun.create(self.flow, self.contact)
 
-        # give our run some webhook data
-        WebHookEvent.objects.create(org=self.org, run=run, channel=self.channel)
-
         # our run go bye bye
         run.release()
+
         self.assertFalse(FlowRun.objects.filter(id=run.id).exists())
 
     def test_session_release(self):
@@ -6568,7 +6559,7 @@ class FlowsTest(FlowFileTest):
         self.assertIsNone(ruleset_get.data)
 
         # make sure triggering without a url fails properly
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.all().first(), None, "", msg)
+        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
         result = WebHookResult.objects.all().order_by("-id").first()
         self.assertIn("No webhook_url specified, skipping send", result.response)
 
@@ -7662,13 +7653,13 @@ class FlowsTest(FlowFileTest):
             {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "completion": 0},
         )
 
-        # set the run to be ready for expiration
+        # now mark run has expired and make sure it is removed from our activity
         run = tupac.runs.first()
-        run.expires_on = timezone.now() - timedelta(days=1)
-        run.save(update_fields=("expires_on",))
+        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
+        run.exited_on = timezone.now()
+        run.is_active = False
+        run.save(update_fields=("exit_type", "exited_on", "is_active"))
 
-        # now trigger the checking task and make sure it is removed from our activity
-        check_flows_task()
         (active, visited) = flow.get_activity()
         self.assertEqual(active, {})
         self.assertEqual(
@@ -8711,21 +8702,10 @@ class FlowsTest(FlowFileTest):
         # this normally gets run on FlowCRUDL.Update
         update_run_expirations_task(flow.id)
 
-        # check that our run is expired
+        # check that our run has a new expiration
         run = flow.runs.all()[0]
 
-        self.assertFalse(run.is_active)
         self.assertEqual(run.expires_on, iso8601.parse_date(run.path[-1]["arrived_on"]) + timedelta(minutes=5))
-
-        # we will be starting a new run now, since the other expired
-        self.assertEqual(
-            "I don't know that color. Try again.", self.send_message(flow, "Michael Jordan", restart_participants=True)
-        )
-        self.assertEqual(2, flow.runs.count())
-
-        now = timezone.now()
-        run.update_expiration(None)
-        self.assertGreater(run.expires_on, now + timedelta(minutes=5))
 
     def test_parsing(self):
         # test a preprocess url
@@ -10976,336 +10956,6 @@ class ExitTest(FlowFileTest):
 
         self.assertTrue(second_run.is_active)
 
-    def test_exit_via_campaign(self):
-        # start contact in one flow
-        first_flow = self.get_flow("substitution")
-        first_flow.start([], [self.contact])
-
-        # should have one active flow run
-        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
-
-        # start in second via a campaign event
-        second_flow = self.get_flow("favorites")
-        self.farmers = self.create_group("Farmers", [self.contact])
-
-        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
-        )
-        CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, planting_date, offset=1, unit="W", flow=second_flow, delivery_hour="13"
-        )
-
-        self.contact.set_field(self.user, "planting_date", "05-10-2020 12:30:10")
-
-        # update our campaign events
-        EventFire.update_campaign_events(campaign)
-        fire = EventFire.objects.get(event__is_active=True)
-
-        # fire it, this will start our second flow
-        EventFire.batch_fire([fire], fire.event.flow)
-
-        second_run = FlowRun.objects.get(is_active=True)
-        first_run.refresh_from_db()
-        self.assertFalse(first_run.is_active)
-        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertTrue(second_run.is_active)
-
-
-class TimeoutTest(FlowFileTest):
-    def _update_timeout(self, run, timeout_on):
-        run.refresh_from_db()
-        run.timeout_on = timeout_on
-        run.save(update_fields=("timeout_on",))
-
-        if run.session and run.session.output:
-            run.session.output["wait"]["timeout_on"] = timeout_on.isoformat()
-            run.session.save(update_fields=("output",))
-
-    def test_disappearing_timeout(self):
-        flow = self.get_flow("timeout")
-
-        # start the flow
-        flow.start([], [self.contact])
-
-        # check our timeout is set
-        run = FlowRun.objects.get()
-        self.assertTrue(run.is_active)
-
-        start_step = run.path[-1]
-
-        # mark our last message as sent
-        last_msg = run.get_last_msg(OUTGOING)
-        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
-        last_msg.save()
-
-        time.sleep(1)
-
-        # ok, change our timeout to the past
-        timeout = timezone.now()
-        self._update_timeout(run, timeout)
-
-        # remove our timeout rule
-        flow_json = flow.as_json()
-        del flow_json["rule_sets"][0]["rules"][-1]
-        flow.update(flow_json)
-
-        # process our timeouts
-        check_flow_timeouts_task()
-
-        # our timeout_on should have been cleared and we should be at the same node
-        run.refresh_from_db()
-        self.assertIsNone(run.timeout_on)
-        self.assertEqual(run.path[-1], start_step)
-
-        # check that we can't be double queued by manually moving our timeout back
-        with patch("temba.utils.queues.push_task") as mock_push:
-            FlowRun.objects.all().update(timeout_on=timeout)
-            check_flow_timeouts_task()
-
-            self.assertEqual(0, mock_push.call_count)
-
-    def test_timeout_race(self):
-        # start one flow
-        flow1 = self.get_flow("timeout")
-        flow1.start([], [self.contact])
-        run1 = FlowRun.objects.get(flow=flow1, contact=self.contact)
-
-        # start another flow
-        flow2 = self.get_flow("multi_timeout")
-        flow2.start([], [self.contact])
-
-        # remove our timeout rule on our second flow
-        flow_json = flow2.as_json()
-        del flow_json["rule_sets"][0]["rules"][-1]
-        flow2.update(flow_json)
-
-        # mark our last message as sent
-        last_msg = run1.get_last_msg(OUTGOING)
-        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
-        last_msg.save()
-
-        time.sleep(0.5)
-
-        # ok, change our timeout to the past
-        timeout = timezone.now()
-        self._update_timeout(run1, timeout)
-
-        # process our timeout
-        run1.resume_after_timeout(timeout)
-
-        # should have cleared the timeout, run2 is the active one now
-        run1.refresh_from_db()
-        self.assertIsNone(run1.timeout_on)
-
-    def test_timeout_loop(self):
-        from temba.msgs.tasks import process_run_timeout
-
-        flow = self.get_flow("timeout_loop")
-
-        # start the flow
-        run, = flow.start([], [self.contact])
-
-        # mark our last message as sent
-        run.refresh_from_db()
-        last_msg = run.get_last_msg(OUTGOING)
-        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
-        last_msg.save()
-
-        timeout = timezone.now()
-        expiration = run.expires_on
-
-        self._update_timeout(run, timezone.now())
-
-        check_flow_timeouts_task()
-
-        run.refresh_from_db()
-
-        # should have a new outgoing message
-        last_msg = run.get_last_msg(OUTGOING)
-        self.assertTrue(last_msg.text.find("No seriously, what's your name?") >= 0)
-
-        # fire the task manually, shouldn't change anything (this tests double firing)
-        process_run_timeout(run.id, timeout)
-
-        # expiration should still be the same
-        run.refresh_from_db()
-        self.assertEqual(run.expires_on, expiration)
-
-        new_last_msg = run.get_last_msg(OUTGOING)
-        self.assertEqual(new_last_msg, last_msg)
-
-        # ok, now respond
-        msg = self.create_msg(contact=self.contact, direction="I", text="Wilson")
-        Flow.find_and_handle(msg)
-
-        # should have completed our flow
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-
-        last_msg = run.get_last_msg(OUTGOING)
-        self.assertEqual(last_msg.text, "Cool, got it..")
-
-    def test_multi_timeout(self):
-        flow = self.get_flow("multi_timeout")
-
-        # start the flow
-        flow.start([], [self.contact])
-
-        # create a new message and get it handled
-        msg = self.create_msg(contact=self.contact, direction="I", text="Wilson")
-        Flow.find_and_handle(msg)
-
-        run = FlowRun.objects.get()
-
-        time.sleep(1)
-        self._update_timeout(run, timezone.now())
-
-        check_flow_timeouts_task()
-
-        # nothing should have changed as we haven't yet sent our msg
-        self.assertTrue(run.is_active)
-        time.sleep(1)
-
-        # ok, mark our message as sent, but only two minutes ago
-        last_msg = run.get_last_msg(OUTGOING)
-        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
-        last_msg.save()
-        FlowRun.objects.all().update(timeout_on=timezone.now())
-        check_flow_timeouts_task()
-
-        # still nothing should have changed, not enough time has passed, but our timeout should be in the future now
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertTrue(run.timeout_on > timezone.now() + timedelta(minutes=2))
-
-        # ok, finally mark our message sent a while ago
-        last_msg.sent_on = timezone.now() - timedelta(minutes=10)
-        last_msg.save()
-
-        time.sleep(1)
-
-        self._update_timeout(run, timezone.now())
-
-        check_flow_timeouts_task()
-        run.refresh_from_db()
-
-        # run should be complete now
-        self.assertFalse(run.is_active)
-        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-
-        # and we should have sent our message
-        self.assertEqual("Thanks, Wilson", Msg.objects.filter(direction=OUTGOING).order_by("-created_on").first().text)
-
-    def test_timeout(self):
-        flow = self.get_flow("timeout")
-
-        # start the flow
-        flow.start([], [self.contact])
-
-        # create a new message and get it handled
-        msg = self.create_msg(contact=self.contact, direction="I", text="Wilson")
-        Flow.find_and_handle(msg)
-
-        # we should have sent a response
-        self.assertEqual(
-            "Great. Good to meet you Wilson",
-            Msg.objects.filter(direction=OUTGOING).order_by("-created_on").first().text,
-        )
-
-        # assert we have exited our flow
-        run = FlowRun.objects.get()
-        self.assertFalse(run.is_active)
-        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-
-        # ok, now let's try with a timeout
-        self.releaseRuns()
-        self.releaseMessages()
-
-        # start the flow
-        flow.start([], [self.contact])
-
-        # check our timeout is set
-        run = FlowRun.objects.get()
-        self.assertTrue(run.is_active)
-        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
-
-        # mark our last message as sent
-        last_msg = run.get_last_msg(OUTGOING)
-        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
-        last_msg.save()
-
-        time.sleep(0.5)
-
-        # run our timeout check task
-        check_flow_timeouts_task()
-
-        # nothing occured as we haven't timed out yet
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
-
-        time.sleep(1)
-
-        # ok, change our timeout to the past
-        self._update_timeout(run, timezone.now())
-
-        # check our timeouts again
-        check_flow_timeouts_task()
-        run.refresh_from_db()
-
-        # run should be complete now
-        self.assertFalse(run.is_active)
-        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-        self.assertEqual(
-            run.results,
-            {
-                "name": {
-                    "name": "Name",
-                    "value": matchers.ISODate(),
-                    "category": "No Response",
-                    "node_uuid": matchers.UUID4String(),
-                    "created_on": matchers.ISODate(),
-                }
-            },
-        )
-
-        # and we should have sent our message
-        self.assertEqual(
-            "Don't worry about it , we'll catch up next week.",
-            Msg.objects.filter(direction=OUTGOING).order_by("-created_on").first().text,
-        )
-
-    def test_timeout_no_credits(self):
-        flow = self.get_flow("timeout")
-
-        # start the flow
-        flow.start([], [self.contact])
-
-        # check our timeout is set
-        run = FlowRun.objects.get()
-        self.assertTrue(run.is_active)
-        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
-
-        # timeout in the past
-        FlowRun.objects.all().update(timeout_on=timezone.now())
-
-        # mark our last message as not having a credit
-        last_msg = run.get_last_msg(OUTGOING)
-        last_msg.topup_id = None
-        last_msg.save()
-
-        time.sleep(1)
-
-        # run our timeout check task
-        check_flow_timeouts_task()
-
-        # our timeout should be cleared
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertIsNone(run.timeout_on)
-
 
 class MigrationUtilsTest(TembaTest):
     def test_map_actions(self):
@@ -11481,8 +11131,7 @@ class StackedExitsTest(FlowFileTest):
         )
 
         # ok, send a response, should unwind all our flows
-        msg = self.create_msg(contact=self.contact, direction="I", text="something")
-        Msg.process_message(msg)
+        self.create_msg(contact=self.contact, direction="I", text="something").handle()
 
         msgs = Msg.objects.filter(contact=self.contact, direction="O").order_by("sent_on")
         self.assertEqual(3, msgs.count())
@@ -11524,19 +11173,6 @@ class AndroidChildStatus(FlowFileTest):
         self.assertEqual(msgs[1].text, "Child Msg 2")
 
 
-class QueryTest(FlowFileTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    def test_num_queries(self):
-
-        self.get_flow("query_test")
-        flow = Flow.objects.filter(name="Query Test").first()
-
-        # mock our webhook call which will get triggered in the flow
-        self.mockRequest("GET", "/ip_test", '{"ip":"192.168.1.1"}', content_type="application/json")
-        with QueryTracker(assert_query_count=100, stack_count=10, skip_unique_queries=True):
-            flow.start([], [self.contact])
-
-
 class FlowChannelSelectionTest(FlowFileTest):
     def setUp(self):
         super().setUp()
@@ -11575,11 +11211,9 @@ class FlowTriggerTest(TembaTest):
         # fire it manually
         contact_trigger.fire()
 
-        # contact should be added to flow
-        self.assertEqual(1, FlowRun.objects.filter(flow=flow, contact=contact).count())
-
-        # but no flow starts were created
-        self.assertEqual(0, FlowStart.objects.all().count())
+        # contact should be added to flow with a flow start
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 1)
+        self.assertEqual(FlowStart.objects.count(), 1)
 
         # now create a trigger for the group
         group_trigger = Trigger.objects.create(
@@ -11590,12 +11224,9 @@ class FlowTriggerTest(TembaTest):
         group_trigger.fire()
 
         # contact should be added to flow again
-        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
-
-        # and we should have a flow start
-        start = FlowStart.objects.get()
-        self.assertEqual(0, start.contacts.all().count())
-        self.assertEqual(1, start.groups.filter(id=group.id).count())
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
+        self.assertEqual(FlowStart.objects.count(), 2)
+        self.assertEqual(FlowStart.objects.filter(groups=group).count(), 1)
 
         # clear our the group on our group trigger
         group_trigger.groups.clear()
@@ -11604,8 +11235,8 @@ class FlowTriggerTest(TembaTest):
         group_trigger.fire()
 
         # nothing should have changed
-        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
-        self.assertEqual(1, FlowStart.objects.all().count())
+        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
+        self.assertEqual(FlowStart.objects.all().count(), 2)
 
 
 class TypeTest(TembaTest):

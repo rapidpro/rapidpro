@@ -7,7 +7,6 @@ from uuid import uuid4
 import iso8601
 import pytz
 import regex
-from django_redis import get_redis_connection
 from temba_expressions.evaluator import DateStyle, EvaluationContext
 from xlsxlite.writer import XLSXBook
 
@@ -19,7 +18,7 @@ from django.db import models, transaction
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
-from django.utils.translation import ugettext, ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
@@ -28,24 +27,16 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, json, on_transaction_commit
-from temba.utils.dates import datetime_to_s, datetime_to_str, get_datetime_format
+from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
+from temba.utils.dates import datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
-from temba.utils.queues import HIGH_PRIORITY, Queue, push_task
 from temba.utils.text import clean_string
 
 from . import legacy
-from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
-__message_handlers = None
-
-HANDLE_EVENT_TASK = "handle_event_task"
-MSG_EVENT = "msg"
-FIRE_EVENT = "fire"
-TIMEOUT_EVENT = "timeout"
 
 BATCH_SIZE = 500
 
@@ -70,8 +61,6 @@ USSD = "U"
 
 MSG_SENT_KEY = "msgs_sent_%y_%m_%d"
 
-BROADCAST_BATCH = "broadcast_batch"
-
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
     # special state for flows used to hold off sending the message until the flow is ready to receive a response
@@ -88,25 +77,6 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), "failed"),  # we gave up on sending this message
     (RESENT, _("Resent message"), "resent"),  # we retried this message
 )
-
-
-def get_message_handlers():
-    """
-    Initializes all our message handlers
-    """
-    global __message_handlers
-    if not __message_handlers:
-        handlers = []
-        for handler_class in settings.MESSAGE_HANDLERS:
-            try:
-                cls = MessageHandler.find(handler_class)
-                handlers.append(cls())
-            except Exception as e:  # pragma: no cover
-                logger.error(f"Unable to get message handlers: {str(e)}", exc_info=True)
-
-        __message_handlers = handlers
-
-    return __message_handlers
 
 
 class UnreachableException(Exception):
@@ -499,8 +469,6 @@ class Msg(models.Model):
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
-    CONTACT_HANDLING_QUEUE = "ch:%d"
-
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     STATUSES = extract_constants(STATUS_CONFIG)
@@ -760,43 +728,6 @@ class Msg(models.Model):
             push_courier_msgs(batch["channel"], batch["msgs"], batch["high_priority"])
 
     @classmethod
-    def process_message(cls, msg):
-        """
-        Processes a message, running it through all our handlers
-        """
-        handlers = get_message_handlers()
-
-        if msg.contact.is_blocked:
-            msg.visibility = Msg.VISIBILITY_ARCHIVED
-            msg.save(update_fields=["visibility", "modified_on"])
-        else:
-            for handler in handlers:
-                try:
-                    start = None
-                    if settings.DEBUG:  # pragma: no cover
-                        start = time.time()
-
-                    handled = handler.handle(msg)
-
-                    if start:  # pragma: no cover
-                        print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
-
-                    if handled:
-                        break
-                except Exception as e:  # pragma: no cover
-                    logger.error(f"Error in message handling: {str(e)}", exc_info=True)
-
-        cls.mark_handled(msg)
-
-        # record our handling latency for this object
-        if msg.queued_on:
-            analytics.gauge("temba.handling_latency", (msg.modified_on - msg.queued_on).total_seconds())
-
-        # this is the latency from when the message was received at the channel, which may be different than
-        # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.gauge("temba.channel_handling_latency", (msg.modified_on - msg.created_on).total_seconds())
-
-    @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
         messages = Msg.objects.filter(org=org)
 
@@ -826,23 +757,6 @@ class Msg(models.Model):
 
         # fail our messages
         failed_messages.update(status="F", modified_on=timezone.now())
-
-    @classmethod
-    def mark_handled(cls, msg):
-        """
-        Marks an incoming message as HANDLED
-        """
-        update_fields = ["status", "modified_on"]
-
-        # if flows or IVR haven't claimed this message, then it's going to the inbox
-        if not msg.msg_type:
-            msg.msg_type = INBOX
-            update_fields.append("msg_type")
-
-        msg.status = HANDLED
-
-        # make sure we don't overwrite any async message changes by only saving specific fields
-        msg.save(update_fields=update_fields)
 
     @classmethod
     def mark_error(cls, r, channel, msg, fatal=False):
@@ -1007,7 +921,6 @@ class Msg(models.Model):
         """
         Updates our message according to the provided client command
         """
-        from temba.api.models import WebHookEvent
 
         date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
 
@@ -1021,18 +934,15 @@ class Msg(models.Model):
         elif keyword == "mt_fail":
             self.status = FAILED
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_FAIL, self, date)
 
         elif keyword == "mt_sent":
             self.status = SENT
             self.sent_on = date
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_SENT, self, date)
 
         elif keyword == "mt_dlvd":
             self.status = DELIVERED
             handled = True
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
         self.save(
             update_fields=["status", "sent_on"]
@@ -1040,36 +950,15 @@ class Msg(models.Model):
 
         return handled
 
-    def queue_handling(self, new_message=False, new_contact=False):
-        """
-        Queues this message to be handled by one of our celery queues
-
-        new_message - should be true for messages which were created outside rapidpro
-        new_contact - should be true for contacts which were created outside rapidpro
-        """
-        payload = dict(
-            type=MSG_EVENT, contact_id=self.contact.id, id=self.id, new_message=new_message, new_contact=new_contact
-        )
-
-        # first push our msg on our contact's queue using our created date
-        r = get_redis_connection("default")
-        queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), json.dumps(payload))
-
-        # queue up our celery task
-        push_task(self.org, Queue.HANDLER, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
-
     def handle(self):
-        if self.direction == OUTGOING:
-            raise ValueError(ugettext("Cannot process an outgoing message."))
+        """
+        Queues this message to be handled
+        """
 
-        # process Android and test contact messages inline
-        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID:
-            Msg.process_message(self)
-
-        # others do in celery
-        else:
-            on_transaction_commit(lambda: self.queue_handling())
+        if settings.TESTING:
+            legacy.handle_message(self)
+        else:  # pragma: no cover
+            mailroom.queue_msg_handling(self)
 
     def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
@@ -1168,8 +1057,6 @@ class Msg(models.Model):
 
     @classmethod
     def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):
-        from temba.api.models import WebHookEvent
-
         # get / create our contact and URN
         contact, contact_urn = Contact.get_or_create(org, urn, channel, init_new=False)
 
@@ -1199,11 +1086,8 @@ class Msg(models.Model):
             status=PENDING,
         )
 
-        # trigger a webhook event for the MO message
-        WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, received_on)
-
-        # pass off handling of the message to mailroom after we commit
-        on_transaction_commit(lambda: mailroom.queue_msg_handling(msg))
+        # pass off handling of the message after we commit
+        on_transaction_commit(lambda: msg.handle())
 
         return msg
 
@@ -1224,8 +1108,6 @@ class Msg(models.Model):
         external_id=None,
         connection=None,
     ):
-
-        from temba.api.models import WebHookEvent
 
         if not org and channel:
             org = channel.org
@@ -1300,12 +1182,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge("temba.msg_incoming_%s" % channel.channel_type.lower())
 
-        # ivr messages are handled in handle_call
         if status == PENDING and msg_type != IVR:
             msg.handle()
-
-            # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, sent_on)
 
         return msg
 

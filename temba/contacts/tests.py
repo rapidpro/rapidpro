@@ -21,12 +21,13 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.models import WebHookEvent, WebHookResult
+from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
+from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -87,7 +88,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         )
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
-        self.org.initialize(flow_server_enabled=False)
+        self.org.initialize()
 
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
@@ -3551,9 +3552,7 @@ class ContactTest(TembaTest):
             )
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_webhook(
-                FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None
-            )
+            legacy.call_webhook(FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -3785,7 +3784,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
+        legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}
@@ -6618,72 +6617,6 @@ class ContactTest(TembaTest):
             self.mary.update_urns(self.user, ["tel:54321", "twitter:mary_mary"])
             self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by("name")))
 
-    def test_preferred_channel(self):
-        from temba.msgs.tasks import process_message_task
-
-        ContactField.get_or_create(self.org, self.admin, "age", label="Age", value_type=Value.TYPE_NUMBER)
-        ContactField.get_or_create(self.org, self.admin, "gender", label="Gender", value_type=Value.TYPE_TEXT)
-
-        with ESMockWithScroll():
-            ContactGroup.create_dynamic(
-                self.org,
-                self.admin,
-                "simple group",
-                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")',
-            )
-            ContactGroup.create_dynamic(self.org, self.admin, "Empty age field", 'age = ""')
-            ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "macklemore"')
-
-        # create some channels of various types
-        twitter = Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="@rapidpro")
-        Channel.create(self.org, self.user, None, "TG", name="Twitter Channel", address="@rapidpro")
-
-        # update our contact URNs, give them telegram and twitter with telegram being preferred
-        self.joe.update_urns(self.admin, ["telegram:12515", "twitter:macklemore"])
-
-        # set the preferred channel to twitter
-        self.joe.set_preferred_channel(twitter)
-
-        # preferred URN should be twitter
-        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
-
-        # reset back to telegram being preferred
-        self.joe.update_urns(self.admin, ["telegram:12515", "twitter:macklemore"])
-
-        # simulate an incoming message from Mage on Twitter
-        msg = Msg.objects.create(
-            org=self.org,
-            channel=twitter,
-            contact=self.joe,
-            contact_urn=ContactURN.get_or_create(self.org, self.joe, "twitter:macklemore", twitter),
-            text="Incoming twitter DM",
-            created_on=timezone.now(),
-        )
-
-        with self.assertNumQueries(12):
-            process_message_task(dict(id=msg.id, new_message=True, new_contact=False))
-
-        # twitter should be preferred outgoing again
-        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
-
-        # simulate an incoming message from Mage on Twitter, for a new contact
-        msg = Msg.objects.create(
-            org=self.org,
-            channel=twitter,
-            contact=self.joe,
-            contact_urn=ContactURN.get_or_create(self.org, self.joe, "twitter:macklemore", twitter),
-            text="Incoming twitter DM",
-            created_on=timezone.now(),
-        )
-
-        with self.assertNumQueries(19):
-            process_message_task(dict(id=msg.id, new_message=True, new_contact=True))
-
-        self.assertCountEqual(
-            [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
-            ["Empty age field", "urn group"],
-        )
-
 
 class ContactURNTest(TembaTest):
     def setUp(self):
@@ -8150,7 +8083,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000, flow_server_enabled=False)
+        self.org.initialize(topup_size=1000)
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
 

@@ -301,7 +301,7 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):
+    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):  # pragma: no cover
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
@@ -456,37 +456,24 @@ class Trigger(SmartModel):
 
         return [t.pk for t in triggers]
 
-    def release(self):
-        """
-        Releases this Trigger
-        """
-        self.delete()
-
     def fire(self):
-        if self.is_archived or not self.is_active:  # pragma: needs cover
-            return None
+        """
+        Fires this trigger in response to a schedule
+        """
 
-        channels = self.flow.org.channels.all()
-        if not channels:  # pragma: needs cover
-            return None
+        # do nothing if this trigger is no longer active
+        if self.is_archived or not self.is_active:
+            return
 
         groups = list(self.groups.all())
         contacts = list(self.contacts.all())
 
-        # nothing to do, move along
+        # do nothing if there are no groups or contacts
         if not groups and not contacts:
             return
 
-        # for single contacts, we just start directly
-        if not groups and contacts and not self.flow.flow_server_enabled:
-            self.flow.start(groups, contacts, restart_participants=True)
-
-        # we have groups of contacts to start, create a flow start
-        else:
-            start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
-            start.async_start()
-
-        self.save()
+        start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
+        start.async_start()
 
     def as_export_def(self):
         """
@@ -499,3 +486,9 @@ class Trigger(SmartModel):
             Trigger.EXPORT_GROUPS: [group.as_export_ref() for group in self.groups.all()],
             Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
         }
+
+    def release(self):
+        """
+        Releases this Trigger
+        """
+        self.delete()

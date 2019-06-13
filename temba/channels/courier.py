@@ -2,7 +2,7 @@ import time
 
 from django_redis import get_redis_connection
 
-from temba.utils import analytics, json
+from temba.utils import json
 
 
 def push_courier_msgs(channel, msgs, high_priority=False):
@@ -105,31 +105,3 @@ LUA_PUSH = """
     return 0
   end
 """
-
-
-def handle_new_message(org, msg):
-    """
-    Messages created by courier are only saved to the database. Here we take care of the other stuff
-    """
-    if not msg.topup_id:
-        (msg.topup_id, amount) = org.decrement_credit()
-        msg.save(update_fields=("topup_id",))
-
-    # set the preferred channel for this contact
-    msg.contact.set_preferred_channel(msg.channel)
-
-    # if this contact is stopped, unstop them
-    if msg.contact.is_stopped:
-        msg.contact.unstop(msg.channel.created_by)
-
-    analytics.gauge("temba.msg_incoming_%s" % msg.channel.channel_type.lower())
-
-
-def handle_new_contact(org, contact):
-    """
-    Contacts created by courier are only saved to the database. Here we take care of the other stuff
-    """
-    # possible to have dynamic groups based on name
-    contact.handle_update(fields=("name",), is_new=True, urns=[str(u) for u in contact.get_urns()])
-
-    analytics.gauge("temba.contact_created")
