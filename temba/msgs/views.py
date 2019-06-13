@@ -390,10 +390,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            # fire our send in celery
-            from temba.msgs.tasks import send_broadcast_task
-
-            on_transaction_commit(lambda: send_broadcast_task.delay(obj.pk))
+            on_transaction_commit(lambda: obj.send())
             return obj
 
         def get_form_kwargs(self):
