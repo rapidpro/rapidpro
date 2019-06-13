@@ -30,7 +30,7 @@ def omnibox_query(org, **kwargs):
 
     # these lookups return a Contact queryset
     if contact_uuids or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=False)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True)
 
         if contact_uuids:
             qs = qs.filter(uuid__in=contact_uuids.split(","))
@@ -186,7 +186,7 @@ def omnibox_mixed_search(org, search, types):
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
-def omnibox_results_to_dict(org, results):
+def omnibox_results_to_dict(org, results, version="1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """
@@ -197,19 +197,43 @@ def omnibox_results_to_dict(org, results):
 
     for obj in results:
         if isinstance(obj, ContactGroup):
-            result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
-        elif isinstance(obj, Contact):
-            if org.is_anon:
-                result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+            if version == "1":
+                result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
             else:
-                result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org), "extra": obj.get_urn_display()}
+                result = {"id": obj.uuid, "name": obj.name, "type": "group", "count": group_counts[obj]}
+        elif isinstance(obj, Contact):
+            if version == "1":
+                if org.is_anon:
+                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+                else:
+                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org), "extra": obj.get_urn_display()}
+            else:
+                if org.is_anon:
+                    result = {"id": obj.uuid, "name": obj.get_display(org), "type": "contact"}
+                else:
+                    result = {
+                        "id": obj.uuid,
+                        "name": obj.get_display(org),
+                        "type": "contact",
+                        "urn": obj.get_urn_display(),
+                    }
+
         elif isinstance(obj, ContactURN):
-            result = {
-                "id": "u-%d" % obj.id,
-                "text": obj.get_display(org),
-                "extra": obj.contact.name or None,
-                "scheme": obj.scheme,
-            }
+            if version == "1":
+                result = {
+                    "id": "u-%d" % obj.id,
+                    "text": obj.get_display(org),
+                    "scheme": obj.scheme,
+                    "extra": obj.contact.name or None,
+                }
+            else:
+                result = {
+                    "id": obj.identity,
+                    "name": obj.get_display(org),
+                    "contact": obj.contact.name or None,
+                    "scheme": obj.scheme,
+                    "type": "urn",
+                }
 
         formatted.append(result)
 

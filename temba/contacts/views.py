@@ -13,6 +13,7 @@ from smartmin.views import (
     SmartListView,
     SmartReadView,
     SmartUpdateView,
+    SmartView,
     smart_url,
 )
 
@@ -21,19 +22,22 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.db import IntegrityError
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
+from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -126,6 +130,10 @@ class ContactGroupForm(forms.ModelForm):
     def clean_query(self):
         try:
             parsed_query = parse_query(text=self.cleaned_data["query"], as_anon=self.org.is_anon)
+
+            # try to prepare query as it would be used, might raise errors for invalid search operators
+            parsed_query.as_elasticsearch(self.org)
+
             cleaned_query = parsed_query.as_text()
 
             if (
@@ -141,8 +149,7 @@ class ContactGroupForm(forms.ModelForm):
                 raise forms.ValidationError(_('You cannot create a dynamic group based on "name" or "id".'))
         except forms.ValidationError as e:
             raise e
-
-        except Exception as e:
+        except SearchException as e:
             raise forms.ValidationError(str(e))
 
     class Meta:
@@ -254,13 +261,7 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
                 return Contact.objects.none()
         else:
             # if user search is not defined, use DB to select contacts
-            test_contact_ids = Contact.objects.filter(org=org, is_test=True).values_list("id", flat=True)
-            return (
-                group.contacts.all()
-                .exclude(id__in=test_contact_ids)
-                .order_by("-id")
-                .prefetch_related("org", "all_groups")
-            )
+            return group.contacts.all().order_by("-id").prefetch_related("org", "all_groups")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -626,14 +627,12 @@ class ContactCRUDL(SmartCRUDL):
 
             def clean(self):
 
-                existing_contact_fields = ContactField.user_fields.filter(org=self.org, is_active=True).values(
-                    "key", "label"
-                )
+                existing_contact_fields = ContactField.user_fields.active_for_org(org=self.org).values("key", "label")
                 existing_contact_fields_map = {elt["label"]: elt["key"] for elt in existing_contact_fields}
 
                 used_labels = []
                 # don't allow users to specify field keys or labels
-                re_col_name_field = regex.compile(r"column_\w+_label", regex.V0)
+                re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
                 for key, value in self.data.items():
                     if re_col_name_field.match(key):
                         field_label = value.strip()
@@ -760,7 +759,7 @@ class ContactCRUDL(SmartCRUDL):
             contact_fields = sorted(
                 [
                     dict(id=elt["label"], text=elt["label"])
-                    for elt in ContactField.user_fields.filter(org=org, is_active=True).values("label")
+                    for elt in ContactField.user_fields.active_for_org(org=org).values("label")
                 ],
                 key=lambda k: k["text"].lower(),
             )
@@ -956,7 +955,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             org = self.derive_org()
-
             return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
 
         def render_to_response(self, context, **response_kwargs):
@@ -964,7 +962,7 @@ class ContactCRUDL(SmartCRUDL):
             page = context["page_obj"]
             object_list = context["object_list"]
 
-            results = omnibox_results_to_dict(org, object_list)
+            results = omnibox_results_to_dict(org, object_list, self.request.GET.get("v", "1"))
 
             json_result = {"results": results, "more": page.has_next(), "total": len(results), "err": "nil"}
 
@@ -978,7 +976,7 @@ class ContactCRUDL(SmartCRUDL):
             return self.object.get_display()
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True, is_test=False)
+            return Contact.objects.filter(is_active=True)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1042,24 +1040,40 @@ class ContactCRUDL(SmartCRUDL):
             Contact.bulk_cache_initialize(contact.org, [contact])
 
             # lookup all of our contact fields
-            contact_fields = []
-            fields = ContactField.user_fields.filter(org=contact.org, is_active=True).order_by("label", "pk")
+            all_contact_fields = []
+            fields = ContactField.user_fields.active_for_org(org=contact.org).order_by(
+                "-show_in_table", "-priority", "label", "pk"
+            )
+
             for field in fields:
                 value = contact.get_field_value(field)
-                if value:
-                    display = contact.get_field_display(field)
-                    contact_fields.append(
-                        dict(id=field.id, label=field.label, value=display, featured=field.show_in_table)
+
+                if field.show_in_table:
+                    if not (value):
+                        display = MISSING_VALUE
+                    else:
+                        display = contact.get_field_display(field)
+
+                    all_contact_fields.append(
+                        dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
                     )
 
-            # stuff in the contact's language in the fields as well
+                else:
+                    display = contact.get_field_display(field)
+                    # add a contact field only if it has a value
+                    if display:
+                        all_contact_fields.append(
+                            dict(id=field.id, label=field.label, value=display, show_in_table=field.show_in_table)
+                        )
+
+            context["all_contact_fields"] = all_contact_fields
+
+            # add contact.language to the context
             if contact.language:
                 lang = languages.get_language_name(contact.language)
                 if not lang:
                     lang = contact.language
-                contact_fields.append(dict(label="Language", value=lang, featured=True))
-
-            context["contact_fields"] = sorted(contact_fields, key=lambda f: f["label"])
+                context["contact_language"] = lang
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
@@ -1127,13 +1141,23 @@ class ContactCRUDL(SmartCRUDL):
                         dict(title=_("Delete"), style="btn-primary", js_class="contact-delete-button", href="#")
                     )
 
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("contacts.contact_read", args=[self.get_object().uuid])}',
+                    )
+                )
+
             return links
 
     class History(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True, is_test=False)
+            return Contact.objects.filter(is_active=True)
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1199,8 +1223,12 @@ class ContactCRUDL(SmartCRUDL):
             if has_contactgroup_create_perm and valid_search_condition:
                 links.append(dict(title=_("Save as Group"), js_class="add-dynamic-group", href="#"))
 
-            if self.has_org_perm("contacts.contactfield_managefields"):
-                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(
+                    dict(
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                    )
+                )
 
             if self.has_org_perm("contacts.contact_export"):
                 links.append(dict(title=_("Export"), js_class="export-contacts", href="#"))
@@ -1211,9 +1239,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             context["actions"] = ("label", "block")
-            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
-                "-priority", "pk"
-            )
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             return context
 
@@ -1247,8 +1273,12 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("contacts.contactfield_managefields"):
-                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
+            if self.has_org_perm("contacts.contactfield_list"):
+                links.append(
+                    dict(
+                        title=_("Manage Fields"), js_class="manage-fields", href=reverse("contacts.contactfield_list")
+                    )
+                )
 
             if self.has_org_perm("contacts.contactgroup_update"):
                 links.append(dict(title=_("Edit Group"), js_class="update-contactgroup", href="#"))
@@ -1273,9 +1303,7 @@ class ContactCRUDL(SmartCRUDL):
 
             context["actions"] = actions
             context["current_group"] = group
-            context["contact_fields"] = ContactField.user_fields.filter(org=org, is_active=True).order_by(
-                "-priority", "pk"
-            )
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["export_url"] = self.derive_export_url()
             return context
 
@@ -1344,10 +1372,6 @@ class ContactCRUDL(SmartCRUDL):
         success_url = "uuid@contacts.contact_read"
         success_message = ""
         submit_button_name = _("Save Changes")
-
-        def derive_queryset(self):
-            qs = super().derive_queryset()
-            return qs.filter(is_test=False)
 
         def derive_exclude(self):
             obj = self.get_object()
@@ -1637,63 +1661,318 @@ class ContactGroupCRUDL(SmartCRUDL):
             return response
 
 
-class ManageFieldsForm(forms.Form):
+class ContactFieldFormMixin:
+    org = None
+
+    def clean(self):
+        cleaned_data = super().clean()
+        label = cleaned_data.get("label", "")
+
+        if not ContactField.is_valid_label(label):
+            raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
+
+        cf_exists = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower()).exists()
+
+        if self.instance.label != label and cf_exists is True:
+            raise forms.ValidationError(_(f"Field names must be unique. '{label}' is duplicated"))
+
+        if not ContactField.is_valid_key(ContactField.make_key(label)):
+            raise forms.ValidationError(_(f"Field name '{label}' is a reserved word"))
+
+
+class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
+    class Meta:
+        model = ContactField
+        fields = ("label", "value_type", "show_in_table")
+
     def __init__(self, *args, **kwargs):
         self.org = kwargs["org"]
         del kwargs["org"]
+
         super().__init__(*args, **kwargs)
 
     def clean(self):
-        used_labels = set()
-        for key in sorted(key for key in self.cleaned_data.keys() if key.startswith("field_")):
-            idx = key[6:]
-            field = self.cleaned_data[key]
-            label = self.cleaned_data["label_%s" % idx]
+        super().clean()
+        cnt_active_userfields_per_org = ContactField.user_fields.count_active_for_org(org=self.org)
 
-            if label:
-                if not ContactField.is_valid_label(label):
-                    raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
+        if cnt_active_userfields_per_org >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
+            raise forms.ValidationError(
+                _(
+                    f"Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
+                )
+            )
 
-                if label.lower() in used_labels:
-                    raise forms.ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
 
-                elif not ContactField.is_valid_key(ContactField.make_key(label)):
-                    raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
-                used_labels.add(label.lower())
-            else:
-                # don't allow fields that are dependencies for flows be removed
-                if field != "__new_field":
-                    from temba.flows.models import Flow
+class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
+    class Meta:
+        model = ContactField
+        fields = ("label", "value_type", "show_in_table")
 
-                    flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
-                    if flow:
-                        raise forms.ValidationError(
-                            _(
-                                'The field "%(label)s" cannot be removed while it is still used in the flow "%(flow)s"'
-                                % dict(label=field.label, flow=flow.name)
-                            )
-                        )
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs["org"]
+        del kwargs["org"]
 
-        return self.cleaned_data
+        super().__init__(*args, **kwargs)
+
+
+class ContactFieldListView(OrgPermsMixin, SmartListView):
+    queryset = ContactField.user_fields
+    title = _("Manage Contact Fields")
+    fields = ("label", "show_in_table", "key", "value_type")
+    search_fields = ("label__icontains", "key__icontains")
+    default_order = ("label",)
+
+    success_url = "@contacts.contactfield_list"
+
+    link_fields = ()
+
+    add_button = True
+    paginate_by = 10000
+
+    template_name = "contacts/contactfield_list.haml"
+
+    def _get_static_context_data(self, **kwargs):
+
+        active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
+
+        context = {}
+
+        context["cf_categories"] = [
+            {"label": "All", "count": active_user_fields.count(), "url": reverse("contacts.contactfield_list")},
+            {
+                "label": "Featured",
+                "count": active_user_fields.filter(show_in_table=True).count(),
+                "url": reverse("contacts.contactfield_featured"),
+            },
+        ]
+
+        type_counts = (
+            active_user_fields.values("value_type")
+            .annotate(type_count=Count("value_type"))
+            .order_by("-type_count", "value_type")
+        )
+
+        value_type_map = {vt[0]: vt[1] for vt in Value.TYPE_CONFIG}
+
+        context["cf_types"] = [
+            {
+                "label": value_type_map[type_cnt["value_type"]],
+                "count": type_cnt["type_count"],
+                "url": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
+                "value_type": type_cnt["value_type"],
+            }
+            for type_cnt in type_counts
+        ]
+
+        return context
+
+    def get_queryset(self, **kwargs):
+        qs = super().get_queryset(**kwargs)
+        qs = qs.collect_usage().filter(org=self.request.user.get_org(), is_active=True)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context.update(self._get_static_context_data(**kwargs))
+
+        return context
+
+    # smartmin field value getter
+    def get_value_type(self, obj):
+        return obj.get_value_type_display()
+
+    # smartmin field value getter
+    def get_key(self, obj):
+        return f"@contact.{obj.key}"
+
+    # smartmin field value getter
+    def get_show_in_table(self, obj):
+        if obj.show_in_table:
+            featured_label = _("featured")
+            return mark_safe(f'<span class="label label-info">{featured_label}</span>')
+        else:
+            return ""
 
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "managefields", "json")
+    actions = ("list", "json", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
 
-    class List(OrgPermsMixin, SmartListView):
+    class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         queryset = ContactField.user_fields
+        form_class = CreateContactFieldForm
+        success_message = ""
+        submit_button_name = _("Create")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def form_valid(self, form):
+            self.object = ContactField.get_or_create(
+                org=self.request.user.get_org(),
+                user=self.request.user,
+                key=ContactField.make_key(label=form.cleaned_data["label"]),
+                label=form.cleaned_data["label"],
+                value_type=form.cleaned_data["value_type"],
+                show_in_table=form.cleaned_data["show_in_table"],
+            )
+
+            response = self.render_to_response(
+                self.get_context_data(
+                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
+                )
+            )
+            response["Temba-Success"] = self.get_success_url()
+            return response
+
+    class Update(ModalMixin, OrgPermsMixin, SmartUpdateView):
+        queryset = ContactField.user_fields
+        form_class = UpdateContactFieldForm
+        success_message = ""
+        submit_button_name = _("Update")
+        field_config = {"show_in_table": {"label": "Featured"}}
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def form_valid(self, form):
+            self.object = ContactField.get_or_create(
+                org=self.request.user.get_org(),
+                user=self.request.user,
+                key=self.object.key,  # do not replace the key
+                label=form.cleaned_data["label"],
+                value_type=form.cleaned_data["value_type"],
+                show_in_table=form.cleaned_data["show_in_table"],
+                priority=0,  # reset the priority, this will move CF to the bottom of the list
+            )
+
+            response = self.render_to_response(
+                self.get_context_data(
+                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
+                )
+            )
+            response["Temba-Success"] = self.get_success_url()
+            return response
+
+    class Delete(OrgPermsMixin, SmartUpdateView):
+        queryset = ContactField.user_fields
+        success_url = "@contacts.contactfield_list"
+        success_message = ""
+        http_method_names = ["get", "post"]
+
+        def _has_uses(self):
+            return any([self.object.flow_count, self.object.campaign_count, self.object.contactgroup_count])
+
+        def get_queryset(self):
+            qs = super().get_queryset()
+
+            qs = qs.collect_usage()
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["has_uses"] = self._has_uses()
+
+            return context
+
+        def post(self, request, *args, **kwargs):
+
+            pk = self.kwargs.get(self.pk_url_kwarg)
+
+            # does this ContactField actually exist
+            self.object = ContactField.user_fields.filter(is_active=True, id=pk).collect_usage().get()
+
+            # did it maybe change underneath us ???
+            if self._has_uses():
+                raise ValueError(f"Cannot remove a ContactField {pk}:{self.object.label} which is in use")
+
+            else:
+                self.object.hide_field(org=self.request.user.get_org(), user=self.request.user, key=self.object.key)
+
+                response = self.render_to_response(self.get_context_data())
+                return response
+
+    class UpdatePriority(OrgPermsMixin, SmartView, View):
+        def post(self, request, *args, **kwargs):
+
+            try:
+                post_data = json.loads(request.body)
+
+                with transaction.atomic():
+                    for cfid, priority in post_data.items():
+                        ContactField.user_fields.filter(id=cfid).update(priority=priority)
+
+                return HttpResponse('{"status":"OK"}', status=200, content_type="application/json")
+
+            except Exception as e:
+                logger.error(f"Could not update priorities of ContactFields: {str(e)}")
+
+                payload = {"status": "ERROR", "err_detail": str(e)}
+
+                return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
+
+    class List(ContactFieldListView):
+        pass
+
+    class Featured(ContactFieldListView):
+        search_fields = None  # search and reordering do not work together
+        default_order = ("-priority", "label")
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True)
+            qs = qs.filter(org=self.request.user.get_org(), is_active=True, show_in_table=True)
 
-            query = self.request.GET.get("search", None)
-            if query:
-                qs = qs.filter(Q(key__icontains=query) | Q(label__icontains=query))
-
-            qs = qs.order_by("label")
             return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["is_featured_category"] = True
+
+            return context
+
+    class FilterByType(ContactFieldListView):
+        def get_queryset(self, **kwargs):
+            qs = super().get_queryset(**kwargs)
+
+            qs = qs.filter(value_type=self.kwargs["value_type"])
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["selected_value_type"] = self.kwargs["value_type"]
+
+            return context
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
+
+    class Detail(OrgObjPermsMixin, SmartReadView):
+        queryset = ContactField.user_fields
+        template_name = "contacts/contactfield_detail.haml"
+        title = _("Contact field uses")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True).all())
+            context["dep_campaignevents"] = list(
+                self.object.campaigns.filter(is_active=True).select_related("campaign").all()
+            )
+            context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
+
+            return context
 
     class Json(OrgPermsMixin, SmartListView):
         paginate_by = None
@@ -1720,150 +1999,3 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key="name", label="Full name"))
 
             return HttpResponse(json.dumps(sorted_results), content_type="application/json")
-
-    class Managefields(ModalMixin, OrgPermsMixin, SmartFormView):
-        title = _("Manage Contact Fields")
-        submit_button_name = _("Update Fields")
-        success_url = "@contacts.contact_list"
-        form_class = ManageFieldsForm
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            num_fields = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True).count()
-
-            contact_fields = []
-            for field_idx in range(1, num_fields + 2):
-                contact_field = dict(
-                    show="show_%d" % field_idx,
-                    type="type_%d" % field_idx,
-                    label="label_%d" % field_idx,
-                    field="field_%d" % field_idx,
-                    priority="priority_%d" % field_idx,
-                )
-                contact_fields.append(contact_field)
-
-            context["contact_fields"] = contact_fields
-            return context
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.derive_org()
-            return kwargs
-
-        def get_form(self):
-            form = super().get_form()
-            form.fields.clear()
-
-            org = self.request.user.get_org()
-            contact_fields = ContactField.user_fields.filter(org=org, is_active=True).order_by("-priority", "pk")
-
-            added_fields = []
-
-            i = 1
-            for contact_field in contact_fields:
-                form_field_label = _("@contact.%(key)s") % {"key": contact_field.key}
-                added_fields.append(
-                    ("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False))
-                )
-                added_fields.append(
-                    (
-                        "type_%d" % i,
-                        forms.ChoiceField(
-                            label=" ", choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True
-                        ),
-                    )
-                )
-                added_fields.append(
-                    (
-                        "label_%d" % i,
-                        forms.CharField(
-                            label=" ",
-                            max_length=36,
-                            help_text=form_field_label,
-                            initial=contact_field.label,
-                            required=False,
-                        ),
-                    )
-                )
-                added_fields.append(
-                    (
-                        "field_%d" % i,
-                        forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field),
-                    )
-                )
-                added_fields.append(
-                    ("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=contact_field.priority))
-                )
-                i += 1
-
-            # add a last field for the user to add one
-            added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
-            added_fields.append(
-                ("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True))
-            )
-            added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
-            added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
-            added_fields.append(("priority_%d" % i, forms.IntegerField(widget=forms.HiddenInput(), initial=0)))
-
-            form.fields = OrderedDict(list(form.fields.items()) + added_fields)
-
-            return form
-
-        def form_valid(self, form):
-            try:
-                cleaned_data = form.cleaned_data
-                user = self.request.user
-                org = user.get_org()
-
-                for key in cleaned_data:
-                    if key.startswith("field_"):
-                        idx = key[6:]
-                        label = cleaned_data["label_%s" % idx]
-                        field = cleaned_data[key]
-                        show_in_table = cleaned_data["show_%s" % idx]
-                        value_type = cleaned_data["type_%s" % idx]
-                        priority = cleaned_data["priority_%s" % idx]
-
-                        if field == "__new_field":
-                            if label:
-                                analytics.track(user.username, "temba.contactfield_created")
-                                key = ContactField.make_key(label)
-                                ContactField.get_or_create(
-                                    org,
-                                    user,
-                                    key,
-                                    label,
-                                    show_in_table=show_in_table,
-                                    value_type=value_type,
-                                    priority=priority,
-                                )
-                        else:
-                            if label:
-                                ContactField.get_or_create(
-                                    org,
-                                    user,
-                                    field.key,
-                                    label,
-                                    show_in_table=show_in_table,
-                                    value_type=value_type,
-                                    priority=priority,
-                                )
-                            else:
-                                ContactField.hide_field(org, user, field.key)
-
-                if "HTTP_X_PJAX" not in self.request.META:
-                    return HttpResponseRedirect(self.get_success_url())
-                else:  # pragma: no cover
-                    return self.render_to_response(
-                        self.get_context_data(
-                            form=form,
-                            success_url=self.get_success_url(),
-                            success_script=getattr(self, "success_script", None),
-                        )
-                    )
-
-            except (IntegrityError, ValueError) as e:  # pragma: no cover
-                message = str(e).capitalize()
-                errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
-                errors.append(message)
-                return self.render_to_response(self.get_context_data(form=form))

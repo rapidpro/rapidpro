@@ -7,8 +7,9 @@ ignore_errors = True
 precision = 0
 show_missing = True
 skip_covered = True
-exclude_lines =
+exclude_lines = 
     pragma: no cover
+    pragma: needs cover
     pragma: can't cover
     def __repr__
     if self.debug:
@@ -25,7 +26,6 @@ omit =
     *__init__*
     *settings*
     temba/perf_tests.py
-    temba/wsgi.py
     temba/flows/management/commands/run_audit.py
     temba/contacts/management/commands/audit_es_group.py
     temba/msgs/management/commands/msg_console.py
@@ -33,8 +33,10 @@ omit =
     temba/utils/management/commands/perf_test.py
     temba/utils/management/commands/migrate_flows.py
     temba/utils/management/commands/test_db.py
+    temba/utils/management/commands/mailroom_db.py
     temba/orgs/management/commands/update_analytics_consent.py
     temba/orgs/management/commands/update_analytics_orgs.py
+    temba/channels/management/commands/reactivate_fb_channels.py
 
 [html]
 directory = coverage_html_report

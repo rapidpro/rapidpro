@@ -29,7 +29,7 @@ describe 'Services:', ->
         }
       )
 
-      $http.whenGET('/flow/revisions/' + config.id + '/').respond(
+      $http.whenGET('/flow/revisions/' + config.id + '/?version=11.11').respond(
         [],  {'content-type':'application/json'}
       )
 
@@ -53,6 +53,8 @@ describe 'Services:', ->
       $window = _$window_
       flowService = _Flow_
       $timeout = _$timeout_
+
+      $window.flowVersion = "11.11"
     )
 
     it 'should slugify properly', ->

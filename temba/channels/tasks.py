@@ -1,78 +1,22 @@
 import logging
-import time
 from datetime import timedelta
-from enum import Enum
-
-from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
 
-from temba.msgs.models import SEND_MSG_TASK
-from temba.utils import dict_to_struct
-from temba.utils.queues import Queue, complete_task, nonoverlapping_task, push_task, start_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog
 
 logger = logging.getLogger(__name__)
 
 
-class MageStreamAction(Enum):
-    activate = 1
-    refresh = 2
-    deactivate = 3
-
-
 @task(track_started=True, name="sync_channel_fcm_task")
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
-
-
-@task(track_started=True, name="send_msg_task")
-def send_msg_task():
-    """
-    Pops the next message off of our msg queue to send.
-    """
-    # pop off the next task
-    org_id, msg_tasks = start_task(SEND_MSG_TASK)
-
-    # it is possible we have no message to send, if so, just return
-    if not msg_tasks:  # pragma: needs cover
-        return
-
-    if not isinstance(msg_tasks, list):  # pragma: needs cover
-        msg_tasks = [msg_tasks]
-
-    r = get_redis_connection()
-
-    # acquire a lock on our contact to make sure two sets of msgs aren't being sent at the same time
-    try:
-        with r.lock("send_contact_%d" % msg_tasks[0]["contact"], timeout=300):
-            # send each of our msgs
-            while msg_tasks:
-                msg_task = msg_tasks.pop(0)
-                msg = dict_to_struct(
-                    "MockMsg",
-                    msg_task,
-                    datetime_fields=["modified_on", "sent_on", "created_on", "queued_on", "next_attempt"],
-                )
-                Channel.send_message(msg)
-
-                # if there are more messages to send for this contact, sleep a second before moving on
-                if msg_tasks:
-                    time.sleep(1)
-
-    finally:  # pragma: no cover
-        # mark this worker as done
-        complete_task(SEND_MSG_TASK, org_id)
-
-        # if some msgs weren't sent for some reason, then requeue them for later sending
-        if msg_tasks:
-            # requeue any unsent msgs
-            push_task(org_id, Queue.MSGS, SEND_MSG_TASK, msg_tasks)
 
 
 @nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")

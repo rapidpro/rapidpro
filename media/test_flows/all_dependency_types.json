@@ -1,0 +1,165 @@
+{
+  "version": "11.12",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "name": "New Child",
+      "uuid": "c866af22-8eff-41e5-9471-73c26c30f16b",
+      "language": "base",
+      "type": "messaging",
+      "nodes": [],
+      "spec_version": "13.0.0",
+      "metadata": {
+        "saved_on": "2019-05-30T15:07:33.090001+00:00"
+      },
+      "revision": 1,
+      "expire_after_minutes": 10080
+    },
+    {
+      "name": "All Dep Types",
+      "uuid": "ee765ff2-96b0-440a-b108-393f613466bb",
+      "spec_version": "13.0.0",
+      "language": "base",
+      "type": "messaging",
+      "nodes": [
+        {
+          "uuid": "56e0cd46-6383-4779-9150-76f49025dab2",
+          "actions": [
+            {
+              "type": "add_contact_groups",
+              "groups": [
+                {
+                  "uuid": "967b469b-fd34-46a5-90f9-40430d6db2a4",
+                  "name": "Farmers"
+                }
+              ],
+              "uuid": "a025ddc3-3647-4143-829f-6842a755f952"
+            },
+            {
+              "type": "add_input_labels",
+              "labels": [
+                {
+                  "uuid": "c4812623-7932-4477-9b91-a1e4a9cb161f",
+                  "name": "Spam"
+                }
+              ],
+              "uuid": "b477b687-c17c-49aa-9b3f-e93e4f1b6361"
+            },
+            {
+              "uuid": "f0f5b9e0-086e-4437-b06c-927d598c7a81",
+              "type": "set_contact_field",
+              "field": {
+                "key": "gender",
+                "name": "Gender"
+              },
+              "value": "M"
+            },
+            {
+              "attachments": [],
+              "text": "Hi you are @fields.age years old",
+              "type": "send_msg",
+              "quick_replies": [],
+              "uuid": "5179bc35-93fe-4381-82d2-2edf86f0700d"
+            },
+            {
+              "uuid": "c350ce82-6a85-40a6-8655-f54d82572dea",
+              "type": "set_contact_channel",
+              "channel": {
+                "uuid": "5c2c874a-771c-4602-a84a-767fb0d55c6c",
+                "name": "Android"
+              }
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "6039c668-15a9-4ce5-a612-8d3b0562d84d",
+              "destination_uuid": "11ce89d0-c752-4fc1-9657-d6d3133dec1f"
+            }
+          ]
+        },
+        {
+          "uuid": "11ce89d0-c752-4fc1-9657-d6d3133dec1f",
+          "actions": [
+            {
+              "uuid": "b9d082fa-2228-47ac-8060-2567485418fe",
+              "type": "enter_flow",
+              "flow": {
+                "uuid": "c866af22-8eff-41e5-9471-73c26c30f16b",
+                "name": "New Child"
+              }
+            }
+          ],
+          "router": {
+            "type": "switch",
+            "operand": "@child.run.status",
+            "cases": [
+              {
+                "uuid": "dc807281-709c-4f12-b1ca-8da079da21d4",
+                "type": "has_only_text",
+                "arguments": [
+                  "completed"
+                ],
+                "category_uuid": "1398284f-7aeb-4a5a-8350-91e84960ec18"
+              },
+              {
+                "uuid": "ab88f469-d82a-4735-97e4-a33baad8841b",
+                "arguments": [
+                  "expired"
+                ],
+                "type": "has_only_text",
+                "category_uuid": "ff763fb3-9515-4c80-a211-3d4837adc2c8"
+              }
+            ],
+            "categories": [
+              {
+                "uuid": "1398284f-7aeb-4a5a-8350-91e84960ec18",
+                "name": "Complete",
+                "exit_uuid": "c78e1f77-a67d-47ab-bde3-18f92168ecec"
+              },
+              {
+                "uuid": "ff763fb3-9515-4c80-a211-3d4837adc2c8",
+                "name": "Expired",
+                "exit_uuid": "b4a75a38-86ae-4d25-8073-abb6cd1cd252"
+              }
+            ],
+            "default_category_uuid": "ff763fb3-9515-4c80-a211-3d4837adc2c8"
+          },
+          "exits": [
+            {
+              "uuid": "c78e1f77-a67d-47ab-bde3-18f92168ecec",
+              "destination_uuid": null
+            },
+            {
+              "uuid": "b4a75a38-86ae-4d25-8073-abb6cd1cd252",
+              "destination_uuid": null
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "56e0cd46-6383-4779-9150-76f49025dab2": {
+            "position": {
+              "left": 0,
+              "top": 0
+            },
+            "type": "execute_actions"
+          },
+          "11ce89d0-c752-4fc1-9657-d6d3133dec1f": {
+            "type": "split_by_subflow",
+            "position": {
+              "left": 120,
+              "top": 400
+            },
+            "config": {}
+          }
+        }
+      },
+      "revision": 11,
+      "expire_after_minutes": 10080,
+      "version": "13.0.0"
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

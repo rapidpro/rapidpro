@@ -2,7 +2,6 @@ from mptt.utils import get_cached_trees
 
 from django.db.models import Prefetch
 
-from temba import mailroom
 from temba.values.constants import Value
 
 VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
@@ -13,16 +12,16 @@ def serialize_ref(obj):
     return {"uuid": str(obj.uuid), "name": obj.name or ""}
 
 
+# TODO: don't believe we actually need this anymore
 def serialize_flow(flow):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
+    from temba.flows.models import Flow
 
-    flow.ensure_current_version()
-    flow_def = flow.as_json(expand_contacts=True)
-
-    return mailroom.get_client().flow_migrate({"flow": flow_def, "collapse_exits": False})
+    current_revision = flow.get_current_revision()
+    return current_revision.get_definition_json(to_version=Flow.GOFLOW_VERSION)
 
 
 def serialize_channel(channel):

@@ -7,10 +7,10 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    -if request.GET.sessions and channel.supports_ivr
-      -trans "Call Log"
+    -if request.GET.connections and channel.supports_ivr
+      -trans "Calls"
     -elif request.GET.others
-      -trans "Other Interactions Log"
+      -trans "Other Interactions"
     -else
       -trans "Recent Channel Events"
   %h5.header-margin
@@ -20,18 +20,18 @@
       {{ channel }}
 
 -block gear-menu
-  -if request.GET.sessions or request.GET.others
-    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}"}
-      -trans "Message Log"
+  -if request.GET.connections or request.GET.others
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}"}
+      -trans "Messages"
 
-  -if not request.GET.sessions
+  -if not request.GET.connections
     -if channel.supports_ivr
-      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&sessions=1"}
-        -trans "Call Log"
+      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}?connections=1"}
+        -trans "Calls"
 
   -if not request.GET.others
-    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&others=1"}
-      -trans "Other Interactions Log"
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list' channel.uuid %}?others=1"}
+      -trans "Other Interactions"
 
 -block table
 
@@ -40,14 +40,14 @@
       %tr
         %th{ style:'width:120px' }
         %th
-        -if request.GET.sessions
+        -if request.GET.connections
           %th{ style:'width:150px' }
 
         %th{ style:'width:200px'}
         %th{ style:'width:160px;text-align:right;'}
 
       -for obj in object_list
-        -if request.GET.sessions
+        -if request.GET.connections
           %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
             %td.clickable
               -if not user_org.is_anon or perms.contacts.contact_break_anon
@@ -57,21 +57,19 @@
                 {{obj.contact_urn.get_display}}
 
             %td.clickable
-              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+              %a{ href:'{% url "channels.channellog_connection" obj.pk %}' }><
                 -if obj.direction == 'I'
                   -trans "Incoming"
                 -else
                   -trans "Outgoing"
-                -if obj.connection_type == 'F'
+                -if obj.connection_type == 'F' or obj.connection_type == 'V'
                   -trans "phone call"
-                -else
-                  -trans "USSD session"
 
                 -if obj.is_done
                   -trans "complete"
 
             %td.clickable{ style:'text-align: right', nowrap:'true' }
-              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+              %a{ href:'{% url "channels.channellog_connection" obj.pk %}' }><
                 -if obj.get_duration
                   {{obj.get_duration|delta}}
                 -else

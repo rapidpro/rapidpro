@@ -1,8 +1,10 @@
 from collections import OrderedDict
+
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from temba.channels.views import TYPE_UPDATE_FORM_CLASSES
+
 from ..models import Channel, ChannelType
 
 TYPES = OrderedDict({})

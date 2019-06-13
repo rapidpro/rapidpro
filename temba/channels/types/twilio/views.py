@@ -111,21 +111,21 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         # create new TwiML app
         callback_domain = org.get_brand_domain()
-        new_receive_url = "https://" + callback_domain + reverse("courier.t", args=[channel_uuid, "receive"])
-        new_status_url = (
-            "https://" + callback_domain + reverse("handlers.twilio_handler", args=["status", channel_uuid])
-        )
-        new_voice_url = "https://" + callback_domain + reverse("handlers.twilio_handler", args=["voice", channel_uuid])
+        base_url = "https://" + callback_domain
+        receive_url = base_url + reverse("courier.t", args=[channel_uuid, "receive"])
+        status_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
+        voice_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
 
         new_app = client.api.applications.create(
             friendly_name="%s/%s" % (callback_domain.lower(), channel_uuid),
-            sms_url=new_receive_url,
             sms_method="POST",
-            voice_url=new_voice_url,
-            voice_fallback_url=f"{settings.STORAGE_URL}/voice_unavailable.xml",
-            voice_fallback_method="GET",
-            status_callback=new_status_url,
+            sms_url=receive_url,
+            voice_method="POST",
+            voice_url=voice_url,
             status_callback_method="POST",
+            status_callback=status_url,
+            voice_fallback_method="GET",
+            voice_fallback_url=f"{settings.STORAGE_URL}/voice_unavailable.xml",
         )
 
         is_short_code = len(phone_number) <= 6

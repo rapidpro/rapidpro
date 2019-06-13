@@ -50,12 +50,13 @@ python-dateutil==2.2
 pytz
 psycopg2-binary
 rapidpro-expressions
-redis
+redis<3.0  # see https://github.com/celery/celery/issues/4495
 requests
 simplejson
 python-intercom
 pysocks
 pip-tools
+packaging
 
 ########################## testing ##########################
 black

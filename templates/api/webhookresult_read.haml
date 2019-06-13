@@ -1,0 +1,135 @@
+{% extends "smartmin/read.html" %}
+
+-load humanize temba i18n compress contacts
+
+-block page-title
+  {{ brand.name }} - WebHook Event
+
+-block title
+  .medium-help.icon-cloud-upload{ style: 'float:left;' }
+  %h2.header-margin
+    Webhook Event
+  %h5.header-margin
+    {% pretty_datetime object.created_on %}
+
+-block above-bar
+  %a.btn.btn-primary{ href: '{% url "api.webhookresult_list" %}' } Back
+
+-block content
+  .log-details
+    .detail.started
+      .header URL
+      {{ object.url }}
+
+    -if object.request_time
+      .detail.elapsed
+        .header Elapsed
+        {{ object.request_time|intcomma }}ms
+
+    -if object.contact
+      .detail.contact
+        .header Contact
+          %a{href: "{% url 'contacts.contact_read' object.contact.uuid %}"}
+            {{ object.contact|name_or_urn:object.org }}
+
+  .log<
+    .summary{id: "{{log.id}}"}
+      .time.pull-right
+        {% pretty_datetime object.created_on %}
+
+      %span.status-code
+        {{ object.status_code }}
+
+    %pre.prettyprint.request<
+      :plain
+        {{ object.request }}
+    %pre.prettyprint.response<
+      :plain
+        {{ object.response }}
+
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+    });
+
+-block extra-style
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+
+-block extra-less
+  {{block.super}}
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .result {
+          clear: both;
+          margin-bottom: 10px;
+        }
+
+        .log {
+          padding: 0px;
+          border: 1px solid #f7f7f9 - #111;
+          margin-bottom:10px;
+
+          pre, .prettyprint {
+            border: 0;
+            margin-bottom: 0px;
+          }
+
+          .request-time {
+            margin-right: 50px;
+
+            .request-time-value {
+              font-weight: bold
+            }
+          }
+
+          .status-code {
+            margin-right: 5px;
+          }
+
+          .summary {
+            border: 1px solid #f7f7f9 - #111;
+            padding: 10px;
+            color: @flat-grey;
+            cursor: pointer;
+            word-break: break-all;
+            word-wrap: break-word;
+
+            .method {
+              font-weight: bold;
+            }
+          }
+          .prettyprint {
+            padding: 10px;
+            border-radius: 0;
+
+            &.request {
+              background: #f7f7f9 + 111;
+              border-bottom: 1px solid @flat-white;
+            }
+          }
+        }
+
+        .log-details {
+          padding: 10px;
+          margin-bottom:10px;
+          border: 1px solid #f7f7f9 - #111;
+          font-size: 80%;
+
+          .header {
+            display: inline-block;
+            font-weight: 400;
+            margin-right: 2px;
+          }
+
+          .detail {
+            display: inline-block;
+            margin-right: 16px;
+          }
+        }
+    {% endlessblock %}

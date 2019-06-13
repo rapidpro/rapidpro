@@ -63,7 +63,7 @@ class ContactQuery(object):
 
         return self.root.as_elasticsearch(org, prop_map)
 
-    def get_prop_map(self, org):
+    def get_prop_map(self, org, validate=True):
         """
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
         and URN schemes.
@@ -89,9 +89,10 @@ class ContactQuery(object):
             if scheme in prop_map.keys():
                 prop_map[scheme] = (self.PROP_SCHEME, scheme)
 
-        for prop, prop_obj in prop_map.items():
-            if not prop_obj:
-                raise SearchException(_(f"Unrecognized field: '{prop}'"))
+        if validate:
+            for prop, prop_obj in prop_map.items():
+                if not prop_obj:
+                    raise SearchException(_(f"Unrecognized field: '{prop}'"))
 
         return prop_map
 
@@ -166,25 +167,24 @@ class Condition(QueryNode):
 
         if prop_type == ContactQuery.PROP_FIELD:
             field_uuid = str(field.uuid)
-            contact_fields = contact_json.get("fields")
-
-            if field_uuid not in contact_fields:
-                return False
+            contact_fields = contact_json.get("fields", {})
 
             if field.value_type == Value.TYPE_TEXT:
                 query_value = self.value.upper()
-                contact_value = contact_fields.get(field_uuid).get("text").upper()
+                contact_value = contact_fields.get(field_uuid, {"text": ""}).get("text").upper()
 
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
 
             elif field.value_type == Value.TYPE_NUMBER:
                 query_value = self._parse_number(self.value)
 
-                number_value = contact_fields.get(field_uuid).get(
-                    "number", contact_fields.get(field_uuid).get("decimal")
+                number_value = contact_fields.get(field_uuid, {"number": None}).get(
+                    "number", contact_fields.get(field_uuid, {"decimal": None}).get("decimal")
                 )
                 if number_value is None:
                     return False
@@ -211,7 +211,7 @@ class Condition(QueryNode):
                 if not query_value:
                     raise SearchException(_(f"Unable to parse the date '{self.value}'"))
 
-                datetime_value = contact_fields.get(field_uuid).get("datetime")
+                datetime_value = contact_fields.get(field_uuid, {"datetime": None}).get("datetime")
                 if datetime_value is None:
                     return False
 
@@ -236,21 +236,15 @@ class Condition(QueryNode):
                 query_value = self.value.upper()
 
                 if field.value_type == Value.TYPE_WARD:
-                    ward_value = contact_fields.get(field_uuid).get("ward")
-                    if ward_value is None:
-                        ward_value = ""
+                    ward_value = contact_fields.get(field_uuid, {"ward": ""}).get("ward", "")
 
                     contact_value = ward_value.upper().split(" > ")[-1]
                 elif field.value_type == Value.TYPE_DISTRICT:
-                    district_value = contact_fields.get(field_uuid).get("district")
-                    if district_value is None:
-                        district_value = ""
+                    district_value = contact_fields.get(field_uuid, {"district": ""}).get("district", "")
 
                     contact_value = district_value.upper().split(" > ")[-1]
                 elif field.value_type == Value.TYPE_STATE:
-                    state_value = contact_fields.get(field_uuid).get("state")
-                    if state_value is None:
-                        state_value = ""
+                    state_value = contact_fields.get(field_uuid, {"state": ""}).get("state", "")
 
                     contact_value = state_value.upper().split(" > ")[-1]
                 else:  # pragma: no cover
@@ -258,6 +252,8 @@ class Condition(QueryNode):
 
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
@@ -288,11 +284,14 @@ class Condition(QueryNode):
                 query_value = self.value.upper()
                 raw_contact_value = contact_json.get("language")
                 if raw_contact_value is None:
-                    return False
+                    contact_value = ""
                 else:
                     contact_value = raw_contact_value.upper()
+
                 if self.comparator == "=":
                     return contact_value == query_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:
                     raise SearchException(_(f"Unknown language comparator: '{self.comparator}'"))
             elif field_key == "created_on":
@@ -316,13 +315,16 @@ class Condition(QueryNode):
                 query_value = self.value.upper()
                 raw_contact_value = contact_json.get("name")
                 if raw_contact_value is None:
-                    return False
+                    contact_value = ""
                 else:
                     contact_value = raw_contact_value.upper()
+
                 if self.comparator == "=":
                     return contact_value == query_value
                 elif self.comparator == "~":
                     return query_value in contact_value
+                elif self.comparator == "!=":
+                    return contact_value != query_value
                 else:  # pragma: no cover
                     raise SearchException(_(f"Unknown name comparator: '{self.comparator}'"))
             else:
@@ -342,6 +344,12 @@ class Condition(QueryNode):
 
                 if self.comparator == "=":
                     es_query &= es_Q("term", **{"fields.text": query_value})
+                elif self.comparator == "!=":
+                    es_query &= es_Q("term", **{"fields.text": query_value})
+                    es_query &= es_Q("exists", **{"field": "fields.text"})
+
+                    # search for the inverse of what was specified
+                    return ~es_Q("nested", path="fields", query=es_query)
 
                 else:
                     raise SearchException(_(f"Unknown text comparator: '{self.comparator}'"))
@@ -396,6 +404,13 @@ class Condition(QueryNode):
                 if self.comparator == "=":
                     field_name += "_keyword"
                     es_query &= es_Q("term", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name += "_keyword"
+                    es_query &= es_Q("term", **{field_name: query_value})
+                    es_query &= es_Q("exists", **{"field": field_name})
+
+                    return ~es_Q("nested", path="fields", query=es_query)
+
                 else:
                     raise SearchException(_(f"Unsupported comparator '{self.comparator}' for location field"))
 
@@ -416,6 +431,9 @@ class Condition(QueryNode):
                 elif self.comparator == "~":
                     field_name = "name"
                     es_query = es_Q("match", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name = "name.keyword"
+                    es_query = ~es_Q("term", **{field_name: query_value})
                 else:
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "id":
@@ -424,6 +442,9 @@ class Condition(QueryNode):
                 if self.comparator == "=":
                     field_name = "language"
                     es_query = es_Q("term", **{field_name: query_value})
+                elif self.comparator == "!=":
+                    field_name = "language"
+                    es_query = ~es_Q("term", **{field_name: query_value})
                 else:
                     raise SearchException(_(f"Unknown attribute comparator: '{self.comparator}'"))
             elif field_key == "created_on":

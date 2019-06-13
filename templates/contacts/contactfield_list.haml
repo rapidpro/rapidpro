@@ -1,0 +1,342 @@
+-extends "smartmin/base.html"
+-load smartmin
+-load i18n
+
+-block page-title
+  {{ title }}
+
+-block top-form
+  - if view.search_fields and object_list
+    - block search-form
+      %form
+        %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{ search }}"}
+
+
+-block title-icon
+  %span.title-icon
+    .glyph.icon-vcard
+
+-block content
+
+  {% block pjax %}
+  #pjax
+    .row-fluid
+      .span3.sidebox
+        %div.contacts{style:"margin-bottom: 10px"}
+          - if view.add_button
+            - if org_perms.contacts.contactfield_create
+              %a.btn.btn-primary.btn-block{ onClick:'showCreateContactFieldModal()' }
+                -trans "Create Field"
+
+        #sidebar-nav
+          %ul.nav.nav-list
+            %li.nav-header
+              -trans "Contact Fields"
+            - for category in cf_categories
+              %li{'class':'{% if request.path == category.url %}active{% endif %}'}
+                %a{'href':'{{category.url}}'}
+                  {{category.label}} ({{ category.count }})
+
+            %li.nav-header
+              -trans "Types"
+            - for cf_type in cf_types
+              %li{'class':'{% if selected_value_type == cf_type.value_type %}active{% endif %}'}
+                %a{'href':'{{ cf_type.url }}'}
+                  {{cf_type.label}} ({{ cf_type.count }})
+
+      .span9
+        - block pre-table
+
+        - block table
+          .scroll-x
+            %table{ class:'{% get_list_class object_list %} list-table table', cellspacing:'0'}
+              %thead
+                %tbody#draggable-tbody
+                  - for obj in object_list
+                    %tr.draggable-row{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
+
+                      - if org_perms.contacts.contactfield_update_priority and is_featured_category
+                        %td.drag-icon
+                          .drag-handle.icon.icon-menu
+                      - else
+                        %td
+
+                      -for field in fields
+                        %td{class:'value-{{field}} {% get_class field obj %}' }
+                          {% get_value obj field %}
+                      -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
+                        %td{class:'field-dependencies'}
+                          %a{href:"#", class:'field-dependencies', onClick:"showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
+                            {% blocktrans count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
+                              {{counter}} Use
+                            {% plural %}
+                              {{counter}} Uses
+                            {% endblocktrans %}
+                      -else
+                        %td
+
+                      %td
+
+                  - empty
+                    %tr.empty_list
+                      %td{ colspan:'99' }
+                        -trans "No fields"
+
+          - block extra-rows
+
+        - block post-table
+
+  {% block paginator %}
+
+{% endblock pjax %}
+{% endblock content %}
+
+{% block extra-script %}
+{{ block.super }}
+:javascript
+
+<script>
+
+  $(document).ready(function(){
+
+    - if is_featured_category
+      - if org_perms.contacts.contactfield_update_priority
+        var sortable = new Sortable(document.getElementById('draggable-tbody'), {
+          // handle: '.drag-handle',  // make this row draggable only by the handle
+          dataIdAttr: 'data-cfid',
+          direction: 'vertical',
+          animation: 100,
+
+          // uncomment next line of code to toggle fallback behaviour, might help if you are having issues with older browsers
+          //   once toggled the width of the dragged row will be smaller then expected (known problem with widths - https://github.com/nyaruka/rapidpro/pull/2328#issuecomment-479912074)
+
+          // forceFallback: true,
+
+          ghostClass: "sortable-ghost",  // Class name for the drop placeholder
+          dragClass: "sortable-drag",  // Class name for the dragging item
+
+          onEnd: function (event) {
+
+            var priorityMapping = {};
+            $('#draggable-tbody > tr').each(function(idx, elem) {
+              // rewrite priority of every element based on the current order of elements
+              var new_idx = 1000 - idx;
+
+              priorityMapping[$(elem).data('cfid')] = new_idx;
+
+            });
+
+            var priorityUpdateUrl = '{% url "contacts.contactfield_update_priority" %}';
+
+            $.ajax({
+              type: 'POST',
+              url: priorityUpdateUrl,
+              data: JSON.stringify(priorityMapping),
+              success: function (data, status, jqXHR) {
+                // do nothing
+              },
+              error: function (jqXHR, status, error) {
+                console.error(jqXHR, status, error);
+              }
+            });
+          }
+        });
+
+
+    $('tr[data-cfid]').on('click', function(evt) {
+      evt.preventDefault();
+
+      var srcElem = $(evt.srcElement);
+
+      // if user clicked on the the field that shows field dependencies
+      if (srcElem.hasClass('field-dependencies')) {
+        // pass, do nothing, onClick method will handle this
+      } else {
+        - if org_perms.contacts.contactfield_update
+          showUpdateContactFieldModal($(this).data('cfid'));
+      }
+
+    });
+
+  }); // document.ready
+
+  function showCreateContactFieldModal() {
+
+    var modal = new Modax('{% trans "Create Contact Field" %}', '{% url "contacts.contactfield_create" %}')
+    modal.setIcon('icon-vcard');
+    modal.ele.find('.primary').text('{% trans "Create" %}');
+
+    modal.setListeners({
+      onSuccess: function() {
+        // simply reload the whole page
+        location.reload();
+      },
+      onFormLoaded: function() {
+        useFontCheckbox(".smartmin-form input[type=checkbox]");
+        modal.ele.find('#id_value_type').select2();
+      }
+    })
+    modal.show()
+  }
+
+  function showUpdateContactFieldModal(cfid) {
+    var updateUrl = '/contactfield/update/' + cfid + '/';
+
+    var modal = new Modax('{% trans "Update Contact Field" %}', updateUrl);
+
+    modal.setIcon('icon-vcard');
+    modal.ele.find('.primary').text('{% trans "Update" %}');
+
+    - if org_perms.contacts.contactfield_delete
+      modal.setTertiaryButton('{% trans "Delete" %}', function() {
+        // hide current UpdateModal
+        modal.dismiss();
+
+        showDeleteContactFieldModal(cfid);
+      });
+      // make Delete dangerous
+      modal.ele.find('.tertiary').addClass('btn-danger');
+
+    modal.setListeners({
+      onSuccess: function() {
+        // simply reload the whole page
+        location.reload();
+      },
+      onFormLoaded: function() {
+        // fonty checkboxy
+        useFontCheckbox(".smartmin-form input[type=checkbox]");
+        modal.ele.find('#id_value_type').select2();
+      }
+    })
+    modal.show();
+  }
+
+  function _updateModalButtonsStyle(modal) {
+    var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
+
+    if (has_related_flows) {
+      // hide the secondary button
+      modal.hideSecondaryButton();
+      // rename the primary button
+      modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
+
+      modal.submit = function () {};
+    } else {
+      modal.ele.find('.primary').text('{% trans "Delete" %}').addClass('btn-danger')
+    }
+  };
+
+  function showDeleteContactFieldModal(cfid) {
+    var deleteUrl = '/contactfield/delete/' + cfid + '/';
+
+    var modal = new Modax('{% trans "Delete Contact Field" %}', deleteUrl);
+
+    modal.setIcon('icon-vcard');
+    modal.addClass("alert");
+    modal.redirectOnSuccess = true;
+
+    modal.show();
+
+    modal.setListeners({
+      onCompleted: function() {
+        _updateModalButtonsStyle(modal)
+
+        // simply reload the whole page
+        location.reload();
+      },
+      onFormLoaded: function() {
+        _updateModalButtonsStyle(modal)
+      }
+    })
+  };
+
+  function showDetailContactFieldModal(cfid, label) {
+    var detailUrl = '/contactfield/detail/' + cfid + '/';
+
+    var modal = new Modax(label + ' ' + '{% trans "Uses" %}', detailUrl);
+
+    modal.setIcon('icon-vcard');
+
+    modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
+
+    modal.ele.find('.secondary').text('{% trans "Ok" %}');
+
+    modal.setListeners({
+      onSuccess: function() {
+        // simply reload the whole page
+        location.reload();
+      },
+    })
+    modal.show();
+  }
+
+</script>
+<script type="text/javascript" src="{{ STATIC_URL }}bower/Sortable/Sortable.min.js"></script>
+
+{% endblock %}
+
+
+
+-block extra-style
+  {{block.super}}
+  :css
+
+    .drag-handle {
+      cursor: move;
+      display: block;
+      /*padding-top:10px;*/
+    }
+
+    .drag-icon:before {
+      content: '';
+      display: block;
+      width: 15px;
+    }
+
+    .sortable-drag {
+      background-color: #f5f9fa;;
+    }
+
+    .sortable-ghost {
+      background-color: #f5f9ff;
+    }
+
+    .draggable-row .icon {
+      display: none;
+    }
+
+    .draggable-row > td {
+      cursor: pointer;
+    }
+
+    .draggable-row:hover .icon {
+      display: inline-block;
+      color: #cccccc;
+    }
+
+    .drag-icon {
+      width: 15px;
+    }
+
+    .value-label {
+      min-width: 240px;
+    }
+    .value-key {
+      width: 240px;
+    }
+    .value-value_type {
+      width: 80px;
+    }
+    .value-show_in_table {
+      width: 50px;
+    }
+
+    td.value-show_in_table {
+      text-align: center;
+    }
+
+    td.field-dependencies {
+      text-align: right;
+      white-space: nowrap;
+      width: 3em;
+    }
