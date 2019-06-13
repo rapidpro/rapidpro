@@ -1,3 +1,7 @@
+v5.0.0
+----------
+ * add validation of localized messages to Travis
+
 v4.27.3
 ----------
  * Make contact.is_test nullable
