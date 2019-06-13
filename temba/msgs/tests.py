@@ -3,7 +3,6 @@ from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
 import pytz
-from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -42,7 +41,7 @@ from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
-from temba.utils import dict_to_struct, json
+from temba.utils import json
 from temba.utils.dates import datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.constants import Value
@@ -271,46 +270,6 @@ class MsgTest(TembaTest):
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
-
-    def test_erroring(self):
-        # test with real message
-        msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
-        r = get_redis_connection()
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "E")
-        self.assertEqual(msg.error_count, 1)
-        self.assertIsNotNone(msg.next_attempt)
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "E")
-        self.assertEqual(msg.error_count, 2)
-        self.assertIsNotNone(msg.next_attempt)
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "F")
-
-        # test with mock message
-        msg = dict_to_struct("MsgStruct", Msg.create_outgoing(self.org, self.admin, self.joe, "Test 2").as_task_json())
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "E")
-        self.assertEqual(msg.error_count, 1)
-        self.assertIsNotNone(msg.next_attempt)
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "E")
-        self.assertEqual(msg.error_count, 2)
-        self.assertIsNotNone(msg.next_attempt)
-
-        Msg.mark_error(r, self.channel, msg)
-        msg = Msg.objects.get(pk=msg.id)
-        self.assertEqual(msg.status, "F")
 
     def test_send_message_auto_completion_processor(self):
         outbox_url = reverse("msgs.msg_outbox")
@@ -3003,37 +2962,6 @@ class LabelCRUDLTest(TembaTest):
         self.assertEqual(results[0]["text"], "Important")
         self.assertEqual(results[1]["text"], "Junk")
         self.assertEqual(results[2]["text"], "Spam")
-
-
-class ScheduleTest(TembaTest):
-    def tearDown(self):
-        from temba.channels import models as channel_models
-
-        channel_models.SEND_QUEUE_DEPTH = 500
-        channel_models.SEND_BATCH_SIZE = 100
-
-    def test_batch(self):
-        # broadcast out to 11 contacts to test our batching
-        contacts = []
-        for i in range(1, 12):
-            contacts.append(self.create_contact("Contact %d" % i, "+250788123%d" % i))
-        batch_group = self.create_group("Batch Group", contacts)
-
-        # create our broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Many message but only 5 batches.", groups=[batch_group])
-
-        self.channel.channel_type = "EX"
-        self.channel.save()
-
-        # create our messages
-        broadcast.send()
-
-        # get one of our messages, should be at low priority since it was to more than one recipient
-        sms = broadcast.get_messages()[0]
-        self.assertFalse(sms.high_priority)
-
-        # we should now have 11 messages wired
-        self.assertEqual(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
 
 
 class ConsoleTest(TembaTest):

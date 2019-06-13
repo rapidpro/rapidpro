@@ -66,9 +66,6 @@ from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
 
-FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
-START_FLOW_BATCH_SIZE = 500
-
 
 class Events(Enum):
     broadcast_created = 1
@@ -121,10 +118,6 @@ FLOW_LOCK_KEY = "org:%d:lock:flow:%d:%s"
 
 FLOW_PROP_CACHE_KEY = "org:%d:cache:flow:%d:%s"
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
-
-UNREAD_FLOW_RESPONSES = "unread_flow_responses"
-
-FLOW_BATCH = "flow_batch"
 
 
 class FlowLock(Enum):
@@ -256,6 +249,8 @@ class Flow(TembaModel):
     FINAL_LEGACY_VERSION = VERSIONS[-1]
     GOFLOW_VERSION = "13.0.0"
 
+    DEFAULT_EXPIRES_AFTER = 60 * 12
+
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
     labels = models.ManyToManyField(
@@ -282,7 +277,7 @@ class Flow(TembaModel):
     metadata = JSONAsTextField(null=True, default=dict)
 
     expires_after_minutes = models.IntegerField(
-        default=FLOW_DEFAULT_EXPIRES_AFTER, help_text=_("Minutes of inactivity that will cause expiration from flow")
+        default=DEFAULT_EXPIRES_AFTER, help_text=_("Minutes of inactivity that will cause expiration from flow")
     )
 
     ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
@@ -339,7 +334,7 @@ class Flow(TembaModel):
         user,
         name,
         flow_type=TYPE_MESSAGE,
-        expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
+        expires_after_minutes=DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
         use_new_editor=False,
@@ -482,7 +477,7 @@ class Flow(TembaModel):
                 flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
                 flow_uuid = flow_metadata["uuid"]
                 flow_name = flow_metadata["name"]
-                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, FLOW_DEFAULT_EXPIRES_AFTER)
+                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, Flow.DEFAULT_EXPIRES_AFTER)
 
                 FlowRevision.validate_legacy_definition(flow_def)
             else:
@@ -490,7 +485,7 @@ class Flow(TembaModel):
                 flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
                 flow_uuid = flow_def[Flow.DEFINITION_UUID]
                 flow_name = flow_def[Flow.DEFINITION_NAME]
-                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, FLOW_DEFAULT_EXPIRES_AFTER)
+                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
 
             flow = None
             flow_name = flow_name[:64].strip()

@@ -339,12 +339,6 @@ class Channel(TembaModel):
         ROLE_USSD: "ussd",
     }
 
-    # how many outgoing messages we will queue at once
-    SEND_QUEUE_DEPTH = 500
-
-    # how big each batch of outgoing messages can be
-    SEND_BATCH_SIZE = 100
-
     CONTENT_TYPE_URLENCODED = "urlencoded"
     CONTENT_TYPE_JSON = "json"
     CONTENT_TYPE_XML = "xml"
