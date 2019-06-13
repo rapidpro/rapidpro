@@ -553,6 +553,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    throttle_scope = "v2.broadcasts"
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
