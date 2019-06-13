@@ -1,3 +1,7 @@
+v4.27.2
+----------
+ * fix broadcast API test
+
 v4.27.1
 ----------
  * temporarily increase throttling on broadcasts endpoint
