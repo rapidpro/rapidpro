@@ -10,7 +10,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
-from temba.msgs.tasks import send_broadcast_task
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
@@ -177,8 +176,8 @@ class BroadcastWriteSerializer(WriteSerializer):
             channel=self.validated_data.get("channel"),
         )
 
-        # send in task
-        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+        # send it
+        on_transaction_commit(lambda: broadcast.send())
 
         return broadcast
 

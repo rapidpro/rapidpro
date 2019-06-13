@@ -906,6 +906,7 @@ REST_FRAMEWORK = {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",
         "v2.messages": "2500/hour",
+        "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
         "v2.api": "2500/hour",
     },
