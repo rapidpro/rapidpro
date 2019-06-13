@@ -1,3 +1,9 @@
+v4.27.3
+----------
+ * Make contact.is_test nullable
+ * Migration to remove orphaned schedules and changes to prevent creating them in future
+ * Migration to merge path counts from rules which are merged into a single exit in new engine
+
 v4.27.2
 ----------
  * fix broadcast API test
