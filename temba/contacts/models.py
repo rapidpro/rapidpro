@@ -661,7 +661,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     )
 
     # to be dropped once no longer used by other applications (see https://github.com/rapidpro/rapidpro/issues/878)
-    is_test = models.BooleanField(default=False)
+    is_test = models.BooleanField(null=True, default=False)
 
     NAME = "name"
     FIRST_NAME = "first_name"
