@@ -1,3 +1,7 @@
+v4.27.1
+----------
+ * temporarily increase throttling on broadcasts endpoint
+
 v4.27.0
 ----------
  * Cleanup webhook fields left on Org
