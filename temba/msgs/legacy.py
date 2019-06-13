@@ -47,7 +47,6 @@ def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_typ
     """
     Only used for testing to approximate how mailroom sends a broadcast
     """
-
     from temba.contacts.models import Contact
     from temba.msgs.models import Msg, SENT, UnreachableException
 

@@ -269,7 +269,6 @@ class Broadcast(models.Model):
         """
         Sends this broadcast, taking care of creating multiple jobs to send it if necessary
         """
-
         if settings.TESTING:
             legacy.send_broadcast(
                 self,
