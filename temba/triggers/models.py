@@ -491,4 +491,8 @@ class Trigger(SmartModel):
         """
         Releases this Trigger
         """
+
         self.delete()
+
+        if self.schedule:
+            self.schedule.delete()

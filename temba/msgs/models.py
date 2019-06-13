@@ -325,8 +325,13 @@ class Broadcast(models.Model):
     def release(self):
         for msg in self.msgs.all():
             msg.release()
+
         BroadcastMsgCount.objects.filter(broadcast=self).delete()
+
         self.delete()
+
+        if self.schedule:
+            self.schedule.delete()
 
     def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
         """
