@@ -2203,7 +2203,12 @@ class BroadcastTest(TembaTest):
 
     def test_broadcast_model(self):
         broadcast = Broadcast.create(
-            self.org, self.user, "Like a tweet", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
+            self.org,
+            self.user,
+            "Like a tweet",
+            groups=[self.joe_and_frank],
+            contacts=[self.kevin, self.lucy],
+            schedule=Schedule.create_schedule(timezone.now(), "M", self.admin),
         )
         self.assertEqual("I", broadcast.status)
 
@@ -2216,6 +2221,7 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(Msg.objects.count(), 0)
         self.assertEqual(Broadcast.objects.count(), 0)
+        self.assertEqual(Schedule.objects.count(), 0)
 
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")

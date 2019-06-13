@@ -315,7 +315,7 @@ class Flow(TembaModel):
     field_dependencies = models.ManyToManyField(
         ContactField,
         related_name="dependent_flows",
-        verbose_name=_(""),
+        verbose_name="",
         blank=True,
         help_text=_("Any fields this flow depends on"),
     )
@@ -5202,6 +5202,7 @@ class AddToGroupAction(Action):
 
                     group.org = run.org
                     group.update_contacts(user, [contact], add)
+
         return []
 
 
@@ -5310,6 +5311,7 @@ class AddLabelAction(Action):
 
             if label and msg and msg.pk:
                 label.toggle_label([msg], True)
+
         return []
 
 
@@ -5892,7 +5894,6 @@ class SaveToContactAction(Action):
             if new_urn:
                 urns = [str(urn) for urn in contact.urns.all()]
                 urns += [new_urn]
-
                 contact.update_urns(user, urns)
 
         else:
