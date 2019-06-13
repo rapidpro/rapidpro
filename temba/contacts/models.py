@@ -62,6 +62,7 @@ VIBER_SCHEME = "viber"
 FCM_SCHEME = "fcm"
 WHATSAPP_SCHEME = "whatsapp"
 WECHAT_SCHEME = "wechat"
+FRESHCHAT_SCHEME = "freshchat"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
@@ -80,10 +81,13 @@ URN_SCHEME_CONFIG = (
     (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
+    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
 )
 
 
 IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
+
+STOP_CONTACT_EVENT = "stop_contact"
 
 
 class URN(object):
@@ -338,6 +342,10 @@ class URN(object):
     @classmethod
     def from_fcm(cls, path):
         return cls.from_parts(FCM_SCHEME, path)
+
+    @classmethod
+    def from_freshchat(cls, path):
+        return cls.from_parts(FRESHCHAT_SCHEME, path)
 
     @classmethod
     def from_jiochat(cls, path):
@@ -2401,6 +2409,7 @@ class ContactURN(models.Model):
         TELEGRAM_SCHEME: 90,
         VIBER_SCHEME: 90,
         FCM_SCHEME: 90,
+        FRESHCHAT_SCHEME: 90,
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs

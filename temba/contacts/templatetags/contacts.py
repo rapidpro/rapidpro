@@ -4,6 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
 from temba.contacts.models import (
+    FRESHCHAT_SCHEME,
     EMAIL_SCHEME,
     EXTERNAL_SCHEME,
     FACEBOOK_SCHEME,
@@ -33,6 +34,7 @@ URN_SCHEME_ICONS = {
     LINE_SCHEME: "icon-line",
     EXTERNAL_SCHEME: "icon-channel-external",
     FCM_SCHEME: "icon-fcm",
+    FRESHCHAT_SCHEME: "icon-fcm",
 }
 
 ACTIVITY_ICONS = {
