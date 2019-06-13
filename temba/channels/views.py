@@ -1184,8 +1184,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             form._errors["phone_number"] = form.error_class(
                 [
                     _(
-                        "That number is already connected to another account - %s (%s)"
-                        % (existing.org, existing.created_by.username)
+                        "That number is already connected to another account - %(org)s (%(user)s)"
+                        % dict(org=existing.org, user=existing.created_by.username)
                     )
                 ]
             )

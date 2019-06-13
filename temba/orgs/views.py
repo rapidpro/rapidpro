@@ -2661,7 +2661,9 @@ class OrgCRUDL(SmartCRUDL):
             if lang_count == 2:
                 context["languages"] = _(" and ").join(languages)
             elif lang_count > 2:
-                context["languages"] = _("%s and %s") % (", ".join(languages[:-1]), languages[-1])
+                context["languages"] = _("%(lang1)s and %(lang2)s") % dict(
+                    lang1=", ".join(languages[:-1]), lang2=languages[-1]
+                )
             elif lang_count == 1:
                 context["languages"] = languages[0]
             return context
@@ -2711,7 +2713,9 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             cache = OrgCache(int(request.POST["cache"]))
             num_deleted = self.get_object().clear_caches([cache])
-            self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
+            self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
+                name=cache.name, count=num_deleted
+            )
 
 
 class TopUpCRUDL(SmartCRUDL):
