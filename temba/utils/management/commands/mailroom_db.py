@@ -91,7 +91,10 @@ ORG1 = dict(
             fields=dict(joined="2019-01-24T04:32:22Z"),
         ),
         dict(
-            name="George", urns=["tel:+250700000003"], uuid="8d024bcd-f473-4719-a00a-bd0bb1190135", fields=dict(age=30)
+            name="George",
+            urns=["tel:+250700000003"],
+            uuid="8d024bcd-f473-4719-a00a-bd0bb1190135",
+            fields=dict(age="30"),
         ),
         dict(name="Alexandia", urns=["tel:+250700000004"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
     ),
