@@ -136,8 +136,12 @@ class URN(object):
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        if scheme == TEL_SCHEME and formatted:
+        if scheme in [TEL_SCHEME, WHATSAPP_SCHEME] and formatted:
             try:
+                # whatsapp scheme is E164 without a leading +, add it so parsing works
+                if scheme == WHATSAPP_SCHEME:
+                    path = "+" + path
+
                 if path and path[0] == "+":
                     phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
                     if international:
