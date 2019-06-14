@@ -17,9 +17,9 @@ The set of versions that make up the latest stable release are:
 
 ### Versioning in RapidPro
 
-Major releases of RapidPro are made every four months on a set schedule. We target March 1st
-as a major release (`v5.0.0`), then July 1st as the first stable dot release (`v5.2.0`) and November 1st
-as the second stable dot release (`v5.4.0`). The next March would start the next major release `v6.0.0`.
+Major releases of RapidPro are made every four months on a set schedule. We target July 1st
+as a major release (`v5.0.0`), then November 1st as the first stable dot release (`v5.2.0`) and March 1st
+as the second stable dot release (`v5.4.0`). The next July would start the next major release `v6.0.0`.
 
 Unstable releases have odd minor versions, that is versions `v5.1.*` would indicate an unstable or *development*
 version of RapidPro. Generally we recommend staying on stable releases unless you
