@@ -1,3 +1,8 @@
+v5.0.1
+----------
+ * Fix max length for WA claim facebook_access_token
+ * Fix WhatsApp number formatting on contact page, add icon
+
 v5.0.0
 ----------
  * add validation of localized messages to Travis
