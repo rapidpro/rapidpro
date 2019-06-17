@@ -625,20 +625,14 @@ def migrate_export_to_version_11_2(exported_json, org, same_site=True):
 def _base_migrate_to_version_11_1(json_flow, country_code):
     def _is_this_a_lang_object(obj):
         """
-        Lang objects should only have keys of length == 3
+        Lang objects should only have keys of length == 3 or the string "base"
         """
-        keys = set(obj.keys())  # py3 compatibility, keys() is an iterable
+        keys = set(obj.keys())
 
-        # remove the 'base' language
-        keys.discard("base")
-
-        if keys:
-            for k in keys:
-                if len(k) == 3:
-                    continue
-                else:
-                    return False
-            return True
+        for k in keys:
+            if len(k) != 3 and k != "base":
+                return False
+        return True
 
     def _traverse(obj, country_code):
         if isinstance(obj, dict):
@@ -654,7 +648,7 @@ def _base_migrate_to_version_11_1(json_flow, country_code):
                         new_obj.update({new_key: val})
 
                 value = new_obj
-            elif "lang" in obj:
+            elif "lang" in obj and obj["lang"] != "base":
                 iso_code = obj["lang"]
                 new_iso_code = iso6392_to_iso6393(iso_code, country_code)
                 obj["lang"] = new_iso_code
