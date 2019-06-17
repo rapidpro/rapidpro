@@ -21,8 +21,8 @@ that any number that starts with a ```+``` is a number that has been deemed
 valid by the [phonenumbers](https://github.com/daviddrysdale/python-phonenumbers)
 library.
 
-Currently the only other scheme supported by RapidPro is twitter, which has
-ContactURN's in the form: ```twitter:rapidpro```
+Other scheme types supported by RapidPro include `facebook`, `twitterid`,
+`viber`, `line`, `telegram`, `external`, `jiochat`, `wechat` and `whatsapp`.
 
 ## Contact
 

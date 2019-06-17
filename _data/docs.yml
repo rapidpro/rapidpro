@@ -4,11 +4,14 @@
     - technologies
     - components
 
-- title: Running
+- title: Deployment
   docs:
     - development
     - hosting
     - courier
+    - mailroom
+    - archiver
+    - indexer
 
 - title: Packages
   docs:
