@@ -60,7 +60,7 @@ class TwitterActivityType(ChannelType):
             channel.save(update_fields=["config"])
             client.subscribe_to_webhook(config["env_name"])
         except Exception as e:  # pragma: no cover
-            logger.exception(str(e))
+            logger.error(f"Unable to activate TwitterActivity: {str(e)}", exc_info=True)
             raise ValidationError(e)
 
     def deactivate(self, channel):

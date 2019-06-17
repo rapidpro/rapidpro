@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-15 15:55+0000\n"
+"POT-Creation-Date: 2019-06-13 20:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,35 +35,6 @@ msgstr ""
 msgid "The URL that we will call when our ruleset is reached"
 msgstr ""
 
-msgid "Time it took to process this request"
-msgstr ""
-
-#, python-format
-msgid "Invalid group name: '%s'"
-msgstr ""
-
-#, python-format
-msgid "Unable to find contact group with uuid: %s"
-msgstr ""
-
-msgid "URNs are used by multiple contacts"
-msgstr ""
-
-msgid "URNs are used by other contacts"
-msgstr ""
-
-#, python-format
-msgid "Generated key for '%s' is invalid or a reserved name"
-msgstr ""
-
-#, python-format
-msgid "Unable to find flow with uuid: %s"
-msgstr ""
-
-#, python-format
-msgid "Unable to find contact with uuid: %s"
-msgstr ""
-
 msgid "Administrator"
 msgstr ""
 
@@ -73,29 +44,10 @@ msgstr ""
 msgid "Surveyor"
 msgstr ""
 
-msgid "Recent WebHook Events"
+msgid "Relayer Application APK"
 msgstr ""
 
-msgid "Next Delivery"
-msgstr ""
-
-msgid "Attempts"
-msgstr ""
-
-#, python-format
-msgid "Around %s"
-msgstr ""
-
-msgid "Never, three attempts errored, failed permanently"
-msgstr ""
-
-msgid "Never, event delivered successfully"
-msgstr ""
-
-msgid "Never, event delivery failed permanently"
-msgstr ""
-
-msgid "Must include both 'url' and 'data' parameters."
+msgid "Message Pack Application APK"
 msgstr ""
 
 msgid "Message"
@@ -114,10 +66,6 @@ msgid "File not found"
 msgstr ""
 
 msgid "You do not have permission to access this file"
-msgstr ""
-
-#, python-format
-msgid "Unknown version (%s)"
 msgstr ""
 
 msgid "Flow Event"
@@ -166,6 +114,12 @@ msgid "When this event actually fired, null if not yet fired"
 msgstr ""
 
 msgid "Whether the event is fired or skipped, null if not yet fired"
+msgstr ""
+
+msgid "Export"
+msgstr ""
+
+msgid "Service"
 msgstr ""
 
 msgid "Campaign archived"
@@ -312,9 +266,6 @@ msgstr ""
 msgid "%s Channel"
 msgstr ""
 
-msgid "Message no longer has a way of being sent, marking as failed."
-msgstr ""
-
 msgid "Incoming Message"
 msgstr ""
 
@@ -367,6 +318,9 @@ msgid "New Conversation"
 msgstr ""
 
 msgid "Referral"
+msgstr ""
+
+msgid "Welcome Message"
 msgstr ""
 
 msgid "The org this event is connected to"
@@ -445,6 +399,9 @@ msgid "The response code received when sending the message"
 msgstr ""
 
 msgid "When this log message was logged"
+msgstr ""
+
+msgid "Time it took to process this request"
 msgstr ""
 
 msgid "The channel that synced to the server"
@@ -693,13 +650,7 @@ msgid ""
 "        "
 msgstr ""
 
-msgid "This URL should be called by Bongo Live when new messages are received."
-msgstr ""
-
-msgid "DLR callback URL"
-msgstr ""
-
-msgid "This URL should be called by Bongo Live when the status of an outgoing message is updated."
+msgid "This URL should be called by Bongo Live when new messages are received or to report DLR status."
 msgstr ""
 
 msgid "Number"
@@ -743,6 +694,9 @@ msgid ""
 msgstr ""
 
 msgid "This URL should be called by BurstSMS when new messages are received.You must set this for your number under the 'Inbound Settings' options.Select 'Yes' to the 'Forward to URL' option and enter this URL."
+msgstr ""
+
+msgid "DLR callback URL"
 msgstr ""
 
 msgid "This URL should be called by BurstSMS when the status of an outgoing message is updated.You can set it on your settings page."
@@ -828,6 +782,37 @@ msgid "The API key for your integration as provided by Clickatell"
 msgstr ""
 
 msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgstr ""
+
+msgid "API Username"
+msgstr ""
+
+msgid "Your API Username"
+msgstr ""
+
+msgid "API Password"
+msgstr ""
+
+msgid "Your API Password"
+msgstr ""
+
+msgid "You can connect your ClickSend number by entering the settings below."
+msgstr ""
+
+msgid ""
+"\n"
+"        If you have a <a href=\"https://www.clicksend.com/\">ClickSend</a> number,\n"
+"        you can quickly connect it using their APIs.\n"
+"        "
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish connecting your channel, you need to set your inbound SMS URL below for your number.\n"
+"        "
+msgstr ""
+
+msgid "This URL should be called by ClickSend when new messages are received.On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, then the Inbound SMS Settings menu.Add a new rule, select action URL, and use the URL above, then click save."
 msgstr ""
 
 msgid "Easily add a two way number you have configured with <a href=\"http://dartmedia.biz/\">Dart Media</a> in Indonesia."
@@ -1034,6 +1019,17 @@ msgstr ""
 msgid ""
 "\n"
 "        To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming (MO) messages\n"
+"        "
+msgstr ""
+
+msgid ""
+"If you are based in Somalia, you can get a number from\n"
+"        <a href=\"http://www.hormuud.com/\">Hormuud</a> and connect it in a few simple steps."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming (MO) messages\n"
 "        "
 msgstr ""
 
@@ -1483,6 +1479,36 @@ msgstr ""
 msgid "The password provided to use their API"
 msgstr ""
 
+msgid "Easily add a two way number you have with <a href=\"http://www.signalwire.com/\">SignalWire</a> using their APIs."
+msgstr ""
+
+msgid ""
+"\n"
+"        Your SignalWire channel is now connected.\n"
+"        "
+msgstr ""
+
+msgid "This endpoint will be called by SignalWire when new messages are received to your number."
+msgstr ""
+
+msgid "The phone number or short code you are connecting."
+msgstr ""
+
+msgid "Domain"
+msgstr ""
+
+msgid "The domain for your account ex: rapid.signalwire.com"
+msgstr ""
+
+msgid "Project Key"
+msgstr ""
+
+msgid "The key for your project ex: 990c5c10-bf8f-4156-b014-44282e60b3a1"
+msgstr ""
+
+msgid "The API token to use to authenticate ex: FPd199eb93e878f8a3tw9ttna313914tnauwy"
+msgstr ""
+
 msgid "Easily add a two way number you have configured with <a href=\"http://smscentral.com.np/\">SMSCentral</a> using their APIs."
 msgstr ""
 
@@ -1651,6 +1677,9 @@ msgstr ""
 msgid "The Verboice channel that will be handling your calls"
 msgstr ""
 
+msgid "The message send to user who have not yet subscribed to the channel, changes may take up to 30 seconds to take effect"
+msgstr ""
+
 msgid ""
 "\n"
 "        Connect a <a href=\"http://viber.com/en/\">Viber</a> public channel to send and receive messages to\n"
@@ -1669,6 +1698,34 @@ msgid "The authentication token provided by Viber"
 msgstr ""
 
 msgid ""
+"\n"
+"        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
+"        you can quickly connect it using their APIs.\n"
+"        "
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number.\n"
+"        "
+msgstr ""
+
+msgid "This URL should be called by Movile/Wavy when new messages are received."
+msgstr ""
+
+msgid "To receive the acknowledgement of sent messages, you need to set the Sent URL for your Movile/Wavy account."
+msgstr ""
+
+msgid "To receive delivery of delivered messages, you need to set the Delivered URL for your Movile/Wavy account."
+msgstr ""
+
+msgid "The username for your Movile/Wavy account"
+msgstr ""
+
+msgid "The Authentication Token for your Movile/Wavy account"
+msgstr ""
+
+msgid ""
 "Add a <a href=\"https://wechat.com\">WeChat</a> bot to send and receive messages to WeChat users\n"
 "                for free. Your users will need an Android, Windows or iOS device and a WeChat account to send\n"
 "                and receive messages."
@@ -1684,6 +1741,9 @@ msgid "The WeChat App ID"
 msgstr ""
 
 msgid "The WeChat App secret"
+msgstr ""
+
+msgid "Message Templates"
 msgstr ""
 
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
@@ -1712,10 +1772,28 @@ msgstr ""
 msgid "The password to access your WhatsApp enterprise account"
 msgstr ""
 
+msgid "Templates Domain"
+msgstr ""
+
+msgid "Which domain to retrieve the message templates from"
+msgstr ""
+
+msgid "The Facebook waba-id that will be used for template syncing"
+msgstr ""
+
+msgid "The Facebook access token that will be used for syncing"
+msgstr ""
+
+msgid "The namespace for your WhatsApp templates"
+msgstr ""
+
 msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
+msgstr ""
+
+msgid "Unable to access Facebook templates, please check user id and access token and make sure the whatsapp_business_management permission is enabled"
 msgstr ""
 
 msgid ""
@@ -1777,6 +1855,12 @@ msgid "United Kingdom"
 msgstr ""
 
 msgid "United States"
+msgstr ""
+
+msgid "Scension Island"
+msgstr ""
+
+msgid "Kosovo"
 msgstr ""
 
 msgid "POST Required"
@@ -1963,40 +2047,16 @@ msgstr ""
 msgid "Shown in Tables"
 msgstr ""
 
+msgid "Featured field"
+msgstr ""
+
 msgid "The name of this contact"
-msgstr ""
-
-msgid "The organization that this contact belongs to"
-msgstr ""
-
-msgid "Is Blocked"
-msgstr ""
-
-msgid "Whether this contact has been blocked"
-msgstr ""
-
-msgid "Is Test"
-msgstr ""
-
-msgid "Whether this contact is for simulation"
-msgstr ""
-
-msgid "Is Stopped"
-msgstr ""
-
-msgid "Whether this contact has opted out of receiving messages"
 msgstr ""
 
 msgid "Language"
 msgstr ""
 
 msgid "The preferred language for this contact"
-msgstr ""
-
-msgid "Fields"
-msgstr ""
-
-msgid "The fields set for this contact, keyed by UUID"
 msgstr ""
 
 msgid "Provided URNs belong to different existing contacts"
@@ -2280,9 +2340,6 @@ msgstr ""
 msgid "Manage Fields"
 msgstr ""
 
-msgid "Export"
-msgstr ""
-
 msgid "Blocked Contacts"
 msgstr ""
 
@@ -2310,44 +2367,28 @@ msgstr ""
 msgid "Field names can only contain letters, numbers and hypens"
 msgstr ""
 
-#, python-format
-msgid "Field names must be unique. '%s' is duplicated"
+#, python-brace-format
+msgid "Field names must be unique. '{label}' is duplicated"
 msgstr ""
 
-#, python-format
-msgid "Field name '%s' is a reserved word"
+#, python-brace-format
+msgid "Field name '{label}' is a reserved word"
 msgstr ""
 
-#, python-format
-msgid "The field \"%(label)s\" cannot be removed while it is still used in the flow \"%(flow)s\""
+#, python-brace-format
+msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG}"
 msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr ""
 
-msgid "Update Fields"
+msgid "featured"
 msgstr ""
 
-#, python-format
-msgid "@contact.%(key)s"
+msgid "Update"
 msgstr ""
 
-msgid "show"
-msgstr ""
-
-msgid "The channel connection used for flow sessions over IVR or USSD"
-msgstr ""
-
-msgid "When this session was created"
-msgstr ""
-
-msgid "When this session ended"
-msgstr ""
-
-msgid "When this session's wait will time out (if at all)"
-msgstr ""
-
-msgid "When this session started waiting (if at all)"
+msgid "Contact field uses"
 msgstr ""
 
 msgid "Message flow"
@@ -2383,9 +2424,6 @@ msgstr ""
 msgid "The type of this flow"
 msgstr ""
 
-msgid "Any extra metadata attached to this flow, strictly used by the user interface."
-msgstr ""
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr ""
 
@@ -2414,20 +2452,6 @@ msgid "Any groups this flow uses"
 msgstr ""
 
 msgid "Any fields this flow depends on"
-msgstr ""
-
-msgid "Run this flow using the flow server"
-msgstr ""
-
-msgid "USSD Session was marked to end"
-msgstr ""
-
-#, python-format
-msgid "@flow.%s has been interrupted"
-msgstr ""
-
-#, python-format
-msgid "Saved '%(value)s' as @flow.%(key)s"
 msgstr ""
 
 msgid "Completed"
@@ -2490,6 +2514,9 @@ msgstr ""
 msgid "The path taken during this flow run in JSON format"
 msgstr ""
 
+msgid "Fields"
+msgstr ""
+
 msgid "The events recorded on this run in JSON format"
 msgstr ""
 
@@ -2497,14 +2524,6 @@ msgid "The current node location of this run in the flow"
 msgstr ""
 
 msgid "Why the run is being deleted"
-msgstr ""
-
-#, python-format
-msgid "%s has exited this flow"
-msgstr ""
-
-#, python-format
-msgid "%s has interrupted this flow"
 msgstr ""
 
 msgid "The label for this field"
@@ -2547,6 +2566,9 @@ msgid "The JSON flow definition"
 msgstr ""
 
 msgid "Revision number for this definition"
+msgstr ""
+
+msgid "Unsupported flow type"
 msgstr ""
 
 msgid "Malformed flow, encountered non-localized definition"
@@ -2642,104 +2664,10 @@ msgstr ""
 msgid "Parent"
 msgstr ""
 
-#, python-format
-msgid "\"%(message)s\" would be sent to %(addresses)s"
-msgstr ""
-
-#, python-format
-msgid "Some email address appear to be invalid: %s"
-msgstr ""
-
-#, python-format
-msgid "Unable to find group with name '%s'"
-msgstr ""
-
-#, python-format
-msgid "Group name could not be evaluated: %s"
-msgstr ""
-
-#, python-format
-msgid "%s is a dynamic group which we can't add contacts to"
-msgstr ""
-
-#, python-format
-msgid "%s is a dynamic group which we can't remove contacts from"
-msgstr ""
-
-#, python-format
-msgid "Added %(contact)s to %(group)s"
-msgstr ""
-
-#, python-format
-msgid "Removed %(contact)s from %(group)s"
-msgstr ""
-
-#, python-format
-msgid "Unable to find label with name '%s'"
-msgstr ""
-
-#, python-format
-msgid "Label name could not be evaluated: %s"
-msgstr ""
-
-#, python-format
-msgid "Added %(label)s label to msg '%(text)s'"
-msgstr ""
-
-#, python-format
-msgid "Played recorded message for \"%s\""
-msgstr ""
-
-#, python-format
-msgid "Read message \"%s\""
-msgstr ""
-
 msgid "Sorry, an invalid flow has been detected. Good bye."
 msgstr ""
 
 msgid "Played contact recording"
-msgstr ""
-
-#, python-format
-msgid "Played recording at \"%s\""
-msgstr ""
-
-#, python-format
-msgid "Added %(count)d contact(s) to '%(flow)s' flow"
-msgstr ""
-
-#, python-format
-msgid "Setting language to %s"
-msgstr ""
-
-#, python-format
-msgid "Starting other flow %s"
-msgstr ""
-
-#, python-format
-msgid "Expression contained errors: %s"
-msgstr ""
-
-#, python-format
-msgid "Contact not updated, invalid connection for contact (%(scheme)s:%(path)s)"
-msgstr ""
-
-msgid "Contact not updated, missing connection for contact"
-msgstr ""
-
-#, python-format
-msgid "Added %(value)s as @contact.%(scheme)s - skipped in simulator"
-msgstr ""
-
-#, python-format
-msgid "Updated %(label)s to '%(value)s'"
-msgstr ""
-
-#, python-format
-msgid "Updated preferred channel to %s"
-msgstr ""
-
-msgid "Channel not found, no action taken"
 msgstr ""
 
 msgid "After 5 minutes"
@@ -2813,6 +2741,19 @@ msgstr ""
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
 
+msgid "Your flow failed validation. Please refresh your browser."
+msgstr ""
+
+msgid "Your flow has been upgraded to the latest version. In order to continue editing, please refresh your browser."
+msgstr ""
+
+#, python-format
+msgid "%s is currently editing this Flow. Your changes will not be saved until you refresh your browser."
+msgstr ""
+
+msgid "Your flow could not be saved. Please refresh your browser."
+msgstr ""
+
 msgid "Global keyword triggers"
 msgstr ""
 
@@ -2823,6 +2764,12 @@ msgid "Run flow over"
 msgstr ""
 
 msgid "Choose the method for your flow"
+msgstr ""
+
+msgid "New Editor (Beta)"
+msgstr ""
+
+msgid "Use new editor when authoring this flow"
 msgstr ""
 
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
@@ -2934,7 +2881,10 @@ msgstr ""
 msgid "Revision History"
 msgstr ""
 
-msgid "Service"
+msgid "New Editor"
+msgstr ""
+
+msgid "Previous Editor"
 msgstr ""
 
 msgid "Which group memberships, if any, to include in the export"
@@ -2999,16 +2949,6 @@ msgstr ""
 msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
-msgid "Your flow has been upgraded to the latest version. In order to continue editing, please refresh your browser."
-msgstr ""
-
-#, python-format
-msgid "%s is currently editing this Flow. Your changes will not be saved until you refresh your browser."
-msgstr ""
-
-msgid "Your flow could not be saved. Please refresh your browser."
-msgstr ""
-
 msgid "Contacts & Groups"
 msgstr ""
 
@@ -3039,6 +2979,16 @@ msgstr ""
 msgid "Add Contacts to Flow"
 msgstr ""
 
+msgid "This flow does not use message templates."
+msgstr ""
+
+msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
+msgstr ""
+
+#, python-brace-format
+msgid "Your message template {template.name} is not approved and cannot be sent."
+msgstr ""
+
 msgid "Name already used"
 msgstr ""
 
@@ -3062,9 +3012,6 @@ msgid "After 3 minutes"
 msgstr ""
 
 msgid "After 4 minutes"
-msgstr ""
-
-msgid "Call ended."
 msgstr ""
 
 msgid "You must select a country for your organization."
@@ -3097,9 +3044,6 @@ msgstr ""
 msgid "Resent message"
 msgstr ""
 
-msgid "Used when broadcast is purged to record contact's message's state"
-msgstr ""
-
 msgid "The org this broadcast is connected to"
 msgstr ""
 
@@ -3113,12 +3057,6 @@ msgid "URNs"
 msgstr ""
 
 msgid "Individual URNs included in this message"
-msgstr ""
-
-msgid "Recipients"
-msgstr ""
-
-msgid "The contacts which received this message"
 msgstr ""
 
 msgid "Number of recipients"
@@ -3302,9 +3240,6 @@ msgid "The metadata for this msg"
 msgstr ""
 
 msgid "Why the message is being deleted"
-msgstr ""
-
-msgid "Cannot process an outgoing message."
 msgstr ""
 
 msgid "Can't create an incoming message without an org"
@@ -3525,18 +3460,6 @@ msgstr ""
 msgid "Whether day comes first or month comes first in dates"
 msgstr ""
 
-msgid "Webhook"
-msgstr ""
-
-msgid "Webhook endpoint and configuration"
-msgstr ""
-
-msgid "Webhook Events"
-msgstr ""
-
-msgid "Which type of actions will trigger webhook events."
-msgstr ""
-
 msgid "Configuration"
 msgstr ""
 
@@ -3564,7 +3487,7 @@ msgstr ""
 msgid "A password that allows users to register as surveyors"
 msgstr ""
 
-msgid "Whether flows and messages should be handled by the flow server"
+msgid "Whether flows and messages should be handled by mailroom"
 msgstr ""
 
 msgid "The parent org that manages this org"
@@ -3577,11 +3500,11 @@ msgstr ""
 msgid "Invalid bundle: %s, cannot upgrade."
 msgstr ""
 
-msgid "Sorry, your card was declined, please contact your provider or try another card."
-msgstr ""
-
 #, python-format
 msgid "%(name)s Receipt"
+msgstr ""
+
+msgid "Sorry, your card was declined, please contact your provider or try another card."
 msgstr ""
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
@@ -3941,21 +3864,6 @@ msgstr ""
 msgid "New Event"
 msgstr ""
 
-msgid "Incoming SMS"
-msgstr ""
-
-msgid "Outgoing SMS"
-msgstr ""
-
-msgid "Incoming Calls"
-msgstr ""
-
-msgid "Outgoing Calls"
-msgstr ""
-
-msgid "Channel Alarms"
-msgstr ""
-
 msgid "Agent Name"
 msgstr ""
 
@@ -4090,6 +3998,18 @@ msgid "The id vimeo uses for this video"
 msgstr ""
 
 msgid "Register for public beta"
+msgstr ""
+
+msgid "Never"
+msgstr ""
+
+msgid "Daily"
+msgstr ""
+
+msgid "Weekly"
+msgstr ""
+
+msgid "Monthly"
 msgstr ""
 
 msgid "English"
@@ -4244,18 +4164,6 @@ msgstr ""
 msgid "The referrer id that will trigger us"
 msgstr ""
 
-msgid "USSD Code"
-msgstr ""
-
-msgid "USSD code to dial (eg: *111#)"
-msgstr ""
-
-msgid "USSD Channel"
-msgstr ""
-
-msgid "USSD code must contain only *,# and numbers"
-msgstr ""
-
 msgid "Archive Triggers"
 msgstr ""
 
@@ -4408,35 +4316,13 @@ msgstr ""
 msgid "View Full Documentation"
 msgstr ""
 
-#, python-format
-msgid "%(brand)s API"
+msgid "Recent Webhook Events"
 msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"    %(brand)s - API Simulator\n"
-"\n"
-"  "
+msgid "Webhook events that have been created recently can be found here."
 msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"            %(brand)s API\n"
-"          "
-msgstr ""
-
-msgid "WebHook URL: "
-msgstr ""
-
-msgid "Webhook Docs"
-msgstr ""
-
-msgid "API Docs"
-msgstr ""
-
-msgid "Event"
+msgid "Elapsed"
 msgstr ""
 
 msgid "Time"
@@ -4614,9 +4500,6 @@ msgstr ""
 msgid "API Channels"
 msgstr ""
 
-msgid "USSD Channels"
-msgstr ""
-
 msgid "Add Phone"
 msgstr ""
 
@@ -4626,14 +4509,7 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            %(brand)s uses your Android phone to send and receive messages.\n"
-"          "
-msgstr ""
-
-msgid ""
-"\n"
-"            You can use any Android phone as your message channel, though we recommend one from Samsung like the\n"
-"            Galaxy Mini series.\n"
+"            %(brand)s uses your Android phone to send and receive messages on your behalf.\n"
 "\n"
 "          "
 msgstr ""
@@ -4641,81 +4517,70 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            You can download the free %(brand)s app from the Google Play Store.  If you have used the Play Store before, then\n"
-"            the process will be the same. If this is your first time, don't worry, it is easy!  Just follow the steps\n"
-"            below and you'll be up and running in a few minutes.\n"
+"            Due to restrictions Android has on applications that send SMS messages, we cannot distribute\n"
+"            the %(brand)s application through the Play Store. You will need to download the application manually\n"
+"            and install it using the steps below.\n"
 "\n"
 "          "
 msgstr ""
 
-msgid "Open Play Store"
+msgid "was released on"
 msgstr ""
 
+msgid "Download App"
+msgstr ""
+
+#, python-format
 msgid ""
 "\n"
-"                First find the \"Play Store\" or \"Market\" application on your phone and open it.  You might need to\n"
-"                press \"Home\" or find the launcher menu first.\n"
-"\n"
+"                On your Android device, open your browser and download the app by entering the URL:\n"
+"                <code>\n"
+"                  %(link)s%(android_public_url)s\n"
+"                </code>\n"
 "              "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"                Search for %(brand)s\n"
+"                Launch the %(brand)s installer\n"
 "              "
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"                Once you open the Play Store, search for \"%(brand)s\".  Begin your search by tapping the magnifying\n"
-"                glass, enter \"%(brand)s\", then tap on the result that comes back.\n"
-"\n"
-"              "
-msgstr ""
-
-msgid "Install"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"                On the %(brand)s application page tap the \"Install\" button.\n"
-"\n"
-"              "
-msgstr ""
-
-msgid "Confirm Installation"
 msgstr ""
 
 msgid ""
 "\n"
-"                You will now be asked to confirm the installation.  Tap \"Accept and Download\" to begin the download.\n"
+"                Open the notifications shade by dragging from the top and select the downloaded file.\n"
+"\n"
 "\n"
 "              "
 msgstr ""
 
-msgid "Allow Updates"
+msgid "Tap Settings"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"                The %(brand)s app gets regular updates. To make sure you don't miss any, tap the \"Allow automatic updating\"\n"
-"                checkbox.\n"
+"                You will be taken to a screen with \"allow from this source\" toggle\n"
 "\n"
 "              "
 msgstr ""
 
-msgid "Wait for Download"
+msgid "Toggle allow from this source"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"                Depending on the speed of your connection, %(brand)s may take a few minutes to download.  You can keep track\n"
-"                of the progress by swiping down from the top of the screen.\n"
+"                Make sure \"allow from this source\" toggle is in the On position.\n"
+"\n"
+"              "
+msgstr ""
+
+msgid "Go Back"
+msgstr ""
+
+msgid ""
+"\n"
+"                Click Install\n"
 "\n"
 "              "
 msgstr ""
@@ -4805,9 +4670,6 @@ msgstr ""
 msgid "Call Log"
 msgstr ""
 
-msgid "USSD Log"
-msgstr ""
-
 msgid "Last synced"
 msgstr ""
 
@@ -4817,9 +4679,6 @@ msgid ""
 "                  %(last_sync)s\n"
 "                  ago\n"
 "                "
-msgstr ""
-
-msgid "Never"
 msgstr ""
 
 msgid "Activated"
@@ -4922,6 +4781,24 @@ msgstr ""
 msgid "Are you sure you want to remove this channel from your account?"
 msgstr ""
 
+msgid "This channel cannot be removed because it in use."
+msgstr ""
+
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            Used by %(num_flows)s flow:\n"
+"            "
+msgid_plural ""
+"\n"
+"            Used by %(num_flows)s flows:\n"
+"            "
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Are you sure you want to remove bulk sending for this number?"
 msgstr ""
 
@@ -4929,6 +4806,9 @@ msgid "Disable Voice Calls"
 msgstr ""
 
 msgid "Are you sure you want to remove voice calling for this number?"
+msgstr ""
+
+msgid "Ok"
 msgstr ""
 
 msgid "Select a Country"
@@ -4967,7 +4847,7 @@ msgstr ""
 msgid "Channel Events"
 msgstr ""
 
-msgid "Other Interactions Log"
+msgid "Other Interactions"
 msgstr ""
 
 msgid "Recent Channel Events"
@@ -4976,13 +4856,7 @@ msgstr ""
 msgid "Channel: "
 msgstr ""
 
-msgid "Message Log"
-msgstr ""
-
 msgid "phone call"
-msgstr ""
-
-msgid "USSD session"
 msgstr ""
 
 msgid "complete"
@@ -4995,6 +4869,9 @@ msgid "Channel Event"
 msgstr ""
 
 msgid "Message Error"
+msgstr ""
+
+msgid "Message Log"
 msgstr ""
 
 msgid "Change Alert Settings"
@@ -5836,6 +5713,15 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Templates"
+msgstr ""
+
+msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgstr ""
+
+msgid "No synced templates at this time."
+msgstr ""
+
 msgid "Hold up!"
 msgstr ""
 
@@ -5861,10 +5747,16 @@ msgstr ""
 msgid "Update Contact Group"
 msgstr ""
 
-msgid "Missed call"
+msgid "Missed outgoing call"
+msgstr ""
+
+msgid "Missed incoming call"
 msgstr ""
 
 msgid "Started Conversation"
+msgstr ""
+
+msgid "Welcome Message Sent"
 msgstr ""
 
 msgid "Referred"
@@ -5873,7 +5765,10 @@ msgstr ""
 msgid "Followed"
 msgstr ""
 
-msgid "Phone call"
+msgid "Outgoing Phone Call"
+msgstr ""
+
+msgid "Incoming Phone call"
 msgstr ""
 
 msgid "Unknown/Unsupported"
@@ -6073,6 +5968,9 @@ msgstr[1] ""
 msgid "No matching contacts."
 msgstr ""
 
+msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
 msgid "Are you sure you want to delete these contacts?"
 msgstr ""
 
@@ -6137,6 +6035,69 @@ msgid "This contact does not have any number which you can send to. Please edit 
 msgstr ""
 
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+msgstr ""
+
+msgid "cannot be deleted because it is in use. Usage summary:"
+msgstr ""
+
+msgid "Flows:"
+msgstr ""
+
+msgid "Campaign events:"
+msgstr ""
+
+msgid "Contact groups:"
+msgstr ""
+
+msgid "Are you sure you want to delete this field?"
+msgstr ""
+
+msgid "Once deleted, field will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+msgid "No related flows."
+msgstr ""
+
+msgid "No related campaigns."
+msgstr ""
+
+msgid "No related contact groups."
+msgstr ""
+
+msgid "Create Field"
+msgstr ""
+
+msgid "Contact Fields"
+msgstr ""
+
+msgid "Types"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"                              %(counter)s Use\n"
+"                            "
+msgid_plural ""
+"\n"
+"                              %(counter)s Uses\n"
+"                            "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "No fields"
+msgstr ""
+
+msgid "Create Contact Field"
+msgstr ""
+
+msgid "Update Contact Field"
+msgstr ""
+
+msgid "Delete Contact Field"
+msgstr ""
+
+msgid "Uses"
 msgstr ""
 
 #, python-format
@@ -6353,13 +6314,6 @@ msgstr ""
 msgid "on the right to open it."
 msgstr ""
 
-msgid ""
-"\n"
-"      To get started you need to add a USSD channel to your account. You can choose between USSD channels\n"
-"      that are available in your country.\n"
-"    "
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
@@ -6374,6 +6328,9 @@ msgid "Restart contacts who have already entered this flow"
 msgstr ""
 
 msgid "Interrupt contacts currently active in flows"
+msgstr ""
+
+msgid "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr ""
 
 msgid "This flow has never been started."
@@ -6574,9 +6531,6 @@ msgstr ""
 msgid "Are you sure you want to remove this label?"
 msgstr ""
 
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
 msgid "Unlabel"
 msgstr ""
 
@@ -6623,6 +6577,24 @@ msgstr ""
 msgid "Create a message keyword to allow people to join a group."
 msgstr ""
 
+msgid "Overview"
+msgstr ""
+
+msgid "Analytics"
+msgstr ""
+
+msgid "Runs"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Responded"
+msgstr ""
+
+msgid "Last Activity"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -6664,6 +6636,9 @@ msgid "orgs"
 msgstr ""
 
 msgid "dashboard"
+msgstr ""
+
+msgid "android"
 msgstr ""
 
 msgid "logout"
@@ -6862,6 +6837,21 @@ msgstr ""
 msgid "Are you sure you want to remove this folder? This will also delete any labels contained in this folder."
 msgstr ""
 
+msgid "This label cannot be removed because it in use."
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"              Used by %(num_flows)s flow:\n"
+"              "
+msgid_plural ""
+"\n"
+"              Used by %(num_flows)s flows:\n"
+"              "
+msgstr[0] ""
+msgstr[1] ""
+
 #, python-format
 msgid ""
 "\n"
@@ -6886,9 +6876,6 @@ msgid ""
 "        directly.\n"
 "\n"
 "      "
-msgstr ""
-
-msgid "Add USSD Channel"
 msgstr ""
 
 msgid "Loading recipients.."
@@ -7339,7 +7326,7 @@ msgstr ""
 msgid "Warning!"
 msgstr ""
 
-msgid "If you have flows or campaigns with the same name as the ones you are importing they will be replaced and all history for them will be lost."
+msgid "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
 msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
@@ -7604,6 +7591,9 @@ msgid ""
 "          "
 msgstr ""
 
+msgid "API Docs"
+msgstr ""
+
 msgid "Webhook Log"
 msgstr ""
 
@@ -7691,6 +7681,9 @@ msgid ""
 "        "
 msgstr ""
 
+msgid "Webhook"
+msgstr ""
+
 msgid "Additional options"
 msgstr ""
 
@@ -7707,6 +7700,12 @@ msgid "Incoming Messages"
 msgstr ""
 
 msgid "Outgoing Messages"
+msgstr ""
+
+msgid "Incoming Calls"
+msgstr ""
+
+msgid "Outgoing Calls"
 msgstr ""
 
 msgid "Channel Alarms (low battery, loss of connectivity)"
@@ -7784,9 +7783,6 @@ msgid "Quick Replies"
 msgstr ""
 
 msgid "Add reply"
-msgstr ""
-
-msgid "Ok"
 msgstr ""
 
 msgid ""
@@ -8102,6 +8098,45 @@ msgid "Updated"
 msgstr ""
 
 msgid "Privacy Center"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"        To use an Android phone with your %(brand)s account to send messages you need to download the %(brand)s relayer app\n"
+"\n"
+"      "
+msgstr ""
+
+msgid "Latest released on"
+msgstr ""
+
+msgid "Download Relayer"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"      No Android app available yet. Please contact %(email)s and report that.\n"
+"\n"
+"    "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"        To increase the capacity of messages your phone can send in an hour we recommend you install each of the following %(brand)s message packs as well.\n"
+"\n"
+"      "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            Download Message pack %(counter)s\n"
+"\n"
+"\n"
+"          "
 msgstr ""
 
 msgid "Using a Local Number"
@@ -8615,9 +8650,6 @@ msgstr ""
 msgid "The keyword"
 msgstr ""
 
-msgid "The USSD code"
-msgstr ""
-
 msgid "missed call"
 msgstr ""
 
@@ -8756,11 +8788,5 @@ msgstr ""
 msgid "Choose when you would like the flow to start."
 msgstr ""
 
-msgid "USSD channel"
-msgstr ""
-
 msgid "Facebook Channel"
-msgstr ""
-
-msgid "USSD mobile initiated flow"
 msgstr ""

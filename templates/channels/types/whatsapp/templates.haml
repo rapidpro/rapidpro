@@ -1,0 +1,80 @@
+-extends "channels/channel_read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+-block fields
+
+-block title
+  .medium-help.float-left.icon-template
+
+  %h2.font_normalize.header-margin.title
+    {{ object.name }}
+    -trans "Templates"
+
+  .header-margin
+    -trans "Templates are synced from your WhatsApp account every 15 minutes."
+
+-block content
+  %table#templates
+    -for translation in translations
+      -ifchanged translation.template.name
+        %tr.template-name
+          %td(colspan=3)
+            {{ translation.template.name }}
+
+      %tr.translation
+        %td.content
+          {{ translation.content }}
+
+        %td.language
+          {{ translation.language }}
+
+        %td.status{class:"tr-{{translation.get_status_display}}"}
+          {{ translation.get_status_display }}
+
+      -empty
+        %tr.empty
+          %td
+            -trans "No synced templates at this time."
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    #templates {
+      width: 100%;
+    }
+    td {
+      padding: 5px;
+    }
+    tr.template-name td {
+      font-weight: bold;
+      padding-top: 20px;
+      border-bottom: 1px solid #e6e6e6;
+    }
+    tr.translation td {
+      border-bottom: 1px solid #e6e6e6;
+    }
+    tr.translation td.language {
+      font-family: monospace;
+      color: #666;
+    }
+    tr.translation td.status {
+     font-family: monospace;
+    }
+    td.content {
+      font-style: italic;
+    }
+    td.tr-pending {
+      color: #faa732;
+    }
+    td.tr-rejected {
+      color: #b81900;
+    }
+    td.tr-approved {
+      color: #4ca20b;
+    }
+    tr.empty td {
+      font-style: italic;
+    }

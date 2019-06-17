@@ -1,0 +1,10 @@
+-extends "channels/channellog_read.html"
+
+-load i18n humanize compress
+
+-block titles
+  %h2
+    -trans "Call Log"
+
+-block above-bar
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}?connections=1' } More Calls

@@ -138,7 +138,42 @@
           overflow-x: auto;
         }
 
+        .responded-checkbox {
+          padding-bottom: 10px;
+          padding-left: 15px;
+
+          .input-group {
+            display: inline;
+            margin-left: 15px;
+            margin-right: 15px;
+          }
+
+          .runs-show-sep {
+            display: inline;
+            margin-left: 5px;
+            margin-right: 5px;
+          }
+
+          .runs-show {
+            display: inline;
+            cursor: pointer;
+            color: @color-primary;
+
+            &:hover{
+              text-decoration: underline;
+            }
+
+            &.active {
+              cursor: default;
+              pointer-events: none;
+              text-decoration: none;
+              color: #555555;
+            }
+          }
+        }
+
         .add-columns {
+          display: inline;
           margin-left: 8px;
           .text {
             display: block;
@@ -154,7 +189,7 @@
             }
 
             .selection {
-              display: block;
+              display: inline;
             }
           }
         }
@@ -261,12 +296,12 @@
     }
 
     var columns = [
-       {% for ruleset in rulesets %}
+       {% for result_field in result_fields %}
         {
           "id":"{{forloop.counter0}}",
-          "text":"{{ruleset.label|safe}}",
+          "text":"{{result_field.name|safe}}",
           "hidden": {% if forloop.counter > 3 %}true{%else%}false{%endif%},
-          "category": {{ruleset.category}}
+          "category": {{result_field.has_categories}}
         },
       {% endfor %}
     ]
@@ -519,22 +554,37 @@
 
     $(document).ready(function() {
       updateCharts();
+      localStorage.setItem("responded", "true");
     });
+
+    $(function(){
+      $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
+        responded = localStorage.getItem("responded");
+        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
+      });
+    });
+
+    $(function() {
+        $(".responded-checkbox .runs-show").on('click', function(){
+          $(this).siblings().not($(this)).removeClass("active");
+          $(this).addClass("active");
+        });
+      });
 
 -block content
 
   %ul.nav.nav-tabs
     %li.active
       %a{href: '#overview', data-toggle:'tab'}
-        Overview
+        -trans "Overview"
 
     %li
       %a{href: '#analytics', data-toggle:'tab'}
-        Analytics
+        -trans "Analytics"
 
     %li
       %a{href: '#runs', data-toggle:'tab'}
-        Runs
+        -trans "Runs"
 
   .tab-content
     #overview.tab-pane.active
@@ -546,32 +596,58 @@
 
     #runs.tab-pane
       .scroll-x
-        %table
-          %tr
-            %td.header.started
-              .details
-                .add-columns.select
-                  .selection
-                    %input#columns{type:'hidden', style:'width:150px'}
-                  .text
-                    Last Activity
-            %td.header
-              .details
-                %input.contact-search{type:"text", name:"q", placeholder:"Contact",
+        .responded-checkbox
+          .runs-show#show-all-runs{
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+                                      ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+            -trans "All"
+          .runs-show-sep
+            |
+          .runs-show.active{
+                                      ic-get-from:"/flow/run_table/{{object.id}}/",
+                                      ic-on-beforeSend:'$("#results_run_table").empty();',
+                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                      ic-trigger-on:"click",
+                                      ic-target:"#results_run_table",
+                                      ic-indicator:"#indicator"}
+            -trans "Responded"
+            
+          .input-group
+            %input.contact-search{type:"text", name:"q", placeholder:"Search Contacts",
                                       ic-get-from:"/flow/run_table/{{object.id}}/",
                                       ic-on-beforeSend:'$("#results_run_table").empty()',
                                       ic-trigger-on:"keyup changed",
+                                      ic-local-vars: "responded",
                                       ic-trigger-delay:"500ms",
                                       ic-target:"#results_run_table",
                                       ic-indicator:"#indicator"}
 
-            -for ruleset in rulesets
+          .add-columns.select
+            .selection
+              %input#columns{type:'hidden', style:'width:150px'}
+
+        %table
+          %tr
+            %td.header.started
+              .details
+                .text{style:"margin-left:10px;"}
+                  -trans "Last Activity"
+            %td.header
+              .details
+                .text
+                  -trans "Contact"
+
+            -for result_field in result_fields
               %td.header
                 .details{ onclick: 'toggleValue({{forloop.counter0}});'}
                   .icons
                     .icon-tree-2.category
                     .icon-bubble-2.text
-                  {{ruleset.label}}
+                  {{result_field.name}}
                 .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
           %tbody{id:"results_run_table"}

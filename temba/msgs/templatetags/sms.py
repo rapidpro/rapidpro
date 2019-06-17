@@ -11,6 +11,7 @@ PLAYABLE_CONTENT_TYPES = {
     "audio/vnd.wav",
     "audio/ogg",
     "audio/mp3",
+    "audio/mp4",
     "audio/m4a",
     "audio/x-m4a",
     "video/mp4",
@@ -136,4 +137,8 @@ def attachment_button(attachment):
 
 @register.inclusion_tag("msgs/tags/channel_log_link.haml")
 def channel_log_link(msg_or_call):
-    return {"log": msg_or_call.get_last_log()}
+    if hasattr(msg_or_call, "connection_type"):
+        if msg_or_call.has_logs():
+            return {"connection_id": msg_or_call.id}
+    else:
+        return {"log": msg_or_call.get_last_log()}

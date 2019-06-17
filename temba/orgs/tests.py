@@ -1,3 +1,4 @@
+import datetime
 import io
 from datetime import timedelta
 from decimal import Decimal
@@ -7,6 +8,7 @@ from uuid import uuid4
 import nexmo
 import pytz
 import stripe
+import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
 from smartmin.tests import SmartminTest
@@ -20,8 +22,9 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import APIToken, Resthook
+from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -38,8 +41,8 @@ from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, UserSettings
-from temba.tests import MockResponse, TembaTest
+from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -62,7 +65,6 @@ from .models import (
     Org,
     TopUp,
     TopUpCredits,
-    get_current_export_version,
 )
 from .tasks import squash_topupcredits
 
@@ -298,6 +300,13 @@ class OrgDeleteTest(TembaTest):
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
 
+            # add in some webhook results
+            resthook = Resthook.get_or_create(org, "registration", self.admin)
+            WebHookEvent.objects.create(org=org, resthook=resthook, data={})
+            WebHookResult.objects.create(
+                org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
+            )
+
             # release our primary org
             org.release(immediately=immediately)
 
@@ -317,6 +326,9 @@ class OrgDeleteTest(TembaTest):
                 # our channels and org are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
                 self.assertFalse(Org.objects.filter(id=org.id).exists())
+
+                # as are our webhook events
+                self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()
@@ -649,63 +661,6 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
         self.assertEqual(1, FlowRun.objects.all().count())
 
-    def test_webhook_headers(self):
-        update_url = reverse("orgs.org_webhook")
-        login_url = reverse("users.user_login")
-
-        # no access if anonymous
-        response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
-
-        self.login(self.admin)
-
-        response = self.client.get(update_url)
-        self.assertEqual(302, response.status_code)
-
-        self.assertRedirect(response, reverse("orgs.org_token"))
-
-        # simulate an org that had the old config set
-        org = Org.objects.get(pk=self.org.pk)
-        org.webhook = dict(url="Set")
-        org.save()
-
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-
-        # set a webhook with headers
-        post_data = response.context["form"].initial
-        post_data["webhook_url"] = "http://webhooks.uniceflabs.org"
-        post_data["header_1_key"] = "Authorization"
-        post_data["header_1_value"] = "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # check that our webhook settings have changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("http://webhooks.uniceflabs.org", org.get_webhook_url())
-        self.assertDictEqual(
-            {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
-        )
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, update_url)
-
-    def test_enable_flow_server(self):
-        update_url = reverse("orgs.org_update", args=[self.org.pk])
-
-        # create a flow on this org
-        flow = self.create_flow()
-
-        # now update the org to be flow server enabled
-        self.login(self.superuser)
-        form = dict(brand="rapidpro.io", name="Test Org", flow_server_enabled=1)
-        self.client.post(update_url, data=form, follow=True)
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.flow_server_enabled)
-
     def test_org_administration(self):
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
@@ -765,8 +720,6 @@ class OrgTest(TembaTest):
             "timezone": pytz.timezone("Africa/Kigali"),
             "config": "{}",
             "date_format": "D",
-            "webhook": None,
-            "webhook_events": 0,
             "parent": parent.id,
             "viewers": [self.user.id],
             "editors": [self.editor.id],
@@ -958,6 +911,8 @@ class OrgTest(TembaTest):
         self.assertEqual(invitation.email, "norkans7@gmail.com")
         self.assertEqual(invitation.user_group, "A")
 
+        old_secret = invitation.secret
+
         # and sent by email
         self.assertTrue(len(mail.outbox) == 1)
 
@@ -974,6 +929,8 @@ class OrgTest(TembaTest):
         invitation.refresh_from_db()
         self.assertEqual(invitation.user_group, "E")
         self.assertTrue(invitation.is_active)
+        # make sure that new invitation has a new secret
+        self.assertNotEqual(old_secret, invitation.secret)
 
         # and new email sent
         self.assertEqual(len(mail.outbox), 2)
@@ -1425,7 +1382,6 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
-        test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
 
         self.create_inbound_msgs(contact, 10)
@@ -1506,12 +1462,6 @@ class OrgTest(TembaTest):
         self.assertEqual(30, self.org.get_credits_used())
         self.assertEqual(-5, self.org.get_credits_remaining())
 
-        # create a message from our test contact, should not count against our totals
-        test_msg = self.create_msg(contact=test_contact, direction="I", text="Test")
-
-        self.assertIsNone(test_msg.topup_id)
-        self.assertEqual(30, self.org.get_credits_used())
-
         # test special status
         self.assertFalse(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
@@ -1519,10 +1469,9 @@ class OrgTest(TembaTest):
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100_000)
 
-        # after applying this, no non-test messages should be without a topup
+        # after applying this, no messages should be without a topup
         self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
-        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertFalse(Msg.objects.filter(org=self.org, topup=None))
         self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
@@ -1924,7 +1873,7 @@ class OrgTest(TembaTest):
         self.assertFalse(response.context["current_resthooks"])
 
         # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration"))
+        self.client.post(resthook_url, dict(resthook="mother-registration "))
 
         # should now have a resthook
         resthook = Resthook.objects.get()
@@ -1977,7 +1926,7 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url, dict(smtp_from_email="foobar.com", disconnect="false"), follow=True
+            smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
         )
         self.assertEqual(
             '[{"message": "Please enter a valid email address", "code": ""}]',
@@ -1985,7 +1934,7 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url, dict(smtp_from_email="foo@bar.com", disconnect="false"), follow=True
+            smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
         )
         self.assertEqual(
             '[{"message": "You must enter the SMTP host", "code": ""}]',
@@ -1994,7 +1943,7 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(smtp_from_email="foo@bar.com", smtp_host="smtp.example.com", disconnect="false"),
+            {"smtp_from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
             follow=True,
         )
         self.assertEqual(
@@ -2004,12 +1953,12 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "disconnect": "false",
+            },
             follow=True,
         )
         self.assertEqual(
@@ -2019,13 +1968,13 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "disconnect": "false",
+            },
             follow=True,
         )
         self.assertEqual(
@@ -2035,14 +1984,14 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="foo@bar.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "foo@bar.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2059,15 +2008,15 @@ class OrgTest(TembaTest):
 
         self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="secret",
-                smtp_port="465",
-                name="DO NOT CHANGE ME",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret",
+                "smtp_port": "465",
+                "name": "DO NOT CHANGE ME",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2078,14 +2027,14 @@ class OrgTest(TembaTest):
 
         self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="support@example.com",
-                smtp_password="",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2099,14 +2048,14 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email="support@example.com",
-                smtp_host="smtp.example.com",
-                smtp_username="help@example.com",
-                smtp_password="",
-                smtp_port="465",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "help@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
@@ -2123,22 +2072,57 @@ class OrgTest(TembaTest):
 
         response = self.client.post(
             smtp_server_url,
-            dict(
-                smtp_from_email=" support@example.com",
-                smtp_host=" smtp.example.com  ",
-                smtp_username=" support@example.com ",
-                smtp_password="secret ",
-                smtp_port="465 ",
-                disconnect="false",
-            ),
+            {
+                "smtp_from_email": " support@example.com",
+                "smtp_host": " smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secret ",
+                "smtp_port": "465 ",
+                "disconnect": "false",
+            },
             follow=True,
         )
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
+
         self.assertEqual(
             self.org.config["smtp_server"],
             "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
+
+        response = self.client.post(
+            smtp_server_url,
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secre/t",
+                "smtp_port": 465,
+                "disconnect": "false",
+            },
+            follow=True,
+        )
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+
+        self.assertEqual(
+            self.org.config["smtp_server"],
+            "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
+        )
+
+        response = self.client.get(smtp_server_url)
+        self.assertDictEqual(
+            response.context["view"].derive_initial(),
+            {
+                "smtp_from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "secre/t",
+                "smtp_port": 465,
+                "disconnect": "false",
+            },
         )
 
     @patch("nexmo.Client.create_application")
@@ -2368,16 +2352,8 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user_tier())
         self.assertTrue(self.org.is_multi_org_tier())
 
-    def test_sub_orgs(self):
-
-        from temba.orgs.models import Debit
-
+    def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-
-        # lets start with two topups
-        expires = timezone.now() + timedelta(days=400)
-        first_topup = TopUp.objects.filter(org=self.org).first()
-        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
 
         sub_org = self.org.create_sub_org("Sub Org")
 
@@ -2388,6 +2364,9 @@ class OrgTest(TembaTest):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
         sub_org = self.org.create_sub_org("Sub Org")
 
+        # suborg has been created
+        self.assertIsNotNone(sub_org)
+
         # suborgs can't create suborgs
         self.assertIsNone(sub_org.create_sub_org("Grandchild Org"))
 
@@ -2395,9 +2374,37 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
 
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 1)
+
+        # sub_org is deleted
+        sub_org.release()
+
+        response = self.client.get(reverse("orgs.org_edit"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(len(response.context["sub_orgs"]), 0)
+
+    def test_sub_orgs(self):
+        # lets start with two topups
+        oldest_topup = TopUp.objects.filter(org=self.org).first()
+
+        expires = timezone.now() + timedelta(days=400)
+        newer_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
+        sub_org = self.org.create_sub_org("Sub Org")
+
+        # send a message as sub_org
         Channel.create(
             sub_org,
             self.user,
@@ -2411,17 +2418,17 @@ class OrgTest(TembaTest):
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
         msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
-        self.assertFalse(msg.topup)
 
-        # default values should be the same as parent
-        self.assertEqual(self.org.timezone, sub_org.timezone)
-        self.assertEqual(self.org.created_by, sub_org.created_by)
+        # there is no topup on suborg, and this msg won't be credited
+        self.assertFalse(msg.topup)
 
         # now allocate some credits to our sub org
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
 
         msg.refresh_from_db()
+        # allocating credits will execute apply_topups_task and assign a topup
         self.assertTrue(msg.topup)
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
 
@@ -2432,10 +2439,13 @@ class OrgTest(TembaTest):
         debit = debits.first()
         self.assertEqual(700, debit.amount)
         self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
-        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+        # newest topup has been used first
+        self.assertEqual(newer_topup.expires_on, debit.beneficiary.expires_on)
+        self.assertEqual(debit.amount, 700)
 
         # try allocating more than we have
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+
         self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
         self.assertEqual(700, self.org._calculate_credits_used()[0])
@@ -2457,26 +2467,18 @@ class OrgTest(TembaTest):
         debits = Debit.objects.filter(topup__org=self.org).order_by("id")
         self.assertEqual(3, len(debits))
 
-        # the last two debits should expire at same time as topup they were funded by
-        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
-        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+        # verify that we used most recent topup first
+        self.assertEqual(newer_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(debits[1].amount, 300)
+        # and debited missing amount from the next topup
+        self.assertEqual(oldest_topup.expires_on, debits[2].topup.expires_on)
+        self.assertEqual(debits[2].amount, 900)
 
         # allocate the exact number of credits remaining
         self.org.allocate_credits(self.admin, sub_org, 100)
+
         self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
-
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 1)
-
-        # sub_org is deleted
-        sub_org.release()
-
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 0)
 
     def test_sub_org_ui(self):
 
@@ -2695,6 +2697,7 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="Oculus")
         self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, DAYFIRST)
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
@@ -2711,9 +2714,21 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="id Software")
         self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, DAYFIRST)
 
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
+
+        # try a new org with US timezone
+        post_data["name"] = "Bulls"
+        post_data["timezone"] = "America/Chicago"
+        response = self.client.post(grant_url, post_data, follow=True)
+
+        self.assertContains(response, "created")
+
+        org = Org.objects.get(name="Bulls")
+        self.assertEqual(100_000, org.get_credits_remaining())
+        self.assertEqual(org.date_format, MONTHFIRST)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
@@ -2901,6 +2916,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
         self.assertEqual(org.slug, "relieves-world")
+        self.assertTrue(org.flow_server_enabled)
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
@@ -2950,25 +2966,6 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertEqual(200, response.status_code)
-
-        # simulate old webhook config was set
-        org = Org.objects.get(name="Relieves World")
-        org.webhook = dict(url="SET")
-        org.save()
-
-        # try setting our webhook and subscribe to one of the events
-        response = self.client.post(
-            reverse("orgs.org_webhook"), dict(webhook_url="http://fake.com/webhook.php", mt_sms=1)
-        )
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        org = Org.objects.get(name="Relieves World")
-        self.assertEqual("http://fake.com/webhook.php", org.get_webhook_url())
-        self.assertTrue(org.is_notified_of_mt_sms())
-        self.assertFalse(org.is_notified_of_mo_sms())
-        self.assertFalse(org.is_notified_of_mt_call())
-        self.assertFalse(org.is_notified_of_mo_call())
-        self.assertFalse(org.is_notified_of_alarms())
 
         # try changing our username, wrong password
         post_data = dict(email="myal@wr.org", current_password="HelloWorld")
@@ -3422,6 +3419,19 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
+    def test_import_validation(self):
+        # export must include version field
+        with self.assertRaises(ValueError):
+            self.org.import_app({"flows": []}, self.admin)
+
+        # export version can't be older than Org.EARLIEST_IMPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "2", "flows": []}, self.admin)
+
+        # export version can't be newer than Org.CURRENT_EXPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "21415", "flows": []}, self.admin)
+
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
@@ -3430,7 +3440,7 @@ class BulkExportTest(TembaTest):
         flow = self.get_flow("triggered", substitutions)
 
         # read in the old version 8 raw json
-        old_json = json.loads(self.get_import_json("triggered", substitutions))
+        old_json = self.get_import_json("triggered", substitutions)
         old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
 
         # splice our actionset with old bits
@@ -3510,7 +3520,9 @@ class BulkExportTest(TembaTest):
         # try to import the flow
         flow.release()
         response.json()
-        Flow.import_flows(exported, self.org, self.admin)
+
+        dep_mapping = {}
+        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
 
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
@@ -3654,14 +3666,69 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
+    def test_import_mixed_flow_versions(self):
+        self.import_file("mixed_versions")
+
+        group = ContactGroup.user_groups.get(name="Survey Audience")
+
+        child = Flow.objects.get(name="New Child")
+        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(set(child.flow_dependencies.all()), set())
+        self.assertEqual(set(child.group_dependencies.all()), {group})
+
+        parent = Flow.objects.get(name="Legacy Parent")
+        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.group_dependencies.all()), set())
+
+        dep_graph = self.org.generate_dependency_graph()
+        self.assertEqual(dep_graph[child], {parent})
+        self.assertEqual(dep_graph[parent], {child})
+
+    def test_import_dependency_types(self):
+        self.import_file("all_dependency_types")
+
+        parent = Flow.objects.get(name="All Dep Types")
+        child = Flow.objects.get(name="New Child")
+
+        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        gender = ContactField.user_fields.get(key="gender")  # created from action reference
+
+        farmers = ContactGroup.user_groups.get(name="Farmers")
+        self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
+
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
+        self.assertEqual(set(parent.group_dependencies.all()), {farmers})
+
+    def test_import_missing_flow_dependency(self):
+        # in production this would blow up validating the flow but we can't do that during tests
+        self.import_file("parent_without_its_child")
+
+        parent = Flow.objects.get(name="Single Parent")
+        self.assertEqual(set(parent.flow_dependencies.all()), set())
+
+        # create child with that name and re-import
+        child1 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE)
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child1})
+
+        # create child with that UUID and re-import
+        child2 = Flow.create(
+            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+        )
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child2})
+
+    def test_implicit_group_imports_legacy(self):
+        self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
-        rev = flow.revisions.all().first()
 
-        from temba.flows.tests import get_groups
+        from temba.flows.tests import get_legacy_groups
 
-        definition_groups = get_groups(rev.get_definition_json())
+        definition_groups = get_legacy_groups(flow.as_json())
 
         # we should have 5 groups
         self.assertEqual(5, len(definition_groups))
@@ -3672,6 +3739,117 @@ class BulkExportTest(TembaTest):
                 ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
             )
+
+    def validate_flow_dependencies(self, definition):
+        flow_info = mailroom.get_client().flow_inspect(definition)
+        deps = flow_info["dependencies"]
+
+        for ref in deps.get("fields", []):
+            self.assertTrue(
+                ContactField.user_fields.filter(key=ref["key"]).exists(),
+                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+            )
+        for ref in deps.get("flows", []):
+            self.assertTrue(
+                Flow.objects.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+        for ref in deps.get("groups", []):
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+
+    def test_implicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions without fields and groups included in the export
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+        del data["groups"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (all static since we can only create static groups from group references)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+
+        # and so no fields created
+        self.assertEqual(ContactField.user_fields.all().count(), 0)
+
+    def test_implicit_field_and_explicit_group_imports(self):
+        """
+        Tests importing flow definitions with groups included in the export but not fields
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # but without implicit fields in the export, the details aren't correct
+        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.value_type, "T")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
+
+    def test_explicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions with groups and fields included in the export
+        """
+
+        with ESMockWithScroll():
+            self.import_file("cataclysm")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # and with implicit fields in the export, the details should be correct
+        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.value_type, "N")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_export_import(self):
         def assert_object_counts():
@@ -3794,12 +3972,28 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse("orgs.org_export"), post_data)
         exported = response.json()
-        self.assertEqual(get_current_export_version(), exported.get("version", 0))
-        self.assertEqual("https://app.rapidpro.io", exported.get("site", None))
+        self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
+        self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
+        self.assertEqual(
+            exported["fields"],
+            [
+                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "type": "text"},
+                {"key": "next_appointment", "name": "Next Appointment", "type": "datetime"},
+                {"key": "rating", "name": "Rating", "type": "text"},
+            ],
+        )
+        self.assertEqual(
+            exported["groups"],
+            [
+                {"uuid": matchers.UUID4String(), "name": "Delay Notification", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Pending Appointments", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Unsatisfied Customers", "query": None},
+            ],
+        )
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")
@@ -3820,34 +4014,35 @@ class BulkExportTest(TembaTest):
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name="Confirm Appointment")
         flow.name = "A new flow"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign = Campaign.objects.all().first()
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign = Campaign.objects.get()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.filter(name="Pending Appointments").first()
+        group = ContactGroup.user_groups.get(name="Pending Appointments")
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
-        # it should fall back on ids and not create new objects even though the names changed
+        # it should fall back on UUIDs and not create new objects even though the names changed
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
+
         assert_object_counts()
 
-        # and our objets should have the same names as before
+        # and our objects should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
         self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
         # now import the same import but pretend its from a different site
         self.org.import_app(exported, self.admin, site="http://temba.io")
@@ -4178,12 +4373,12 @@ class StripeCreditsTest(TembaTest):
             def __init__(self):
                 self.throw = False
 
-            def all(self):
+            def list(self):
                 return dict_to_struct("MockCardData", dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
                 if self.throw:
-                    raise stripe.CardError("Card declined", None, 400)
+                    raise stripe.error.CardError("Card declined", None, 400)
                 else:
                     return MockCard()
 
@@ -4255,7 +4450,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_location_path("Nigeria > Lagos "), lagos)
         self.assertEqual(self.org.parse_location_path(" Nigeria > Lagos "), lagos)
 
-    def test_parse_decimal(self):
+    def test_parse_number(self):
         self.assertEqual(self.org.parse_number("Not num"), None)
         self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
         self.assertEqual(self.org.parse_number("6e33"), None)
@@ -4264,3 +4459,14 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number(""), None)
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
+
+        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+
+    def test_parse_datetime(self):
+        self.assertEqual(self.org.parse_datetime("Not num"), None)
+        self.assertEqual(
+            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
+            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
+        )
+
+        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())

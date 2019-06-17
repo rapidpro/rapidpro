@@ -134,7 +134,7 @@ class ESMockWithScrollMultiple(ESMockWithScroll):
         return patched_object()
 
 
-class TembaTestMixin(object):
+class TembaTestMixin:
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
@@ -154,7 +154,7 @@ class TembaTestMixin(object):
 
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(json.loads(data), self.admin, site=site)
+        self.org.import_app(data, self.admin, site=site)
 
     def get_import_json(self, filename, substitutions=None):
         handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
@@ -166,7 +166,7 @@ class TembaTestMixin(object):
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
-        return data
+        return json.loads(data)
 
     def update_action_field(self, flow, action_uuid, key, value):
         action_json = self.get_action_json(flow, action_uuid)
@@ -198,21 +198,21 @@ class TembaTestMixin(object):
         self.fail("Couldn't find action with uuid %s" % uuid)
 
     def get_flow(self, filename, substitutions=None):
-        last_flow = Flow.objects.all().order_by("-pk").first()
+        now = timezone.now()
+
         self.import_file(filename, substitutions=substitutions)
 
-        if last_flow:
-            flow = Flow.objects.filter(pk__gt=last_flow.pk).first()
-            flow.org = self.org
-            return flow
+        imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
+        flow = imported_flows.order_by("id").last()
 
-        flow = Flow.objects.all().order_by("-created_on").first()
+        assert flow, f"no flow imported from {filename}.json"
+
         flow.org = self.org
         return flow
 
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        return json.loads(data)["flows"][0]
+        return data["flows"][0]
 
     def create_secondary_org(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")
@@ -228,7 +228,7 @@ class TembaTestMixin(object):
 
         self.org2.initialize(topup_size=topup_size)
 
-    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -247,7 +247,6 @@ class TembaTestMixin(object):
 
         kwargs["name"] = name
         kwargs["urns"] = urns
-        kwargs["is_test"] = is_test
 
         if "org" not in kwargs:
             kwargs["org"] = self.org
@@ -283,8 +282,7 @@ class TembaTestMixin(object):
         if "created_on" not in kwargs:
             kwargs["created_on"] = timezone.now()
 
-        if not kwargs["contact"].is_test:
-            (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
+        (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
 
         return Msg.objects.create(**kwargs)
 
@@ -490,7 +488,7 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User")
+        self.user = self.create_user("User", ("Viewers",))
         self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
         self.surveyor = self.create_user("Surveyor")
@@ -558,9 +556,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         utils._anon_user = None
         clear_flow_users()
 
-        # reset our simulation to False
-        Contact.set_simulation(False)
-
     def tearDown(self):
         if self.get_verbosity() > 2:
             details = []
@@ -621,6 +616,13 @@ class TembaTest(TembaTestMixin, SmartminTest):
     def releaseRuns(self, delete=False):
         self.release(FlowRun.objects.all(), delete=delete)
 
+    def assertResponseError(self, response, field, message, status_code=400):
+        self.assertEqual(status_code, response.status_code)
+        body = response.json()
+        self.assertTrue(message, field in body)
+        self.assertTrue(message, isinstance(body[field], (list, tuple)))
+        self.assertIn(message, body[field])
+
 
 class FlowFileTest(TembaTest):
     def setUp(self):
@@ -652,8 +654,6 @@ class FlowFileTest(TembaTest):
     def send(self, message, contact=None):
         if not contact:
             contact = self.contact
-        if contact.is_test:
-            Contact.set_simulation(True)
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
         # evaluate the inbound message against our triggers first
@@ -678,51 +678,43 @@ class FlowFileTest(TembaTest):
         """
         if not contact:
             contact = self.contact
-        try:
-            if contact.is_test:
-                Contact.set_simulation(True)
 
-            incoming = self.create_msg(
-                direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message
-            )
+        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
-            # start the flow
-            if initiate_flow:
-                flow.start(
-                    groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
-                )
+        # start the flow
+        if initiate_flow:
+            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
+        else:
+            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
+            (handled, msgs) = Flow.find_and_handle(incoming)
+
+            from temba.msgs import legacy
+
+            legacy.mark_handled(incoming)
+
+            if assert_handle:
+                self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
             else:
-                flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                (handled, msgs) = Flow.find_and_handle(incoming)
+                self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
 
-                Msg.mark_handled(incoming)
+        # our message should have gotten a reply
+        if assert_reply:
+            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
+            self.assertGreaterEqual(len(replies), 1)
 
-                if assert_handle:
-                    self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
-                else:
-                    self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
+            if len(replies) == 1:
+                self.assertEqual(contact, replies.first().contact)
+                return replies.first().text
 
-            # our message should have gotten a reply
-            if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-                self.assertGreaterEqual(len(replies), 1)
+            # if it's more than one, send back a list of replies
+            return [reply.text for reply in replies]
 
-                if len(replies) == 1:
-                    self.assertEqual(contact, replies.first().contact)
-                    return replies.first().text
+        else:
+            # assert we got no reply
+            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
+            self.assertFalse(replies)
 
-                # if it's more than one, send back a list of replies
-                return [reply.text for reply in replies]
-
-            else:
-                # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-                self.assertFalse(replies)
-
-            return None
-
-        finally:
-            Contact.set_simulation(False)
+        return None
 
 
 class MLStripper(HTMLParser):  # pragma: no cover

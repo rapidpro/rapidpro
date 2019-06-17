@@ -152,7 +152,7 @@ class TwilioClient(TembaTwilioRestClient):
             for event in self.events:
                 ChannelLog.log_ivr_interaction(call, "Started call", event)
 
-        except TwilioRestException as twilio_error:
+        except TwilioRestException as twilio_error:  # pragma: no cover
             message = "Twilio Error: %s" % twilio_error.msg
             if twilio_error.code == 20003:
                 message = _("Could not authenticate with your Twilio account. Check your token and try again.")

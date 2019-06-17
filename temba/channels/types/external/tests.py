@@ -90,6 +90,13 @@ class ExternalTypeTest(TembaTest):
             channel.replace_variables(body, {"text": 'this is "quote"'}, Channel.CONTENT_TYPE_JSON),
         )
 
+        # raw content type should be loaded on setting page as is
+        channel.config[Channel.CONFIG_CONTENT_TYPE] = "application/x-www-form-urlencoded; charset=utf-8"
+        channel.save()
+
+        response = self.client.get(config_url)
+        self.assertEqual(response.status_code, 200)
+
     def test_claim_bulk_sender(self):
         url = reverse("channels.types.external.claim") + "?role=S&channel=%s" % self.channel.pk
 

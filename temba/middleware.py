@@ -1,4 +1,5 @@
 import cProfile
+import logging
 import pstats
 import traceback
 from io import StringIO
@@ -8,9 +9,10 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone, translation
 
-from temba.contacts.models import Contact
 from temba.orgs.models import Org
 from temba.policies.models import Policy
+
+logger = logging.getLogger(__name__)
 
 
 class ExceptionMiddleware:
@@ -60,8 +62,8 @@ class BrandingMiddleware:
         host = "localhost"
         try:
             host = request.get_host()
-        except Exception:  # pragma: needs cover
-            traceback.print_exc()
+        except Exception as e:  # pragma: needs cover
+            logger.error(f"Could not get host: {host}, {str(e)}", exc_info=True)
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
 
@@ -162,21 +164,6 @@ class OrgTimezoneMiddleware:
             timezone.activate(org.timezone)
         else:
             timezone.activate(settings.USER_TIME_ZONE)
-
-        response = self.get_response(request)
-        return response
-
-
-class FlowSimulationMiddleware:
-    """
-    Resets Contact.set_simulation(False) for every request
-    """
-
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        Contact.set_simulation(False)
 
         response = self.get_response(request)
         return response

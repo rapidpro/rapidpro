@@ -127,10 +127,6 @@
         $("#id_groups").select2({ containerCssClass: "select2-temba-field" })
       {% endif %}
 
-      {% if object.trigger_type == 'U' %}
-        select2div("#id_channel", "520px", '{% trans "USSD channel" %}');
-      {% endif %}
-
       {% if object.trigger_type == 'M' %}
         select2div("#id_missedcall_flow", "520px", '{% trans "Flow to start" %}');
       {% endif %}

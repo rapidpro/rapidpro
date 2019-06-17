@@ -13,12 +13,6 @@ DEFAULT_MAX_LIST_ITEMS = 100
 DEFAULT_MAX_DICT_ITEMS = 100
 
 
-def validate_no_null_chars(value):
-    # loosely based on django.core.validators.ProhibitNullCharactersValidator
-    if value and "\x00" in str(value):
-        raise serializers.ValidationError(f"Null characters are not allowed.", code="null_characters_not_allowed")
-
-
 def validate_size(value, max_size):
     if hasattr(value, "__len__") and len(value) > max_size:
         raise serializers.ValidationError("This field can only contain up to %d items." % max_size)
@@ -104,15 +98,6 @@ class LimitedDictField(serializers.DictField):
         return super().to_internal_value(data)
 
 
-class NoNullCharsField(serializers.CharField):
-    default_validators = [validate_no_null_chars]
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.allow_blank = True
-        self.allow_null = True
-
-
 class URNField(serializers.CharField):
     max_length = 255
 
@@ -134,7 +119,12 @@ class TembaModelField(serializers.RelatedField):
     model = None
     model_manager = "objects"
     lookup_fields = ("uuid",)
+
+    # lookup fields which should be matched case-insensitively
     ignore_case_for_fields = ()
+
+    # throw validation exception if any object not found, otherwise returns none
+    require_exists = True
 
     class LimitedSizeList(serializers.ManyRelatedField):
         def run_validation(self, data=serializers.empty):
@@ -175,7 +165,7 @@ class TembaModelField(serializers.RelatedField):
 
         obj = self.get_object(data)
 
-        if not obj:
+        if self.require_exists and not obj:
             raise serializers.ValidationError("No such object: %s" % data)
 
         return obj
@@ -205,7 +195,7 @@ class ContactField(TembaModelField):
     lookup_fields = ("uuid", "urns__urn")
 
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"], is_active=True, is_test=False)
+        return self.model.objects.filter(org=self.context["org"], is_active=True)
 
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
@@ -265,7 +255,8 @@ class MessageField(TembaModelField):
     model = Msg
     lookup_fields = ("id",)
 
+    # messages get archived automatically so don't error if a message doesn't exist
+    require_exists = False
+
     def get_queryset(self):
-        return self.model.objects.filter(org=self.context["org"], contact__is_test=False).exclude(
-            visibility=Msg.VISIBILITY_DELETED
-        )
+        return self.model.objects.filter(org=self.context["org"]).exclude(visibility=Msg.VISIBILITY_DELETED)

@@ -12,7 +12,7 @@ from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.channels.models import Channel, ChannelType
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, ContactURN
 from temba.flows.models import Flow
@@ -344,48 +344,6 @@ class ReferralTriggerForm(BaseTriggerForm):
         fields = ("channel", "referrer_id", "flow")
 
 
-class UssdTriggerForm(BaseTriggerForm):
-    """
-    Form for USSD triggers
-    """
-
-    keyword = forms.CharField(
-        max_length=32, required=True, label=_("USSD Code"), help_text=_("USSD code to dial (eg: *111#)")
-    )
-    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
-
-    def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(
-            org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.TYPE_USSD]
-        )
-        super().__init__(user, flows, *args, **kwargs)
-
-        self.fields["channel"].queryset = Channel.get_by_category(self.user.get_org(), ChannelType.Category.USSD)
-
-    def clean_keyword(self):
-        keyword = self.cleaned_data.get("keyword", "").strip()
-
-        if keyword == "" or (keyword and not regex.match(r"^[\d\*\#]+$", keyword, flags=regex.UNICODE)):
-            raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
-
-        return keyword
-
-    def get_existing_triggers(self, cleaned_data):
-        keyword = cleaned_data.get("keyword", "").strip()
-        existing = Trigger.objects.filter(
-            org=self.user.get_org(), keyword__iexact=keyword, is_archived=False, is_active=True
-        )
-        existing = existing.filter(channel=cleaned_data["channel"])
-
-        if self.instance:
-            existing = existing.exclude(id=self.instance.id)
-
-        return existing
-
-    class Meta(BaseTriggerForm.Meta):
-        fields = ("keyword", "channel", "flow")
-
-
 class TriggerActionForm(BaseActionForm):
     allowed_actions = (("archive", _("Archive Triggers")), ("restore", _("Restore Triggers")))
 
@@ -426,7 +384,6 @@ class TriggerCRUDL(SmartCRUDL):
         "catchall",
         "new_conversation",
         "referral",
-        "ussd",
     )
 
     class OrgMixin(OrgPermsMixin):
@@ -457,8 +414,6 @@ class TriggerCRUDL(SmartCRUDL):
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
                 add_section("trigger-referral", "triggers.trigger_referral", "icon-exit")
 
-            if self.org.get_ussd_channels():
-                add_section("trigger-ussd", "triggers.trigger_ussd", "icon-mobile")
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
@@ -470,7 +425,6 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
             Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
             Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
-            Trigger.TYPE_USSD_PULL: UssdTriggerForm,
             Trigger.TYPE_REFERRAL: ReferralTriggerForm,
         }
 
@@ -563,7 +517,7 @@ class TriggerCRUDL(SmartCRUDL):
                 if trigger.schedule.is_expired():
                     from temba.schedules.tasks import check_schedule_task
 
-                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.pk))
+                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.id))
 
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
@@ -806,7 +760,7 @@ class TriggerCRUDL(SmartCRUDL):
             if obj.schedule.is_expired():
                 from temba.schedules.tasks import check_schedule_task
 
-                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.pk))
+                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.id))
 
             return obj
 
@@ -922,30 +876,3 @@ class TriggerCRUDL(SmartCRUDL):
             response = self.render_to_response(self.get_context_data(form=form))
             response["REDIRECT"] = self.get_success_url()
             return response
-
-    class Ussd(CreateTrigger):
-        form_class = UssdTriggerForm
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-
-            self.object = Trigger.create(
-                org,
-                user,
-                Trigger.TYPE_USSD_PULL,
-                form.cleaned_data["flow"],
-                form.cleaned_data["channel"],
-                keyword=form.cleaned_data["keyword"],
-            )
-
-            analytics.track(self.request.user.username, "temba.trigger_created_ussd")
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_ussd_%s"
-            return kwargs

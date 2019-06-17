@@ -5,7 +5,7 @@ from temba.tests import TembaTest
 from ...models import Channel
 
 
-class ChikkaTypeTest(TembaTest):
+class BongoLiveTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -49,5 +49,4 @@ class ChikkaTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertContains(response, reverse("courier.bl", args=[channel.uuid, "receive"]))
-        self.assertContains(response, reverse("courier.bl", args=[channel.uuid, "status"]))
+        self.assertContains(response, reverse("courier.bl", args=[channel.uuid]))
