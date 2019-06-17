@@ -579,7 +579,7 @@ def migrate_to_version_11_3(json_flow, flow=None):
 
     for ruleset in json_flow.get("rule_sets", []):
         if ruleset["ruleset_type"] == "webhook":
-            if ruleset["config"]["webhook_action"] == "POST":
+            if ruleset["config"].get("webhook_action", "POST") == "POST":
                 ruleset["config"]["legacy_format"] = True
 
     return json_flow
