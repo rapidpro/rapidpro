@@ -84,7 +84,7 @@ python-gcm==0.4
 python-intercom==3.1.0
 python-magic==0.4.15
 python-telegram-bot==11.1.0
-pytz==2019.1
+pytz
 rapidpro-expressions==1.7
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
