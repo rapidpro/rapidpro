@@ -36,7 +36,7 @@ class ShaqodoonType(ChannelType):
     )
 
     configuration_urls = (
-        dict(label=_(""), url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"),
+        dict(label="", url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"),
     )
 
     def is_available_to(self, user):

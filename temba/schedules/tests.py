@@ -7,7 +7,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import TembaTest
+from temba.tests import MigrationTest, TembaTest
+from temba.triggers.models import Trigger
 from temba.utils import json
 
 from .models import Schedule
@@ -21,23 +22,23 @@ SATURDAY = 5  # 64
 SUNDAY = 6  # 128
 
 
+def create_schedule(user, repeat_period, repeat_days=(), start_date=None):
+    if not start_date:
+        # Test date is 10am on a Thursday, Jan 3rd
+        start_date = datetime(2013, 1, 3, hour=10, minute=0).replace(tzinfo=pytz.utc)
+
+    # create a our bitmask from repeat_days
+    bitmask = 0
+    for day in repeat_days:
+        bitmask += pow(2, (day + 1) % 7)
+
+    return Schedule.create_schedule(start_date, repeat_period, user, bitmask)
+
+
 class ScheduleTest(TembaTest):
     def setUp(self):
         super().setUp()
         self.joe = self.create_contact(name="Joe Blow", number="123")
-
-    def create_schedule(self, repeat_period, repeat_days=(), start_date=None):
-
-        if not start_date:
-            # Test date is 10am on a Thursday, Jan 3rd
-            start_date = datetime(2013, 1, 3, hour=10, minute=0).replace(tzinfo=pytz.utc)
-
-        # create a our bitmask from repeat_days
-        bitmask = 0
-        for day in repeat_days:
-            bitmask += pow(2, (day + 1) % 7)
-
-        return Schedule.create_schedule(start_date, repeat_period, self.user, bitmask)
 
     def test_get_repeat_days_display(self):
         sched = Schedule.create_schedule(timezone.now(), "W", self.user, repeat_days=2)
@@ -55,7 +56,7 @@ class ScheduleTest(TembaTest):
     def test_schedule(self):
         # updates two days later on Saturday
         tomorrow = timezone.now() + timedelta(days=1)
-        sched = self.create_schedule("W", [THURSDAY, SATURDAY], start_date=tomorrow)
+        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY], start_date=tomorrow)
 
         self.assertTrue(sched.has_pending_fire())
         self.assertEqual(sched.status, "S")
@@ -75,7 +76,7 @@ class ScheduleTest(TembaTest):
 
     def test_month_fire(self):
         start = datetime(2019, 1, 31, hour=10).replace(tzinfo=pytz.utc)
-        sched = self.create_schedule("M", start_date=start)
+        sched = create_schedule(self.admin, "M", start_date=start)
         create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
 
         self.assertScheduleFires(
@@ -100,7 +101,7 @@ class ScheduleTest(TembaTest):
         )
 
         start = datetime(2019, 1, 5, hour=10).replace(tzinfo=pytz.utc)
-        sched = self.create_schedule("M", start_date=start)
+        sched = create_schedule(self.admin, "M", start_date=start)
         create = datetime(2019, 1, 8, hour=10).replace(tzinfo=pytz.utc)
 
         self.assertScheduleFires(
@@ -126,7 +127,7 @@ class ScheduleTest(TembaTest):
     def test_next_fire(self):
 
         # updates two days later on Saturday
-        sched = self.create_schedule("W", [THURSDAY, SATURDAY])
+        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY])
 
         self.assertEqual(sched.repeat_days, 80)
         self.assertEqual(
@@ -134,13 +135,13 @@ class ScheduleTest(TembaTest):
         )
 
         # updates six days later on Wednesday
-        sched = self.create_schedule("W", [WEDNESDAY, THURSDAY])
+        sched = create_schedule(self.admin, "W", [WEDNESDAY, THURSDAY])
         self.assertEqual(
             datetime(2013, 1, 9, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire)
         )
 
         # since we are starting thursday, a thursday should be 7 days out
-        sched = self.create_schedule("W", [THURSDAY])
+        sched = create_schedule(self.admin, "W", [THURSDAY])
         self.assertEqual(
             datetime(2013, 1, 10, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire)
         )
@@ -162,34 +163,34 @@ class ScheduleTest(TembaTest):
         self.assertEqual(next_update, sched.next_fire)
 
         # try a weekly schedule
-        sched = self.create_schedule("W", [THURSDAY])
+        sched = create_schedule(self.admin, "W", [THURSDAY])
         self.assertEqual(datetime(2013, 1, 10, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule())
         self.assertEqual(next_update, sched.next_fire)
 
         # lastly, a daily schedule
-        sched = self.create_schedule("D")
+        sched = create_schedule(self.admin, "D")
         self.assertEqual(datetime(2013, 1, 4, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
 
-        sched = self.create_schedule("M")
+        sched = create_schedule(self.admin, "M")
         self.assertEqual(datetime(2013, 2, 3, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2013, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2013, 4, 3, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
         self.assertEqual(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 28).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 3, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
         self.assertEqual(
             datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc),
             sched.get_next_fire(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)),
         )
 
-        sched = self.create_schedule("M", start_date=datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 3, 1).replace(tzinfo=pytz.utc)))
@@ -197,7 +198,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 27, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 27, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
@@ -207,7 +208,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 27, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 28, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 28, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
@@ -217,7 +218,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 28, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 29, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 29, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
@@ -227,7 +228,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 29, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 30, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 30, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
@@ -237,7 +238,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 2, 1).replace(tzinfo=pytz.utc)))
@@ -247,7 +248,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 1).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 31, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2013, 12, 31).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 31).replace(tzinfo=pytz.utc)))
@@ -259,7 +260,7 @@ class ScheduleTest(TembaTest):
         self.assertTrue(sched.update_schedule(datetime(2014, 4, 30).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 5, 31, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
-        sched = self.create_schedule("M", start_date=datetime(2013, 12, 5, hour=10).replace(tzinfo=pytz.utc))
+        sched = create_schedule(self.admin, "M", start_date=datetime(2013, 12, 5, hour=10).replace(tzinfo=pytz.utc))
         self.assertTrue(sched.update_schedule(datetime(2013, 12, 5).replace(tzinfo=pytz.utc)))
         self.assertEqual(str(datetime(2014, 1, 5, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 1, 5).replace(tzinfo=pytz.utc)))
@@ -314,7 +315,7 @@ class ScheduleTest(TembaTest):
         # self.assertTrue(broadcast.schedule.has_pending_fire())
 
     def test_update(self):
-        sched = self.create_schedule("W", [THURSDAY, SATURDAY])
+        sched = create_schedule(self.admin, "W", [THURSDAY, SATURDAY])
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
 
         # viewer can't access
@@ -395,7 +396,7 @@ class ScheduleTest(TembaTest):
         eleven_fifteen_est = tz.localize(datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0))
 
         # Test date is 10:15am on a Thursday, Jan 3rd
-        schedule = self.create_schedule("D", start_date=eleven_fifteen_est)
+        schedule = create_schedule(self.admin, "D", start_date=eleven_fifteen_est)
         schedule.save()
 
         Broadcast.create(self.org, self.admin, "Message", schedule=schedule, contacts=[self.joe])
@@ -413,7 +414,7 @@ class ScheduleTest(TembaTest):
         self.org.save()
         tz = self.org.timezone
 
-        sched = self.create_schedule("D")
+        sched = create_schedule(self.admin, "D")
         Broadcast.create(self.org, self.admin, "Message", schedule=sched, contacts=[self.joe])
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -450,3 +451,29 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
+
+
+class RemoveOrphansMigrationTest(MigrationTest):
+    app = "schedules"
+    migrate_from = "0006_initial"
+    migrate_to = "0007_remove_orphans"
+
+    def setUpBeforeMigration(self, apps):
+        contact1 = self.create_contact("Bob", twitter="bob")
+        favorites = self.get_flow("favorites")
+
+        # create schedule attached to a trigger
+        self.trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=favorites, schedule=create_schedule(self.admin, "D")
+        )
+
+        # create schedule attached to a broadcast
+        self.broadcast = Broadcast.create(
+            self.org, self.admin, "hi there", contacts=[contact1], schedule=create_schedule(self.admin, "W")
+        )
+
+        # create orphan schedule
+        create_schedule(self.admin, "M")
+
+    def test_merged(self):
+        self.assertEqual(Schedule.objects.count(), 2)

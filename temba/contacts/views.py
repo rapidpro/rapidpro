@@ -119,9 +119,9 @@ class ContactGroupForm(forms.ModelForm):
         if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
             raise forms.ValidationError(
                 _(
-                    "This org has %s groups and the limit is %s. "
+                    "This org has %(count)d groups and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)
+                    "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
                 )
             )
 
@@ -660,10 +660,10 @@ class ContactCRUDL(SmartCRUDL):
                         if existing_key and existing_key in Contact.RESERVED_FIELD_KEYS:
                             raise forms.ValidationError(
                                 _(
-                                    "'%s' contact field has '%s' key which is reserved name. "
+                                    "'%(label)s' contact field has '%(key)s' key which is reserved name. "
                                     "Column cannot be imported"
                                 )
-                                % (value, existing_key)
+                                % dict(label=value, key=existing_key)
                             )
 
                         used_labels.append(field_label)
@@ -851,9 +851,9 @@ class ContactCRUDL(SmartCRUDL):
                 if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
                     raise forms.ValidationError(
                         _(
-                            "This org has %s groups and the limit is %s. "
+                            "This org has %(count)d groups and the limit is %(limit)d. "
                             "You must delete existing ones before you can "
-                            "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)
+                            "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
                         )
                     )
 
@@ -1692,7 +1692,6 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
 
     def clean(self):
-
         super().clean()
 
         cnt_active_userfields_per_org = ContactField.user_fields.count_active_for_org(org=self.org)

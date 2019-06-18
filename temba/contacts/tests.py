@@ -6656,6 +6656,11 @@ class ContactURNTest(TembaTest):
         )
         self.assertEqual(urn.get_display(self.org), "billy_bob")
 
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="whatsapp", path="12065551212", identity="whatsapp:12065551212", priority=50
+        )
+        self.assertEqual(urn.get_display(self.org), "(206) 555-1212")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
