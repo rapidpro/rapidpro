@@ -26,13 +26,15 @@ def migrate_flows(min_version=None):  # pragma: no cover
     num_updated = 0
     num_errored = 0
 
-    for id_batch in chunk_list(flow_ids, 1000):
+    for id_batch in chunk_list(flow_ids, 5000):
         for flow in Flow.objects.filter(id__in=id_batch):
             try:
                 flow.ensure_current_version(min_version=to_version)
                 num_updated += 1
             except Exception:
-                print(f"Unable to migrate flow '{flow.name}' ({str(flow.uuid)}):")
+                print(
+                    f"Unable to migrate flow[uuid={str(flow.uuid)} name={flow.name} created_on={flow.created_on.isoformat()}]':"
+                )
                 print(traceback.format_exc())
                 num_errored += 1
 
