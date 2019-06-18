@@ -15,8 +15,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         password = forms.CharField(
             required=True,
-            label=_("FreshChat Channel ID"),
-            help_text=_("Your FreshChat Channel UUID"),
+            label=_("FreshChat Webhook Public Key"),
+            help_text=_("Webhook Public Key used to verify signatures"),
         )
         username = forms.CharField(
             required=True, label=_("FreshChat Agent ID"), help_text=_("The ID of the Agent you want RP to Use.")
