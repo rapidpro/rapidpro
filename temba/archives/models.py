@@ -1,5 +1,4 @@
 import gzip
-import json
 from gettext import gettext as _
 from urllib.parse import urlparse
 
@@ -10,7 +9,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from temba.utils import sizeof_fmt
+from temba.utils import json, sizeof_fmt
 
 
 class Archive(models.Model):

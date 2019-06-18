@@ -139,7 +139,7 @@ class FlowType(AssetType):
     serializer = serialize_flow
 
     def get_all(self, org):
-        return org.flows.all()
+        return org.flows.filter(is_active=True, is_system=False)
 
 
 class GroupType(AssetType):

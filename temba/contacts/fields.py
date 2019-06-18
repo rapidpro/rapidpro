@@ -1,8 +1,7 @@
-
-import json
-
 from django import forms
 from django.forms import widgets
+
+from temba.utils import json
 
 from .models import URN, Contact, ContactGroup, ContactURN
 
@@ -40,7 +39,7 @@ class OmniboxWidget(widgets.TextInput):
     def set_user(self, user):
         self.__dict__["user"] = user
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         value = self.get_json(value)
         return super().render(name, value, attrs)
 
@@ -65,7 +64,7 @@ class OmniboxWidget(widgets.TextInput):
 
 class OmniboxField(forms.Field):
     default_error_messages = {}
-    widget = OmniboxWidget(attrs={"class": "omni_widget", "style": "width:85%"})
+    widget = OmniboxWidget(attrs={"class": "omni_widget", "style": "width:90%"})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

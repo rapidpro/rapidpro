@@ -1,5 +1,5 @@
 -extends 'smartmin/form.html'
--load i18n
+-load i18n temba
 -load humanize
 
 -block summary
@@ -127,16 +127,8 @@
         $("#id_groups").select2({ containerCssClass: "select2-temba-field" })
       {% endif %}
 
-      {% if object.trigger_type == 'U' %}
-        select2div("#id_channel", "520px", '{% trans "USSD channel" %}');
-      {% endif %}
-
       {% if object.trigger_type == 'M' %}
         select2div("#id_missedcall_flow", "520px", '{% trans "Flow to start" %}');
-      {% endif %}
-
-      {% if object.trigger_type == 'F' %}
-        select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
       {% endif %}
 
       {% if object.trigger_type == 'N' %}
@@ -151,7 +143,7 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));
+      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_response'));
 
       $('#id_flow').select2({
         minimumResultsForSearch: -1

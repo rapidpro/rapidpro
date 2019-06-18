@@ -1,4 +1,5 @@
 import gc
+import logging
 import os
 import time
 from datetime import datetime, timedelta
@@ -18,6 +19,8 @@ from .email import send_template_email
 from .models import TembaModel
 from .text import clean_string
 
+logger = logging.getLogger(__name__)
+
 
 class BaseExportAssetStore(BaseAssetStore):
     def is_asset_ready(self, asset):
@@ -32,7 +35,7 @@ class BaseExportTask(TembaModel):
     analytics_key = None
     asset_type = None
 
-    MAX_EXCEL_ROWS = 1048576
+    MAX_EXCEL_ROWS = 1_048_576
     MAX_EXCEL_COLS = 16384
 
     WIDTH_SMALL = 15
@@ -49,6 +52,9 @@ class BaseExportTask(TembaModel):
         (STATUS_COMPLETE, _("Complete")),
         (STATUS_FAILED, _("Failed")),
     )
+
+    # log progress after this number of exported objects have been exported
+    LOG_PROGRESS_PER_ROWS = 10000
 
     org = models.ForeignKey(
         "orgs.Org", on_delete=models.PROTECT, related_name="%(class)ss", help_text=_("The organization of the user.")
@@ -76,7 +82,7 @@ class BaseExportTask(TembaModel):
             # notify user who requested this export
             send_template_email(
                 self.created_by.username,
-                self.email_subject,
+                self.email_subject % self.org.name,
                 self.email_template,
                 self.get_email_context(branding),
                 branding,
@@ -90,9 +96,7 @@ class BaseExportTask(TembaModel):
                 os.unlink(temp_file.name)
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Unable to perform export: {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
             print(f"Failed to complete {self.analytics_key} with ID {self.id}")
 
@@ -100,7 +104,7 @@ class BaseExportTask(TembaModel):
         else:
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
-            print(f"Completed {self.analytics_key} in {elapsed:.1f} seconds")
+            print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
@@ -115,7 +119,7 @@ class BaseExportTask(TembaModel):
 
     def update_status(self, status):
         self.status = status
-        self.save(update_fields=("status",))
+        self.save(update_fields=("status", "modified_on"))
 
     @classmethod
     def get_recent_unfinished(cls, org):

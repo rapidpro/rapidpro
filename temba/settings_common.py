@@ -1,4 +1,3 @@
-
 import os
 import socket
 import sys
@@ -47,19 +46,21 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-# where recordings and exports are stored
+STORAGE_URL = None  # may be local /media or AWS S3
+STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
+
+# -----------------------------------------------------------------------------------
+# AWS S3 storage used in production
+# -----------------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = "aws_access_key_id"
+AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
+AWS_DEFAULT_ACL = "private"
+
 AWS_STORAGE_BUCKET_NAME = "dl-temba-io"
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
-STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # bucket where archives files are stored
 ARCHIVE_BUCKET = "dl-temba-archives"
-
-# keys to access s3
-AWS_ACCESS_KEY_ID = "aws_access_key_id"
-AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-
-AWS_DEFAULT_ACL = "private"
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
@@ -126,7 +127,9 @@ TESTFILES_DIR = os.path.join(PROJECT_DIR, "../testfiles")
 STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
-    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/build"),
+    os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
+    os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
 STATIC_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 STATIC_URL = "/sitestatic/"
@@ -183,7 +186,6 @@ MIDDLEWARE = (
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
     "temba.middleware.OrgTimezoneMiddleware",
-    "temba.middleware.FlowSimulationMiddleware",
     "temba.middleware.ActivateLanguageMiddleware",
     "temba.middleware.OrgHeaderMiddleware",
 )
@@ -226,6 +228,7 @@ INSTALLED_APPS = (
     # django-timezone-field
     "timezone_field",
     # temba apps
+    "temba.apks",
     "temba.archives",
     "temba.assets",
     "temba.auth_tweaks",
@@ -234,6 +237,7 @@ INSTALLED_APPS = (
     "temba.public",
     "temba.policies",
     "temba.schedules",
+    "temba.templates",
     "temba.orgs",
     "temba.contacts",
     "temba.channels",
@@ -243,7 +247,6 @@ INSTALLED_APPS = (
     "temba.utils",
     "temba.campaigns",
     "temba.ivr",
-    "temba.ussd",
     "temba.locations",
     "temba.values",
     "temba.airtime",
@@ -289,7 +292,7 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
-        "flow_types": ["F", "V", "S", "U"],  # see Flow.FLOW, Flow.VOICE, Flow.SURVEY, Flow.USSD
+        "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -310,13 +313,13 @@ PERMISSIONS = {
         "read",  # can read an object, viewing it's details
         "update",  # can update an object
         "delete",  # can delete an object,
-        "list",
-    ),  # can view a list of the objects
+        "list",  # can view a list of the objects
+    ),
     "api.apitoken": ("refresh",),
     "api.resthook": ("api", "list"),
     "api.webhookevent": ("api",),
     "api.resthooksubscriber": ("api",),
-    "campaigns.campaign": ("api", "archived"),
+    "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
     "contacts.contact": (
         "api",
@@ -335,7 +338,7 @@ PERMISSIONS = {
         "update_fields",
         "update_fields_input",
     ),
-    "contacts.contactfield": ("api", "json", "managefields"),
+    "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
@@ -377,7 +380,7 @@ PERMISSIONS = {
         "trial",
         "twilio_account",
         "twilio_connect",
-        "webhook",
+        "token",
     ),
     "orgs.usersettings": ("phone",),
     "channels.channel": (
@@ -392,7 +395,7 @@ PERMISSIONS = {
         "search_nexmo",
         "search_numbers",
     ),
-    "channels.channellog": ("session",),
+    "channels.channellog": ("connection",),
     "channels.channelevent": ("api", "calls"),
     "flows.flowstart": ("api",),
     "flows.flow": (
@@ -421,6 +424,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
     ),
+    "flows.flowsession": ("json",),
     "msgs.msg": (
         "api",
         "archive",
@@ -440,6 +444,7 @@ PERMISSIONS = {
     "msgs.label": ("api", "create", "create_folder"),
     "orgs.topup": ("manage",),
     "policies.policy": ("admin", "history", "give_consent"),
+    "templates.template": ("api",),
     "triggers.trigger": (
         "archived",
         "catchall",
@@ -451,7 +456,6 @@ PERMISSIONS = {
         "referral",
         "register",
         "schedule",
-        "ussd",
     ),
 }
 
@@ -464,6 +468,7 @@ GROUP_PERMISSIONS = {
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
+        "contacts.contactgroup_api",
         "contacts.contactfield_api",
         "flows.flow_api",
         "locations.adminboundary_api",
@@ -475,12 +480,20 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         "auth.user_list",
         "auth.user_update",
+        "apks.apk_create",
+        "apks.apk_list",
+        "apks.apk_update",
+        "campaigns.campaign_read",
+        "channels.channel_configuration",
+        "channels.channel_read",
         "contacts.contact_break_anon",
+        "contacts.contact_read",
         "flows.flow_editor",
         "flows.flow_json",
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
+        "flows.flowsession_json",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_grant",
@@ -503,8 +516,8 @@ GROUP_PERMISSIONS = {
         "api.resthook_list",
         "api.resthooksubscriber_api",
         "api.webhookevent_api",
-        "api.webhookevent_list",
-        "api.webhookevent_read",
+        "api.webhookresult_list",
+        "api.webhookresult_read",
         "archives.archive.*",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
@@ -531,7 +544,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -563,7 +575,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_transfer_to_account",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
-        "orgs.org_webhook",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -585,7 +597,7 @@ GROUP_PERMISSIONS = {
         "channels.channelevent.*",
         "channels.channellog_list",
         "channels.channellog_read",
-        "channels.channellog_session",
+        "channels.channellog_connection",
         "flows.flow.*",
         "flows.flowstart_api",
         "flows.flowlabel.*",
@@ -611,6 +623,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -649,7 +662,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
-        "ussd.ussdsession.*",
         "locations.adminboundary_alias",
         "locations.adminboundary_api",
         "locations.adminboundary_boundaries",
@@ -661,7 +673,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -703,6 +714,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "templates.template_api",
         "triggers.trigger.*",
     ),
     "Viewers": (
@@ -745,6 +757,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
+        "flows.flow_revisions",
         "flows.flow_run_table",
         "flows.flow_simulate",
         "msgs.broadcast_schedule_list",
@@ -808,50 +821,40 @@ DATABASES = {"default": _default_database_config, "direct": _direct_database_con
 if TESTING:
     DATABASES["default"] = _direct_database_config
 
-# -----------------------------------------------------------------------------------
-# Debug Toolbar
-# -----------------------------------------------------------------------------------
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
-
-DEBUG_TOOLBAR_CONFIG = {"INTERCEPT_REDIRECTS": False}  # disable redirect traps
 
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
-    "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
+    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
-    "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
-    "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
-    "check-flow-timeouts": {"task": "check_flow_timeouts_task", "schedule": timedelta(seconds=20)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-messages-task": {"task": "check_messages_task", "schedule": timedelta(seconds=300)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
+    "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
+    "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
-    "clear-old-msg-external-ids": {"task": "clear_old_msg_external_ids", "schedule": crontab(hour=2, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
-    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=300)},
-    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=300)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=300)},
-    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=300)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=300)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=300)},
+    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
+    "squash-flowruncounts": {"task": "squash_flowruncounts", "schedule": timedelta(seconds=60)},
+    "squash-flowpathcounts": {"task": "squash_flowpathcounts", "schedule": timedelta(seconds=60)},
+    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
+    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
+    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
     "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
+    "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
-CELERY_TASK_MAP = {
-    "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "start_msg_flow_batch": "temba.flows.tasks.start_msg_flow_batch_task",
-    "handle_event_task": "temba.msgs.tasks.handle_event_task",
-}
+CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
 
 # -----------------------------------------------------------------------------------
 # Async tasks with celery
@@ -898,11 +901,12 @@ REST_FRAMEWORK = {
         "temba.api.support.APITokenAuthentication",
         "temba.api.support.APIBasicAuthentication",
     ),
-    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgRateThrottle",),
+    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgUserRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",
         "v2.messages": "2500/hour",
+        "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
         "v2.api": "2500/hour",
     },
@@ -938,9 +942,6 @@ for brand in BRANDING.values():
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
-MAGE_API_URL = "http://localhost:8026/api/v1"
-MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
-
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
 # -----------------------------------------------------------------------------------
@@ -975,20 +976,16 @@ SEND_CHATBASE = False
 #         could cause calls in test environments
 SEND_CALLS = False
 
-MESSAGE_HANDLERS = [
-    "temba.triggers.handlers.TriggerHandler",
-    "temba.flows.handlers.FlowHandler",
-    "temba.triggers.handlers.CatchAllHandler",
-]
-
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
+    "temba.channels.types.signalwire.SignalWireType",
     "temba.channels.types.nexmo.NexmoType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
+    "temba.channels.types.bongolive.BongoLiveType",
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
@@ -999,12 +996,12 @@ CHANNEL_TYPES = [
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.globe.GlobeType",
     "temba.channels.types.highconnection.HighConnectionType",
+    "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
-    "temba.channels.types.junebug_ussd.JunebugUSSDType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
     "temba.channels.types.m3tech.M3TechType",
@@ -1013,6 +1010,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.mblox.MbloxType",
     "temba.channels.types.messangi.MessangiType",
     "temba.channels.types.novo.NovoType",
+    "temba.channels.types.playmobile.PlayMobileType",
     "temba.channels.types.plivo.PlivoType",
     "temba.channels.types.redrabbit.RedRabbitType",
     "temba.channels.types.shaqodoon.ShaqodoonType",
@@ -1024,9 +1022,12 @@ CHANNEL_TYPES = [
     "temba.channels.types.twitter_activity.TwitterActivityType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
+    "temba.channels.types.wavy.WavyType",
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
+    "temba.channels.types.i2sms.I2SMSType",
+    "temba.channels.types.clicksend.ClickSendType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1079,20 +1080,16 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 EVENT_FIRE_TRIM_DAYS = 90
 
 # -----------------------------------------------------------------------------------
-# Flowserver - disabled by default. GoFlow defaults to http://localhost:8800
+# Installs can also choose how long to keep FlowSessions around. These are
+# potentially big but really helpful for debugging. Default is 7 days.
 # -----------------------------------------------------------------------------------
-FLOW_SERVER_URL = None
-FLOW_SERVER_AUTH_TOKEN = None
-FLOW_SERVER_DEBUG = False
-FLOW_SERVER_FORCE = False
-FLOW_SERVER_TRIAL = "off"  # 'on', 'off', or 'always'
+FLOW_SESSION_TRIM_DAYS = 7
 
 # -----------------------------------------------------------------------------------
-# These legacy channels still send on RapidPro:
-#   * TT is our old Twitter integration, will be removed ~June 2018
-#   * JNU is junebug USSD, which may be removed depending on future of USSD
+# Mailroom - disabled by default, but is where simulation happens
 # -----------------------------------------------------------------------------------
-LEGACY_CHANNELS = set(["TT", "JNU"])
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
 # Chatbase integration
@@ -1108,3 +1105,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+
+# Maximum active ContactFields users can have in an Org
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255

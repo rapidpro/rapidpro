@@ -1,28 +1,20 @@
-import json
 import logging
-from datetime import datetime
 
-import pytz
-from twilio import twiml
+from twilio.twiml.voice_response import VoiceResponse
 
-from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.encoding import force_text
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, Msg
 from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
-from temba.ussd.models import USSDSession
-from temba.utils import on_transaction_commit
+from temba.utils import json
 from temba.utils.http import HttpEvent
-from temba.utils.queues import push_task
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +72,7 @@ class TWIMLCallHandler(BaseChannelHandler):
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
-        from twilio.util import RequestValidator
+        from twilio.request_validator import RequestValidator
         from temba.flows.models import FlowSession
 
         signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
@@ -104,7 +96,7 @@ class TWIMLCallHandler(BaseChannelHandler):
             # find a channel that knows how to answer twilio calls
             channel = self.get_ringing_channel(uuid=channel_uuid)
             if not channel:
-                response = twiml.Response()
+                response = VoiceResponse()
                 response.say("Sorry, there is no channel configured to take this call. Goodbye.")
                 response.hangup()
                 return HttpResponse(str(response))
@@ -130,7 +122,7 @@ class TWIMLCallHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, call_sid)
                     session = FlowSession.create(contact, connection=call)
 
                     call.update_status(
@@ -298,11 +290,13 @@ class NexmoCallHandler(BaseChannelHandler):
             flow = Trigger.find_flow_for_inbound_call(contact)
 
             if flow:
-                call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+                call = IVRCall.create_incoming(channel, contact, urn_obj, external_id)
                 session = FlowSession.create(contact, connection=call)
 
                 FlowRun.create(flow, contact, session=session, connection=call)
                 response = Flow.handle_call(call)
+                channel_type = channel.channel_type
+                call.update_status("answered", None, channel_type)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, str(response))
                 ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
@@ -322,234 +316,6 @@ class NexmoCallHandler(BaseChannelHandler):
 
                 # either way, we need to hangup now
                 return JsonResponse(json.loads(str(response)), safe=False)
-
-
-class MageHandler(BaseChannelHandler):
-    handler_url = r"^mage/(?P<action>handle_message|follow_notification|stop_contact)$"
-    handler_name = "handlers.mage_handler"
-
-    @csrf_exempt
-    def dispatch(self, request, *args, **kwargs):
-        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
-
-    def post(self, request, *args, **kwargs):
-        from temba.triggers.tasks import fire_follow_triggers
-
-        if not settings.MAGE_AUTH_TOKEN:  # pragma: no cover
-            return JsonResponse(dict(error="Authentication not configured"), status=401)
-
-        authorization = request.META.get("HTTP_AUTHORIZATION", "").split(" ")
-
-        if len(authorization) != 2 or authorization[0] != "Token" or authorization[1] != settings.MAGE_AUTH_TOKEN:
-            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
-
-        action = kwargs["action"].lower()
-        new_contact = request.POST.get("new_contact", "").lower() in ("true", "1")
-
-        if action == "handle_message":
-            try:
-                msg_id = int(request.POST.get("message_id", ""))
-            except ValueError:
-                return JsonResponse(dict(error="Invalid message_id"), status=400)
-
-            msg = Msg.objects.select_related("org").get(pk=msg_id)
-
-            push_task(
-                msg.org,
-                HANDLER_QUEUE,
-                HANDLE_EVENT_TASK,
-                dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact),
-            )
-
-            # fire an event off for this message
-            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
-
-        elif action == "follow_notification":
-            try:
-                channel_id = int(request.POST.get("channel_id", ""))
-                contact_urn_id = int(request.POST.get("contact_urn_id", ""))
-            except ValueError:  # pragma: needs cover
-                return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
-
-            on_transaction_commit(
-                lambda: fire_follow_triggers.apply_async(
-                    args=(channel_id, contact_urn_id, new_contact), queue="handler"
-                )
-            )
-
-        elif action == "stop_contact":
-            contact = Contact.objects.filter(is_active=True, id=request.POST.get("contact_id", "-1")).first()
-            if not contact:
-                return JsonResponse(dict(error="Invalid contact_id"), status=400)
-
-            contact.stop(contact.modified_by)
-
-        return JsonResponse(dict(error=None))
-
-
-class JunebugUSSDHandler(BaseChannelHandler):
-    handler_url = r"^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$"
-    handler_name = "handlers.junebug_handler"
-
-    ACK = "ack"
-    NACK = "nack"
-
-    @csrf_exempt
-    def dispatch(self, request, *args, **kwargs):
-        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("Must be called as a POST", status=400)
-
-    def is_ussd_message(self, msg):
-        return "session_event" in msg.get("channel_data", {})
-
-    def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-
-        request_body = request.body
-        request_method = request.method
-        request_path = request.get_full_path()
-
-        def log_channel(channel, description, event, is_error=False):
-            return ChannelLog.objects.create(
-                channel_id=channel.pk,
-                is_error=is_error,
-                request=event.request_body,
-                response=event.response_body,
-                url=event.url,
-                method=event.method,
-                response_status=event.status_code,
-                description=description,
-            )
-
-        action = kwargs["action"].lower()
-        request_uuid = kwargs["uuid"]
-
-        data = json.loads(force_text(request_body))
-        is_ussd = self.is_ussd_message(data)
-        channel_data = data.get("channel_data", {})
-        channel_types = ("JNU", "JN")
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type__in=channel_types).first()
-
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
-
-        auth = request.META.get("HTTP_AUTHORIZATION", "").split(" ")
-        secret = channel.config.get(Channel.CONFIG_SECRET)
-        if secret is not None and (len(auth) != 2 or auth[0] != "Token" or auth[1] != secret):
-            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
-
-        # Junebug is sending an event
-        if action == "event":
-            expected_keys = ["event_type", "message_id", "timestamp"]
-            if not set(expected_keys).issubset(data.keys()):
-                status = 400
-                response_body = "Missing one of %s in request parameters." % (", ".join(expected_keys))
-                event = HttpEvent(request_method, request_path, request_body, status, response_body)
-                log_channel(channel, "Failed to handle event.", event, is_error=True)
-                return HttpResponse(response_body, status=status)
-
-            message_id = data["message_id"]
-            event_type = data["event_type"]
-
-            # look up the message
-            message = Msg.objects.filter(channel=channel, external_id=message_id).select_related("channel")
-            if not message:
-                status = 400
-                response_body = "Message with external id of '%s' not found" % (message_id,)
-                event = HttpEvent(request_method, request_path, request_body, status, response_body)
-                log_channel(channel, "Failed to handle %s event_type." % (event_type), event)
-                return HttpResponse(response_body, status=status)
-
-            if event_type == "submitted":
-                for message_obj in message:
-                    message_obj.status_sent()
-            if event_type == "delivery_succeeded":
-                for message_obj in message:
-                    message_obj.status_delivered()
-            elif event_type in ["delivery_failed", "rejected"]:
-                for message_obj in message:
-                    message_obj.status_fail()
-
-            response_body = {"status": self.ACK, "message_ids": [message_obj.pk for message_obj in message]}
-            event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response_body))
-            log_channel(channel, "Handled %s event_type." % (event_type), event)
-            # Let Junebug know we're happy
-            return JsonResponse(response_body)
-
-        # Handle an inbound message
-        elif action == "inbound":
-            expected_keys = [
-                "channel_data",
-                "from",
-                "channel_id",
-                "timestamp",
-                "content",
-                "to",
-                "reply_to",
-                "message_id",
-            ]
-            if not set(expected_keys).issubset(data.keys()):
-                status = 400
-                response_body = "Missing one of %s in request parameters." % (", ".join(expected_keys))
-                event = HttpEvent(request_method, request_path, request_body, status, response_body)
-                log_channel(channel, "Failed to handle message.", event, is_error=True)
-                return HttpResponse(response_body, status=status)
-
-            if is_ussd:
-                status = {"close": USSDSession.INTERRUPTED, "new": USSDSession.TRIGGERED}.get(
-                    channel_data.get("session_event"), USSDSession.IN_PROGRESS
-                )
-
-                message_date = datetime.strptime(data["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
-                gmt_date = pytz.timezone("GMT").localize(message_date)
-                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
-                session_id = channel_data.get("session_id") or data["from"]
-
-                connection = USSDSession.handle_incoming(
-                    channel=channel,
-                    urn=data["from"],
-                    content=data["content"],
-                    status=status,
-                    date=gmt_date,
-                    external_id=session_id,
-                    message_id=data["message_id"],
-                    starcode=data["to"],
-                )
-
-                if connection:
-                    status = 200
-                    response_body = {"status": self.ACK, "session_id": connection.pk}
-                    event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
-                    log_channel(
-                        channel, "Handled USSD message of %s session_event" % (channel_data["session_event"],), event
-                    )
-                    return JsonResponse(response_body, status=status)
-                else:
-                    status = 400
-                    response_body = {"status": self.NACK, "reason": "No suitable session found for this message."}
-                    event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
-                    log_channel(
-                        channel,
-                        "Failed to handle USSD message of %s session_event" % (channel_data["session_event"],),
-                        event,
-                    )
-                    return JsonResponse(response_body, status=status)
-            else:
-                content = data["content"]
-                message = Msg.create_incoming(channel, URN.from_tel(data["from"]), content)
-                status = 200
-                response_body = {"status": self.ACK, "message_id": message.pk}
-                Msg.objects.filter(pk=message.id).update(external_id=data["message_id"])
-                event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
-                ChannelLog.log_message(message, "Handled inbound message.", event)
-                return JsonResponse(response_body, status=status)
 
 
 class CourierHandler(View):

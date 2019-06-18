@@ -1,5 +1,4 @@
-
-from mock import patch
+from unittest.mock import patch
 
 from django.urls import reverse
 
@@ -32,7 +31,7 @@ class NexmoTypeTest(TembaTest):
             NEXMO_SECRET="nexmo-secret",
             NEXMO_UUID="nexmo-uuid",
             NEXMO_APP_ID="nexmo-app-id",
-            NEXMO_APP_PRIVATE_KEY="nexmo-app-private-key",
+            NEXMO_APP_PRIVATE_KEY="nexmo-app-private-key\n",
         )
         self.org.config = nexmo_config
         self.org.save()
@@ -170,7 +169,7 @@ class NexmoTypeTest(TembaTest):
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], "nexmo-key")
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], "nexmo-secret")
                 self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], "nexmo-app-id")
-                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "nexmo-app-private-key")
+                self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "nexmo-app-private-key\n")
 
                 # test the update page for nexmo
                 update_url = reverse("channels.channel_update", args=[channel.pk])

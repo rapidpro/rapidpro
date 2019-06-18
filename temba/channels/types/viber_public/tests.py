@@ -1,14 +1,13 @@
-
-import json
-
-from mock import patch
+from unittest.mock import patch
 
 from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 from ...models import Channel
+from .type import CONFIG_WELCOME_MESSAGE
 
 
 class ViberPublicTypeTest(TembaTest):
@@ -58,6 +57,7 @@ class ViberPublicTypeTest(TembaTest):
         channel = Channel.objects.get(address="viberId")
         self.assertEqual(channel.config["auth_token"], "123456")
         self.assertEqual(channel.name, "viberName")
+        self.assertTrue(channel.get_type().has_attachment_support(channel))
 
         # should have been called with our webhook URL
         self.assertEqual(mock_post.call_args[0][0], "https://chatapi.viber.com/pa/set_webhook")
@@ -69,3 +69,32 @@ class ViberPublicTypeTest(TembaTest):
         self.channel.release()
 
         self.assertEqual(mock_post.call_args[0][0], "https://chatapi.viber.com/pa/set_webhook")
+
+    def test_update(self):
+        update_url = reverse("channels.channel_update", args=[self.channel.id])
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+
+        self.assertContains(response, update_url)
+
+        response = self.client.get(update_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].fields["welcome_message"].initial, "")
+
+        postdata = response.context["view"].derive_initial()
+        postdata["welcome_message"] = "Welcome, please subscribe for more"
+
+        response = self.client.post(update_url, postdata, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        self.channel.refresh_from_db()
+        self.assertEqual(self.channel.config.get(CONFIG_WELCOME_MESSAGE, ""), "Welcome, please subscribe for more")
+
+        response = self.client.get(update_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form"].fields["welcome_message"].initial, "Welcome, please subscribe for more"
+        )

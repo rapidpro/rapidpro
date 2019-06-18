@@ -1,0 +1,398 @@
+{
+  "version": "11.4",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "2831f7ad-23e6-4ab3-91d9-936f14fcf35e",
+      "action_sets": [
+        {
+          "uuid": "35707236-5dd6-487d-bea4-6a73822852bf",
+          "x": 122,
+          "y": 458,
+          "destination": "51956031-9f42-475f-9d43-3ab2f87f4dd2",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "c82df796-9d8f-4e9b-b76c-97027fa74ef7",
+              "msg": {
+                "eng": "@flow.response_1\n@flow.response_1.value\n@flow.response_1.category\n@(upper(flow.response_1))\n@(upper(flow.response_1.category))\n\n@flow.response_2\n@flow.response_2.value\n@flow.response_2.category\n@(upper(flow.response_2))\n@(upper(flow.response_2.category))\n\n@flow.response_3\n@flow.response_3.value\n@flow.response_3.category\n@(upper(flow.response_3))\n@(upper(flow.response_3.category))"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "65af1dca-b48e-4b36-867c-2ace47038093"
+        },
+        {
+          "uuid": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+          "x": 412,
+          "y": 814,
+          "destination": null,
+          "actions": [
+            {
+              "type": "api",
+              "uuid": "9b46779a-f680-450f-8f3c-005f3b7efccd",
+              "webhook": "http://example.com/?thing=@flow.response_1&foo=bar",
+              "action": "GET",
+              "webhook_headers": []
+            },
+            {
+              "type": "save",
+              "uuid": "e0ecf2a5-0429-45ec-a9d7-e2c122274484",
+              "label": "Contact Name",
+              "field": "name",
+              "value": "@flow.response_3.value"
+            }
+          ],
+          "exit_uuid": "25d8d2ae-ea82-4214-9561-42e0bf420a93"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "2831f7ad-23e6-4ab3-91d9-936f14fcf35e",
+          "x": 100,
+          "y": 0,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "c799def9-345b-46f9-a838-a59191cdb181",
+              "category": {
+                "eng": "Success"
+              },
+              "destination": "7e0afb0a-8ca2-479f-8f72-49f8c1081d60",
+              "destination_type": "R",
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "1ace9344-3053-4dc2-aced-9a6e3c8a6e9d",
+              "category": {
+                "eng": "Failure"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "webhook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "webhook": "http://example.com/webhook1",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
+        },
+        {
+          "uuid": "7e0afb0a-8ca2-479f-8f72-49f8c1081d60",
+          "x": 103,
+          "y": 125,
+          "label": "Response 2",
+          "rules": [
+            {
+              "uuid": "ce50f51d-f052-4ff1-8a9b-a79faa62dfc2",
+              "category": {
+                "eng": "Success"
+              },
+              "destination": "5906c8f3-46f2-4319-8743-44fb26f2b109",
+              "destination_type": "R",
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "338e6c08-3597-4d22-beef-80d27b870a93",
+              "category": {
+                "eng": "Failure"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "webhook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "webhook": "http://example.com/webhook2",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
+        },
+        {
+          "uuid": "5906c8f3-46f2-4319-8743-44fb26f2b109",
+          "x": 105,
+          "y": 243,
+          "label": "Response 2",
+          "rules": [
+            {
+              "uuid": "6328e346-49c6-4607-a573-e8dc6e60bfcd",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "728a9a97-f28e-4fb3-a96a-7a7a8d5e5a4c",
+              "destination_type": "R",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "expression",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "728a9a97-f28e-4fb3-a96a-7a7a8d5e5a4c",
+          "x": 112,
+          "y": 346,
+          "label": "Response 3",
+          "rules": [
+            {
+              "uuid": "fb64dd04-8dd3-4e28-8607-468d1748a81f",
+              "category": {
+                "eng": "Success"
+              },
+              "destination": "35707236-5dd6-487d-bea4-6a73822852bf",
+              "destination_type": "A",
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "992c7429-221a-40f0-80be-fd6fbe858f57",
+              "category": {
+                "eng": "Failure"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "resthook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "resthook": "test-resthook-event"
+          }
+        },
+        {
+          "uuid": "51956031-9f42-475f-9d43-3ab2f87f4dd2",
+          "x": 411,
+          "y": 513,
+          "label": "Response 5",
+          "rules": [
+            {
+              "uuid": "c06fb4fe-09a0-4990-b32e-e233de7edfda",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "f39a6d73-57d9-4d10-9055-57446addc87a",
+              "destination_type": "R",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "expression",
+          "response_type": "",
+          "operand": "@(flow.response_1 & flow.response_2 & flow.response_3)",
+          "config": {}
+        },
+        {
+          "uuid": "f39a6d73-57d9-4d10-9055-57446addc87a",
+          "x": 414,
+          "y": 625,
+          "label": "Response 6",
+          "rules": [
+            {
+              "uuid": "820f0020-0c72-44cd-9c12-a2b05c13e470",
+              "category": {
+                "eng": "Yes"
+              },
+              "destination": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "yes"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "8e55e70f-acf0-45a2-b7f9-2f95ccbbfc4d",
+              "category": {
+                "eng": "Matching"
+              },
+              "destination": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "eng": "@flow.response_1"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "d1c61a49-64f5-4ff6-b17f-1f22472f829f",
+              "category": {
+                "eng": "Other"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "flow_field",
+          "response_type": "",
+          "operand": "@flow.response_1",
+          "config": {}
+        },
+        {
+          "uuid": "0e0c0e1f-e4ae-4531-ba19-48300de0f86d",
+          "x": 489,
+          "y": 722,
+          "label": "Response 7",
+          "rules": [
+            {
+              "uuid": "234fff68-780f-442f-a1c6-757131fbc213",
+              "category": {
+                "eng": "Success"
+              },
+              "destination": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+              "destination_type": "A",
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "70b79516-40a5-439c-9dee-45b242d6bb8b",
+              "category": {
+                "eng": "Failure"
+              },
+              "destination": "ab700bd7-480b-4e34-bd59-5be7c453aa4e",
+              "destination_type": "A",
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "webhook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "webhook": "http://example.com/?thing=@flow.response_1.value",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.4",
+      "metadata": {
+        "name": "Migrate to 11.5 Test",
+        "saved_on": "2018-09-25T14:57:23.429081Z",
+        "revision": 97,
+        "uuid": "915144c5-605e-46f3-afa3-53aae2c9b8ee",
+        "expires": 10080,
+        "notes": [
+          {
+            "x": 357,
+            "y": 0,
+            "title": "New Note",
+            "body": "@flow.response_1"
+          },
+          {
+            "x": 358,
+            "y": 117,
+            "title": "New Note",
+            "body": "flow.response_2"
+          },
+          {
+            "x": 358,
+            "y": 236,
+            "title": "New Note",
+            "body": "reuses flow.response_2"
+          },
+          {
+            "x": 360,
+            "y": 346,
+            "title": "New Note",
+            "body": "@flow.response_3"
+          },
+          {
+            "x": 671,
+            "y": 498,
+            "title": "New Note",
+            "body": "operand should be migrated too"
+          },
+          {
+            "x": 717,
+            "y": 608,
+            "title": "New Note",
+            "body": "rule test should be migrated"
+          },
+          {
+            "x": 747,
+            "y": 712,
+            "title": "New Note",
+            "body": "webhook URL in config should be migrated"
+          },
+          {
+            "x": 681,
+            "y": 830,
+            "title": "New Note",
+            "body": "webhook URL on action should be migrated"
+          },
+          {
+            "x": 682,
+            "y": 934,
+            "title": "New Note",
+            "body": "field value should be migrated"
+          }
+        ]
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

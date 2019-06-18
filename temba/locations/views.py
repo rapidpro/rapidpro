@@ -1,9 +1,7 @@
-import json
-
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -11,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
+from temba.utils import json
 
 
 class BoundaryCRUDL(SmartCRUDL):
@@ -46,7 +45,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
@@ -65,7 +64,7 @@ class BoundaryCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed
             # in, that is derived
-            return r"^%s/%s/(?P<osmId>\w\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<osmId>\w+\.?\d+\.?\d?\_?\d?)/$" % (path, action)
 
         def get_object(self):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
@@ -80,7 +79,8 @@ class BoundaryCRUDL(SmartCRUDL):
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
-                for new_alias in new_aliases.split("\n"):
+                unique_new_aliases = list(set(new_aliases.split("\n")))
+                for new_alias in unique_new_aliases:
                     if new_alias:
                         BoundaryAlias.objects.create(
                             boundary=boundary,
@@ -115,11 +115,18 @@ class BoundaryCRUDL(SmartCRUDL):
             return JsonResponse(json_list, safe=False)
 
         def get(self, request, *args, **kwargs):
-            tops = list(AdminBoundary.geometries.filter(parent__osm_id=self.get_object().osm_id).order_by("name"))
+            org = request.user.get_org()
+            tops = list(
+                AdminBoundary.geometries.filter(parent__osm_id=self.get_object().osm_id)
+                .order_by("name")
+                .prefetch_related(Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name")))
+            )
 
-            tops_children = AdminBoundary.geometries.filter(
-                Q(parent__osm_id__in=[boundary.osm_id for boundary in tops])
-            ).order_by("parent__osm_id", "name")
+            tops_children = (
+                AdminBoundary.geometries.filter(Q(parent__osm_id__in=[boundary.osm_id for boundary in tops]))
+                .order_by("parent__osm_id", "name")
+                .prefetch_related(Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name")))
+            )
 
             boundaries = [top.as_json() for top in tops]
 
@@ -139,7 +146,11 @@ class BoundaryCRUDL(SmartCRUDL):
                 child["match"] = "%s %s" % (child["name"], child["aliases"])
 
                 child_children = list(
-                    AdminBoundary.geometries.filter(Q(parent__osm_id=child["osm_id"])).order_by("name")
+                    AdminBoundary.geometries.filter(Q(parent__osm_id=child["osm_id"]))
+                    .order_by("name")
+                    .prefetch_related(
+                        Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name"))
+                    )
                 )
                 sub_children = child.get("children", [])
                 for sub_child in child_children:

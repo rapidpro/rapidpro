@@ -1,8 +1,6 @@
-
 import base64
 import hashlib
 import hmac
-import json
 from urllib.parse import quote_plus
 
 import requests
@@ -13,6 +11,7 @@ from django.conf import settings
 from django.db.models import Model
 from django.utils.http import urlencode
 
+from temba.utils import json
 from temba.utils.http import HttpEvent
 
 

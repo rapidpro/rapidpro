@@ -1,4 +1,3 @@
-
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
@@ -14,7 +13,7 @@ class ExternalType(ChannelType):
     code = "EX"
     category = ChannelType.Category.PHONE
 
-    courier_url = r"^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
+    courier_url = r"^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive|stopped)$"
 
     name = "External API"
     icon = "icon-power-cord"
@@ -44,7 +43,7 @@ class ExternalType(ChannelType):
         }
 
         content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-        context["example_content_type"] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
+        context["example_content_type"] = "Content-Type: " + Channel.CONTENT_TYPES.get(content_type, content_type)
         context["example_url"] = Channel.replace_variables(send_url, example_payload)
         context["example_body"] = Channel.replace_variables(send_body, example_payload, content_type)
 

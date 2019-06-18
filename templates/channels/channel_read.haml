@@ -24,7 +24,6 @@
           (v{{channel.os}})
 
     .channel-roles
-
       -for channel in object.get_delegate_channels
 
         %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
@@ -42,13 +41,15 @@
 
       -if channel.has_channel_log
         -if not user_org.is_anon or perms.contacts.contact_break_anon
-          -with channel.get_sender as sender and channel.get_caller as caller and channel.get_ussd_delegate as ussd
+          -with channel.get_sender as sender and channel.get_caller as caller
             -if sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Channel Log"%}</a>
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
             - if caller and caller != sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ caller.id }}&sessions=1">{%trans "Call Log"%}</a>
-            - if ussd
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ ussd.id }}">{%trans "USSD Log"%}</a>
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
+
+      -for link in object.get_type.extra_links
+        <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
+
       .notice
         -if delayed_sync_event or unsent_msgs_count
           .icon.icon-warning.errored
@@ -351,11 +352,34 @@
       .title
         -trans "Remove Channel"
       .body
-        .text-center
-          %p
-            {% trans "Are you sure you want to remove this channel from your account?" %}
-            .number
-              {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+        %p
+          {% if object.dependent_flows.count == 0 %}
+          -trans "Are you sure you want to remove this channel from your account?"
+          .number.text-center
+            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+          {% else %}
+          - trans "This channel cannot be removed because it in use."
+          .number.text-center
+            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
+          {% endif %}
+
+        %p
+          {% if object.dependent_flows.count == 0 %}
+            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+          {% else %}
+            {% blocktrans count num_flows=object.dependent_flows.count %}
+            Used by {{num_flows}} flow:
+            {% plural %}
+            Used by {{num_flows}} flows:
+            {% endblocktrans %}
+
+          %ul
+          - for flow in object.dependent_flows.all
+            %li
+              %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
+                {{ flow.name }}
+
+          {% endif %}
 
     %a#deletion-form.posterize{href:'{% url "channels.channel_delete" object.pk %}'}
 
@@ -486,7 +510,26 @@
 :javascript
 
   {% if org_perms.channels.channel_delete %}
-    $(".remove-channel").live('click', function(){ removalConfirmation("deletion", "Remove")});
+    $(".remove-channel").live('click', function(){
+      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
+      modal.addClass('alert');
+
+      {% if object.dependent_flows.count == 0 %}
+          modal.setListeners({onPrimary: function(){
+            $('#deletion-form').click();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Remove" %}');
+
+      {% else %}
+          modal.setListeners({onPrimary: function(){
+            modal.dismiss();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Ok" %}');
+      {% endif %}
+
+      modal.show();
+      });
+
     $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", "Disable Bulk Sending")});
     $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", "Disable Voice Calling")});
 

@@ -1,6 +1,6 @@
 - extends "contacts/contact_import.html"
 
-- load smartmin
+- load smartmin temba
 -load i18n
 
 - block import-status
@@ -51,7 +51,7 @@
       useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
     });
 
-    var contactFields = {{contact_fields|safe}};
+    var contactFields = {{ contact_fields|to_json }};
     $('.smartmin-form .field-as-name input').select2({
        data:contactFields,
        width: 'element',

@@ -1,4 +1,3 @@
-
 from rest_framework.urlpatterns import format_suffix_patterns
 
 from django.conf.urls import url
@@ -30,6 +29,7 @@ from .views import (
     ResthookSubscribersEndpoint,
     RootView,
     RunsEndpoint,
+    TemplatesEndpoint,
 )
 
 urlpatterns = [
@@ -60,6 +60,7 @@ urlpatterns = [
     url(r"^resthook_events$", ResthookEventsEndpoint.as_view(), name="api.v2.resthook_events"),
     url(r"^resthook_subscribers$", ResthookSubscribersEndpoint.as_view(), name="api.v2.resthook_subscribers"),
     url(r"^runs$", RunsEndpoint.as_view(), name="api.v2.runs"),
+    url(r"^templates$", TemplatesEndpoint.as_view(), name="api.v2.templates"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])

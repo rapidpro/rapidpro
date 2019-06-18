@@ -1,11 +1,9 @@
-
-import json
-
-from mock import patch
+from unittest.mock import patch
 
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
+from temba.utils import json
 
 from ...models import Channel
 

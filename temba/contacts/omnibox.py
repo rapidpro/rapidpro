@@ -1,4 +1,3 @@
-
 import operator
 from functools import reduce
 
@@ -8,7 +7,7 @@ from django.db.models.functions import Upper
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.search import SearchException, contact_es_search
 from temba.msgs.models import Label
-from temba.utils.models import ProxyQuerySet, mapEStoDB
+from temba.utils.models import mapEStoDB
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -31,7 +30,7 @@ def omnibox_query(org, **kwargs):
 
     # these lookups return a Contact queryset
     if contact_uuids or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=False)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True)
 
         if contact_uuids:
             qs = qs.filter(uuid__in=contact_uuids.split(","))
@@ -115,10 +114,14 @@ def omnibox_mixed_search(org, search, types):
 
         try:
             search_object, _ = contact_es_search(org, search_text, sort_struct=sort_struct)
-            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
-            es_results = ProxyQuerySet([obj for obj in mapEStoDB(Contact, es_search)])
 
-            results += list(es_results)
+            es_search = search_object.source(fields=("id",)).using(ES)[:per_type_limit].execute()
+            contact_ids = list(mapEStoDB(Contact, es_search, only_ids=True))
+            es_results = Contact.objects.filter(id__in=contact_ids).order_by(Upper("name"))
+
+            results += list(es_results[:per_type_limit])
+
+            Contact.bulk_cache_initialize(org, contacts=results)
 
         except SearchException:
             # ignore SearchException
@@ -183,7 +186,7 @@ def omnibox_mixed_search(org, search, types):
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
-def omnibox_results_to_dict(org, results):
+def omnibox_results_to_dict(org, results, version="1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """
@@ -194,16 +197,43 @@ def omnibox_results_to_dict(org, results):
 
     for obj in results:
         if isinstance(obj, ContactGroup):
-            result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
+            if version == "1":
+                result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
+            else:
+                result = {"id": obj.uuid, "name": obj.name, "type": "group", "count": group_counts[obj]}
         elif isinstance(obj, Contact):
-            result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+            if version == "1":
+                if org.is_anon:
+                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
+                else:
+                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org), "extra": obj.get_urn_display()}
+            else:
+                if org.is_anon:
+                    result = {"id": obj.uuid, "name": obj.get_display(org), "type": "contact"}
+                else:
+                    result = {
+                        "id": obj.uuid,
+                        "name": obj.get_display(org),
+                        "type": "contact",
+                        "urn": obj.get_urn_display(),
+                    }
+
         elif isinstance(obj, ContactURN):
-            result = {
-                "id": "u-%d" % obj.id,
-                "text": obj.get_display(org),
-                "extra": obj.contact.name or None,
-                "scheme": obj.scheme,
-            }
+            if version == "1":
+                result = {
+                    "id": "u-%d" % obj.id,
+                    "text": obj.get_display(org),
+                    "scheme": obj.scheme,
+                    "extra": obj.contact.name or None,
+                }
+            else:
+                result = {
+                    "id": obj.identity,
+                    "name": obj.get_display(org),
+                    "contact": obj.contact.name or None,
+                    "scheme": obj.scheme,
+                    "type": "urn",
+                }
 
         formatted.append(result)
 

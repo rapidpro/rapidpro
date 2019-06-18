@@ -1,6 +1,6 @@
 from celery.task import task
 
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
@@ -29,6 +29,6 @@ def apply_topups_task(org_id):
     org.trigger_send()
 
 
-@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits")
+@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
 def squash_topupcredits():
     TopUpCredits.squash()

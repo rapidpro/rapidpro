@@ -14,7 +14,7 @@ import warnings
 
 from .settings_common import *  # noqa
 
-DEBUG_TOOLBAR = False
+STORAGE_URL = "http://localhost:8000/media"
 
 # -----------------------------------------------------------------------------------
 # Add a custom brand for development
@@ -31,10 +31,13 @@ custom["support_email"] = "support@custom-brand.io"
 custom["allow_signups"] = True
 BRANDING["custom-brand.io"] = custom
 
-# -----------------------------------------------------------------------------------
-# Used when creating callbacks for Twilio, Nexmo etc..
-# -----------------------------------------------------------------------------------
-HOSTNAME = "temba.ngrok.io"
+# set our domain on our brands to our tunnel domain if set
+localhost_domain = os.environ.get("LOCALHOST_TUNNEL_DOMAIN")
+if localhost_domain is not None:
+    for b in BRANDING.values():
+        b["domain"] = localhost_domain
+
+# allow all hosts in dev
 ALLOWED_HOSTS = ["*"]
 
 # -----------------------------------------------------------------------------------
@@ -51,18 +54,20 @@ CACHES = {
 INTERNAL_IPS = ("127.0.0.1",)
 
 # -----------------------------------------------------------------------------------
+# Mailroom - localhost for dev, no auth token
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = os.environ.get('MAILROOM_URL', 'http://localhost:8090')
+MAILROOM_AUTH_TOKEN = None
+
+# -----------------------------------------------------------------------------------
 # Load development apps
 # -----------------------------------------------------------------------------------
 INSTALLED_APPS = INSTALLED_APPS + ("storages",)
-if DEBUG_TOOLBAR:
-    INSTALLED_APPS = INSTALLED_APPS + ("debug_toolbar",)
 
 # -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
 MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
-if DEBUG_TOOLBAR:
-    MIDDLEWARE = ("debug_toolbar.middleware.DebugToolbarMiddleware",) + MIDDLEWARE
 
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)

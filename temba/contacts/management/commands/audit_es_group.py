@@ -1,4 +1,3 @@
-
 import os
 
 import requests
@@ -32,7 +31,7 @@ class Command(BaseCommand):  # pragma: no cover
             os.exit(1)
 
         es_contacts = es_response["hits"]["hits"]
-        db_contacts = group.contacts.filter(is_test=False, is_active=True)
+        db_contacts = group.contacts.filter(is_active=True)
 
         es_map = {}
         for hit in es_contacts:

@@ -23,35 +23,30 @@
               -for attachment in msg.attachments
                 {% attachment_button attachment %}
 
-      -if item.type == 'broadcast'
-        -with item.obj as broadcast
-          .activity-broadcast
-            -if broadcast.recipient_count > 1
-              .sent-to
-                .summary
-                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
-
-            .activity-body
-              -if broadcast.translated_text
-                .text{ style:"{% if broadcast.attachments %}margin-bottom:10px{% endif %}" }
-                  {{broadcast.translated_text}}
-
-              -for attachment in broadcast.attachments
-                {% attachment_button attachment %}
-
       -elif item.type == 'channel-event'
         -with item.obj as event
           -if event.event_type == 'mt_miss'
-            -trans "Missed call"
+            -trans "Missed outgoing call"
+          -if event.event_type == 'mo_miss'
+            -trans "Missed incoming call"
           -elif event.event_type == 'new_conversation'
             -trans "Started Conversation"
+          -elif event.event_type == 'welcome_message'
+            -trans "Welcome Message Sent"
           -elif event.event_type == 'referral'
             -trans "Referred"
           -elif event.event_type == 'follow'
             -trans "Followed"
-          -else
-            -trans "Phone call"
+          -elif event.event_type == 'stop_contact'
+            -trans "Stopped"
+          -elif event.event_type == 'mt_call'
+            -trans "Outgoing Phone Call"
             ({{event.extra.duration|format_seconds}})
+          -elif event.event_type == 'mo_call'
+            -trans "Incoming Phone call"
+            ({{event.extra.duration|format_seconds}})
+          -else
+            -trans "Unknown/Unsupported"
 
       -elif item.type == 'call'
         -with item.obj as call
@@ -77,7 +72,10 @@
           %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
             {{eventfire.event.campaign.name}}
 
-          &nbsp;triggered
+          -if eventfire.fired_result == 'S'
+            &nbsp;skipped
+          -else
+            &nbsp;triggered
 
           %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
             {{eventfire.event|event_time}}
@@ -93,19 +91,24 @@
     %td.created_on
       %span.time
         %span.short
-          {{item.time|gmail_time}}
+          {% short_datetime item.time %}
         %span.long.hide
-          {{item.time}}
+          {% pretty_datetime item.time %}
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
           -if item.type == 'msg' or item.type == 'call'
             {% channel_log_link item.obj %}
 
+          -if perms.flows.flowsession_json
+            -if item.type == 'run-start' or item.type == 'run-exit'
+              -if item.obj.session_id
+                %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
+                  .icon-docs-2
+
           -if item.type == 'webhook-result'
-            -with item.obj.event as event
-              %a{href:"{%url 'api.log_read' event.id %}"}
-                .icon-docs-2
+            %a{href:"{%url 'api.webhookresult_read' item.obj.id %}"}
+              .icon-docs-2
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 

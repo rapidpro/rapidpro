@@ -1,9 +1,8 @@
-import json
 import time
 
 from django_redis import get_redis_connection
 
-from temba.utils.dates import datetime_to_str
+from temba.utils import json
 
 
 def push_courier_msgs(channel, msgs, high_priority=False):
@@ -59,11 +58,11 @@ def msg_as_task(msg):
         response_to_external_id=msg.response_to.external_id if msg.response_to else "",
         external_id=msg.external_id,
         tps_cost=msg.channel.calculate_tps_cost(msg),
-        next_attempt=datetime_to_str(msg.next_attempt, ms=True),
-        created_on=datetime_to_str(msg.created_on, ms=True),
-        modified_on=datetime_to_str(msg.modified_on, ms=True),
-        queued_on=datetime_to_str(msg.queued_on, ms=True),
-        sent_on=datetime_to_str(msg.sent_on, ms=True),
+        next_attempt=msg.next_attempt.isoformat() if msg.next_attempt else None,
+        created_on=msg.created_on.isoformat(),
+        modified_on=msg.modified_on.isoformat(),
+        queued_on=msg.queued_on.isoformat() if msg.queued_on else None,
+        sent_on=msg.sent_on.isoformat() if msg.sent_on else None,
     )
 
     if msg.contact_urn.auth:  # pragma: no cover

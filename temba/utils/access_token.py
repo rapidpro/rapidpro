@@ -1,11 +1,10 @@
-
-import json
 import time
 
 import requests
 from django_redis import get_redis_connection
 
 from temba.channels.models import ChannelLog
+from temba.utils import json
 from temba.utils.http import HttpEvent, http_headers
 
 

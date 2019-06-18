@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from mptt.utils import get_cached_trees
 
 from django.db.models import Prefetch
@@ -14,23 +12,22 @@ def serialize_ref(obj):
     return {"uuid": str(obj.uuid), "name": obj.name or ""}
 
 
+# TODO: don't believe we actually need this anymore
 def serialize_flow(flow):
     """
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
-    from .client import get_client
+    from temba.flows.models import Flow
 
-    flow.ensure_current_version()
-    flow_def = flow.as_json(expand_contacts=True)
-
-    return get_client().migrate({"flow": flow_def})
+    current_revision = flow.get_current_revision()
+    return current_revision.get_definition_json(to_version=Flow.GOFLOW_VERSION)
 
 
 def serialize_channel(channel):
     from temba.channels.models import Channel
 
-    return {
+    serialized = {
         "uuid": str(channel.uuid),
         "name": channel.name or "",
         "address": channel.address,
@@ -38,46 +35,27 @@ def serialize_channel(channel):
         "roles": [Channel.ROLE_CONFIG[r] for r in channel.role],
     }
 
+    if channel.parent_id:
+        serialized["parent"] = serialize_ref(channel.parent)
+    if channel.country:
+        serialized["country"] = channel.country.code
 
-def serialize_contact(contact):
-    from temba.contacts.models import URN
+    config = channel.config or {}
+    match_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+    if match_prefixes:
+        serialized["match_prefixes"] = match_prefixes
 
-    field_values = {}
-    for field in contact.org.cached_contact_fields.values():
-        field_values[field.key] = contact.get_field_json(field)
-
-    # augment URN values with preferred channel UUID as a parameter
-    urn_values = []
-    for u in contact.urns.order_by("-priority", "id"):
-        # for each URN we resolve the preferred channel and include that as a query param
-        channel = contact.org.get_send_channel(contact_urn=u)
-        if channel:
-            scheme, path, query, display = URN.to_parts(u.urn)
-            urn_str = URN.from_parts(scheme, path, query=urlencode({"channel": str(channel.uuid)}), display=display)
-        else:
-            urn_str = u.urn
-
-        urn_values.append(urn_str)
-
-    return {
-        "uuid": contact.uuid,
-        "id": contact.id,
-        "name": contact.name,
-        "language": contact.language,
-        "urns": urn_values,
-        "groups": [serialize_group_ref(group) for group in contact.user_groups.filter(is_active=True)],
-        "fields": field_values,
-    }
+    return serialized
 
 
 def serialize_environment(org):
-    languages = [org.primary_language.iso_code] if org.primary_language else []
-
     return {
         "date_format": "DD-MM-YYYY" if org.date_format == "D" else "MM-DD-YYYY",
         "time_format": "tt:mm",
         "timezone": str(org.timezone),
-        "languages": languages,
+        "default_language": org.primary_language.iso_code if org.primary_language else None,
+        "allowed_languages": list(org.get_language_codes()),
+        "default_country": org.get_country_code(),
         "redaction_policy": "urns" if org.is_anon else "none",
     }
 
@@ -88,10 +66,6 @@ def serialize_field(field):
 
 def serialize_group(group):
     return {"uuid": str(group.uuid), "name": group.name, "query": group.query}
-
-
-def serialize_group_ref(group):
-    return {"uuid": str(group.uuid), "name": group.name}
 
 
 def serialize_label(label):

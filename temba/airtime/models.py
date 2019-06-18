@@ -1,5 +1,5 @@
 import hashlib
-import json
+import logging
 import time
 
 import requests
@@ -12,7 +12,9 @@ from django.utils.encoding import force_bytes
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.orgs.models import TRANSFERTO_ACCOUNT_CURRENCY, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, Org
-from temba.utils import get_country_code_by_name
+from temba.utils import get_country_code_by_name, json
+
+logger = logging.getLogger(__name__)
 
 
 class AirtimeTransfer(SmartModel):
@@ -268,9 +270,7 @@ class AirtimeTransfer(SmartModel):
             airtime.status = AirtimeTransfer.SUCCESS
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Could not trigger AirtimeEvent: {str(e)}", exc_info=True)
 
             airtime.status = AirtimeTransfer.FAILED
             message = "Error transferring airtime: %s" % str(e)

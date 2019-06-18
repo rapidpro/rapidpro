@@ -1,17 +1,13 @@
-import datetime
-import iso8601
-import json
 import locale
 import resource
-
 from decimal import Decimal
+from itertools import islice
+
+import iso8601
+from django_countries import countries
+
 from django.conf import settings
 from django.db import transaction
-from django.utils.timezone import is_aware
-from django_countries import countries
-from itertools import islice
-from .dates import datetime_to_json_date
-
 
 TRANSFERTO_COUNTRY_NAMES = {"Democratic Republic of the Congo": "CD", "Ivory Coast": "CI", "United States": "US"}
 
@@ -30,7 +26,7 @@ def percentage(numerator, denominator):
     if not denominator or not numerator:
         return 0
 
-    return int(100.0 * numerator / denominator + .5)
+    return int(100.0 * numerator / denominator + 0.5)
 
 
 def format_number(val):
@@ -129,37 +125,6 @@ def prepped_request_to_str(prepped):
         "\n".join("{}: {}".format(k, v) for k, v in prepped.headers.items()),
         prepped.body,
     )
-
-
-class DateTimeJsonEncoder(json.JSONEncoder):
-    """
-    Our own encoder for datetimes.. we always convert to UTC and always include milliseconds
-    """
-
-    def default(self, o):
-        # See "Date Time String Format" in the ECMA-262 specification.
-        if isinstance(o, datetime.datetime):
-            return datetime_to_json_date(o)
-        elif isinstance(o, datetime.date):
-            return o.isoformat()
-        elif isinstance(o, datetime.time):
-            if is_aware(o):
-                raise ValueError("JSON can't represent timezone-aware times.")
-            r = o.isoformat()
-            if o.microsecond:
-                r = r[:12]
-            return r
-        elif isinstance(o, Decimal):
-            return str(o)
-        else:
-            return super().default(o)
-
-
-def dict_to_json(dictionary):
-    """
-    Converts a dictionary to JSON, taking care of converting dates as needed.
-    """
-    return json.dumps(dictionary, cls=DateTimeJsonEncoder)
 
 
 def splitting_getlist(request, name, default=None):

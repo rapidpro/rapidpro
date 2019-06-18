@@ -1,9 +1,7 @@
 import itertools
 from enum import Enum
-from uuid import UUID
 
-import iso8601
-from rest_framework import generics, mixins, status, views
+from rest_framework import generics, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -13,23 +11,33 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
+from temba.api.v2.views_base import (
+    BaseAPIView,
+    BulkWriteAPIMixin,
+    CreatedOnCursorPagination,
+    DeleteAPIMixin,
+    ListAPIMixin,
+    ModifiedOnCursorPagination,
+    WriteAPIMixin,
+)
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
-from temba.utils import splitting_getlist, str_to_bool
+from temba.templates.models import Template, TemplateTranslation
+from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
-from ..models import APIPermission, SSLPermission
+from ..models import SSLPermission
 from ..support import InvalidQueryError
 from .serializers import (
     AdminBoundaryReadSerializer,
@@ -60,6 +68,7 @@ from .serializers import (
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
+    TemplateReadSerializer,
     WebHookEventReadSerializer,
 )
 
@@ -91,6 +100,7 @@ class RootView(views.APIView):
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
+     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -191,6 +201,7 @@ class RootView(views.APIView):
                 "resthook_events": reverse("api.v2.resthook_events", request=request),
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
+                "templates": reverse("api.v2.templates", request=request),
             }
         )
 
@@ -241,6 +252,7 @@ class ExplorerView(SmartTemplateView):
             ResthookSubscribersEndpoint.get_write_explorer(),
             ResthookSubscribersEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer(),
+            TemplatesEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -280,250 +292,14 @@ class AuthenticateView(SmartFormView):
                 valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role)
-                    tokens.append({"org": {"id": org.pk, "name": org.name}, "token": token.key})
+                    serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
+                    tokens.append({"org": serialized, "token": token.key})
             else:  # pragma: needs cover
                 return HttpResponse(status=404)
 
             return JsonResponse({"tokens": tokens})
         else:
             return HttpResponse(status=403)
-
-
-class CreatedOnCursorPagination(CursorPagination):
-    ordering = ("-created_on", "-id")
-    offset_cutoff = 1000000
-
-
-class ModifiedOnCursorPagination(CursorPagination):
-    ordering = ("-modified_on", "-id")
-    offset_cutoff = 1000000
-
-
-class BaseAPIView(generics.GenericAPIView):
-    """
-    Base class of all our API endpoints
-    """
-
-    permission_classes = (SSLPermission, APIPermission)
-    throttle_scope = "v2"
-    model = None
-    model_manager = "objects"
-    lookup_params = {"uuid": "uuid"}
-
-    @transaction.non_atomic_requests
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
-    def options(self, request, *args, **kwargs):
-        """
-        Disable the default behaviour of OPTIONS returning serializer fields since we typically have two serializers
-        per endpoint.
-        """
-        return self.http_method_not_allowed(request, *args, **kwargs)
-
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        return getattr(self.model, self.model_manager).filter(org=org)
-
-    def get_lookup_values(self):
-        """
-        Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
-        """
-        lookup_values = {}
-        for param, field in self.lookup_params.items():
-            if param in self.request.query_params:
-                param_value = self.request.query_params[param]
-
-                # try to normalize URN lookup values
-                if param == "urn":
-                    param_value = self.normalize_urn(param_value)
-
-                lookup_values[field] = param_value
-
-        if len(lookup_values) > 1:
-            raise InvalidQueryError(
-                "URL can only contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
-            )
-
-        return lookup_values
-
-    def get_object(self):
-        queryset = self.get_queryset().filter(**self.lookup_values)
-
-        return generics.get_object_or_404(queryset)
-
-    def get_int_param(self, name):
-        param = self.request.query_params.get(name)
-        try:
-            return int(param) if param is not None else None
-        except ValueError:
-            raise InvalidQueryError("Value for %s must be an integer" % name)
-
-    def get_uuid_param(self, name):
-        param = self.request.query_params.get(name)
-        try:
-            return UUID(param) if param is not None else None
-        except ValueError:
-            raise InvalidQueryError("Value for %s must be a valid UUID" % name)
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["org"] = self.request.user.get_org()
-        context["user"] = self.request.user
-        return context
-
-    def normalize_urn(self, value):
-        if self.request.user.get_org().is_anon:
-            raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
-
-        try:
-            return URN.identity(URN.normalize(value))
-        except ValueError:
-            raise InvalidQueryError("Invalid URN: %s" % value)
-
-
-class ListAPIMixin(mixins.ListModelMixin):
-    """
-    Mixin for any endpoint which returns a list of objects from a GET request
-    """
-
-    exclusive_params = ()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def list(self, request, *args, **kwargs):
-        self.check_query(self.request.query_params)
-
-        if not kwargs.get("format", None):
-            # if this is just a request to browse the endpoint docs, don't make a query
-            return Response([])
-        else:
-            return super().list(request, *args, **kwargs)
-
-    def check_query(self, params):
-        # check user hasn't provided values for more than one of any exclusive params
-        if sum([(1 if params.get(p) else 0) for p in self.exclusive_params]) > 1:
-            raise InvalidQueryError("You may only specify one of the %s parameters" % ", ".join(self.exclusive_params))
-
-    def filter_before_after(self, queryset, field):
-        """
-        Filters the queryset by the before/after params if are provided
-        """
-        before = self.request.query_params.get("before")
-        if before:
-            try:
-                before = iso8601.parse_date(before)
-                queryset = queryset.filter(**{field + "__lte": before})
-            except Exception:
-                queryset = queryset.filter(pk=-1)
-
-        after = self.request.query_params.get("after")
-        if after:
-            try:
-                after = iso8601.parse_date(after)
-                queryset = queryset.filter(**{field + "__gte": after})
-            except Exception:
-                queryset = queryset.filter(pk=-1)
-
-        return queryset
-
-    def paginate_queryset(self, queryset):
-        page = super().paginate_queryset(queryset)
-
-        # give views a chance to prepare objects for serialization
-        self.prepare_for_serialization(page)
-
-        return page
-
-    def prepare_for_serialization(self, page):
-        """
-        Views can override this to do things like bulk cache initialization of result objects
-        """
-        pass
-
-
-class WriteAPIMixin(object):
-    """
-    Mixin for any endpoint which can create or update objects with a write serializer. Our approach differs a bit from
-    the REST framework default way as we use POST requests for both create and update operations, and use separate
-    serializers for reading and writing.
-    """
-
-    write_serializer_class = None
-
-    def post_save(self, instance):
-        """
-        Can be overridden to add custom handling after object creation
-        """
-        pass
-
-    def post(self, request, *args, **kwargs):
-        self.lookup_values = self.get_lookup_values()
-
-        # determine if this is an update of an existing object or a create of a new object
-        if self.lookup_values:
-            instance = self.get_object()
-        else:
-            instance = None
-
-        context = self.get_serializer_context()
-        context["lookup_values"] = self.lookup_values
-        context["instance"] = instance
-
-        serializer = self.write_serializer_class(instance=instance, data=request.data, context=context)
-
-        if serializer.is_valid():
-            with transaction.atomic():
-                output = serializer.save()
-                self.post_save(output)
-                return self.render_write_response(output, context)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def render_write_response(self, write_output, context):
-        response_serializer = self.serializer_class(instance=write_output, context=context)
-
-        # if we created a new object, notify caller by returning 201
-        status_code = status.HTTP_200_OK if context["instance"] else status.HTTP_201_CREATED
-
-        return Response(response_serializer.data, status=status_code)
-
-
-class BulkWriteAPIMixin(object):
-    """
-    Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
-    """
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response("", status=status.HTTP_204_NO_CONTENT)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class DeleteAPIMixin(mixins.DestroyModelMixin):
-    """
-    Mixin for any endpoint that can delete objects with a DELETE request
-    """
-
-    def delete(self, request, *args, **kwargs):
-        self.lookup_values = self.get_lookup_values()
-
-        if not self.lookup_values:
-            raise InvalidQueryError(
-                "URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
-            )
-
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def perform_destroy(self, instance):
-        instance.release()
 
 
 # ============================================================
@@ -718,6 +494,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the contacts that received the broadcast (array of objects)
      * **groups** - the groups that received the broadcast (array of objects)
      * **text** - the message text (string or translations object)
+     * **status** - the status of the message (one of "queued", "sent", "failed").
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -776,6 +553,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    throttle_scope = "v2.broadcasts"
 
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
@@ -918,9 +696,13 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     write_serializer_class = CampaignWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        return queryset.filter(is_active=True, is_archived=False)
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
-        queryset = queryset.filter(is_active=True)
 
         # filter by UUID (optional)
         uuid = params.get("uuid")
@@ -1099,7 +881,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         queryset = queryset.prefetch_related(
             Prefetch("campaign", queryset=Campaign.objects.only("uuid", "name")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
-            Prefetch("relative_to", queryset=ContactField.all_fields.only("key", "label")),
+            Prefetch("relative_to", queryset=ContactField.all_fields.filter(is_active=True).only("key", "label")),
         )
 
         return queryset
@@ -1318,7 +1100,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
@@ -1499,7 +1281,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         org = self.request.user.get_org()
 
         deleted_only = str_to_bool(params.get("deleted"))
-        queryset = queryset.filter(is_test=False, is_active=(not deleted_only))
+        queryset = queryset.filter(is_active=(not deleted_only))
 
         # filter by UUID (optional)
         uuid = params.get("uuid")
@@ -1541,7 +1323,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         So that we only fetch active contact fields once for all contacts
         """
         context = super().get_serializer_context()
-        context["contact_fields"] = ContactField.user_fields.filter(org=self.request.user.get_org(), is_active=True)
+        context["contact_fields"] = ContactField.user_fields.active_for_org(org=self.request.user.get_org())
         return context
 
     def get_object(self):
@@ -1799,14 +1581,22 @@ class DefinitionsEndpoint(BaseAPIView):
         else:
             campaigns = set()
 
+        include_fields_and_groups = False
+
         if include == DefinitionsEndpoint.Depends.none:
             components = set(itertools.chain(flows, campaigns))
         elif include == DefinitionsEndpoint.Depends.flows:
             components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
         else:
             components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
+            include_fields_and_groups = True
 
-        export = org.export_definitions(self.request.branding["link"], components)
+        export = org.export_definitions(
+            self.request.branding["link"],
+            components,
+            include_fields=include_fields_and_groups,
+            include_groups=include_fields_and_groups,
+        )
 
         return Response(export, status=status.HTTP_200_OK)
 
@@ -1962,7 +1752,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the flow (string), filterable as `uuid`
      * **name** - the name of the flow (string)
-     * **archived** - whether this flow is archived (boolean)
+     * **type** - the type of the flow (one of "message", "voice", "survey"), filterable as `type`
+     * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
      * **created_on** - when this flow was created (datetime)
@@ -1982,17 +1773,26 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Survey",
+                    "type": "message",
                     "archived": false,
                     "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                     "expires": 600,
-                    "created_on": "2016-01-06T15:33:00.813162Z",
-                    "modified_on": "2017-01-07T13:14:00.453567Z",
                     "runs": {
                         "active": 47,
                         "completed": 123,
                         "interrupted": 2,
                         "expired": 34
-                    }
+                    },
+                    "results": [
+                        {
+                            "key": "has_water",
+                            "name": "Has Water",
+                            "categories": ["Yes", "No", "Other"],
+                            "node_uuids": ["99afcda7-f928-4d4a-ae83-c90c96deb76d"]
+                        }
+                    ],
+                    "created_on": "2016-01-06T15:33:00.813162Z",
+                    "modified_on": "2017-01-07T13:14:00.453567Z"
                 },
                 ...
             ]
@@ -2004,15 +1804,27 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
 
+    FLOW_TYPES = {v: k for k, v in FlowReadSerializer.FLOW_TYPES.items()}
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
 
-        queryset = queryset.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE)
+        queryset = queryset.exclude(is_active=False).exclude(is_system=True)
 
         # filter by UUID (optional)
         uuid = params.get("uuid")
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by type (optional)
+        flow_type = params.get("type")
+        if flow_type:
+            queryset = queryset.filter(flow_type=self.FLOW_TYPES.get(flow_type))
+
+        # filter by archived (optional)
+        archived = params.get("archived")
+        if archived:
+            queryset = queryset.filter(is_archived=str_to_bool(archived))
 
         queryset = queryset.prefetch_related("labels")
 
@@ -2123,6 +1935,10 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     A **DELETE** can be used to delete a contact group if you specify its UUID in the URL.
 
+    Notes:
+        - cannot delete groups with associated active campaigns, flows or triggers. You first need to delete related
+          objects through the web interface
+
     Example:
 
         DELETE /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
@@ -2157,6 +1973,44 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         group_counts = ContactGroupCount.get_totals(object_list)
         for group in object_list:
             group.count = group_counts[group]
+
+    def delete(self, request, *args, **kwargs):
+        self.lookup_values = self.get_lookup_values()
+        if not self.lookup_values:
+            raise InvalidQueryError(
+                "URL must contain one of the following parameters: " + ", ".join(sorted(self.lookup_params.keys()))
+            )
+
+        instance = self.get_object()
+
+        # if there are still dependencies, give up
+        triggers = instance.trigger_set.filter(is_archived=False)
+        if triggers.count() > 0:
+            raise InvalidQueryError(
+                f"This group is used by active triggers. In order to delete it, first archive triggers: {', '.join(str(trigger) for trigger in triggers)}"
+            )
+
+        flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
+        if flows.count():
+            raise InvalidQueryError(
+                f"This group is used by active flows. In order to delete it, first archive flows: {', '.join(str(flow) for flow in flows)}"
+            )
+
+        campaigns = instance.campaign_set.filter(is_archived=False)
+        if campaigns.exists():
+            raise InvalidQueryError(
+                f"This group is used by active campaigns. In order to delete it, first archive campaigns: {', '.join(str(campaign) for campaign in campaigns)}"
+            )
+
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=("is_active",))
+
+        # release the group in a background task
+        on_transaction_commit(lambda: release_group_task.delay(instance.id))
 
     @classmethod
     def get_read_explorer(cls):
@@ -2463,7 +2317,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         if folder:
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
-                return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
+                return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
                 return self.model.objects.filter(org=org, direction="I")
             else:
@@ -2488,15 +2342,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(pk=-1)
-        else:
-            # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
-            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
@@ -2590,7 +2440,13 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             "label": "Testing"
         }
 
-    You will receive an empty response with status code 204 if successful.
+    You will receive an empty response with status code 204 if successful. In the case that some messages couldn't be
+    updated because they no longer exist, the status code will be 200 and the body will include the failed message ids:
+
+    Example response:
+
+        {"failures": [2345, 3456]}
+
     """
 
     permission = "msgs.msg_api"
@@ -2628,6 +2484,7 @@ class OrgEndpoint(BaseAPIView):
     Response containing your organization:
 
         {
+            "uuid": "6a44ca78-a4c2-4862-a7d3-2932f9b3a7c3",
             "name": "Nyaruka",
             "country": "RW",
             "languages": ["eng", "fra"],
@@ -2645,6 +2502,7 @@ class OrgEndpoint(BaseAPIView):
         org = request.user.get_org()
 
         data = {
+            "uuid": str(org.uuid),
             "name": org.name,
             "country": org.get_country_code(),
             "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
@@ -3059,15 +2917,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by contact (optional)
         contact_uuid = params.get("contact")
         if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(pk=-1)
-        else:
-            # otherwise filter out test contact runs
-            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list("pk", flat=True))
-            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # limit to responded runs (optional)
         if str_to_bool(params.get("responded")):
@@ -3284,3 +3138,83 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             ],
             example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
         )
+
+
+class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a
+    dictionary of the languages it has been translated to along with the content of the template for that
+    language and the status of that translation.
+
+    ## Listing Templates
+
+    A `GET` request returns the templates for your organization.
+
+    Each template has the following attributes:
+
+     * **name** - the name of the template
+     * **translations** - a dictionary of the translations of the template with the key being an ISO639-3 code
+
+     Each translation contains the following attributes:
+
+     * **language** - the ISO639-3 code for the language of this translation
+     * **content** - the content of the translation
+     * **variable_count** - the count of variables in this template
+     * **status** - the status of this translation, either `active` or `pending`
+
+    Example:
+
+        GET /api/v2/templates.json
+
+    Response is the list of templates for your organization:
+
+        {
+            "next": "http://example.com/api/v2/templates.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
+            "previous": null,
+            "results": [
+            {
+                "name": "welcome_message",
+                "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+                "translations": [
+                    {
+                        "language": "eng",
+                        "content": "Hi {{1}}, your appointment is coming up on {{2}}",
+                        "variable_count": 2,
+                        "status": "active",
+                    },
+                    {
+                        "language": "fra",
+                        "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
+                        "variable_count": 2,
+                        "status": "pending",
+                    }
+                ],
+                "created_on": "2013-08-19T19:11:21.082Z",
+                "modified_on": "2013-08-19T19:11:21.082Z"
+            },
+            ...
+        }
+    """
+
+    permission = "templates.template_api"
+    model = Template
+    serializer_class = TemplateReadSerializer
+    pagination_class = ModifiedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        org = self.request.user.get_org()
+        queryset = org.templates.exclude(translations=None).prefetch_related(
+            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True))
+        )
+        return self.filter_before_after(queryset, "modified_on")
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List Templates",
+            "url": reverse("api.v2.templates"),
+            "slug": "templates-list",
+            "params": [],
+            "example": {},
+        }

@@ -21,45 +21,24 @@ YYYY_MM_DD = regex.compile(r"\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]
 HH_MM_SS = regex.compile(r"\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b")
 
 
-def datetime_to_str(date_obj, format=None, ms=True, tz=None):
+def datetime_to_str(date_obj, format, tz):
     """
     Formats a datetime or date as a string
     :param date_obj: the datetime or date
-    :param format: the format (defaults to ISO8601)
-    :param ms: whether to include microseconds
+    :param format: the format
     :param tz: the timezone to localize in
     :return: the formatted date string
     """
     if not date_obj:
         return None
 
-    if not tz:
-        tz = timezone.utc
-
     if type(date_obj) == datetime.date:
         date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
-
-    if date_obj.year < 1900:  # pragma: no cover
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (
-            date_obj.year,
-            date_obj.month,
-            date_obj.day,
-            date_obj.hour,
-            date_obj.minute,
-            date_obj.second,
-            date_obj.microsecond,
-        )
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)
 
-    if not format or not tz:
-        if ms:
-            return date_obj.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        else:
-            return date_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
-    else:
-        return date_obj.strftime(format)
+    return date_obj.strftime(format)
 
 
 def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
@@ -193,26 +172,6 @@ def get_datetime_format(dayfirst):
     format_time = format_date + " %H:%M"
 
     return format_date, format_time
-
-
-def datetime_to_json_date(dt, micros=False):
-    """
-    Formats a datetime as a string for inclusion in JSON
-    :param dt: the datetime to format
-    :param micros: whether to include microseconds
-    """
-    # always output as UTC / Z and always include milliseconds
-    as_utc = dt.astimezone(pytz.utc)
-    as_str = as_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")
-    return (as_str if micros else as_str[:-3]) + "Z"
-
-
-def datetime_to_s(dt):
-    """
-    Converts a datetime to a fractional second epoch
-    """
-    seconds = calendar.timegm(dt.utctimetuple())
-    return seconds + dt.microsecond / float(100000)
 
 
 def datetime_to_ms(dt):

@@ -1,7 +1,6 @@
-
 from django.conf.urls import include, url
 
-from .handlers import MageHandler, get_channel_handlers
+from .handlers import get_channel_handlers
 from .models import Channel
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
@@ -34,8 +33,4 @@ urlpatterns = [
     url(r"^c/", include(courier_urls)),
     url(r"^handlers/", include(handler_urls)),
     url(r"^channels/types/", include(type_urls)),
-    url(
-        r"^api/v1/",
-        include([url(r"^mage/(?P<action>handle_message|follow_notification|stop_contact)$", MageHandler.as_view())]),
-    ),
 ]

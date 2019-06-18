@@ -1,16 +1,17 @@
-import json
 import time
 from collections import OrderedDict
 from uuid import uuid4
 
 from smartmin.models import SmartModel
 
-from django.contrib.postgres.fields import HStoreField
+from django.contrib.postgres.fields import HStoreField, JSONField as DjangoJSONField
 from django.core import checks
 from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+
+from temba.utils import json
 
 
 def generate_uuid():
@@ -131,18 +132,13 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         * uses standard JSON serializers so it expects that all data is a valid JSON data
         * be careful with default values, it must be a callable returning a dict because using `default={}` will create
           a mutable default that is share between all instances of the JSONAsTextField
-          * https://docs.djangoproject.com/en/1.11/ref/contrib/postgres/fields/#jsonfield
-        * arg `object_pairs_hook` depends on the json serializer implementation
-          * Python 3.7 will guarantees to preserve dict insert order
-            * https://mail.python.org/pipermail/python-dev/2017-December/151283.html
+          https://docs.djangoproject.com/en/1.11/ref/contrib/postgres/fields/#jsonfield
     """
 
     description = "Custom JSON field that is stored as Text in the database"
     _default_hint = ("dict", "{}")
 
-    def __init__(self, object_pairs_hook=dict, *args, **kwargs):
-
-        self.object_pairs_hook = object_pairs_hook
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def from_db_value(self, value, *args, **kwargs):
@@ -153,7 +149,7 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
             return value
 
         if isinstance(value, str):
-            data = json.loads(value, object_pairs_hook=self.object_pairs_hook)
+            data = json.loads(value)
 
             if type(data) not in (list, dict, OrderedDict):
                 raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(data), data))
@@ -185,10 +181,17 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
-        # Only include kwarg if it's not the default
-        if self.object_pairs_hook != dict:
-            kwargs["object_pairs_hook"] = self.object_pairs_hook
         return name, path, args, kwargs
+
+
+class JSONField(DjangoJSONField):
+    """
+    Convenience subclass of the regular JSONField that uses our custom JSON encoder
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs["encoder"] = json.TembaEncoder
+        super().__init__(*args, **kwargs)
 
 
 class TembaModel(SmartModel):
@@ -211,7 +214,7 @@ class RequireUpdateFieldsMixin(object):
         if self.id and "update_fields" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 class SquashableModel(models.Model):
@@ -233,6 +236,7 @@ class SquashableModel(models.Model):
     def squash(cls):
         start = time.time()
         num_sets = 0
+
         for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER)[:5000]:
             with connection.cursor() as cursor:
                 sql, params = cls.get_squash_query(distinct_set)

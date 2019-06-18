@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import pytz
@@ -8,12 +7,12 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowStart, RuleSet
+from temba.flows.models import ActionSet, Flow, FlowRevision
 from temba.msgs.models import Msg
-from temba.orgs.models import Language, Org, get_current_export_version
-from temba.tests import ESMockWithScroll, TembaTest, also_in_flowserver
+from temba.orgs.models import Language, Org
+from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.utils import json
 from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
@@ -80,27 +79,19 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
         flow_json = self.get_flow_json("call_me_maybe")["definition"]
-        flow = Flow.create_instance(
-            dict(
-                name="Call Me Maybe",
-                org=self.org,
-                flow_type=Flow.MESSAGE,
-                created_by=self.admin,
-                modified_by=self.admin,
-                saved_by=self.admin,
-                version_number=3,
-            )
+        flow = Flow.objects.create(
+            name="Call Me Maybe",
+            org=self.org,
+            is_system=True,
+            created_by=self.admin,
+            modified_by=self.admin,
+            saved_by=self.admin,
+            version_number=3,
+            flow_type="V",
         )
 
-        FlowRevision.create_instance(
-            dict(
-                flow=flow,
-                definition=flow_json,
-                spec_version=3,
-                revision=1,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
+        FlowRevision.objects.create(
+            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
         event4 = CampaignEvent.create_flow_event(
@@ -111,10 +102,9 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
         flow.refresh_from_db()
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, get_current_export_version())
+        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
-    @also_in_flowserver
-    def test_message_event(self, in_flowserver):
+    def test_message_event(self):
         # create a campaign with a message event 1 day after planting date
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
         event = CampaignEvent.create_message_event(
@@ -130,37 +120,44 @@ class CampaignTest(TembaTest):
             base_language="eng",
         )
 
-        # update the planting date for our contact
-        self.farmer1.set_field(self.user, "planting_date", "1/10/2020 10:00")
-
-        fire = EventFire.objects.get()
-
-        # change our fire date to sometime in the past so it gets triggered
-        fire.scheduled = timezone.now() - timedelta(hours=1)
-        fire.save(update_fields=("scheduled",))
-
-        # schedule our events to fire
-        check_campaigns_task()
-
-        run = FlowRun.objects.get()
-        msg = run.get_messages().get()
-
-        self.assertEqual(msg.text, "Hi ROB JASPER don't forget to plant on 01-10-2020 10:00")
-
-        if in_flowserver:
-            session_json = run.session.output
-            self.assertEqual(session_json["trigger"]["type"], "campaign")
-            self.assertEqual(
-                session_json["trigger"]["event"],
-                {"uuid": str(event.uuid), "campaign": {"uuid": str(campaign.uuid), "name": "Planting Reminders"}},
-            )
-
-        # deleting a message campaign event should clean up the flow/runs/starts created by it
-        event.release()
-
-        self.assertEqual(FlowRun.objects.count(), 0)
-        self.assertEqual(FlowStart.objects.count(), 0)
-        self.assertEqual(Flow.objects.filter(flow_type=Flow.MESSAGE, is_active=True).count(), 0)
+        self.assertEqual(
+            event.flow.as_json(),
+            {
+                "entry": matchers.UUID4String(),
+                "action_sets": [
+                    {
+                        "uuid": matchers.UUID4String(),
+                        "x": 100,
+                        "y": 0,
+                        "destination": None,
+                        "actions": [
+                            {
+                                "type": "reply",
+                                "uuid": matchers.UUID4String(),
+                                "msg": {
+                                    "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
+                                },
+                                "media": {},
+                                "quick_replies": [],
+                                "send_all": False,
+                            }
+                        ],
+                        "exit_uuid": matchers.UUID4String(),
+                    }
+                ],
+                "rule_sets": [],
+                "base_language": "eng",
+                "flow_type": "M",
+                "version": "11.12",
+                "metadata": {
+                    "uuid": str(event.flow.uuid),
+                    "name": matchers.String(pattern=r"Single Message \([a-z\d\-]{36}\)"),
+                    "saved_on": matchers.ISODate(),
+                    "revision": 1,
+                    "expires": 720,
+                },
+            },
+        )
 
     def test_trim_event_fires(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -168,6 +165,11 @@ class CampaignTest(TembaTest):
         # create a reminder for our first planting event
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        # create a reminder for our first planting event
+        second_event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=5, unit="D", flow=self.reminder_flow
         )
 
         trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
@@ -178,58 +180,36 @@ class CampaignTest(TembaTest):
             event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now()
         )
 
-        # trim our events
+        # create an unfired fire and release its event
+        EventFire.objects.create(event=second_event, contact=self.farmer1, scheduled=trimDate)
+        second_event.release()
+
+        # trim our events, one fired and one inactive onfired
         trim_event_fires_task()
 
         # should now have only one event, e2
         e = EventFire.objects.get()
         self.assertEqual(e.id, e2.id)
 
-    def test_events_batch_fire(self):
+    def test_event_fire_creation(self):
+
+        self.login(self.admin)
+
+        # update the planting date for our contacts
+        self.farmer1.set_field(self.user, "planting_date", "1/10/2020")
+
+        # create a campaign with an event
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+        field = ContactField.get_by_key(self.org, "planting_date")
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, field, 15, "D", "Event Message")
 
-        # create a reminder for our first planting event
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
-        )
+        # should create one event fire
+        EventFire.do_create_eventfires_for_event(event)
+        self.assertEqual(1, EventFire.objects.filter(event=event).count())
 
-        self.assertEqual(0, EventFire.objects.all().count())
-        self.farmer1.set_field(self.user, "planting_date", "10-05-2020 12:30:10")
-        self.farmer2.set_field(self.user, "planting_date", "15-05-2020 12:30:10")
-
-        # now we have event fires accordingly
-        self.assertEqual(2, EventFire.objects.all().count())
-
-        self.assertEqual(0, FlowStart.objects.all().count())
-
-        first_event_fire = EventFire.objects.all().first()
-        self.assertFalse(EventFire.objects.get(id=first_event_fire.id).fired)
-
-        # no flow start if we start just one contact
-        EventFire.batch_fire([first_event_fire], self.reminder_flow)
-
-        self.assertEqual(0, FlowStart.objects.all().count())
-        self.assertTrue(EventFire.objects.get(id=first_event_fire.id).fired)
-
-        # should have a flowstart object is we start many event fires
-        EventFire.batch_fire(list(EventFire.objects.all()), self.reminder_flow)
-        self.assertEqual(1, FlowStart.objects.all().count())
-        self.assertEqual(0, EventFire.objects.filter(fired=None).count())
-
-        # fires should delete when we release a contact
-        self.assertEqual(1, EventFire.objects.filter(contact=self.farmer1).count())
-        self.farmer1.release(self.admin)
-        self.assertEqual(0, EventFire.objects.filter(contact=self.farmer1).count())
-
-        # but our campaign and group remains intact
-        Campaign.objects.get(id=campaign.id)
-        ContactGroup.user_groups.get(id=self.farmers.id)
-
-        # deleting this event shouldn't delete the runs or starts
-        event.release()
-
-        self.assertEqual(FlowRun.objects.count(), 1)
-        self.assertEqual(FlowStart.objects.all().count(), 1)
+        # but shouldn't create extras if we call it again
+        EventFire.do_create_eventfires_for_event(event)
+        self.assertEqual(1, EventFire.objects.filter(event=event).count())
 
     def test_message_event_editing(self):
         # update the planting date for our contacts
@@ -293,6 +273,7 @@ class CampaignTest(TembaTest):
             unit="W",
             flow_to_start="",
             delivery_hour=13,
+            message_start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -302,20 +283,20 @@ class CampaignTest(TembaTest):
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
 
         # should have one event, which created a corresponding flow
-        event = CampaignEvent.objects.get()
+        event = CampaignEvent.objects.filter(is_active=True).first()
         flow = event.flow
-        self.assertEqual(Flow.MESSAGE, flow.flow_type)
+        self.assertTrue(flow.is_system)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg
         self.assertEqual(flow.base_language, "base")
-        self.assertEqual(msg, {"base": "This is my message", "spa": "hola", "ace": ""})
-        self.assertFalse(RuleSet.objects.filter(flow=flow))
+        self.assertEqual(msg, {"base": "This is my message", "spa": "hola"})
 
         self.assertEqual(-1, event.offset)
         self.assertEqual(13, event.delivery_hour)
         self.assertEqual("W", event.unit)
         self.assertEqual("M", event.event_type)
+        self.assertEqual("I", event.start_mode)
 
         self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
         self.assertEqual(event.get_message(contact=self.farmer2), "hola")
@@ -367,6 +348,8 @@ class CampaignTest(TembaTest):
         self.org.save()
 
         # and still get the same settings, (it should use the base of the flow instead of just base here)
+        event = CampaignEvent.objects.all().order_by("-pk").first()
+        url = reverse("campaigns.campaignevent_update", args=[event.id])
         response = self.client.get(url)
         self.assertIn("base", response.context["form"].fields)
         self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
@@ -378,7 +361,7 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.filter(id=event.id).exists())
+        self.assertFalse(CampaignEvent.objects.filter(id=event.id).first().is_active)
 
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(0, event.flow.field_dependencies.all().count())
@@ -408,7 +391,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse("campaigns.campaign_create"), post_data)
 
         # should redirect to read page for this campaign
-        campaign = Campaign.objects.get()
+        campaign = Campaign.objects.filter(is_active=True).first()
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
 
         # go to the list page, should be there as well
@@ -483,6 +466,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="M",
             flow_to_start=self.reminder_flow.pk,
+            flow_start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -500,6 +484,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="M",
             flow_to_start=self.reminder_flow.pk,
+            flow_start_mode="I",
         )
 
         response = self.client.post(
@@ -520,6 +505,7 @@ class CampaignTest(TembaTest):
             offset=2,
             unit="D",
             event_type="F",
+            flow_start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
@@ -537,19 +523,20 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder_flow.pk,
+            flow_start_mode="I",
         )
         response = self.client.post(
             reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
         )
 
+        event = CampaignEvent.objects.filter(is_active=True).get()
         # should be redirected back to our campaign read page
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
 
-        # should now have a campaign event
-        event = CampaignEvent.objects.get()
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(2, event.offset)
+        self.assertEqual("I", event.start_mode)
 
         # read the campaign read page
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
@@ -578,20 +565,54 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder_flow.pk,
+            flow_start_mode="I",
         )
         response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
 
         # should be redirected back to our campaign event read page
+        event = CampaignEvent.objects.filter(is_active=True).get()
         self.assertRedirect(response, reverse("campaigns.campaignevent_read", args=[event.pk]))
 
         # should now have update the campaign event
-        event = CampaignEvent.objects.get()
         self.assertEqual(self.reminder_flow, event.flow)
         self.assertEqual(self.planting_date, event.relative_to)
         self.assertEqual(1, event.offset)
+        self.assertEqual("I", event.start_mode)
+
+        # flow event always set exec mode to 'F' no matter what
+        post_data = dict(
+            relative_to=self.planting_date.pk,
+            delivery_hour=15,
+            base="",
+            direction="A",
+            offset=1,
+            unit="D",
+            event_type="F",
+            flow_to_start=self.reminder_flow.pk,
+            flow_start_mode="S",
+        )
+        response = self.client.post(reverse("campaigns.campaignevent_update", args=[event.pk]), post_data)
+
+        # should be redirected to our new event
+        previous_event = event
+        event = CampaignEvent.objects.filter(is_active=True).get()
+
+        # reading our old event should redirect to the campaign page
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[previous_event.pk]))
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[previous_event.campaign.pk]))
+
+        # attempting to update our old event gives a 404
+        response = self.client.post(reverse("campaigns.campaignevent_update", args=[previous_event.pk]), post_data)
+        self.assertEqual(404, response.status_code)
+
+        # should now have update the campaign event
+        self.assertEqual(self.reminder_flow, event.flow)
+        self.assertEqual(self.planting_date, event.relative_to)
+        self.assertEqual(1, event.offset)
+        self.assertEqual("S", event.start_mode)
 
         # should also event fires rescheduled for our contacts
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.filter(event__is_active=True).get()
         self.assertEqual(13, fire.scheduled.hour)
         self.assertEqual(0, fire.scheduled.minute)
         self.assertEqual(0, fire.scheduled.second)
@@ -610,6 +631,7 @@ class CampaignTest(TembaTest):
             unit="D",
             event_type="F",
             flow_to_start=self.reminder2_flow.pk,
+            flow_start_mode="I",
         )
         self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
@@ -639,38 +661,36 @@ class CampaignTest(TembaTest):
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
-        # should have no event fires
-        self.assertFalse(EventFire.objects.all())
+        # shouldn't have any active event fires
+        self.assertFalse(EventFire.objects.filter(event__is_active=True).exists())
 
         # restore the campaign
         post_data = dict(action="restore", objects=campaign.pk)
         self.client.post(reverse("campaigns.campaign_archived"), post_data)
 
         # EventFire should be back
-        self.assertTrue(EventFire.objects.all())
+        self.assertTrue(EventFire.objects.all().exists())
 
         # set a planting date on our other farmer
         self.farmer2.set_field(self.user, "planting_date", "1/6/2022")
 
         # should have two fire events now
-        fires = EventFire.objects.all()
+        fires = EventFire.objects.filter(event__is_active=True)
         self.assertEqual(2, len(fires))
 
         fire = fires[0]
         self.assertEqual(2, fire.scheduled.day)
         self.assertEqual(10, fire.scheduled.month)
         self.assertEqual(2020, fire.scheduled.year)
-        self.assertEqual(event, fire.event)
 
         fire = fires[1]
         self.assertEqual(2, fire.scheduled.day)
         self.assertEqual(6, fire.scheduled.month)
         self.assertEqual(2022, fire.scheduled.year)
-        self.assertEqual(event, fire.event)
 
         # setting a planting date on our outside contact has no effect
         self.nonfarmer.set_field(self.user, "planting_date", "1/7/2025")
-        self.assertEqual(2, EventFire.objects.all().count())
+        self.assertEqual(2, EventFire.objects.filter(event__is_active=True).count())
 
         # remove one of the farmers from the group
         response = self.client.post(
@@ -684,7 +704,6 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, fire.scheduled.day)
         self.assertEqual(6, fire.scheduled.month)
         self.assertEqual(2022, fire.scheduled.year)
-        self.assertEqual(event, fire.event)
 
         # but if we add him back in, should be updated
         post_data = dict(name=self.farmer1.name, groups=[self.farmers.id], __urn__tel=self.farmer1.get_urn("tel").path)
@@ -704,7 +723,6 @@ class CampaignTest(TembaTest):
         self.assertEqual(5, fire.scheduled.day)
         self.assertEqual(8, fire.scheduled.month)
         self.assertEqual(2020, fire.scheduled.year)
-        self.assertEqual(event, fire.event)
         self.assertEqual(str(fire), "%s - %s" % (fire.event, fire.contact))
 
         event = CampaignEvent.objects.filter(is_active=True).first()
@@ -717,9 +735,244 @@ class CampaignTest(TembaTest):
 
         # delete the event
         self.client.post(reverse("campaigns.campaignevent_delete", args=[event.pk]), dict())
-        self.assertFalse(CampaignEvent.objects.all().exists())
+        self.assertFalse(CampaignEvent.objects.filter(is_active=True).exists())
         response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
         self.assertNotContains(response, "Color Flow")
+
+    def test_view_campaign_cant_modify_inactive_or_archive(self):
+        self.login(self.admin)
+
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        response = self.client.get(reverse("campaigns.campaign_update", args=[campaign.pk]))
+
+        # sanity check, form is available in the response
+        self.assertContains(response, "Planting Reminders")
+        self.assertListEqual(list(response.context["form"].fields.keys()), ["name", "group", "loc"])
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaign_update", args=[campaign.pk]))
+
+        # we should get 404 for the archived campaign
+        self.assertEqual(response.status_code, 404)
+
+        # deactivate the campaign
+        campaign.is_archived = False
+        campaign.is_active = False
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaign_update", args=[campaign.pk]))
+
+        # we should get 404 for the inactive campaign
+        self.assertEqual(response.status_code, 404)
+
+    def test_view_campaign_read_with_customer_support(self):
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
+
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Service"])
+        self.assertEqual(
+            gear_links[-1]["href"],
+            f"/org/service/?organization={campaign.org_id}&redirect_url=/campaign/read/{campaign.id}/",
+        )
+
+    def test_view_campaign_read_archived(self):
+        self.login(self.admin)
+
+        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
+
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        # page title and main content title should NOT contain (Archived)
+        self.assertContains(response, "Perform the rain dance", count=2)
+        self.assertContains(response, "(Archived)", count=0)
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Add Event", "Export", "Edit", "Archive"])
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        # page title and main content title should contain (Archived)
+        self.assertContains(response, "Perform the rain dance", count=2)
+        self.assertContains(response, "(Archived)", count=2)
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Activate", "Export"])
+
+    def test_view_campaign_archive(self):
+        self.login(self.admin)
+
+        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        campaign = Campaign.objects.filter(is_active=True).first()
+
+        # archive the campaign
+        response = self.client.post(reverse("campaigns.campaign_archive", args=[campaign.pk]))
+
+        self.assertRedirect(response, f"/campaign/read/{campaign.pk}/")
+
+        campaign.refresh_from_db()
+        self.assertTrue(campaign.is_archived)
+
+    def test_view_campaign_activate(self):
+        self.login(self.admin)
+
+        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
+        self.client.post(reverse("campaigns.campaign_create"), post_data)
+
+        campaign = Campaign.objects.filter(is_active=True).first()
+
+        # activate the campaign
+        response = self.client.post(reverse("campaigns.campaign_activate", args=[campaign.pk]))
+
+        self.assertRedirect(response, f"/campaign/read/{campaign.pk}/")
+
+        campaign.refresh_from_db()
+        self.assertFalse(campaign.is_archived)
+
+    def test_view_campaignevent_read_on_archived_campaign(self):
+        self.login(self.admin)
+
+        campaign = Campaign.create(self.org, self.admin, "Perform the rain dance", self.farmers)
+
+        # create a reminder for our first planting event
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
+
+        # page title and main content title should NOT contain (Archived)
+        self.assertContains(response, "Perform the rain dance", count=2)
+        self.assertContains(response, "(Archived)", count=0)
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Edit", "Delete"])
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaignevent_read", args=[event.pk]))
+
+        # page title and main content title should contain (Archived)
+        self.assertContains(response, "Perform the rain dance", count=2)
+        self.assertContains(response, "(Archived)", count=1)
+
+        gear_links = response.context["view"].get_gear_links()
+        self.assertListEqual([gl["title"] for gl in gear_links], ["Delete"])
+
+    def test_view_campaignevent_update_on_archived_campaign(self):
+        self.login(self.admin)
+
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        # create a reminder for our first planting event
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        response = self.client.get(reverse("campaigns.campaignevent_update", args=[event.pk]))
+
+        # sanity check, form is available in the response
+        self.assertContains(response, "Planting Reminder")
+        self.assertListEqual(
+            list(response.context["form"].fields.keys()),
+            [
+                "offset",
+                "unit",
+                "relative_to",
+                "event_type",
+                "delivery_hour",
+                "direction",
+                "flow_to_start",
+                "flow_start_mode",
+                "message_start_mode",
+                "eng",
+                "loc",
+            ],
+        )
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaignevent_update", args=[campaign.pk]))
+
+        # we should get 404 for the archived campaign
+        self.assertEqual(response.status_code, 404)
+
+        # deactivate the campaign
+        campaign.is_archived = False
+        campaign.is_active = False
+        campaign.save()
+
+        response = self.client.get(reverse("campaigns.campaign_update", args=[campaign.pk]))
+
+        # we should get 404 for the inactive campaign
+        self.assertEqual(response.status_code, 404)
+
+    def test_view_campaignevent_create_on_archived_campaign(self):
+        self.login(self.admin)
+
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        post_data = dict(
+            relative_to=self.planting_date.pk,
+            event_type="M",
+            base="This is my message",
+            spa="hola",
+            direction="B",
+            offset=1,
+            unit="W",
+            flow_to_start="",
+            delivery_hour=13,
+            message_start_mode="I",
+        )
+
+        response = self.client.post(
+            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
+        )
+
+        self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.pk]))
+
+        # archive the campaign
+        campaign.is_archived = True
+        campaign.save()
+
+        response = self.client.post(
+            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
+        )
+
+        # we should get 404 for the archived campaign
+        self.assertEqual(response.status_code, 404)
+
+        # deactivate the campaign
+        campaign.is_archived = False
+        campaign.is_active = False
+        campaign.save()
+
+        response = self.client.post(
+            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
+        )
+
+        # we should get 404 for the inactive campaign
+        self.assertEqual(response.status_code, 404)
 
     def test_eventfire_get_relative_to_value(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -729,7 +982,7 @@ class CampaignTest(TembaTest):
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
         )
-        self.farmer1.set_field(self.admin, "planting_date", timezone.now())
+        self.farmer1.set_field(self.admin, "planting_date", self.org.format_datetime(timezone.now()))
 
         trimDate = timezone.now() - timedelta(days=settings.EVENT_FIRE_TRIM_DAYS + 1)
         ev = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
@@ -743,11 +996,15 @@ class CampaignTest(TembaTest):
         ev2 = EventFire.objects.create(event=event2, contact=self.farmer1, scheduled=trimDate, fired=trimDate)
         self.assertIsNotNone(ev2.get_relative_to_value())
 
+        # recalculate for created on
+        EventFire.update_campaign_events(campaign)
+        self.assertEqual(2, EventFire.objects.filter(event__relative_to=field_created_on, fired=None).count())
+
     def test_campaignevent_calculate_scheduled_fire(self):
         planting_date = timezone.now()
         field_created_on = self.org.contactfields.get(key="created_on")
 
-        self.farmer1.set_field(self.admin, "planting_date", planting_date)
+        self.farmer1.set_field(self.admin, "planting_date", self.org.format_datetime(planting_date))
 
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -772,6 +1029,23 @@ class CampaignTest(TembaTest):
             .astimezone(self.org.timezone)
         )
         self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
+
+    def test_import_created_on_event(self):
+        campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
+        created_on = ContactField.system_fields.get(org=self.org, key="created_on")
+
+        CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, relative_to=created_on, offset=3, unit="D", flow=self.reminder_flow
+        )
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("orgs.org_export"), {"flows": [self.reminder_flow.id], "campaigns": [campaign.id]}
+        )
+        exported = response.json()
+
+        self.org.import_app(exported, self.admin)
 
     def test_deleting_reimport_contact_groups(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -834,21 +1108,36 @@ class CampaignTest(TembaTest):
         self.assertEqual("15-8-2020", "%s-%s-%s" % (planting.day, planting.month, planting.year))
 
         # now update the campaign
-        self.farmers = ContactGroup.user_groups.get(name="Farmers")
+        new_farmers = ContactGroup.user_groups.filter(name="Farmers", is_active=True).first()
+        new_campaign = Campaign.create(self.org, self.admin, "Planting Reminders", new_farmers)
+        new_planting_reminder = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            new_campaign,
+            relative_to=self.planting_date,
+            offset=3,
+            unit="D",
+            flow=self.reminder_flow,
+        )
+
         self.login(self.admin)
-        post_data = dict(name="Planting Reminders", group=self.farmers.pk)
-        self.client.post(reverse("campaigns.campaign_update", args=[campaign.pk]), post_data)
+        post_data = dict(name="Planting Reminders", group=new_farmers.pk)
+
+        self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
+
+        self.farmer1.set_field(self.user, "planting_date", "13-08-2020 12:30:10")
+        self.farmer2.set_field(self.user, "planting_date", "18-08-2020 12:30:10")
 
         # should have two fresh new fires
         self.assertEqual(2, EventFire.objects.all().count())
 
         # check their new planting dates
-        scheduled = EventFire.objects.get(contact=self.farmer1, event=planting_reminder).scheduled
-        self.assertEqual("13-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+        scheduled = EventFire.objects.get(contact=self.farmer1, event=new_planting_reminder).scheduled
+        self.assertEqual("16-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
         # farmer two fire
-        scheduled = EventFire.objects.get(contact=self.farmer2, event=planting_reminder).scheduled
-        self.assertEqual("18-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
+        scheduled = EventFire.objects.get(contact=self.farmer2, event=new_planting_reminder).scheduled
+        self.assertEqual("21-8-2020", "%s-%s-%s" % (scheduled.day, scheduled.month, scheduled.year))
 
         # give our non farmer a planting date
         self.nonfarmer.set_field(self.user, "planting_date", "20-05-2020 12:30:10")
@@ -856,11 +1145,12 @@ class CampaignTest(TembaTest):
         # now update to the non-farmer group
         self.nonfarmers = self.create_group("Not Farmers", [self.nonfarmer])
         post_data = dict(name="Planting Reminders", group=self.nonfarmers.pk)
-        self.client.post(reverse("campaigns.campaign_update", args=[campaign.pk]), post_data)
+        self.client.post(reverse("campaigns.campaign_update", args=[new_campaign.pk]), post_data)
 
         # only one fire for the non-farmer the previous two should be deleted by the group change
-        self.assertEqual(1, EventFire.objects.all().count())
-        self.assertEqual(1, EventFire.objects.filter(contact=self.nonfarmer).count())
+        self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
+        self.assertEqual(2, EventFire.objects.filter(event__is_active=False).count())
+        self.assertEqual(1, EventFire.objects.filter(event__is_active=True, contact=self.nonfarmer).count())
 
     def test_dst_scheduling(self):
         # set our timezone to something that honors DST
@@ -883,7 +1173,7 @@ class CampaignTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=Value.TYPE_TEXT)
 
         # we should be scheduled to go off on the 5th at 12:30:10 Eastern
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.filter(event__is_active=True).first()
         self.assertEqual(5, fire.scheduled.day)
         self.assertEqual(11, fire.scheduled.month)
         self.assertEqual(2029, fire.scheduled.year)
@@ -901,7 +1191,7 @@ class CampaignTest(TembaTest):
         self.farmer1.set_field(self.user, "planting_date", "10-03-2029 02:30:00")
         EventFire.update_campaign_events(campaign)
 
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.filter(event__is_active=True).first()
         self.assertEqual(12, fire.scheduled.day)
         self.assertEqual(3, fire.scheduled.month)
         self.assertEqual(2029, fire.scheduled.year)
@@ -916,6 +1206,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(delta.seconds, 82800)
 
         # release our campaign event
+        event = campaign.get_events().first()
         event.release()
 
         # should be able to change our field type now
@@ -952,7 +1243,7 @@ class CampaignTest(TembaTest):
         EventFire.update_campaign_events(campaign)
 
         # should have one event now
-        fire = EventFire.objects.get()
+        fire = EventFire.objects.get(event__is_active=True)
         self.assertEqual(5, fire.scheduled.day)
         self.assertEqual(10, fire.scheduled.month)
         self.assertEqual(2020, fire.scheduled.year)
@@ -961,6 +1252,8 @@ class CampaignTest(TembaTest):
         self.assertEqual(17 - 2, fire.scheduled.hour)
 
         self.assertEqual(self.farmer1, fire.contact)
+
+        planting_reminder = campaign.get_events().first()
         self.assertEqual(planting_reminder, fire.event)
 
         self.assertIsNone(fire.fired)
@@ -1008,8 +1301,11 @@ class CampaignTest(TembaTest):
         # update the campaign
         EventFire.update_campaign_events(campaign)
 
+        # since planting reminder had events, it'll get cloned
+        planting_reminder = campaign.get_events().first()
+
         # should have two events now, ordered by date
-        events = EventFire.objects.all()
+        events = EventFire.objects.filter(event__is_active=True)
 
         self.assertEqual(planting_reminder, events[0].event)
         self.assertEqual(7, events[0].scheduled.day)
@@ -1024,48 +1320,21 @@ class CampaignTest(TembaTest):
         # update the campaign
         EventFire.update_campaign_events(campaign)
 
+        # since planting reminder had events, it'll get cloned
+        planting_reminder = campaign.get_events().first()
+
         # back to only one event
-        event = EventFire.objects.get()
-        self.assertEqual(planting_reminder, event.event)
-        self.assertEqual(7, event.scheduled.day)
+        fire = EventFire.objects.get(event__is_active=True)
+        self.assertEqual(planting_reminder, fire.event)
+        self.assertEqual(7, fire.scheduled.day)
 
         # update our date
         self.farmer1.set_field(self.user, "planting_date", "09-10-2020 12:30")
 
         # should have updated
-        event = EventFire.objects.get()
-        self.assertEqual(planting_reminder, event.event)
-        self.assertEqual(9, event.scheduled.day)
-
-        # let's remove our contact field
-        ContactField.hide_field(self.org, self.user, "planting_date")
-
-        # shouldn't have anything scheduled
-        self.assertFalse(EventFire.objects.all())
-
-        # add it back in
-        ContactField.get_or_create(self.org, self.admin, "planting_date", "planting Date")
-
-        # should be back!
-        event = EventFire.objects.get()
-        self.assertEqual(planting_reminder, event.event)
-        self.assertEqual(9, event.scheduled.day)
-
-        # change our fire date to sometime in the past so it gets triggered
-        event.scheduled = timezone.now() - timedelta(hours=1)
-        event.save()
-
-        # schedule our events to fire
-        check_campaigns_task()
-
-        # should have one flow run now
-        run = FlowRun.objects.get()
-        self.assertEqual(event.contact, run.contact)
-
-        # deleting this event shouldn't delete the runs
-        event.release()
-
-        self.assertEqual(FlowRun.objects.count(), 1)
+        fire = EventFire.objects.get(event__is_active=True)
+        self.assertEqual(planting_reminder, fire.event)
+        self.assertEqual(9, fire.scheduled.day)
 
     def test_translations(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -1193,7 +1462,7 @@ class CampaignTest(TembaTest):
         # check that her event fire is now removed
         self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
-    def test_model_as_json(self):
+    def test_model_as_export_def(self):
         field_created_on = self.org.contactfields.get(key="created_on")
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -1203,7 +1472,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign.as_json(),
+            campaign.as_export_def(),
             {
                 "name": "Planting Reminders",
                 "uuid": campaign.uuid,
@@ -1214,6 +1483,7 @@ class CampaignTest(TembaTest):
                         "offset": 3,
                         "unit": "D",
                         "event_type": "F",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"label": "Planting Date", "key": "planting_date"},
@@ -1229,7 +1499,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign2.as_json(),
+            campaign2.as_export_def(),
             {
                 "name": "Planting Reminders 2",
                 "uuid": campaign2.uuid,
@@ -1240,6 +1510,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "F",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": None,
                         "relative_to": {"key": "created_on", "label": "Created On"},
@@ -1255,7 +1526,7 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            campaign3.as_json(),
+            campaign3.as_export_def(),
             {
                 "name": "Planting Reminders 2",
                 "uuid": campaign3.uuid,
@@ -1266,6 +1537,7 @@ class CampaignTest(TembaTest):
                         "offset": 2,
                         "unit": "D",
                         "event_type": "M",
+                        "start_mode": "I",
                         "delivery_hour": -1,
                         "message": {"base": "o' a framer?"},
                         "relative_to": {"key": "created_on", "label": "Created On"},

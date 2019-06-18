@@ -1,4 +1,4 @@
--load i18n
+-load i18n temba
 
 #send-message.send-message.modal.hide.notice{data-dismiss:'modal'}
   .modal-header
@@ -32,12 +32,7 @@
         directly.
 
   .modal-footer
-    -if object.flow_type == 'U' and not is_ussd_channel
-      %a.btn.cancel{tabindex:4}
-        -trans "Cancel"
-      %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
-        -trans "Add USSD Channel"
-    -elif send_channel
+    -if send_channel
       %a.btn.schedule.pull-left
         -trans "Schedule"
       %a.btn.cancel{tabindex:4}
@@ -54,7 +49,7 @@
 
   :javascript
     $(document).ready(function() {
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_text'));
+      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_text'));
       $("textarea").keyup(messageTextareaLengthCheck);
 
     });

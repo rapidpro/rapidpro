@@ -143,7 +143,7 @@ class Command(BaseCommand):  # pragma: no cover
             results = results.filter(created_on__gt=created_after)
 
         for result in results[:25]:
-            self.stdout.write("%s => %s secs" % (result.url, self._num_style(result.request_time)))
+            self.stdout.write("%s => %s ms" % (result.url, self._num_style(result.request_time)))
 
     def _print_summary(self, items):
         self.stdout.write("\nResponse Statistics:\n=================================")

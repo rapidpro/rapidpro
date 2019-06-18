@@ -1,6 +1,7 @@
 import gzip
 import io
-import json
+
+from temba.utils import json
 
 
 class MockS3Client:

@@ -1,4 +1,3 @@
-
 import telegram
 from smartmin.views import SmartFormView
 

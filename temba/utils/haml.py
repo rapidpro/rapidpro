@@ -1,4 +1,3 @@
-
 """
 We need our own custom template loaders because we allow templates to be overridden even when the extension doesn't
 match, i.e. a template called index.haml can override index.html in Smartmin

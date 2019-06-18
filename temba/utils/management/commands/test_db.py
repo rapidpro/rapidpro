@@ -20,6 +20,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from temba.archives.models import Archive
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import (
@@ -32,7 +33,7 @@ from temba.contacts.models import (
     ContactGroupCount,
     ContactURN,
 )
-from temba.flows.models import FlowRun, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
@@ -46,7 +47,7 @@ from temba.values.constants import Value
 # maximum age in days of database content
 CONTENT_AGE = 3 * 365
 
-# every user will have this password including the superuser
+# by default every user will have this password including the superuser
 USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
@@ -63,15 +64,15 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"username": "admin%d", "email": "org%d_admin@example.com", "role": "administrators"},
-    {"username": "editor%d", "email": "org%d_editor@example.com", "role": "editors"},
-    {"username": "viewer%d", "email": "org%d_viewer@example.com", "role": "viewers"},
-    {"username": "surveyor%d", "email": "org%d_surveyor@example.com", "role": "surveyors"},
+    {"email": "org%d.admin@nyaruka.com", "role": "administrators"},
+    {"email": "org%d.editor@nyaruka.com", "role": "editors"},
+    {"email": "org%d.viewer@nyaruka.com", "role": "viewers"},
+    {"email": "org%d.surveyor@nyaruka.com", "role": "surveyors"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": Channel.TYPE_ANDROID, "scheme": "tel", "address": "1234"},
     {"name": "Nexmo", "channel_type": "NX", "scheme": "tel", "address": "2345"},
-    {"name": "Twitter", "channel_type": "TT", "scheme": "twitter", "address": "my_handle"},
+    {"name": "Twitter", "channel_type": "TWT", "scheme": "twitter", "address": "my_handle"},
 )
 FIELDS = (
     {"key": "gender", "label": "Gender", "value_type": Value.TYPE_TEXT},
@@ -101,7 +102,7 @@ LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Tr
 FLOWS = (
     {
         "name": "Favorites",
-        "file": "favorites.json",
+        "file": "favorites_timeout.json",
         "templates": (
             ["blue", "mutzig", "bob"],
             ["orange", "green", "primus", "jeb"],
@@ -111,6 +112,25 @@ FLOWS = (
     },
     {"name": "SMS Form", "file": "sms_form.json", "templates": (["22 F Seattle"], ["35 M MIAMI"])},
     {"name": "Pick a Number", "file": "pick_a_number.json", "templates": (["1"], ["4"], ["5"], ["7"], ["8"])},
+)
+CAMPAIGNS = (
+    {
+        "name": "Doctor Reminders",
+        "group": "Doctors",
+        "events": (
+            {"flow": "Favorites", "offset_field": "joined", "offset": "5", "offset_unit": "D", "delivery_hour": 12},
+            {
+                "base_language": "eng",
+                "message": {
+                    "eng": "Hi @contact.name, it is time to consult with your patients.",
+                    "fra": "Bonjour @contact.name, il est temps de consulter vos patients.",
+                },
+                "offset_field": "joined",
+                "offset": "10",
+                "offset_unit": "M",
+            },
+        ),
+    },
 )
 
 # contact names are generated from these components
@@ -140,15 +160,15 @@ class Command(BaseCommand):
     stealth_options = ("num_orgs", "num_contacts", "seed", "org_id", "num_runs", "flow_name", "seed")
 
     def add_arguments(self, parser):
-        cmd = self
         subparsers = parser.add_subparsers(
-            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(cmd, **kw)
+            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(**kw)
         )
 
         gen_parser = subparsers.add_parser("generate", help="Generates a clean testing database")
         gen_parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
         gen_parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
         gen_parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
+        gen_parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
 
         sim_parser = subparsers.add_parser("simulate", help="Simulates activity on an existing database")
         sim_parser.add_argument("--org", type=int, action="store", dest="org_id", default=None)
@@ -160,14 +180,14 @@ class Command(BaseCommand):
         start = time.time()
 
         if command == self.COMMAND_GENERATE:
-            self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"])
+            self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"], kwargs["password"])
         else:
             self.handle_simulate(kwargs["num_runs"], kwargs["org_id"], kwargs["flow_name"], kwargs["seed"])
 
         time_taken = time.time() - start
         self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
 
-    def handle_generate(self, num_orgs, num_contacts, seed):
+    def handle_generate(self, num_orgs, num_contacts, seed, password):
         """
         Creates a clean database
         """
@@ -194,18 +214,19 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        superuser = User.objects.create_superuser("root", "root@example.com", USER_PASSWORD)
+        superuser = User.objects.create_superuser("root", "root@nyaruka.com", password)
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
         orgs = self.create_orgs(superuser, country, num_orgs)
-        self.create_users(orgs)
+        self.create_users(orgs, password)
         self.create_channels(orgs)
         self.create_fields(orgs)
         self.create_groups(orgs)
+        self.create_contacts(orgs, locations, num_contacts)
         self.create_labels(orgs)
         self.create_flows(orgs)
         self.create_archives(orgs)
-        self.create_contacts(orgs, locations, num_contacts)
+        self.create_campaigns(orgs)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
         """
@@ -230,7 +251,7 @@ class Command(BaseCommand):
         self._log("Preparing existing orgs... ")
 
         for org in orgs:
-            flows = org.flows.order_by("id")
+            flows = org.flows.order_by("id").exclude(is_system=True)
 
             if flow_name:
                 flows = flows.filter(name=flow_name)
@@ -244,7 +265,7 @@ class Command(BaseCommand):
                 "channels": list(org.channels.order_by("id")),
                 "groups": list(ContactGroup.user_groups.filter(org=org).order_by("id")),
                 "flows": flows,
-                "contacts": list(org.org_contacts.values_list("id", flat=True)),  # only ids to save memory
+                "contacts": list(org.contacts.values_list("id", flat=True)),  # only ids to save memory
                 "activity": None,
             }
 
@@ -340,7 +361,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + "\n")
         return orgs
 
-    def create_users(self, orgs):
+    def create_users(self, orgs, password):
         """
         Creates a user of each type for each org
         """
@@ -349,7 +370,7 @@ class Command(BaseCommand):
         # create users for each org
         for org in orgs:
             for u in USERS:
-                user = User.objects.create_user(u["username"] % org.id, u["email"] % org.id, USER_PASSWORD)
+                user = User.objects.create_user(u["email"] % org.id, u["email"] % org.id, password)
                 getattr(org, u["role"]).add(user)
                 user.set_org(org)
                 org.cache["users"].append(user)
@@ -383,7 +404,7 @@ class Command(BaseCommand):
         """
         self._log("Creating %d archives... " % (len(orgs) * ARCHIVES * 3))
 
-        MAX_RECORDS_PER_DAY = 3000000
+        MAX_RECORDS_PER_DAY = 3_000_000
 
         def create_archive(max_records, start, period):
             record_count = random.randint(0, max_records)
@@ -391,10 +412,16 @@ class Command(BaseCommand):
             archive_hash = uuid.uuid4().hex
 
             if period == Archive.PERIOD_DAILY:
-                archive_url = f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/" f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
+                archive_url = (
+                    f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/"
+                    f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
+                )
             else:
 
-                archive_url = f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/" f"{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz"
+                archive_url = (
+                    f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/"
+                    f"{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz"
+                )
 
             Archive.objects.create(
                 org=org,
@@ -496,20 +523,56 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
+    def create_campaigns(self, orgs):
+        """
+        Creates the campaigns for each org
+        """
+        self._log("Creating %d campaigns... " % (len(orgs) * len(CAMPAIGNS)))
+
+        for org in orgs:
+            user = org.cache["users"][0]
+            for c in CAMPAIGNS:
+                group = ContactGroup.all_groups.get(org=org, name=c["group"])
+                campaign = Campaign.objects.create(
+                    name=c["name"], group=group, is_archived=False, org=org, created_by=user, modified_by=user
+                )
+
+                for e in c.get("events", []):
+                    field = ContactField.all_fields.get(org=org, key=e["offset_field"])
+
+                    if "flow" in e:
+                        flow = Flow.objects.get(org=org, name=e["flow"])
+                        CampaignEvent.create_flow_event(
+                            org,
+                            user,
+                            campaign,
+                            field,
+                            e["offset"],
+                            e["offset_unit"],
+                            flow,
+                            delivery_hour=e.get("delivery_hour", -1),
+                        )
+                    else:
+                        CampaignEvent.create_message_event(
+                            org,
+                            user,
+                            campaign,
+                            field,
+                            e["offset"],
+                            e["offset_unit"],
+                            e["message"],
+                            delivery_hour=e.get("delivery_hour", -1),
+                            base_language=e["base_language"],
+                        )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
     def create_contacts(self, orgs, locations, num_contacts):
         """
         Creates test and regular contacts for this database. Returns tuples of org, contact id and the preferred urn
         id to avoid trying to hold all contact and URN objects in memory.
         """
         group_counts = defaultdict(int)
-
-        self._log("Creating %d test contacts..." % (len(orgs) * len(USERS)))
-
-        for org in orgs:
-            test_contacts = []
-            for user in org.cache["users"]:
-                test_contacts.append(Contact.get_test_contact(user))
-            org.cache["test_contacts"] = test_contacts
 
         self._log(self.style.SUCCESS("OK") + "\n")
         self._log("Creating %d regular contacts...\n" % num_contacts)
@@ -552,9 +615,8 @@ class Command(BaseCommand):
                         "is_active": self.probability(1 - CONTACT_IS_DELETED_PROB),
                         "created_on": created_on,
                         "modified_on": self.random_date(created_on, self.db_ends_on),
+                        "fields_as_json": {},
                     }
-
-                    c["fields_as_json"] = {}
 
                     if c["gender"] is not None:
                         c["fields_as_json"][str(org.cache["fields"]["gender"].uuid)] = {"text": str(c["gender"])}

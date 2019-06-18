@@ -1,7 +1,4 @@
-
 import importlib
-
-import debug_toolbar
 
 from django.conf import settings
 from django.conf.urls import include, url
@@ -20,6 +17,7 @@ js_info_dict = {"packages": ()}  # this is empty due to the fact that all transl
 urlpatterns = [
     url(r"^", include("temba.public.urls")),
     url(r"^", include("temba.msgs.urls")),
+    url(r"^", include("temba.apks.urls")),
     url(r"^", include("temba.archives.urls")),
     url(r"^", include("temba.policies.urls")),
     url(r"^", include("temba.contacts.urls")),
@@ -44,7 +42,6 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += [url(r"^__debug__/", include(debug_toolbar.urls))]
 
 
 # import any additional urls
