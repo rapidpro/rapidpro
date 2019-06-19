@@ -2765,7 +2765,7 @@ class ChannelLogTest(TembaTest):
             is_error=False,
             url="There is no contact identifying information",
             method="POST",
-            request="""There is no contact identifying information""",
+            request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
             response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
             response_status=200,
         )
@@ -2806,13 +2806,13 @@ class ChannelLogTest(TembaTest):
     def test_channellog_anonymous_org_twitter_activity_channel(self):
         twitter_urn = "twitterid:767659860"
 
-        tg_contact = self.create_contact("Fred Jones", twitter_urn)
-        tg_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        tw_contact = self.create_contact("Fred Jones", twitter_urn)
+        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
 
-        incoming_msg = Msg.create_incoming(tg_channel, twitter_urn, "incoming msg", contact=tg_contact)
+        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tg_channel,
+            channel=tw_channel,
             msg=incoming_msg,
             description="Successfully Sent",
             is_error=False,
@@ -2825,7 +2825,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        list_url = reverse("channels.channellog_list", args=[tw_channel.uuid])
         response = self.client.get(list_url)
 
         self.assertContains(response, "767659860", count=1)
@@ -2871,6 +2871,59 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, "767659860", count=4)
             self.assertContains(response, "Aaron Tumukunde", count=1)
             self.assertContains(response, "tumaaron", count=2)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_anonymous_org_twitter_activity_channel_apply_mask_cant_find_match(self):
+        twitter_urn = "twitterid:767659860"
+
+        tw_contact = self.create_contact("Fred Jones", twitter_urn)
+        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+
+        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tw_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=1)
+        self.assertContains(response, "There is no contact identifying information", count=3)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
+
+            self.assertContains(response, "767659860", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "There is no contact identifying information", count=3)
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
