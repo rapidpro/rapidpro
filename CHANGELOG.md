@@ -1,3 +1,7 @@
+v5.0.3
+----------
+ * Update flow editor to 1.5.14
+
 v5.0.2
 ----------
  * Remove reference to webhook API page which no longer exists
