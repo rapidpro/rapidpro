@@ -1,5 +1,5 @@
 -extends "smartmin/create.html"
--load i18n
+-load i18n temba smartmin
 
 -block page-top
 
@@ -32,83 +32,81 @@
           .glyph.icon-android
         %span.title-text
           -trans "Connect your Android phone"
+      {% url "public.public_android" as android_public_url %}
+
 
       #little-help
         %p
           -blocktrans with brand.name as brand
-            {{ brand }} uses your Android phone to send and receive messages.
-        %p
-          -blocktrans
-            You can use any Android phone as your message channel, though we recommend one from Samsung like the
-            Galaxy Mini series.
+            {{ brand }} uses your Android phone to send and receive messages on your behalf.
 
         %p
           -blocktrans with brand.name as brand
-            You can download the free {{ brand }} app from the Google Play Store.  If you have used the Play Store before, then
-            the process will be the same. If this is your first time, don't worry, it is easy!  Just follow the steps
-            below and you'll be up and running in a few minutes.
+            Due to restrictions Android has on applications that send SMS messages, we cannot distribute
+            the {{ brand }} application through the Play Store. You will need to download the application manually
+            and install it using the steps below.
+
+          -if relayer_app
+            .release-header
+              {% trans "Version" %} {{relayer_app.version}} {% trans "was released on" %} {% pretty_datetime relayer_app.created_on %}
+
+            -if relayer_app.description
+              .release-description
+                {{ relayer_app.markdown_description}}
+
+        %p.step
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim0.png' }
+          .step-text
+            %h3
+              -trans "Download App"
+
+            %p
+              {% blocktrans with brand=brand.name link=brand.link %}
+                On your Android device, open your browser and download the app by entering the URL:
+                %code
+                  {{ link }}{{ android_public_url }}
+              {% endblocktrans %}
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim1.png' }
           .step-text
             %h3
-              -trans "Open Play Store"
+              -blocktrans with brand.name as brand
+                Launch the {{ brand }} installer
             %p
               -blocktrans
-                First find the "Play Store" or "Market" application on your phone and open it.  You might need to
-                press "Home" or find the launcher menu first.
+                Open the notifications shade by dragging from the top and select the downloaded file.
+
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim2.png' }
           .step-text
             %h3
-              -blocktrans with brand.name as brand
-                Search for {{ brand }}
+              -trans "Tap Settings"
             %p
-              -blocktrans with brand.name as brand
-                Once you open the Play Store, search for "{{ brand }}".  Begin your search by tapping the magnifying
-                glass, enter "{{ brand }}", then tap on the result that comes back.
+              -blocktrans
+                You will be taken to a screen with "allow from this source" toggle
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim3.png' }
           .step-text
             %h3
-              -trans "Install"
+              -trans "Toggle allow from this source"
             %p
-              -blocktrans with brand.name as brand
-                On the {{ brand }} application page tap the "Install" button.
+              -blocktrans
+                Make sure "allow from this source" toggle is in the On position.
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim4.png' }
           .step-text
             %h3
-              -trans "Confirm Installation"
+              -trans "Go Back"
             %p
-              -blocktrans 
-                You will now be asked to confirm the installation.  Tap "Accept and Download" to begin the download.
+              -blocktrans
+                Click Install
 
         %p.step
           %img.step-image{ src: '{{ STATIC_URL }}images/claim5.png' }
-          .step-text
-            %h3
-              -trans "Allow Updates"
-            %p
-              -blocktrans with brand.name as brand
-                The {{ brand }} app gets regular updates. To make sure you don't miss any, tap the "Allow automatic updating"
-                checkbox.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim55.png' }
-          .step-text
-            %h3
-              -trans "Wait for Download"
-            %p
-              -blocktrans with brand.name as brand
-                Depending on the speed of your connection, {{ brand }} may take a few minutes to download.  You can keep track
-                of the progress by swiping down from the top of the screen.
-
-        %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
           .step-text
             %h3
               -blocktrans with brand.name as brand
@@ -118,7 +116,7 @@
                 Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
 
         %p.step
-          %img.step-image{ src: '{{ STATIC_URL }}images/claim7.png' }
+          %img.step-image{ src: '{{ STATIC_URL }}images/claim6.png' }
           .step-text
             %h3
               -trans "Enter Claim Code"
@@ -220,7 +218,7 @@
     }
 
     .title-icon + .title-text {
-      margin-left: 36px;
+      margin-left: -15px;
     }
 
     #big-phone {
@@ -263,4 +261,16 @@
       text-align:center;
       font-size: 24px;
       margin-bottom:0;
+    }
+
+    .release-header{
+      font-weight: bold;
+    }
+
+    .release-description {
+      color: #666;
+    }
+
+    .release-description ul li {
+      list-style-type: circle;
     }

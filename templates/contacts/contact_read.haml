@@ -6,7 +6,7 @@
 -block buttons
 
 -block page-title
-  {{contact|name_or_urn:user_org}}
+  {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
 -block title
   -if contact.is_blocked
@@ -16,9 +16,9 @@
   -else
     .medium-help.icon-user{style:"float:left"}
   %h2.header-margin
-    {{contact|name_or_urn:user_org}}
+    {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
-  %h5.header-margin{style:"margin-bottom: 10px"}
+  %h5.header-margin{style:"margin-bottom: 5px"}
     -if user_org.is_anon
       .contact-urn
         .glyph.icon-vcard
@@ -85,28 +85,41 @@
   </style>
   <![endif]-->
 
-  -if contact_fields
-    .contact-fields
-      .featured
-        -for field in contact_fields
-          -if field.value and field.featured
-            .contact-field{data-id:'{{field.id}}'}
-              .contact-field-label
-                {{field.label|title}}
-              .contact-field-value
-                {{field.value}}
+  .contact-fields
+    .featured
+      .contact-field
+        .contact-field-label
+          -trans "Created On"
 
-      .normal.hide
-        -for field in contact_fields
-          -if field.value and not field.featured
-            .contact-field{data-id:'{{field.id}}'}
-              .contact-field-label
-                {{field.label|title}}
-              .contact-field-value
-                {{field.value}}
+        .contact-field-value
+          {% pretty_datetime contact.created_on %}
 
+      -if contact_language
+        .contact-field
+          .contact-field-label
+            -trans "Language"
 
-  -if contact_fields|length > 4
+          .contact-field-value
+            {{contact_language}}
+
+      -for field in all_contact_fields|slice:":6"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
+
+          .contact-field-value.editable
+            {{field.value}}
+
+    .normal.hide
+      -for field in all_contact_fields|slice:"6:"
+        .contact-field{data-id:'{{field.id}}'}
+          .contact-field-label
+            {{field.label|title}}
+
+          .contact-field-value.editable
+            {{field.value}}
+
+  -if all_contact_fields|length > 6
     %a.pull-right.show-all.fields
       .icon-arrow-down
 
@@ -145,7 +158,7 @@
                 -trans "Start"
                 %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
-            {{evt.scheduled}}
+            {% pretty_datetime evt.scheduled %}
 
             .repeats
               -if evt.repeat_period == 'D'
@@ -395,7 +408,7 @@
           }
 
           .contact-field {
-            display:inline-block;
+            display: inline-block;
             width: 260px;
             padding: 2px 10px;
 
@@ -410,18 +423,21 @@
               display:block;
             }
 
+            .contact-field-label-featured {
+              font-style: italic;
+            }
+
             .contact-field-value {
               font-weight: bold;
               color: @color-font-grey;
               padding-top:-5px;
-              cursor: pointer;
               display:inline-block;
-
-              &:hover {
-                text-decoration: underline;
-              }
             }
 
+            .editable:hover {
+              cursor: pointer;
+              text-decoration: underline;
+            }
           }
         }
 
@@ -460,13 +476,6 @@
         $(this).children('.short').show();
         $(this).children('.long').hide();
       });
-
-      // configure the number of contact fields to show
-      var featuredMax = 4;
-      var featuredCount = $('.featured .contact-field').size()
-      if (featuredCount < featuredMax) {
-        $('.normal .contact-field').slice(0, featuredMax-featuredCount).detach().appendTo('.featured')
-      }
     });
 
     function refreshRecents(){
@@ -512,7 +521,7 @@
       modal.show();
     });
 
-    $('.contact-field-value').live('click', function(evt) {
+    $('.contact-field-value.editable').live('click', function(evt) {
       var field_id = $(this).parent().data('id');
       var modal = new Modax('{% trans "Custom Fields" %}','{% url "contacts.contact_update_fields" object.pk %}?field=' + field_id);
       modal.setIcon('icon-user');

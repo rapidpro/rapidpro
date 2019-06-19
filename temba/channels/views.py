@@ -6,9 +6,11 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+import nexmo
 import phonenumbers
 import pytz
 import requests
+import twilio.base.exceptions
 from django_countries.data import COUNTRIES
 from smartmin.views import (
     SmartCRUDL,
@@ -28,6 +30,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
@@ -35,6 +38,7 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.apks.models import Apk
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
@@ -43,16 +47,28 @@ from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMi
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
 
-from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import (
+    Alert,
+    Channel,
+    ChannelConnection,
+    ChannelCount,
+    ChannelEvent,
+    ChannelLog,
+    SyncEvent,
+    UnsupportedAndroidChannelError,
+)
 
 logger = logging.getLogger(__name__)
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
 COUNTRIES_NAMES["GB"] = _("United Kingdom")
 COUNTRIES_NAMES["US"] = _("United States")
+COUNTRIES_NAMES["AC"] = _("Scension Island")
+COUNTRIES_NAMES["XK"] = _("Kosovo")
 
 
 COUNTRY_CALLING_CODES = {
+    "AC": (247,),  # Scension Island
     "AF": (93,),  # Afghanistan
     "AX": (35818,),  # Åland Islands
     "AL": (355,),  # Albania
@@ -99,8 +115,8 @@ COUNTRY_CALLING_CODES = {
     "TD": (235,),  # Chad
     "CL": (56,),  # Chile
     "CN": (86,),  # China
-    "CX": (6189164,),  # Christmas Island
-    "CC": (6189162,),  # Cocos (Keeling) Islands
+    "CX": (6_189_164,),  # Christmas Island
+    "CC": (6_189_162,),  # Cocos (Keeling) Islands
     "CO": (57,),  # Colombia
     "KM": (269,),  # Comoros
     "CD": (243,),  # Congo (the Democratic Republic of the)
@@ -144,13 +160,13 @@ COUNTRY_CALLING_CODES = {
     "GP": (590,),  # Guadeloupe
     "GU": (1671,),  # Guam
     "GT": (502,),  # Guatemala
-    "GG": (441481, 447781, 447839, 447911),  # Guernsey
+    "GG": (441_481, 447_781, 447_839, 447_911),  # Guernsey
     "GN": (224,),  # Guinea
     "GW": (245,),  # Guinea-Bissau
     "GY": (592,),  # Guyana
     "HT": (509,),  # Haiti
     "HM": (),  # Heard Island and McDonald Islands
-    "VA": (379, 3906698),  # Holy See
+    "VA": (379, 3_906_698),  # Holy See
     "HN": (504,),  # Honduras
     "HK": (852,),  # Hong Kong
     "HU": (36,),  # Hungary
@@ -160,12 +176,12 @@ COUNTRY_CALLING_CODES = {
     "IR": (98,),  # Iran (Islamic Republic of)
     "IQ": (964,),  # Iraq
     "IE": (353,),  # Ireland
-    "IM": (441624, 447524, 447624, 447924),  # Isle of Man
+    "IM": (441_624, 447_524, 447_624, 447_924),  # Isle of Man
     "IL": (972,),  # Israel
     "IT": (39,),  # Italy
     "JM": (1876,),  # Jamaica
     "JP": (81,),  # Japan
-    "JE": (441534,),  # Jersey
+    "JE": (441_534,),  # Jersey
     "JO": (962,),  # Jordan
     "KZ": (76, 77),  # Kazakhstan
     "KE": (254,),  # Kenya
@@ -195,7 +211,7 @@ COUNTRY_CALLING_CODES = {
     "MQ": (596,),  # Martinique
     "MR": (222,),  # Mauritania
     "MU": (230,),  # Mauritius
-    "YT": (262269, 262639),  # Mayotte
+    "YT": (262_269, 262_639),  # Mayotte
     "MX": (52,),  # Mexico
     "FM": (691,),  # Micronesia (Federated States of)
     "MD": (373,),  # Moldova (the Republic of)
@@ -299,6 +315,7 @@ COUNTRY_CALLING_CODES = {
     "VI": (),  # Virgin Islands (U.S.)
     "WF": (681,),  # Wallis and Futuna
     "EH": (),  # Western Sahara
+    "XK": (383,),  # Kosovo
     "YE": (967,),  # Yemen
     "ZM": (260,),  # Zambia
     "ZW": (263,),  # Zimbabwe
@@ -352,92 +369,230 @@ TWILIO_SUPPORTED_COUNTRY_CODES = list(
 )
 
 NEXMO_SUPPORTED_COUNTRIES_CONFIG = (
-    "DZ",  # Algeria
+    "AC",  # scension Island
+    "AD",  # Andorra
+    "AE",  # United Arab Emirates
+    "AF",  # Afghanistan
+    "AG",  # Antigua and Barbuda
+    "AI",  # Anguilla
+    "AL",  # Albania
+    "AM",  # Armenia
+    "AO",  # Angola
     "AR",  # Argentina
-    "AU",  # Australia
+    "AS",  # American Samoa
     "AT",  # Austria
-    "BH",  # Bahrain
+    "AU",  # Australia
+    "AW",  # Aruba
+    "AZ",  # Azerbaijan
+    "BA",  # Bosnia and Herzegovina
+    "BB",  # Barbados
+    "BD",  # Bangladesh
     "BE",  # Belgium
-    "BJ",  # Benin
-    "BO",  # Bolivia
-    "BR",  # Brazil
+    "BF",  # Burkina Faso
     "BG",  # Bulgaria
-    "KH",  # Cambodia
+    "BH",  # Bahrain
+    "BI",  # Burundi
+    "BJ",  # Benin
+    "BM",  # Bermuda
+    "BN",  # Brunei
+    "BO",  # Bolivia
+    "BQ",  # Bonaire, Sint Eustatius and Saba
+    "BR",  # Brazil
+    "BS",  # Bahamas
+    "BT",  # Bhutan
+    "BW",  # Botswana
+    "BY",  # Belarus
+    "BZ",  # Belize
     "CA",  # Canada
-    "KY",  # Cayman Islands
+    "CD",  # Democratic Republic of the Congo
+    "CF",  # Central African Republic
+    "CG",  # Republic Of The Congo
+    "CH",  # Switzerland
+    "CI",  # Ivory Coast
+    "CK",  # Cook Islands
     "CL",  # Chile
+    "CM",  # Cameroon
     "CN",  # China
     "CO",  # Colombia
     "CR",  # Costa Rica
-    "HR",  # Croatia
+    "CU",  # Cuba
+    "CV",  # Cape Verde
+    "CW",  # Curacao
     "CY",  # Cyprus
-    "CZ",  # Czech Republic
-    "DK",  # Denmark
-    "DO",  # Dominican Republic
-    "SV",  # El Salvador
-    "EE",  # Estonia
-    "FI",  # Finland
-    "FR",  # France
-    "GE",  # Georgia
+    "CZ",  # Czechia
     "DE",  # Germany
+    "DJ",  # Djibouti
+    "DK",  # Denmark
+    "DM",  # Dominica
+    "DO",  # Dominican Republic
+    "DZ",  # Algeria
+    "EC",  # Ecuador
+    "EE",  # Estonia
+    "EG",  # Egypt
+    "ER",  # Eritrea
+    "ES",  # Spain
+    "ET",  # Ethiopia
+    "FI",  # Finland
+    "FJ",  # Fiji
+    "FM",  # Micronesia
+    "FO",  # Faroe Islands
+    "FR",  # France
+    "GA",  # Gabon
+    "GB",  # United Kingdom
+    "GD",  # Grenada
+    "GE",  # Georgia
+    "GF",  # French Guiana
     "GH",  # Ghana
+    "GI",  # Gibraltar
+    "GL",  # Greenland
+    "GM",  # Gambia
+    "GN",  # Guinea
+    "GP",  # Guadeloupe
+    "GQ",  # Equatorial Guinea
     "GR",  # Greece
-    "GD",  # Grenanda
     "GT",  # Guatemala
-    "HN",  # Honduras
+    "GU",  # Guam
+    "GW",  # Guinea-Bissau
+    "GY",  # Guyana
     "HK",  # Hong Kong
+    "HN",  # Honduras
+    "HR",  # Croatia
+    "HT",  # Haiti
     "HU",  # Hungary
-    "IS",  # Iceland
-    "IN",  # India
     "ID",  # Indonesia
     "IE",  # Ireland
     "IL",  # Israel
+    "IN",  # India
+    "IQ",  # Iraq
+    "IR",  # Iran
+    "IS",  # Iceland
     "IT",  # Italy
     "JM",  # Jamaica
+    "JO",  # Jordan
     "JP",  # Japan
     "KE",  # Kenya
-    "LV",  # Latvia
+    "KG",  # Kyrgyzstan
+    "KH",  # Cambodia
+    "KI",  # Kiribati
+    "KM",  # Comoros
+    "KN",  # Saint Kitts and Nevis
+    "KR",  # South Korea
+    "KW",  # Kuwait
+    "KY",  # Cayman Islands
+    "KZ",  # Kazakhstan
+    "LA",  # Laos
+    "LB",  # Lebanon
+    "LC",  # Saint Lucia
     "LI",  # Liechtenstein
+    "LK",  # Sri Lanka
+    "LR",  # Liberia
+    "LS",  # Lesotho
     "LT",  # Lithuania
     "LU",  # Luxembourg
-    "MO",  # Macau
-    "MY",  # Malaysia
-    "MT",  # Malta
-    "MX",  # Mexico
+    "LV",  # Latvia
+    "LY",  # Libya
+    "MA",  # Morocco
+    "MC",  # Monaco
     "MD",  # Moldova
-    "NL",  # Netherlands
-    "NZ",  # New Zealand
+    "ME",  # Montenegro
+    "MG",  # Madagascar
+    "MH",  # Marshall Islands
+    "MK",  # Macedonia
+    "ML",  # Mali
+    "MM",  # Myanmar
+    "MN",  # Mongolia
+    "MO",  # Macau
+    "MP",  # Northern Mariana Islands
+    "MQ",  # Martinique
+    "MR",  # Mauritania
+    "MS",  # Montserrat
+    "MT",  # Malta
+    "MU",  # Mauritius
+    "MV",  # Maldives
+    "MW",  # Malawi
+    "MX",  # Mexico
+    "MY",  # Malaysia
+    "MZ",  # Mozambique
+    "NA",  # Namibia
+    "NC",  # New Caledonia
+    "NE",  # Niger
     "NG",  # Nigeria
+    "NI",  # Nicaragua
+    "NL",  # Netherlands
     "NO",  # Norway
-    "PK",  # Pakistan
+    "NP",  # Nepal
+    "NR",  # Nauru
+    "NZ",  # New Zealand
+    "OM",  # Oman
     "PA",  # Panama
     "PE",  # Peru
+    "PF",  # French Polynesia
+    "PG",  # Papua New Guinea
     "PH",  # Philippines
+    "PK",  # Pakistan
     "PL",  # Poland
-    "PT",  # Portugal
+    "PM",  # Saint Pierre and Miquelon
     "PR",  # Puerto Rico
+    "PS",  # Palestinian Territory
+    "PT",  # Portugal
+    "PW",  # Palau
+    "PY",  # Paraguay
+    "QA",  # Qatar
+    "RE",  # Réunion Island
     "RO",  # Romania
+    "RS",  # Serbia
     "RU",  # Russia
     "RW",  # Rwanda
     "SA",  # Saudi Arabia
-    "SG",  # Singapore
-    "SK",  # Slovakia
-    "SI",  # Slovenia
-    "ZA",  # South Africa
-    "KR",  # South Korea
-    "ES",  # Spain
+    "SB",  # Solomon Islands
+    "SC",  # Seychelles
+    "SD",  # Sudan
     "SE",  # Sweden
-    "CH",  # Switzerland
-    "TW",  # Taiwan
-    "TJ",  # Tajikistan
+    "SG",  # Singapore
+    "SI",  # Slovenia
+    "SK",  # Slovakia
+    "SL",  # Sierra Leone
+    "SM",  # San Marino
+    "SN",  # Senegal
+    "SO",  # Somalia
+    "SR",  # Suriname
+    "SS",  # South Sudan
+    "ST",  # Sao Tome and Principe
+    "SV",  # El Salvador
+    "SX",  # Sint Maarten (Dutch Part)
+    "SY",  # Syria
+    "SZ",  # Swaziland
+    "TC",  # Turks and Caicos Islands
+    "TD",  # Chad
+    "TG",  # Togo
     "TH",  # Thailand
-    "TT",  # Trinidad and Tobago
+    "TJ",  # Tajikistan
+    "TL",  # East Timor
+    "TM",  # Turkmenistan
+    "TN",  # Tunisia
+    "TO",  # Tonga
     "TR",  # Turkey
-    "GB",  # United Kingdom
+    "TT",  # Trinidad and Tobago
+    "TW",  # Taiwan
+    "TZ",  # Tanzania
+    "UA",  # Ukraine
+    "UG",  # Uganda
     "US",  # United States
     "UY",  # Uruguay
-    "VE",  # Venezuala
+    "UZ",  # Uzbekistan
+    "VC",  # Saint Vincent and The Grenadines
+    "VE",  # Venezuela
+    "VG",  # Virgin Islands, British
+    "VI",  # Virgin Islands, US
+    "VN",  # Vietnam
+    "VU",  # Vanuatu
+    "WS",  # Samoa
+    "XK",  # Kosovo
+    "YE",  # Yemen
+    "YT",  # Mayotte
+    "ZA",  # South Africa
     "ZM",  # Zambia
+    "ZW",  # Zimbabwe
 )
 
 NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
@@ -503,12 +658,10 @@ def channel_status_processor(request):
         cutoff = timezone.now() - timedelta(hours=1)
         send_channel = org.get_send_channel()
         call_channel = org.get_call_channel()
-        ussd_channel = org.get_ussd_channel()
 
         status["send_channel"] = send_channel
         status["call_channel"] = call_channel
-        status["has_outgoing_channel"] = send_channel or call_channel or ussd_channel
-        status["is_ussd_channel"] = True if ussd_channel else False
+        status["has_outgoing_channel"] = send_channel or call_channel
 
         channels = org.channels.filter(is_active=True)
         for channel in channels:
@@ -536,8 +689,9 @@ def get_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
-    msgs = msgs.exclude(contact__is_test=True).exclude(topup=None)
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING).exclude(
+        topup=None
+    )
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -636,12 +790,11 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd["phone"] if cmd["phone"] else "empty"
                         try:
-                            URN.normalize(URN.from_tel(tel), channel.country.code)
+                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
                             if "msg" in cmd:
-                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd["msg"], sent_on=date)
-                                if msg:
-                                    extra = dict(msg_id=msg.id)
+                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                                extra = dict(msg_id=msg.id)
                         except ValueError:
                             pass
 
@@ -661,7 +814,9 @@ def sync(request, channel_id):
                         if cmd["phone"]:
                             urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
                             try:
-                                ChannelEvent.create(channel, urn, cmd["type"], date, extra=dict(duration=duration))
+                                ChannelEvent.create_relayer_event(
+                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                                )
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
@@ -733,9 +888,12 @@ def register(request):
     client_payload = json.loads(force_text(request.body))
     cmds = client_payload["cmds"]
 
-    # look up a channel with that id
-    channel = Channel.get_or_create_android(cmds[0], cmds[1])
-    cmd = channel.build_registration_command()
+    try:
+        # look up a channel with that id
+        channel = Channel.get_or_create_android(cmds[0], cmds[1])
+        cmd = channel.build_registration_command()
+    except UnsupportedAndroidChannelError:
+        cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
     return JsonResponse(dict(cmds=[cmd]))
 
@@ -1026,12 +1184,14 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             form._errors["phone_number"] = form.error_class(
                 [
                     _(
-                        "That number is already connected to another account - %s (%s)"
-                        % (existing.org, existing.created_by.username)
+                        "That number is already connected to another account - %(org)s (%(user)s)"
+                        % dict(org=existing.org, user=existing.created_by.username)
                     )
                 ]
             )
             return self.form_invalid(form)
+
+        error_message = None
 
         # try to claim the number
         try:
@@ -1042,19 +1202,31 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             self.remove_api_credentials_from_session()
 
             return HttpResponseRedirect("%s?success" % reverse("public.public_welcome"))
-        except Exception as e:  # pragma: needs cover
-            import traceback
 
-            traceback.print_exc()
+        except (
+            nexmo.AuthenticationError,
+            nexmo.ClientError,
+            twilio.base.exceptions.TwilioRestException,
+        ) as e:  # pragma: no cover
+            logger.warning(f"Unable to claim a number: {str(e)}", exc_info=True)
+            error_message = form.error_class([str(e)])
+
+        except Exception as e:  # pragma: needs cover
+            logger.error(f"Unable to claim a number: {str(e)}", exc_info=True)
+
             message = str(e)
             if message:
-                form._errors["phone_number"] = form.error_class([message])
+                error_message = form.error_class([message])
             else:
-                form._errors["phone_number"] = _(
+                error_message = _(
                     "An error occurred connecting your Twilio number, try removing your "
                     "Twilio account, reconnecting it and trying again."
                 )
-            return self.form_invalid(form)
+
+        if error_message is not None:
+            form._errors["phone_number"] = error_message
+
+        return self.form_invalid(form)
 
 
 class ClaimAndroidForm(forms.Form):
@@ -1209,6 +1381,16 @@ class ChannelCRUDL(SmartCRUDL):
 
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
                 links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.get_object().uuid])}',
+                    )
+                )
 
             return links
 
@@ -1417,7 +1599,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = DomainForm
 
         def get_queryset(self):
-            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org(), channel_type="FB")
 
         def execute_action(self):
             # curl -X POST -H "Content-Type: application/json" -d '{
@@ -1477,6 +1659,12 @@ class ChannelCRUDL(SmartCRUDL):
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
+            except ValueError as e:
+                logger.error("Error removing a channel", exc_info=True)
+
+                messages.error(request, str(e))
+                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
+
             except Exception:  # pragma: no cover
                 logger.error("Error removing a channel", exc_info=True)
 
@@ -1517,7 +1705,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             if obj.config:
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    obj.config[field] = bool(self.form.cleaned_data[field])
+                    obj.config[field] = self.form.cleaned_data[field]
             return obj
 
         def post_save(self, obj):
@@ -1687,6 +1875,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.user.get_org()
             return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["relayer_app"] = Apk.objects.filter(apk_type=Apk.TYPE_RELAYER).order_by("-created_on").first()
+            return context
 
         def get_success_url(self):
             return "%s?success" % reverse("public.public_welcome")
@@ -1956,21 +2149,28 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ("list", "read", "session")
+    actions = ("list", "read", "connection")
 
     class List(OrgPermsMixin, SmartListView):
         fields = ("channel", "description", "created_on")
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
 
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/(?P<channel_uuid>[^/]+)/$" % path
+
+        def derive_channel(self):
+            return get_object_or_404(Channel, uuid=self.kwargs["channel_uuid"])
+
         def derive_org(self):
-            channel = Channel.objects.get(pk=self.request.GET["channel"])
+            channel = self.derive_channel()
             return channel.org
 
         def derive_queryset(self, **kwargs):
-            channel = Channel.objects.get(pk=self.request.GET["channel"])
+            channel = self.derive_channel()
 
-            if self.request.GET.get("sessions"):
+            if self.request.GET.get("connections"):
                 logs = (
                     ChannelLog.objects.filter(channel=channel)
                     .exclude(connection=None)
@@ -1997,10 +2197,10 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["channel"] = Channel.objects.get(pk=self.request.GET["channel"])
+            context["channel"] = self.derive_channel()
             return context
 
-    class Session(AnonMixin, OrgPermsMixin, SmartReadView):
+    class Connection(AnonMixin, OrgPermsMixin, SmartReadView):
         model = ChannelConnection
 
     class Read(AnonMixin, OrgPermsMixin, SmartReadView):

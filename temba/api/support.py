@@ -68,17 +68,16 @@ class APIBasicAuthentication(BasicAuthentication):
         raise exceptions.AuthenticationFailed("Invalid token or email")
 
 
-class OrgRateThrottle(ScopedRateThrottle):
+class OrgUserRateThrottle(ScopedRateThrottle):
     """
-    Throttle class which rate limits across an org
+    Throttle class which rate limits a user in an org
     """
 
     def get_cache_key(self, request, view):
         ident = None
         if request.user.is_authenticated:
             org = request.user.get_org()
-            if org:
-                ident = org.pk
+            ident = f"{org.id if org else 0}-{request.user.id}"
 
         return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 
@@ -113,10 +112,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         if not renderer_context:  # pragma: needs cover
             raise ValueError("Can't render without context")
 
-        request_path = renderer_context["request"].path
-        api_version = 1 if request_path.startswith("/api/v1") else 2
-
-        self.template = "api/v%d/api_root.html" % api_version
+        self.template = "api/v2/api_root.html"
 
         return super().render(data, accepted_media_type, renderer_context)
 

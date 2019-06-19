@@ -200,7 +200,7 @@ class InboxView(OrgPermsMixin, SmartListView):
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(required=True, widget=forms.Textarea, max_length=160)
+    message = forms.CharField(required=True, widget=forms.Textarea, max_length=Broadcast.MAX_TEXT_LEN)
     omnibox = OmniboxField()
 
     def __init__(self, user, *args, **kwargs):
@@ -313,10 +313,6 @@ class BroadcastCRUDL(SmartCRUDL):
         def pre_process(self, *args, **kwargs):
             response = super().pre_process(*args, **kwargs)
             org = self.request.user.get_org()
-            simulation = self.request.GET.get("simulation", "false") == "true"
-
-            if simulation:
-                return response
 
             # can this org send to any URN schemes?
             if not org.get_schemes(Channel.ROLE_SEND):
@@ -349,7 +345,6 @@ class BroadcastCRUDL(SmartCRUDL):
             self.form = form
             user = self.request.user
             org = user.get_org()
-            simulation = self.request.GET.get("simulation", "false") == "true"
 
             omnibox = self.form.cleaned_data["omnibox"]
             has_schedule = self.form.cleaned_data["schedule"]
@@ -370,15 +365,6 @@ class BroadcastCRUDL(SmartCRUDL):
                     return HttpResponse(json.dumps(dict(status="success")), content_type="application/json")
                 else:
                     return HttpResponseRedirect(self.get_success_url())
-
-            # if simulating only use the test contact
-            if simulation:
-                groups = []
-                urns = []
-                for contact in contacts:
-                    if contact.is_test:
-                        contacts = [contact]
-                        break
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
             broadcast = Broadcast.create(
@@ -782,9 +768,9 @@ class BaseLabelForm(forms.ModelForm):
         if labels_count >= Label.MAX_ORG_LABELS:
             raise forms.ValidationError(
                 _(
-                    "This org has %s labels and the limit is %s. "
+                    "This org has %(count)d labels and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                    "create new ones." % dict(count=labels_count, limit=Label.MAX_ORG_LABELS)
                 )
             )
 

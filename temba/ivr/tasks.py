@@ -7,9 +7,9 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.channels.models import Channel, ChannelLog
+from temba.utils.celery import nonoverlapping_task
 from temba.utils.http import HttpEvent
 from temba.utils.locks import NonBlockingLock
-from temba.utils.queues import Queue, nonoverlapping_task
 
 from .models import IVRCall
 
@@ -40,7 +40,7 @@ def check_calls_task():
         IVRCall.objects.filter(next_attempt__lte=now, retry_count__lte=IVRCall.MAX_RETRY_ATTEMPTS)
         .filter(status__in=IVRCall.RETRY_CALL)
         .filter(modified_on__gt=now - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
-        .filter(direction=IVRCall.OUTGOING, is_active=True)
+        .filter(direction=IVRCall.OUTGOING)
     )
 
     for call in calls_to_retry:
@@ -69,7 +69,7 @@ def check_failed_calls_task():
         IVRCall.objects.filter(error_count__gte=1, error_count__lte=IVRCall.MAX_ERROR_COUNT)
         .filter(status__in=IVRCall.FAILED)
         .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
-        .filter(direction=IVRCall.OUTGOING, is_active=True)
+        .filter(direction=IVRCall.OUTGOING)
     )
 
     for call in failed_calls_to_retry:
@@ -96,7 +96,7 @@ def task_enqueue_call_events():
 
     pending_call_events = (
         IVRCall.objects.filter(status=IVRCall.PENDING)
-        .filter(direction=IVRCall.OUTGOING, is_active=True)
+        .filter(direction=IVRCall.OUTGOING)
         .filter(channel__is_active=True)
         .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
         .select_related("channel")
@@ -125,4 +125,4 @@ def task_enqueue_call_events():
         call.status = IVRCall.QUEUED
         call.save(update_fields=("status",))
 
-        start_call_task.apply_async(kwargs={"call_pk": call.id}, queue=Queue.HANDLER)
+        start_call_task.apply_async(kwargs={"call_pk": call.id})

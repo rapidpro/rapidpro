@@ -14,6 +14,7 @@ from temba.contacts.models import (
     TWILIO_SCHEME,
     TWITTER_SCHEME,
     TWITTERID_SCHEME,
+    WHATSAPP_SCHEME,
     ContactField,
     ContactURN,
 )
@@ -33,6 +34,7 @@ URN_SCHEME_ICONS = {
     LINE_SCHEME: "icon-line",
     EXTERNAL_SCHEME: "icon-channel-external",
     FCM_SCHEME: "icon-fcm",
+    WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
 ACTIVITY_ICONS = {
@@ -46,10 +48,13 @@ ACTIVITY_ICONS = {
     "Call": "icon-phone",
     "IVRCall": "icon-call-outgoing",
     "DTMF": "icon-call-incoming",
+    "MissedIncoming": "icon-call-incoming",
+    "MissedOutgoing": "icon-call-outgoing",
     "Expired": "icon-clock",
     "Interrupted": "icon-warning",
     "Completed": "icon-checkmark",
     "WebHookResult": "icon-cloud-upload",
+    "Unknown": "icon-power",
 }
 
 MISSING_VALUE = "--"
@@ -116,9 +121,7 @@ def urn_icon(urn):
 def activity_icon(item):
     obj = item["obj"]
 
-    if item["type"] == "broadcast":
-        icon = "Failed" if obj.purged_status in ("E", "F") else "Broadcast"
-    elif item["type"] == "msg":
+    if item["type"] == "msg":
         if obj.broadcast and obj.broadcast.recipient_count > 1:
             icon = "Failed" if obj.status in ("E", "F") else "Broadcast"
         elif obj.msg_type == "V":
@@ -141,6 +144,13 @@ def activity_icon(item):
             icon = "Interrupted"
         else:
             icon = "Expired"
+    elif item["type"] == "channel-event":
+        if obj.event_type == "mo_miss":
+            icon = "MissedIncoming"
+        elif obj.event_type == "mt_miss":
+            icon = "MissedOutgoing"
+        else:
+            icon = "Icon-Power"
     else:
         icon = type(obj).__name__
 

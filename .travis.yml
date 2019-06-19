@@ -36,7 +36,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=0.0.73
+  - MAILROOM_VERSION=1.0.1
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
@@ -52,11 +52,10 @@ install:
   - pip install coveralls
   - pip install flake8
 
-  # switch to Node 6 and install our node dependencies
-  - nvm install 6
-  - nvm use 6
+  # switch to Node 10 and install our node dependencies
+  - nvm install 10
+  - nvm use 10
   - npm install
-  - npm run build
 
 before_script:
   # setup test database
@@ -78,10 +77,26 @@ script:
   - set -e
 
   # test that everything is well formatted
-  - black --line-length=119 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
+  - black --line-length=119 --target-version=py36 temba --check --quiet || (echo 'The source code could use a bit more black.' && exit 1)
 
   # test PEP8 compliance on both Python 2 and 3
   - flake8
+
+  # compile messages
+  - cd temba && python ../manage.py compilemessages && cd ..
+
+  # fail if there are changes
+  - git diff --numstat
+  - git diff --numstat | awk '$3 ~ /locale.*mo$/ { print "compilemessages needs to be rerun, see .travis.yml for command"; exit 1 }'  
+  
+  # generate our locale messages
+  - python manage.py makemessages -a -e haml,html,txt,py --ignore="env/*" --no-location --no-wrap | awk '/warning/ { print "makemessages contains warnings"; exit 1 }'
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap
+  - python manage.py makemessages -d djangojs -a --ignore="env/*" --ignore="static/bower/*" --ignore="node_modules/*" --no-location --no-wrap | awk '/warning/ { print "makemessages for djangojs contains warnings"; exit 1 }'
+
+  # fail if there are changes
+  - git diff --numstat
+  - git diff --numstat | awk '$1 > 1 && $3 ~ /locale/ { print "makemessages needs to be rerun, see .travis.yml for command"; exit 1 }'
 
   # check for model changes not reflected in a migration
   - python manage.py makemigrations --settings=temba.settings_travis --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
@@ -106,10 +121,10 @@ script:
   - set +e
 
 after_success:
-  - pip install pyopenssl==17.4.0
-  - coveralls --rcfile .coveragerc_failcheck
-  - coverage report -i --rcfile .coveragerc
-  - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
+  - pip install codecov
+  - codecov
+  - coverage report -i
+  - coverage report -i --rcfile .coveragerc_todo
 
 notifications:
   slack:

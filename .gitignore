@@ -31,9 +31,10 @@ temba/settings.py
 temba/smartmin
 temba.db
 smartmin
-
+mailroom_test.dump
 
 # Exclude media folder except files used for import testing
+media/apks
 media/contacts
 media/csv_imports
 media/flow
@@ -98,7 +99,6 @@ coverage.xml
 js-coverage/
 
 # Translations
-*.mo
 *.pot
 
 # Django stuff:

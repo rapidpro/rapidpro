@@ -1,4 +1,5 @@
 import gc
+import logging
 import os
 import time
 from datetime import datetime, timedelta
@@ -17,6 +18,8 @@ from . import analytics
 from .email import send_template_email
 from .models import TembaModel
 from .text import clean_string
+
+logger = logging.getLogger(__name__)
 
 
 class BaseExportAssetStore(BaseAssetStore):
@@ -79,7 +82,7 @@ class BaseExportTask(TembaModel):
             # notify user who requested this export
             send_template_email(
                 self.created_by.username,
-                self.email_subject,
+                self.email_subject % self.org.name,
                 self.email_template,
                 self.get_email_context(branding),
                 branding,
@@ -93,9 +96,7 @@ class BaseExportTask(TembaModel):
                 os.unlink(temp_file.name)
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Unable to perform export: {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
             print(f"Failed to complete {self.analytics_key} with ID {self.id}")
 
@@ -103,7 +104,7 @@ class BaseExportTask(TembaModel):
         else:
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
-            print(f"Completed {self.analytics_key} in {elapsed:.1f} seconds")
+            print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(
                 self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
             )
@@ -118,7 +119,7 @@ class BaseExportTask(TembaModel):
 
     def update_status(self, status):
         self.status = status
-        self.save(update_fields=("status",))
+        self.save(update_fields=("status", "modified_on"))
 
     @classmethod
     def get_recent_unfinished(cls, org):

@@ -117,7 +117,7 @@ class CampaignCRUDL(SmartCRUDL):
             response["Temba-Success"] = self.get_success_url()
             return response
 
-    class Read(OrgMixin, SmartReadView):
+    class Read(OrgObjPermsMixin, SmartReadView):
         def get_gear_links(self):
             links = []
 
@@ -130,9 +130,23 @@ class CampaignCRUDL(SmartCRUDL):
                             href=reverse("campaigns.campaign_activate", args=[self.object.id]),
                         )
                     )
+
+                if self.has_org_perm("orgs.org_export"):
+                    links.append(
+                        dict(
+                            title=_("Export"),
+                            href=f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1",
+                        )
+                    )
+
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
                     links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
+
+                if self.has_org_perm("orgs.org_export"):
+                    links.append(
+                        dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
+                    )
 
                 if self.has_org_perm("campaigns.campaign_update"):
                     links.append(dict(title="Edit", js_class="update-campaign", href="#"))
@@ -145,6 +159,16 @@ class CampaignCRUDL(SmartCRUDL):
                             href=reverse("campaigns.campaign_archive", args=[self.object.id]),
                         )
                     )
+
+            user = self.get_user()
+            if user.is_superuser or user.is_staff:
+                links.append(
+                    dict(
+                        title=_("Service"),
+                        posterize=True,
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[self.object.id])}',
+                    )
+                )
 
             return links
 
@@ -288,7 +312,8 @@ class CampaignEventForm(forms.ModelForm):
                 iso_code = lang["iso_code"]
                 if iso_code in self.data and len(self.data[iso_code].strip()) > Msg.MAX_TEXT_LEN:
                     raise ValidationError(
-                        _("Translation for '%s' exceeds the %d character limit.") % (lang["name"], Msg.MAX_TEXT_LEN)
+                        _("Translation for '%(language)s' exceeds the %(limit)d character limit.")
+                        % dict(language=lang["name"], limit=Msg.MAX_TEXT_LEN)
                     )
 
         return data
@@ -320,7 +345,8 @@ class CampaignEventForm(forms.ModelForm):
             translations = {}
             for language in self.languages:
                 iso_code = language.language["iso_code"]
-                translations[iso_code] = self.cleaned_data.get(iso_code, "")
+                if iso_code in self.cleaned_data and self.cleaned_data.get(iso_code, "").strip():
+                    translations[iso_code] = self.cleaned_data.get(iso_code, "").strip()
 
             if not obj.flow_id or not obj.flow.is_active or not obj.flow.is_system:
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
@@ -370,17 +396,17 @@ class CampaignEventForm(forms.ModelForm):
             # if it's our primary language, allow use to steal the 'base' message
             if org.primary_language and org.primary_language.iso_code == language.iso_code:
 
-                initial = message.get(language.iso_code)
+                initial = message.get(language.iso_code, "")
 
                 if not initial:
-                    initial = message.get("base")
+                    initial = message.get("base", "")
 
                 # also, let's show it first
                 insert = 0
             else:
 
                 # otherwise, its just a normal language
-                initial = message.get(language.iso_code)
+                initial = message.get(language.iso_code, "")
 
             field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
             self.fields[language.iso_code] = field

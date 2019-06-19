@@ -41,17 +41,6 @@
         %span.glyph.icon-mobile{style:"padding-top:2px;"}
       -trans "on the right to open it."
 
-  -elif object.flow_type == 'U' and not is_ussd_channel
-    %p
-    -blocktrans with name=brand.name
-      To get started you need to add a USSD channel to your account. You can choose between USSD channels
-      that are available in your country.
-    %hr
-    %p
-      -trans "You can always test your flow using the simulator, click"
-        %span.glyph.icon-mobile{style:"padding-top:2px;"}
-      -trans "on the right to open it."
-
   -elif object.flow_type == 'V' and not call_channel
     %p
       -blocktrans with name=brand.name
@@ -81,6 +70,14 @@
             .help-block
               %label{ for:"id_include_active" }
                 -trans "Interrupt contacts currently active in flows"
+
+    -if warnings
+      %div.warning
+        -for warning in warnings
+          %p= warning
+
+        %p
+          -trans "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
 
 -block form-buttons
   -if send_channel

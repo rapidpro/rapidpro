@@ -240,6 +240,16 @@
                   .paginator
                     - include "smartmin/sidebar_pagination.haml"
 
+                -# are we using ES, and are we on the last page of the pagination and
+                - if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+                  %div
+                    %p.span3
+
+                    %p.span6.pagination-notification
+                      -trans "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+
+                    %p.span3
+
         - else
           - include "contacts/empty_include.haml"
 
@@ -310,6 +320,11 @@
 
     .search-error {
       color: #da4f49;
+    }
+
+    .pagination-notification {
+      background: #ecf0f1;
+      padding: 10px;
     }
 
 
@@ -470,38 +485,6 @@
 
     });
 
-    {% endif %}
-
-    {% if org_perms.contacts.contactfield_managefields %}
-    $('.page-content').on('click', ".manage-fields", function() {
-      lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Manage Contact Fields" %}', '{% url "contacts.contactfield_managefields" %}');
-      modal.setIcon('icon-vcard');
-      modal.setListeners({
-        onFormLoaded:function() {
-          useFontCheckbox("input[type=checkbox]", false);
-        },
-        onSuccess: function() {
-            // grab the current search string, sort_on/page/...
-            var url = window.location.search;
-
-            if (!url) {
-                url = '?'
-            }
-
-            // bust cache
-            url += '&ts=' + new Date().getTime();
-
-            fetchPJAXContent(url, '#pjax', {
-                forceReload: true,
-                onSuccess: function () {
-                    recheckIds();
-                }
-            })
-        }
-      });
-      modal.show();
-    });
     {% endif %}
 
     {% if org_perms.contacts.contact_export %}

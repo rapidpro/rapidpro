@@ -59,7 +59,7 @@ class TwimlAPIType(ChannelType):
             description=_("The endpoint which will receive Twilio API requests for this channel"),
         ),
         dict(
-            label=_(""),
+            label="",
             url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
             description=_("Incoming messages for this channel will be sent to this endpoint."),
         ),

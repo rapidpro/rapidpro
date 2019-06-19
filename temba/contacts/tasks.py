@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
 
@@ -74,7 +74,7 @@ def check_elasticsearch_lag():
         es_hits = res["hits"]["hits"]
         if es_hits:
             # if we have elastic results, make sure they aren't more than five minutes behind
-            db_contact = Contact.objects.filter(is_test=False).order_by("-modified_on").first()
+            db_contact = Contact.objects.order_by("-modified_on").first()
             es_modified_on = iso8601.parse_date(es_hits[0]["_source"]["modified_on"], pytz.utc)
             es_id = es_hits[0]["_source"]["id"]
 
@@ -101,7 +101,7 @@ def check_elasticsearch_lag():
 
         else:
             # we don't have any ES hits, get our oldest db contact, check it is less than five minutes old
-            db_contact = Contact.objects.filter(is_test=False).order_by("modified_on").first()
+            db_contact = Contact.objects.order_by("modified_on").first()
             if db_contact and timezone.now() - db_contact.modified_on > timedelta(minutes=5):
                 logger.error(
                     "ElasticSearch empty with DB contacts older than five minutes. Oldest DB(id: %d, modified_on: %s)",

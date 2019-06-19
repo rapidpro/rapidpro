@@ -5,10 +5,6 @@ from temba.contacts.models import EXTERNAL_SCHEME, TEL_SCHEME
 
 from ...models import ChannelType
 
-# DartMedia is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-DART_MEDIA_ENDPOINT = "http://202.43.169.11/APIhttpU/receive2waysms.php"
-
 
 class DartMediaType(ChannelType):
     """

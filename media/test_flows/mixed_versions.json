@@ -1,0 +1,162 @@
+{
+  "version": "11.12",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "uuid": "b4af4237-3a0d-4ee2-9ef3-01658c9215e4",
+      "name": "New Child",
+      "spec_version": "13.0.0",
+      "language": "eng",
+      "type": "messaging",
+      "revision": 5,
+      "expire_after_minutes": 10080,
+      "localization": {},
+      "nodes": [
+        {
+          "uuid": "54393466-b5a3-4cba-a032-920b62a377bb",
+          "actions": [
+            {
+              "type": "send_msg",
+              "uuid": "c6a26419-37d0-47c8-9785-c99f1ce83644",
+              "text": "Welcome to the child flow"
+            },
+            {
+              "type": "add_input_labels",
+              "uuid": "0d04cd6b-de35-4077-83be-7b1b8a2b056b",
+              "labels": [
+                {
+                  "uuid": "a8a6d847-0785-4f97-a8f8-3af98ed111a0",
+                  "name": "Interesting"
+                }
+              ]
+            },
+            {
+              "type": "add_contact_groups",
+              "uuid": "22cb0ec6-c915-4a9f-9256-bcab549dabe0",
+              "groups": [
+                {
+                  "uuid": "7faadc84-73f6-49c4-812a-d49ed1c8c1ce",
+                  "name": "Survey Audience"
+                }
+              ]
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "c8b7ac23-9d47-45b8-aa34-49297de44c84"
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "54393466-b5a3-4cba-a032-920b62a377bb": {
+            "position": {
+              "left": 0,
+              "top": 0
+            },
+            "type": "execute_actions"
+          }
+        }
+      },
+      "_dependencies": {
+        "groups": [
+          {
+            "uuid": "7faadc84-73f6-49c4-812a-d49ed1c8c1ce",
+            "name": "Survey Audience"
+          }
+        ],
+        "labels": [
+          {
+            "uuid": "a8a6d847-0785-4f97-a8f8-3af98ed111a0",
+            "name": "Interesting"
+          }
+        ]
+      },
+      "_results": [],
+      "_waiting_exits": []
+    },
+    {
+      "entry": "ab20858a-5fcd-492a-9a9d-208d6d4d9593",
+      "action_sets": [
+        {
+          "uuid": "ab20858a-5fcd-492a-9a9d-208d6d4d9593",
+          "x": 100,
+          "y": 0,
+          "destination": "67c3e969-fe81-43cd-9f9d-059935874379",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "185c454f-0617-45eb-bbf2-59d1bb8fb500",
+              "msg": {
+                "eng": "Welcome to the parent flow"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "4671b83f-8a1a-450c-8b8d-31dffc461d41"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "67c3e969-fe81-43cd-9f9d-059935874379",
+          "x": 275,
+          "y": 95,
+          "label": "Subflow",
+          "rules": [
+            {
+              "uuid": "0fea6668-f1c5-4a70-a99b-290d55f15633",
+              "category": {
+                "eng": "Completed"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              },
+              "label": null
+            },
+            {
+              "uuid": "e7337d15-93e2-46ce-ae51-8cc96c9f5387",
+              "category": {
+                "eng": "Expired"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "subflow",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "flow": {
+              "name": "New Child",
+              "uuid": "b4af4237-3a0d-4ee2-9ef3-01658c9215e4"
+            }
+          }
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.12",
+      "metadata": {
+        "uuid": "70212996-6bea-4229-bbd3-55e5cd607049",
+        "name": "Legacy Parent",
+        "saved_on": "2019-05-30T20:11:49.587074Z",
+        "revision": 5,
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

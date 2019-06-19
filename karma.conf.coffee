@@ -67,7 +67,7 @@ module.exports = (config) ->
     preprocessors: {
       'templates/partials/*.haml': ["ng-html2js"],
       'karma/**/*.coffee': ['coffee'],
-      'static/**/*.coffee': ['coverage']
+      'static/**/*.coffee': ['coffee']
     }
 
     ngHtml2JsPreprocessor: {
@@ -84,16 +84,17 @@ module.exports = (config) ->
         bare: true
         sourceMap: true
       transformPath: (path) ->
-        path.replace /\.js$/, '.coffee'
+        path.replace(/\.coffee$/, '.js')
+        # path.replace /\.js$/, '.coffee'
 
     # test results reporter to use
     # possible values: 'dots', 'progress'
     # available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress', 'coverage']
+    reporters: ['progress']
 
-    coverageReporter:
-      type: 'html'
-      dir: 'js-coverage/'
+    # coverageReporter:
+    #  type: 'html'
+    #  dir: 'js-coverage/'
 
     # web server port
     port: 9876
