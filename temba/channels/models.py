@@ -302,7 +302,13 @@ class ChannelType(metaclass=ABCMeta):
                 if not masked_request:
                     masked_request = ContactURN.ANON_MASK
 
-        return masked_request
+        if masked_request == ContactURN.ANON_MASK:
+            return masked_request
+        else:
+            try:
+                return json.dumps(json.loads(masked_request), indent=2)
+            except Exception:
+                return masked_request
 
     def format_channellog_request(self, channellog):
         if not channellog.request:  # pragma: no cover
@@ -310,7 +316,7 @@ class ChannelType(metaclass=ABCMeta):
 
         try:
             return json.dumps(json.loads(channellog.request), indent=2)
-        except Exception:
+        except ValueError:
             return channellog.request
 
     def anonymize_channellog_response(self, channellog):
@@ -335,7 +341,13 @@ class ChannelType(metaclass=ABCMeta):
                 if not masked_response:
                     masked_response = ContactURN.ANON_MASK
 
-        return masked_response
+        if masked_response == ContactURN.ANON_MASK:
+            return masked_response
+        else:
+            try:
+                return json.dumps(json.loads(masked_response), indent=2)
+            except ValueError:
+                return masked_response
 
     def format_channellog_response(self, channellog):
         try:
