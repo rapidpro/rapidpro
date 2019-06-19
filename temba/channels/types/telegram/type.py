@@ -4,6 +4,8 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TELEGRAM_SCHEME
+from temba.utils import json
+from temba.utils.masking import apply_mask, mask_dict_values
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -44,3 +46,34 @@ class TelegramType(ChannelType):
         config = channel.config
         bot = telegram.Bot(config["auth_token"])
         bot.delete_webhook()
+
+    def anonymize_channellog_response(self, channellog):
+        from temba.contacts.models import ContactURN
+
+        contact_data_keys = {"first_name", "last_name", "username"}
+
+        formatted_response = self.format_channellog_response(channellog)
+
+        try:
+            *rest, payload = formatted_response.split(r"\r\n\r\n")
+            json_resp = json.loads(payload)
+
+            anon_dict = mask_dict_values(json_resp, keys=contact_data_keys)
+
+            # reconstruct the response
+            rest.append(json.dumps(anon_dict))
+            formatted_response = r"\r\n\r\n".join(rest)
+
+        except ValueError:
+            return ContactURN.ANON_MASK
+
+        masked_response = ContactURN.ANON_MASK
+
+        if channellog.msg_id:
+
+            masked_response = apply_mask(formatted_response, channellog.msg.contact_urn.path)
+
+            if not masked_response:
+                masked_response = ContactURN.ANON_MASK
+
+        return masked_response

@@ -101,3 +101,17 @@ def apply_mask(input, test):
     else:
         # no matches
         return
+
+
+def mask_dict_values(obj, keys):
+    from temba.contacts.models import ContactURN
+
+    for k, val in obj.items():
+        if isinstance(val, dict):
+            obj[k] = mask_dict_values(val, keys)
+
+    for key in keys:
+        if key in obj:
+            obj[key] = ContactURN.ANON_MASK
+
+    return obj

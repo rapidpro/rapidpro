@@ -2625,6 +2625,255 @@ class ChannelLogTest(TembaTest):
             # customer_support has access
             self.assertTrue(response.status_code, 200)
 
+    def test_channellog_anonymous_org_telegram_channel(self):
+        telegram_urn = "telegram:3527065"
+
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"https://api.telegram.org/<redacted>/sendMessage",
+            method="POST",
+            request=r"POST /<redacted>/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
+            response=r'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        response = self.client.get(list_url)
+
+        self.assertContains(response, "3527065", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(list_url)
+
+            self.assertContains(response, "3527065", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=3)
+        self.assertContains(response, "Nic", count=2)
+        self.assertContains(response, "Pottier", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, "Nic", count=0)
+            self.assertContains(response, "Pottier", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=9)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=3)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "3527065", count=2)
+            self.assertContains(response, "Nic", count=2)
+            self.assertContains(response, "Pottier", count=1)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_anonymous_org_telegram_channel_parse_error(self):
+        telegram_urn = "telegram:3527065"
+
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"not important",
+            method="POST",
+            request=r"not important",
+            response=r'Content-Type: application/json\r\n\r\n{"bad_json":true, "first_name": "Nic"',
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, "Nic", count=0)
+            self.assertContains(response, "Pottier", count=0)
+
+            # everything is masked
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "Nic", count=1)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_anonymous_org_telegram_channel_apply_mask_cant_find_match(self):
+        telegram_urn = "telegram:3527065"
+
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request="""There is no contact identifying information""",
+            response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+        self.assertContains(response, "There is no contact identifying information", count=3)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
+
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "There is no contact identifying information", count=3)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_anonymous_org_twitter_activity_channel(self):
+        twitter_urn = "twitterid:767659860"
+
+        tg_contact = self.create_contact("Fred Jones", twitter_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+
+        incoming_msg = Msg.create_incoming(tg_channel, twitter_urn, "incoming msg", contact=tg_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
+            method="POST",
+            request=r"""POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"\ud83c\uddfa\ud83c\uddecTeheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https:\/\/t.co\/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png"}}}""",
+            response=r'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        response = self.client.get(list_url)
+
+        self.assertContains(response, "767659860", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(list_url)
+
+            self.assertContains(response, "767659860", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=3)
+        self.assertContains(response, "Nic", count=2)
+        self.assertContains(response, "Pottier", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, "767659860", count=0)
+            self.assertContains(response, "Nic", count=0)
+            self.assertContains(response, "Pottier", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=9)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=3)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "767659860", count=2)
+            self.assertContains(response, "Nic", count=2)
+            self.assertContains(response, "Pottier", count=1)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
     def test_channellog_anonymous_org(self):
         fb_urn = "facebook:2150393045080607"
 
@@ -2646,12 +2895,6 @@ Accept: */*
 Accept-Encoding: deflate, gzip
 Content-Length: 314
 Content-Type: application/json
-User-Agent: facebookexternalua
-X-Amzn-Trace-Id: Root=1-5cee039c-6489b45d859adb735973ed6f
-X-Forwarded-For: 173.252.95.32
-X-Forwarded-Port: 443
-X-Forwarded-Proto: https
-X-Hub-Signature: sha1=34faa3f332b2a42d0e0aec4eada1eaedda182e17
 
 {"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}
 """,
@@ -2803,12 +3046,8 @@ Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
 Content-Length: 343
 Content-Type: application/x-www-form-urlencoded
 User-Agent: SignalwireCallback/1.0
-X-Amzn-Trace-Id: Root=1-5ce48425-9b491180a8927360f6390fe0
-X-Forwarded-For: 35.232.172.41
-X-Forwarded-Port: 443
-X-Forwarded-Proto: https
 
-MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=318dee7a-9e7c-49a1-b3ff-cc4c366b4c73&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
+MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
             response="""
 HTTP/1.1 400 Bad Request
 Content-Encoding: gzip
