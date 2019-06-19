@@ -144,7 +144,7 @@ class IVRTests(FlowFileTest):
             flow.start([], [contact])
 
             # should have a channel log for starting the call
-            logs = ChannelLog.objects.filter(is_error=False).all()
+            logs = ChannelLog.objects.filter(is_error=False).all().order_by("id")
             self.assertEqual([log.response for log in logs], ["None", '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}'])
 
             # expire our flow, causing the call to hang up
@@ -153,7 +153,7 @@ class IVRTests(FlowFileTest):
             run.expire()
 
             # two channel logs now
-            logs = ChannelLog.objects.filter(is_error=False).all()
+            logs = ChannelLog.objects.filter(is_error=False).all().order_by("id")
             self.assertEqual(
                 [log.response for log in logs],
                 [
