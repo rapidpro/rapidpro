@@ -1,3 +1,11 @@
+v5.0.2
+----------
+ * Remove reference to webhook API page which no longer exists
+ * Update to flow-editor 1.5.12
+ * Update some LS libs for security
+ * Tweaks to migrate_to_version_11_1 to handle "base" as a lang key
+ * Tweak old flow migrations to allow missing webhook_action and null ruleset labels
+
 v5.0.1
 ----------
  * Fix max length for WA claim facebook_access_token
