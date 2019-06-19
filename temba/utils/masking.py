@@ -103,15 +103,40 @@ def apply_mask(input, test):
         return
 
 
-def mask_dict_values(obj, keys):
+def recursive_replace(obj, keys):
     from temba.contacts.models import ContactURN
 
-    for k, val in obj.items():
-        if isinstance(val, dict):
-            obj[k] = mask_dict_values(val, keys)
+    if isinstance(obj, dict):
+        tmp = {}
+        for k, v in obj.items():
+            if isinstance(v, dict):
+                tmp[k] = recursive_replace(v, keys)
 
-    for key in keys:
-        if key in obj:
-            obj[key] = ContactURN.ANON_MASK
+            # replace values with ANON_MASK
+            if k in keys:
+                tmp[k] = ContactURN.ANON_MASK
+            else:
+                tmp[k] = recursive_replace(v, keys)
 
-    return obj
+        return tmp
+
+    elif isinstance(obj, list):
+        return [recursive_replace(elem, keys) for elem in obj]
+    else:
+        return obj
+
+
+def mask_dict_values(input, keys, delimiter=r"\r\n\r\n"):
+    try:
+        *rest, payload = input.split(delimiter)
+        json_resp = json.loads(payload)
+
+        anon_dict = recursive_replace(json_resp, keys=keys)
+
+        # reconstruct the response
+        rest.append(json.dumps(anon_dict))
+        formatted_response = delimiter.join(rest)
+
+        return formatted_response
+    except ValueError:
+        return

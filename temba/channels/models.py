@@ -41,7 +41,7 @@ from temba.orgs.models import (
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
-from temba.utils.masking import apply_mask
+from temba.utils.masking import apply_mask, mask_dict_values
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
@@ -286,10 +286,21 @@ class ChannelType(metaclass=ABCMeta):
         masked_request = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            masked_request = apply_mask(self.format_channellog_request(channellog), channellog.msg.contact_urn.path)
+            formatted_request = self.format_channellog_request(channellog)
 
-            if not masked_request:
-                masked_request = ContactURN.ANON_MASK
+            if hasattr(self, "request_private_data_keys"):
+                masked_dict_request = mask_dict_values(formatted_request, keys=self.request_private_data_keys)
+
+                if masked_dict_request:
+                    masked_request = apply_mask(masked_dict_request, channellog.msg.contact_urn.path)
+
+                    if not masked_request:
+                        masked_request = ContactURN.ANON_MASK
+            else:
+                masked_request = apply_mask(formatted_request, channellog.msg.contact_urn.path)
+
+                if not masked_request:
+                    masked_request = ContactURN.ANON_MASK
 
         return masked_request
 
@@ -308,10 +319,21 @@ class ChannelType(metaclass=ABCMeta):
         masked_response = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            masked_response = apply_mask(self.format_channellog_response(channellog), channellog.msg.contact_urn.path)
+            formatted_response = self.format_channellog_response(channellog)
 
-            if not masked_response:
-                masked_response = ContactURN.ANON_MASK
+            if hasattr(self, "response_private_data_keys"):
+                masked_dict_response = mask_dict_values(formatted_response, keys=self.response_private_data_keys)
+
+                if masked_dict_response:
+                    masked_response = apply_mask(masked_dict_response, channellog.msg.contact_urn.path)
+
+                    if not masked_response:
+                        masked_response = ContactURN.ANON_MASK
+            else:
+                masked_response = apply_mask(formatted_response, channellog.msg.contact_urn.path)
+
+                if not masked_response:
+                    masked_response = ContactURN.ANON_MASK
 
         return masked_response
 

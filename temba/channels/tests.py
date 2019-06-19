@@ -2840,18 +2840,18 @@ class ChannelLogTest(TembaTest):
         read_url = reverse("channels.channellog_read", args=[success_log.id])
         response = self.client.get(read_url)
 
-        self.assertContains(response, "767659860", count=3)
-        self.assertContains(response, "Nic", count=2)
-        self.assertContains(response, "Pottier", count=1)
+        self.assertContains(response, "767659860", count=5)
+        self.assertContains(response, "Aaron Tumukunde", count=1)
+        self.assertContains(response, "tumaaron", count=2)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
             self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, "Nic", count=0)
-            self.assertContains(response, "Pottier", count=0)
+            self.assertContains(response, "Aaron Tumukunde", count=0)
+            self.assertContains(response, "tumaaron", count=0)
 
-            self.assertContains(response, ContactURN.ANON_MASK, count=9)
+            self.assertContains(response, ContactURN.ANON_MASK, count=14)
 
         # login as customer support, must see URNs
         self.customer_support.is_staff = True
@@ -2862,15 +2862,15 @@ class ChannelLogTest(TembaTest):
         read_url = reverse("channels.channellog_read", args=[success_log.id])
         response = self.client.get(read_url)
 
-        self.assertContains(response, "767659860", count=3)
+        self.assertContains(response, "767659860", count=5)
 
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
             # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-            self.assertContains(response, "767659860", count=2)
-            self.assertContains(response, "Nic", count=2)
-            self.assertContains(response, "Pottier", count=1)
+            self.assertContains(response, "767659860", count=4)
+            self.assertContains(response, "Aaron Tumukunde", count=1)
+            self.assertContains(response, "tumaaron", count=2)
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
