@@ -507,7 +507,7 @@ class ContactField(SmartModel):
         with org.lock_on(OrgLock.field, key):
             field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
 
-            if not field:
+            if not field and not key:
                 # try to lookup the existing field by label
                 field = ContactField.get_by_label(org, label)
 
@@ -550,6 +550,8 @@ class ContactField(SmartModel):
                 if not label:
                     label = regex.sub(r"([^A-Za-z0-9\- ]+)", " ", key, regex.V0).title()
 
+                label = cls.get_unique_label(org, label)
+
                 if not value_type:
                     value_type = Value.TYPE_TEXT
 
@@ -574,6 +576,23 @@ class ContactField(SmartModel):
                 )
 
             return field
+
+    @classmethod
+    def get_unique_label(cls, org, base_label, ignore=None):
+        """
+        Generates a unique field label based on the given base label
+        """
+        label = base_label[:64].strip()
+
+        count = 2
+        while True:
+            if not ContactField.user_fields.filter(org=org, label=label, is_active=True).exists():
+                break
+
+            label = "%s %d" % (base_label[:59].strip(), count)
+            count += 1
+
+        return label
 
     @classmethod
     def get_by_label(cls, org, label):
