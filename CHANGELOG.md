@@ -1,3 +1,7 @@
+v5.0.5
+----------
+ * sync whatsapp templates with unsupported languages, show them as such
+
 v5.0.4
 ----------
  * Update to floweditor v1.5.15
