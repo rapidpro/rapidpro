@@ -1,3 +1,10 @@
+v5.0.4
+----------
+ * Update to floweditor v1.5.15
+ * Add pagination to outbox
+ * Fix import of contact field when field exists with same name but different key
+ * Fix (old) mac excel dates in imports
+
 v5.0.3
 ----------
  * Update flow editor to 1.5.14
