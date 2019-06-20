@@ -56,7 +56,12 @@ class TemplateTranslation(models.Model):
     STATUS_REJECTED = "R"
     STATUS_UNSUPPORTED_LANGUAGE = "U"
 
-    STATUS_CHOICES = ((STATUS_APPROVED, "approved"), (STATUS_PENDING, "pending"), (STATUS_REJECTED, "rejected"), (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_lang"))
+    STATUS_CHOICES = (
+        (STATUS_APPROVED, "approved"),
+        (STATUS_PENDING, "pending"),
+        (STATUS_REJECTED, "rejected"),
+        (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_language"),
+    )
 
     # the template this maps to
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")

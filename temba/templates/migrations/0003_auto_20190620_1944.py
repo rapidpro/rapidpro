@@ -5,19 +5,17 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('templates', '0002_auto_20190502_1901'),
-    ]
+    dependencies = [("templates", "0002_auto_20190502_1901")]
 
     operations = [
+        migrations.AlterField(model_name="templatetranslation", name="language", field=models.CharField(max_length=6)),
         migrations.AlterField(
-            model_name='templatetranslation',
-            name='language',
-            field=models.CharField(max_length=6),
-        ),
-        migrations.AlterField(
-            model_name='templatetranslation',
-            name='status',
-            field=models.CharField(choices=[('A', 'approved'), ('P', 'pending'), ('R', 'rejected'), ('U', 'unsupported_lang')], default='P', max_length=1),
+            model_name="templatetranslation",
+            name="status",
+            field=models.CharField(
+                choices=[("A", "approved"), ("P", "pending"), ("R", "rejected"), ("U", "unsupported_language")],
+                default="P",
+                max_length=1,
+            ),
         ),
     ]
