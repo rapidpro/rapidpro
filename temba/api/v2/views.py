@@ -3160,7 +3160,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
      * **language** - the ISO639-3 code for the language of this translation
      * **content** - the content of the translation
      * **variable_count** - the count of variables in this template
-     * **status** - the status of this translation, either `active` or `pending`
+     * **status** - the status of this translation, either `approved`, `pending`, `rejected` or `unsupported_language`
 
     Example:
 
