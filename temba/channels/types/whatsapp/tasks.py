@@ -149,30 +149,34 @@ def refresh_whatsapp_templates():
                 # run through all our templates making sure they are present in our DB
                 seen = []
                 for template in response.json()["data"]:
-                    # its a (non fatal) error if we see a language we don't know
-                    if template["language"] not in LANGUAGE_MAPPING:
-                        logger.error(f"unknown whatsapp language: {template['language']}")
-                        continue
-
-                    # or if this is a status we don't know about
+                    # if this is a status we don't know about
                     if template["status"] not in STATUS_MAPPING:
                         logger.error(f"unknown whatsapp status: {template['status']}")
                         continue
+
+                    status = STATUS_MAPPING[template["status"]]
 
                     # try to get the body out
                     if template["components"][0]["type"] != "BODY":  # pragma: no cover
                         logger.error(f"unknown component type: {template['components'][0]}")
                         continue
 
+                    language = LANGUAGE_MAPPING.get(template["language"])
+
+                    # its a (non fatal) error if we see a language we don't know
+                    if language is None:
+                        status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
+                        language = template["language"]
+
                     content = template["components"][0]["text"]
 
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
-                        language=LANGUAGE_MAPPING[template["language"]],
+                        language=language,
                         content=content,
                         variable_count=_calculate_variable_count(content),
-                        status=STATUS_MAPPING[template["status"]],
+                        status=status,
                         external_id=template["id"],
                     )
 

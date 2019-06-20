@@ -54,8 +54,9 @@ class TemplateTranslation(models.Model):
     STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
+    STATUS_UNSUPPORTED_LANGUAGE = "U"
 
-    STATUS_CHOICES = ((STATUS_APPROVED, "approved"), (STATUS_PENDING, "pending"), (STATUS_REJECTED, "rejected"))
+    STATUS_CHOICES = ((STATUS_APPROVED, "approved"), (STATUS_PENDING, "pending"), (STATUS_REJECTED, "rejected"), (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_lang"))
 
     # the template this maps to
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
@@ -72,8 +73,8 @@ class TemplateTranslation(models.Model):
     # the current status of this channel template
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
 
-    # the language for this template (ISO639-3)
-    language = models.CharField(max_length=3)
+    # the language for this template (ISO639-3 or Facebook code)
+    language = models.CharField(max_length=6)
 
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
