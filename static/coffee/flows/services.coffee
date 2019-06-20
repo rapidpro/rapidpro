@@ -388,17 +388,24 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 ]
 
 app.factory "Revisions", ['$http', '$log', ($http, $log) ->
+  subdir = window.subdir
+  if subdir != null
+    subdir = '/' + subdir
+  else
+    subdir = ''
+
   new class Revisions
     updateRevisions: (flowId) ->
       _this = @
-      $http.get('/flow/revisions/' + flowId + '/').success (data, status, headers) ->
+
+      $http.get(subdir + '/flow/revisions/' + flowId + '/').success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.revisions = data
 
     getRevision: (revision) ->
       _this = @
-      return $http.get('/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
+      return $http.get(subdir + '/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data

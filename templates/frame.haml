@@ -21,7 +21,7 @@
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
-
+      window.subdir = '{{brand.sub_dir}}';
       function conditionalLoad(local, remote) {
         if (local != null && (window.location.hostname == "localhost" || remote == null)) {
           loadResource("{{ STATIC_URL }}" + local);

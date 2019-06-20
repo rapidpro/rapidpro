@@ -162,7 +162,7 @@
   %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
 
-    %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?after={{recent_start}}",
+    %tr.poll{ ic-src:"/{{brand.sub_dir}}contact/history/{{contact.uuid}}/?after={{recent_start}}",
               ic-trigger-on:"scrolled-into-view",
               ic-poll:"5s",
               ic-target:"table .recent",
@@ -171,7 +171,7 @@
     %tbody.recent
 
     // trigger the first batch of previous messages
-    %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?before={{recent_start}}", 
+    %tr{ ic-append-from:"/{{brand.sub_dir}}contact/history/{{contact.uuid}}/?before={{recent_start}}",
          ic-trigger-on:"scrolled-into-view", 
          ic-target:"table .previous", 
          ic-indicator:"#indicator" }
