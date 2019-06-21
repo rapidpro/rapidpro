@@ -17,8 +17,6 @@ class FreshChatType(ChannelType):
 
     courier_url = r"^fc/(?P<uuid>[a-z0-9\-]+)/receive$"
 
-
-
     name = "FreshChat"
     icon = "icon-fcm"
 
