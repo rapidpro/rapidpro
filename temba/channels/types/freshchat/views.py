@@ -35,9 +35,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = form.cleaned_data.get("auth_token")
         webhook_key = form.cleaned_data.get("webhook_key")
         config = {
-            Channel.CONFIG_AGENT_ID: agent_id,
+            Channel.CONFIG_USERNAME: agent_id,
             Channel.CONFIG_AUTH_TOKEN: auth_token,
-            Channel.CONFIG_WEBHOOK_KEY : webhook_key,
+            Channel.CONFIG_SECRET : webhook_key,
         }
 
         self.object = Channel.create(
