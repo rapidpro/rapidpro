@@ -2031,7 +2031,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().get_initial()
-            initial["email"] = self.request.POST.get("email", None)
+            initial["email"] = self.request.POST.get("email", self.request.GET.get("email", None))
             return initial
 
         def get_welcome_size(self):
