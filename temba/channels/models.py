@@ -108,6 +108,9 @@ class ChannelType(metaclass=ABCMeta):
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
+    request_private_data_keys = set()
+    response_private_data_keys = set()
+
     def is_available_to(self, user):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
@@ -288,7 +291,7 @@ class ChannelType(metaclass=ABCMeta):
         if channellog.msg_id:
             formatted_request = self.format_channellog_request(channellog)
 
-            if hasattr(self, "request_private_data_keys"):
+            if self.request_private_data_keys:
                 masked_dict_request = mask_dict_values(formatted_request, keys=self.request_private_data_keys)
 
                 if masked_dict_request:
@@ -327,7 +330,7 @@ class ChannelType(metaclass=ABCMeta):
         if channellog.msg_id:
             formatted_response = self.format_channellog_response(channellog)
 
-            if hasattr(self, "response_private_data_keys"):
+            if self.response_private_data_keys:
                 masked_dict_response = mask_dict_values(formatted_response, keys=self.response_private_data_keys)
 
                 if masked_dict_response:
