@@ -1967,7 +1967,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         if name:
             queryset = queryset.filter(name__iexact=name)
 
-        return queryset.filter(is_active=True)
+        return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
     def prepare_for_serialization(self, object_list):
         group_counts = ContactGroupCount.get_totals(object_list)

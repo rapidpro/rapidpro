@@ -122,9 +122,36 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name="Frank")
         self.frank.set_field(self.user, "age", "18")
 
+        ContactGroup.create_static(self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING)
+
         response = self._do_test_view("list")
         self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
         self.assertIsNone(response.context["search_error"])
+
+        survey_audience = ContactGroup.user_groups.get(name="Survey Audience")
+        unsatisfied = ContactGroup.user_groups.get(name="Unsatisfied Customers")
+
+        self.assertEqual(
+            response.context["groups"],
+            [
+                {
+                    "uuid": str(survey_audience.uuid),
+                    "pk": survey_audience.id,
+                    "label": "Survey Audience",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+                {
+                    "uuid": str(unsatisfied.uuid),
+                    "pk": unsatisfied.id,
+                    "label": "Unsatisfied Customers",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+            ],
+        )
 
         with patch("temba.utils.es.ES") as mock_ES:
             mock_ES.search.return_value = {"_hits": [{"id": self.frank.id}]}
