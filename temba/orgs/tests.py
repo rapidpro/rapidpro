@@ -2864,10 +2864,10 @@ class OrgCRUDLTest(TembaTest):
     def test_org_signup(self):
         signup_url = reverse("orgs.org_signup")
 
-        response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@examle.com"}))
+        response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@example.com"}))
         self.assertEqual(response.status_code, 200)
         self.assertIn("email", response.context["form"].fields)
-        self.assertEqual(response.context["view"].derive_initial()["email"], "address@examle.com")
+        self.assertEqual(response.context["view"].derive_initial()["email"], "address@example.com")
 
         response = self.client.get(signup_url)
         self.assertEqual(response.status_code, 200)
