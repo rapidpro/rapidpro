@@ -1907,14 +1907,14 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
-        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        # update contact with valid ISO8601 timestamp value, 'T' replaced with space
         response = self.postJSON(
             url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11 11:12:13Z"}}
         )
         self.assertEqual(response.status_code, 200)
         resp_json = response.json()
 
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2011-11-11T11:12:00+02:00")
+        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with invalid ISO8601 timestamp value without timezone
         response = self.postJSON(
