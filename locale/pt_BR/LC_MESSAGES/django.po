@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-18 19:27+0000\n"
+"POT-Creation-Date: 2019-06-25 10:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3083,11 +3083,6 @@ msgstr ""
 
 msgid "All contacts have a 'created_on', it's not possible to check if 'created_on' is set"
 msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Invalid group or contact id"
-msgid "Unable to parse the date '{input_value}'"
-msgstr "Grupo ou id do contato inválido"
 
 #, fuzzy
 #| msgid "days"
@@ -11083,6 +11078,11 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid "Invalid group or contact id"
+#~ msgid "Unable to parse the date '{input_value}'"
+#~ msgstr "Grupo ou id do contato inválido"
 
 #, fuzzy
 #~ msgid ""
