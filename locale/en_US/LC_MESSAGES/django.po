@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-18 19:27+0000\n"
+"POT-Creation-Date: 2019-06-25 10:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2188,10 +2188,6 @@ msgid "All contacts have an 'id', it's not possible to check if 'id' is set"
 msgstr ""
 
 msgid "All contacts have a 'created_on', it's not possible to check if 'created_on' is set"
-msgstr ""
-
-#, python-brace-format
-msgid "Unable to parse the date '{input_value}'"
 msgstr ""
 
 msgid "day"
