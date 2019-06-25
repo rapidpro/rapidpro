@@ -2499,10 +2499,13 @@ class APITest(TembaTest):
             developers = self.create_group("Developers", query="isdeveloper = YES")
 
             # a group which is being re-evaluated
-            unready = self.create_group("Big Group", query="isdeveloper=NO")
+            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
 
-        unready.status = ContactGroup.STATUS_EVALUATING
-        unready.save(update_fields=("status",))
+        dynamic.status = ContactGroup.STATUS_EVALUATING
+        dynamic.save(update_fields=("status",))
+
+        # an initializing group
+        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -2518,7 +2521,7 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": unready.uuid,
+                    "uuid": dynamic.uuid,
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",
