@@ -41,6 +41,49 @@ def datetime_to_str(date_obj, format, tz):
 
 
 def str_to_date(date_str, dayfirst=True):
+    """
+    Parses a date from the given text value
+
+    Function uses several regex expressions to extract a valid date.
+
+    Initially FULL_ISO8601_REGEX will match ISO8601 timetamp strings mostly used
+    in JSON serialized timestamps.
+        2013-02-01T04:38:09.100000+02:00 -> 2013-02-01
+
+    Following test will match a ISO8601 date and only that, a format of the
+    string must conform to: YYYY-MM-DD
+
+    Next test is matching dates that are similar to the ISO8601. The date must
+    start with a year and it is followed by either month or a day. Day and month
+    have an optional leading zero, and year must have 4 characters. In this test
+    ORG level attribute `date_format` is applied.
+        2019-06-18, dayfirst=True -> 2019-06-18
+        2019-18-06, dayfirst=False -> 2019-06-18
+    Following delimiters are supported:
+        2019-06-18
+        2019.6.18
+        2019\06\18
+        2019/06/18
+        2019_6_18
+        2019-6/02
+
+    The last test is similar to the previous one because it supports same
+    delimiters and honours `Org.date_format`, but in this we check for dates
+    that end with a year  and start with either day or the month. Year can have
+    either 2 or 4 characters:
+        18-06-2019
+        06/18/2019
+        6-18-19
+
+    Note:
+        `Org.date_format` can produce incorrect dates. For example, 2018-06-11
+        is a valid date in both cases:
+            dayfirst=True -> 2018-06-11
+            dayfirst=False -> 2018-11-06
+
+    Returns:
+        date|None: datetime.date object
+    """
     if not date_str:
         return None
 

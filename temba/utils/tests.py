@@ -260,6 +260,9 @@ class DatesTest(TembaTest):
         self.assertEqual(str_to_date("2012/2/21", dayfirst=True), datetime.date(2012, 2, 21))
         self.assertEqual(str_to_date("2012_2_21", dayfirst=True), datetime.date(2012, 2, 21))
 
+        # mixed delimiters
+        self.assertEqual(str_to_date("2012-2/21", dayfirst=True), datetime.date(2012, 2, 21))
+
         # day and month are switched, depends on org conf
         self.assertEqual(str_to_date("12/11/16", dayfirst=True), datetime.date(2016, 11, 12))
         self.assertEqual(str_to_date("12/11/16", dayfirst=False), datetime.date(2016, 12, 11))
