@@ -1,3 +1,10 @@
+v5.0.6
+----------
+ * Show search error if input is not a date
+ * Group being imported into should be in state=INITIALIZING whilist being populated, and hide such groups in the UI
+ * Only add initially changed files in post-commit hook
+ * Fix to make sure the initial form data is properly shown on signup
+
 v5.0.5
 ----------
  * sync whatsapp templates with unsupported languages, show them as such
