@@ -1,3 +1,7 @@
+v5.0.7
+----------
+ * Force a save when migrating flows
+
 v5.0.6
 ----------
  * Show search error if input is not a date
