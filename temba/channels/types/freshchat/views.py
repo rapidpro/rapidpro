@@ -1,5 +1,3 @@
-
-
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -11,7 +9,11 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        title = forms.CharField(required=True, label=_("FreshChat Environment Title"), help_text=_("The name of your environment"))
+        title = forms.CharField(
+            required=True,
+            label=_("FreshChat Environment Title"),
+            help_text=_("The name of your environment"),
+        )
 
         webhook_key = forms.CharField(
             required=True,
@@ -19,10 +21,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("Webhook Public Key used to verify signatures"),
         )
         agent_id = forms.CharField(
-            required=True, label=_("FreshChat Agent ID"), help_text=_("The UUID of the Agent you want RP to Use.")
+            required=True,
+            label=_("FreshChat Agent ID"),
+            help_text=_("The UUID of the Agent you want RP to Use."),
         )
         auth_token = forms.CharField(
-            required=True, label=_("FreshChat API Auth Token"), help_text=_("The API auth token- leave out the bearer")
+            required=True,
+            label=_("FreshChat API Auth Token"),
+            help_text=_("The API auth token- leave out the bearer"),
         )
 
     form_class = Form
@@ -37,7 +43,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             Channel.CONFIG_USERNAME: agent_id,
             Channel.CONFIG_AUTH_TOKEN: auth_token,
-            Channel.CONFIG_SECRET : webhook_key,
+            Channel.CONFIG_SECRET: webhook_key,
         }
 
         self.object = Channel.create(

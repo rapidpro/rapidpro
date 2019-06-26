@@ -19,7 +19,11 @@ class FrreshChatTypeTest(TembaTest):
             address="123456",
             role="SR",
             schemes=["freshchat"],
-            config={"username": "c0534f78-b6e9-4f79-8853-11cedfc1f35b", "auth_token": "eyJVTI0LTm5WZ2Ut", "secret": "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"},
+            config={
+                "username": "c0534f78-b6e9-4f79-8853-11cedfc1f35b",
+                "auth_token": "eyJVTI0LTm5WZ2Ut",
+                "secret": "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----",
+            },
         )
 
     def test_claim(self):
@@ -36,7 +40,9 @@ class FrreshChatTypeTest(TembaTest):
         self.assertContains(response, "Connect FreshChat")
 
         post_data = response.context["form"].initial
-        post_data["secret"] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
+        post_data[
+            "secret"
+        ] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
         post_data["auth_token"] = "eyJVTI0LTm5WZ2Ut"
         post_data["username"] = "c0534f78-b6e9-4f79-8853-11cedfc1f35b"
 
@@ -45,7 +51,12 @@ class FrreshChatTypeTest(TembaTest):
         # assert our channel got created
         channel = Channel.objects.get(address="123456")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "eyJVTI0LTm5WZ2Ut")
-        self.assertEqual(channel.config[Channel.CONFIG_USERNAME], "c0534f78-b6e9-4f79-8853-11cedfc1f35b")
-        self.assertEqual(channel.config[Channel.CONFIG_SECRET], "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----")
+        self.assertEqual(
+            channel.config[Channel.CONFIG_USERNAME],
+            "c0534f78-b6e9-4f79-8853-11cedfc1f35b",
+        )
+        self.assertEqual(
+            channel.config[Channel.CONFIG_SECRET],
+            "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----",
+        )
         self.assertEqual(channel.address, "123456")
-

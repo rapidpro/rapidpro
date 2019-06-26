@@ -1,4 +1,3 @@
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import FRESHCHAT_SCHEME
@@ -39,8 +38,6 @@ class FreshChatType(ChannelType):
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.fc' channel.uuid %}",
-            description=_(
-                "POST FreshChat trigger to this address."
-            ),
+            description=_("POST FreshChat trigger to this address."),
         ),
     )
