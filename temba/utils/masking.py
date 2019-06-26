@@ -19,7 +19,8 @@ def rev_match(input, test, anon_mask):
         tmp_str = r_test[0:cut_position]
 
         if tmp_str in r_input:
-            return input.replace(tmp_str[::-1], anon_mask)
+            anon_input = input.replace(tmp_str[::-1], anon_mask)
+            return anon_input
 
 
 def add_plus_sign(input):
@@ -126,9 +127,9 @@ def recursive_replace(obj, keys):
         return obj
 
 
-def mask_dict_values(input, keys, delimiter=r"\r\n\r\n"):
+def mask_http_trace(trace, keys, delimiter=r"\r\n\r\n"):
     try:
-        *rest, payload = input.split(delimiter)
+        *rest, payload = trace.split(delimiter)
         json_resp = json.loads(payload)
 
         anon_dict = recursive_replace(json_resp, keys=keys)

@@ -42,8 +42,8 @@ class TwitterActivityType(ChannelType):
     async_activation = False
     attachment_support = True
 
-    response_private_data_keys = {"urn"}
-    request_private_data_keys = {"sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https"}
+    mask_response_body_keys = {"urn"}
+    mask_request_body_keys = {"sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https"}
 
     def activate(self, channel):
         config = channel.config

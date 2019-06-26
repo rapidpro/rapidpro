@@ -3,7 +3,6 @@ import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
-from urllib.parse import urlparse
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -41,7 +40,7 @@ from temba.orgs.models import (
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
-from temba.utils.masking import apply_mask, mask_dict_values
+from temba.utils.masking import apply_mask, mask_http_trace
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
@@ -108,8 +107,8 @@ class ChannelType(metaclass=ABCMeta):
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
-    request_private_data_keys = set()
-    response_private_data_keys = set()
+    mask_request_body_keys = set()
+    mask_response_body_keys = set()
 
     def is_available_to(self, user):
         """
@@ -266,21 +265,12 @@ class ChannelType(metaclass=ABCMeta):
         masked_url = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            masked_url = apply_mask(self.format_channellog_url(channellog), channellog.msg.contact_urn.path)
+            masked_url = apply_mask(channellog.url, channellog.msg.contact_urn.path)
 
             if not masked_url:
                 masked_url = ContactURN.ANON_MASK
 
         return masked_url
-
-    def format_channellog_url(self, channellog):
-        if channellog.method == "GET":
-            parsed = urlparse(channellog.url)
-            formatted_url = f"{parsed.scheme}://{parsed.hostname}{parsed.path}"
-        else:
-            formatted_url = channellog.url
-
-        return formatted_url
 
     def anonymize_channellog_request(self, channellog):
         from temba.contacts.models import ContactURN
@@ -289,13 +279,13 @@ class ChannelType(metaclass=ABCMeta):
         masked_request = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            formatted_request = self.format_channellog_request(channellog)
+            formatted_request = channellog.request
 
-            if self.request_private_data_keys:
-                masked_dict_request = mask_dict_values(formatted_request, keys=self.request_private_data_keys)
+            if self.mask_request_body_keys:
+                masked_http_request = mask_http_trace(formatted_request, keys=self.mask_request_body_keys)
 
-                if masked_dict_request:
-                    masked_request = apply_mask(masked_dict_request, channellog.msg.contact_urn.path)
+                if masked_http_request:
+                    masked_request = apply_mask(masked_http_request, channellog.msg.contact_urn.path)
 
                     if not masked_request:
                         masked_request = ContactURN.ANON_MASK
@@ -305,22 +295,7 @@ class ChannelType(metaclass=ABCMeta):
                 if not masked_request:
                     masked_request = ContactURN.ANON_MASK
 
-        if masked_request == ContactURN.ANON_MASK:
-            return masked_request
-        else:
-            try:
-                return json.dumps(json.loads(masked_request), indent=2)
-            except Exception:
-                return masked_request
-
-    def format_channellog_request(self, channellog):
-        if not channellog.request:  # pragma: no cover
-            return f"{channellog.method} {self.format_channellog_url(channellog)}"
-
-        try:
-            return json.dumps(json.loads(channellog.request), indent=2)
-        except ValueError:
-            return channellog.request
+        return masked_request
 
     def anonymize_channellog_response(self, channellog):
         from temba.contacts.models import ContactURN
@@ -328,13 +303,13 @@ class ChannelType(metaclass=ABCMeta):
         masked_response = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            formatted_response = self.format_channellog_response(channellog)
+            formatted_response = channellog.response
 
-            if self.response_private_data_keys:
-                masked_dict_response = mask_dict_values(formatted_response, keys=self.response_private_data_keys)
+            if self.mask_response_body_keys:
+                masked_http_response = mask_http_trace(formatted_response, keys=self.mask_response_body_keys)
 
-                if masked_dict_response:
-                    masked_response = apply_mask(masked_dict_response, channellog.msg.contact_urn.path)
+                if masked_http_response:
+                    masked_response = apply_mask(masked_http_response, channellog.msg.contact_urn.path)
 
                     if not masked_response:
                         masked_response = ContactURN.ANON_MASK
@@ -344,22 +319,7 @@ class ChannelType(metaclass=ABCMeta):
                 if not masked_response:
                     masked_response = ContactURN.ANON_MASK
 
-        if masked_response == ContactURN.ANON_MASK:
-            return masked_response
-        else:
-            try:
-                return json.dumps(json.loads(masked_response), indent=2)
-            except ValueError:
-                return masked_response
-
-    def format_channellog_response(self, channellog):
-        try:
-            return json.dumps(json.loads(channellog.response), indent=2)
-        except Exception:
-            if not channellog.response:
-                return channellog.description
-            else:
-                return channellog.response
+        return masked_response
 
     def __str__(self):
         return self.name
