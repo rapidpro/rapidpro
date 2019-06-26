@@ -1907,14 +1907,14 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
-        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        # update contact with valid ISO8601 timestamp value, 'T' replaced with space
         response = self.postJSON(
             url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11 11:12:13Z"}}
         )
         self.assertEqual(response.status_code, 200)
         resp_json = response.json()
 
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2011-11-11T11:12:00+02:00")
+        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with invalid ISO8601 timestamp value without timezone
         response = self.postJSON(
@@ -2499,10 +2499,13 @@ class APITest(TembaTest):
             developers = self.create_group("Developers", query="isdeveloper = YES")
 
             # a group which is being re-evaluated
-            unready = self.create_group("Big Group", query="isdeveloper=NO")
+            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
 
-        unready.status = ContactGroup.STATUS_EVALUATING
-        unready.save(update_fields=("status",))
+        dynamic.status = ContactGroup.STATUS_EVALUATING
+        dynamic.save(update_fields=("status",))
+
+        # an initializing group
+        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -2518,7 +2521,7 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": unready.uuid,
+                    "uuid": dynamic.uuid,
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",

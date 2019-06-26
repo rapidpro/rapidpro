@@ -1124,7 +1124,11 @@ class FlowCRUDL(SmartCRUDL):
 
             links.append(dict(divider=True))
             links.append(
-                dict(title=_("New Editor"), flag="beta", href=reverse("flows.flow_editor_next", args=[flow.uuid]))
+                dict(
+                    title=_("New Editor"),
+                    flag="beta",
+                    href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1',
+                )
             )
 
             user = self.get_user()
@@ -1189,6 +1193,7 @@ class FlowCRUDL(SmartCRUDL):
 
             context["scripts"] = scripts
             context["styles"] = styles
+            context["migrate"] = "migrate" in self.request.GET
 
             if flow.is_archived:
                 context["mutable"] = False

@@ -78,7 +78,7 @@ def omnibox_mixed_search(org, search, types):
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
-        groups = ContactGroup.get_user_groups(org)
+        groups = ContactGroup.get_user_groups(org, ready_only=True)
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:

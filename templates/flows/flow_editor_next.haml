@@ -149,11 +149,15 @@
     }
 
     const config = {
+      
+      // TODO: Remove once legacy editor is gone
+      // this is only to support manual migration
+      forceSaveOnLoad: "{{migrate}}" == "True",
+
       flow: '{{object.uuid}}',
       flowType: flowType,
       localStorage: true,
       showTemplates: "{{has_whatsapp_channel}}" == "True",
-
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
 

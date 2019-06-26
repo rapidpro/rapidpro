@@ -122,9 +122,36 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name="Frank")
         self.frank.set_field(self.user, "age", "18")
 
+        ContactGroup.create_static(self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING)
+
         response = self._do_test_view("list")
         self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
         self.assertIsNone(response.context["search_error"])
+
+        survey_audience = ContactGroup.user_groups.get(name="Survey Audience")
+        unsatisfied = ContactGroup.user_groups.get(name="Unsatisfied Customers")
+
+        self.assertEqual(
+            response.context["groups"],
+            [
+                {
+                    "uuid": str(survey_audience.uuid),
+                    "pk": survey_audience.id,
+                    "label": "Survey Audience",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+                {
+                    "uuid": str(unsatisfied.uuid),
+                    "pk": unsatisfied.id,
+                    "label": "Unsatisfied Customers",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+            ],
+        )
 
         with patch("temba.utils.es.ES") as mock_ES:
             mock_ES.search.return_value = {"_hits": [{"id": self.frank.id}]}
@@ -6713,14 +6740,14 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(groups_field.label, "Groups")
 
         # we should lookup the existing field by label
-        label_field = ContactField.get_or_create(self.org, self.admin, "groups", "Groups")
+        label_field = ContactField.get_or_create(self.org, self.admin, key=None, label="Groups")
 
         self.assertEqual(label_field.key, "groups_field")
         self.assertEqual(label_field.label, "Groups")
         self.assertFalse(ContactField.user_fields.filter(key="groups"))
         self.assertEqual(label_field.pk, groups_field.pk)
 
-        # exisiting field by label has invalid key we should try to create a new field
+        # existing field by label has invalid key we should try to create a new field
         groups_field.key = "groups"
         groups_field.save()
 
@@ -6730,9 +6757,10 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValueError):
             ContactField.get_or_create(self.org, self.admin, "name", "Groups")
 
+        # don't look up by label if we have a key
         created_field = ContactField.get_or_create(self.org, self.admin, "list", "Groups")
         self.assertEqual(created_field.key, "list")
-        self.assertEqual(created_field.label, "Groups")
+        self.assertEqual(created_field.label, "Groups 2")
 
         # this should be a different field
         self.assertFalse(created_field.pk == groups_field.pk)
@@ -6745,12 +6773,12 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(field1.key, "sport")
         self.assertEqual(field1.label, "Games")
 
-        # should be the same field
+        # should modify label to make it unique
         field2 = ContactField.get_or_create(self.org, self.admin, "play", "Games")
 
-        self.assertEqual(field2.key, "sport")
-        self.assertEqual(field2.label, "Games")
-        self.assertEqual(field1.pk, field2.pk)
+        self.assertEqual(field2.key, "play")
+        self.assertEqual(field2.label, "Games 2")
+        self.assertNotEqual(field1.id, field2.id)
 
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, "First", "Starter")

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-13 20:48+0000\n"
+"POT-Creation-Date: 2019-06-25 10:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3083,11 +3083,6 @@ msgstr ""
 
 msgid "All contacts have a 'created_on', it's not possible to check if 'created_on' is set"
 msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "Invalid group or contact id"
-msgid "Unable to parse the date '{input_value}'"
-msgstr "Grupo ou id do contato inválido"
 
 #, fuzzy
 #| msgid "days"
@@ -7159,6 +7154,12 @@ msgstr ""
 "\n"
 "Quando uma nova mensagem é recebida pelo seu serviço, o Textit deve ser notificado com um POST para a URL a seguir, passando os seguintes parâmetros: 'de' e 'texto'"
 
+msgid ""
+"\n"
+"      Use this Token as Authorization when sending incoming messages\n"
+"    "
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -9980,12 +9981,12 @@ msgstr "Transmissor"
 #, fuzzy
 msgid ""
 "\n"
-"            We'll include the message text along with data specified in the\n"
-"            <a href='/webhooks/webhook/#flow' target='_new'>Webhook Flow Event API</a>\n"
-"            <div>This step will be identified as [[actionset.uuid]]</div>\n"
+"            This step will be identified as [[actionset.uuid]]\n"
 "\n"
 "          "
-msgstr "Vamos incluir o texto da mensagem juntamente com os dados especificados no <a href='/api/v1/webhook/#flow'> API Evento de Fluxo do Webhook  </ a>."
+msgstr ""
+"\n"
+"%(sms_sending)s Enviando"
 
 #, fuzzy
 msgid ""
@@ -10102,12 +10103,12 @@ msgstr ""
 #, fuzzy
 msgid ""
 "\n"
-"              We'll include the message text along with data specified in the\n"
-"              <a href='/webhooks/webhook/#flow' target='_new'>Webhook Flow Event API</a>\n"
-"              <div>This step will be identified as [[ruleset.uuid]]</div>\n"
+"              This step will be identified as [[ruleset.uuid]]\n"
 "\n"
 "            "
-msgstr "Vamos incluir o texto da mensagem juntamente com os dados especificados no <a href='/api/v1/webhook/#flow'> API Evento de Fluxo do Webhook  </ a>."
+msgstr ""
+"\n"
+"%(sms_delivered)s Entregues"
 
 #, fuzzy
 msgid ""
@@ -11077,6 +11078,31 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid "Invalid group or contact id"
+#~ msgid "Unable to parse the date '{input_value}'"
+#~ msgstr "Grupo ou id do contato inválido"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "            We'll include the message text along with data specified in the\n"
+#~ "            <a href='/webhooks/webhook/#flow' target='_new'>Webhook Flow Event API</a>\n"
+#~ "            <div>This step will be identified as [[actionset.uuid]]</div>\n"
+#~ "\n"
+#~ "          "
+#~ msgstr "Vamos incluir o texto da mensagem juntamente com os dados especificados no <a href='/api/v1/webhook/#flow'> API Evento de Fluxo do Webhook  </ a>."
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "              We'll include the message text along with data specified in the\n"
+#~ "              <a href='/webhooks/webhook/#flow' target='_new'>Webhook Flow Event API</a>\n"
+#~ "              <div>This step will be identified as [[ruleset.uuid]]</div>\n"
+#~ "\n"
+#~ "            "
+#~ msgstr "Vamos incluir o texto da mensagem juntamente com os dados especificados no <a href='/api/v1/webhook/#flow'> API Evento de Fluxo do Webhook  </ a>."
 
 #, fuzzy
 #~| msgid "Invalid group or contact id"
@@ -12158,16 +12184,6 @@ msgstr "Remover telefone"
 #, fuzzy
 #~ msgid ""
 #~ "\n"
-#~ "          This step will be identified as [[action.uuid]]\n"
-#~ "\n"
-#~ "        "
-#~ msgstr ""
-#~ "\n"
-#~ "%(sms_sending)s Enviando"
-
-#, fuzzy
-#~ msgid ""
-#~ "\n"
 #~ "          If your server responds with JSON, each property will be\n"
 #~ "          added to the flow.\n"
 #~ "\n"
@@ -12182,16 +12198,6 @@ msgstr "Remover telefone"
 #~ "\n"
 #~ "        "
 #~ msgstr "Neste exemplo @extra.stock_level e example@extra.product podem ser adicionados para todos os futuros passos."
-
-#, fuzzy
-#~ msgid ""
-#~ "\n"
-#~ "            This step will be identified as [[ruleset.uuid]]\n"
-#~ "\n"
-#~ "          "
-#~ msgstr ""
-#~ "\n"
-#~ "%(sms_delivered)s Entregues"
 
 #~ msgid "What information do we collect?"
 #~ msgstr "Quais informações coletamos?"
