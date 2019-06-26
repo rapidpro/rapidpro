@@ -1,10 +1,7 @@
-
-from mock import patch
-
+from unittest.mock import patch
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
-from temba.utils import json
 
 from ...models import Channel
 
@@ -17,17 +14,16 @@ class FrreshChatTypeTest(TembaTest):
             self.org,
             self.user,
             None,
-            "ABC",
-            name="FrreshChat",
-            address="87654",
+            "FC",
+            name="FreshChat",
+            address="123456",
             role="SR",
-            schemes=["FrreshChat"],
-            config={"FCM_TITLE": "Title", "FCM_KEY": "87654"},
+            schemes=["freshchat"],
+            config={"username": "c0534f78-b6e9-4f79-8853-11cedfc1f35b", "auth_token": "eyJVTI0LTm5WZ2Ut", "secret": "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"},
         )
 
-    @patch("requests.get")
-    def test_claim(self, mock_get):
-        url = reverse("channels.types.firebase.claim")
+    def test_claim(self):
+        url = reverse("channels.types.freshchat.claim")
 
         self.login(self.admin)
 
@@ -35,20 +31,21 @@ class FrreshChatTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
 
-        mock_get.return_value = MockResponse(
-            200, json.dumps({"title": "FCM Channel", "key": "abcde12345", "send_notification": "True"})
-        )
-        response = self.client.post(
-            url, {"title": "FCM Channel", "key": "abcde12345", "send_notification": "True"}, follow=True
-        )
+        # can fetch the claim page
+        response = self.client.get(url)
+        self.assertContains(response, "Connect FreshChat")
 
-        channel = Channel.objects.get(address="abcde12345")
-        self.assertRedirects(response, reverse("channels.channel_configuration", args=[channel.uuid]))
-        self.assertEqual(channel.channel_type, "FCM")
-        self.assertEqual(
-            channel.config, {"FCM_KEY": "abcde12345", "FCM_TITLE": "FCM Channel", "FCM_NOTIFICATION": True}
-        )
+        post_data = response.context["form"].initial
+        post_data["secret"] = "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----"
+        post_data["auth_token"] = "eyJVTI0LTm5WZ2Ut"
+        post_data["username"] = "c0534f78-b6e9-4f79-8853-11cedfc1f35b"
 
-        response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
-        self.assertContains(response, reverse("courier.fcm", args=[channel.uuid, "receive"]))
-        self.assertContains(response, reverse("courier.fcm", args=[channel.uuid, "register"]))
+        response = self.client.post(url, post_data, follow=True)
+
+        # assert our channel got created
+        channel = Channel.objects.get(address="123456")
+        self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "eyJVTI0LTm5WZ2Ut")
+        self.assertEqual(channel.config[Channel.CONFIG_USERNAME], "c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        self.assertEqual(channel.config[Channel.CONFIG_SECRET], "-----BEGIN RSA PUBLIC KEY----- MIIBIDAQAB -----END RSA PUBLIC KEY-----")
+        self.assertEqual(channel.address, "123456")
+
