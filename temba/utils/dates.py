@@ -263,12 +263,14 @@ def datetime_to_epoch(dt):
     return (utc_naive - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
-def date_to_utc_range(d, org):
+def date_to_day_range_utc(input_date, org):
     """
     Converts a date in the given org's timezone, to a range of datetimes in UTC
     """
-    local_midnight = org.timezone.localize(datetime.datetime.combine(d, datetime.datetime.min.time()))
+    local_midnight = org.timezone.localize(datetime.datetime.combine(input_date, datetime.datetime.min.time()))
+
     utc_midnight = local_midnight.astimezone(pytz.UTC)
+
     return utc_midnight, utc_midnight + datetime.timedelta(days=1)
 
 
