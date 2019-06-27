@@ -434,7 +434,7 @@
     {% endif %}
 
     $('.select-row').live('mouseover', function(){
-      url = '/{{brand.sub_dir}}contact/read/' + $(this).data('uuid');
+      url = '{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/contact/read/' + $(this).data('uuid');
 
       $(this).find('td').not(':first-child').each(function(){
         $(this).attr('onClick', "document.location.href=url;");
