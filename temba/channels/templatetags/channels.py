@@ -27,8 +27,6 @@ def anonymize_channellog_request(context, log, *args, **kwargs):
     if log.channel.org.is_anon and not user.has_org_perm(user.get_org(), "contacts.contact_break_anon"):
         return channel_type.anonymize_channellog_request(log)
 
-    if not log.request:
-        return f"{log.method} {log.url}"
     return log.request
 
 
