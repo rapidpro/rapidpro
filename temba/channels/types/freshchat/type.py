@@ -17,7 +17,7 @@ class FreshChatType(ChannelType):
     courier_url = r"^fc/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "FreshChat"
-    icon = "icon-fcm"
+    icon = "icon-freshchat"
 
     claim_blurb = _(
         """Connect your approved <a href="https://www.freshworks.com/live-chat-software/" target="_blank">FreshChat</a> Channel"""
