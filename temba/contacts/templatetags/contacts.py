@@ -35,7 +35,7 @@ URN_SCHEME_ICONS = {
     LINE_SCHEME: "icon-line",
     EXTERNAL_SCHEME: "icon-channel-external",
     FCM_SCHEME: "icon-fcm",
-    FRESHCHAT_SCHEME: "icon-fcm",
+    FRESHCHAT_SCHEME: "icon-freshchat",
     WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
