@@ -1,3 +1,10 @@
+v5.0.8
+----------
+ * Update recommended versions in README
+ * Fix API runs serializer when run doesn't have category (i.e. from save_run_result action)
+ * Update to latest floweditor
+ * Update search parser to convert timestamps into UTC
+
 v5.0.7
 ----------
  * Force a save when migrating flows
