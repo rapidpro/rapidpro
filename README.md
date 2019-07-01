@@ -40,6 +40,12 @@ RapidPro depends on other components such as Mailroom and Courier. These are ver
 differently than RapidPro and do not follow a set schedule. Each stable release of RapidPro
 details which version of these dependencies you need to run with it.
 
+## Updating FlowEditor version
+
+```
+% npm install @nyaruka/flow-editor@whatver-version --save
+```
+
 ### Get Involved
 
 To run RapidPro for development, follow the Quick Start guide at http://rapidpro.github.io/rapidpro/docs/development.
