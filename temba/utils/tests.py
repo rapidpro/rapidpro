@@ -48,7 +48,7 @@ from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
-    date_to_utc_range,
+    date_to_day_range_utc,
     datetime_to_epoch,
     datetime_to_ms,
     datetime_to_str,
@@ -429,14 +429,10 @@ class DatesTest(TembaTest):
             self.assertEqual(str_to_time("03:04:30.123"), datetime.time(3, 4, 30, 123_000))  # with milliseconds
             self.assertEqual(str_to_time("03:04:30.123000"), datetime.time(3, 4, 30, 123_000))  # with microseconds
 
-    def test_date_to_utc_range(self):
-        self.assertEqual(
-            date_to_utc_range(datetime.date(2017, 2, 20), self.org),
-            (
-                datetime.datetime(2017, 2, 19, 22, 0, 0, 0, tzinfo=pytz.UTC),
-                datetime.datetime(2017, 2, 20, 22, 0, 0, 0, tzinfo=pytz.UTC),
-            ),
-        )
+    def test_date_to_day_range_utc(self):
+        result = date_to_day_range_utc(datetime.date(2017, 2, 20), self.org)
+        self.assertEqual(result[0].isoformat(), "2017-02-19T22:00:00+00:00")
+        self.assertEqual(result[1].isoformat(), "2017-02-20T22:00:00+00:00")
 
 
 class TimezonesTest(TembaTest):
