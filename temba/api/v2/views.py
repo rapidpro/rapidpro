@@ -1967,7 +1967,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         if name:
             queryset = queryset.filter(name__iexact=name)
 
-        return queryset.filter(is_active=True)
+        return queryset.filter(is_active=True).exclude(status=ContactGroup.STATUS_INITIALIZING)
 
     def prepare_for_serialization(self, object_list):
         group_counts = ContactGroupCount.get_totals(object_list)
@@ -3160,7 +3160,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
      * **language** - the ISO639-3 code for the language of this translation
      * **content** - the content of the translation
      * **variable_count** - the count of variables in this template
-     * **status** - the status of this translation, either `active` or `pending`
+     * **status** - the status of this translation, either `approved`, `pending`, `rejected` or `unsupported_language`
 
     Example:
 

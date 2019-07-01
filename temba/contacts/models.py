@@ -507,7 +507,7 @@ class ContactField(SmartModel):
         with org.lock_on(OrgLock.field, key):
             field = ContactField.user_fields.active_for_org(org=org).filter(key__iexact=key).first()
 
-            if not field:
+            if not field and not key:
                 # try to lookup the existing field by label
                 field = ContactField.get_by_label(org, label)
 
@@ -550,6 +550,8 @@ class ContactField(SmartModel):
                 if not label:
                     label = regex.sub(r"([^A-Za-z0-9\- ]+)", " ", key, regex.V0).title()
 
+                label = cls.get_unique_label(org, label)
+
                 if not value_type:
                     value_type = Value.TYPE_TEXT
 
@@ -574,6 +576,23 @@ class ContactField(SmartModel):
                 )
 
             return field
+
+    @classmethod
+    def get_unique_label(cls, org, base_label, ignore=None):
+        """
+        Generates a unique field label based on the given base label
+        """
+        label = base_label[:64].strip()
+
+        count = 2
+        while True:
+            if not ContactField.user_fields.filter(org=org, label=label, is_active=True).exists():
+                break
+
+            label = "%s %d" % (base_label[:59].strip(), count)
+            count += 1
+
+        return label
 
     @classmethod
     def get_by_label(cls, org, label):
@@ -1772,7 +1791,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
-        group = ContactGroup.create_static(group_org, user, group_name, task)
+        group = ContactGroup.create_static(
+            group_org, user, group_name, status=ContactGroup.STATUS_INITIALIZING, task=task
+        )
 
         num_creates = 0
         for contact in contacts:
@@ -1783,6 +1804,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # do not add blocked or stopped contacts
             if not contact.is_stopped and not contact.is_blocked:
                 group.contacts.add(contact)
+
+        # group is now ready to be used in a flow starts etc
+        group.status = ContactGroup.STATUS_READY
+        group.save(update_fields=("status",))
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():
@@ -2712,11 +2737,11 @@ class ContactGroup(TembaModel):
             return cls.create_static(org, user, name)
 
     @classmethod
-    def create_static(cls, org, user, name, task=None):
+    def create_static(cls, org, user, name, *, status=STATUS_READY, task=None):
         """
         Creates a static group whose members will be manually added and removed
         """
-        return cls._create(org, user, name, task=task)
+        return cls._create(org, user, name, status=status, task=task)
 
     @classmethod
     def create_dynamic(cls, org, user, name, query, evaluate=True):
@@ -2726,12 +2751,12 @@ class ContactGroup(TembaModel):
         if not query:
             raise ValueError("Query cannot be empty for a dynamic group")
 
-        group = cls._create(org, user, name, query=query)
+        group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate)
         return group
 
     @classmethod
-    def _create(cls, org, user, name, task=None, query=None):
+    def _create(cls, org, user, name, status, task=None, query=None):
         full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
@@ -2750,7 +2775,7 @@ class ContactGroup(TembaModel):
             org=org,
             name=full_group_name,
             query=query,
-            status=ContactGroup.STATUS_INITIALIZING if query else ContactGroup.STATUS_READY,
+            status=status,
             import_task=task,
             created_by=user,
             modified_by=user,

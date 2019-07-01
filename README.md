@@ -7,8 +7,8 @@ To learn more, please visit the project site at http://rapidpro.github.io/rapidp
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro v5.0.1](https://github.com/rapidpro/rapidpro/releases/tag/v5.0.0)
- * [Mailroom v2.0.1](https://github.com/nyaruka/mailroom/releases/tag/v2.0.0)
+ * [RapidPro v5.0.8](https://github.com/rapidpro/rapidpro/releases/tag/v5.0.0)
+ * [Mailroom v2.0.9](https://github.com/nyaruka/mailroom/releases/tag/v2.0.0)
  * [Courier v2.0.2](https://github.com/nyaruka/courier/releases/tag/v2.0.0)
  * [Archiver v2.0.0](https://github.com/nyaruka/rp-archiver/releases/tag/v2.0.0)
  * [Indexer v2.0.0](https://github.com/nyaruka/rp-indexer/releases/tag/v2.0.0)
@@ -39,6 +39,12 @@ chances with an unstable release.
 RapidPro depends on other components such as Mailroom and Courier. These are versioned
 differently than RapidPro and do not follow a set schedule. Each stable release of RapidPro
 details which version of these dependencies you need to run with it.
+
+## Updating FlowEditor version
+
+```
+% npm install @nyaruka/flow-editor@whatver-version --save
+```
 
 ### Get Involved
 

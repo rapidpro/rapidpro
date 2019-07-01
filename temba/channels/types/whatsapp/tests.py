@@ -232,9 +232,9 @@ class WhatsAppTypeTest(TembaTest):
                   }
                 ],
                 "language": "kli",
-                "status": "UNKNOWN",
+                "status": "APPROVED",
                 "category": "ISSUE_RESOLUTION",
-                "id": "9012"
+                "id": "9018"
               }
             ],
             "paging": {
@@ -253,8 +253,8 @@ class WhatsAppTypeTest(TembaTest):
             )
 
             # should have two templates
-            self.assertEqual(2, Template.objects.filter(org=self.org).count())
-            self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel).count())
+            self.assertEqual(3, Template.objects.filter(org=self.org).count())
+            self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel).count())
 
             # hit our template page
             response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
@@ -270,6 +270,11 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
             self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
 
+            # assert that a template translation was created despite it being in an unknown language
+            ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
+            self.assertEqual("kli", ct.language)
+            self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE, ct.status)
+
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]
         channel.save(update_fields=["config", "modified_on"])
@@ -280,7 +285,7 @@ class WhatsAppTypeTest(TembaTest):
             channel.release()
 
         # all our templates should be inactive now
-        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(4, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()
