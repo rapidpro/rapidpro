@@ -31,15 +31,7 @@ from temba.mailroom import FlowValidationException
 from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import (
-    ESMockWithScroll,
-    FlowFileTest,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    skip_if_no_mailroom,
-)
+from temba.tests import ESMockWithScroll, FlowFileTest, MockResponse, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -11485,50 +11477,3 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
-
-
-class FlowPathCountMergeMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0201_auto_20190611_1937"
-    migrate_to = "0202_merge_exit_counts"
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Bob", twitter="bob")
-        contact2 = self.create_contact("Jim", twitter="jim")
-        favorites = self.get_flow("favorites")
-
-        favorites.start([], contacts=[contact1, contact2])
-
-        self.create_msg(contact=contact1, text="blue").handle()
-        self.create_msg(contact=contact2, text="navy").handle()
-
-        color_rs = favorites.rule_sets.get(label="Color")
-        self.blue = color_rs.rules[2]
-        self.navy = color_rs.rules[3]
-
-        self.reply_as = favorites.action_sets.get(y=237)
-
-        # should have 2 separate path counts for the blue and navy rules, even though they share the Blue category
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.blue["uuid"], to_uuid=self.reply_as.uuid, count=1).count(), 1
-        )
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.navy["uuid"], to_uuid=self.reply_as.uuid, count=1).count(), 1
-        )
-
-    def test_merged(self):
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.blue["uuid"], to_uuid=self.reply_as.uuid, count=1).count(), 2
-        )
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.navy["uuid"], to_uuid=self.reply_as.uuid, count=1).count(), 0
-        )
-
-        squash_flowpathcounts()
-
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.blue["uuid"], to_uuid=self.reply_as.uuid, count=2).count(), 1
-        )
-        self.assertEqual(
-            FlowPathCount.objects.filter(from_uuid=self.navy["uuid"], to_uuid=self.reply_as.uuid, count=1).count(), 0
-        )
