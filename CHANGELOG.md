@@ -1,3 +1,7 @@
+v5.0.9
+----------
+ * Add dummy migrations for all migrations to be created by squashing
+
 v5.0.8
 ----------
  * Update recommended versions in README
