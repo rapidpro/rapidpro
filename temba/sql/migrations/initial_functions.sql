@@ -362,8 +362,10 @@ CREATE OR REPLACE FUNCTION temba_insert_flowcategorycount(_flow_id integer, resu
  LANGUAGE plpgsql
 AS $function$
   BEGIN
-    INSERT INTO flows_flowcategorycount("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
-      VALUES(_flow_id, (_result->>'node_uuid')::uuid, result_key, _result->>'name', _result->>'category', _count, FALSE);
+    IF _result->>'category' IS NOT NULL THEN
+      INSERT INTO flows_flowcategorycount("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
+        VALUES(_flow_id, (_result->>'node_uuid')::uuid, result_key, _result->>'name', _result->>'category', _count, FALSE);
+    END IF;
   END;
 $function$;
 
