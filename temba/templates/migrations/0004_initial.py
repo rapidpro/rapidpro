@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [("orgs", "0001_initial"), ("channels", "0002_channellog_msg")]
+    dependencies = [("orgs", "0055_initial"), ("channels", "0120_channellog_msg")]
 
     operations = [
         migrations.CreateModel(

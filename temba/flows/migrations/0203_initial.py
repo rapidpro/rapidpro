@@ -16,11 +16,11 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("msgs", "0001_initial"),
-        ("channels", "0002_channellog_msg"),
-        ("contacts", "0002_contacturn_channel"),
+        ("msgs", "0132_initial"),
+        ("channels", "0120_channellog_msg"),
+        ("contacts", "0102_contacturn_channel"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("orgs", "0001_initial"),
+        ("orgs", "0055_initial"),
     ]
 
     operations = [

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [("channels", "0002_channellog_msg")]
+    dependencies = [("channels", "0120_channellog_msg")]
 
     operations = [
         migrations.CreateModel(

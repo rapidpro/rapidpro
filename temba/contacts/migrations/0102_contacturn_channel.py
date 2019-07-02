@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("channels", "0001_initial"), ("contacts", "0001_initial")]
+    dependencies = [("channels", "0119_initial"), ("contacts", "0101_initial")]
 
     operations = [
         migrations.AddField(

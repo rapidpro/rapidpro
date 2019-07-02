@@ -23,14 +23,14 @@ class InstallSQL(RunSQL):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0001_initial"),
-        ("campaigns", "0001_initial"),
-        ("channels", "0002_channellog_msg"),
-        ("contacts", "0002_contacturn_channel"),
-        ("flows", "0002_flowstart_campaign_event"),
-        ("locations", "0002_boundaryalias_org"),
-        ("msgs", "0001_initial"),
-        ("orgs", "0001_initial"),
+        ("api", "0029_initial"),
+        ("campaigns", "0030_initial"),
+        ("channels", "0120_channellog_msg"),
+        ("contacts", "0102_contacturn_channel"),
+        ("flows", "0204_flowstart_campaign_event"),
+        ("locations", "0018_boundaryalias_org"),
+        ("msgs", "0132_initial"),
+        ("orgs", "0055_initial"),
     ]
 
     operations = [InstallSQL("initial_functions"), InstallSQL("initial_indexes"), InstallSQL("initial_triggers")]

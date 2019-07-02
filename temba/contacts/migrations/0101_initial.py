@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("csv_imports", "0004_auto_20170223_0917"),
-        ("orgs", "0001_initial"),
+        ("orgs", "0055_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

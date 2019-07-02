@@ -13,8 +13,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("orgs", "0001_initial"),
-        ("contacts", "0002_contacturn_channel"),
+        ("orgs", "0055_initial"),
+        ("contacts", "0102_contacturn_channel"),
         ("auth", "0009_alter_user_last_name_max_length"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

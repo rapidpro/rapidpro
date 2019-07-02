@@ -11,12 +11,12 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("schedules", "0001_initial"),
-        ("orgs", "0001_initial"),
-        ("flows", "0002_flowstart_campaign_event"),
+        ("schedules", "0008_initial"),
+        ("orgs", "0055_initial"),
+        ("flows", "0204_flowstart_campaign_event"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("channels", "0002_channellog_msg"),
-        ("contacts", "0002_contacturn_channel"),
+        ("channels", "0120_channellog_msg"),
+        ("contacts", "0102_contacturn_channel"),
     ]
 
     operations = [

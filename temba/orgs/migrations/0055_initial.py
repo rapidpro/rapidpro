@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [("locations", "0001_initial"), migrations.swappable_dependency(settings.AUTH_USER_MODEL)]
+    dependencies = [("locations", "0017_initial"), migrations.swappable_dependency(settings.AUTH_USER_MODEL)]
 
     operations = [
         migrations.CreateModel(
