@@ -30,13 +30,13 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import (
+    ACCOUNT_SID,
+    ACCOUNT_TOKEN,
     NEXMO_APP_ID,
     NEXMO_APP_PRIVATE_KEY,
     NEXMO_KEY,
     NEXMO_SECRET,
     Org,
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
 )
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email

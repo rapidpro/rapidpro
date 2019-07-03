@@ -2,11 +2,11 @@ from datetime import timedelta
 
 from django_redis import get_redis_connection
 
+from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
 
-from django.conf import settings
 from temba.channels.models import Channel, ChannelLog
 from temba.utils.celery import nonoverlapping_task
 from temba.utils.http import HttpEvent
