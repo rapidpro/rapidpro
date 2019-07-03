@@ -1,3 +1,8 @@
+v5.1.0
+----------
+ * Populate account sid and and auth token on twilio callers when added
+ * Disable legacy IVR tasks
+
 v5.0.9
 ----------
  * Add dummy migrations for all migrations to be created by squashing
