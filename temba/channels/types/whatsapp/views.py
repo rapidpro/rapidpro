@@ -1,7 +1,6 @@
 import requests
 from smartmin.views import SmartFormView, SmartReadView, SmartUpdateView
 
-
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -84,7 +83,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         facebook_access_token = forms.CharField(
-            max_length=128, help_text=_("The Facebook access token that will be used for syncing")
+            max_length=256, help_text=_("The Facebook access token that will be used for syncing")
         )
 
         facebook_namespace = forms.CharField(max_length=128, help_text=_("The namespace for your WhatsApp templates"))

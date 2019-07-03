@@ -29,7 +29,15 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
+from temba.orgs.models import (
+    ACCOUNT_SID,
+    ACCOUNT_TOKEN,
+    NEXMO_APP_ID,
+    NEXMO_APP_PRIVATE_KEY,
+    NEXMO_KEY,
+    NEXMO_SECRET,
+    Org,
+)
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
@@ -661,6 +669,7 @@ class Channel(TembaModel):
             address=channel.address,
             role=Channel.ROLE_CALL,
             parent=channel,
+            config={"account_sid": org.config[ACCOUNT_SID], "auth_token": org.config[ACCOUNT_TOKEN]},
         )
 
     @classmethod

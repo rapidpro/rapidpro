@@ -1907,14 +1907,14 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
-        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        # update contact with valid ISO8601 timestamp value, 'T' replaced with space
         response = self.postJSON(
             url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11 11:12:13Z"}}
         )
         self.assertEqual(response.status_code, 200)
         resp_json = response.json()
 
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2011-11-11T11:12:00+02:00")
+        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with invalid ISO8601 timestamp value without timezone
         response = self.postJSON(
@@ -2499,10 +2499,13 @@ class APITest(TembaTest):
             developers = self.create_group("Developers", query="isdeveloper = YES")
 
             # a group which is being re-evaluated
-            unready = self.create_group("Big Group", query="isdeveloper=NO")
+            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
 
-        unready.status = ContactGroup.STATUS_EVALUATING
-        unready.save(update_fields=("status",))
+        dynamic.status = ContactGroup.STATUS_EVALUATING
+        dynamic.save(update_fields=("status",))
+
+        # an initializing group
+        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -2518,7 +2521,7 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": unready.uuid,
+                    "uuid": dynamic.uuid,
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",
@@ -3256,6 +3259,43 @@ class APITest(TembaTest):
         # can't filter by both contact and flow together
         response = self.fetchJSON(url, "contact=%s&flow=%s" % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None, "You may only specify one of the contact, flow parameters")
+
+    def test_runs_with_action_results(self):
+        """
+        Runs from save_run_result actions may have some fields missing
+        """
+
+        url = reverse("api.v2.runs")
+        self.assertEndpointAccess(url)
+
+        flow = self.get_flow("color")
+        run = FlowRun.create(flow, self.frank)
+        run.results = {
+            "manual": {
+                "created_on": "2019-06-28T06:37:02.628152471Z",
+                "name": "Manual",
+                "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                "value": "",
+            }
+        }
+        run.save(update_fields=("results",))
+
+        response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(
+            resp_json["results"][0]["values"],
+            {
+                "manual": {
+                    "name": "Manual",
+                    "value": "",
+                    "input": None,
+                    "category": None,
+                    "node": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                    "time": "2019-06-28T06:37:02.628152Z",
+                }
+            },
+        )
 
     def test_message_actions(self):
         url = reverse("api.v2.message_actions")

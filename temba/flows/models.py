@@ -385,7 +385,7 @@ class Flow(TembaModel):
 
     @classmethod
     def label_to_slug(cls, label):
-        return regex.sub(r"[^a-z0-9]+", "_", label.lower(), regex.V0)
+        return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
 
     @classmethod
     def create_join_group(cls, org, user, group, response=None, start_flow=None):

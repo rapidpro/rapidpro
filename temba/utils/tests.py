@@ -48,11 +48,12 @@ from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
-    date_to_utc_range,
+    date_to_day_range_utc,
     datetime_to_epoch,
     datetime_to_ms,
     datetime_to_str,
     ms_to_datetime,
+    str_to_date,
     str_to_datetime,
     str_to_time,
 )
@@ -238,6 +239,38 @@ class DatesTest(TembaTest):
         dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
         self.assertEqual(1_388_624_645, datetime_to_epoch(dt))
 
+    def test_str_to_date(self):
+        self.assertIsNone(str_to_date(""))
+        self.assertIsNone(str_to_date(None))
+        self.assertIsNone(str_to_date("not a date"))
+        self.assertIsNone(str_to_date("2017 10 23"))
+
+        # full iso8601 timestamp
+        self.assertEqual(str_to_date("2013-02-01T04:38:09.100000+02:00"), datetime.date(2013, 2, 1))
+        self.assertEqual(str_to_date("2013-02-01 04:38:09.100000+02:00"), datetime.date(2013, 2, 1))
+
+        # iso date
+        self.assertEqual(str_to_date("2012-02-21", dayfirst=True), datetime.date(2012, 2, 21))
+        self.assertEqual(str_to_date("2012-21-02", dayfirst=True), None)
+
+        # similar to iso date
+        self.assertEqual(str_to_date("2012-2-21", dayfirst=True), datetime.date(2012, 2, 21))
+        self.assertEqual(str_to_date("2012.2.21", dayfirst=True), datetime.date(2012, 2, 21))
+        self.assertEqual(str_to_date("2012\\2\\21", dayfirst=True), datetime.date(2012, 2, 21))
+        self.assertEqual(str_to_date("2012/2/21", dayfirst=True), datetime.date(2012, 2, 21))
+        self.assertEqual(str_to_date("2012_2_21", dayfirst=True), datetime.date(2012, 2, 21))
+
+        # mixed delimiters
+        self.assertEqual(str_to_date("2012-2/21", dayfirst=True), datetime.date(2012, 2, 21))
+
+        # day and month are switched, depends on org conf
+        self.assertEqual(str_to_date("12/11/16", dayfirst=True), datetime.date(2016, 11, 12))
+        self.assertEqual(str_to_date("12/11/16", dayfirst=False), datetime.date(2016, 12, 11))
+
+        # there is no 21st month
+        self.assertEqual(str_to_date("11/21/17 at 12:00PM", dayfirst=True), None)
+        self.assertEqual(str_to_date("11/21/17 at 12:00PM", dayfirst=False), datetime.date(2017, 11, 21))
+
     def test_str_to_datetime(self):
         tz = pytz.timezone("Asia/Kabul")
         with patch.object(timezone, "now", return_value=tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))):
@@ -275,11 +308,10 @@ class DatesTest(TembaTest):
             # no two digit iso date
             self.assertEqual(None, str_to_datetime("99-02-01", tz, dayfirst=False))
 
-            # no single digit months in iso date
-            self.assertEqual(None, str_to_datetime("1999-2-1", tz, dayfirst=False))
-
-            # iso date must stand alone
-            self.assertEqual(None, str_to_datetime("not 1999-02-01", tz, dayfirst=False))
+            # single digit months in iso-like date
+            self.assertEqual(
+                tz.localize(datetime.datetime(1999, 1, 2, 3, 4, 5, 6)), str_to_datetime("1999-2-1", tz, dayfirst=False)
+            )
 
             self.assertEqual(
                 tz.localize(datetime.datetime(2013, 2, 1, 7, 8, 0, 0)),
@@ -375,6 +407,11 @@ class DatesTest(TembaTest):
             str_to_datetime("2016-11-21T20:36:51.215681Z", tz),
         )
 
+        self.assertEqual(
+            pytz.utc.localize(datetime.datetime(2017, 8, 9, 18, 38, 24, 469_581)).astimezone(tz),
+            str_to_datetime("2017-08-09 18:38:24.469581+00:00", tz),
+        )
+
     def test_str_to_time(self):
         self.assertEqual(str_to_time(""), None)
         self.assertEqual(str_to_time("x"), None)
@@ -392,14 +429,10 @@ class DatesTest(TembaTest):
             self.assertEqual(str_to_time("03:04:30.123"), datetime.time(3, 4, 30, 123_000))  # with milliseconds
             self.assertEqual(str_to_time("03:04:30.123000"), datetime.time(3, 4, 30, 123_000))  # with microseconds
 
-    def test_date_to_utc_range(self):
-        self.assertEqual(
-            date_to_utc_range(datetime.date(2017, 2, 20), self.org),
-            (
-                datetime.datetime(2017, 2, 19, 22, 0, 0, 0, tzinfo=pytz.UTC),
-                datetime.datetime(2017, 2, 20, 22, 0, 0, 0, tzinfo=pytz.UTC),
-            ),
-        )
+    def test_date_to_day_range_utc(self):
+        result = date_to_day_range_utc(datetime.date(2017, 2, 20), self.org)
+        self.assertEqual(result[0].isoformat(), "2017-02-19T22:00:00+00:00")
+        self.assertEqual(result[1].isoformat(), "2017-02-20T22:00:00+00:00")
 
 
 class TimezonesTest(TembaTest):

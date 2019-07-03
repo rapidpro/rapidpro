@@ -186,6 +186,11 @@ class ChannelTest(TembaTest):
         post_data = dict(channel=self.tel_channel.pk, connection="T")
         response = self.client.post(reverse("channels.channel_create_caller"), post_data)
 
+        # get the caller, make sure config options are set
+        caller = Channel.objects.get(org=self.org, role="C")
+        self.assertEqual("AccountSid", caller.config["account_sid"])
+        self.assertEqual("AccountToken", caller.config["auth_token"])
+
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
@@ -264,6 +269,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(tigo, msg.channel)
 
         # add a voice caller
+        self.org.config["ACCOUNT_SID"] = "accountSID"
+        self.org.config["ACCOUNT_TOKEN"] = "accountToken"
+        self.org.save()
         caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
 
         # set our affinity to the caller (ie, they were on an ivr call)
