@@ -269,6 +269,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(tigo, msg.channel)
 
         # add a voice caller
+        self.org.config["ACCOUNT_SID"] = "accountSID"
+        self.org.config["ACCOUNT_TOKEN"] = "accountToken"
+        self.org.save()
         caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
 
         # set our affinity to the caller (ie, they were on an ivr call)
