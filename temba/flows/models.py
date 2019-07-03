@@ -329,9 +329,6 @@ class Flow(TembaModel):
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
-    # TODO remove once mailroom and courier stop reading it
-    flow_server_enabled = models.BooleanField(default=True)
-
     @classmethod
     def create(
         cls,

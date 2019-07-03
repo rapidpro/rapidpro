@@ -279,10 +279,6 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    flow_server_enabled = models.BooleanField(
-        default=True, help_text=_("Whether flows and messages should be handled by mailroom")
-    )
-
     parent = models.ForeignKey(
         "orgs.Org",
         on_delete=models.PROTECT,
