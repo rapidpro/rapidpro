@@ -329,6 +329,9 @@ class Flow(TembaModel):
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
+    # TODO remove once mailroom and courier stop reading it
+    flow_server_enabled = models.BooleanField(null=True)
+
     @classmethod
     def create(
         cls,
@@ -4820,8 +4823,8 @@ class FlowStart(SmartModel):
         self.save(update_fields=["status"])
 
         try:
-            groups = [g for g in self.groups.all()]
-            contacts = [c for c in self.contacts.all().only("is_test")]
+            groups = list(self.groups.all())
+            contacts = list(self.contacts.all())
 
             # load up our extra if any
             extra = self.extra if self.extra else None
