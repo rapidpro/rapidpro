@@ -38,8 +38,6 @@ from . import legacy
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 500
-
 INITIALIZING = "I"
 PENDING = "P"
 QUEUED = "Q"
@@ -58,8 +56,6 @@ INBOX = "I"
 FLOW = "F"
 IVR = "V"
 USSD = "U"
-
-MSG_SENT_KEY = "msgs_sent_%y_%m_%d"
 
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
@@ -333,7 +329,7 @@ class Broadcast(models.Model):
         if self.schedule:
             self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+    def update_recipients(self, *, groups=None, contacts=None, urns=None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -761,44 +757,6 @@ class Msg(models.Model):
 
         # fail our messages
         failed_messages.update(status="F", modified_on=timezone.now())
-
-    @classmethod
-    def mark_error(cls, r, channel, msg, fatal=False):
-        """
-        Marks an outgoing message as FAILED or ERRORED
-        :param msg: a JSON representation of the message or a Msg object
-        """
-        msg.error_count += 1
-        if msg.error_count >= 3 or fatal:
-            if isinstance(msg, Msg):
-                msg.status_fail()
-            else:  # pragma: no cover
-                Msg.objects.select_related("org").get(pk=msg.id).status_fail()
-
-            if channel:
-                analytics.gauge("temba.msg_failed_%s" % channel.channel_type.lower())
-        else:
-            msg.status = ERRORED
-            msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
-
-            if isinstance(msg, Msg):
-                msg.save(update_fields=("status", "modified_on", "next_attempt", "error_count"))
-            else:
-                Msg.objects.filter(id=msg.id).update(
-                    status=msg.status,
-                    next_attempt=msg.next_attempt,
-                    error_count=msg.error_count,
-                    modified_on=msg.modified_on,
-                )
-
-            # clear that we tried to send this message (otherwise we'll ignore it when we retry)
-            pipe = r.pipeline()
-            pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.srem((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.execute()
-
-            if channel:
-                analytics.gauge("temba.msg_errored_%s" % channel.channel_type.lower())
 
     def as_archive_json(self):
         return {
@@ -1416,37 +1374,6 @@ class Msg(models.Model):
             raise ValueError("Message recipient must be a Contact, ContactURN or URN string")
 
         return contact, contact_urn
-
-    def status_fail(self):
-        """
-        Update the message status to FAILED
-        """
-        self.status = FAILED
-        self.save(update_fields=("status", "modified_on"))
-
-        Channel.track_status(self.channel, "Failed")
-
-    def status_sent(self):
-        """
-        Update the message status to SENT
-        """
-        now = timezone.now()
-        self.status = SENT
-        self.sent_on = now
-        self.save(update_fields=("status", "sent_on", "modified_on"))
-
-        Channel.track_status(self.channel, "Sent")
-
-    def status_delivered(self):
-        """
-        Update the message status to DELIVERED
-        """
-        self.status = DELIVERED
-        if not self.sent_on:
-            self.sent_on = timezone.now()
-        self.save(update_fields=("status", "modified_on", "sent_on"))
-
-        Channel.track_status(self.channel, "Delivered")
 
     def archive(self):
         """
