@@ -43,7 +43,7 @@ from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task
+from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
 
 
 class ChannelTest(TembaTest):
@@ -1891,7 +1891,7 @@ class ChannelTest(TembaTest):
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
-        SyncEvent.trim()
+        trim_sync_events_task()
 
         # should be cleared out
         self.assertFalse(SyncEvent.objects.exists())
