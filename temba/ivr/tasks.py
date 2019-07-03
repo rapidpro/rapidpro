@@ -18,7 +18,7 @@ from .models import IVRCall
 @task(bind=True, name="start_call_task", max_retries=3)
 def start_call_task(self, call_pk):
     if not settings.TESTING:
-        return
+        return  # pragma: no cover
 
     call = IVRCall.objects.select_related("channel").get(pk=call_pk)
 
@@ -37,7 +37,7 @@ def start_call_task(self, call_pk):
 @nonoverlapping_task(track_started=True, name="check_calls_task", time_limit=900)
 def check_calls_task():
     if not settings.TESTING:
-        return
+        return  # pragma: no cover
 
     from .models import IVRCall
 
@@ -70,7 +70,7 @@ def check_calls_task():
 @nonoverlapping_task(track_started=True, name="check_failed_calls_task", time_limit=900)
 def check_failed_calls_task():
     if not settings.TESTING:
-        return
+        return  # pragma: no cover
 
     from .models import IVRCall
 
@@ -101,7 +101,7 @@ def check_failed_calls_task():
 @nonoverlapping_task(track_started=True, name="task_enqueue_call_events", time_limit=900)
 def task_enqueue_call_events():
     if not settings.TESTING:
-        return
+        return  # pragma: no cover
 
     from .models import IVRCall
 
