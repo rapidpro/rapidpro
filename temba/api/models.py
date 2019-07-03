@@ -172,11 +172,6 @@ class WebHookEvent(models.Model):
     # when this event was created
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO drop these when mailroom no longer writes them
-    status = models.CharField(max_length=1, null=True)
-    event = models.CharField(max_length=16, null=True)
-    try_count = models.IntegerField(null=True)
-
     def release(self):
         self.delete()
 
