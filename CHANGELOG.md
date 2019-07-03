@@ -1,3 +1,9 @@
+v5.1.1
+----------
+ * Stop writing legacy engine fields and make them nullable
+ * Remove no longer used send_broadcast_task and other unused sending code
+ * Squash migrations into previously added dummy migrations
+
 v5.1.0
 ----------
  * Populate account sid and and auth token on twilio callers when added
