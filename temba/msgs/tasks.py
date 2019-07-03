@@ -14,19 +14,6 @@ from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount
 logger = logging.getLogger(__name__)
 
 
-@task(track_started=True, name="send_broadcast")
-def send_broadcast_task(broadcast_id, **kwargs):
-    # get our broadcast
-    from .models import Broadcast
-
-    broadcast = Broadcast.objects.get(pk=broadcast_id)
-
-    high_priority = broadcast.recipient_count == 1
-    expressions_context = {} if kwargs.get("with_expressions", True) else None
-
-    broadcast.send(high_priority=high_priority, expressions_context=expressions_context)
-
-
 @task(track_started=True, name="send_to_flow_node")
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
@@ -50,34 +37,6 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     broadcast.send(expressions_context={})
 
     analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
-
-
-@task(track_started=True, name="send_spam")
-def send_spam(user_id, contact_id):  # pragma: no cover
-    """
-    Processses a single incoming message through our queue.
-    """
-    from django.contrib.auth.models import User
-    from temba.contacts.models import Contact, TEL_SCHEME
-    from temba.msgs.models import Broadcast
-
-    contact = Contact.objects.get(pk=contact_id)
-    user = User.objects.get(pk=user_id)
-    channel = contact.org.get_send_channel(TEL_SCHEME)
-
-    if not channel:  # pragma: no cover
-        print("Sorry, no channel to be all spammy with")
-        return
-
-    long_text = (
-        "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the "
-        "selfish and the tyranny of evil men. Blessed is your face."
-    )
-
-    # only trigger sync on the last one
-    for idx in range(10):
-        broadcast = Broadcast.create(contact.org, user, long_text % (idx + 1), contacts=[contact])
-        broadcast.send(trigger_send=(idx == 149))
 
 
 @task(track_started=True, name="fail_old_messages")
