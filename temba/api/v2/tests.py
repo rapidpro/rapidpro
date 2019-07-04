@@ -3536,14 +3536,12 @@ class APITest(TembaTest):
         event1 = WebHookEvent.objects.create(
             org=self.org,
             resthook=resthook1,
-            event="F",
-            data=dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
+            data={"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
         )
         event2 = WebHookEvent.objects.create(
             org=self.org,
             resthook=resthook2,
-            event="F",
-            data=dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
+            data={"event": "new father", "values": {"name": "Yo"}, "steps": {"uuid": "12345"}},
         )
 
         # no filtering
@@ -3557,12 +3555,12 @@ class APITest(TembaTest):
                 {
                     "resthook": "new-father",
                     "created_on": format_datetime(event2.created_on),
-                    "data": dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
+                    "data": {"event": "new father", "values": {"name": "Yo"}, "steps": {"uuid": "12345"}},
                 },
                 {
                     "resthook": "new-mother",
                     "created_on": format_datetime(event1.created_on),
-                    "data": dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
+                    "data": {"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
                 },
             ],
         )
