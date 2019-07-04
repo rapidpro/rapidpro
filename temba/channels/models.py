@@ -1619,9 +1619,6 @@ class SyncEvent(SmartModel):
         sync_event.pending_messages = cmd.get("pending", cmd.get("pending_messages"))
         sync_event.retry_messages = cmd.get("retry", cmd.get("retry_messages"))
 
-        # trim any extra events
-        cls.trim()
-
         return sync_event
 
     def release(self):
@@ -1637,8 +1634,8 @@ class SyncEvent(SmartModel):
 
     @classmethod
     def trim(cls):
-        month_ago = timezone.now() - timedelta(days=30)
-        for event in cls.objects.filter(created_on__lte=month_ago):
+        week_ago = timezone.now() - timedelta(days=7)
+        for event in cls.objects.filter(created_on__lte=week_ago):
             event.release()
 
 
