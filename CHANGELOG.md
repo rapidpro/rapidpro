@@ -1,3 +1,8 @@
+v5.1.2
+----------
+ * Remove fields no longer needed by new engine
+ * Trim sync events in a separate task
+
 v5.1.1
 ----------
  * Stop writing legacy engine fields and make them nullable
