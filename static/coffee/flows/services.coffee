@@ -388,24 +388,19 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
 ]
 
 app.factory "Revisions", ['$http', '$log', ($http, $log) ->
-  subdir = window.subdir
-  if subdir != null
-    subdir = '/' + subdir
-  else
-    subdir = ''
 
   new class Revisions
     updateRevisions: (flowId) ->
       _this = @
 
-      $http.get(subdir + '/flow/revisions/' + flowId + '/').success (data, status, headers) ->
+      $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/revisions/' + flowId + '/').success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.revisions = data
 
     getRevision: (revision) ->
       _this = @
-      return $http.get(subdir + '/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
+      return $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/revisions/' + flowId + '/?definition=' + revision.id).success (data, status, headers) ->
         # only set the revisions if we get back json, if we don't have permission we'll get a login page
         if headers('content-type') == 'application/json'
           _this.definition = data
@@ -635,7 +630,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           $log.debug("Saving.")
 
-          $http.post('/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
+          subdir = window.subdir
+            if subdir != null && subdir.length > 0
+              subdir = '/' + subdir
+            else
+              subdir = ''
+
+          $http.post((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
 
             if statusCode == 400
               $rootScope.saving = false
@@ -698,7 +699,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               Flow.flow.metadata.saved_on = data.saved_on
 
               # update our auto completion options
-              $http.get('/flow/completion/?flow=' + Flow.flowId).success (data) ->
+              $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/completion/?flow=' + Flow.flowId).success (data) ->
                 Flow.completions = data.message_completions
                 Flow.function_completions = data.function_completions
                 Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
@@ -1018,7 +1019,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       Revisions.updateRevisions(flowId)
 
       Flow = @
-      $http.get('/flow/json/' + flowId + '/').success (data) ->
+      $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/json/' + flowId + '/').success (data) ->
 
         flow = data.flow
 
@@ -1068,7 +1069,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           onComplete()
 
         # update our auto completion options
-        $http.get('/flow/completion/?flow=' + flowId).success (data) ->
+        $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/completion/?flow=' + flowId).success (data) ->
           if data.function_completions and data.message_completions
             Flow.completions = data.message_completions
             Flow.function_completions = data.function_completions
@@ -1099,7 +1100,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           Flow.contactFieldSearch = contactFieldSearch
           Flow.updateContactSearch = updateContactSearch
 
-        $http.get('/label/').success (labels) ->
+        $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/label/').success (labels) ->
           Flow.labels = labels
 
         $timeout ->
