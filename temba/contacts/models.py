@@ -691,9 +691,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
     )
 
-    # to be dropped once no longer used by other applications (see https://github.com/rapidpro/rapidpro/issues/878)
-    is_test = models.BooleanField(null=True, default=False)
-
     NAME = "name"
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
@@ -1215,7 +1212,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             ContactURN.update_auth(existing_urn, auth)
             return contact, existing_urn
         else:
-            kwargs = dict(org=org, name=name, created_by=user, is_test=False)
+            kwargs = dict(org=org, name=name, created_by=user)
             contact = Contact.objects.create(**kwargs)
             contact.is_new = True
             updated_attrs = list(kwargs.keys())
@@ -1357,7 +1354,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             # otherwise create new contact with all URNs
             else:
-                kwargs = dict(org=org, name=name, language=language, is_test=False, created_by=user)
+                kwargs = dict(org=org, name=name, language=language, created_by=user)
                 contact = Contact.objects.create(**kwargs)
                 updated_attrs = ["name", "language", "created_on"]
 

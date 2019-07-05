@@ -43,7 +43,7 @@ from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
-from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task
+from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
 
 
 class ChannelTest(TembaTest):
@@ -186,6 +186,11 @@ class ChannelTest(TembaTest):
         post_data = dict(channel=self.tel_channel.pk, connection="T")
         response = self.client.post(reverse("channels.channel_create_caller"), post_data)
 
+        # get the caller, make sure config options are set
+        caller = Channel.objects.get(org=self.org, role="C")
+        self.assertEqual("AccountSid", caller.config["account_sid"])
+        self.assertEqual("AccountToken", caller.config["auth_token"])
+
         # now we should be IVR capable
         self.assertTrue(self.org.supports_ivr())
 
@@ -264,6 +269,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(tigo, msg.channel)
 
         # add a voice caller
+        self.org.config["ACCOUNT_SID"] = "accountSID"
+        self.org.config["ACCOUNT_TOKEN"] = "accountToken"
+        self.org.save()
         caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
 
         # set our affinity to the caller (ie, they were on an ivr call)
@@ -1883,7 +1891,7 @@ class ChannelTest(TembaTest):
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
-        SyncEvent.trim()
+        trim_sync_events_task()
 
         # should be cleared out
         self.assertFalse(SyncEvent.objects.exists())
@@ -2520,10 +2528,15 @@ class ChannelLogTest(TembaTest):
         incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
         self.assertEqual(self.contact, incoming_msg.contact)
 
-        success_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "success message", channel=self.channel)
-        success_msg.status_delivered()
-
-        self.assertIsNotNone(success_msg.sent_on)
+        success_msg = Msg.create_outgoing(
+            self.org,
+            self.admin,
+            self.contact,
+            "success message",
+            channel=self.channel,
+            status="D",
+            sent_on=timezone.now(),
+        )
 
         success_log = ChannelLog.objects.create(
             channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False

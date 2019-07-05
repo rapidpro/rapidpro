@@ -1,3 +1,23 @@
+v5.1.2
+----------
+ * Remove fields no longer needed by new engine
+ * Trim sync events in a separate task
+
+v5.1.1
+----------
+ * Stop writing legacy engine fields and make them nullable
+ * Remove no longer used send_broadcast_task and other unused sending code
+ * Squash migrations into previously added dummy migrations
+
+v5.1.0
+----------
+ * Populate account sid and and auth token on twilio callers when added
+ * Disable legacy IVR tasks
+
+v5.0.9
+----------
+ * Add dummy migrations for all migrations to be created by squashing
+
 v5.0.8
 ----------
  * Update recommended versions in README

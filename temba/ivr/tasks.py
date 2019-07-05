@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django_redis import get_redis_connection
 
+from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
@@ -16,6 +17,9 @@ from .models import IVRCall
 
 @task(bind=True, name="start_call_task", max_retries=3)
 def start_call_task(self, call_pk):
+    if not settings.TESTING:
+        return  # pragma: no cover
+
     call = IVRCall.objects.select_related("channel").get(pk=call_pk)
 
     lock_key = f"ivr_call_start_task_contact_{call.contact_id}"
@@ -32,6 +36,9 @@ def start_call_task(self, call_pk):
 
 @nonoverlapping_task(track_started=True, name="check_calls_task", time_limit=900)
 def check_calls_task():
+    if not settings.TESTING:
+        return  # pragma: no cover
+
     from .models import IVRCall
 
     now = timezone.now()
@@ -62,6 +69,9 @@ def check_calls_task():
 
 @nonoverlapping_task(track_started=True, name="check_failed_calls_task", time_limit=900)
 def check_failed_calls_task():
+    if not settings.TESTING:
+        return  # pragma: no cover
+
     from .models import IVRCall
 
     # calls that have failed and have a `error_count` value are going to be retried
@@ -90,6 +100,9 @@ def check_failed_calls_task():
 
 @nonoverlapping_task(track_started=True, name="task_enqueue_call_events", time_limit=900)
 def task_enqueue_call_events():
+    if not settings.TESTING:
+        return  # pragma: no cover
+
     from .models import IVRCall
 
     r = get_redis_connection()

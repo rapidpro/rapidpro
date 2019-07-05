@@ -7,8 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import MigrationTest, TembaTest
-from temba.triggers.models import Trigger
+from temba.tests import TembaTest
 from temba.utils import json
 
 from .models import Schedule
@@ -451,29 +450,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class RemoveOrphansMigrationTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0006_initial"
-    migrate_to = "0007_remove_orphans"
-
-    def setUpBeforeMigration(self, apps):
-        contact1 = self.create_contact("Bob", twitter="bob")
-        favorites = self.get_flow("favorites")
-
-        # create schedule attached to a trigger
-        self.trigger = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=favorites, schedule=create_schedule(self.admin, "D")
-        )
-
-        # create schedule attached to a broadcast
-        self.broadcast = Broadcast.create(
-            self.org, self.admin, "hi there", contacts=[contact1], schedule=create_schedule(self.admin, "W")
-        )
-
-        # create orphan schedule
-        create_schedule(self.admin, "M")
-
-    def test_merged(self):
-        self.assertEqual(Schedule.objects.count(), 2)
