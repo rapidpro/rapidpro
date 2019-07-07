@@ -630,12 +630,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           $log.debug("Saving.")
 
-          subdir = window.subdir
-            if subdir != null && subdir.length > 0
-              subdir = '/' + subdir
-            else
-              subdir = ''
-
           $http.post((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/json/' + Flow.flowId + '/', utils.toJson(Flow.flow)).error (data, statusCode) ->
 
             if statusCode == 400
