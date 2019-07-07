@@ -1069,7 +1069,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             Flow.function_completions = data.function_completions
             Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
-        $http.get('/contactfield/json/').success (fields) ->
+        $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
 
           # now create a version that's select2 friendly
