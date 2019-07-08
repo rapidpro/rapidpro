@@ -1,3 +1,7 @@
+v5.1.3
+----------
+ * Update flow editor to 1.6.3
+
 v5.1.2
 ----------
  * Remove fields no longer needed by new engine
