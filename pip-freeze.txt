@@ -32,7 +32,7 @@ django-mptt==0.8.7
 django-redis==4.10.0
 django-storages==1.7.1
 django-timezone-field==3.0
-django==2.1.9
+django==2.1.10
 djangorestframework==3.9.2
 docutils==0.13.1          # via botocore
 elasticsearch-dsl==6.3.1
