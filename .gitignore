@@ -5,6 +5,7 @@
 *.pyc
 *~
 .envrc
+.commit
 
 # temba
 dump.rdb
