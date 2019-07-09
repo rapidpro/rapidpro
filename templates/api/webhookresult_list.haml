@@ -1,0 +1,41 @@
+{% extends "smartmin/list.html" %}
+-load i18n temba humanize
+
+-block page-title
+  {{ brand.name }} - WebHook Events
+
+-block title
+  .medium-help.icon-cloud-upload{ style:'float:left;' }
+  %h2.header-margin
+    -trans "Recent Webhook Events"
+  %h5.header-margin
+    -trans "Webhook events that have been created recently can be found here."
+
+-block table
+  %table.list-table.table.table-condensed
+    %thead
+      %tr
+        %th
+          -trans "URL"
+        %th{ style:'width:100px;'}
+          -trans "Status"
+        %th{ style:'width:100px;'}
+          -trans "Elapsed"
+        %th{ style:'width:100px;text-align: right'}
+          -trans "Time"
+
+      -for obj in object_list
+        %tr
+          %td.clickable
+            %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }
+              {{ obj.url|truncatechars:128 }}
+          %td.clickable
+            %a{ href:'{% url "api.webhookresult_read" obj.pk %}' }= obj.status_code
+          %td
+            -if obj.request_time
+              {{ obj.request_time|intcomma }}ms
+            -else
+              {{ "--" }}
+          %td{ style:'text-align: right', nowrap:'true' }
+            {% pretty_datetime obj.created_on %}
+

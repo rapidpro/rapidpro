@@ -34,18 +34,14 @@ checkForm = (newMessage) ->
     valid = false
   toExpand.css "height", initTextareaHeight
   $(".simulator-footer").css "height", initTextareaHeight + 10
-  $(".simulator-body").css "height", "360px"
   return valid
 
 window.resetForm = ->
     # reset our form input
-    $('.simulator-footer .media-button').hide()
-    $('.simulator-footer .imessage').show()
     $("#simulator textarea").val("")
 
     # hide loading first
     $(".simulator-loading").css "display", "none"
-    $(".simulator-body").css "height", "360px"
 
     $("#simulator textarea").removeClass "error"
 
@@ -61,45 +57,17 @@ processForm = (postData) ->
     if window.legacy
       window.sendUpdateLegacy(postData)
     else
-      window.sendUpdate(postData)
+      return window.sendSimUpdate(postData)
 
-window.sendSimulationMessage = (new_message) ->
+window.sendSimMessage = (new_message) ->
   sendMessage(new_message)
+
 
 sendMessage = (newMessage) ->
   if checkForm(newMessage)
-
-    # handle commands
-    if newMessage == "/v1" or newMessage == "/v2"
-      window.legacy = newMessage == "/v1"
-
-      # style our content slightly differently to let us know we are on the new engine
-      resetForm()
-
-      setTimeout(() ->
-
-        resetSimulator()
-
-        if window.legacy
-          $('.simulator-content').removeClass('v2')
-
-      , 500)
-      return false
-
     processForm({new_message: newMessage})
     return true
 
-sendPhoto = ->
-  processForm({new_photo: true})
-
-sendVideo = ->
-  processForm({new_video: true})
-
-sendAudio = ->
-  processForm({new_audio: true})
-
-sendGPS = ->
-  processForm({new_gps: true})
 
 fitSimToScreen = ->
   top = $(window).scrollTop()
@@ -233,7 +201,7 @@ window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
 
-appendMessage = (newMessage, ussd=false) ->
+window.appendMessage = (newMessage, attachments=null, ussd=false) ->
   ussd = if ussd then "ussd " else ""
   imsgDiv = '<div class=\"imsg ' + ussd + 'to post-message\"></div>'
   $(imsgDiv).text(newMessage).appendTo(".simulator-body")
@@ -247,16 +215,25 @@ appendMessage = (newMessage, ussd=false) ->
 #-------------------------------------
 
 $('#simulator .gps-button').on 'click', ->
-  sendGPS();
+  msg = processForm({new_gps: true})
+  if msg
+    window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .photo-button').on 'click', ->
-  sendPhoto()
+  msg = processForm({new_photo: true})
+  if msg
+    window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .video-button').on 'click', ->
-  sendVideo()
+  msg = processForm({new_video: true})
+  if msg
+    window.addSimMessage("MO", msg.text, msg.attachments)
 
 $('#simulator .audio-button').on 'click', ->
-  sendAudio()
+  msg = processForm({new_audio: true})
+  if msg
+    window.addSimMessage("MO", msg.text, msg.attachments)
+
 
 # send new message to simulate
 $("#simulator .send-message").on "click", ->
@@ -265,9 +242,9 @@ $("#simulator .send-message").on "click", ->
   if sendMessage(newMessage)
     # add the progress gif
     if window.ussd and newMessage.length <= 182
-      appendMessage newMessage, true
+      window.appendMessage(newMessage, null, true)
     else if newMessage.length <= 160 and newMessage.length > 0
-      appendMessage newMessage
+      window.appendMessage(newMessage)
 
 # send new message on key press (enter)
 $("#simulator textarea").keypress (event) ->
@@ -278,9 +255,9 @@ $("#simulator textarea").keypress (event) ->
       # add the progress gif
       if newMessage
         if window.ussd and newMessage.length <= 182
-          appendMessage newMessage, true
+          window.appendMessage(newMessage, null, true)
         else if newMessage.length <= 160
-          appendMessage newMessage
+          window.appendMessage(newMessage)
 
 $("#show-simulator").hover ->
   if not window.moving_sim
@@ -292,15 +269,7 @@ $("#show-simulator").hover ->
     $(this).stop().animate { width: '40px'}, 200, "easeOutBack", ->
 
 verifyNumberSimulator = ->
-  if window.ivr
-    modal = new Modax(gettext("Start Test Call"), '/usersettings/phone/')
-    modal.setIcon("icon-phone")
-    modal.setListeners
-      onSuccess: ->
-        showSimulator(true)
-    modal.show()
-
-  else if window.ussd and not window.has_ussd_channel
+  if window.ussd and not window.has_ussd_channel
     modal = new Modal(gettext("Missing USSD Channel"), gettext("There is no channel that supports USSD connected. Please connect a USSD channel first."))
     modal.setIcon("icon-phone")
     modal.setListeners

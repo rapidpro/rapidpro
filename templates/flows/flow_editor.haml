@@ -51,19 +51,20 @@
 
   :javascript
     window.orgId = {{object.org.id}};
-    window.flowId = {{object.id}};
     window.flowUUID = '{{object.uuid}}';
+    window.flowVersion = '{{flow_version}}'
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
-    window.activityURL = '{% url "flows.flow_activity" object.pk %}';
+    window.activityURL = '{% url "flows.flow_activity" object.uuid %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
-    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.pk %}';
+    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.uuid %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
-    window.ussd = '{{object.flow_type}}' == 'U';
-    window.useMailroom = {{has_mailroom|lower}} && '{{object.flow_type}}' == 'M';
-    window.has_ussd_channel = {{has_ussd_channel|lower}};
+    window.ussd = false;
+    window.useMailroom = {{has_mailroom|lower}};
+    window.has_ussd_channel = false;
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
+    window.staticURL = '{{static_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
     window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
     window.contactName = '{{user.get_full_name}}';

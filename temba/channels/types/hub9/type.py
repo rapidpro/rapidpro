@@ -5,10 +5,6 @@ from temba.contacts.models import EXTERNAL_SCHEME, TEL_SCHEME
 
 from ...models import ChannelType
 
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = "http://175.103.48.29:28078/testing/smsmt.php"
-
 
 class Hub9Type(ChannelType):
     """

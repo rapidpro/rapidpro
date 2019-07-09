@@ -97,7 +97,9 @@
                 {
                   "name": "Survey Audience", 
                   "id": group_id
-                }
+                },
+                "@(\"Phans\")",
+                "Survey Audience"
               ]
             }, 
             {

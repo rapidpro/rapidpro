@@ -188,7 +188,8 @@
       .name
         {{brand.name}}
 
-    -include 'includes/nav.html'
+    -block nav
+      -include 'includes/nav.html'
 
     -if user_org
       .org-header
@@ -354,10 +355,12 @@
           over:function() {
             // $('.submenu').hide();
             $(this).find('.submenu-container').slideDown(250);
+            $(this).parents("#top-menu").addClass('expanded');
             // $(this).find('.submenu').show();
           },
           out:function() {
           $(this).find('.submenu-container').slideUp(200);
+          $(this).parents("#top-menu").removeClass('expanded');
             //$(this).find('.submenu').hide();
           },
           timeout:300

@@ -1,0 +1,35 @@
+{
+  "version": "11.11",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+	"entry": "a1c00b3e-a904-4085-851d-e5e386d728b8",
+	"action_sets": [{
+		"uuid": "a1c00b3e-a904-4085-851d-e5e386d728b8",
+		"x": 124,
+		"y": 16,
+		"actions": [{
+			"type": "channel",
+			"channel": "CHANNEL-UUID",
+			"uuid": "84889e4d-e7e8-4415-9ad9-db27d9972558",
+			"name": "Not Ours"
+		}],
+		"exit_uuid": "eada09b7-7136-4f24-a34f-62ca7b404423"
+	}],
+	"rule_sets": [],
+	"base_language": "eng",
+	"flow_type": "M",
+	"version": "11.11",
+	"metadata": {
+		"name": "Other Org Channel",
+		"saved_on": "2019-02-25T20:36:14.155001Z",
+		"revision": 19,
+		"uuid": "bb8ca54b-7dcb-431f-bd86-ec3082b63469",
+		"expires": 43200,
+		"ivr_retry_failed_events": null,
+		"notes": []
+	},
+	"type": "M"
+}
+  ]
+}

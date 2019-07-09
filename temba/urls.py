@@ -26,6 +26,7 @@ if hasattr(settings, 'SUB_DIR'):
 urlpatterns = [
     url(r"^{}".format(VHOST_NAME), include("temba.public.urls")),
     url(r"^{}".format(VHOST_NAME), include("temba.msgs.urls")),
+    url(r"^{}".format(VHOST_NAME), include("temba.apks.urls")),
     url(r"^{}".format(VHOST_NAME), include("temba.archives.urls")),
     url(r"^{}".format(VHOST_NAME), include("temba.policies.urls")),
     url(r"^{}".format(VHOST_NAME), include("temba.contacts.urls")),

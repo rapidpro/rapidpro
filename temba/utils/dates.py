@@ -174,14 +174,6 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
-def datetime_to_s(dt):
-    """
-    Converts a datetime to a fractional second epoch
-    """
-    seconds = calendar.timegm(dt.utctimetuple())
-    return seconds + dt.microsecond / float(100000)
-
-
 def datetime_to_ms(dt):
     """
     Converts a datetime to a millisecond accuracy timestamp

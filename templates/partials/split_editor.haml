@@ -48,7 +48,7 @@
         %p{class:"description"}
           -blocktrans
             Call out to another flow and return the results to this flow in the @child variable.
-        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl(true)]]",type:"hidden"}
+        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl(true,true)]]",type:"hidden"}
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on

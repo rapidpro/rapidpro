@@ -28,11 +28,30 @@
           - if current_label.is_folder
             - trans "Are you sure you want to remove this folder? This will also delete any labels contained in this folder."
           - else
+            {% if current_label.dependent_flows.count == 0 %}
             - trans "Are you sure you want to remove this label?"
+            {% else %}
+            - trans "This label cannot be removed because it in use."
+            {% endif %}
         %p
           %b {{ current_label }}
           %p
-            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+            {% if current_label.dependent_flows.count == 0 %}
+              -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
+            {% else %}
+              {% blocktrans count num_flows=current_label.dependent_flows.count %}
+              Used by {{num_flows}} flow:
+              {% plural %}
+              Used by {{num_flows}} flows:
+              {% endblocktrans %}
+
+            %ul
+            - for flow in current_label.dependent_flows.all
+              %li
+                %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
+                  {{ flow.name }}
+
+            {% endif %}
 
       %a#delete-form.posterize{href:'{% url "msgs.label_delete" current_label.pk %}'}
 
@@ -44,12 +63,22 @@
     $(".remove-label").live('click', function(){
       modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
       modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        $('#delete-form').click();
-      }}, false);
-      modal.setPrimaryButton('{% trans "Remove" %}');
+
+      {% if current_label.dependent_flows.count == 0 %}
+          modal.setListeners({onPrimary: function(){
+            $('#delete-form').click();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Remove" %}');
+
+      {% else %}
+          modal.setListeners({onPrimary: function(){
+            modal.dismiss();
+          }}, false);
+          modal.setPrimaryButton('{% trans "Ok" %}');
+      {% endif %}
+
       modal.show();
-    });
+      });
     {% endif %}
 
     {% if org_perms.msgs.broadcast_send %}

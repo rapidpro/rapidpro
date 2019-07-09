@@ -122,23 +122,6 @@
               %div
                 {% include ch_type.get_claim_blurb %}
 
-    -if 'U' in brand.flow_types
-      %h3
-        -trans "USSD Channels"
-
-      -for ch_type in channel_types.USSD
-        .claim-row
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
-                .btn-container
-                  .claim-glyph{class:"{{ ch_type.icon }}"}
-                  %p.claim-text= ch_type.name
-            .span9
-              .claim-description
-                %div
-                  {% include ch_type.get_claim_blurb %}
-
 -block form-buttons
 
 -block extra-script

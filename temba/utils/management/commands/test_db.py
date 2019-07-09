@@ -222,10 +222,10 @@ class Command(BaseCommand):
         self.create_channels(orgs)
         self.create_fields(orgs)
         self.create_groups(orgs)
+        self.create_contacts(orgs, locations, num_contacts)
         self.create_labels(orgs)
         self.create_flows(orgs)
         self.create_archives(orgs)
-        self.create_contacts(orgs, locations, num_contacts)
         self.create_campaigns(orgs)
 
     def handle_simulate(self, num_runs, org_id, flow_name, seed):
@@ -265,7 +265,7 @@ class Command(BaseCommand):
                 "channels": list(org.channels.order_by("id")),
                 "groups": list(ContactGroup.user_groups.filter(org=org).order_by("id")),
                 "flows": flows,
-                "contacts": list(org.org_contacts.values_list("id", flat=True)),  # only ids to save memory
+                "contacts": list(org.contacts.values_list("id", flat=True)),  # only ids to save memory
                 "activity": None,
             }
 
@@ -574,14 +574,6 @@ class Command(BaseCommand):
         """
         group_counts = defaultdict(int)
 
-        self._log("Creating %d test contacts..." % (len(orgs) * len(USERS)))
-
-        for org in orgs:
-            test_contacts = []
-            for user in org.cache["users"]:
-                test_contacts.append(Contact.get_test_contact(user))
-            org.cache["test_contacts"] = test_contacts
-
         self._log(self.style.SUCCESS("OK") + "\n")
         self._log("Creating %d regular contacts...\n" % num_contacts)
 
@@ -623,9 +615,8 @@ class Command(BaseCommand):
                         "is_active": self.probability(1 - CONTACT_IS_DELETED_PROB),
                         "created_on": created_on,
                         "modified_on": self.random_date(created_on, self.db_ends_on),
+                        "fields_as_json": {},
                     }
-
-                    c["fields_as_json"] = {}
 
                     if c["gender"] is not None:
                         c["fields_as_json"][str(org.cache["fields"]["gender"].uuid)] = {"text": str(c["gender"])}

@@ -1,14 +1,13 @@
 import time
 from datetime import timedelta
 from unittest.mock import patch
-from uuid import uuid4
 
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import TEL_SCHEME, ContactGroup
 from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Language
@@ -58,13 +57,13 @@ class TriggerTest(TembaTest):
         # unicode keyword (Arabic)
         post_data = dict(keyword="١٠٠", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"١٠٠")
+        trigger = Trigger.objects.get(keyword="١٠٠")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # unicode keyword (Hindi)
         post_data = dict(keyword="मिलाए", flow=flow.id, match_type="F")
         self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword=u"मिलाए")
+        trigger = Trigger.objects.get(keyword="मिलाए")
         self.assertEqual(flow.pk, trigger.flow.pk)
 
         # a valid keyword
@@ -551,7 +550,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(1, len(response.context["form"].errors))
 
         # create a trigger that sets up a group join flow
-        post_data = dict(action_join_group=group.pk, keyword=u"١٠٠")
+        post_data = dict(action_join_group=group.pk, keyword="١٠٠")
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
@@ -559,7 +558,7 @@ class TriggerTest(TembaTest):
 
         # now let's try it out
         contact = self.create_contact("Ben", "+250788382382")
-        msg = self.create_msg(direction=INCOMING, contact=contact, text=u"١٠٠ join group")
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="١٠٠ join group")
         self.assertIsNone(msg.msg_type)
 
         self.assertTrue(Trigger.find_and_handle(msg))
@@ -630,8 +629,6 @@ class TriggerTest(TembaTest):
             self.channel, str(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
         )
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
-        self.assertEqual(flow.runs.all().count(), 1)
-        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)
@@ -653,7 +650,7 @@ class TriggerTest(TembaTest):
                 1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count()
             )
 
-        # even unarchiving we only have one acive trigger at a time
+        # even unarchiving we only have one active trigger at a time
         triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
         active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
 
@@ -736,9 +733,9 @@ class TriggerTest(TembaTest):
         self.assertEqual(viber_channel, trigger.channel)
 
     @override_settings(IS_PROD=True)
-    @patch("requests.post")
-    def test_new_conversation_trigger(self, mock_post):
+    def test_new_conversation_trigger(self):
         self.login(self.admin)
+
         flow = self.create_flow()
         flow2 = self.create_flow()
 
@@ -757,25 +754,28 @@ class TriggerTest(TembaTest):
         self.assertContains(response, "conversation is started")
 
         # go create it
-        mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
 
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_post.call_count, 1)
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
 
-        # check that it is right
-        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
-        self.assertEqual(trigger.channel, fb_channel)
-        self.assertEqual(trigger.flow, flow)
+            # check that it is right
+            trigger = Trigger.objects.get(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False
+            )
+            self.assertEqual(trigger.channel, fb_channel)
+            self.assertEqual(trigger.flow, flow)
 
-        # try to create another one, fails as we already have a trigger for that channel
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
+            # try to create another one, fails as we already have a trigger for that channel
+            response = self.client.post(
+                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
 
         # archive our trigger, should unregister our callback
         with patch("requests.post") as mock_post:
@@ -1135,72 +1135,74 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
 
-    @patch("temba.orgs.models.Org.get_ussd_channels")
-    def test_ussd_trigger(self, get_ussd_channels):
-        self.login(self.admin)
+    def test_release(self):
+        flow = self.create_flow()
+        group = self.create_group("Trigger Group", [])
 
-        flow = self.get_flow("ussd_example")
-
-        # check if we have ussd section
-        get_ussd_channels.return_value = True
-        response = self.client.get(reverse("triggers.trigger_create"))
-
-        self.assertTrue(get_ussd_channels.called)
-        self.assertContains(response, "USSD mobile initiated flow")
-
-        channel = Channel.add_config_external_channel(
-            self.org,
-            self.user,
-            "HU",
-            1234,
-            "JNU",
-            dict(
-                account_key="11111",
-                access_token=str(uuid4()),
-                transport_name="ussd_transport",
-                conversation_key="22222",
-            ),
-            role=Channel.ROLE_USSD,
+        trigger = Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            schedule=Schedule.create_schedule(timezone.now(), "M", self.admin),
         )
+        trigger.groups.add(group)
 
-        # flow options should show ussd flow example
-        response = self.client.get(reverse("triggers.trigger_ussd"))
-        self.assertContains(response, flow.name)
+        trigger.release()
 
-        # try a ussd code with letters instead of numbers
-        post_data = dict(channel=channel.pk, keyword="*keyword#", flow=flow.pk)
-        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
-        self.assertIn("keyword", response.context["form"].errors)
-        self.assertEqual(response.context["form"].errors["keyword"], [u"USSD code must contain only *,# and numbers"])
+        # schedule should also have been deleted but obviously not group or flow
+        self.assertEqual(Trigger.objects.count(), 0)
+        self.assertEqual(Schedule.objects.count(), 0)
+        self.assertEqual(ContactGroup.user_groups.count(), 1)
+        self.assertEqual(Flow.objects.count(), 1)
 
-        # try a proper ussd code
-        post_data = dict(channel=channel.pk, keyword="*111#", flow=flow.pk)
-        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        self.assertEqual(0, len(response.context["form"].errors))
-        trigger = Trigger.objects.get(keyword="*111#")
-        self.assertEqual(flow.pk, trigger.flow.pk)
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_fire(self, mock_async_start):
+        flow = self.create_flow()
+        group = self.create_group("Trigger Group", [])
 
-        # try a duplicate ussd code
-        post_data = dict(channel=channel.pk, keyword="*111#", flow=flow.pk)
-        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
-        self.assertEqual(
-            response.context["form"].errors["__all__"],
-            [u"An active trigger already exists, triggers must be unique for each group"],
+        # an archived trigger shouldn't do anything
+        Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=True,
+            is_active=True,
+        ).fire()
+
+        mock_async_start.assert_not_called()
+
+        # an inactive trigger shouldn't do anything
+        Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=False,
+            is_active=False,
+        ).fire()
+
+        mock_async_start.assert_not_called()
+
+        # an trigger with no groups or contacts shouldn't do anything
+        trigger = Trigger.objects.create(
+            org=self.org,
+            flow=flow,
+            trigger_type=Trigger.TYPE_SCHEDULE,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_archived=False,
+            is_active=True,
         )
+        trigger.fire()
 
-        # different code on same channel should work
-        post_data = dict(channel=channel.pk, keyword="*112#", flow=flow.pk)
-        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        self.assertNoFormErrors(response)
-        trigger = Trigger.objects.get(keyword="*112#")
+        mock_async_start.assert_not_called()
 
-        # try a second ussd code with the same channel
-        # TODO: fix this with multichannel triggers
-        # post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
-        # response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        # self.assertEqual(0, len(response.context['form'].errors))
-        # self.assertEqual(2, Trigger.objects.count())
-        # trigger = Trigger.objects.get(keyword='*112#')
-        # self.assertEqual(flow.pk, trigger.flow.pk)
+        trigger.groups.add(group)
+        trigger.fire()
+
+        mock_async_start.assert_called_once()
