@@ -1,3 +1,8 @@
+v5.1.4
+----------
+ * Update to flow editor 1.6.5
+ * Update Django to 2.1.10
+
 v5.1.3
 ----------
  * Update flow editor to 1.6.3
