@@ -1,6 +1,5 @@
 import locale
 import resource
-from decimal import Decimal
 from itertools import islice
 
 import iso8601
