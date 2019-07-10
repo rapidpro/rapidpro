@@ -1,3 +1,7 @@
+v5.1.6
+----------
+ * Fix format_number to be able to handle decimals with more digits than current context precision
+
 v5.1.5
 ----------
  * Update to flow editor 1.6.6
