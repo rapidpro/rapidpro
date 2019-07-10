@@ -33,7 +33,7 @@
 
     .row-fluid
       .span12.range-details
-        .range-content{ic-include:".range", ic-get-from:"/dashboard/range_details", ic-trigger-on:"load"}
+        .range-content{ic-include:".range", ic-get-from:"{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/dashboard/range_details", ic-trigger-on:"load"}
           Loading..
 
 -block extra-script
@@ -81,7 +81,7 @@
       redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
-    $.getJSON('/dashboard/message_history', function (data) {
+    $.getJSON('{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/dashboard/message_history', function (data) {
 
       // Create the chart
       Highcharts.stockChart('message-chart', {
