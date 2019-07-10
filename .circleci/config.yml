@@ -1,0 +1,60 @@
+version: 2
+jobs:
+  deploy:
+    docker:
+      - image: circleci/python:2.7
+
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Deploy containers
+          command: |
+
+            # define some variables
+            IMAGE_BASE="istresearch/rapidpro"
+            VERSION=`cat VERSION`
+
+            # figure out what the tag should be
+            # if it's a tagged release, use the version number
+            if [ ! -z $CIRCLE_TAG ]; then
+              TAG="${VERSION}"
+
+            # if on develop with no PR (merging another branch into dev), use dev-version
+            elif [ $CIRCLE_BRANCH == develop ] && [[ -z $CIRCLE_PULL_REQUEST ]]; then
+              TAG="${VERSION}-dev"
+
+            # if on develop with a PR (to master)
+            elif [[ $CIRCLE_BRANCH == develop ]] && [[ ! -z $CIRCLE_PULL_REQUEST ]]; then
+              TAG="rc-${VERSION}"
+
+            # otherwise use the branch name
+            else
+              TAG="ci-${VERSION}-dev-${CIRCLE_BRANCH}"
+            fi
+
+            # if    tagged release    |          a pull request          |       or on develop branch
+            if [[ ! -z $CIRCLE_TAG ]] || [[ ! -z $CIRCLE_PULL_REQUEST ]] || [[ $CIRCLE_BRANCH == develop ]]; then
+              # get inside dockerhub
+              docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
+
+              # build the container images
+              docker build --build-arg BUILD_NUMBER=$CIRCLE_BUILD_NUM -t $IMAGE_BASE:$TAG -f Dockerfile .
+
+              # push the images to dockerhub
+              docker push $IMAGE_BASE:$TAG
+              docker logout
+            else
+              echo "No docker images pushed"
+            fi
+
+workflows:
+  version: 2
+  grawler_workflow:
+    jobs:
+      - deploy:
+          context: globalconfig
+          filters:
+            tags:
+              only: /.*/
