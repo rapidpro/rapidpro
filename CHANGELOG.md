@@ -1,3 +1,7 @@
+v5.1.5
+----------
+ * Update to flow editor 1.6.6
+
 v5.1.4
 ----------
  * Update to flow editor 1.6.5
