@@ -833,7 +833,6 @@ CELERYBEAT_SCHEDULE = {
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
     "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
-    "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
     "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},

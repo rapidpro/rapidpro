@@ -2276,15 +2276,9 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_failed_call_retry(self):
-        def _get_disabled_retry_flow():
+        def _get_flow():
             class FlowStub:
-                metadata = {"ivr_retry_failed_events": False}
-
-            return FlowStub()
-
-        def _get_enabled_retry_flow():
-            class FlowStub:
-                metadata = {"ivr_retry_failed_events": True}
+                metadata = {"ivr_retry": 60}
 
             return FlowStub()
 
@@ -2310,11 +2304,12 @@ class IVRTests(FlowFileTest):
         )
 
         # flow does has not enabled failed call retry
-        call1.get_flow = _get_disabled_retry_flow
-        call2.get_flow = _get_disabled_retry_flow
+        call1.get_flow = _get_flow
+        call2.get_flow = _get_flow
 
         # a call failed
         call1.update_status("failed", 0, "T")
+        call1.next_attempt = timezone.now() - timedelta(hours=2)
         call1.save()
 
         # there should be a failed call
@@ -2323,45 +2318,44 @@ class IVRTests(FlowFileTest):
         pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.PENDING)
         self.assertEqual(pending_calls.count(), 1)
 
-        # but we are not trying to retry it
-        self.assertEqual(call1.error_count, 0)
+        # there should be one retry
+        self.assertEqual(call1.retry_count, 1)
 
         # simulate async task to enqueue pending failed calls
-        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+        current_app.send_task("check_calls_task", args=[], kwargs={})
 
         # failed call retry is not active, and there are no queued calls
-        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.QUEUED)
-        self.assertEqual(started_calls.count(), 0)
-
-        # enable failed call retry on the channel
-        call1.get_flow = _get_enabled_retry_flow
-        call2.get_flow = _get_enabled_retry_flow
+        started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.WIRED)
+        self.assertEqual(started_calls.count(), 2)
 
         call1.update_status("failed", 0, "T")
+        call1.next_attempt = timezone.now() - timedelta(hours=2)
         call1.save()
         call2.update_status("failed", 0, "T")
+        call2.next_attempt = timezone.now() - timedelta(hours=2)
         call2.save()
 
         # failed retry count
-        self.assertEqual(call1.error_count, 1)
+        self.assertEqual(call1.retry_count, 1)
+        self.assertEqual(call2.retry_count, 1)
 
         # there should be a failed call
         failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.FAILED)
         self.assertEqual(failed_calls.count(), 2)
 
         # simulate async task to enqueue pending failed calls
-        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+        current_app.send_task("check_calls_task", args=[], kwargs={})
 
         # there are no failed calls
         pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.FAILED)
         self.assertEqual(pending_calls.count(), 0)
 
-        # and there is one queued call
+        # and there are two wired calls
         started_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.WIRED)
         self.assertEqual(started_calls.count(), 2)
 
         # should not be able to retry a call that has failed too many times
-        call1.error_count = IVRCall.MAX_ERROR_COUNT + 1
+        call1.retry_count = IVRCall.MAX_RETRY_ATTEMPTS + 1
         call1.save()
 
         call1.update_status("failed", 0, "T")
@@ -2371,9 +2365,9 @@ class IVRTests(FlowFileTest):
         self.assertEqual(failed_calls.count(), 1)
 
         # simulate async task to enqueue pending failed calls
-        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+        current_app.send_task("check_calls_task", args=[], kwargs={})
 
-        # the call is still in failed state because we are over the failed_call_retry limit
+        # the call is still in failed state because we are over the IVRCall.MAX_RETRY_ATTEMPTS limit
         pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.FAILED)
         self.assertEqual(pending_calls.count(), 1)
 
@@ -2384,9 +2378,9 @@ class IVRTests(FlowFileTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_do_not_retry_calls_older_than_days(self):
-        def _get_enabled_retry_flow():
+        def _get_flow():
             class FlowStub:
-                metadata = {"ivr_retry_failed_events": True}
+                metadata = {"ivr_retry": 60}
 
             return FlowStub()
 
@@ -2412,26 +2406,29 @@ class IVRTests(FlowFileTest):
         )
 
         # enable failed call retry on the channel
-        call1.get_flow = _get_enabled_retry_flow
-        call2.get_flow = _get_enabled_retry_flow
+        call1.get_flow = _get_flow
+        call2.get_flow = _get_flow
 
         call1.update_status("failed", 0, "T")
+        call1.next_attempt = timezone.now() - timedelta(hours=2)
         call1.save()
         call2.update_status("failed", 0, "T")
+        call2.next_attempt = timezone.now() - timedelta(hours=2)
         call2.save()
+
         call2.modified_on = call2.modified_on - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS + 14)
         call2.save(update_fields=("modified_on",))
 
         # failed retry count
-        self.assertEqual(call1.error_count, 1)
-        self.assertEqual(call2.error_count, 1)
+        self.assertEqual(call1.retry_count, 1)
+        self.assertEqual(call2.retry_count, 1)
 
-        # there should be a failed call
+        # there are two failed calls
         failed_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.FAILED)
         self.assertEqual(failed_calls.count(), 2)
 
         # simulate async task to enqueue pending failed calls
-        current_app.send_task("check_failed_calls_task", args=[], kwargs={})
+        current_app.send_task("check_calls_task", args=[], kwargs={})
 
         # there is a failed call older than desired working window
         pending_calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING, status=ChannelConnection.FAILED)

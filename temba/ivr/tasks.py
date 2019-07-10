@@ -67,37 +67,6 @@ def check_calls_task():
         task_enqueue_call_events.apply_async()
 
 
-@nonoverlapping_task(track_started=True, name="check_failed_calls_task", time_limit=900)
-def check_failed_calls_task():
-    if not settings.TESTING:
-        return  # pragma: no cover
-
-    from .models import IVRCall
-
-    # calls that have failed and have a `error_count` value are going to be retried
-    failed_calls_to_retry = (
-        IVRCall.objects.filter(error_count__gte=1, error_count__lte=IVRCall.MAX_ERROR_COUNT)
-        .filter(status__in=IVRCall.FAILED)
-        .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
-        .filter(direction=IVRCall.OUTGOING)
-    )
-
-    for call in failed_calls_to_retry:
-
-        ChannelLog.log_ivr_interaction(call, "Retrying failed call", HttpEvent(method="INTERNAL", url=None))
-
-        call.status = IVRCall.PENDING
-        # reset the call
-        call.started_on = None
-        call.ended_on = None
-        call.duration = 0
-        call.modified_on = timezone.now()
-        call.save(update_fields=("status", "next_attempt", "started_on", "ended_on", "duration", "modified_on"))
-
-    if failed_calls_to_retry:
-        task_enqueue_call_events.apply_async()
-
-
 @nonoverlapping_task(track_started=True, name="task_enqueue_call_events", time_limit=900)
 def task_enqueue_call_events():
     if not settings.TESTING:

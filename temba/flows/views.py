@@ -574,13 +574,10 @@ class FlowCRUDL(SmartCRUDL):
 
         class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             ivr_retry = forms.ChoiceField(
-                label=_("Retry call on busy/no answer"),
+                label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
                 choices=IVRCall.IVR_RETRY_CHOICES,
-            )
-            ivr_retry_failed_events = forms.BooleanField(
-                label=_("Retry failed calls"), help_text=_("Retry failed calls"), required=False
             )
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
@@ -604,10 +601,6 @@ class FlowCRUDL(SmartCRUDL):
                 ivr_retry = self.fields["ivr_retry"]
                 ivr_retry.initial = metadata.get("ivr_retry", self.fields["ivr_retry"].initial)
 
-                # IVR retry failed calls
-                ivr_retry_failed_events = self.fields["ivr_retry_failed_events"]
-                ivr_retry_failed_events.initial = metadata.get("ivr_retry_failed_events", False)
-
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org,
                     flow=self.instance,
@@ -621,14 +614,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = (
-                    "name",
-                    "keyword_triggers",
-                    "expires_after_minutes",
-                    "ignore_triggers",
-                    "ivr_retry",
-                    "ivr_retry_failed_events",
-                )
+                fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
 
         class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             keyword_triggers = forms.CharField(
@@ -689,8 +675,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if "ivr_retry" in self.form.cleaned_data:
                 metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
-
-            metadata["ivr_retry_failed_events"] = self.form.cleaned_data.get("ivr_retry_failed_events")
 
             obj.metadata = metadata
             return obj

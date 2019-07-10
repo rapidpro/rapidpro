@@ -3794,16 +3794,7 @@ class FlowTest(TembaTest):
 
         field_names = [field for field in response.context_data["form"].fields]
         self.assertEqual(
-            field_names,
-            [
-                "name",
-                "keyword_triggers",
-                "expires_after_minutes",
-                "ignore_triggers",
-                "ivr_retry",
-                "ivr_retry_failed_events",
-                "loc",
-            ],
+            field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry", "loc"]
         )
 
         choices = response.context["form"].fields["expires_after_minutes"].choices
@@ -3856,18 +3847,6 @@ class FlowTest(TembaTest):
 
         voice_flow.refresh_from_db()
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
-        self.assertEqual(voice_flow.metadata.get("ivr_retry_failed_events"), False)
-
-        # flow with enabled ivr_retry_failed_events
-        post_data["expires_after_minutes"] = 3
-        post_data["ivr_retry"] = 1440
-
-        post_data["ivr_retry_failed_events"] = True
-
-        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-        voice_flow.refresh_from_db()
-
-        self.assertEqual(voice_flow.metadata.get("ivr_retry_failed_events"), True)
 
         # update flow triggers, and test if form has expected fields
         post_data = dict()
