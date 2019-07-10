@@ -42,9 +42,7 @@ def format_number(val):
     if not val.is_finite():
         return ""
 
-    # convert our decimal to a value without exponent
-    val = val.quantize(Decimal(1)) if val == val.to_integral() else val.normalize()
-    val = str(val)
+    val = format(val, "f")
 
     if "." in val:
         val = val.rstrip("0").rstrip(".")  # e.g. 12.3000 -> 12.3
