@@ -170,6 +170,10 @@ class InitTest(TembaTest):
         self.assertEqual("-12300", format_number(Decimal("-123E+2")))
         self.assertEqual("-12350", format_number(Decimal("-123.5E+2")))
         self.assertEqual("-1.235", format_number(Decimal("-123.5E-2")))
+        self.assertEqual(
+            "-1000000000000001467812345696542157800075344236445874615",
+            format_number(Decimal("-1000000000000001467812345696542157800075344236445874615")),
+        )
         self.assertEqual("", format_number(Decimal("NaN")))
 
     def test_slugify_with(self):
