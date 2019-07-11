@@ -6,4 +6,4 @@ You've been invited to join {{ org }} on {{ brand }}
 
 {% trans "Click this link to join" %}
 {{ org.name }}
-      {{ branding.link }}/org/join/{{invitation.secret}}/
+      {{ branding.link }}{% if branding.sub_dir %}/{{branding.sub_dir}}{%else%}{%endif%}/org/join/{{invitation.secret}}/
