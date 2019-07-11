@@ -5,11 +5,19 @@
 {% block body %}
 
 <p>
-  {% blocktrans with org=org.name link=branding.link brand=branding.name secret=invitation.secret %}
+  {% if branding.sub_dir %}
+    {% blocktrans with org=org.name link=branding.link brand=branding.name secret=invitation.secret subdir=branding.sub_dir %}
       You've been invited to join {{ brand }} as a member of {{ org }}.
-      <br/>
+      <br/>{{branding.sub_dir}}
+      To accept the invitation, <a href='{{link}}/{{subdir}}/org/join/{{secret}}/'>click here</a>.
+    {% endblocktrans %}
+    {% else %}
+    {% blocktrans with org=org.name link=branding.link brand=branding.name secret=invitation.secret %}
+      You've been invited to join {{ brand }} as a member of {{ org }}.
+      <br/>{{branding.sub_dir}}
       To accept the invitation, <a href='{{link}}/org/join/{{secret}}/'>click here</a>.
-  {% endblocktrans %}
+    {% endblocktrans %}
+  {% endif %}
 </p>
 
 {% endblock body %}
