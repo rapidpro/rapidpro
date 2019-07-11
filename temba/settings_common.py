@@ -832,8 +832,6 @@ CELERYBEAT_SCHEDULE = {
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
-    "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
