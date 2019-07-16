@@ -28,12 +28,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from celery import current_app
-
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection
+from temba.channels.models import Channel, ChannelConnection, ChannelLog
 from temba.contacts.models import (
     NEW_CONTACT_VARIABLE,
     TEL_SCHEME,
@@ -50,6 +48,7 @@ from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
+from temba.utils.http import HttpEvent
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -1726,7 +1725,41 @@ class Flow(TembaModel):
 
         # eagerly enqueue calls
         if there_are_calls_to_start:
-            current_app.send_task("task_enqueue_call_events", args=[], kwargs={})
+
+            r = get_redis_connection()
+
+            pending_call_events = (
+                IVRCall.objects.filter(status=IVRCall.PENDING)
+                .filter(direction=IVRCall.OUTGOING)
+                .filter(channel__is_active=True)
+                .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
+                .select_related("channel")
+                .order_by("modified_on")[:1000]
+            )
+
+            for call in pending_call_events:
+
+                # are we handling a call on a throttled channel ?
+                max_concurrent_events = call.channel.config.get(Channel.CONFIG_MAX_CONCURRENT_EVENTS)
+
+                if max_concurrent_events:
+                    channel_key = Channel.redis_active_events_key(call.channel_id)
+                    current_active_events = r.get(channel_key)
+
+                    # skip this call if are on the limit
+                    if current_active_events and int(current_active_events) >= max_concurrent_events:
+                        continue
+                    else:
+                        # we can start a new call event
+                        call.register_active_event()
+
+                # enqueue the call
+                ChannelLog.log_ivr_interaction(call, "Call queued internally", HttpEvent(method="INTERNAL", url=None))
+
+                call.status = IVRCall.QUEUED
+                call.save(update_fields=("status",))
+
+                call.do_start_call()
 
         return runs
 

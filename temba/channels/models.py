@@ -1896,7 +1896,7 @@ class ChannelConnection(models.Model):
     ENDING = "E"
 
     DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
-    RETRY_CALL = (BUSY, NO_ANSWER)
+    RETRY_CALL = (BUSY, NO_ANSWER, FAILED)
 
     INCOMING = "I"
     OUTGOING = "O"
