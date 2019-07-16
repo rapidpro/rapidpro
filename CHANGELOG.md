@@ -1,3 +1,8 @@
+v5.1.7
+----------
+ * Remove unused IVR tasks
+ * Simplify failed IVR call handling
+
 v5.1.6
 ----------
  * Fix format_number to be able to handle decimals with more digits than current context precision
