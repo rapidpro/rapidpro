@@ -3186,10 +3186,6 @@ class APITest(TembaTest):
             },
         )
 
-        # check when all broadcasts have been purged
-        Broadcast.objects.all().update(purged=True)
-        Msg.objects.filter(direction="O").delete()
-
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
