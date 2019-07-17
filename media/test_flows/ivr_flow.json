@@ -15,7 +15,7 @@
               "type": "say",
               "uuid": "d684f2d6-ba31-49f7-8ea3-7fdf65cc1a25",
               "msg": {
-                "base": "Hello there. Please enter one or two."
+                "base": "Hello there. Please enter one or two. @(if(extra.ref_id, \"Your reference id is \" & extra.ref_id, \"\"))"
               },
               "recording": null
             }
