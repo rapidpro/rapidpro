@@ -1515,7 +1515,7 @@ class Flow(TembaModel):
                         context["parent"]["contact"] = parent_contact.build_expressions_context()
                     else:
                         # contact may have since been deleted
-                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}
+                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}  # pragma: no cover
                 else:
                     context["parent"]["contact"] = contact_context
 
@@ -1769,10 +1769,6 @@ class Flow(TembaModel):
     def _start_msg_flow(
         self, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
     ):
-
-        if started_flows is None:
-            started_flows = []
-
         if parent_run:
             parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
         else:
