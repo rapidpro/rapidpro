@@ -7864,7 +7864,7 @@ class FlowsTest(FlowFileTest):
                     group_count += 1
         self.assertEqual(2, group_count)
 
-        run, = flow.start_msg_flow([self.contact.id])
+        run, = flow.start([], [self.contact])
 
         # not in any group
         self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
@@ -7922,7 +7922,7 @@ class FlowsTest(FlowFileTest):
 
         # if contact has null name, value will be empty string
         nameless = self.create_contact(name=None, number="+12065553030")
-        run, = flow.start_msg_flow([nameless.id])
+        run, = flow.start([], [nameless])
 
         self.send("split", contact=nameless)
         self.assertEqual(
@@ -7947,7 +7947,7 @@ class FlowsTest(FlowFileTest):
     def test_media_first_action(self):
         flow = self.get_flow("media_first_action")
 
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact])
         self.assertEqual(1, len(runs))
 
         msg = self.contact.msgs.get()
@@ -7963,7 +7963,7 @@ class FlowsTest(FlowFileTest):
         self.contact.name = "Ben Haggerty"
         self.contact.save(update_fields=("name",), handle_update=False)
 
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact])
         self.assertEqual(1, len(runs))
         self.assertEqual(self.contact.msgs.get().text, "Hi Ben Haggerty, what is your phone number?")
 
@@ -8766,14 +8766,14 @@ class FlowsTest(FlowFileTest):
 
         # start our flow without a message (simulating it being fired by a trigger or the simulator)
         # this will evaluate requires_step() to make sure it handles localized flows
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact])
         self.assertEqual(1, len(runs))
         self.assertEqual(self.contact.msgs.get().text, "You are not in the enrolled group.")
 
         enrolled_group = ContactGroup.create_static(self.org, self.user, "Enrolled")
         enrolled_group.update_contacts(self.user, [self.contact], True)
 
-        runs_started = flow.start_msg_flow([self.contact.id])
+        runs_started = flow.start([], [self.contact], restart_participants=True)
         self.assertEqual(1, len(runs_started))
 
         msgs = list(self.contact.msgs.order_by("id"))
@@ -8890,7 +8890,7 @@ class FlowsTest(FlowFileTest):
         with patch("temba.flows.models.AirtimeTransfer.trigger_airtime_event") as mock_trigger_event:
             mock_trigger_event.return_value = airtime_event
 
-            runs = flow.start_msg_flow([self.contact.id])
+            runs = flow.start([], [self.contact])
             self.assertEqual(1, len(runs))
             self.assertEqual(self.contact.msgs.get().text, "Message complete")
 
@@ -8899,7 +8899,7 @@ class FlowsTest(FlowFileTest):
 
             mock_trigger_event.return_value = airtime_event
 
-            runs = flow.start_msg_flow([self.contact.id])
+            runs = flow.start([], [self.contact], restart_participants=True)
             self.assertEqual(1, len(runs))
 
             msgs = list(self.contact.msgs.order_by("id"))
@@ -8925,7 +8925,7 @@ class FlowsTest(FlowFileTest):
         self.org.refresh_transferto_account_currency()
 
         flow = self.get_flow("airtime")
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact])
         self.assertEqual(1, len(runs))
         self.assertEqual(self.contact.msgs.get().text, "Message complete")
 
@@ -8948,7 +8948,7 @@ class FlowsTest(FlowFileTest):
             MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
         ]
 
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact], restart_participants=True)
         self.assertEqual(1, len(runs))
         msgs = list(self.contact.msgs.order_by("id"))
         self.assertEqual(msgs[1].text, "Message failed")
@@ -8979,7 +8979,7 @@ class FlowsTest(FlowFileTest):
         contact2 = self.create_contact(name="Bismack Biyombo", number="+250788123123", twitter="biyombo")
         self.assertEqual(contact2.get_urn().path, "biyombo")
 
-        runs = flow.start_msg_flow([contact2.id])
+        runs = flow.start([], [contact2], restart_participants=True)
         self.assertEqual(1, len(runs))
         self.assertEqual(1, contact2.msgs.all().count())
         self.assertEqual("Message complete", contact2.msgs.all()[0].text)
@@ -9005,7 +9005,7 @@ class FlowsTest(FlowFileTest):
             MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
         ]
 
-        runs = flow.start_msg_flow([self.contact.id])
+        runs = flow.start([], [self.contact], restart_participants=True)
         self.assertEqual(1, len(runs))
 
         msgs = list(self.contact.msgs.order_by("id"))
