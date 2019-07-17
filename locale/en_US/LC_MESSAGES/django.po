@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-25 10:58+0000\n"
+"POT-Creation-Date: 2019-07-10 13:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2789,13 +2789,10 @@ msgstr ""
 msgid "For each login"
 msgstr ""
 
-msgid "Retry call on busy/no answer"
+msgid "Retry call if unable to connect"
 msgstr ""
 
 msgid "Retries call three times for the chosen interval"
-msgstr ""
-
-msgid "Retry failed calls"
 msgstr ""
 
 msgid "Flows"
@@ -3481,9 +3478,6 @@ msgid "The brand used in emails"
 msgstr ""
 
 msgid "A password that allows users to register as surveyors"
-msgstr ""
-
-msgid "Whether flows and messages should be handled by mailroom"
 msgstr ""
 
 msgid "The parent org that manages this org"

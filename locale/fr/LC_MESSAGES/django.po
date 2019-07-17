@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-25 10:58+0000\n"
+"POT-Creation-Date: 2019-07-10 13:48+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3901,16 +3901,11 @@ msgstr ""
 msgid "For each login"
 msgstr ""
 
-msgid "Retry call on busy/no answer"
+msgid "Retry call if unable to connect"
 msgstr ""
 
 msgid "Retries call three times for the chosen interval"
 msgstr ""
-
-#, fuzzy
-#| msgid "missed call"
-msgid "Retry failed calls"
-msgstr "appel manqué"
 
 msgid "Flows"
 msgstr "flux"
@@ -4690,9 +4685,6 @@ msgid "The brand used in emails"
 msgstr "The %(brand)s Team"
 
 msgid "A password that allows users to register as surveyors"
-msgstr ""
-
-msgid "Whether flows and messages should be handled by mailroom"
 msgstr ""
 
 msgid "The parent org that manages this org"
@@ -11527,6 +11519,11 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
+
+#, fuzzy
+#~| msgid "missed call"
+#~ msgid "Retry failed calls"
+#~ msgstr "appel manqué"
 
 #, fuzzy
 #~| msgid "Invalid group or contact id"

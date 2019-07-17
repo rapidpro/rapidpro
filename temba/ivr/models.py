@@ -26,7 +26,6 @@ class IVRManager(models.Manager):
 class IVRCall(ChannelConnection):
     RETRY_BACKOFF_MINUTES = 60
     MAX_RETRY_ATTEMPTS = 3
-    MAX_ERROR_COUNT = 5
     IGNORE_PENDING_CALLS_OLDER_THAN_DAYS = 7  # calls with modified_on older than 7 days are going to be ignored
     DEFAULT_MAX_IVR_EXPIRATION_WINDOW_DAYS = 7
 
@@ -137,10 +136,6 @@ class IVRCall(ChannelConnection):
         else:
             self.next_attempt = None
 
-    def schedule_failed_call_retry(self):
-        if self.error_count < IVRCall.MAX_ERROR_COUNT:
-            self.error_count += 1
-
     def update_status(self, status: str, duration: float, channel_type: str):
         """
         Updates our status from a provide call status string
@@ -196,11 +191,6 @@ class IVRCall(ChannelConnection):
                     run.expires_on - run.modified_on > timedelta(minutes=self.IVR_EXPIRES_CHOICES[-1][0])
                 ):
                     run.update_expiration()
-
-        if self.status == ChannelConnection.FAILED:
-            flow = self.get_flow()
-            if flow.metadata.get("ivr_retry_failed_events"):
-                self.schedule_failed_call_retry()
 
     @staticmethod
     def derive_ivr_status_twiml(status: str, previous_status: str) -> str:
