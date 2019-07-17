@@ -27,7 +27,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -3077,6 +3077,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
+    @uses_legacy_engine
     def test_runs(self):
         url = reverse("api.v2.runs")
 

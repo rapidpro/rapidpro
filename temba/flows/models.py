@@ -1569,7 +1569,8 @@ class Flow(TembaModel):
         Starts a flow for the passed in groups and contacts.
         """
 
-        logger.warning(f"Calling legacy engine Flow.start (flow={self.name})")
+        if not getattr(settings, "USES_LEGACY_ENGINE", False):
+            raise ValueError("Use of legacy engine when USES_LEGACY_ENGINE not set")  # pragma: no cover
 
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
