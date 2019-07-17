@@ -1,3 +1,11 @@
+v5.1.9
+----------
+ * Make Broadcast.purged nullable in preparation for dropping it
+
+v5.1.8
+----------
+ * Update floweditor to 1.6.7 and npm audit
+
 v5.1.7
 ----------
  * Remove unused IVR tasks
