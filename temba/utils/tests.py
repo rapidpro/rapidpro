@@ -29,8 +29,9 @@ from celery.app.task import Task
 
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import ESMockWithScroll, TembaTest, matchers
+from temba.tests import ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
 from temba.utils import json
 from temba.utils.json import TembaJsonAdapter
 
@@ -1218,7 +1219,7 @@ class ModelsTest(TembaTest):
     def test_require_update_fields(self):
         contact = self.create_contact("Bob", twitter="bobby")
         flow = self.get_flow("color")
-        run, = flow.start([], [contact])
+        run = FlowRun.create(flow, contact)
 
         # we can save if we specify update_fields
         run.modified_on = timezone.now()
@@ -1808,6 +1809,7 @@ class MiddlewareTest(TembaTest):
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
+    @uses_legacy_engine
     def test_command(self):
         self.create_anonymous_user()
 
