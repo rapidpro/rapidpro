@@ -18,7 +18,7 @@ from django.utils.encoding import force_text
 from temba.channels.models import Channel, ChannelConnection, ChannelLog
 from temba.flows.models import Flow, FlowRevision, FlowRun
 from temba.msgs.models import IVR, OUTGOING, PENDING, Msg
-from temba.tests import FlowFileTest, MockResponse
+from temba.tests import FlowFileTest, MockResponse, uses_legacy_engine
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.utils import json
 
@@ -47,6 +47,7 @@ class IVRTests(FlowFileTest):
     @patch("nexmo.Client.update_call")
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_preferred_channel(self, mock_update_call, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
@@ -129,6 +130,7 @@ class IVRTests(FlowFileTest):
 
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @patch("twilio.rest.api.v2010.account.call.CallInstance", MockTwilioClient.MockCallInstance)
+    @uses_legacy_engine
     def test_call_logging(self):
         # create our ivr setup
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -165,6 +167,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_disable_calls_twilio(self):
         with self.settings(SEND_CALLS=False):
             self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -184,6 +187,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
+    @uses_legacy_engine
     def test_disable_calls_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
@@ -211,6 +215,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_bogus_call(self):
         # create our ivr setup
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -235,6 +240,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_recording(self):
 
         # create our ivr setup
@@ -335,6 +341,7 @@ class IVRTests(FlowFileTest):
 
     @patch("jwt.encode")
     @patch("nexmo.Client.create_application")
+    @uses_legacy_engine
     def test_ivr_recording_with_nexmo(self, mock_create_application, mock_jwt):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_jwt.return_value = b"Encoded data"
@@ -517,6 +524,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_subflow(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -581,6 +589,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_start_flow(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
@@ -611,6 +620,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_call_redirect(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
@@ -644,6 +654,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_text_trigger_ivr(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
@@ -676,6 +687,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_non_blocking_rule_ivr(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -727,6 +739,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_digit_gather(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -783,6 +796,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
+    @uses_legacy_engine
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
@@ -830,6 +844,7 @@ class IVRTests(FlowFileTest):
     @patch("jwt.encode")
     @patch("requests.put")
     @patch("nexmo.Client.create_application")
+    @uses_legacy_engine
     def test_expiration_hangup(self, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_jwt.return_value = b"Encoded data"
@@ -891,6 +906,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
+    @uses_legacy_engine
     def test_ivr_subflow_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_create_call.return_value = dict(uuid="12345")
@@ -977,6 +993,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_flow(self):
 
         # should be able to create an ivr flow
@@ -1150,6 +1167,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_ivr_status_update(self):
         def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
             call_to_update.ended_on = None
@@ -1215,6 +1233,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_rule_first_ivr_flow(self):
         # connect it and check our client is configured
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
@@ -1323,6 +1342,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_incoming_start(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
@@ -1344,6 +1364,7 @@ class IVRTests(FlowFileTest):
 
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")
+    @uses_legacy_engine
     def test_incoming_start_nexmo(self, mock_create_application, mock_update_call):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
         mock_update_call.return_value = dict(uuid="12345")
@@ -1576,6 +1597,7 @@ class IVRTests(FlowFileTest):
         self.assertFalse(IVRCall.objects.all())
 
     @patch("nexmo.Client.create_application")
+    @uses_legacy_engine
     def test_no_flow_for_incoming_nexmo(self, mock_create_application):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
@@ -1630,6 +1652,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_no_flow_for_incoming(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
@@ -1688,6 +1711,7 @@ class IVRTests(FlowFileTest):
     @patch("temba.utils.nexmo.NexmoClient.download_recording")
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
+    @uses_legacy_engine
     def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
@@ -1755,6 +1779,7 @@ class IVRTests(FlowFileTest):
 
     @patch("jwt.encode")
     @patch("nexmo.Client.create_application")
+    @uses_legacy_engine
     def test_temba_utils_nexmo_methods(self, mock_create_application, mock_jwt_encode):
         mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
 
@@ -2015,6 +2040,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_pending_calls_on_inactive_channels_should_not_be_queued(self):
         r = get_redis_connection()
 
@@ -2091,6 +2117,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_unknown_client(self):
 
         flow = self.get_flow("call_me_maybe")
@@ -2117,6 +2144,7 @@ class IVRTests(FlowFileTest):
 
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    @uses_legacy_engine
     def test_unknown_domain(self):
         # connect it and check our client is configured
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)

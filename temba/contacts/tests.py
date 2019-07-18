@@ -34,7 +34,14 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests import (
+    AnonymousOrg,
+    ESMockWithScroll,
+    ESMockWithScrollMultiple,
+    TembaTest,
+    TembaTestMixin,
+    uses_legacy_engine,
+)
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -395,6 +402,7 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(SearchException):
             Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
+    @uses_legacy_engine
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow("initialize")
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
@@ -1131,6 +1139,7 @@ class ContactTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @override_settings(SEND_CALLS=True)
+    @uses_legacy_engine
     def test_release(self):
 
         # configure our org for ivr
@@ -3552,6 +3561,7 @@ class ContactTest(TembaTest):
             ],
         )
 
+    @uses_legacy_engine
     def test_history(self):
 
         # use a max history size of 100
@@ -3830,6 +3840,7 @@ class ContactTest(TembaTest):
         event.unit = "M"
         self.assertEqual("1 minute before Planting Date", event_time(event))
 
+    @uses_legacy_engine
     def test_activity_tags(self):
         self.create_campaign()
 
@@ -6841,6 +6852,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
 
+    @uses_legacy_engine
     def test_contact_export(self):
         self.clear_storage()
 
@@ -8119,6 +8131,7 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
+    @uses_legacy_engine
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")

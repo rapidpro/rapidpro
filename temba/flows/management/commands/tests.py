@@ -1,7 +1,7 @@
 from django.core.management import call_command
 
 from temba.flows.models import FlowNodeCount
-from temba.tests import FlowFileTest, TembaTest
+from temba.tests import FlowFileTest, TembaTest, uses_legacy_engine
 
 from .run_audit import has_none_string_in
 
@@ -32,6 +32,7 @@ class RecalcNodeCountsTest(FlowFileTest):
         self.contact2 = self.create_contact("Joe", number="+12065550002")
         self.contact3 = self.create_contact("Frank", number="+12065550003")
 
+    @uses_legacy_engine
     def test_recalc_node_counts(self):
         def check_node_count_rebuild(flow, assert_count):
             node_counts = FlowNodeCount.get_totals(flow)
