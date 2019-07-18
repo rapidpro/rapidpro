@@ -39,7 +39,7 @@ URLs with `/mr/` in them might be:
 
 ```
 # all Mailroom URLs go to Mailroom
-location ~ /mr/ {
+location ^~ /mr/ {
   proxy_set_header Host $http_host;
   proxy_pass http://mailroom_server;
   break;
