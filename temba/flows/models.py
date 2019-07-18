@@ -1515,7 +1515,7 @@ class Flow(TembaModel):
                         context["parent"]["contact"] = parent_contact.build_expressions_context()
                     else:
                         # contact may have since been deleted
-                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}
+                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}  # pragma: no cover
                 else:
                     context["parent"]["contact"] = contact_context
 
@@ -1568,6 +1568,9 @@ class Flow(TembaModel):
         """
         Starts a flow for the passed in groups and contacts.
         """
+
+        if not getattr(settings, "USES_LEGACY_ENGINE", False):
+            raise ValueError("Use of legacy engine when USES_LEGACY_ENGINE not set")  # pragma: no cover
 
         # build up querysets of our groups for memory efficiency
         if isinstance(groups, QuerySet):  # pragma: no cover
@@ -1657,11 +1660,11 @@ class Flow(TembaModel):
             return []
 
         if self.flow_type == Flow.TYPE_VOICE:
-            return self.start_call_flow(
+            return self._start_call_flow(
                 all_contact_ids, start_msg=start_msg, extra=extra, flow_start=flow_start, parent_run=parent_run
             )
         else:
-            return self.start_msg_flow(
+            return self._start_msg_flow(
                 all_contact_ids,
                 started_flows=started_flows,
                 start_msg=start_msg,
@@ -1670,7 +1673,7 @@ class Flow(TembaModel):
                 parent_run=parent_run,
             )
 
-    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
+    def _start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
 
         there_are_calls_to_start = False
@@ -1763,13 +1766,9 @@ class Flow(TembaModel):
 
         return runs
 
-    def start_msg_flow(
+    def _start_msg_flow(
         self, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
     ):
-
-        if started_flows is None:
-            started_flows = []
-
         if parent_run:
             parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
         else:

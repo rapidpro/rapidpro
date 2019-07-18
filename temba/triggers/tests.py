@@ -12,7 +12,7 @@ from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.msgs.models import INCOMING, Msg
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockResponse, TembaTest, uses_legacy_engine
 
 from .models import Trigger
 from .views import DefaultTriggerForm, RegisterTriggerForm
@@ -285,6 +285,7 @@ class TriggerTest(TembaTest):
 
         self.assertIsNone(second_trigger.channel)
 
+    @uses_legacy_engine
     def test_trigger_schedule(self):
         self.login(self.admin)
         flow = self.create_flow()
@@ -300,11 +301,12 @@ class TriggerTest(TembaTest):
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
-        post_data = dict()
-        post_data["omnibox"] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % tommorrow_stamp
+        post_data = {
+            "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+            "repeat_period": "D",
+            "start": "later",
+            "start_datetime_value": str(tommorrow_stamp),
+        }
 
         response = self.client.post(reverse("triggers.trigger_schedule"), post_data)
         self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
@@ -457,6 +459,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.groups.all()[0].pk, linkin_park.pk)
         self.assertEqual(trigger.contacts.all()[0].pk, stromae.pk)
 
+    @uses_legacy_engine
     def test_join_group_trigger(self):
         self.login(self.admin)
         group = self.create_group(name="Chat", contacts=[])
@@ -540,6 +543,7 @@ class TriggerTest(TembaTest):
             pick.release()
             favorites.release()
 
+    @uses_legacy_engine
     def test_unicode_trigger(self):
         self.login(self.admin)
         group = self.create_group(name="Chat", contacts=[])
@@ -567,6 +571,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(msg.msg_type, "F")
         self.assertEqual(set(contact.user_groups.all()), {group})
 
+    @uses_legacy_engine
     def test_join_group_no_response(self):
 
         self.login(self.admin)
@@ -788,6 +793,7 @@ class TriggerTest(TembaTest):
             trigger.refresh_from_db()
             self.assertTrue(trigger.is_archived)
 
+    @uses_legacy_engine
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
@@ -964,6 +970,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.flow, flow)
         self.assertTrue(group in trigger.groups.all())
 
+    @uses_legacy_engine
     def test_trigger_handle(self):
         self.contact = self.create_contact("Eric", "+250788382382")
         self.contact2 = self.create_contact("Nic", "+250788383383")
@@ -1042,6 +1049,7 @@ class TriggerTest(TembaTest):
         # check was handled (this contact is in the group)
         self.assertTrue(Trigger.find_and_handle(incoming2))
 
+    @uses_legacy_engine
     def test_trigger_handle_priority(self):
 
         self.contact = self.create_contact("Eric", "+250788382382")
