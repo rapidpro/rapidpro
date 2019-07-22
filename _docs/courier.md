@@ -32,7 +32,7 @@ URLs with `/c/` in them might be:
 
 ```
   # all courier URLs go to courier
-  location ~ /c/ {
+  location ^~ /c/ {
     proxy_set_header Host $http_host;
     proxy_pass http://courier_server;
     break;
