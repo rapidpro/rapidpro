@@ -1,5 +1,5 @@
 # use container-based Ubuntu Trusty
-dist: trusty
+dist: bionic
 sudo: true
 
 language: python
