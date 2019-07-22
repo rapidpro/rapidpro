@@ -86,6 +86,7 @@ script:
   - cd temba && python ../manage.py compilemessages && cd ..
 
   # fail if there are changes
+  - cat locale/en_US/LC_MESSAGES/django.mo
   - git diff --numstat
   - git diff --numstat | awk '$3 ~ /locale.*mo$/ { print "compilemessages needs to be rerun, see .travis.yml for command"; exit 1 }'  
   
