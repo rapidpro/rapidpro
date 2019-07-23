@@ -8002,9 +8002,15 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
 
     def test_freshchat_urn(self):
-        self.assertEqual("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b", URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"))
-        self.assertTrue(URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"))
+        self.assertEqual(
+            "freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b",
+            URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"),
+        )
+        self.assertTrue(
+            URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        )
         self.assertFalse(URN.validate("freshchat:+12065551212"))
+
     def test_from_parts(self):
 
         self.assertEqual(URN.from_parts("deleted", "12345"), "deleted:12345")
