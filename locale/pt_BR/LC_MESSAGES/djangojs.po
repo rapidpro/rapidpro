@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 12:50+0000\n"
+"POT-Creation-Date: 2019-07-23 16:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,17 +18,22 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: static/js/omnibox.js:30
 msgid "Enter one or more contact groups"
 msgstr ""
 
+#: static/js/omnibox.js:32
 msgid "Recipients, enter contacts"
 msgstr ""
 
+#: static/js/omnibox.js:34
 msgid "Recipients, enter contacts or phone numbers"
 msgstr ""
 
+#: static/js/omnibox.js:37 static/js/omnibox.js:110
 msgid "Recipients, enter contacts or groups"
 msgstr ""
 
+#: static/js/omnibox.js:142
 msgid "Send Message"
 msgstr ""

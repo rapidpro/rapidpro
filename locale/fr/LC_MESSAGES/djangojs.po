@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 12:50+0000\n"
+"POT-Creation-Date: 2019-07-23 16:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <ekieyapojesus@gmail.com>, 2019\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -22,17 +22,22 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: static/js/omnibox.js:30
 msgid "Enter one or more contact groups"
 msgstr "Saisissez un ou plusieurs groupes de contact"
 
+#: static/js/omnibox.js:32
 msgid "Recipients, enter contacts"
 msgstr "Destinataires, entrer des contacts"
 
+#: static/js/omnibox.js:34
 msgid "Recipients, enter contacts or phone numbers"
 msgstr "Destinataires, entrez des contacts ou des numéros de téléphone"
 
+#: static/js/omnibox.js:37 static/js/omnibox.js:110
 msgid "Recipients, enter contacts or groups"
 msgstr "Destinataires, entrez des contacts ou des groupes"
 
+#: static/js/omnibox.js:142
 msgid "Send Message"
 msgstr "Envoyer un message"

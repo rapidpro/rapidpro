@@ -43,7 +43,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers, uses_legacy_engine
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -594,17 +594,14 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.usersettings_phone"), post_data)
         self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
 
-    def test_org_suspension(self):
-        from temba.flows.models import FlowRun
-
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_org_suspension(self, mock_async_start):
         self.login(self.admin)
+
         self.org.set_suspended()
         self.org.refresh_from_db()
 
-        self.assertEqual(True, self.org.is_suspended())
-
-        self.assertEqual(0, Msg.objects.all().count())
-        self.assertEqual(0, FlowRun.objects.all().count())
+        self.assertTrue(self.org.is_suspended())
 
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
@@ -619,8 +616,11 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
-        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants="on")
-        response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            follow=True,
+        )
 
         self.assertEqual(
             "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
@@ -652,15 +652,20 @@ class OrgTest(TembaTest):
             status_code=400,
         )
 
-        # still no messages or runs
-        self.assertEqual(0, Msg.objects.all().count())
-        self.assertEqual(0, FlowRun.objects.all().count())
+        # still no messages or flow starts
+        self.assertEqual(Msg.objects.all().count(), 0)
+        mock_async_start.assert_not_called()
 
         # unsuspend our org and start a flow
         self.org.set_restored()
-        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants="on")
-        response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
-        self.assertEqual(1, FlowRun.objects.all().count())
+
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            follow=True,
+        )
+
+        mock_async_start.assert_called_once()
 
     def test_org_administration(self):
         manage_url = reverse("orgs.org_manage")
@@ -2590,6 +2595,7 @@ class AnonOrgTest(TembaTest):
         self.org.is_anon = True
         self.org.save()
 
+    @uses_legacy_engine
     def test_contacts(self):
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")

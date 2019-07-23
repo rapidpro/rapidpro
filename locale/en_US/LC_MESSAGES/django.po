@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 12:50+0000\n"
+"POT-Creation-Date: 2019-07-23 16:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2619,33 +2619,6 @@ msgid "Log event level"
 msgstr ""
 
 msgid "When this log event occurred"
-msgstr ""
-
-msgid "The flow that is being started"
-msgstr ""
-
-msgid "Groups that will start the flow"
-msgstr ""
-
-msgid "Contacts that will start the flow"
-msgstr ""
-
-msgid "Whether to restart any participants already in this flow"
-msgstr ""
-
-msgid "Include contacts currently active in flows"
-msgstr ""
-
-msgid "The campaign event which created this flow start"
-msgstr ""
-
-msgid "How many unique contacts were started down the flow"
-msgstr ""
-
-msgid "The status of this flow start"
-msgstr ""
-
-msgid "Any extra parameters to pass to the flow start (json)"
 msgstr ""
 
 msgid "Unique Identifier"

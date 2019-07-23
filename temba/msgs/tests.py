@@ -39,7 +39,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import AnonymousOrg, TembaTest, uses_legacy_engine
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 from temba.utils.dates import datetime_to_str
@@ -2035,7 +2035,6 @@ class BroadcastTest(TembaTest):
         self.twitter = Channel.create(self.org, self.user, None, "TT")
 
     def run_msg_release_test(self, tc):
-        favorites = self.get_flow("favorites")
         label = Label.get_or_create(self.org, self.user, "Labeled")
 
         # create some incoming messages
@@ -2052,9 +2051,10 @@ class BroadcastTest(TembaTest):
         )
         broadcast2.send()
 
-        # start joe in a flow
-        favorites.start([], [self.joe])
-        msg_in3 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "red!")
+        # give joe some flow messages
+        self.create_msg(contact=self.joe, text="what's your fav color?", msg_type="F", direction="O")
+        msg_in3 = self.create_msg(contact=self.joe, text="red!", msg_type="F", direction="I")
+        self.create_msg(contact=self.joe, text="red is cool", msg_type="F", direction="O")
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
         Msg.objects.filter(direction="O").update(status="S")
@@ -2226,6 +2226,7 @@ class BroadcastTest(TembaTest):
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")
 
+    @uses_legacy_engine
     def test_send(self):
         # remove all channels first
         for channel in Channel.objects.all():
@@ -3000,6 +3001,7 @@ class ConsoleTest(TembaTest):
         if clear:
             self.console.clear_echoed()
 
+    @uses_legacy_engine
     def test_msg_console(self):
         # make sure our org is properly set
         self.assertEqual(self.console.org, self.org)

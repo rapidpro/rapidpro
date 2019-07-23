@@ -186,8 +186,6 @@ class Broadcast(models.Model):
 
     modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
 
-    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
-
     media = TranslatableField(
         verbose_name=_("Media"), max_length=2048, help_text=_("The localized versions of the media"), null=True
     )

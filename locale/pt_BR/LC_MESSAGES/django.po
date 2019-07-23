@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 12:50+0000\n"
+"POT-Creation-Date: 2019-07-23 16:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3605,35 +3605,6 @@ msgstr ""
 #| msgid "When this flow run expired"
 msgid "When this log event occurred"
 msgstr "Quando o prazo de execução deste fluxo expirou"
-
-msgid "The flow that is being started"
-msgstr "O fluxo que está sendo iniciado"
-
-msgid "Groups that will start the flow"
-msgstr "Grupos que irão iniciar o fluxo"
-
-msgid "Contacts that will start the flow"
-msgstr "Contatos que irão iniciar o fluxo"
-
-msgid "Whether to restart any participants already in this flow"
-msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
-
-msgid "Include contacts currently active in flows"
-msgstr ""
-
-#, fuzzy
-msgid "The campaign event which created this flow start"
-msgstr "iniciou este fluxo"
-
-#, fuzzy
-msgid "How many unique contacts were started down the flow"
-msgstr "Nenhum contato iniciou este fluxo"
-
-msgid "The status of this flow start"
-msgstr "O estado do início deste fluxo"
-
-msgid "Any extra parameters to pass to the flow start (json)"
-msgstr ""
 
 msgid "Unique Identifier"
 msgstr ""
@@ -11087,6 +11058,29 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid "The flow that is being started"
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#~ msgid "Groups that will start the flow"
+#~ msgstr "Grupos que irão iniciar o fluxo"
+
+#~ msgid "Contacts that will start the flow"
+#~ msgstr "Contatos que irão iniciar o fluxo"
+
+#~ msgid "Whether to restart any participants already in this flow"
+#~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
+
+#, fuzzy
+#~ msgid "The campaign event which created this flow start"
+#~ msgstr "iniciou este fluxo"
+
+#, fuzzy
+#~ msgid "How many unique contacts were started down the flow"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#~ msgid "The status of this flow start"
+#~ msgstr "O estado do início deste fluxo"
 
 #, fuzzy
 #~| msgid "missed call"
