@@ -31,7 +31,7 @@ import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
+from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
 from temba.utils.json import TembaJsonAdapter
 
@@ -1809,7 +1809,6 @@ class MiddlewareTest(TembaTest):
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
-    @uses_legacy_engine
     def test_command(self):
         self.create_anonymous_user()
 
@@ -1846,7 +1845,10 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
             call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
 
         # but simulate can
-        call_command("test_db", "simulate", num_runs=2)
+        with patch("temba.flows.models.FlowStart.async_start") as mock_async_start:
+            call_command("test_db", "simulate", num_runs=2)
+
+            self.assertEqual(mock_async_start.call_count, 4)  # num_runs is only the minimum
 
 
 class JsonModelTestDefaultNull(models.Model):
