@@ -7113,7 +7113,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
