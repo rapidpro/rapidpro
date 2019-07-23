@@ -5224,7 +5224,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid Phone number 12345"),
                 ],
@@ -5244,7 +5244,7 @@ class ContactTest(TembaTest):
                         line=3,
                         error="Missing any valid URNs; at least one among URN:tel, "
                         "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                        "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                     ),
                     dict(line=4, error="Invalid URN: abcdef"),
                 ],
@@ -5337,7 +5337,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5419,7 +5419,7 @@ class ContactTest(TembaTest):
                             line=3,
                             error="Missing any valid URNs; at least one among URN:tel, "
                             "URN:facebook, URN:twitter, URN:twitterid, URN:viber, URN:line, URN:telegram, URN:mailto, "
-                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp should be provided or a Contact UUID",
+                            "URN:ext, URN:jiochat, URN:wechat, URN:fcm, URN:whatsapp, URN:freshchat should be provided or a Contact UUID",
                         )
                     ],
                 ),
@@ -5572,7 +5572,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open("%s/test_imports/sample_contacts_missing_name_phone_headers.xls" % settings.MEDIA_ROOT, "rb")
@@ -5584,7 +5584,7 @@ class ContactTest(TembaTest):
             "csv_file",
             'The file you provided is missing a required header. At least one of "URN:tel", "URN:facebook", '
             '"URN:twitter", "URN:twitterid", "URN:viber", "URN:line", "URN:telegram", "URN:mailto", "URN:ext", '
-            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp" or "Contact UUID" should be included.',
+            '"URN:jiochat", "URN:wechat", "URN:fcm", "URN:whatsapp", "URN:freshchat" or "Contact UUID" should be included.',
         )
 
         csv_file = open(
@@ -7932,7 +7932,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEqual(len(response_json), 47)
+        self.assertEqual(len(response_json), 48)
         self.assertEqual(response_json[0]["label"], "Full name")
         self.assertEqual(response_json[0]["key"], "name")
         self.assertEqual(response_json[1]["label"], "Phone number")
