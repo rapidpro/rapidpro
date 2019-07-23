@@ -4733,7 +4733,7 @@ class ActionLog(models.Model):
     created_on = models.DateTimeField(help_text=_("When this log event occurred"))
 
 
-class FlowStart(SmartModel):
+class FlowStart(models.Model):
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
     STATUS_COMPLETE = "C"
@@ -4746,59 +4746,57 @@ class FlowStart(SmartModel):
         (STATUS_FAILED, "Failed"),
     )
 
+    # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    flow = models.ForeignKey(
-        Flow, on_delete=models.PROTECT, related_name="starts", help_text=_("The flow that is being started")
-    )
+    # the flow that should be started
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
 
-    groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
+    # the groups that should be considered for start in this flow
+    groups = models.ManyToManyField(ContactGroup)
 
-    contacts = models.ManyToManyField(Contact, help_text=_("Contacts that will start the flow"))
+    # the individual contacts that should be considered for start in this flow
+    contacts = models.ManyToManyField(Contact)
 
-    restart_participants = models.BooleanField(
-        default=True, help_text=_("Whether to restart any participants already in this flow")
-    )
+    # whether to restart contacts that have already participated in this flow
+    restart_participants = models.BooleanField(default=True)
 
-    include_active = models.BooleanField(default=True, help_text=_("Include contacts currently active in flows"))
+    # whether to start contacts in this flow that are active in other flows
+    include_active = models.BooleanField(default=True)
 
+    # the campaign event that started this flow start (if any)
     campaign_event = models.ForeignKey(
-        "campaigns.CampaignEvent",
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="flow_starts",
-        help_text=_("The campaign event which created this flow start"),
+        "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
     )
 
-    contact_count = models.IntegerField(default=0, help_text=_("How many unique contacts were started down the flow"))
+    # any channel connections associated with this flow start
+    connections = models.ManyToManyField(ChannelConnection, related_name="starts")
 
-    connections = models.ManyToManyField(
-        ChannelConnection, related_name="starts", help_text="The channel connections created for this start"
-    )
+    # the current status of this flow start
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    status = models.CharField(
-        max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES, help_text=_("The status of this flow start")
-    )
+    # any extra parameters that should be passed as trigger params for this flow start
+    extra = JSONAsTextField(null=True, default=dict)
 
-    extra = JSONAsTextField(
-        null=True, default=dict, help_text=_("Any extra parameters to pass to the flow start (json)")
-    )
+    # the parent flow's summary if there is one
+    parent_summary = JSONField(null=True)
 
+    # who created this flow start
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        help_text="The user which originally created this item",
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations"
     )
 
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
-    )
+    # when this flow start was created
+    created_on = models.DateTimeField(default=timezone.now, editable=False)
+
+    # deprecated fields
+    is_active = models.BooleanField(default=True, null=True)
+
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+
+    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
+
+    contact_count = models.IntegerField(default=0, null=True)
 
     @classmethod
     def create(
@@ -4825,7 +4823,7 @@ class FlowStart(SmartModel):
             campaign_event=campaign_event,
             extra=extra,
             created_by=user,
-            modified_by=user,
+            created_on=timezone.now(),
         )
 
         for contact in contacts:
