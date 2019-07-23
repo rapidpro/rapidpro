@@ -87,8 +87,6 @@ URN_SCHEME_CONFIG = (
 
 IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
-STOP_CONTACT_EVENT = "stop_contact"
-
 
 class URN(object):
     """
@@ -216,6 +214,10 @@ class URN(object):
         # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:  # pragma: needs cover
             return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
+
+        # validate Freshchat URNS look right (this is a guess)
+        elif scheme == FRESHCHAT_SCHEME:  # pragma: needs cover
+            return regex.match(r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$", path, regex.V0)
 
         # anything goes for external schemes
         return True
