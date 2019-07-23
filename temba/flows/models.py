@@ -4765,7 +4765,9 @@ class FlowStart(models.Model):
     include_active = models.BooleanField(default=True)
 
     # the campaign event that started this flow start (if any)
-    campaign_event = models.ForeignKey("campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts")
+    campaign_event = models.ForeignKey(
+        "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
+    )
 
     # any channel connections associated with this flow start
     connections = models.ManyToManyField(ChannelConnection, related_name="starts")
@@ -4780,7 +4782,9 @@ class FlowStart(models.Model):
     parent_summary = JSONField(null=True)
 
     # who created this flow start
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations"
+    )
 
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)

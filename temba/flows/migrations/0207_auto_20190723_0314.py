@@ -10,89 +10,89 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0206_remove_flow_flow_server_enabled'),
-    ]
+    dependencies = [("flows", "0206_remove_flow_flow_server_enabled")]
 
     operations = [
         migrations.AddField(
-            model_name='flowstart',
-            name='parent_summary',
+            model_name="flowstart",
+            name="parent_summary",
             field=temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder, null=True),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='campaign_event',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='flow_starts', to='campaigns.CampaignEvent'),
+            model_name="flowstart",
+            name="campaign_event",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="flow_starts",
+                to="campaigns.CampaignEvent",
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='connections',
-            field=models.ManyToManyField(related_name='starts', to='channels.ChannelConnection'),
+            model_name="flowstart",
+            name="connections",
+            field=models.ManyToManyField(related_name="starts", to="channels.ChannelConnection"),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='contact_count',
-            field=models.IntegerField(default=0, null=True),
+            model_name="flowstart", name="contact_count", field=models.IntegerField(default=0, null=True)
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='contacts',
-            field=models.ManyToManyField(to='contacts.Contact'),
+            model_name="flowstart", name="contacts", field=models.ManyToManyField(to="contacts.Contact")
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='created_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='flows_flowstart_creations', to=settings.AUTH_USER_MODEL),
+            model_name="flowstart",
+            name="created_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="flows_flowstart_creations",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='created_on',
+            model_name="flowstart",
+            name="created_on",
             field=models.DateTimeField(default=django.utils.timezone.now, editable=False),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='extra',
-            field=temba.utils.models.JSONAsTextField(default=dict, null=True),
+            model_name="flowstart", name="extra", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='flow',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='starts', to='flows.Flow'),
+            model_name="flowstart",
+            name="flow",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT, related_name="starts", to="flows.Flow"
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='groups',
-            field=models.ManyToManyField(to='contacts.ContactGroup'),
+            model_name="flowstart", name="groups", field=models.ManyToManyField(to="contacts.ContactGroup")
+        ),
+        migrations.AlterField(model_name="flowstart", name="include_active", field=models.BooleanField(default=True)),
+        migrations.AlterField(
+            model_name="flowstart", name="is_active", field=models.BooleanField(default=True, null=True)
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='include_active',
-            field=models.BooleanField(default=True),
+            model_name="flowstart",
+            name="modified_by",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL
+            ),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='is_active',
-            field=models.BooleanField(default=True, null=True),
-        ),
-        migrations.AlterField(
-            model_name='flowstart',
-            name='modified_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL),
-        ),
-        migrations.AlterField(
-            model_name='flowstart',
-            name='modified_on',
+            model_name="flowstart",
+            name="modified_on",
             field=models.DateTimeField(default=django.utils.timezone.now, editable=False, null=True),
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='restart_participants',
-            field=models.BooleanField(default=True),
+            model_name="flowstart", name="restart_participants", field=models.BooleanField(default=True)
         ),
         migrations.AlterField(
-            model_name='flowstart',
-            name='status',
-            field=models.CharField(choices=[('P', 'Pending'), ('S', 'Starting'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1),
+            model_name="flowstart",
+            name="status",
+            field=models.CharField(
+                choices=[("P", "Pending"), ("S", "Starting"), ("C", "Complete"), ("F", "Failed")],
+                default="P",
+                max_length=1,
+            ),
         ),
     ]
