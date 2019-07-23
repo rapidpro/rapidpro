@@ -4088,6 +4088,7 @@ class BulkExportTest(TembaTest):
 class CreditAlertTest(TembaTest):
     @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_check_topup_expiration(self):
+        from .tasks import check_topup_expiration_task
 
         # get the topup, it expires in a year by default
         topup = self.org.topups.order_by("-expires_on").first()
@@ -4096,7 +4097,7 @@ class CreditAlertTest(TembaTest):
         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
 
         # check if credit alerts should be created
-        CreditAlert.check_topup_expiration()
+        check_topup_expiration_task()
 
         # no alert since no expiring credits
         self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
@@ -4109,7 +4110,7 @@ class CreditAlertTest(TembaTest):
         TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
 
         # recheck the expiration
-        CreditAlert.check_topup_expiration()
+        check_topup_expiration_task()
 
         # expiring credit alert created and email sent
         self.assertEqual(
@@ -4124,8 +4125,8 @@ class CreditAlertTest(TembaTest):
         self.assertIn("RapidPro account for Temba", sent_email.body)
         self.assertIn("expiring credits in less than one month.", sent_email.body)
 
-        # check topup expiration, it should no create a new one, becuse last one is still active
-        CreditAlert.check_topup_expiration()
+        # check topup expiration, it should no create a new one, because last one is still active
+        check_topup_expiration_task()
 
         # no new alrets, and no new emails have been sent
         self.assertEqual(
@@ -4138,7 +4139,7 @@ class CreditAlertTest(TembaTest):
         self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
 
         # check topup expiration, it should create a new topup alert email
-        CreditAlert.check_topup_expiration()
+        check_topup_expiration_task()
 
         self.assertEqual(
             CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING).count(), 1

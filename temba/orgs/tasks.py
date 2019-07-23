@@ -23,7 +23,7 @@ def check_credits_task():  # pragma: needs cover
 
 
 @task(track_started=True, name="check_topup_expiration_task")
-def check_topup_expiration_task():  # pragma: needs cover
+def check_topup_expiration_task():
     CreditAlert.check_topup_expiration()
 
 
