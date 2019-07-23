@@ -7237,7 +7237,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(48):
+            with self.assertNumQueries(49):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
