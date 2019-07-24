@@ -3,6 +3,7 @@ import io
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
+from urllib.parse import urlencode
 from uuid import uuid4
 
 import nexmo
@@ -22,6 +23,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -41,7 +43,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import MockResponse, TembaTest
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -64,7 +66,6 @@ from .models import (
     Org,
     TopUp,
     TopUpCredits,
-    get_current_export_version,
 )
 from .tasks import squash_topupcredits
 
@@ -220,7 +221,7 @@ class OrgDeleteTest(TembaTest):
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.administrators.add(self.user)
-        self.child_org.initialize(topup_size=0, flow_server_enabled=False)
+        self.child_org.initialize(topup_size=0)
         self.child_org.parent = self.parent_org
         self.child_org.save()
 
@@ -301,7 +302,8 @@ class OrgDeleteTest(TembaTest):
             self.assertEqual(5, len(self.mock_s3.objects))
 
             # add in some webhook results
-            WebHookEvent.objects.create(org=org, event=WebHookEvent.TYPE_RELAYER_ALARM, data=dict())
+            resthook = Resthook.get_or_create(org, "registration", self.admin)
+            WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )
@@ -592,17 +594,14 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.usersettings_phone"), post_data)
         self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
 
-    def test_org_suspension(self):
-        from temba.flows.models import FlowRun
-
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_org_suspension(self, mock_async_start):
         self.login(self.admin)
+
         self.org.set_suspended()
         self.org.refresh_from_db()
 
-        self.assertEqual(True, self.org.is_suspended())
-
-        self.assertEqual(0, Msg.objects.all().count())
-        self.assertEqual(0, FlowRun.objects.all().count())
+        self.assertTrue(self.org.is_suspended())
 
         # while we are suspended, we can't send broadcasts
         send_url = reverse("msgs.broadcast_send")
@@ -617,8 +616,11 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
-        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants="on")
-        response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            follow=True,
+        )
 
         self.assertEqual(
             "Sorry, your account is currently suspended. To enable sending messages, please contact support.",
@@ -650,72 +652,20 @@ class OrgTest(TembaTest):
             status_code=400,
         )
 
-        # still no messages or runs
-        self.assertEqual(0, Msg.objects.all().count())
-        self.assertEqual(0, FlowRun.objects.all().count())
+        # still no messages or flow starts
+        self.assertEqual(Msg.objects.all().count(), 0)
+        mock_async_start.assert_not_called()
 
         # unsuspend our org and start a flow
         self.org.set_restored()
-        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants="on")
-        response = self.client.post(reverse("flows.flow_broadcast", args=[flow.pk]), post_data, follow=True)
-        self.assertEqual(1, FlowRun.objects.all().count())
 
-    def test_webhook_headers(self):
-        update_url = reverse("orgs.org_webhook")
-        login_url = reverse("users.user_login")
-
-        # no access if anonymous
-        response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
-
-        self.login(self.admin)
-
-        response = self.client.get(update_url)
-        self.assertEqual(302, response.status_code)
-
-        self.assertRedirect(response, reverse("orgs.org_token"))
-
-        # simulate an org that had the old config set
-        org = Org.objects.get(pk=self.org.pk)
-        org.webhook = dict(url="Set")
-        org.save()
-
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-
-        # set a webhook with headers
-        post_data = response.context["form"].initial
-        post_data["webhook_url"] = "http://webhooks.uniceflabs.org"
-        post_data["header_1_key"] = "Authorization"
-        post_data["header_1_value"] = "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # check that our webhook settings have changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("http://webhooks.uniceflabs.org", org.get_webhook_url())
-        self.assertDictEqual(
-            {"Authorization": "Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="}, org.get_webhook_headers()
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": f"c-{mark.uuid}", "restart_participants": "on"},
+            follow=True,
         )
 
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, update_url)
-
-    def test_enable_flow_server(self):
-        update_url = reverse("orgs.org_update", args=[self.org.pk])
-
-        # create a flow on this org
-        flow = self.create_flow()
-
-        # now update the org to be flow server enabled
-        self.login(self.superuser)
-        form = dict(brand="rapidpro.io", name="Test Org", flow_server_enabled=1)
-        self.client.post(update_url, data=form, follow=True)
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.flow_server_enabled)
+        mock_async_start.assert_called_once()
 
     def test_org_administration(self):
         manage_url = reverse("orgs.org_manage")
@@ -776,8 +726,6 @@ class OrgTest(TembaTest):
             "timezone": pytz.timezone("Africa/Kigali"),
             "config": "{}",
             "date_format": "D",
-            "webhook": None,
-            "webhook_events": 0,
             "parent": parent.id,
             "viewers": [self.user.id],
             "editors": [self.editor.id],
@@ -2689,33 +2637,34 @@ class AnonOrgTest(TembaTest):
             self.assertNotContains(response, "123123")
             self.assertContains(response, "No matching contacts.")
 
-        # create a flow
-        flow = self.get_flow("color")
+        # create an outgoing message, check number doesn't appear in outbox
+        msg1 = self.create_msg(contact=contact, text="hello", direction="O")
 
-        # start the contact down it
-        flow.start([], [contact])
-
-        # should have one SMS
-        self.assertEqual(1, Msg.objects.all().count())
-
-        # shouldn't show the number on the outgoing page
         response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertNotContains(response, "788 123 123")
-
-        # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, str(contact.get_urn()), "Blue")
-        response = self.client.get(reverse("msgs.msg_flow"))
+        self.assertEqual(set(response.context["object_list"]), {msg1})
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
-        # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, str(contact.get_urn()), "Where's the beef?")
-        response = self.client.get(reverse("msgs.msg_flow"))
+        # create an incoming message, check number doesn't appear in inbox
+        msg2 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="I", status="H")
+
+        response = self.client.get(reverse("msgs.msg_inbox"))
+
+        self.assertEqual(set(response.context["object_list"]), {msg2})
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
-        # contact detail page
+        # create an incoming flow message, check number doesn't appear in inbox
+        msg3 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="F", status="H")
+
+        response = self.client.get(reverse("msgs.msg_flow"))
+
+        self.assertEqual(set(response.context["object_list"]), {msg3})
+        self.assertNotContains(response, "788 123 123")
+        self.assertContains(response, masked)
+
+        # check contact detail page
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -2920,6 +2869,12 @@ class OrgCRUDLTest(TembaTest):
 
     def test_org_signup(self):
         signup_url = reverse("orgs.org_signup")
+
+        response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@example.com"}))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("email", response.context["form"].fields)
+        self.assertEqual(response.context["view"].derive_initial()["email"], "address@example.com")
+
         response = self.client.get(signup_url)
         self.assertEqual(response.status_code, 200)
         self.assertIn("name", response.context["form"].fields)
@@ -2974,7 +2929,6 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
         self.assertEqual(org.slug, "relieves-world")
-        self.assertTrue(org.flow_server_enabled)
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
@@ -3024,25 +2978,6 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertEqual(200, response.status_code)
-
-        # simulate old webhook config was set
-        org = Org.objects.get(name="Relieves World")
-        org.webhook = dict(url="SET")
-        org.save()
-
-        # try setting our webhook and subscribe to one of the events
-        response = self.client.post(
-            reverse("orgs.org_webhook"), dict(webhook_url="http://fake.com/webhook.php", mt_sms=1)
-        )
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        org = Org.objects.get(name="Relieves World")
-        self.assertEqual("http://fake.com/webhook.php", org.get_webhook_url())
-        self.assertTrue(org.is_notified_of_mt_sms())
-        self.assertFalse(org.is_notified_of_mo_sms())
-        self.assertFalse(org.is_notified_of_mt_call())
-        self.assertFalse(org.is_notified_of_mo_call())
-        self.assertFalse(org.is_notified_of_alarms())
 
         # try changing our username, wrong password
         post_data = dict(email="myal@wr.org", current_password="HelloWorld")
@@ -3496,6 +3431,19 @@ class LanguageTest(TembaTest):
 
 
 class BulkExportTest(TembaTest):
+    def test_import_validation(self):
+        # export must include version field
+        with self.assertRaises(ValueError):
+            self.org.import_app({"flows": []}, self.admin)
+
+        # export version can't be older than Org.EARLIEST_IMPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "2", "flows": []}, self.admin)
+
+        # export version can't be newer than Org.CURRENT_EXPORT_VERSION
+        with self.assertRaises(ValueError):
+            self.org.import_app({"version": "21415", "flows": []}, self.admin)
+
     def test_get_dependencies(self):
 
         # import a flow that triggers another flow
@@ -3504,7 +3452,7 @@ class BulkExportTest(TembaTest):
         flow = self.get_flow("triggered", substitutions)
 
         # read in the old version 8 raw json
-        old_json = json.loads(self.get_import_json("triggered", substitutions))
+        old_json = self.get_import_json("triggered", substitutions)
         old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
 
         # splice our actionset with old bits
@@ -3584,7 +3532,9 @@ class BulkExportTest(TembaTest):
         # try to import the flow
         flow.release()
         response.json()
-        Flow.import_flows(exported, self.org, self.admin)
+
+        dep_mapping = {}
+        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
 
         # make sure the created flow has the same action set
         flow = Flow.objects.filter(name="%s" % flow.name).first()
@@ -3728,14 +3678,69 @@ class BulkExportTest(TembaTest):
         self.assertEqual(1, new_event.event_fires.all().count())
         self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
 
-    def test_import_group_remapping(self):
-        self.import_file("cataclysm")
+    def test_import_mixed_flow_versions(self):
+        self.import_file("mixed_versions")
+
+        group = ContactGroup.user_groups.get(name="Survey Audience")
+
+        child = Flow.objects.get(name="New Child")
+        self.assertEqual(child.version_number, "13.0.0")
+        self.assertEqual(set(child.flow_dependencies.all()), set())
+        self.assertEqual(set(child.group_dependencies.all()), {group})
+
+        parent = Flow.objects.get(name="Legacy Parent")
+        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.group_dependencies.all()), set())
+
+        dep_graph = self.org.generate_dependency_graph()
+        self.assertEqual(dep_graph[child], {parent})
+        self.assertEqual(dep_graph[parent], {child})
+
+    def test_import_dependency_types(self):
+        self.import_file("all_dependency_types")
+
+        parent = Flow.objects.get(name="All Dep Types")
+        child = Flow.objects.get(name="New Child")
+
+        age = ContactField.user_fields.get(key="age", label="Age")  # created from expression reference
+        gender = ContactField.user_fields.get(key="gender")  # created from action reference
+
+        farmers = ContactGroup.user_groups.get(name="Farmers")
+        self.assertNotEqual(str(farmers.uuid), "967b469b-fd34-46a5-90f9-40430d6db2a4")  # created with new UUID
+
+        self.assertEqual(set(parent.flow_dependencies.all()), {child})
+        self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
+        self.assertEqual(set(parent.group_dependencies.all()), {farmers})
+
+    def test_import_missing_flow_dependency(self):
+        # in production this would blow up validating the flow but we can't do that during tests
+        self.import_file("parent_without_its_child")
+
+        parent = Flow.objects.get(name="Single Parent")
+        self.assertEqual(set(parent.flow_dependencies.all()), set())
+
+        # create child with that name and re-import
+        child1 = Flow.create(self.org, self.admin, "New Child", Flow.TYPE_MESSAGE)
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child1})
+
+        # create child with that UUID and re-import
+        child2 = Flow.create(
+            self.org, self.admin, "New Child", Flow.TYPE_MESSAGE, uuid="a925453e-ad31-46bd-858a-e01136732181"
+        )
+
+        self.import_file("parent_without_its_child")
+        self.assertEqual(set(parent.flow_dependencies.all()), {child2})
+
+    def test_implicit_group_imports_legacy(self):
+        self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
-        rev = flow.revisions.all().first()
 
-        from temba.flows.tests import get_groups
+        from temba.flows.tests import get_legacy_groups
 
-        definition_groups = get_groups(rev.get_definition_json())
+        definition_groups = get_legacy_groups(flow.as_json())
 
         # we should have 5 groups
         self.assertEqual(5, len(definition_groups))
@@ -3746,6 +3751,117 @@ class BulkExportTest(TembaTest):
                 ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
                 msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
             )
+
+    def validate_flow_dependencies(self, definition):
+        flow_info = mailroom.get_client().flow_inspect(definition)
+        deps = flow_info["dependencies"]
+
+        for ref in deps.get("fields", []):
+            self.assertTrue(
+                ContactField.user_fields.filter(key=ref["key"]).exists(),
+                msg=f"missing field[key={ref['key']}, name={ref['name']}]",
+            )
+        for ref in deps.get("flows", []):
+            self.assertTrue(
+                Flow.objects.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing flow[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+        for ref in deps.get("groups", []):
+            self.assertTrue(
+                ContactGroup.user_groups.filter(uuid=ref["uuid"]).exists(),
+                msg=f"missing group[uuid={ref['uuid']}, name={ref['name']}]",
+            )
+
+    def test_implicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions without fields and groups included in the export
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+        del data["groups"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (all static since we can only create static groups from group references)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 5)
+
+        # and so no fields created
+        self.assertEqual(ContactField.user_fields.all().count(), 0)
+
+    def test_implicit_field_and_explicit_group_imports(self):
+        """
+        Tests importing flow definitions with groups included in the export but not fields
+        """
+
+        data = self.get_import_json("cataclysm")
+        del data["fields"]
+
+        with ESMockWithScroll():
+            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # but without implicit fields in the export, the details aren't correct
+        self.assertEqual(likes_cats.label, "Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts Per Day")
+        self.assertEqual(facts_per_day.value_type, "T")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
+
+    def test_explicit_field_and_group_imports(self):
+        """
+        Tests importing flow definitions with groups and fields included in the export
+        """
+
+        with ESMockWithScroll():
+            self.import_file("cataclysm")
+
+        flow = Flow.objects.get(name="Cataclysmic")
+        self.validate_flow_dependencies(flow.as_json())
+
+        # we should have 5 groups (2 dynamic)
+        self.assertEqual(ContactGroup.user_groups.all().count(), 5)
+        self.assertEqual(ContactGroup.user_groups.filter(query=None).count(), 3)
+
+        # new fields should have been created for the dynamic groups
+        likes_cats = ContactField.user_fields.get(key="likes_cats")
+        facts_per_day = ContactField.user_fields.get(key="facts_per_day")
+
+        # and with implicit fields in the export, the details should be correct
+        self.assertEqual(likes_cats.label, "Really Likes Cats")
+        self.assertEqual(likes_cats.value_type, "T")
+        self.assertEqual(facts_per_day.label, "Facts-Per-Day")
+        self.assertEqual(facts_per_day.value_type, "N")
+
+        cat_fanciers = ContactGroup.user_groups.get(name="Cat Fanciers")
+        self.assertEqual(cat_fanciers.query, 'likes_cats = "true"')
+        self.assertEqual(set(cat_fanciers.query_fields.all()), {likes_cats})
+
+        cat_blasts = ContactGroup.user_groups.get(name="Cat Blasts")
+        self.assertEqual(cat_blasts.query, "facts_per_day = 1")
+        self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_export_import(self):
         def assert_object_counts():
@@ -3868,12 +3984,28 @@ class BulkExportTest(TembaTest):
 
         response = self.client.post(reverse("orgs.org_export"), post_data)
         exported = response.json()
-        self.assertEqual(get_current_export_version(), exported.get("version", 0))
-        self.assertEqual("https://app.rapidpro.io", exported.get("site", None))
+        self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
+        self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
         self.assertEqual(8, len(exported.get("flows", [])))
         self.assertEqual(4, len(exported.get("triggers", [])))
         self.assertEqual(1, len(exported.get("campaigns", [])))
+        self.assertEqual(
+            exported["fields"],
+            [
+                {"key": "appointment_confirmed", "name": "Appointment Confirmed", "type": "text"},
+                {"key": "next_appointment", "name": "Next Appointment", "type": "datetime"},
+                {"key": "rating", "name": "Rating", "type": "text"},
+            ],
+        )
+        self.assertEqual(
+            exported["groups"],
+            [
+                {"uuid": matchers.UUID4String(), "name": "Delay Notification", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Pending Appointments", "query": None},
+                {"uuid": matchers.UUID4String(), "name": "Unsatisfied Customers", "query": None},
+            ],
+        )
 
         # set our org language to english
         self.org.set_languages(self.admin, ["eng", "fre"], "eng")
@@ -3894,34 +4026,35 @@ class BulkExportTest(TembaTest):
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name="Confirm Appointment")
         flow.name = "A new flow"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign = Campaign.objects.all().first()
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign = Campaign.objects.get()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
-        group = ContactGroup.user_groups.filter(name="Pending Appointments").first()
+        group = ContactGroup.user_groups.get(name="Pending Appointments")
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
-        # it should fall back on ids and not create new objects even though the names changed
+        # it should fall back on UUIDs and not create new objects even though the names changed
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
+
         assert_object_counts()
 
-        # and our objets should have the same names as before
+        # and our objects should have the same names as before
         self.assertEqual("Confirm Appointment", Flow.objects.get(pk=flow.pk).name)
         self.assertEqual("Appointment Schedule", Campaign.objects.filter(is_active=True).first().name)
         self.assertEqual("Pending Appointments", ContactGroup.user_groups.get(pk=group.pk).name)
 
         # let's rename our objects again
         flow.name = "A new name"
-        flow.save()
+        flow.save(update_fields=("name",))
 
-        campaign.name = "A new campagin"
-        campaign.save()
+        campaign.name = "A new campaign"
+        campaign.save(update_fields=("name",))
 
         group.name = "A new group"
-        group.save()
+        group.save(update_fields=("name",))
 
         # now import the same import but pretend its from a different site
         self.org.import_app(exported, self.admin, site="http://temba.io")

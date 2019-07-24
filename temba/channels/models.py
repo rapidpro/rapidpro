@@ -28,9 +28,17 @@ from django.utils import timezone
 from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
-from temba.mailroom.queue import queue_mailroom_mo_miss_task
-from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit
+from temba import mailroom
+from temba.orgs.models import (
+    ACCOUNT_SID,
+    ACCOUNT_TOKEN,
+    NEXMO_APP_ID,
+    NEXMO_APP_PRIVATE_KEY,
+    NEXMO_KEY,
+    NEXMO_SECRET,
+    Org,
+)
+from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -38,8 +46,6 @@ from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
-# the event type for channel events in the handler queue
-CHANNEL_EVENT = "channel_event"
 
 
 class Encoding(Enum):
@@ -98,7 +104,7 @@ class ChannelType(metaclass=ABCMeta):
     ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
-    #  during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
+    # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
     def is_available_to(self, user):
@@ -340,12 +346,6 @@ class Channel(TembaModel):
         ROLE_ANSWER: "answer",
         ROLE_USSD: "ussd",
     }
-
-    # how many outgoing messages we will queue at once
-    SEND_QUEUE_DEPTH = 500
-
-    # how big each batch of outgoing messages can be
-    SEND_BATCH_SIZE = 100
 
     CONTENT_TYPE_URLENCODED = "urlencoded"
     CONTENT_TYPE_JSON = "json"
@@ -669,6 +669,7 @@ class Channel(TembaModel):
             address=channel.address,
             role=Channel.ROLE_CALL,
             parent=channel,
+            config={"account_sid": org.config[ACCOUNT_SID], "auth_token": org.config[ACCOUNT_TOKEN]},
         )
 
     @classmethod
@@ -915,24 +916,22 @@ class Channel(TembaModel):
         # return our command
         return dict(cmd="reg", relayer_claim_code=self.claim_code, relayer_secret=self.secret, relayer_id=self.id)
 
-    def get_latest_sent_message(self):
-        # all message states that are successfully sent
-        messages = self.msgs.filter(status__in=["S", "D"]).exclude(sent_on=None).order_by("-sent_on")
+    def get_last_sent_message(self):
+        from temba.msgs.models import SENT, DELIVERED, OUTGOING
 
-        # only outgoing messages
-        messages = messages.filter(direction="O")
-
-        latest_message = None
-        if messages:
-            latest_message = messages[0]
-
-        return latest_message
+        # find last successfully sent message
+        return (
+            self.msgs.filter(status__in=[SENT, DELIVERED], direction=OUTGOING)
+            .exclude(sent_on=None)
+            .order_by("-sent_on")
+            .first()
+        )
 
     def get_delayed_outgoing_messages(self):
         from temba.msgs.models import Msg
 
         one_hour_ago = timezone.now() - timedelta(hours=1)
-        latest_sent_message = self.get_latest_sent_message()
+        latest_sent_message = self.get_last_sent_message()
 
         # if the last sent message was in the last hour, assume this channel is ok
         if latest_sent_message and latest_sent_message.sent_on > one_hour_ago:  # pragma: no cover
@@ -1028,6 +1027,11 @@ class Channel(TembaModel):
         """
         Releases this channel making it inactive
         """
+
+        dependent_flows_count = self.dependent_flows.count()
+        if dependent_flows_count > 0:
+            raise ValueError(f"Cannot delete Channel: {self.get_name()}, used by {dependent_flows_count} flows")
+
         channel_type = self.get_type()
 
         # release any channels working on our behalf as well
@@ -1160,35 +1164,17 @@ class Channel(TembaModel):
         hours_ago = now - timedelta(hours=12)
         five_minutes_ago = now - timedelta(minutes=5)
 
-        pending = Msg.objects.filter(org=org, direction=OUTGOING)
-        pending = pending.filter(
-            Q(status=PENDING, created_on__lte=five_minutes_ago)
-            | Q(status=QUEUED, queued_on__lte=hours_ago)
-            | Q(status=ERRORED, next_attempt__lte=now)
+        return (
+            Msg.objects.filter(org=org, direction=OUTGOING)
+            .filter(
+                Q(status=PENDING, created_on__lte=five_minutes_ago)
+                | Q(status=QUEUED, queued_on__lte=hours_ago)
+                | Q(status=ERRORED, next_attempt__lte=now)
+            )
+            .exclude(channel__channel_type=Channel.TYPE_ANDROID)
+            .exclude(topup=None)
+            .order_by("created_on")
         )
-        pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)
-
-        # only SMS'es that have a topup
-        pending = pending.exclude(topup=None)
-
-        # order by date created
-        return pending.order_by("created_on")
-
-    @classmethod
-    def track_status(cls, channel, status):
-        if channel:
-            # track success, errors and failures
-            analytics.gauge("temba.channel_%s_%s" % (status.lower(), channel.channel_type.lower()))
-
-    def __str__(self):  # pragma: no cover
-        if self.name:
-            return self.name
-        elif self.device:
-            return self.device
-        elif self.address:
-            return self.address
-        else:
-            return str(self.pk)
 
     def get_count(self, count_types):
         count = (
@@ -1229,6 +1215,16 @@ class Channel(TembaModel):
     @staticmethod
     def redis_active_events_key(channel_id):
         return f"channel_active_events_{channel_id}"
+
+    def __str__(self):  # pragma: no cover
+        if self.name:
+            return self.name
+        elif self.device:
+            return self.device
+        elif self.address:
+            return self.address
+        else:
+            return str(self.id)
 
     class Meta:
         ordering = ("-last_seen", "-pk")
@@ -1431,40 +1427,13 @@ class ChannelEvent(models.Model):
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
             # pass off handling of the message to mailroom after we commit
-            on_transaction_commit(lambda: queue_mailroom_mo_miss_task(event))
+            on_transaction_commit(lambda: mailroom.queue_mo_miss_event(event))
 
         return event
 
     @classmethod
     def get_all(cls, org):
         return cls.objects.filter(org=org)
-
-    def handle(self):
-        """
-        Handles takes care of any processing of this channel event that needs to take place, such as
-        trigger any flows based on new conversations or referrals.
-        """
-        from temba.contacts.models import Contact
-        from temba.triggers.models import Trigger
-
-        handled = False
-
-        if self.event_type == ChannelEvent.TYPE_NEW_CONVERSATION:
-            handled = Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
-
-        elif self.event_type == ChannelEvent.TYPE_REFERRAL:
-            handled = Trigger.catch_triggers(
-                self, Trigger.TYPE_REFERRAL, self.channel, referrer_id=self.extra.get("referrer_id"), extra=self.extra
-            )
-
-        elif self.event_type == ChannelEvent.TYPE_STOP_CONTACT:
-            user = get_anonymous_user()
-            contact, urn_obj = Contact.get_or_create(self.org, self.contact_urn.urn, self.channel)
-
-            contact.stop(user)
-            handled = True
-
-        return handled
 
     def release(self):
         self.delete()
@@ -1650,9 +1619,6 @@ class SyncEvent(SmartModel):
         sync_event.pending_messages = cmd.get("pending", cmd.get("pending_messages"))
         sync_event.retry_messages = cmd.get("retry", cmd.get("retry_messages"))
 
-        # trim any extra events
-        cls.trim()
-
         return sync_event
 
     def release(self):
@@ -1668,8 +1634,8 @@ class SyncEvent(SmartModel):
 
     @classmethod
     def trim(cls):
-        month_ago = timezone.now() - timedelta(days=30)
-        for event in cls.objects.filter(created_on__lte=month_ago):
+        week_ago = timezone.now() - timedelta(days=7)
+        for event in cls.objects.filter(created_on__lte=week_ago):
             event.release()
 
 
@@ -1930,7 +1896,7 @@ class ChannelConnection(models.Model):
     ENDING = "E"
 
     DONE = (COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED)
-    RETRY_CALL = (BUSY, NO_ANSWER)
+    RETRY_CALL = (BUSY, NO_ANSWER, FAILED)
 
     INCOMING = "I"
     OUTGOING = "O"

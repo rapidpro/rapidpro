@@ -62,6 +62,11 @@
             %td{colspan:3}
               -trans "No matching messages."
 
+  -block paginator
+    -if object_list.count
+      .paginator
+        -include "smartmin/sidebar_pagination.haml"
+
 -block extra-style
   {{ block.super }}
 

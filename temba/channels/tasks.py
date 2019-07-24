@@ -1,23 +1,16 @@
 import logging
 from datetime import timedelta
-from enum import Enum
 
 from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
 
-from temba.utils.queues import nonoverlapping_task
+from temba.utils.celery import nonoverlapping_task
 
-from .models import Alert, Channel, ChannelCount, ChannelLog
+from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 
 logger = logging.getLogger(__name__)
-
-
-class MageStreamAction(Enum):
-    activate = 1
-    refresh = 2
-    deactivate = 3
 
 
 @task(track_started=True, name="sync_channel_fcm_task")
@@ -51,6 +44,14 @@ def sync_old_seen_channels_task():
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
+
+
+@nonoverlapping_task(track_started=True, name="trim_sync_events_task")
+def trim_sync_events_task():  # pragma: needs cover
+    """
+    Runs daily and clears any channel sync events that are older than 7 days
+    """
+    SyncEvent.trim()
 
 
 @nonoverlapping_task(track_started=True, name="trim_channel_log_task")

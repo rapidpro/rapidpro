@@ -390,10 +390,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            # fire our send in celery
-            from temba.msgs.tasks import send_broadcast_task
-
-            on_transaction_commit(lambda: send_broadcast_task.delay(obj.pk))
+            on_transaction_commit(lambda: obj.send())
             return obj
 
         def get_form_kwargs(self):
@@ -768,9 +765,9 @@ class BaseLabelForm(forms.ModelForm):
         if labels_count >= Label.MAX_ORG_LABELS:
             raise forms.ValidationError(
                 _(
-                    "This org has %s labels and the limit is %s. "
+                    "This org has %(count)d labels and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % (labels_count, Label.MAX_ORG_LABELS)
+                    "create new ones." % dict(count=labels_count, limit=Label.MAX_ORG_LABELS)
                 )
             )
 

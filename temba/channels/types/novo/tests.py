@@ -53,3 +53,4 @@ class NovoTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         self.assertContains(response, reverse("courier.nv", args=[channel.uuid, "receive"]))
+        self.assertContains(response, channel.config["secret"])

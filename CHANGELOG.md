@@ -1,3 +1,190 @@
+v5.1.10
+----------
+ * Update to flow editor 1.6.8, add completion config
+ * Add FlowStart.parent_summary, start deprecating fields
+ * Switch to bionic beaver for CI builds
+ * Add trigger params access to ivr flow
+ * Drop no longer used Broadcast.purged field
+
+v5.1.9
+----------
+ * Make Broadcast.purged nullable in preparation for dropping it
+
+v5.1.8
+----------
+ * Update floweditor to 1.6.7 and npm audit
+
+v5.1.7
+----------
+ * Remove unused IVR tasks
+ * Simplify failed IVR call handling
+
+v5.1.6
+----------
+ * Fix format_number to be able to handle decimals with more digits than current context precision
+
+v5.1.5
+----------
+ * Update to flow editor 1.6.6
+
+v5.1.4
+----------
+ * Update to flow editor 1.6.5
+ * Update Django to 2.1.10
+
+v5.1.3
+----------
+ * Update flow editor to 1.6.3
+
+v5.1.2
+----------
+ * Remove fields no longer needed by new engine
+ * Trim sync events in a separate task
+
+v5.1.1
+----------
+ * Stop writing legacy engine fields and make them nullable
+ * Remove no longer used send_broadcast_task and other unused sending code
+ * Squash migrations into previously added dummy migrations
+
+v5.1.0
+----------
+ * Populate account sid and and auth token on twilio callers when added
+ * Disable legacy IVR tasks
+
+v5.0.9
+----------
+ * Add dummy migrations for all migrations to be created by squashing
+
+v5.0.8
+----------
+ * Update recommended versions in README
+ * Fix API runs serializer when run doesn't have category (i.e. from save_run_result action)
+ * Update to latest floweditor
+ * Update search parser to convert timestamps into UTC
+
+v5.0.7
+----------
+ * Force a save when migrating flows
+
+v5.0.6
+----------
+ * Show search error if input is not a date
+ * Group being imported into should be in state=INITIALIZING whilist being populated, and hide such groups in the UI
+ * Only add initially changed files in post-commit hook
+ * Fix to make sure the initial form data is properly shown on signup
+
+v5.0.5
+----------
+ * sync whatsapp templates with unsupported languages, show them as such
+
+v5.0.4
+----------
+ * Update to floweditor v1.5.15
+ * Add pagination to outbox
+ * Fix import of contact field when field exists with same name but different key
+ * Fix (old) mac excel dates in imports
+
+v5.0.3
+----------
+ * Update flow editor to 1.5.14
+
+v5.0.2
+----------
+ * Remove reference to webhook API page which no longer exists
+ * Update to flow-editor 1.5.12
+ * Update some LS libs for security
+ * Tweaks to migrate_to_version_11_1 to handle "base" as a lang key
+ * Tweak old flow migrations to allow missing webhook_action and null ruleset labels
+
+v5.0.1
+----------
+ * Fix max length for WA claim facebook_access_token
+ * Fix WhatsApp number formatting on contact page, add icon
+
+v5.0.0
+----------
+ * add validation of localized messages to Travis
+
+v4.27.3
+----------
+ * Make contact.is_test nullable
+ * Migration to remove orphaned schedules and changes to prevent creating them in future
+ * Migration to merge path counts from rules which are merged into a single exit in new engine
+
+v4.27.2
+----------
+ * fix broadcast API test
+
+v4.27.1
+----------
+ * temporarily increase throttling on broadcasts endpoint
+
+v4.27.0
+----------
+ * Cleanup webhook fields left on Org
+ * Stop checking flow_server_enabled and remove support for editing it
+
+v4.26.1
+----------
+ * Remove no longer used check_campaigns_task
+
+v4.26.0
+----------
+ * Remove handling of incoming messages, channel events and campaigns.. all of which is now handled by mailroom
+
+v4.25.0
+----------
+ * Add sentry error to handle_event_task as it shouldnt be handling anything
+ * Remove processing of timeouts which is now handled by mailroom
+ * Start broadcast mailroom tasks with HIGH_PRIORITY
+ * Fix EX settings page load
+ * Migration to convert any remaining orgs to use mailroom
+ * Fix broken links to webhook docs
+ * Simplify WebHookEvent model
+
+v4.23.3
+----------
+ * Send broadcasts through mailroom
+ * Add org name in the email subject for exports
+ * Add org name in export filename
+
+v4.24.0
+----------
+ * Add org name in the export email subject and filename
+ * Update flow editor to 1.5.9
+ * Remove functionality for handling legacy surveyor submissions
+
+v4.23.1
+----------
+ * Make exported fields match goflow representation and add .as_export_ref() to exportable classes
+ * Update to latest floweditor v1.5.5
+ * Persist group and field definitions in exports
+ * Add support for SignalWire (https://signalwire.com) for SMS and IVR
+
+v4.23.0
+----------
+ * Save channel and message label dependencies on flows
+
+v4.22.63
+----------
+ * Update to latest floweditor v1.5.5
+ * Allow switching between editors
+ * Update Django to version 2.1.9
+
+v4.22.62
+----------
+ * add US/ timezones for clicksend as well
+
+v4.22.61
+----------
+ * add clicksend channel type
+
+v4.22.60
+----------
+ * Update flow editor to 1.5.4
+ * Allow imports and exports of v13 flows
+
 v4.22.55
 ----------
  * Enable export of new flows

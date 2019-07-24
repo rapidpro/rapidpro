@@ -116,11 +116,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         status_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
         voice_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
 
-        # old urls (remove once everything is flow server enabled)
-        if not org.flow_server_enabled:
-            status_url = base_url + reverse("handlers.twilio_handler", args=["status", channel_uuid])
-            voice_url = base_url + reverse("handlers.twilio_handler", args=["voice", channel_uuid])
-
         new_app = client.api.applications.create(
             friendly_name="%s/%s" % (callback_domain.lower(), channel_uuid),
             sms_method="POST",

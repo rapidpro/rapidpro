@@ -60,15 +60,10 @@ from temba.utils.views import NonAtomicMixin
 from .models import (
     ACCOUNT_SID,
     ACCOUNT_TOKEN,
-    ALARM_EVENTS,
     CHATBASE_AGENT_NAME,
     CHATBASE_API_KEY,
     CHATBASE_VERSION,
-    MO_CALL_EVENTS,
-    MO_SMS_EVENTS,
     MONTHFIRST,
-    MT_CALL_EVENTS,
-    MT_SMS_EVENTS,
     NEXMO_KEY,
     NEXMO_SECRET,
     NEXMO_UUID,
@@ -547,7 +542,6 @@ class OrgCRUDL(SmartCRUDL):
         "signup",
         "home",
         "token",
-        "webhook",
         "edit",
         "edit_sub_org",
         "join",
@@ -595,8 +589,6 @@ class OrgCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
             def clean_import_file(self):
-                from temba.orgs.models import EARLIEST_IMPORT_VERSION
-
                 # make sure they are in the proper tier
                 if not self.org.is_import_flows_tier():
                     raise ValidationError(_("Sorry, import is a premium feature"))
@@ -608,7 +600,7 @@ class OrgCRUDL(SmartCRUDL):
                 except (DjangoUnicodeDecodeError, ValueError):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
-                if Flow.is_before_version(json_data.get("version", 0), EARLIEST_IMPORT_VERSION):
+                if Flow.is_before_version(json_data.get("version", 0), Org.EARLIEST_IMPORT_VERSION):
                     raise ValidationError(
                         _("This file is no longer valid. Please export a new version and try again.")
                     )
@@ -1173,7 +1165,7 @@ class OrgCRUDL(SmartCRUDL):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
-        fields = ("name", "brand", "parent", "is_anon", "flow_server_enabled")
+        fields = ("name", "brand", "parent", "is_anon")
 
         class OrgUpdateForm(forms.ModelForm):
             parent = forms.IntegerField(required=False)
@@ -1185,16 +1177,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = (
-                    "name",
-                    "slug",
-                    "stripe_customer",
-                    "is_active",
-                    "is_anon",
-                    "flow_server_enabled",
-                    "brand",
-                    "parent",
-                )
+                fields = ("name", "slug", "stripe_customer", "is_active", "is_anon", "brand", "parent")
 
         form_class = OrgUpdateForm
 
@@ -1261,18 +1244,6 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().release()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
-
-        def pre_save(self, obj):
-            # figure out what our previous value was
-            obj.was_flow_server_enabled = Org.objects.get(id=obj.id).flow_server_enabled
-            return super().pre_save(obj)
-
-        def post_save(self, obj):
-            # if we are being changed to flow server enabled, do so
-            if not obj.was_flow_server_enabled and obj.flow_server_enabled:
-                obj.enable_flow_server()
-
-            return super().post_save(obj)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -2060,7 +2031,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().get_initial()
-            initial["email"] = self.request.POST.get("email", None)
+            initial["email"] = self.request.POST.get("email", self.request.GET.get("email", None))
             return initial
 
         def get_welcome_size(self):
@@ -2153,90 +2124,10 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         def get_context_data(self, **kwargs):
-            from temba.api.models import WebHookEvent
+            from temba.api.models import WebHookResult
 
             context = super().get_context_data(**kwargs)
-            context["failed_webhooks"] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
-            return context
-
-    class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class WebhookForm(forms.ModelForm):
-            webhook_url = forms.URLField(required=False, label=_("Webhook URL"), help_text="")
-            headers = forms.CharField(required=False)
-            mt_sms = forms.BooleanField(required=False, label=_("Incoming SMS"))
-            mo_sms = forms.BooleanField(required=False, label=_("Outgoing SMS"))
-            mt_call = forms.BooleanField(required=False, label=_("Incoming Calls"))
-            mo_call = forms.BooleanField(required=False, label=_("Outgoing Calls"))
-            alarm = forms.BooleanField(required=False, label=_("Channel Alarms"))
-
-            class Meta:
-                model = Org
-                fields = ("webhook_url", "headers", "mt_sms", "mo_sms", "mt_call", "mo_call", "alarm")
-
-            def clean_headers(self):
-                idx = 1
-                headers = dict()
-                key = "header_%d_key" % idx
-                value = "header_%d_value" % idx
-
-                while key in self.data:
-                    if self.data.get(value, ""):
-                        headers[self.data[key]] = self.data[value]
-
-                    idx += 1
-                    key = "header_%d_key" % idx
-                    value = "header_%d_value" % idx
-
-                return headers
-
-        form_class = WebhookForm
-        success_url = "@orgs.org_home"
-        success_message = ""
-
-        def pre_process(self, request, *args, **kwargs):
-            org = self.get_object()
-            if not org.get_webhook_url():
-                return HttpResponseRedirect(reverse("orgs.org_token"))
-            return None
-
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-
-            data = self.form.cleaned_data
-
-            webhook_events = 0
-            if data["mt_sms"]:
-                webhook_events = MT_SMS_EVENTS
-            if data["mo_sms"]:  # pragma: needs cover
-                webhook_events |= MO_SMS_EVENTS
-            if data["mt_call"]:  # pragma: needs cover
-                webhook_events |= MT_CALL_EVENTS
-            if data["mo_call"]:  # pragma: needs cover
-                webhook_events |= MO_CALL_EVENTS
-            if data["alarm"]:  # pragma: needs cover
-                webhook_events |= ALARM_EVENTS
-
-            analytics.track(self.request.user.username, "temba.org_configured_webhook")
-
-            obj.webhook_events = webhook_events
-
-            webhook_data = dict()
-            if data["webhook_url"]:
-                webhook_data.update({"url": data["webhook_url"]})
-                webhook_data.update({"method": "POST"})
-
-            if data["headers"]:
-                webhook_data.update({"headers": data["headers"]})
-
-            obj.webhook = webhook_data
-
-            return obj
-
-        def get_context_data(self, **kwargs):
-            from temba.api.models import WebHookEvent
-
-            context = super().get_context_data(**kwargs)
-            context["failed_webhooks"] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
+            context["failed_webhooks"] = WebHookResult.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
     class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2421,9 +2312,7 @@ class OrgCRUDL(SmartCRUDL):
                         nobutton=True,
                     )
 
-            if self.has_org_perm("orgs.org_webhook") and org.get_webhook_url():
-                formax.add_section("webhook", reverse("orgs.org_webhook"), icon="icon-cloud-upload")
-            elif self.has_org_perm("orgs.org_token"):
+            if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_resthooks"):
@@ -2772,7 +2661,9 @@ class OrgCRUDL(SmartCRUDL):
             if lang_count == 2:
                 context["languages"] = _(" and ").join(languages)
             elif lang_count > 2:
-                context["languages"] = _("%s and %s") % (", ".join(languages[:-1]), languages[-1])
+                context["languages"] = _("%(lang1)s and %(lang2)s") % dict(
+                    lang1=", ".join(languages[:-1]), lang2=languages[-1]
+                )
             elif lang_count == 1:
                 context["languages"] = languages[0]
             return context
@@ -2822,7 +2713,9 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             cache = OrgCache(int(request.POST["cache"]))
             num_deleted = self.get_object().clear_caches([cache])
-            self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
+            self.success_message = _("Cleared %(name)s cache for this organization (%(count)d keys)") % dict(
+                name=cache.name, count=num_deleted
+            )
 
 
 class TopUpCRUDL(SmartCRUDL):

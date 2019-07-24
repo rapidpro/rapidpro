@@ -9,7 +9,7 @@
   %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
 
   -for css in styles
-    %link{rel:'stylesheet', type:'text/css', href:'{{STATIC_URL}}{{css}}'}
+    %link{rel:'stylesheet', type:'text/css', href:'{{css}}'}
 
   :css
     body {
@@ -124,7 +124,7 @@
   {{ block.super }}
 
   -for script in scripts
-    %script{type:'text/javascript', src:'{{STATIC_URL}}{{script}}'}
+    %script{type:'text/javascript', src:'{{script}}'}
 
   :javascript
     const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
@@ -149,11 +149,15 @@
     }
 
     const config = {
+      
+      // TODO: Remove once legacy editor is gone
+      // this is only to support manual migration
+      forceSaveOnLoad: "{{migrate}}" == "True",
+
       flow: '{{object.uuid}}',
       flowType: flowType,
       localStorage: true,
       showTemplates: "{{has_whatsapp_channel}}" == "True",
-
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
 
@@ -177,6 +181,7 @@
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gcu',
 
+        completion: '/mr/docs/completion.json',
         functions: '/mr/docs/functions.json',
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/'
@@ -231,6 +236,19 @@
       });
     {% endif %}
 
+    {% if org_perms.flows.flow_editor %}
+      $(".previous-editor").live('click', function() {
+        var modal = new ConfirmationModal(gettext("Previous Editor"), gettext("When going back to the previous editor, any changes you have made in the new editor will be lost. If you are having difficulty using the new editor, please reach out to support and let us know.<br/><br/>Are you sure you want to go back to using the previous editor?"));
+        modal.addClass("alert");
+        modal.setPrimaryButton("Use Previous Editor")
+
+        modal.setListeners({ onPrimary: ()=>{
+          document.location.href = '{% url "flows.flow_editor" flow.uuid%}?legacy=true'
+        }});
+
+        modal.show();
+      });
+    {% endif %}
 
 -block page-container
 

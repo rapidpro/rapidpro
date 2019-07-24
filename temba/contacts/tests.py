@@ -13,6 +13,7 @@ from smartmin.tests import SmartminTestMixin, _CRUDLTest
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.test import TestCase, TransactionTestCase
@@ -20,19 +21,27 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.api.models import WebHookEvent, WebHookResult
+from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
+from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests import (
+    AnonymousOrg,
+    ESMockWithScroll,
+    ESMockWithScrollMultiple,
+    TembaTest,
+    TembaTestMixin,
+    uses_legacy_engine,
+)
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -86,7 +95,7 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         )
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
-        self.org.initialize(flow_server_enabled=False)
+        self.org.initialize()
 
         ContactField.get_or_create(self.org, self.user, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.user, "home", "Home", value_type="S", priority=10)
@@ -120,9 +129,36 @@ class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
         self.frank, urn_obj = Contact.get_or_create(self.org, "tel:124", user=self.user, name="Frank")
         self.frank.set_field(self.user, "age", "18")
 
+        ContactGroup.create_static(self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING)
+
         response = self._do_test_view("list")
         self.assertEqual(set(response.context["object_list"]), {self.frank, self.joe})
         self.assertIsNone(response.context["search_error"])
+
+        survey_audience = ContactGroup.user_groups.get(name="Survey Audience")
+        unsatisfied = ContactGroup.user_groups.get(name="Unsatisfied Customers")
+
+        self.assertEqual(
+            response.context["groups"],
+            [
+                {
+                    "uuid": str(survey_audience.uuid),
+                    "pk": survey_audience.id,
+                    "label": "Survey Audience",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+                {
+                    "uuid": str(unsatisfied.uuid),
+                    "pk": unsatisfied.id,
+                    "label": "Unsatisfied Customers",
+                    "is_dynamic": False,
+                    "is_ready": True,
+                    "count": 0,
+                },
+            ],
+        )
 
         with patch("temba.utils.es.ES") as mock_ES:
             mock_ES.search.return_value = {"_hits": [{"id": self.frank.id}]}
@@ -366,6 +402,7 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(SearchException):
             Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
+    @uses_legacy_engine
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow("initialize")
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
@@ -396,7 +433,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
 
         # fetching by id shouldn't modify original group
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", group.uuid), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", uuid=group.uuid), group)
 
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
@@ -1102,6 +1139,7 @@ class ContactTest(TembaTest):
     @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @override_settings(SEND_CALLS=True)
+    @uses_legacy_engine
     def test_release(self):
 
         # configure our org for ivr
@@ -1576,6 +1614,34 @@ class ContactTest(TembaTest):
             self.assertEqual(self.joe.get_field_value(nick), "Joey")
             self.assertIsNone(self.frank.get_field_value(nick))
             self.assertIsNone(self.billy.get_field_value(nick))
+
+    def test_contact_search_evaluation_created_on_utc_rollover(self):
+        # org is in Africa/Kigali timezone: +02:00
+        self.joe.created_on = datetime(2019, 6, 8, 23, 14, 0, tzinfo=pytz.UTC)
+        self.joe.save(update_fields=("created_on",), handle_update=False)
+
+        query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
+
+        # date in org timezone is the 'next' day
+        self.assertEqual(query_created_on, "2019-06-09")
+
+        self.assertTrue(
+            evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
+        )
+        query_created_on = (self.joe.created_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
+        self.assertTrue(
+            evaluate_query(self.org, f'created_on > "{query_created_on}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'created_on >= "{query_created_on}"', contact_json=self.joe.as_search_json())
+        )
+        query_created_on = (self.joe.created_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
+        self.assertTrue(
+            evaluate_query(self.org, f'created_on < "{query_created_on}"', contact_json=self.joe.as_search_json())
+        )
+        self.assertTrue(
+            evaluate_query(self.org, f'created_on <= "{query_created_on}"', contact_json=self.joe.as_search_json())
+        )
 
     def test_contact_search_evaluation(self):
         ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
@@ -3495,6 +3561,7 @@ class ContactTest(TembaTest):
             ],
         )
 
+    @uses_legacy_engine
     def test_history(self):
 
         # use a max history size of 100
@@ -3550,9 +3617,7 @@ class ContactTest(TembaTest):
             )
 
             # pretend that flow run made a webhook request
-            WebHookEvent.trigger_flow_webhook(
-                FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None
-            )
+            legacy.call_webhook(FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -3588,7 +3653,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(68):
+            with self.assertNumQueries(67):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3775,6 +3840,7 @@ class ContactTest(TembaTest):
         event.unit = "M"
         self.assertEqual("1 minute before Planting Date", event_time(event))
 
+    @uses_legacy_engine
     def test_activity_tags(self):
         self.create_campaign()
 
@@ -3784,7 +3850,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe])
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
+        legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}
@@ -4128,12 +4194,6 @@ class ContactTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
         self.joe_and_frank = ContactGroup.user_groups.get(pk=self.joe_and_frank.pk)
-
-        self.assertEqual(self.joe.groups_as_text(), "Joe and Frank, Just Joe")
-        group_analytic_json = self.joe_and_frank.analytics_json()
-        self.assertEqual(group_analytic_json["id"], self.joe_and_frank.pk)
-        self.assertEqual(group_analytic_json["name"], "Joe and Frank")
-        self.assertEqual(2, group_analytic_json["count"])
 
         # try to list contacts as a user not in the organization
         self.login(self.user1)
@@ -6623,72 +6683,6 @@ class ContactTest(TembaTest):
             self.mary.update_urns(self.user, ["tel:54321", "twitter:mary_mary"])
             self.assertEqual([self.frank, self.joe], list(mtn_group.contacts.order_by("name")))
 
-    def test_preferred_channel(self):
-        from temba.msgs.tasks import process_message_task
-
-        ContactField.get_or_create(self.org, self.admin, "age", label="Age", value_type=Value.TYPE_NUMBER)
-        ContactField.get_or_create(self.org, self.admin, "gender", label="Gender", value_type=Value.TYPE_TEXT)
-
-        with ESMockWithScroll():
-            ContactGroup.create_dynamic(
-                self.org,
-                self.admin,
-                "simple group",
-                '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")',
-            )
-            ContactGroup.create_dynamic(self.org, self.admin, "Empty age field", 'age = ""')
-            ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "macklemore"')
-
-        # create some channels of various types
-        twitter = Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="@rapidpro")
-        Channel.create(self.org, self.user, None, "TG", name="Twitter Channel", address="@rapidpro")
-
-        # update our contact URNs, give them telegram and twitter with telegram being preferred
-        self.joe.update_urns(self.admin, ["telegram:12515", "twitter:macklemore"])
-
-        # set the preferred channel to twitter
-        self.joe.set_preferred_channel(twitter)
-
-        # preferred URN should be twitter
-        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
-
-        # reset back to telegram being preferred
-        self.joe.update_urns(self.admin, ["telegram:12515", "twitter:macklemore"])
-
-        # simulate an incoming message from Mage on Twitter
-        msg = Msg.objects.create(
-            org=self.org,
-            channel=twitter,
-            contact=self.joe,
-            contact_urn=ContactURN.get_or_create(self.org, self.joe, "twitter:macklemore", twitter),
-            text="Incoming twitter DM",
-            created_on=timezone.now(),
-        )
-
-        with self.assertNumQueries(12):
-            process_message_task(dict(id=msg.id, new_message=True, new_contact=False))
-
-        # twitter should be preferred outgoing again
-        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
-
-        # simulate an incoming message from Mage on Twitter, for a new contact
-        msg = Msg.objects.create(
-            org=self.org,
-            channel=twitter,
-            contact=self.joe,
-            contact_urn=ContactURN.get_or_create(self.org, self.joe, "twitter:macklemore", twitter),
-            text="Incoming twitter DM",
-            created_on=timezone.now(),
-        )
-
-        with self.assertNumQueries(19):
-            process_message_task(dict(id=msg.id, new_message=True, new_contact=True))
-
-        self.assertCountEqual(
-            [group.name for group in self.joe.user_groups.filter(is_active=True).all()],
-            ["Empty age field", "urn group"],
-        )
-
 
 class ContactURNTest(TembaTest):
     def setUp(self):
@@ -6727,6 +6721,11 @@ class ContactURNTest(TembaTest):
             org=self.org, scheme="twitter", path="billy_bob", identity="twitter:billy_bob", priority=50
         )
         self.assertEqual(urn.get_display(self.org), "billy_bob")
+
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="whatsapp", path="12065551212", identity="whatsapp:12065551212", priority=50
+        )
+        self.assertEqual(urn.get_display(self.org), "(206) 555-1212")
 
 
 class ContactFieldTest(TembaTest):
@@ -6780,14 +6779,14 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(groups_field.label, "Groups")
 
         # we should lookup the existing field by label
-        label_field = ContactField.get_or_create(self.org, self.admin, "groups", "Groups")
+        label_field = ContactField.get_or_create(self.org, self.admin, key=None, label="Groups")
 
         self.assertEqual(label_field.key, "groups_field")
         self.assertEqual(label_field.label, "Groups")
         self.assertFalse(ContactField.user_fields.filter(key="groups"))
         self.assertEqual(label_field.pk, groups_field.pk)
 
-        # exisiting field by label has invalid key we should try to create a new field
+        # existing field by label has invalid key we should try to create a new field
         groups_field.key = "groups"
         groups_field.save()
 
@@ -6797,9 +6796,10 @@ class ContactFieldTest(TembaTest):
         with self.assertRaises(ValueError):
             ContactField.get_or_create(self.org, self.admin, "name", "Groups")
 
+        # don't look up by label if we have a key
         created_field = ContactField.get_or_create(self.org, self.admin, "list", "Groups")
         self.assertEqual(created_field.key, "list")
-        self.assertEqual(created_field.label, "Groups")
+        self.assertEqual(created_field.label, "Groups 2")
 
         # this should be a different field
         self.assertFalse(created_field.pk == groups_field.pk)
@@ -6812,12 +6812,12 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(field1.key, "sport")
         self.assertEqual(field1.label, "Games")
 
-        # should be the same field
+        # should modify label to make it unique
         field2 = ContactField.get_or_create(self.org, self.admin, "play", "Games")
 
-        self.assertEqual(field2.key, "sport")
-        self.assertEqual(field2.label, "Games")
-        self.assertEqual(field1.pk, field2.pk)
+        self.assertEqual(field2.key, "play")
+        self.assertEqual(field2.label, "Games 2")
+        self.assertNotEqual(field1.id, field2.id)
 
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, "First", "Starter")
@@ -6852,6 +6852,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
 
+    @uses_legacy_engine
     def test_contact_export(self):
         self.clear_storage()
 
@@ -8130,6 +8131,7 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
+    @uses_legacy_engine
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")
@@ -8155,14 +8157,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000, flow_server_enabled=False)
+        self.org.initialize(topup_size=1000)
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
 
         self.client.login(username=self.admin.username, password=self.admin.username)
-
-        # block the default contacts, these should be ignored in our searches
-        Contact.objects.all().update(is_active=False, is_blocked=True)
 
         age = ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
         ContactField.get_or_create(self.org, self.admin, "join_date", "Join Date", value_type="D")
@@ -8178,8 +8177,11 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         wards = ["Kageyo", "Kabara", "Bukure", None]
         date_format = get_datetime_format(True)[0]
 
-        # create some contacts
+        # reset contact ids so we don't get unexpected collisions with phone numbers
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT setval(pg_get_serial_sequence('"contacts_contact"','id'), 900)""")
 
+        # create some contacts
         for i in range(90):
             name = names[i % len(names)]
 

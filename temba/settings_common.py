@@ -250,6 +250,7 @@ INSTALLED_APPS = (
     "temba.locations",
     "temba.values",
     "temba.airtime",
+    "temba.sql",
 )
 
 # the last installed app that uses smartmin permissions
@@ -381,7 +382,6 @@ PERMISSIONS = {
         "twilio_account",
         "twilio_connect",
         "token",
-        "webhook",
     ),
     "orgs.usersettings": ("phone",),
     "channels.channel": (
@@ -577,7 +577,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
         "orgs.org_token",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -675,7 +674,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
-        "orgs.org_webhook",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -830,20 +828,13 @@ INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24"
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
 CELERYBEAT_SCHEDULE = {
-    "retry-webhook-events": {"task": "retry_events_task", "schedule": timedelta(seconds=300)},
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
-    "campaigns": {"task": "check_campaigns_task", "schedule": timedelta(seconds=60)},
-    "check-flows": {"task": "check_flows_task", "schedule": timedelta(seconds=60)},
-    "check-flow-timeouts": {"task": "check_flow_timeouts_task", "schedule": timedelta(seconds=20)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
-    "check-messages-task": {"task": "check_messages_task", "schedule": timedelta(seconds=300)},
-    "check-calls-task": {"task": "check_calls_task", "schedule": timedelta(seconds=300)},
-    "check_failed_calls_task": {"task": "check_failed_calls_task", "schedule": timedelta(seconds=300)},
-    "task_enqueue_call_events": {"task": "task_enqueue_call_events", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
+    "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
     "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
@@ -862,11 +853,7 @@ CELERYBEAT_SCHEDULE = {
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
-CELERY_TASK_MAP = {
-    "send_msg_task": "temba.channels.tasks.send_msg_task",
-    "start_msg_flow_batch": "temba.flows.tasks.start_msg_flow_batch_task",
-    "handle_event_task": "temba.msgs.tasks.handle_event_task",
-}
+CELERY_TASK_MAP = {"send_msg_task": "temba.channels.tasks.send_msg_task"}
 
 # -----------------------------------------------------------------------------------
 # Async tasks with celery
@@ -918,6 +905,7 @@ REST_FRAMEWORK = {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",
         "v2.messages": "2500/hour",
+        "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
         "v2.api": "2500/hour",
     },
@@ -953,9 +941,6 @@ for brand in BRANDING.values():
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
-MAGE_API_URL = "http://localhost:8026/api/v1"
-MAGE_AUTH_TOKEN = None  # should be same token as configured on Mage side
-
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings
 # -----------------------------------------------------------------------------------
@@ -990,17 +975,12 @@ SEND_CHATBASE = False
 #         could cause calls in test environments
 SEND_CALLS = False
 
-MESSAGE_HANDLERS = [
-    "temba.triggers.handlers.TriggerHandler",
-    "temba.flows.handlers.FlowHandler",
-    "temba.triggers.handlers.CatchAllHandler",
-]
-
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
+    "temba.channels.types.signalwire.SignalWireType",
     "temba.channels.types.nexmo.NexmoType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
@@ -1046,6 +1026,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.i2sms.I2SMSType",
+    "temba.channels.types.clicksend.ClickSendType",
 ]
 
 # -----------------------------------------------------------------------------------

@@ -2,7 +2,6 @@ import base64
 from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import quote_plus
-from uuid import uuid4
 
 import iso8601
 import pytz
@@ -23,12 +22,12 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, ReplyAction, RuleSet
+from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -1907,14 +1906,14 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
-        # update contact with invalid ISO8601 timestamp value, 'T' replaced with space
+        # update contact with valid ISO8601 timestamp value, 'T' replaced with space
         response = self.postJSON(
             url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11 11:12:13Z"}}
         )
         self.assertEqual(response.status_code, 200)
         resp_json = response.json()
 
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2011-11-11T11:12:00+02:00")
+        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with invalid ISO8601 timestamp value without timezone
         response = self.postJSON(
@@ -2012,9 +2011,11 @@ class APITest(TembaTest):
         with ESMockWithScroll():
             self.create_group("Developers", query="isdeveloper = YES")
 
-        # start contacts in a flow
-        flow = self.get_flow("color")
-        flow.start([], [contact1, contact2, contact3])
+        # create some "active" runs for some of the contacts
+        flow = self.get_flow("favorites_v13")
+        FlowRun.create(flow, contact1)
+        FlowRun.create(flow, contact2)
+        FlowRun.create(flow, contact3)
 
         self.create_msg(direction="I", contact=contact1, text="Hello")
         self.create_msg(direction="I", contact=contact2, text="Hello")
@@ -2149,7 +2150,7 @@ class APITest(TembaTest):
 
         self.login(self.admin)
 
-        self.get_goflow("favorites_v13")
+        self.import_file("favorites_v13")
 
         flow = Flow.objects.filter(name="Favorites").first()
 
@@ -2344,9 +2345,12 @@ class APITest(TembaTest):
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
         color.labels.add(reporting)
 
-        # run joe through through a flow
-        color.start([], [self.joe])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
+        # make it look like joe completed a the color flow
+        run = FlowRun.create(color, contact=self.joe)
+        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        run.exited_on = timezone.now()
+        run.is_active = False
+        run.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
 
         # flow belong to other org
         self.create_flow(org=self.org2, name="Other")
@@ -2499,10 +2503,13 @@ class APITest(TembaTest):
             developers = self.create_group("Developers", query="isdeveloper = YES")
 
             # a group which is being re-evaluated
-            unready = self.create_group("Big Group", query="isdeveloper=NO")
+            dynamic = self.create_group("Big Group", query="isdeveloper=NO")
 
-        unready.status = ContactGroup.STATUS_EVALUATING
-        unready.save(update_fields=("status",))
+        dynamic.status = ContactGroup.STATUS_EVALUATING
+        dynamic.save(update_fields=("status",))
+
+        # an initializing group
+        ContactGroup.create_static(self.org, self.admin, "Initializing", status=ContactGroup.STATUS_INITIALIZING)
 
         # group belong to other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
@@ -2518,7 +2525,7 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": unready.uuid,
+                    "uuid": dynamic.uuid,
                     "name": "Big Group",
                     "query": 'isdeveloper = "NO"',
                     "status": "evaluating",
@@ -3070,6 +3077,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
+    @uses_legacy_engine
     def test_runs(self):
         url = reverse("api.v2.runs")
 
@@ -3089,7 +3097,8 @@ class APITest(TembaTest):
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
-        joe_run1, = start1.start()
+        start1.async_start()
+        joe_run1 = start1.runs.get()
         frank_run1, = flow1.start([], [self.frank])
         self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
         self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()
@@ -3183,10 +3192,6 @@ class APITest(TembaTest):
             },
         )
 
-        # check when all broadcasts have been purged
-        Broadcast.objects.all().update(purged=True)
-        Msg.objects.filter(direction="O").delete()
-
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
@@ -3256,6 +3261,43 @@ class APITest(TembaTest):
         # can't filter by both contact and flow together
         response = self.fetchJSON(url, "contact=%s&flow=%s" % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None, "You may only specify one of the contact, flow parameters")
+
+    def test_runs_with_action_results(self):
+        """
+        Runs from save_run_result actions may have some fields missing
+        """
+
+        url = reverse("api.v2.runs")
+        self.assertEndpointAccess(url)
+
+        flow = self.get_flow("color")
+        run = FlowRun.create(flow, self.frank)
+        run.results = {
+            "manual": {
+                "created_on": "2019-06-28T06:37:02.628152471Z",
+                "name": "Manual",
+                "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                "value": "",
+            }
+        }
+        run.save(update_fields=("results",))
+
+        response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(
+            resp_json["results"][0]["values"],
+            {
+                "manual": {
+                    "name": "Manual",
+                    "value": "",
+                    "input": None,
+                    "category": None,
+                    "node": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
+                    "time": "2019-06-28T06:37:02.628152Z",
+                }
+            },
+        )
 
     def test_message_actions(self):
         url = reverse("api.v2.message_actions")
@@ -3496,14 +3538,12 @@ class APITest(TembaTest):
         event1 = WebHookEvent.objects.create(
             org=self.org,
             resthook=resthook1,
-            event="F",
-            data=dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
+            data={"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
         )
         event2 = WebHookEvent.objects.create(
             org=self.org,
             resthook=resthook2,
-            event="F",
-            data=dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
+            data={"event": "new father", "values": {"name": "Yo"}, "steps": {"uuid": "12345"}},
         )
 
         # no filtering
@@ -3517,30 +3557,22 @@ class APITest(TembaTest):
                 {
                     "resthook": "new-father",
                     "created_on": format_datetime(event2.created_on),
-                    "data": dict(event="new father", values=dict(name="Yo"), steps=dict(uuid="12345")),
+                    "data": {"event": "new father", "values": {"name": "Yo"}, "steps": {"uuid": "12345"}},
                 },
                 {
                     "resthook": "new-mother",
                     "created_on": format_datetime(event1.created_on),
-                    "data": dict(event="new mother", values=dict(name="Greg"), steps=dict(uuid="abcde")),
+                    "data": {"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
                 },
             ],
         )
 
-    def test_flow_starts(self):
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_flow_starts(self, mock_async_start):
         url = reverse("api.v2.flow_starts")
         self.assertEndpointAccess(url)
 
-        flow = self.get_flow("favorites")
-
-        # update our flow to use @extra.first_name and @extra.last_name
-        first_action = flow.action_sets.all().order_by("y")[0]
-        first_action.actions = [
-            ReplyAction(
-                str(uuid4()), dict(base="Hi @extra.first_name @extra.last_name, " "what's your favorite color?")
-            ).as_json()
-        ]
-        first_action.save()
+        flow = self.get_flow("favorites_v13")
 
         # try to create an empty flow start
         response = self.postJSON(url, None, {})
@@ -3557,24 +3589,23 @@ class APITest(TembaTest):
         self.assertTrue(start1.restart_participants)
         self.assertEqual(start1.extra, {})
 
-        # check our first msg
-        msg = Msg.objects.get(direction="O", contact=self.joe)
-        self.assertEqual("Hi @extra.first_name @extra.last_name, what's your favorite color?", msg.text)
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
 
         # start a flow with all parameters
-        extra = dict(first_name="Ryan", last_name="Lewis")
         hans_group = self.create_group("hans", contacts=[self.hans])
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra=extra,
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+            },
         )
 
         self.assertEqual(response.status_code, 201)
@@ -3586,46 +3617,47 @@ class APITest(TembaTest):
         self.assertTrue(start2.contacts.filter(id=self.joe.id))
         self.assertTrue(start2.groups.filter(id=hans_group.id))
         self.assertFalse(start2.restart_participants)
-        self.assertTrue(start2.extra, extra)
+        self.assertTrue(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
 
-        msg = Msg.objects.get(direction="O", contact__urns__path="+12067791212")
-        self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
 
         # try to start a flow with no contact/group/URN
-        response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True))
+        response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
 
         # should raise validation error for invalid JSON in extra
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra="YES",
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": "YES",
+            },
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+        self.assertResponseError(response, "extra", "Must be a valid JSON object")
 
         # a list is valid JSON, but extra has to be a dict
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra=[],
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": [1],
+            },
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+        self.assertResponseError(response, "extra", "Must be a valid JSON object")
 
         # invalid URN
         response = self.postJSON(
@@ -3674,7 +3706,7 @@ class APITest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
-                "status": "complete",
+                "status": "pending",
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
                 "created_on": format_datetime(start2.created_on),
                 "modified_on": format_datetime(start2.modified_on),

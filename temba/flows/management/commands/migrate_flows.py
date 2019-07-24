@@ -3,12 +3,11 @@ import traceback
 from django.core.management.base import BaseCommand
 
 from temba.flows.models import Flow
-from temba.orgs.models import get_current_export_version
 from temba.utils import chunk_list
 
 
 def migrate_flows(min_version=None):  # pragma: no cover
-    to_version = min_version or get_current_export_version()
+    to_version = min_version or Flow.FINAL_LEGACY_VERSION
 
     # get all flows below the min version
     old_versions = Flow.get_versions_before(to_version)
@@ -27,13 +26,15 @@ def migrate_flows(min_version=None):  # pragma: no cover
     num_updated = 0
     num_errored = 0
 
-    for id_batch in chunk_list(flow_ids, 1000):
+    for id_batch in chunk_list(flow_ids, 5000):
         for flow in Flow.objects.filter(id__in=id_batch):
             try:
                 flow.ensure_current_version(min_version=to_version)
                 num_updated += 1
             except Exception:
-                print(f"Unable to migrate flow '{flow.name}' ({str(flow.uuid)}):")
+                print(
+                    f"Unable to migrate flow[uuid={str(flow.uuid)} name={flow.name} created_on={flow.created_on.isoformat()}]':"
+                )
                 print(traceback.format_exc())
                 num_errored += 1
 

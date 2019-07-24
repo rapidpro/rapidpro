@@ -17,6 +17,7 @@ import stripe
 import stripe.error
 from dateutil.relativedelta import relativedelta
 from django_redis import get_redis_connection
+from packaging.version import Version
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -48,26 +49,8 @@ from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
 from temba.values.constants import Value
 
-EARLIEST_IMPORT_VERSION = "3"
-
-
 logger = logging.getLogger(__name__)
 
-
-# making this a function allows it to be used as a default for Django fields
-def get_current_export_version():
-    from temba.flows.models import Flow
-
-    return Flow.VERSIONS[-1]
-
-
-MT_SMS_EVENTS = 1 << 0
-MO_SMS_EVENTS = 1 << 1
-MT_CALL_EVENTS = 1 << 2
-MO_CALL_EVENTS = 1 << 3
-ALARM_EVENTS = 1 << 4
-
-ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
 
 FREE_PLAN = "FREE"
 TRIAL_PLAN = "TRIAL"
@@ -173,6 +156,18 @@ class Org(SmartModel):
     each country where they are deploying messaging applications.
     """
 
+    # items in export JSON
+    EXPORT_VERSION = "version"
+    EXPORT_SITE = "site"
+    EXPORT_FLOWS = "flows"
+    EXPORT_CAMPAIGNS = "campaigns"
+    EXPORT_TRIGGERS = "triggers"
+    EXPORT_FIELDS = "fields"
+    EXPORT_GROUPS = "groups"
+
+    EARLIEST_IMPORT_VERSION = "3"
+    CURRENT_EXPORT_VERSION = "13"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -236,14 +231,6 @@ class Org(SmartModel):
         help_text=_("Whether day comes first or month comes first in dates"),
     )
 
-    webhook = JSONAsTextField(
-        null=True, verbose_name=_("Webhook"), default=dict, help_text=_("Webhook endpoint and configuration")
-    )
-
-    webhook_events = models.IntegerField(
-        default=0, verbose_name=_("Webhook Events"), help_text=_("Which type of actions will trigger webhook events.")
-    )
-
     country = models.ForeignKey(
         "locations.AdminBoundary",
         null=True,
@@ -292,10 +279,6 @@ class Org(SmartModel):
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
 
-    flow_server_enabled = models.BooleanField(
-        default=False, help_text=_("Whether flows and messages should be handled by the flow server")
-    )
-
     parent = models.ForeignKey(
         "orgs.Org",
         on_delete=models.PROTECT,
@@ -303,29 +286,6 @@ class Org(SmartModel):
         blank=True,
         help_text=_("The parent org that manages this org"),
     )
-
-    def enable_flow_server(self):
-        """
-        Enables the flow server for this org. This switches all flows to be flow-server-enabled and switched all handling
-        to take place through Mailroom going forward. Note that people currently in flows will be interrupted and there's
-        no going back after doing this.
-        """
-        from temba.flows.models import FlowRun
-
-        # update all channels (we do this first as this may throw and we don't want to do the rest unless it succeeds)
-        for channel in self.channels.filter(is_active=True):
-            channel_type = channel.get_type()
-            channel_type.enable_flow_server(channel)
-
-        # interrupt all active runs
-        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        # flip all flows
-        self.flows.filter(is_active=True).update(flow_server_enabled=True)
-
-        # finally flip our org
-        self.flow_server_enabled = True
-        self.save(update_fields=["flow_server_enabled", "modified_on"])
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -437,42 +397,60 @@ class Org(SmartModel):
     def is_whitelisted(self):
         return self.config.get(ORG_STATUS, None) == WHITELISTED
 
-    def import_app(self, data, user, site=None):
-        from temba.flows.models import Flow
+    def import_app(self, export_json, user, site=None):
+        """
+        Imports previously exported JSON
+        """
+
         from temba.campaigns.models import Campaign
+        from temba.contacts.models import ContactField, ContactGroup
+        from temba.flows.models import Flow, FlowRevision
         from temba.triggers.models import Trigger
 
+        # only required field is version
+        if Org.EXPORT_VERSION not in export_json:
+            raise ValueError("Export missing version field")
+
+        export_version = Version(str(export_json[Org.EXPORT_VERSION]))
+        export_site = export_json.get(Org.EXPORT_SITE)
+
         # determine if this app is being imported from the same site
-        data_site = data.get("site", None)
         same_site = False
+        if export_site and site:
+            same_site = urlparse(export_site).netloc == urlparse(site).netloc
 
-        # compare the hosts of the sites to see if they are the same
-        if data_site and site:
-            same_site = urlparse(data_site).netloc == urlparse(site).netloc
+        # do we have a supported export version?
+        if not (Version(Org.EARLIEST_IMPORT_VERSION) <= export_version <= Version(Org.CURRENT_EXPORT_VERSION)):
+            raise ValueError(f"Unsupported export version {export_version}")
 
-        # see if our export needs to be updated
-        export_version = data.get("version", 0)
-        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
-            raise ValueError(_("Unknown version (%s)" % data.get("version", 0)))
+        # do we need to migrate the export forward?
+        if Flow.is_before_version(export_version, Flow.FINAL_LEGACY_VERSION):
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
 
-        if Flow.is_before_version(export_version, get_current_export_version()):
-            from temba.flows.models import FlowRevision
+        export_fields = export_json.get(Org.EXPORT_FIELDS, [])
+        export_groups = export_json.get(Org.EXPORT_GROUPS, [])
+        export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
+        export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
 
-            data = FlowRevision.migrate_export(self, data, same_site, export_version)
+        dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
         with transaction.atomic():
-            # we need to import flows first, they will resolve to
-            # the appropriate ids and update our definition accordingly
-            new_flows = Flow.import_flows(data, self, user, same_site)
-            Campaign.import_campaigns(data, self, user, same_site)
-            Trigger.import_triggers(data, self, user, same_site)
+            ContactField.import_fields(self, user, export_fields)
+            ContactGroup.import_groups(self, user, export_groups, dependency_mapping)
+
+            new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
+
+            # these depend on flows so are imported last
+            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            Trigger.import_triggers(self, user, export_triggers, same_site)
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
             mailroom.get_client().flow_validate(self, flow.as_json())
 
     @classmethod
-    def export_definitions(cls, site_link, components):
+    def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
+        from temba.contacts.models import ContactField
         from temba.campaigns.models import Campaign
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
@@ -481,22 +459,45 @@ class Org(SmartModel):
         exported_campaigns = []
         exported_triggers = []
 
+        # users can't choose which fields/groups to export - we just include all the dependencies
+        fields = set()
+        groups = set()
+
         for component in components:
             if isinstance(component, Flow):
                 component.ensure_current_version()  # only export current versions
                 exported_flows.append(component.as_json(expand_contacts=True))
-            elif isinstance(component, Campaign):
-                exported_campaigns.append(component.as_json())
-            elif isinstance(component, Trigger):
-                exported_triggers.append(component.as_json())
 
-        return dict(
-            version=get_current_export_version(),
-            site=site_link,
-            flows=exported_flows,
-            campaigns=exported_campaigns,
-            triggers=exported_triggers,
-        )
+                if include_groups:
+                    groups.update(component.group_dependencies.all())
+                if include_fields:
+                    fields.update(component.field_dependencies.all())
+
+            elif isinstance(component, Campaign):
+                exported_campaigns.append(component.as_export_def())
+
+                if include_groups:
+                    groups.add(component.group)
+                if include_fields:
+                    for event in component.events.all():
+                        if event.relative_to.field_type == ContactField.FIELD_TYPE_USER:
+                            fields.add(event.relative_to)
+
+            elif isinstance(component, Trigger):
+                exported_triggers.append(component.as_export_def())
+
+                if include_groups:
+                    groups.update(component.groups.all())
+
+        return {
+            Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
+            Org.EXPORT_SITE: site_link,
+            Org.EXPORT_FLOWS: exported_flows,
+            Org.EXPORT_CAMPAIGNS: exported_campaigns,
+            Org.EXPORT_TRIGGERS: exported_triggers,
+            Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
+            Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
+        }
 
     def can_add_sender(self):  # pragma: needs cover
         """
@@ -718,20 +719,6 @@ class Org(SmartModel):
         Returns the resthooks configured on this Org
         """
         return self.resthooks.filter(is_active=True).order_by("slug")
-
-    def get_webhook_url(self):
-        """
-        Returns a string with webhook url.
-        """
-        return self.webhook.get("url") if self.webhook else None
-
-    def get_webhook_headers(self):
-        """
-        Returns a dictionary of any webhook headers, e.g.:
-        {'Authorization': 'Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==',
-         'X-My-Special-Header': 'woo'}
-        """
-        return self.webhook.get("headers", {})
 
     def get_channel_countries(self):
         channel_countries = []
@@ -1379,21 +1366,6 @@ class Org(SmartModel):
                     extra=dict(definition=json.loads(samples)),
                 )
 
-    def is_notified_of_mt_sms(self):
-        return self.webhook_events & MT_SMS_EVENTS > 0
-
-    def is_notified_of_mo_sms(self):
-        return self.webhook_events & MO_SMS_EVENTS > 0
-
-    def is_notified_of_mt_call(self):
-        return self.webhook_events & MT_CALL_EVENTS > 0
-
-    def is_notified_of_mo_call(self):
-        return self.webhook_events & MO_CALL_EVENTS > 0
-
-    def is_notified_of_alarms(self):
-        return self.webhook_events & ALARM_EVENTS > 0
-
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
 
@@ -1983,7 +1955,7 @@ class Org(SmartModel):
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
         """
         from temba.campaigns.models import Campaign, CampaignEvent
-        from temba.contacts.models import ContactGroup
+        from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import Flow
 
         flow_prefetches = ("action_sets", "rule_sets")
@@ -1997,7 +1969,6 @@ class Org(SmartModel):
         )
 
         all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
-        all_flow_map = {f.uuid: f for f in all_flows}
 
         if include_campaigns:
             all_campaigns = (
@@ -2013,7 +1984,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_dependencies(all_flow_map)
+            dependencies[flow] = flow.get_dependencies()
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
@@ -2027,6 +1998,9 @@ class Org(SmartModel):
         for c, deps in dependencies.items():
             if isinstance(c, Flow):
                 for d in list(deps):
+                    # not interested in groups or fields for now
+                    if isinstance(d, ContactField):
+                        deps.remove(d)
                     if isinstance(d, ContactGroup):
                         deps.remove(d)
                         deps.update(campaigns_by_group[d])
@@ -2073,16 +2047,13 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None, flow_server_enabled=True):
+    def initialize(self, branding=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
         with transaction.atomic():
-            self.flow_server_enabled = flow_server_enabled
-            self.save(update_fields=["flow_server_enabled"])
-
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 
@@ -2273,6 +2244,10 @@ class Org(SmartModel):
 
         for event in self.webhookevent_set.all():
             event.release()
+
+        for resthook in self.resthooks.all():
+            resthook.release(self.modified_by)
+            resthook.delete()
 
         # now what we've all been waiting for
         self.delete()

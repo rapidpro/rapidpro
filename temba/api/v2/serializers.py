@@ -10,7 +10,6 @@ from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
-from temba.msgs.tasks import send_broadcast_task
 from temba.templates.models import Template, TemplateTranslation
 from temba.utils import extract_constants, json, on_transaction_commit
 from temba.values.constants import Value
@@ -177,8 +176,8 @@ class BroadcastWriteSerializer(WriteSerializer):
             channel=self.validated_data.get("channel"),
         )
 
-        # send in task
-        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+        # send it
+        on_transaction_commit(lambda: broadcast.send(expressions_context={}))
 
         return broadcast
 
@@ -811,7 +810,7 @@ class FlowRunReadSerializer(ReadSerializer):
             created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
             return {
                 "value": result[FlowRun.RESULT_VALUE],
-                "category": result[FlowRun.RESULT_CATEGORY],
+                "category": result.get(FlowRun.RESULT_CATEGORY),
                 "node": result[FlowRun.RESULT_NODE_UUID],
                 "time": format_datetime(created_on),
                 "input": result.get(FlowRun.RESULT_INPUT),
@@ -888,7 +887,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         # request is parsed by DRF.JSONParser, and if extra is a valid json it gets deserialized as dict
         # in any other case we need to raise a ValidationError
         if not isinstance(value, dict):
-            raise serializers.ValidationError("Must be a valid JSON value")
+            raise serializers.ValidationError("Must be a valid JSON object")
 
         if not value:  # pragma: needs cover
             return None

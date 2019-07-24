@@ -1184,8 +1184,8 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             form._errors["phone_number"] = form.error_class(
                 [
                     _(
-                        "That number is already connected to another account - %s (%s)"
-                        % (existing.org, existing.created_by.username)
+                        "That number is already connected to another account - %(org)s (%(user)s)"
+                        % dict(org=existing.org, user=existing.created_by.username)
                     )
                 ]
             )
@@ -1658,6 +1658,12 @@ class ChannelCRUDL(SmartCRUDL):
                     ),
                 )
                 return HttpResponseRedirect(reverse("orgs.org_home"))
+
+            except ValueError as e:
+                logger.error("Error removing a channel", exc_info=True)
+
+                messages.error(request, str(e))
+                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
 
             except Exception:  # pragma: no cover
                 logger.error("Error removing a channel", exc_info=True)
