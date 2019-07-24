@@ -1,3 +1,11 @@
+v5.1.10
+----------
+ * Update to flow editor 1.6.8, add completion config
+ * Add FlowStart.parent_summary, start deprecating fields
+ * Switch to bionic beaver for CI builds
+ * Add trigger params access to ivr flow
+ * Drop no longer used Broadcast.purged field
+
 v5.1.9
 ----------
  * Make Broadcast.purged nullable in preparation for dropping it
