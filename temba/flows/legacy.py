@@ -11,6 +11,29 @@ from temba.utils.http import http_headers
 logger = logging.getLogger(__name__)
 
 
+def flow_start_start(start):
+    from temba.flows.models import FlowStart
+
+    groups = list(start.groups.all())
+    contacts = list(start.contacts.all())
+
+    # load up our extra if any
+    extra = start.extra if start.extra else None
+
+    start.flow.start(
+        groups,
+        contacts,
+        flow_start=start,
+        extra=extra,
+        restart_participants=start.restart_participants,
+        include_active=start.include_active,
+        campaign_event=start.campaign_event,
+    )
+
+    start.status = FlowStart.STATUS_COMPLETE
+    start.save(update_fields=("status",))
+
+
 def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
     from temba.api.models import WebHookEvent, WebHookResult
     from temba.flows.models import Flow
