@@ -792,7 +792,7 @@ class Command(BaseCommand):
             )
 
             start = FlowStart.create(flow, user, groups=[group], restart_participants=True)
-            start.start()
+            start.async_start()
         else:
             # start a random individual without a flow start
             if not org.cache["contacts"]:
@@ -803,7 +803,8 @@ class Command(BaseCommand):
 
             self._log(" > Starting flow %s for contact #%d in org %s\n" % (flow.name, contact.id, org.name))
 
-            flow.start([], [contact], restart_participants=True)
+            start = FlowStart.create(flow, user, contacts=[contact], restart_participants=True)
+            start.async_start()
 
         org.cache["activity"] = {"flow": flow, "unresponded": contacts_started, "started": list(contacts_started)}
 

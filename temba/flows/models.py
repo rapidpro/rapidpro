@@ -1646,23 +1646,11 @@ class Flow(TembaModel):
             ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
             FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
-        contact_count = len(all_contact_ids)
-
-        # update our total flow count on our flow start so we can keep track of when it is finished
-        if flow_start:
-            flow_start.contact_count = contact_count
-            flow_start.save(update_fields=["contact_count"])
-
-        # if there are no contacts to start this flow, then update our status and exit this flow
-        if contact_count == 0:
-            if flow_start:
-                flow_start.update_status()
+        if not all_contact_ids:
             return []
 
         if self.flow_type == Flow.TYPE_VOICE:
-            return self._start_call_flow(
-                all_contact_ids, start_msg=start_msg, extra=extra, flow_start=flow_start, parent_run=parent_run
-            )
+            return self._start_call_flow(all_contact_ids, extra=extra, flow_start=flow_start, parent_run=parent_run)
         else:
             return self._start_msg_flow(
                 all_contact_ids,
@@ -1673,7 +1661,7 @@ class Flow(TembaModel):
                 parent_run=parent_run,
             )
 
-    def _start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
+    def _start_call_flow(self, all_contact_ids, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
 
         there_are_calls_to_start = False
@@ -1914,10 +1902,6 @@ class Flow(TembaModel):
 
             # trigger a sync
             self.org.trigger_send(msgs_to_send)
-
-        # if we have a flow start, check whether we are complete
-        if flow_start:
-            flow_start.update_status()
 
         return runs
 
@@ -4836,46 +4820,12 @@ class FlowStart(models.Model):
 
     def async_start(self):
         if settings.TESTING:
-            self.start()
+            legacy.flow_start_start(self)
         else:  # pragma: no cover
             mailroom.queue_flow_start(self)
 
-    def start(self):
-        self.status = FlowStart.STATUS_STARTING
-        self.save(update_fields=["status"])
-
-        try:
-            groups = list(self.groups.all())
-            contacts = list(self.contacts.all())
-
-            # load up our extra if any
-            extra = self.extra if self.extra else None
-
-            return self.flow.start(
-                groups,
-                contacts,
-                flow_start=self,
-                extra=extra,
-                restart_participants=self.restart_participants,
-                include_active=self.include_active,
-                campaign_event=self.campaign_event,
-            )
-
-        except Exception as e:  # pragma: no cover
-            logger.error(f"Unable to start Flow: {str(e)}", exc_info=True)
-
-            self.status = FlowStart.STATUS_FAILED
-            self.save(update_fields=["status"])
-            raise e
-
-    def update_status(self):
-        # only update our status to complete if we have started as many runs as our total contact count
-        if FlowStartCount.get_count(self) == self.contact_count:
-            self.status = FlowStart.STATUS_COMPLETE
-            self.save(update_fields=["status"])
-
     def __str__(self):  # pragma: no cover
-        return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
+        return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
 
 
 class FlowStartCount(SquashableModel):
