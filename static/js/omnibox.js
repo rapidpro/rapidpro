@@ -66,7 +66,7 @@ function omnibox(ele, types, options) {
         },
         createSearchChoice: options.createSearchChoice,
         ajax: {
-            url: "/contact/omnibox/?types=" + types,
+            url: ((typeof subdir == "string" && subdir.length > 0)? '/' + subdir : '') + "/contact/omnibox/?types=" + types,
             dataType: 'json',
             data: function (term, page, context) {
                 q = term;
@@ -111,7 +111,7 @@ function initializeOmnibox(initial) {
         minimumInputLength: 0,
         multiple: true,
         ajax: {
-            url: "/contact/omnibox/",
+            url: ((typeof subdir == "string" && subdir.length > 0)? '/' + subdir : '') + "/contact/omnibox/",
             dataType: 'json',
             data: function (term, page) {
                 return {

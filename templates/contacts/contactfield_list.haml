@@ -180,7 +180,7 @@
   }
 
   function showUpdateContactFieldModal(cfid) {
-    var updateUrl = '/contactfield/update/' + cfid + '/';
+    var updateUrl = '{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/contactfield/update/' + cfid + '/';
 
     var modal = new Modax('{% trans "Update Contact Field" %}', updateUrl);
 
@@ -227,7 +227,7 @@
   };
 
   function showDeleteContactFieldModal(cfid) {
-    var deleteUrl = '/contactfield/delete/' + cfid + '/';
+    var deleteUrl = '{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/contactfield/delete/' + cfid + '/';
 
     var modal = new Modax('{% trans "Delete Contact Field" %}', deleteUrl);
 
@@ -251,7 +251,7 @@
   };
 
   function showDetailContactFieldModal(cfid, label) {
-    var detailUrl = '/contactfield/detail/' + cfid + '/';
+    var detailUrl = '{% if brand.sub_dir %}/{{brand.sub_dir}}{%else%}{%endif%}/contactfield/detail/' + cfid + '/';
 
     var modal = new Modax(label + ' ' + '{% trans "Uses" %}', detailUrl);
 
