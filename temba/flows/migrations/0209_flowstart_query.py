@@ -5,14 +5,8 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0208_flowsession_uuid'),
-    ]
+    dependencies = [("flows", "0208_flowsession_uuid")]
 
     operations = [
-        migrations.AddField(
-            model_name='flowstart',
-            name='query',
-            field=models.CharField(max_length=255, null=True),
-        ),
+        migrations.AddField(model_name="flowstart", name="query", field=models.CharField(max_length=255, null=True))
     ]
