@@ -43,7 +43,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
-from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers, uses_legacy_engine
+from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -2611,7 +2611,6 @@ class AnonOrgTest(TembaTest):
         self.org.is_anon = True
         self.org.save()
 
-    @uses_legacy_engine
     def test_contacts(self):
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
@@ -2638,33 +2637,34 @@ class AnonOrgTest(TembaTest):
             self.assertNotContains(response, "123123")
             self.assertContains(response, "No matching contacts.")
 
-        # create a flow
-        flow = self.get_flow("color")
+        # create an outgoing message, check number doesn't appear in outbox
+        msg1 = self.create_msg(contact=contact, text="hello", direction="O")
 
-        # start the contact down it
-        flow.start([], [contact])
-
-        # should have one SMS
-        self.assertEqual(1, Msg.objects.all().count())
-
-        # shouldn't show the number on the outgoing page
         response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertNotContains(response, "788 123 123")
-
-        # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, str(contact.get_urn()), "Blue")
-        response = self.client.get(reverse("msgs.msg_flow"))
+        self.assertEqual(set(response.context["object_list"]), {msg1})
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
-        # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, str(contact.get_urn()), "Where's the beef?")
-        response = self.client.get(reverse("msgs.msg_flow"))
+        # create an incoming message, check number doesn't appear in inbox
+        msg2 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="I", status="H")
+
+        response = self.client.get(reverse("msgs.msg_inbox"))
+
+        self.assertEqual(set(response.context["object_list"]), {msg2})
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
-        # contact detail page
+        # create an incoming flow message, check number doesn't appear in inbox
+        msg3 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="F", status="H")
+
+        response = self.client.get(reverse("msgs.msg_flow"))
+
+        self.assertEqual(set(response.context["object_list"]), {msg3})
+        self.assertNotContains(response, "788 123 123")
+        self.assertContains(response, masked)
+
+        # check contact detail page
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)

@@ -4057,10 +4057,6 @@ class FlowTest(TembaTest):
         # we should have a flow start
         start = FlowStart.objects.get(flow=self.flow)
 
-        # should be in a completed state
-        self.assertEqual(FlowStart.STATUS_COMPLETE, start.status)
-        self.assertEqual(1, start.contact_count)
-
         # do so again but don't restart the participants
         del post_data["restart_participants"]
 
@@ -4070,7 +4066,6 @@ class FlowTest(TembaTest):
         new_start = FlowStart.objects.filter(flow=self.flow).order_by("-created_on").first()
         self.assertNotEqual(start, new_start)
         self.assertEqual(FlowStart.STATUS_COMPLETE, new_start.status)
-        self.assertEqual(0, new_start.contact_count)
 
         # mark that start as incomplete
         new_start.status = FlowStart.STATUS_STARTING
@@ -5812,7 +5807,7 @@ class FlowsTest(FlowFileTest):
         rule_set1, rule_set2 = favorites.rule_sets.order_by("y")[:2]
 
         start = FlowStart.create(favorites, self.admin, contacts=[self.contact])
-        start.start()
+        start.async_start()
 
         Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
         Msg.create_incoming(self.channel, "tel:+12065552020", "primus")
@@ -8218,7 +8213,7 @@ class FlowsTest(FlowFileTest):
         start = FlowStart.objects.create(flow=parent, created_by=self.admin, modified_by=self.admin)
         for contact in contacts:
             start.contacts.add(contact)
-        start.start()
+        start.async_start()
 
         # all our contacts should have a name of Greg now (set in the child flow)
         for contact in contacts:

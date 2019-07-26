@@ -12,7 +12,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
-from temba.flows.models import RuleSet
+from temba.flows.models import FlowRun
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -39,7 +39,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest, uses_legacy_engine
+from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 from temba.utils.dates import datetime_to_str
@@ -2226,7 +2226,6 @@ class BroadcastTest(TembaTest):
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")
 
-    @uses_legacy_engine
     def test_send(self):
         # remove all channels first
         for channel in Channel.objects.all():
@@ -2325,14 +2324,15 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
         self.assertContains(response, "success")
 
-        # add flow steps
+        # give Joe a flow run that has stopped on a node
+        node_uuid = "19bd2f45-f0bc-435c-bb52-c2dc566093d4"
         flow = self.get_flow("favorites")
-        flow.start([], [self.joe], restart_participants=True)
+        run = FlowRun.create(flow, self.joe)
+        run.current_node_uuid = node_uuid
+        run.save(update_fields=("current_node_uuid",))
 
-        step_uuid = RuleSet.objects.first().uuid
-
-        # no error if we are sending from a flow node
-        post_data = dict(text="message content", omnibox="", step_node=step_uuid)
+        # no error if we are sending to a flow node
+        post_data = dict(text="message content", omnibox="", step_node=node_uuid)
         response = self.client.post(send_url + "?_format=json", post_data, follow=True)
         self.assertContains(response, "success")
 
@@ -2973,22 +2973,14 @@ class LabelCRUDLTest(TembaTest):
 
 class ConsoleTest(TembaTest):
     def setUp(self):
-        from temba.triggers.models import Trigger
-
         super().setUp()
         self.create_secondary_org()
 
         # create a new console
         self.console = MessageConsole(self.org, "tel:+250788123123")
 
-        # a few test contacts
+        # and a test contact
         self.john = self.create_contact("John Doe", "0788123123", force_urn_update=True)
-
-        # create a flow and set "color" as its trigger
-        self.flow = self.get_flow("color")
-        Trigger.objects.create(
-            flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org
-        )
 
     def assertEchoed(self, needle, clear=True):
         found = False
@@ -3001,8 +2993,19 @@ class ConsoleTest(TembaTest):
         if clear:
             self.console.clear_echoed()
 
-    @uses_legacy_engine
-    def test_msg_console(self):
+    def mock_handle_msg(self, msg):
+        """
+        Mocks message handling so that the incoming message is marked as handled and we send a reply
+        """
+        self.create_msg(contact=msg.contact, direction="O", text="Good point", response_to=msg)
+
+        msg.status = HANDLED
+        msg.save(update_fields=("status",))
+
+    @patch("temba.msgs.models.Msg.handle", autospec=True)
+    def test_msg_console(self, mock_handle):
+        mock_handle.side_effect = self.mock_handle_msg
+
         # make sure our org is properly set
         self.assertEqual(self.console.org, self.org)
 
@@ -3039,14 +3042,14 @@ class ConsoleTest(TembaTest):
         self.assertEchoed("Hello World")
 
         # make sure the message was created for our contact and handled
-        msg = Msg.objects.get()
-        self.assertEqual(msg.text, "Hello World")
-        self.assertEqual(msg.contact, self.john)
-        self.assertEqual(msg.status, HANDLED)
+        msg_in = Msg.objects.get(direction="I")
+        self.assertEqual(msg_in.text, "Hello World")
+        self.assertEqual(msg_in.contact, self.john)
+        self.assertEqual(msg_in.status, HANDLED)
 
-        # now trigger a flow
-        self.console.default("Color")
-        self.assertEchoed("What is your favorite color?")
+        msg_out = Msg.objects.get(direction="O")
+        self.assertEqual(msg_out.text, "Good point")
+        self.assertEqual(msg_out.contact, self.john)
 
 
 class BroadcastLanguageTest(TembaTest):
