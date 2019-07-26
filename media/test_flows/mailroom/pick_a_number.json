@@ -1,0 +1,89 @@
+{
+  "campaigns": [],
+  "version": 3,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "definition": {
+        "rule_sets": [
+          {
+            "y": 106,
+            "x": 100,
+            "response_type": "C",
+            "rules": [
+              {
+                "test": {
+                  "max": "10",
+                  "type": "between",
+                  "min": "1"
+                },
+                "destination": "9a8ba8b2-8c80-4635-9f5d-015c15fdc44a",
+                "uuid": "41418f9d-73e5-43b8-a341-3f7af70e13c1"
+              },
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "Other",
+                "destination": null,
+                "uuid": "e53c2616-7b8d-4821-968a-4488e9980454"
+              }
+            ],
+            "uuid": "06bb3899-5de4-4cbc-ad5f-70b9634d80c4",
+            "label": "number"
+          },
+          {
+            "y": 300,
+            "x": 300,
+            "response_type": "C",
+            "rules": [
+              {
+                "test": {
+                  "test": "true",
+                  "type": "true"
+                },
+                "category": "All Responses",
+                "destination": "06bb3899-5de4-4cbc-ad5f-70b9634d80c4",
+                "uuid": "34110fb2-f841-11e4-a322-1697f925ec7b"
+              }
+            ],
+            "uuid": "12610fb2-f841-11e4-a322-1697f925ec7b",
+            "label": "passive",
+            "operand": "@contact.name"
+          }
+        ],
+        "action_sets": [
+          {
+            "y": 0,
+            "x": 100,
+            "destination": "06bb3899-5de4-4cbc-ad5f-70b9634d80c4",
+            "uuid": "2f2adf23-87db-41d3-9436-afe48ab5403c",
+            "actions": [
+              {
+                "msg": "Pick a number between 1-10.",
+                "type": "reply"
+              }
+            ]
+          },
+          {
+            "y": 228,
+            "x": 118,
+            "destination": null,
+            "uuid": "9a8ba8b2-8c80-4635-9f5d-015c15fdc44a",
+            "actions": [
+              {
+                "msg": "You picked @flow.number!",
+                "type": "reply"
+              }
+            ]
+          }
+        ]
+      },
+      "flow_type": "F",
+      "name": "Pick a Number",
+      "id": 2100
+    }
+  ],
+  "triggers": []
+}
