@@ -371,7 +371,7 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['flows'])} flows... ")
 
         for f in spec["flows"]:
-            with open("media/test_flows/" + f["file"], "r") as flow_file:
+            with open("media/test_flows/mailroom/" + f["file"], "r") as flow_file:
                 org.import_app(json.load(flow_file), user)
 
                 # set the uuid on this flow
