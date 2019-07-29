@@ -333,7 +333,7 @@ class Flow(TembaModel):
         expires_after_minutes=DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
-        use_new_editor=False,
+        use_new_editor=True,
         **kwargs,
     ):
         flow = Flow.objects.create(
