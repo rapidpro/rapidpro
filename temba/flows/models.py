@@ -4745,7 +4745,7 @@ class FlowStart(models.Model):
     contacts = models.ManyToManyField(Contact)
 
     # the query (if any) that should be used to select contacts to start
-    query = models.CharField(max_length=255, null=True)
+    query = models.TextField(null=True)
 
     # whether to restart contacts that have already participated in this flow
     restart_participants = models.BooleanField(default=True)
