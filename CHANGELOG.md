@@ -1,3 +1,48 @@
+v5.0.9
+----------
+ * Add dummy migrations for all migrations to be created by squashing
+
+v5.0.8
+----------
+ * Update recommended versions in README
+ * Fix API runs serializer when run doesn't have category (i.e. from save_run_result action)
+ * Update to latest floweditor
+ * Update search parser to convert timestamps into UTC
+
+v5.0.7
+----------
+ * Force a save when migrating flows
+
+v5.0.6
+----------
+ * Show search error if input is not a date
+ * Group being imported into should be in state=INITIALIZING whilist being populated, and hide such groups in the UI
+ * Only add initially changed files in post-commit hook
+ * Fix to make sure the initial form data is properly shown on signup
+
+v5.0.5
+----------
+ * sync whatsapp templates with unsupported languages, show them as such
+
+v5.0.4
+----------
+ * Update to floweditor v1.5.15
+ * Add pagination to outbox
+ * Fix import of contact field when field exists with same name but different key
+ * Fix (old) mac excel dates in imports
+
+v5.0.3
+----------
+ * Update flow editor to 1.5.14
+
+v5.0.2
+----------
+ * Remove reference to webhook API page which no longer exists
+ * Update to flow-editor 1.5.12
+ * Update some LS libs for security
+ * Tweaks to migrate_to_version_11_1 to handle "base" as a lang key
+ * Tweak old flow migrations to allow missing webhook_action and null ruleset labels
+
 v5.0.1
 ----------
  * Fix max length for WA claim facebook_access_token

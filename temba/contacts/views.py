@@ -297,7 +297,12 @@ class ContactListView(ContactListPaginationMixin, OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        groups = ContactGroup.get_user_groups(org, ready_only=False).select_related("org").order_by(Upper("name"))
+        groups = (
+            ContactGroup.get_user_groups(org, ready_only=False)
+            .exclude(status=ContactGroup.STATUS_INITIALIZING)
+            .select_related("org")
+            .order_by(Upper("name"))
+        )
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
