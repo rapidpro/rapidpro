@@ -3235,9 +3235,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
 
-            # delete any action logs associated with us
-            ActionLog.objects.filter(run=self).delete()
-
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
 
@@ -4698,25 +4695,6 @@ class ResultsExportAssetStore(BaseExportAssetStore):
     directory = "results_exports"
     permission = "flows.flow_export_results"
     extensions = ("xlsx",)
-
-
-class ActionLog(models.Model):
-    """
-    Log of an event that occurred whilst executing a flow in the simulator
-    """
-
-    LEVEL_INFO = "I"
-    LEVEL_WARN = "W"
-    LEVEL_ERROR = "E"
-    LEVEL_CHOICES = ((LEVEL_INFO, _("Info")), (LEVEL_WARN, _("Warning")), (LEVEL_ERROR, _("Error")))
-
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="logs")
-
-    text = models.TextField(help_text=_("Log event text"))
-
-    level = models.CharField(max_length=1, choices=LEVEL_CHOICES, default=LEVEL_INFO, help_text=_("Log event level"))
-
-    created_on = models.DateTimeField(help_text=_("When this log event occurred"))
 
 
 class FlowStart(models.Model):
