@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-29 21:12+0000\n"
+"POT-Creation-Date: 2019-08-01 15:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2603,24 +2603,6 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
-msgid "Info"
-msgstr ""
-
-msgid "Warning"
-msgstr ""
-
-msgid "Error"
-msgstr ""
-
-msgid "Log event text"
-msgstr ""
-
-msgid "Log event level"
-msgstr ""
-
-msgid "When this log event occurred"
-msgstr ""
-
 msgid "Unique Identifier"
 msgstr ""
 
@@ -4832,6 +4814,9 @@ msgid "Message Error"
 msgstr ""
 
 msgid "Message Log"
+msgstr ""
+
+msgid "Error"
 msgstr ""
 
 msgid "Change Alert Settings"
