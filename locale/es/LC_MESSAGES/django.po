@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-23 04:30+0000\n"
+"POT-Creation-Date: 2019-08-01 01:34+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3845,31 +3845,6 @@ msgstr "Los flujos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "Configuraciones codificadas JSON para este informe"
 
-#, fuzzy
-#| msgid "Infobip"
-msgid "Info"
-msgstr "Infobip"
-
-#, fuzzy
-#| msgid "Warning!"
-msgid "Warning"
-msgstr "¡Atención!"
-
-#, fuzzy
-msgid "Error"
-msgstr "Conteo de errores"
-
-msgid "Log event text"
-msgstr ""
-
-msgid "Log event level"
-msgstr ""
-
-#, fuzzy
-#| msgid "When this flow run expired"
-msgid "When this log event occurred"
-msgstr "Cuándo venció esta corrida de flujos"
-
 msgid "Unique Identifier"
 msgstr ""
 
@@ -6512,6 +6487,10 @@ msgstr "Mensaje"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensaje"
+
+#, fuzzy
+msgid "Error"
+msgstr "Conteo de errores"
 
 msgid "Change Alert Settings"
 msgstr "Cambiar las configuraciones de alerta"
@@ -11674,6 +11653,21 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~| msgid "Infobip"
+#~ msgid "Info"
+#~ msgstr "Infobip"
+
+#, fuzzy
+#~| msgid "Warning!"
+#~ msgid "Warning"
+#~ msgstr "¡Atención!"
+
+#, fuzzy
+#~| msgid "When this flow run expired"
+#~ msgid "When this log event occurred"
+#~ msgstr "Cuándo venció esta corrida de flujos"
 
 #~ msgid "The flow that is being started"
 #~ msgstr "El flujo que se ha empezado"
