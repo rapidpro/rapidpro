@@ -1,3 +1,9 @@
+v5.1.12
+----------
+ * Drop ActionLog model
+ * Switch to new editor as the default, use v1.6.10
+ * Add query field to FlowStart
+
 v5.1.11
 ----------
  * Add FlowSession.uuid which is nullable for now
