@@ -18,9 +18,15 @@ cache:
     - "$HOME/.cache/pip"
 
 before_install:
+  # install the chosen PG version
   - sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
   - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
   - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
+
+  # possibly a Travis bug but data directory not being initialized
+  - sudo -u postgres /usr/lib/postgresql/$PGDB/bin/initdb -D /var/ramfs/postgresql/$PGDB/main
+
+  # stop any running postgres versions
   - sudo -E service postgresql stop 9.2
   - sudo -E service postgresql stop 9.3
   - sudo -E service postgresql stop 9.4
@@ -29,6 +35,8 @@ before_install:
   - sudo -E service postgresql stop 10
   - sudo -E service postgresql stop 11
   - sudo -E ps axuwww | grep -i postg
+
+  # start the chosen PG version
   - sudo -E systemctl -l restart postgresql@$PGDB-main
   - sudo -E systemctl -l status postgresql@$PGDB-main
 
