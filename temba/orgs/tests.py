@@ -731,7 +731,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
-            "surveyor_password": None,
+            "surveyor_password": "",
         }
 
         response = self.client.post(update_url, post_data)

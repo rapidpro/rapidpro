@@ -477,6 +477,8 @@ class TembaTestMixin:
 
 
 class TembaTest(TembaTestMixin, SmartminTest):
+    databases = ("default", "direct")
+
     def setUp(self):
         self.maxDiff = 4096
         self.mock_server = mock_server
