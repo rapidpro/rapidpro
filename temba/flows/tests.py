@@ -34,6 +34,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
+    MigrationTest,
     MockResponse,
     TembaTest,
     matchers,
@@ -11201,3 +11202,25 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class PopulateSessionUUIDMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0210_drop_action_log"
+    migrate_to = "0211_populate_session_uuid"
+
+    def setUpBeforeMigration(self, apps):
+        # override the batch size constant
+        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        contact = self.create_contact("Bob", twitter="bob")
+
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+
+    def test_merged(self):
+        self.assertEqual(FlowSession.objects.count(), 3)
+        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
