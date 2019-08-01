@@ -5,6 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0208_flowsession_uuid")]
+    dependencies = [("flows", "0209_flowstart_query")]
 
     operations = [migrations.RemoveField(model_name="actionlog", name="run"), migrations.DeleteModel(name="ActionLog")]
