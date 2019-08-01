@@ -1,3 +1,8 @@
+v5.1.11
+----------
+ * Add FlowSession.uuid which is nullable for now
+ * Update to floweditor 1.6.9, scrolling rules
+
 v5.1.10
 ----------
  * Update to flow editor 1.6.8, add completion config

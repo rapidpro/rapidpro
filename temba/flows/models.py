@@ -2670,6 +2670,8 @@ class FlowSession(models.Model):
 
     GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
 
+    uuid = models.UUIDField(null=True)
+
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
@@ -4741,6 +4743,9 @@ class FlowStart(models.Model):
 
     # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
+
+    # the query (if any) that should be used to select contacts to start
+    query = models.TextField(null=True)
 
     # whether to restart contacts that have already participated in this flow
     restart_participants = models.BooleanField(default=True)
