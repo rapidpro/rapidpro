@@ -10,7 +10,12 @@ django-timezone-field
 djangorestframework
 dj-database-url
 smartmin
-
+django-getenv
+django-cache-url
+uwsgi
+whitenoise
+flower
+tornado<6.0
 ########################## services ##########################
 analytics-python
 boto3

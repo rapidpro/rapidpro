@@ -1,0 +1,173 @@
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+-block extra-style
+  :css
+    #id-channels .icon-box.formax-icon{
+      display:none;
+    }
+
+    #id-channels li{
+      border-top-width:0px;
+    }
+
+    .formax .list .formax-summary{
+      padding-top:0px;
+    }
+
+
+:javascript
+  $(function () {
+    $(document).ready(function() {
+      $("#id-channels .icon-box.formax-icon").remove()
+    });
+  });
+
+%div.icon-box.formax-icon
+
+%ul.formax.list
+  -for channel in channel_list
+    %li{id:'id-{{channel.uuid}}', data-dependents:'None', data-button:'save', data-nobutton:'false', data-fetched:'true', data-href:"{% url 'channels.channel_read' channel.uuid%}", data-action:'link', class:'action-link'}
+      .formax-icon{class:'{{ channel|channel_icon }}'}
+      .formax-container
+        %div.formax-summary
+          {% if channel.channel_type == 'A' %}{{ channel.device }}
+          -if channel.os
+            (v{{channel.os}})
+          {% else %}false{% endif %}
+
+          {{ channel.get_address_display }}
+          -with channel.get_sender as sender and channel.get_caller as caller
+            -if channel.channel_type == 'A'
+              .pull-right
+                -if not caller.is_delegate_caller and channel.org.is_connected_to_twilio
+                  %a.btn.btn-secondary.org-button.posterize{href:"{% url 'channels.channel_create_caller' %}?channel={{channel.pk}}"}
+                    -trans "Enable Voice"
+
+                -if not sender.is_delegate_sender
+                  %a.btn.btn-secondary.org-button{href:'{% url "channels.channel_bulk_sender_options" %}?channel={{channel.pk}}'}
+                    -trans "Enable Bulk Sending"
+
+          .channel-roles
+                -for delegate_channel in channel.get_delegate_channels
+                  %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
+                    .icon{class:'{{ channel|channel_icon }}'}
+
+                    -if delegate_channel.is_delegate_sender
+                      -trans "Bulk sending enabled"
+
+                    -if delegate_channel.is_delegate_caller
+                      -trans "Voice calls enabled"
+
+                -if channel.get_type.show_config_page
+                  <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.uuid %}">{%trans "Settings"%}</a>
+
+
+                -if channel.has_channel_log
+                  -if not user_org.is_anon or perms.contacts.contact_break_anon
+                    -with channel.get_sender as sender and channel.get_caller as caller
+                      -if sender
+                        <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
+                      - if caller and caller != sender
+                        <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
+
+                -for link in channel.get_type.extra_links
+                  <a class="btn btn-tiny" href="{% url link.name channel.uuid %}">{{ link.link }}</a>
+
+                .notice
+                  -if channel.last_sync or unsent_msgs_count
+                    -if channel.delayed_sync_event
+                      .icon.icon-warning.errored
+                    -if channel.last_sync
+                      %span.errored
+                        -trans "Last synced"
+                        -if channel.last_sync
+                          -blocktrans with channel.last_sync.created_on|timesince as channel.last_sync
+                            = channel.last_sync
+                          ago
+                        -else
+                          -trans "Never"
+
+                    -else
+                      -if channel.channel_type == 'A'
+                        -trans "Last synced"
+                        -if last_sync
+                          -blocktrans with last_sync.created_on|timesince as last_sync
+                            = last_sync
+                            ago
+                        -else
+                          -trans "Never"
+                      -else
+                        -trans "Activated"
+                        {{ channel.created_on }}
+
+                    -if unsent_msgs_count
+                      %a.errored{href:"{% url 'msgs.msg_failed' %}"}
+                        = unsent_msgs_count
+                        {% blocktrans count unsent_msgs_count=unsent_msgs_count %}
+                          unsent message
+                        {% plural %}
+                          unsent messages
+                        {% endblocktrans %}
+
+
+- block paginator
+  -if channels_list.count
+    .paginator
+      - if paginator and paginator.num_pages > 1
+        .pagination.pagination-right
+          %ul
+            - if page_obj.has_previous
+              %li.prev
+                %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}
+                  &larr; Previous
+            - else
+              %li.prev.disabled
+                %a{href:"#"}
+                  &larr; Previous
+
+            - for page_num in paginator.page_range
+              - if page_obj.number < 5
+                - if page_num < 10
+                  - if not page_num == page_obj.number
+                    %li
+                      %a{href:"{{url_params|safe}}page={{page_num}}"}
+                        {{ page_num }}
+                  - else
+                    %li.active
+                      %a{href:"#"}
+                        {{ page_num }}
+
+              - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5"
+                - if not page_num == page_obj.number
+                  %li
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                - else
+                  %li.active
+                    %a{href:"#"}
+                      {{ page_num }}
+
+              - elif page_obj.number > paginator.num_pages|add:"-5"
+                - if page_num > paginator.num_pages|add:"-9"
+                  - if not page_num == page_obj.number
+                    %li
+                      %a{href:"{{url_params|safe}}page={{page_num}}"}
+                        {{ page_num }}
+                  - else
+                    %li.active
+                      %a{href:"#"}
+                        {{ page_num }}
+
+
+            - if page_obj.has_next
+              %li.next
+                %a{href:"{{url_params|safe}}page={{page_obj.next_page_number}}"}
+                  Next &rarr;
+            - else
+              %li.next.disabled
+                %a{href:"#"}
+                  Next &rarr;
+
+
+

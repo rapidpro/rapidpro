@@ -40,6 +40,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.apks.models import Apk
 from temba.contacts.models import TEL_SCHEME, URN, ContactURN
+from temba.formax import FormaxMixin
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
@@ -637,6 +638,10 @@ ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()),
 
 def get_channel_read_url(channel):
     return reverse("channels.channel_read", args=[channel.uuid])
+
+
+def get_channel_read_url_list():
+    return reverse("channels.channel_read_list")
 
 
 def channel_status_processor(request):
@@ -1323,6 +1328,7 @@ class ChannelCRUDL(SmartCRUDL):
         "claim",
         "update",
         "read",
+        "read_list",
         "delete",
         "search_numbers",
         "claim_android",
@@ -1584,6 +1590,54 @@ class ChannelCRUDL(SmartCRUDL):
             message_stats_table.reverse()
             context["message_stats_table"] = message_stats_table
 
+            return context
+
+    class ReadList(OrgPermsMixin, SmartListView):
+        title = _("Channels")
+        # exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
+        permission = "channels.channel_read"
+        fields = ('is_active', 'created_by', 'created_on', 'modified_by', 'modified_on', 'uuid', 'channel_type', 'name',
+                  'address', 'country', 'org', 'claim_code', 'secret', 'last_seen', 'device', 'os', 'alert_email',
+                  'config', 'schemes', 'role', 'parent', 'bod', 'tps')
+        def get_queryset(self, **kwargs):
+            queryset = super().get_queryset(**kwargs)
+
+            # org users see channels for their org, superuser sees all
+            if not self.request.user.is_superuser:
+                org = self.request.user.get_org()
+                queryset = queryset.filter(org=org)
+
+            return queryset.filter(is_active=True)
+
+        def pre_process(self, *args, **kwargs):
+            # superuser sees things as they are
+            if self.request.user.is_superuser:
+                return super().pre_process(*args, **kwargs)
+
+            # everybody else goes to a different page depending how many channels there are
+            org = self.request.user.get_org()
+            channels = list(Channel.objects.filter(org=org, is_active=True))
+            return super().pre_process(*args, **kwargs)
+
+        def get_name(self, obj):
+            return obj.get_name()
+
+        def get_address(self, obj):
+            return obj.address if obj.address else _("Unknown")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            # delayed sync event
+            for channel in context['channel_list']:
+                if not channel.is_new():
+                    sync_events = SyncEvent.objects.filter(channel=channel.id).order_by("-created_on")
+                    if sync_events:
+                        latest_sync_event = sync_events[0]
+                        interval = timezone.now() - latest_sync_event.created_on
+                        seconds = interval.seconds + interval.days * 24 * 3600
+                        channel.last_sync = latest_sync_event
+                        if seconds > 3600:
+                            channel.delayed_sync_event = latest_sync_event
             return context
 
     class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
