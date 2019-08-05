@@ -2,6 +2,7 @@ import logging
 
 from twilio.twiml.voice_response import VoiceResponse
 
+from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.encoding import force_text
@@ -33,6 +34,13 @@ class BaseChannelHandler(View):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
+        if not settings.TESTING:  # pragma: no cover
+            logger.error(
+                "%s mailroom IVR handler called in RapidPro with URL: %s"
+                % (self.handler_name, request.get_full_path())
+            )
+            return HttpResponse("%s IVR handling only implemented in Mailroom" % self.handler_name, status=404)
+
         return super().dispatch(request, *args, **kwargs)
 
     @classmethod
