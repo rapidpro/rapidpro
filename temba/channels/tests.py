@@ -1370,11 +1370,13 @@ class ChannelTest(TembaTest):
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
             ]
 

@@ -360,7 +360,9 @@ class IVRTests(FlowFileTest):
         contact = self.create_contact("Chuck D", number="+13603621737")
 
         with patch("requests.post") as mock_create_call:
-            mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
+            mock_create_call.return_value = MockResponse(
+                200, json.dumps(dict(uuid="12345")), headers={"Content-Type": "application/json"}
+            )
 
             run, = flow.start([], [contact])
 
@@ -461,7 +463,9 @@ class IVRTests(FlowFileTest):
 
         # create a valid call first
         with patch("requests.post") as mock_create_call:
-            mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
+            mock_create_call.return_value = MockResponse(
+                200, json.dumps(dict(uuid="12345")), headers={"Content-Type": "application/json"}
+            )
 
             flow.start([], [contact], restart_participants=True)
 
@@ -839,7 +843,9 @@ class IVRTests(FlowFileTest):
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
 
         with patch("requests.post") as mock_create_call:
-            mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid="12345"))))
+            mock_create_call.return_value = MockResponse(
+                200, json.dumps(dict(call=dict(uuid="12345"))), headers={"Content-Type": "application/json"}
+            )
 
             flow.start([], [eric])
 
@@ -1747,7 +1753,9 @@ class IVRTests(FlowFileTest):
         # start our flow
         eric = self.create_contact("Eric Newcomer", number="+13603621737")
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, json.dumps(dict(uuid="12345")))
+            mock_post.return_value = MockResponse(
+                200, json.dumps(dict(uuid="12345")), headers={"Content-Type": "application/json"}
+            )
             flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         call.external_id = "ext-id"

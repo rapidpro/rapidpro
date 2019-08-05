@@ -5,27 +5,6 @@ import nexmo
 from django.urls import reverse
 
 
-class CustomClient(nexmo.Client):
-    """
-    TODO: do we still need this?
-    """
-
-    def parse(self, host, response):  # pragma: no cover
-        # Nexmo client doesn't extend object, so can't call super
-        if response.status_code == 401:
-            raise nexmo.AuthenticationError
-        elif response.status_code == 204:  # pragma: no cover
-            return None
-        elif 200 <= response.status_code < 300:
-            return response.json()
-        elif 400 <= response.status_code < 500:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-            raise nexmo.ClientError(message)
-        elif 500 <= response.status_code < 600:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-            raise nexmo.ServerError(message)
-
-
 class Client:
     """
     Wrapper for the actual Nexmo client that adds some functionality and retries
@@ -34,7 +13,7 @@ class Client:
     RATE_LIMIT_PAUSE = 2
 
     def __init__(self, api_key, api_secret):
-        self.base = CustomClient(api_key, api_secret)
+        self.base = nexmo.Client(api_key, api_secret)
 
     def check_credentials(self):
         try:
