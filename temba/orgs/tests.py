@@ -6,7 +6,6 @@ from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 from uuid import uuid4
 
-import nexmo
 import pytz
 import stripe
 import stripe.error
@@ -2131,17 +2130,14 @@ class OrgTest(TembaTest):
             },
         )
 
-    @patch("nexmo.Client.create_application")
-    def test_connect_nexmo(self, mock_create_application):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+    def test_connect_nexmo(self):
         self.login(self.admin)
 
-        # connect nexmo
         connect_url = reverse("orgs.org_nexmo_connect")
 
         # simulate invalid credentials
-        with patch("requests.get") as nexmo:
-            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
             self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_nexmo())
@@ -2158,41 +2154,6 @@ class OrgTest(TembaTest):
                 )
                 response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
                 self.assertEqual(response.status_code, 302)
-
-                # nexmo should now be connected
-                self.org = Org.objects.get(pk=self.org.pk)
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEqual(self.org.config["NEXMO_KEY"], "key")
-                self.assertEqual(self.org.config["NEXMO_SECRET"], "secret")
-
-                nexmo_uuid = self.org.config["NEXMO_UUID"]
-
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["answer_url"],
-                    "https://%s%s"
-                    % (
-                        self.org.get_brand_domain().lower(),
-                        reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]),
-                    ),
-                )
-
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["event_url"],
-                    "https://%s%s"
-                    % (
-                        self.org.get_brand_domain().lower(),
-                        reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]),
-                    ),
-                )
-
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["answer_method"], "POST")
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["event_method"], "POST")
-
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["type"], "voice")
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["name"],
-                    "%s/%s" % (self.org.get_brand_domain().lower(), nexmo_uuid),
-                )
 
                 nexmo_account_url = reverse("orgs.org_nexmo_account")
                 response = self.client.get(nexmo_account_url)
@@ -2219,7 +2180,7 @@ class OrgTest(TembaTest):
                 # now try with all required fields, and a bonus field we shouldn't change
                 self.client.post(
                     nexmo_account_url,
-                    dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHNAGE ME"),
+                    dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
                     follow=True,
                 )
                 # name shouldn't change
@@ -2251,43 +2212,6 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
         self.assertFalse(self.org.config["NEXMO_KEY"])
         self.assertFalse(self.org.config["NEXMO_SECRET"])
-
-    @patch("nexmo.Client.create_application")
-    def test_nexmo_configuration(self, mock_create_application):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-
-        self.login(self.admin)
-
-        nexmo_configuration_url = reverse("orgs.org_nexmo_configuration")
-
-        # try nexmo not connected
-        response = self.client.get(nexmo_configuration_url)
-
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(nexmo_configuration_url, follow=True)
-
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_nexmo_connect"))
-
-        self.org.connect_nexmo("key", "secret", self.admin)
-
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as mock_update_account:
-            # try automatic nexmo settings update
-            mock_update_account.return_value = True
-
-            response = self.client.get(nexmo_configuration_url)
-            self.assertEqual(response.status_code, 302)
-
-            response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.nexmo.claim"))
-
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as mock_update_account:
-            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
-
-            response = self.client.get(nexmo_configuration_url)
-            self.assertEqual(response.status_code, 200)
-
-            response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_nexmo_configuration"))
 
     def test_connect_plivo(self):
         self.login(self.admin)

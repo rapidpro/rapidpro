@@ -1,5 +1,7 @@
 import time
+import uuid
 
+import jwt
 import requests
 from nexmo import AuthenticationError, ClientError, ServerError
 from twilio.base.exceptions import TwilioRestException
@@ -8,16 +10,17 @@ from twilio.rest.api import Api
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils.encoding import force_bytes
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelLog
+from temba.channels.types.nexmo.client import Client
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
 from temba.utils import json
 from temba.utils.http import HttpEvent
-from temba.utils.nexmo import NexmoClient as NexmoCli
 from temba.utils.twilio import TembaTwilioRestClient
 
 
@@ -25,11 +28,12 @@ class IVRException(Exception):
     pass
 
 
-class NexmoClient(NexmoCli):
-    def __init__(self, api_key, api_secret, app_id, app_private_key, org):
+class NexmoClient(Client):
+    def __init__(self, api_key, api_secret, org):
         self.org = org
-        NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
         self.events = []
+
+        super().__init__(api_key, api_secret)
 
     def validate(self, request):
         return True
@@ -124,6 +128,22 @@ class NexmoClient(NexmoCli):
         self.update_call(call.external_id, action="hangup", call_id=call.external_id)
         for event in self.events:
             ChannelLog.log_ivr_interaction(call, "Hung up call", event)
+
+    def download_recording(self, url, params=None, **kwargs):
+        return requests.get(url, params=params, headers=self.gen_headers())
+
+    def gen_headers(self):
+        iat = int(time.time())
+
+        payload = dict(self.auth_params)
+        payload.setdefault("application_id", self.application_id)
+        payload.setdefault("iat", iat)
+        payload.setdefault("exp", iat + 60)
+        payload.setdefault("jti", str(uuid.uuid4()))
+
+        token = jwt.encode(payload, self.private_key, algorithm="RS256")
+
+        return dict(self.headers, Authorization=b"Bearer " + force_bytes(token))
 
 
 class TwilioClient(TembaTwilioRestClient):

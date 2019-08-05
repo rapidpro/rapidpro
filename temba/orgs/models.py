@@ -29,7 +29,6 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import F, Prefetch, Q, Sum
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -872,44 +871,13 @@ class Org(SmartModel):
             self.save()
 
     def connect_nexmo(self, api_key, api_secret, user):
-        from nexmo import Client as NexmoClient
-
-        nexmo_uuid = str(uuid4())
-        nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
-        client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        domain = self.get_brand_domain()
-
-        app_name = "%s/%s" % (domain, nexmo_uuid)
-
-        answer_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]))
-
-        event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]))
-
-        params = dict(
-            name=app_name,
-            type="voice",
-            answer_url=answer_url,
-            answer_method="POST",
-            event_url=event_url,
-            event_method="POST",
-        )
-
-        response = client.create_application(params=params)
-        app_id = response.get("id", None)
-        private_key = response.get("keys", dict()).get("private_key", None)
-
-        nexmo_config[NEXMO_APP_ID] = app_id
-        nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
+        nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip()}
 
         config = self.config
         config.update(nexmo_config)
         self.config = config
         self.modified_by = user
-        self.save()
-
-    def nexmo_uuid(self):
-        config = self.config
-        return config.get(NEXMO_UUID, None)
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def connect_twilio(self, account_sid, account_token, user):
         twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
@@ -918,15 +886,13 @@ class Org(SmartModel):
         config.update(twilio_config)
         self.config = config
         self.modified_by = user
-        self.save()
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def is_connected_to_nexmo(self):
         if self.config:
             nexmo_key = self.config.get(NEXMO_KEY, None)
             nexmo_secret = self.config.get(NEXMO_SECRET, None)
-            nexmo_uuid = self.config.get(NEXMO_UUID, None)
-
-            return nexmo_key and nexmo_secret and nexmo_uuid
+            return nexmo_key and nexmo_secret
         else:
             return False
 
@@ -934,8 +900,7 @@ class Org(SmartModel):
         if self.config:
             account_sid = self.config.get(ACCOUNT_SID, None)
             account_token = self.config.get(ACCOUNT_TOKEN, None)
-            if account_sid and account_token:
-                return True
+            return account_sid and account_token
         return False
 
     def remove_nexmo_account(self, user):
@@ -1018,10 +983,7 @@ class Org(SmartModel):
         if self.config:
             api_key = self.config.get(NEXMO_KEY, None)
             api_secret = self.config.get(NEXMO_SECRET, None)
-            app_id = self.config.get(NEXMO_APP_ID, None)
-            app_private_key = self.config.get(NEXMO_APP_PRIVATE_KEY, None)
-            if api_key and api_secret:
-                return NexmoClient(api_key, api_secret, app_id, app_private_key, org=self)
+            return NexmoClient(api_key, api_secret, org=self)
 
         return None
 

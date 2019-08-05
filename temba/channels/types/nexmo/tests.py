@@ -1,13 +1,16 @@
 from unittest.mock import patch
 
+import nexmo
+
 from django.urls import reverse
 
 from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 
+from .client import Client
+
 
 class NexmoTypeTest(TembaTest):
-    @patch("temba.utils.nexmo.time.sleep")
     def test_claim(self, mock_time_sleep):
         mock_time_sleep.return_value = None
         self.login(self.admin)
@@ -222,3 +225,53 @@ class NexmoTypeTest(TembaTest):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(len(response.content), 0)
+
+
+class ClientTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.client = Client("abc123", "asecret")
+
+    @patch("nexmo.Client.get_account_numbers")
+    def test_get_numbers(self, mock_get_account_numbers):
+        mock_get_account_numbers.return_value = {"count": 2, "numbers": ["23463", "568658"]}
+
+        self.assertEqual(self.client.get_numbers(pattern="+593"), ["23463", "568658"])
+
+        mock_get_account_numbers.assert_called_once_with(params={"size": 10, "pattern": "593"})
+
+    @patch("nexmo.Client.create_application")
+    def test_create_application(self, mock_create_application):
+        mock_create_application.return_value = {"id": "myappid", "keys": {"private_key": "tejh42gf3"}}
+
+        app_id, app_private_key = self.client.create_application("MyApp", "answer.php", "event.php")
+        self.assertEqual(app_id, "myappid")
+        self.assertEqual(app_private_key, "tejh42gf3")
+
+        mock_create_application.assert_called_once_with(
+            params={
+                "name": "MyApp",
+                "type": "voice",
+                "answer_url": "answer.php",
+                "answer_method": "POST",
+                "event_url": "event.php",
+                "event_method": "POST",
+            }
+        )
+
+    @patch("nexmo.Client.delete_application")
+    def test_delete_application(self, mock_delete_application):
+        self.client.delete_application("myappid")
+
+        mock_delete_application.assert_called_once_with(application_id="myappid")
+
+    @patch("temba.channels.types.nexmo.client.Client.RATE_LIMIT_PAUSE", 0)
+    @patch("nexmo.Client.get_account_numbers")
+    def test_retry(self, mock_get_account_numbers):
+        mock_get_account_numbers.side_effect = [
+            nexmo.ClientError("420 response from tests.com"),
+            {"count": 2, "numbers": ["23463", "568658"]},
+        ]
+
+        self.assertEqual(self.client.get_numbers(), ["23463", "568658"])

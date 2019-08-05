@@ -14,7 +14,7 @@ from temba.channels.views import (
     BaseClaimNumberMixin,
     ClaimViewMixin,
 )
-from temba.orgs.models import NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_KEY, NEXMO_SECRET, Org
+from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import analytics
 from temba.utils.models import generate_uuid
 
@@ -36,7 +36,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def pre_process(self, *args, **kwargs):
-        org = Org.objects.get(pk=self.request.user.get_org().pk)
+        org = Org.objects.get(id=self.request.user.get_org().id)
         try:
             client = org.get_nexmo_client()
         except Exception:  # pragma: needs cover
@@ -86,7 +86,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         client = org.get_nexmo_client()
         org_config = org.config
-        app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
         is_shortcode = False
@@ -105,7 +104,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         # buy the number if we have to
         if not nexmo_phones:
             try:
-                client.buy_nexmo_number(country, phone_number)
+                client.buy_number(country, phone_number)
             except Exception as e:
                 raise Exception(
                     _(
@@ -117,23 +116,39 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                     + str(e)
                 )
 
+        # what does this number support?
+        features = [elt.upper() for elt in nexmo_phones[0]["features"]]
+        supports_msgs = "SMS" in features
+        supports_voice = "VOICE" in features
+        role = ""
+        if supports_msgs:
+            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
+        if supports_voice:
+            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
+
         channel_uuid = generate_uuid()
         callback_domain = org.get_brand_domain()
         new_receive_url = "https://" + callback_domain + reverse("courier.nx", args=[channel_uuid, "receive"])
 
-        nexmo_phones = client.get_numbers(phone_number)
+        # if it supports voice, create new Nexmo voice app for this number
+        if supports_voice:
+            domain = org.get_brand_domain()
+            app_name = "%s/%s" % (domain, channel_uuid)
+            answer_url = "https://%s%s" % (
+                domain,
+                reverse("handlers.nexmo_call_handler", args=["answer", channel_uuid]),
+            )
+            event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", channel_uuid]))
 
-        features = [elt.upper() for elt in nexmo_phones[0]["features"]]
-        role = ""
-        if "SMS" in features:
-            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-
-        if "VOICE" in features:
-            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
+            app_id, app_private_key = client.create_application(app_name, answer_url, event_url)
+        else:
+            app_id = None
+            app_private_key = None
 
         # update the delivery URLs for it
         try:
-            client.update_nexmo_number(country, phone_number, new_receive_url, app_id)
+            client.update_number(country, phone_number, new_receive_url, app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -156,7 +171,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         config = {
             Channel.CONFIG_NEXMO_APP_ID: app_id,
-            Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
+            Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: app_private_key,
             Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
             Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,

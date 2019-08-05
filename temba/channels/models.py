@@ -42,7 +42,7 @@ from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
-from temba.utils.nexmo import NCCOResponse
+from temba.utils.ncco import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
