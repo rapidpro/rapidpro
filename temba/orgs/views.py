@@ -783,12 +783,9 @@ class OrgCRUDL(SmartCRUDL):
                     if not api_secret:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
-                    try:
-                        from nexmo import Client as NexmoClient
+                    from temba.channels.types.nexmo.client import Client as NexmoClient
 
-                        client = NexmoClient(key=api_key, secret=api_secret)
-                        client.get_balance()
-                    except Exception:  # pragma: needs cover
+                    if not NexmoClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
                             _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                         )
@@ -847,13 +844,9 @@ class OrgCRUDL(SmartCRUDL):
                 api_key = self.cleaned_data.get("api_key")
                 api_secret = self.cleaned_data.get("api_secret")
 
-                try:
-                    from nexmo import Client as NexmoClient
+                from temba.channels.types.nexmo.client import Client as NexmoClient
 
-                    # try a balance check to test if credential work
-                    client = NexmoClient(key=api_key, secret=api_secret)
-                    client.get_balance()
-                except Exception:
+                if not NexmoClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
                         _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                     )

@@ -233,6 +233,17 @@ class ClientTest(TembaTest):
 
         self.client = Client("abc123", "asecret")
 
+    @patch("nexmo.Client.get_balance")
+    def test_check_credentials(self, mock_get_balance):
+        mock_get_balance.side_effect = nexmo.AuthenticationError("401 not allowed")
+
+        self.assertFalse(self.client.check_credentials())
+
+        mock_get_balance.side_effect = None
+        mock_get_balance.return_value = "12.35"
+
+        self.assertTrue(self.client.check_credentials())
+
     @patch("nexmo.Client.get_account_numbers")
     def test_get_numbers(self, mock_get_account_numbers):
         mock_get_account_numbers.return_value = {"count": 2, "numbers": ["23463", "568658"]}
@@ -245,17 +256,17 @@ class ClientTest(TembaTest):
     def test_create_application(self, mock_create_application):
         mock_create_application.return_value = {"id": "myappid", "keys": {"private_key": "tejh42gf3"}}
 
-        app_id, app_private_key = self.client.create_application("MyApp", "answer.php", "event.php")
+        app_id, app_private_key = self.client.create_application("rapidpro.io", "3253-5333")
         self.assertEqual(app_id, "myappid")
         self.assertEqual(app_private_key, "tejh42gf3")
 
         mock_create_application.assert_called_once_with(
             params={
-                "name": "MyApp",
+                "name": "rapidpro.io/3253-5333",
                 "type": "voice",
-                "answer_url": "answer.php",
+                "answer_url": "https://rapidpro.io/handlers/nexmo/answer/3253-5333/",
                 "answer_method": "POST",
-                "event_url": "event.php",
+                "event_url": "https://rapidpro.io/handlers/nexmo/event/3253-5333/",
                 "event_method": "POST",
             }
         )

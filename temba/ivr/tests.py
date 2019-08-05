@@ -405,7 +405,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(response.json().get("description"), "Updated call status")
         self.assertEqual(response.json().get("call").get("status"), "Ringing")
 
-        with patch("temba.utils.nexmo.NexmoClient.download_recording") as mock_download_recording:
+        with patch("temba.ivr.clients.NexmoClient.download_recording") as mock_download_recording:
             mock_download_recording.return_value = MockResponse(
                 200, "SOUND_BITS", headers={"Content-Type": "audio/x-wav"}
             )
@@ -1708,7 +1708,7 @@ class IVRTests(FlowFileTest):
                 self.assertIsInstance(mock_save_media.call_args_list[0][0][0], File)
                 self.assertEqual(mock_save_media.call_args_list[0][0][1], "vcf")
 
-    @patch("temba.utils.nexmo.NexmoClient.download_recording")
+    @patch("temba.ivr.clients.NexmoClient.download_recording")
     @patch("nexmo.Client.create_application")
     @patch("nexmo.Client.create_call")
     @uses_legacy_engine

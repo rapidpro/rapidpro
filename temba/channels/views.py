@@ -1794,7 +1794,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
 
             channel = form.cleaned_data["channel"]
-            Channel.add_send_channel(user, channel)
+            Channel.add_nexmo_bulk_sender(user, channel)
             return super().form_valid(form)
 
         def form_invalid(self, form):
@@ -2065,7 +2065,8 @@ class ChannelCRUDL(SmartCRUDL):
 
                 return JsonResponse(numbers, safe=False)
             except Exception as e:
-                return JsonResponse(dict(error=str(e)))
+                raise e
+                # return JsonResponse(dict(error=str(e)))
 
     class SearchPlivo(SearchNumbers):
         class SearchPlivoForm(forms.Form):

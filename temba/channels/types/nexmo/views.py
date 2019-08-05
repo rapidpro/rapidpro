@@ -129,26 +129,18 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         channel_uuid = generate_uuid()
         callback_domain = org.get_brand_domain()
-        new_receive_url = "https://" + callback_domain + reverse("courier.nx", args=[channel_uuid, "receive"])
+        receive_url = "https://" + callback_domain + reverse("courier.nx", args=[channel_uuid, "receive"])
 
         # if it supports voice, create new Nexmo voice app for this number
         if supports_voice:
-            domain = org.get_brand_domain()
-            app_name = "%s/%s" % (domain, channel_uuid)
-            answer_url = "https://%s%s" % (
-                domain,
-                reverse("handlers.nexmo_call_handler", args=["answer", channel_uuid]),
-            )
-            event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", channel_uuid]))
-
-            app_id, app_private_key = client.create_application(app_name, answer_url, event_url)
+            app_id, app_private_key = client.create_application(org.get_brand_domain(), channel_uuid)
         else:
             app_id = None
             app_private_key = None
 
         # update the delivery URLs for it
         try:
-            client.update_number(country, phone_number, new_receive_url, app_id)
+            client.update_number(country, phone_number, receive_url, app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
