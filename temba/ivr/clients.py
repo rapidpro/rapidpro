@@ -50,7 +50,7 @@ class NexmoClient(Client):
         params["event_method"] = "POST"
 
         try:
-            response = self.create_call(params=params)
+            response = self.base.create_call(params=params)
             call_uuid = response.get("uuid", None)
             call.external_id = str(call_uuid)
 
@@ -99,7 +99,7 @@ class NexmoClient(Client):
         return None
 
     def hangup(self, call):
-        self.update_call(call.external_id, action="hangup", call_id=call.external_id)
+        self.base.update_call(call.external_id, action="hangup", call_id=call.external_id)
 
     def download_recording(self, url, params=None, **kwargs):
         return requests.get(url, params=params, headers=self.gen_headers())
@@ -107,15 +107,14 @@ class NexmoClient(Client):
     def gen_headers(self):
         iat = int(time.time())
 
-        payload = dict(self.auth_params)
-        payload.setdefault("application_id", self.application_id)
+        payload = dict(self.base.auth_params)
         payload.setdefault("iat", iat)
         payload.setdefault("exp", iat + 60)
         payload.setdefault("jti", str(uuid.uuid4()))
 
-        token = jwt.encode(payload, self.private_key, algorithm="RS256")
+        token = jwt.encode(payload, self.base.private_key, algorithm="RS256")
 
-        return dict(self.headers, Authorization=b"Bearer " + force_bytes(token))
+        return dict(self.base.headers, Authorization=b"Bearer " + force_bytes(token))
 
 
 class TwilioClient(TembaTwilioRestClient):
