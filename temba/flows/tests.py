@@ -236,7 +236,7 @@ class FlowTest(TembaTest):
 
         def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action=None, HTTP_X_FORWARDED_HTTPS="https")
+                post_data = dict(file=data, action="", HTTP_X_FORWARDED_HTTPS="https")
                 response = self.client.post(upload_media_action_url, post_data)
 
                 self.assertEqual(response.status_code, 200)

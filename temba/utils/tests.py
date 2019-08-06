@@ -70,7 +70,7 @@ from .expressions import (
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
-from .models import JSONAsTextField
+from .models import JSONAsTextField, patch_queryset_count
 from .ncco import NCCOException, NCCOResponse
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
@@ -1245,6 +1245,16 @@ class ModelsTest(TembaTest):
                 curr += 1
 
         self.assertEqual(curr, 100)
+
+    def test_patch_queryset_count(self):
+        self.create_contact("Ann", twitter="ann")
+        self.create_contact("Bob", twitter="bob")
+
+        with self.assertNumQueries(0):
+            qs = Contact.objects.all()
+            patch_queryset_count(qs, lambda: 33)
+
+            self.assertEqual(qs.count(), 33)
 
 
 class ExportTest(TembaTest):

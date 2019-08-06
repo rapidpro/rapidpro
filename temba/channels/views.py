@@ -46,6 +46,7 @@ from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json
 from temba.utils.http import http_headers
+from temba.utils.models import patch_queryset_count
 
 from .models import (
     Alert,
@@ -2192,7 +2193,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .order_by("-created_on")
                     .select_related("msg__contact", "msg")
                 )
-                events.count = lambda: channel.get_non_ivr_log_count()
+                patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events
 
