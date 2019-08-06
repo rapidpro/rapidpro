@@ -62,8 +62,8 @@ class Client:
 
     def create_application(self, domain, channel_uuid):
         name = "%s/%s" % (domain, channel_uuid)
-        answer_url = reverse("handlers.nexmo_call_handler", args=["answer", channel_uuid])
-        event_url = reverse("handlers.nexmo_call_handler", args=["event", channel_uuid])
+        answer_url = reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
+        event_url = reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
 
         response = self._with_retry(
             "create_application",

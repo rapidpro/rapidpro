@@ -236,17 +236,17 @@ class ClientTest(TembaTest):
     def test_create_application(self, mock_create_application):
         mock_create_application.return_value = {"id": "myappid", "keys": {"private_key": "tejh42gf3"}}
 
-        app_id, app_private_key = self.client.create_application("rapidpro.io", "3253-5333")
+        app_id, app_private_key = self.client.create_application("rapidpro.io", "702cb3b5-8fec-4974-a87a-75234117c768")
         self.assertEqual(app_id, "myappid")
         self.assertEqual(app_private_key, "tejh42gf3")
 
         mock_create_application.assert_called_once_with(
             params={
-                "name": "rapidpro.io/3253-5333",
+                "name": "rapidpro.io/702cb3b5-8fec-4974-a87a-75234117c768",
                 "type": "voice",
-                "answer_url": "https://rapidpro.io/handlers/nexmo/answer/3253-5333/",
+                "answer_url": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/incoming",
                 "answer_method": "POST",
-                "event_url": "https://rapidpro.io/handlers/nexmo/event/3253-5333/",
+                "event_url": "https://rapidpro.io/mr/ivr/c/702cb3b5-8fec-4974-a87a-75234117c768/status",
                 "event_method": "POST",
             }
         )
