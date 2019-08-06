@@ -206,6 +206,25 @@ class NexmoTypeTest(TembaTest):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.content), 0)
 
+    def test_deactivate(self):
+        # convert our test channel to be a Nexmo channel
+        self.org.connect_nexmo("TEST_KEY", "TEST_SECRET", self.admin)
+        channel = self.org.channels.all().first()
+        channel.channel_type = "NX"
+        channel.config = {Channel.CONFIG_NEXMO_APP_ID: "myappid", Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: "secret"}
+        channel.save(update_fields=("channel_type", "config"))
+
+        # mock an authentication failure during the release process
+        with self.settings(IS_PROD=True):
+            with patch("temba.channels.types.nexmo.client.Client.delete_application") as mock_delete_application:
+                # releasing shouldn't blow up on auth failures
+                channel.release()
+                channel.refresh_from_db()
+
+                self.assertFalse(channel.is_active)
+
+                mock_delete_application.assert_called_once_with("myappid")
+
 
 class ClientTest(TembaTest):
     def setUp(self):

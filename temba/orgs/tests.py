@@ -2134,78 +2134,79 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         connect_url = reverse("orgs.org_nexmo_connect")
+        account_url = reverse("orgs.org_nexmo_account")
 
-        # simulate invalid credentials
+        # simulate invalid credentials on both pages
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
+
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
             self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_nexmo())
 
+            response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
+            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+
         # ok, now with a success
-        with patch("requests.get") as nexmo_get:
-            with patch("requests.post") as nexmo_post:
-                # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(
-                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-                )
-                nexmo_post.return_value = MockResponse(
-                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-                )
-                response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-                self.assertEqual(response.status_code, 302)
+        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
+            # believe it or not nexmo returns 'error-code' 200
+            nexmo_get.return_value = MockResponse(
+                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+            )
+            nexmo_post.return_value = MockResponse(
+                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+            )
+            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
+            self.assertEqual(response.status_code, 302)
 
-                nexmo_account_url = reverse("orgs.org_nexmo_account")
-                response = self.client.get(nexmo_account_url)
-                self.assertEqual("key", response.context["api_key"])
+            response = self.client.get(account_url)
+            self.assertEqual("key", response.context["api_key"])
 
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("key", config[NEXMO_KEY])
-                self.assertEqual("secret", config[NEXMO_SECRET])
+            self.org.refresh_from_db()
+            config = self.org.config
+            self.assertEqual("key", config[NEXMO_KEY])
+            self.assertEqual("secret", config[NEXMO_SECRET])
 
-                # post without api token, should get validation error
-                response = self.client.post(nexmo_account_url, dict(disconnect="false"), follow=True)
-                self.assertEqual(
-                    '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                    response.context["form"].errors["__all__"].as_json(),
-                )
+            # post without api token, should get validation error
+            response = self.client.post(account_url, dict(disconnect="false"), follow=True)
+            self.assertEqual(
+                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
+                response.context["form"].errors["__all__"].as_json(),
+            )
 
-                # nexmo config should remain the same
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("key", config[NEXMO_KEY])
-                self.assertEqual("secret", config[NEXMO_SECRET])
+            # nexmo config should remain the same
+            self.org.refresh_from_db()
+            config = self.org.config
+            self.assertEqual("key", config[NEXMO_KEY])
+            self.assertEqual("secret", config[NEXMO_SECRET])
 
-                # now try with all required fields, and a bonus field we shouldn't change
+            # now try with all required fields, and a bonus field we shouldn't change
+            self.client.post(
+                account_url,
+                dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
+                follow=True,
+            )
+            # name shouldn't change
+            self.org.refresh_from_db()
+            self.assertEqual(self.org.name, "Temba")
+
+            # should change nexmo config
+            with patch("nexmo.Client.get_balance") as mock_get_balance:
+                mock_get_balance.return_value = 120
                 self.client.post(
-                    nexmo_account_url,
-                    dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
-                    follow=True,
+                    account_url, dict(api_key="other_key", api_secret="secret-too", disconnect="false"), follow=True
                 )
-                # name shouldn't change
-                self.org.refresh_from_db()
-                self.assertEqual(self.org.name, "Temba")
-
-                # should change nexmo config
-                with patch("nexmo.Client.get_balance") as mock_get_balance:
-                    mock_get_balance.return_value = 120
-                    self.client.post(
-                        nexmo_account_url,
-                        dict(api_key="other_key", api_secret="secret-too", disconnect="false"),
-                        follow=True,
-                    )
-
-                    self.org.refresh_from_db()
-                    config = self.org.config
-                    self.assertEqual("other_key", config[NEXMO_KEY])
-                    self.assertEqual("secret-too", config[NEXMO_SECRET])
-
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.client.post(nexmo_account_url, dict(disconnect="true"), follow=True)
 
                 self.org.refresh_from_db()
-                self.assertFalse(self.org.is_connected_to_nexmo())
+                config = self.org.config
+                self.assertEqual("other_key", config[NEXMO_KEY])
+                self.assertEqual("secret-too", config[NEXMO_SECRET])
+
+            self.assertTrue(self.org.is_connected_to_nexmo())
+            self.client.post(account_url, dict(disconnect="true"), follow=True)
+
+            self.org.refresh_from_db()
+            self.assertFalse(self.org.is_connected_to_nexmo())
 
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
