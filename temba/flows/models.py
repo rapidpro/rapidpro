@@ -31,16 +31,8 @@ from django.utils.translation import ugettext_lazy as _
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection, ChannelLog
-from temba.contacts.models import (
-    NEW_CONTACT_VARIABLE,
-    TEL_SCHEME,
-    URN,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.channels.models import Channel, ChannelConnection
+from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
@@ -48,7 +40,6 @@ from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.http import HttpEvent
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -1650,109 +1641,16 @@ class Flow(TembaModel):
             return []
 
         if self.flow_type == Flow.TYPE_VOICE:
-            return self._start_call_flow(all_contact_ids, extra=extra, flow_start=flow_start, parent_run=parent_run)
-        else:
-            return self._start_msg_flow(
-                all_contact_ids,
-                started_flows=started_flows,
-                start_msg=start_msg,
-                extra=extra,
-                flow_start=flow_start,
-                parent_run=parent_run,
-            )
+            raise ValueError("IVR flow '%s' no longer supported" % self.name)
 
-    def _start_call_flow(self, all_contact_ids, extra=None, flow_start=None, parent_run=None):
-        from temba.ivr.models import IVRCall
-
-        there_are_calls_to_start = False
-
-        runs = []
-        channel = self.org.get_call_channel()
-
-        if not channel or Channel.ROLE_CALL not in channel.role:  # pragma: needs cover
-            return runs
-
-        for contact_id in all_contact_ids:
-            contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
-            contact_urn = contact.get_urn(TEL_SCHEME)
-            channel = self.org.get_call_channel(contact_urn=contact_urn)
-
-            # can't reach this contact, move on
-            if not contact or not contact_urn or not channel:  # pragma: no cover
-                continue
-
-            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
-            if extra:  # pragma: needs cover
-                run.update_fields(extra)
-
-            # create our call objects
-            if parent_run and parent_run.connection:
-                call = parent_run.connection
-                session = parent_run.session
-            else:
-                call = IVRCall.create_outgoing(channel, contact, contact_urn)
-                session = FlowSession.create(contact, connection=call)
-
-            # save away our created call
-            run.session = session
-            run.connection = call
-            run.save(update_fields=["connection"])
-
-            # update our expiration date on our run initially to 7 days for IVR, that will be adjusted when the call is answered
-            next_week = timezone.now() + timedelta(days=IVRCall.DEFAULT_MAX_IVR_EXPIRATION_WINDOW_DAYS)
-            run.update_expiration(next_week)
-
-            if not parent_run or not parent_run.connection:
-                # trigger the call to start (in the background)
-                there_are_calls_to_start = True
-
-            # no start msgs in call flows but we want the variable there
-            run.start_msgs = []
-
-            runs.append(run)
-
-        if flow_start:  # pragma: needs cover
-            flow_start.update_status()
-
-        # eagerly enqueue calls
-        if there_are_calls_to_start:
-
-            r = get_redis_connection()
-
-            pending_call_events = (
-                IVRCall.objects.filter(status=IVRCall.PENDING)
-                .filter(direction=IVRCall.OUTGOING)
-                .filter(channel__is_active=True)
-                .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
-                .select_related("channel")
-                .order_by("modified_on")[:1000]
-            )
-
-            for call in pending_call_events:
-
-                # are we handling a call on a throttled channel ?
-                max_concurrent_events = call.channel.config.get(Channel.CONFIG_MAX_CONCURRENT_EVENTS)
-
-                if max_concurrent_events:
-                    channel_key = Channel.redis_active_events_key(call.channel_id)
-                    current_active_events = r.get(channel_key)
-
-                    # skip this call if are on the limit
-                    if current_active_events and int(current_active_events) >= max_concurrent_events:
-                        continue
-                    else:
-                        # we can start a new call event
-                        call.register_active_event()
-
-                # enqueue the call
-                ChannelLog.log_ivr_interaction(call, "Call queued internally", HttpEvent(method="INTERNAL", url=None))
-
-                call.status = IVRCall.QUEUED
-                call.save(update_fields=("status",))
-
-                call.do_start_call()
-
-        return runs
+        return self._start_msg_flow(
+            all_contact_ids,
+            started_flows=started_flows,
+            start_msg=start_msg,
+            extra=extra,
+            flow_start=flow_start,
+            parent_run=parent_run,
+        )
 
     def _start_msg_flow(
         self, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
