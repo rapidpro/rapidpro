@@ -22,6 +22,11 @@ def check_credits_task():  # pragma: needs cover
     CreditAlert.check_org_credits()
 
 
+@task(track_started=True, name="check_topup_expiration_task")
+def check_topup_expiration_task():
+    CreditAlert.check_topup_expiration()
+
+
 @task(track_started=True, name="apply_topups_task")
 def apply_topups_task(org_id):
     org = Org.objects.get(id=org_id)
