@@ -2,7 +2,7 @@ import time
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
-from django.urls import resolve
+from django.urls import resolve, get_script_prefix
 
 from temba.orgs.context_processors import user_group_perms_processor
 
@@ -28,8 +28,21 @@ class Formax(object):
         context = user_group_perms_processor(self.request)
         self.org = context["user_org"]
 
+    def resolve_prefixed_url(self, url):
+        """
+        django.urls.resolve(url) is not an exact mirror for django.urls.reverse(url) as the
+        latter prefixes SCRIPT_NAME to the result, but the former does not strip the prefix
+        since Django expects the uWSGI component to do that before Django processes the URL.
+        The result is that anywhere code expects to do a resolve(reverse(url)) we will need
+        to first strip out the unwanted prefix.
+        :param str url: the result of django.urls.reverse(url)
+        :return: result of django.urls.resolve(prefix_stripped_url).
+        """
+        prefix = get_script_prefix()
+        return resolve(url[len(prefix):] if url and prefix and url.startswith(prefix) else url)
+
     def add_section(self, name, url, icon, action="formax", button="Save", nobutton=False, dependents=None):
-        resolver = resolve(url)
+        resolver = self.resolve_prefixed_url(url)
         self.request.META["HTTP_X_FORMAX"] = 1
         self.request.META["HTTP_X_PJAX"] = 1
 
