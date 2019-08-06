@@ -333,7 +333,7 @@ class Flow(TembaModel):
         expires_after_minutes=DEFAULT_EXPIRES_AFTER,
         base_language=None,
         create_revision=False,
-        use_new_editor=False,
+        use_new_editor=True,
         **kwargs,
     ):
         flow = Flow.objects.create(
@@ -2670,6 +2670,8 @@ class FlowSession(models.Model):
 
     GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
 
+    uuid = models.UUIDField(null=True)
+
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
 
@@ -3232,9 +3234,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             if delete_reason:
                 self.delete_reason = delete_reason
                 self.save(update_fields=["delete_reason"])
-
-            # delete any action logs associated with us
-            ActionLog.objects.filter(run=self).delete()
 
             # clear any runs that reference us
             FlowRun.objects.filter(parent=self).update(parent=None)
@@ -4698,25 +4697,6 @@ class ResultsExportAssetStore(BaseExportAssetStore):
     extensions = ("xlsx",)
 
 
-class ActionLog(models.Model):
-    """
-    Log of an event that occurred whilst executing a flow in the simulator
-    """
-
-    LEVEL_INFO = "I"
-    LEVEL_WARN = "W"
-    LEVEL_ERROR = "E"
-    LEVEL_CHOICES = ((LEVEL_INFO, _("Info")), (LEVEL_WARN, _("Warning")), (LEVEL_ERROR, _("Error")))
-
-    run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="logs")
-
-    text = models.TextField(help_text=_("Log event text"))
-
-    level = models.CharField(max_length=1, choices=LEVEL_CHOICES, default=LEVEL_INFO, help_text=_("Log event level"))
-
-    created_on = models.DateTimeField(help_text=_("When this log event occurred"))
-
-
 class FlowStart(models.Model):
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
@@ -4741,6 +4721,9 @@ class FlowStart(models.Model):
 
     # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
+
+    # the query (if any) that should be used to select contacts to start
+    query = models.TextField(null=True)
 
     # whether to restart contacts that have already participated in this flow
     restart_participants = models.BooleanField(default=True)

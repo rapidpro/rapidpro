@@ -357,7 +357,7 @@ class FlowTest(TembaTest):
     def test_goflow_revisions(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
@@ -6353,7 +6353,7 @@ class FlowsTest(FlowFileTest):
         # old flow definition
         self.client.post(
             reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="0"),
+            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="1"),
         )
         flow = Flow.objects.get(
             org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.FINAL_LEGACY_VERSION
@@ -6365,7 +6365,7 @@ class FlowsTest(FlowFileTest):
 
         # new flow definition
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
@@ -6378,7 +6378,7 @@ class FlowsTest(FlowFileTest):
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION

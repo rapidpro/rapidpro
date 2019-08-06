@@ -396,10 +396,9 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            use_new_editor = forms.TypedChoiceField(
-                label=_("New Editor (Beta)"),
-                help_text=_("Use new editor when authoring this flow"),
-                choices=((1, "Yes"), (0, "No")),
+            editor_version = forms.TypedChoiceField(
+                help_text=_("If you are unsure, use the new editor"),
+                choices=((0, "New Editor"), (1, "Previous Editor")),
                 initial=0,
                 required=False,
                 coerce=int,
@@ -427,7 +426,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("name", "keyword_triggers", "flow_type", "base_language", "use_new_editor")
+                fields = ("name", "keyword_triggers", "flow_type", "base_language", "editor_version")
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -469,6 +468,9 @@ class FlowCRUDL(SmartCRUDL):
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
 
+            # new editor is 0
+            use_new_editor = self.form.cleaned_data.get("editor_version", 0) == 0
+
             self.object = Flow.create(
                 org,
                 self.request.user,
@@ -477,7 +479,7 @@ class FlowCRUDL(SmartCRUDL):
                 expires_after_minutes=expires_after_minutes,
                 base_language=obj.base_language,
                 create_revision=True,
-                use_new_editor=self.form.cleaned_data.get("use_new_editor", False),
+                use_new_editor=use_new_editor,
             )
 
         def post_save(self, obj):
@@ -1108,11 +1110,7 @@ class FlowCRUDL(SmartCRUDL):
 
             links.append(dict(divider=True))
             links.append(
-                dict(
-                    title=_("New Editor"),
-                    flag="beta",
-                    href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1',
-                )
+                dict(title=_("New Editor"), href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1')
             )
 
             user = self.get_user()

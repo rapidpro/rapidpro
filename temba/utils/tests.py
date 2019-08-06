@@ -1848,7 +1848,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         with patch("temba.flows.models.FlowStart.async_start") as mock_async_start:
             call_command("test_db", "simulate", num_runs=2)
 
-            self.assertEqual(mock_async_start.call_count, 4)  # num_runs is only the minimum
+            self.assertGreaterEqual(mock_async_start.call_count, 2)  # num_runs is only the minimum
 
 
 class JsonModelTestDefaultNull(models.Model):
