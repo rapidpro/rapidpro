@@ -105,12 +105,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if not nexmo_phones:
             try:
                 client.buy_number(country, phone_number)
+                nexmo_phones = client.get_numbers(phone_number)
             except Exception as e:
                 raise Exception(
                     _(
-                        "There was a problem claiming that number, "
-                        "please check the balance on your account. " + "Note that you can only claim numbers after "
-                        "adding credit to your Nexmo account."
+                        "There was a problem claiming that number, please check the balance on your account. "
+                        "Note that you can only claim numbers after adding credit to your Nexmo account."
                     )
                     + "\n"
                     + str(e)
