@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-05 22:06+0000\n"
+"POT-Creation-Date: 2019-08-06 19:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6922,16 +6922,17 @@ msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
+"\n"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -6940,8 +6941,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -6950,8 +6959,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
