@@ -134,19 +134,6 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return []
 
-    def get_courier_url(self):
-        """
-        Returns the url pattern for our courier URL
-        """
-        from .handlers import CourierHandler
-
-        courier_url = self.__class__.courier_url
-        return (
-            url(courier_url, CourierHandler.as_view(channel_name=self.name), name="courier.%s" % self.code.lower())
-            if courier_url
-            else None
-        )
-
     def get_claim_url(self):
         """
         Gets the URL/view configuration for this channel types's claim page
@@ -166,11 +153,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a channel of this type has been created. Can be used to setup things like callbacks required by the
         channel. Note: this will only be called if IS_PROD setting is True.
-        """
-
-    def enable_flow_server(self, channel):
-        """
-        Called when an org is switched to being flow server enabled, noop in most cases
         """
 
     def deactivate(self, channel):

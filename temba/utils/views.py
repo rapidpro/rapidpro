@@ -1,3 +1,4 @@
+import logging
 from math import ceil
 
 from django import forms
@@ -7,10 +8,13 @@ from django.http import HttpResponse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from temba.contacts.models import ContactGroupCount
 from temba.utils.es import ModelESSearch
 from temba.utils.models import ProxyQuerySet, mapEStoDB
+
+logger = logging.getLogger(__name__)
 
 
 class PostOnlyMixin(View):
@@ -229,3 +233,25 @@ class ContactListPaginationMixin(object):
         else:
             model_queryset = ProxyQuerySet([obj for obj in new_queryset])
             return paginator, page, model_queryset, is_paginated
+
+
+class ExternalURLHandler(View):
+    """
+    It's useful to register Courier and Mailroom URLs in RapidPro so they can be used in templates, and if they are hit
+    here, we can provide the user with a error message about
+    """
+
+    service = None
+
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        logger.error(f"URL intended for {self.service} reached RapidPro", extra={"URL": request.get_full_path()})
+        return HttpResponse(f"this URL should be mapped to a {self.service} instance", status=404)
+
+
+class CourierURLHandler(ExternalURLHandler):
+    service = "Courier"
+
+
+class MailroomURLHandler(ExternalURLHandler):
+    service = "Mailroom"
