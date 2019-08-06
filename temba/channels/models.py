@@ -29,20 +29,12 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.orgs.models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    NEXMO_APP_ID,
-    NEXMO_APP_PRIVATE_KEY,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    Org,
-)
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, NEXMO_KEY, NEXMO_SECRET, Org
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
-from temba.utils.nexmo import NCCOResponse
+from temba.utils.ncco import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
@@ -628,19 +620,15 @@ class Channel(TembaModel):
         )
 
     @classmethod
-    def add_send_channel(cls, user, channel):
+    def add_nexmo_bulk_sender(cls, user, channel):
         # nexmo ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         org = user.get_org()
-        org_config = org.config
-
         config = {
-            Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
-            Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
-            Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
-            Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+            Channel.CONFIG_NEXMO_API_KEY: org.config[NEXMO_KEY],
+            Channel.CONFIG_NEXMO_API_SECRET: org.config[NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 

@@ -71,7 +71,7 @@ from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField, patch_queryset_count
-from .nexmo import NCCOException, NCCOResponse
+from .ncco import NCCOException, NCCOResponse
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code

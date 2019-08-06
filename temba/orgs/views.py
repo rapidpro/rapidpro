@@ -7,7 +7,6 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
-import nexmo
 import pytz
 import requests
 from smartmin.views import (
@@ -66,7 +65,6 @@ from .models import (
     MONTHFIRST,
     NEXMO_KEY,
     NEXMO_SECRET,
-    NEXMO_UUID,
     RESTORED,
     SMTP_SERVER,
     SUSPENDED,
@@ -560,7 +558,6 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
-        "nexmo_configuration",
         "nexmo_account",
         "nexmo_connect",
         "sub_orgs",
@@ -766,44 +763,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        def get(self, request, *args, **kwargs):
-            org = self.get_object()
-            domain = org.get_brand_domain()
-
-            nexmo_client = org.get_nexmo_client()
-            if not nexmo_client:
-                return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
-
-            nexmo_uuid = org.nexmo_uuid()
-            mo_path = reverse("courier.nx", args=[nexmo_uuid, "receive"])
-            dl_path = reverse("courier.nx", args=[nexmo_uuid, "status"])
-            try:
-                nexmo_client.update_account("http://%s%s" % (domain, mo_path), "http://%s%s" % (domain, dl_path))
-
-                return HttpResponseRedirect(reverse("channels.types.nexmo.claim"))
-
-            except nexmo.Error:
-                return super().get(request, *args, **kwargs)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            domain = org.get_brand_domain()
-
-            config = org.config
-            context["nexmo_api_key"] = config[NEXMO_KEY]
-            context["nexmo_api_secret"] = config[NEXMO_SECRET]
-
-            nexmo_uuid = org.config.get(NEXMO_UUID, None)
-            mo_path = reverse("courier.nx", args=[nexmo_uuid, "receive"])
-            dl_path = reverse("courier.nx", args=[nexmo_uuid, "status"])
-            context["mo_path"] = "https://%s%s" % (domain, mo_path)
-            context["dl_path"] = "https://%s%s" % (domain, dl_path)
-
-            return context
-
     class NexmoAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 
@@ -824,12 +783,9 @@ class OrgCRUDL(SmartCRUDL):
                     if not api_secret:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
-                    try:
-                        from nexmo import Client as NexmoClient
+                    from temba.channels.types.nexmo.client import Client as NexmoClient
 
-                        client = NexmoClient(key=api_key, secret=api_secret)
-                        client.get_balance()
-                    except Exception:  # pragma: needs cover
+                    if not NexmoClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
                             _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                         )
@@ -885,15 +841,12 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
 
-                api_key = self.cleaned_data.get("api_key", None)
-                api_secret = self.cleaned_data.get("api_secret", None)
+                api_key = self.cleaned_data.get("api_key")
+                api_secret = self.cleaned_data.get("api_secret")
 
-                try:
-                    from nexmo import Client as NexmoClient
+                from temba.channels.types.nexmo.client import Client as NexmoClient
 
-                    client = NexmoClient(key=api_key, secret=api_secret)
-                    client.get_balance()
-                except Exception:
+                if not NexmoClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
                         _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
                     )
@@ -902,7 +855,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = NexmoConnectForm
         submit_button_name = "Save"
-        success_url = "@orgs.org_nexmo_configuration"
+        success_url = "@channels.types.nexmo.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Nexmo Account successfully connected."
 

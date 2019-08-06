@@ -1,23 +1,25 @@
 import time
+import uuid
 
+import jwt
 import requests
-from nexmo import AuthenticationError, ClientError, ServerError
 from twilio.base.exceptions import TwilioRestException
 from twilio.request_validator import RequestValidator
 from twilio.rest.api import Api
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils.encoding import force_bytes
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelLog
+from temba.channels.types.nexmo.client import Client
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
 from temba.utils import json
 from temba.utils.http import HttpEvent
-from temba.utils.nexmo import NexmoClient as NexmoCli
 from temba.utils.twilio import TembaTwilioRestClient
 
 
@@ -25,34 +27,14 @@ class IVRException(Exception):
     pass
 
 
-class NexmoClient(NexmoCli):
-    def __init__(self, api_key, api_secret, app_id, app_private_key, org):
+class NexmoClient(Client):
+    def __init__(self, api_key, api_secret, org):
         self.org = org
-        NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
-        self.events = []
+
+        super().__init__(api_key, api_secret)
 
     def validate(self, request):
         return True
-
-    def parse(self, host, response):  # pragma: no cover
-
-        # save an http event for logging later
-        request = response.request
-        self.events.append(HttpEvent(request.method, request.url, request.body, response.status_code, response.text))
-
-        # Nexmo client doesn't extend object, so can't call super
-        if response.status_code == 401:
-            raise AuthenticationError
-        elif response.status_code == 204:  # pragma: no cover
-            return None
-        elif 200 <= response.status_code < 300:
-            return response.json()
-        elif 400 <= response.status_code < 500:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-            raise ClientError(message)
-        elif 500 <= response.status_code < 600:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-            raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
         if not settings.SEND_CALLS:
@@ -63,22 +45,18 @@ class NexmoClient(NexmoCli):
         params = dict()
         params["answer_url"] = [url]
         params["answer_method"] = "POST"
-        params["to"] = [dict(type="phone", number=to.strip("+"))]
         params["from"] = dict(type="phone", number=from_.strip("+"))
         params["event_url"] = ["%s?has_event=1" % url]
         params["event_method"] = "POST"
 
         try:
-            response = self.create_call(params=params)
+            response = self.base.create_call(params=params)
             call_uuid = response.get("uuid", None)
             call.external_id = str(call_uuid)
 
             # the call was successfully sent to the IVR provider
             call.status = IVRCall.WIRED
             call.save()
-
-            for event in self.events:
-                ChannelLog.log_ivr_interaction(call, "Started call", event)
 
         except Exception as e:
             event = HttpEvent("POST", "https://api.nexmo.com/v1/calls", json.dumps(params), response_body=str(e))
@@ -121,9 +99,22 @@ class NexmoClient(NexmoCli):
         return None
 
     def hangup(self, call):
-        self.update_call(call.external_id, action="hangup", call_id=call.external_id)
-        for event in self.events:
-            ChannelLog.log_ivr_interaction(call, "Hung up call", event)
+        self.base.update_call(call.external_id, action="hangup", call_id=call.external_id)
+
+    def download_recording(self, url, params=None, **kwargs):
+        return requests.get(url, params=params, headers=self.gen_headers())
+
+    def gen_headers(self):
+        iat = int(time.time())
+
+        payload = dict(self.base.auth_params)
+        payload.setdefault("iat", iat)
+        payload.setdefault("exp", iat + 60)
+        payload.setdefault("jti", str(uuid.uuid4()))
+
+        token = jwt.encode(payload, self.base.private_key, algorithm="RS256")
+
+        return dict(self.base.headers, Authorization=b"Bearer " + force_bytes(token))
 
 
 class TwilioClient(TembaTwilioRestClient):

@@ -59,7 +59,7 @@ librato-metrics==0.8.5    # via librato-bg
 lml==0.0.9                # via pyexcel, pyexcel-io
 markdown==2.6.8
 mccabe==0.6.1             # via flake8
-nexmo==2.3.0
+nexmo==2.4.0
 oauthlib==2.0.2           # via requests-oauthlib
 openpyxl==2.5.14
 packaging==19.0

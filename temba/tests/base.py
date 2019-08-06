@@ -11,6 +11,7 @@ import pytz
 import redis
 import regex
 from future.moves.html.parser import HTMLParser
+from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -745,7 +746,7 @@ class MockResponse(object):
         self.content = force_bytes(text)
         self.body = force_text(text)
         self.status_code = status_code
-        self.headers = headers if headers else {}
+        self.headers = CaseInsensitiveDict(data=headers)
         self.url = url
         self.ok = True
         self.cookies = dict()
