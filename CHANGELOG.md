@@ -1,3 +1,10 @@
+v5.1.14
+----------
+ * Fix Nexmo IVR to work with mailroom
+ * Add migration to populate session UUIDs
+ * Update to Django 2.2
+ * Send topup expiration emails to all org administrators
+
 v5.1.12
 ----------
  * Drop ActionLog model
