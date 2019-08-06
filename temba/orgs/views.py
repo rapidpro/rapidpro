@@ -2245,7 +2245,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_update"):
                 from temba.channels.views import get_channel_read_url_list
                 # get any channel thats not a delegate
-                formax.add_section("channels", get_channel_read_url_list(), icon="icon-box", action="")
+                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
+                if len(channels) > 0:
+                    formax.add_section("channels", get_channel_read_url_list(), icon="icon-box", action="")
 
                 twilio_client = org.get_twilio_client()
                 if twilio_client:

@@ -55,7 +55,7 @@ python-dateutil==2.2
 pytz
 psycopg2-binary
 rapidpro-expressions
-redis<3.0  # see https://github.com/celery/celery/issues/4495
+redis #<3.0  # see https://github.com/celery/celery/issues/4495
 requests
 simplejson
 python-intercom
