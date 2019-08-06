@@ -12,7 +12,6 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.tests import SmartminTest
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -731,7 +730,7 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
-            "surveyor_password": None,
+            "surveyor_password": "",
         }
 
         response = self.client.post(update_url, post_data)
@@ -4239,10 +4238,10 @@ class CreditAlertTest(TembaTest):
                         self.assertEqual(6, len(mail.outbox))
 
 
-class EmailContextProcessorsTest(SmartminTest):
+class EmailContextProcessorsTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.admin = self.create_user("Administrator")
+
         self.middleware = BrandingMiddleware(get_response=HttpResponse)
 
     def test_link_components(self):
