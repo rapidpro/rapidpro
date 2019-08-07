@@ -1932,7 +1932,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     @classmethod
     def bulk_interrupt(cls, org, contacts):
         """
-        Interrupt the currect runs and sessions of the given contacts
+        Interrupt the active runs and sessions of the given contacts
         """
 
         mailroom.queue_interrupt(org, contacts=contacts)

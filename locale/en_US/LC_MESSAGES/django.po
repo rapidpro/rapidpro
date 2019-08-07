@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 19:39+0000\n"
+"POT-Creation-Date: 2019-08-07 20:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2615,12 +2615,6 @@ msgstr ""
 msgid "Parent"
 msgstr ""
 
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-msgid "Played contact recording"
-msgstr ""
-
 msgid "After 5 minutes"
 msgstr ""
 
@@ -2935,16 +2929,6 @@ msgid "Your message template {template.name} is not approved and cannot be sent.
 msgstr ""
 
 msgid "Name already used"
-msgstr ""
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
 msgstr ""
 
 msgid "After 1 minute"
