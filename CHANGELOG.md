@@ -1,3 +1,8 @@
+v5.1.15
+----------
+ * Update to flow editor v1.6.11
+ * Releasing Nexmo channel shouldn't blow up if application can't be deleted on Nexmo side
+
 v5.1.14
 ----------
  * Fix Nexmo IVR to work with mailroom
