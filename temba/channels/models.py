@@ -12,7 +12,6 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
-from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
 from django.conf.urls import url
@@ -34,7 +33,6 @@ from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
-from temba.utils.ncco import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
@@ -772,41 +770,6 @@ class Channel(TembaModel):
     def is_delegate_caller(self):
         return self.parent and Channel.ROLE_CALL in self.role
 
-    def generate_ivr_response(self):
-        ivr_protocol = Channel.get_type_from_code(self.channel_type).ivr_protocol
-        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            return VoiceResponse()
-        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
-            return NCCOResponse()
-
-    def get_ivr_client(self):
-
-        # no client for released channels
-        if not (self.is_active and self.org):
-            return None
-
-        if self.channel_type == "T":
-            return self.org.get_twilio_client()
-        elif self.channel_type == "TW":
-            return self.get_twiml_client()
-        elif self.channel_type == "VB":  # pragma: no cover
-            return self.org.get_verboice_client()
-        elif self.channel_type == "NX":
-            return self.org.get_nexmo_client()
-
-    def get_twiml_client(self):
-        from temba.ivr.clients import TwilioClient
-
-        if self.config:
-            account_sid = self.config.get(Channel.CONFIG_ACCOUNT_SID, None)
-            auth_token = self.config.get(Channel.CONFIG_AUTH_TOKEN, None)
-            base = self.config.get(Channel.CONFIG_SEND_URL, None)
-
-            if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self, base=base)
-
-        return None
-
     def supports_ivr(self):
         return Channel.ROLE_CALL in self.role or Channel.ROLE_ANSWER in self.role
 
@@ -1021,11 +984,8 @@ class Channel(TembaModel):
                 # proceed with removing this channel but log the problem
                 logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
 
-            # hangup all its calls
-            from temba.ivr.models import IVRCall
-
-            for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
-                call.close()
+        # interrupt any sessions using this channel as a connection
+        mailroom.queue_interrupt(self.org, channel=self)
 
         # save off our org and fcm id before nullifying
         org = self.org

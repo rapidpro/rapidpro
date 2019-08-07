@@ -11,7 +11,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 
 class TwilioTypeTest(TembaTest):
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
@@ -217,7 +217,7 @@ class TwilioTypeTest(TembaTest):
                     mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
                 )
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):
 

@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
+from temba.contacts.models import Contact
 from temba.flows.models import FlowStart
 from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
@@ -203,6 +204,37 @@ class MailroomQueueTest(TembaTest):
                     "include_active": True,
                     "extra": {"foo": "bar"},
                 },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_contacts(self):
+        jim = self.create_contact("Jim", "+12065551212")
+        bob = self.create_contact("Bob", "+12065551313")
+
+        Contact.bulk_interrupt(self.org, [jim, bob])
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"org_id": self.org.id, "contact_ids": [jim.id, bob.id], "channel_id": None},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_channel(self):
+        self.channel.release()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"org_id": self.org.id, "contact_ids": None, "channel_id": self.channel.id},
                 "queued_on": matchers.ISODate(),
             },
         )

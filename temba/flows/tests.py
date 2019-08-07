@@ -5263,7 +5263,14 @@ class FlowRunTest(TembaTest):
         run3 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
 
         # create an IVR run and session
-        connection = IVRCall.create_outgoing(self.channel, self.contact, self.contact.urns.get())
+        connection = IVRCall.objects.create(
+            channel=self.channel,
+            contact=self.contact,
+            contact_urn=self.contact.urns.get(),
+            direction=IVRCall.OUTGOING,
+            org=self.org,
+            status=IVRCall.PENDING,
+        )
         session = FlowSession.create(self.contact, connection)
         run4 = FlowRun.create(self.flow, self.contact, connection=connection, session=session)
 

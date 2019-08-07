@@ -21,6 +21,7 @@ from packaging.version import Version
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
+from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -956,32 +957,20 @@ class Org(SmartModel):
         else:
             return None, None
 
-    def get_verboice_client(self):  # pragma: needs cover
-        from temba.ivr.clients import VerboiceClient
-
-        channel = self.get_call_channel()
-        if channel.channel_type == "VB":
-            return VerboiceClient(channel)
-        return None
-
     def get_twilio_client(self):
-        from temba.ivr.clients import TwilioClient
-
-        if self.config:
-            account_sid = self.config.get(ACCOUNT_SID, None)
-            auth_token = self.config.get(ACCOUNT_TOKEN, None)
-            if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self)
+        account_sid = self.config.get(ACCOUNT_SID)
+        auth_token = self.config.get(ACCOUNT_TOKEN)
+        if account_sid and auth_token:
+            return TwilioClient(account_sid, auth_token)
         return None
 
     def get_nexmo_client(self):
-        from temba.ivr.clients import NexmoClient
+        from temba.channels.types.nexmo.client import Client
 
-        if self.config:
-            api_key = self.config.get(NEXMO_KEY, None)
-            api_secret = self.config.get(NEXMO_SECRET, None)
-            return NexmoClient(api_key, api_secret, org=self)
-
+        api_key = self.config.get(NEXMO_KEY)
+        api_secret = self.config.get(NEXMO_SECRET)
+        if api_key and api_secret:
+            return Client(api_key, api_secret)
         return None
 
     def get_country_code(self):

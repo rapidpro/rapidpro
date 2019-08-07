@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import time
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import call, patch
 from urllib.parse import quote
 
 from django_redis import get_redis_connection
@@ -22,7 +22,6 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
-from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, FREE_PLAN, Org
 from temba.tests import MockResponse, TembaTest
@@ -30,7 +29,7 @@ from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
-from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
 
 
@@ -1438,7 +1437,8 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(str(release_error.exception), "Cannot delete Channel: Nexus, used by 1 flows")
 
-    def test_release(self):
+    @patch("temba.mailroom.queue_interrupt")
+    def test_release(self, mock_queue_interrupt):
         Channel.objects.all().delete()
         self.login(self.admin)
 
@@ -1469,6 +1469,9 @@ class ChannelTest(TembaTest):
         self.assertFalse(nexmo.is_active)
         self.releaseChannels(delete=True)
 
+        # check we queued session interrupt tasks for each channel
+        mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])
+
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
         self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
@@ -1486,19 +1489,6 @@ class ChannelTest(TembaTest):
         # check that some details are cleared and channel is now in active
         self.assertFalse(android.is_active)
         self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
-
-    @override_settings(IS_PROD=True)
-    def test_release_ivr_channel(self):
-
-        # create outgoing call for the channel
-        contact = self.create_contact("Bruno Mars", "+252788123123")
-        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME))
-
-        self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
-        self.tel_channel.release()
-
-        call.refresh_from_db()
-        self.assertEqual(call.status, ChannelConnection.INTERRUPTED)
 
     def test_unclaimed(self):
         response = self.sync(self.unclaimed_channel)
@@ -2019,35 +2009,6 @@ class ChannelTest(TembaTest):
         for response in responses:
             if "p_id" in response and response["p_id"] == p_id:
                 return response
-
-    @patch("nexmo.Client.update_call")
-    @patch("nexmo.Client.create_application")
-    def test_get_ivr_client(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-        mock_update_call.return_value = dict(uuid="12345")
-
-        channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            "Tigo",
-            "+250725551212",
-            secret="11111",
-            config={Channel.CONFIG_FCM_ID: "456"},
-        )
-        self.assertIsNone(channel.get_ivr_client())
-
-        self.org.connect_nexmo("123", "456", self.admin)
-        self.org.save()
-
-        channel.channel_type = "NX"
-        channel.save()
-
-        self.assertIsNotNone(channel.get_ivr_client())
-
-        channel.release()
-        self.assertIsNone(channel.get_ivr_client())
 
     def test_channel_status_processor(self):
 

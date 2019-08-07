@@ -1136,7 +1136,7 @@ class ContactTest(TembaTest):
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @override_settings(SEND_CALLS=True)
     @uses_legacy_engine

@@ -719,7 +719,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.REMOVE:
             group.update_contacts(user, contacts, add=False)
         elif action == self.INTERRUPT:
-            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
+            Contact.bulk_interrupt(self.context["org"], contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:
