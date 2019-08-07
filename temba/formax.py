@@ -39,7 +39,10 @@ class Formax(object):
         :return: result of django.urls.resolve(prefix_stripped_url).
         """
         prefix = get_script_prefix()
-        return resolve(url[len(prefix):] if url and prefix and url.startswith(prefix) else url)
+        if url and prefix and url.startswith(prefix):
+            return resolve(url[len(prefix) :])
+        else:
+            return resolve(url)
 
     def add_section(self, name, url, icon, action="formax", button="Save", nobutton=False, dependents=None):
         resolver = self.resolve_prefixed_url(url)
