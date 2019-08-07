@@ -421,7 +421,7 @@ class ContactGroupTest(TembaTest):
                 ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
                 ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), "(%s > 10)" % key)
 
-        with QueryTracker(assert_query_count=122, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=121, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1165,14 +1165,18 @@ class ContactTest(TembaTest):
             )
             Flow.find_and_handle(msg)
 
-        ivr_flow = self.get_flow("call_me_maybe")
+        ivr_flow = self.get_flow("ivr")
         msg_flow = self.get_flow("favorites")
 
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
         send("hola mundo", old_contact)
         urn = old_contact.get_urn()
-        ivr_flow.start([], [old_contact])
+
+        call = IVRCall.objects.create(
+            org=self.org, channel=self.channel, direction=IVRCall.INCOMING, contact=old_contact, contact_urn=urn
+        )
+        FlowRun.create(msg_flow, old_contact, connection=call)
 
         # steal his urn into a new contact
         contact = self.create_contact("Joe", "tweettweet")
@@ -1190,7 +1194,10 @@ class ContactTest(TembaTest):
         send("red", contact)
         send("primus", contact)
 
-        ivr_flow.start([], [contact])
+        call = IVRCall.objects.create(
+            org=self.org, channel=self.channel, direction=IVRCall.INCOMING, contact=contact, contact_urn=urn
+        )
+        FlowRun.create(msg_flow, contact, connection=call)
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
@@ -3859,7 +3866,13 @@ class ContactTest(TembaTest):
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")
 
-        call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(), self.admin)
+        call = IVRCall.objects.create(
+            org=self.org,
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.all().first(),
+            direction=IVRCall.INCOMING,
+        )
 
         item = {"type": "call", "obj": call}
         self.assertEqual(history_class(item), "non-msg")

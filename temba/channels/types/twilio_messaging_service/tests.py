@@ -11,7 +11,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
-    @patch("twilio.rest.Client", MockTwilioClient)
+    @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
 
