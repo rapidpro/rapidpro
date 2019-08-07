@@ -82,7 +82,11 @@ class Client:
         return app_id, app_private_key
 
     def delete_application(self, app_id):
-        self._with_retry("delete_application", application_id=app_id)
+        try:
+            self._with_retry("delete_application", application_id=app_id)
+        except nexmo.ClientError:
+            # possible application no longer exists
+            pass
 
     def _with_retry(self, action, **kwargs):
         """
