@@ -214,16 +214,18 @@ class NexmoTypeTest(TembaTest):
         channel.config = {Channel.CONFIG_NEXMO_APP_ID: "myappid", Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: "secret"}
         channel.save(update_fields=("channel_type", "config"))
 
-        # mock an authentication failure during the release process
+        # mock a 404 response from Nexmo during deactivation
         with self.settings(IS_PROD=True):
-            with patch("temba.channels.types.nexmo.client.Client.delete_application") as mock_delete_application:
+            with patch("nexmo.Client.delete_application") as mock_delete_application:
+                mock_delete_application.side_effect = nexmo.ClientError("404 response")
+
                 # releasing shouldn't blow up on auth failures
                 channel.release()
                 channel.refresh_from_db()
 
                 self.assertFalse(channel.is_active)
 
-                mock_delete_application.assert_called_once_with("myappid")
+                mock_delete_application.assert_called_once_with(application_id="myappid")
 
 
 class ClientTest(TembaTest):
