@@ -4,15 +4,15 @@
 #
 # add or remove a package
 #   1. add/remove package from/to pip-requires.txt
-#   2. run "./do-freeze-python-deps.sh"
+#   2. run "./freeze-python-deps.sh"
 #   3. run "pip-sync pip-freeze.txt"
 #
 # update a package
-#   1. run "./do-freeze-python-deps.sh -P name_of_the_package"
+#   1. run "./freeze-python-deps.sh -P name_of_the_package"
 #   2. run "pip-sync pip-freeze.txt"
 #
 # update a package to a specific version
-#   1. run "./do-freeze-python-deps.sh -P name_of_the_package==1.3.6"
+#   1. run "./freeze-python-deps.sh -P name_of_the_package==1.3.6"
 #   2. run "pip-sync pip-freeze.txt"
 #
 
@@ -23,7 +23,7 @@ PIP_FREEZE_FILE=pip-freeze.txt
 ROLLING_VERSION_PACKAGES="pytz phonenumbers"
 
 # do the actual requirements file build, ignore caches/rebuild from scratch
-CUSTOM_COMPILE_COMMAND="./do-freeze-python-deps.sh" pip-compile --annotate --rebuild --output-file $PIP_FREEZE_FILE $PIP_REQUIRES_FILE $@
+CUSTOM_COMPILE_COMMAND="./freeze-python-deps.sh" pip-compile --annotate --rebuild --output-file $PIP_FREEZE_FILE $PIP_REQUIRES_FILE $@
 
 
 for rolling_package in $ROLLING_VERSION_PACKAGES; do

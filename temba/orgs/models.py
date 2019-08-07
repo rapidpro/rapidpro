@@ -29,7 +29,6 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import F, Prefetch, Q, Sum
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -84,9 +83,6 @@ ACCOUNT_TOKEN = "ACCOUNT_TOKEN"
 
 NEXMO_KEY = "NEXMO_KEY"
 NEXMO_SECRET = "NEXMO_SECRET"
-NEXMO_UUID = "NEXMO_UUID"
-NEXMO_APP_ID = "NEXMO_APP_ID"
-NEXMO_APP_PRIVATE_KEY = "NEXMO_APP_PRIVATE_KEY"
 
 TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
 TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
@@ -872,44 +868,13 @@ class Org(SmartModel):
             self.save()
 
     def connect_nexmo(self, api_key, api_secret, user):
-        from nexmo import Client as NexmoClient
-
-        nexmo_uuid = str(uuid4())
-        nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
-        client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        domain = self.get_brand_domain()
-
-        app_name = "%s/%s" % (domain, nexmo_uuid)
-
-        answer_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]))
-
-        event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]))
-
-        params = dict(
-            name=app_name,
-            type="voice",
-            answer_url=answer_url,
-            answer_method="POST",
-            event_url=event_url,
-            event_method="POST",
-        )
-
-        response = client.create_application(params=params)
-        app_id = response.get("id", None)
-        private_key = response.get("keys", dict()).get("private_key", None)
-
-        nexmo_config[NEXMO_APP_ID] = app_id
-        nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
+        nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip()}
 
         config = self.config
         config.update(nexmo_config)
         self.config = config
         self.modified_by = user
-        self.save()
-
-    def nexmo_uuid(self):
-        config = self.config
-        return config.get(NEXMO_UUID, None)
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def connect_twilio(self, account_sid, account_token, user):
         twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
@@ -918,15 +883,13 @@ class Org(SmartModel):
         config.update(twilio_config)
         self.config = config
         self.modified_by = user
-        self.save()
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def is_connected_to_nexmo(self):
         if self.config:
             nexmo_key = self.config.get(NEXMO_KEY, None)
             nexmo_secret = self.config.get(NEXMO_SECRET, None)
-            nexmo_uuid = self.config.get(NEXMO_UUID, None)
-
-            return nexmo_key and nexmo_secret and nexmo_uuid
+            return nexmo_key and nexmo_secret
         else:
             return False
 
@@ -934,8 +897,7 @@ class Org(SmartModel):
         if self.config:
             account_sid = self.config.get(ACCOUNT_SID, None)
             account_token = self.config.get(ACCOUNT_TOKEN, None)
-            if account_sid and account_token:
-                return True
+            return account_sid and account_token
         return False
 
     def remove_nexmo_account(self, user):
@@ -1018,10 +980,7 @@ class Org(SmartModel):
         if self.config:
             api_key = self.config.get(NEXMO_KEY, None)
             api_secret = self.config.get(NEXMO_SECRET, None)
-            app_id = self.config.get(NEXMO_APP_ID, None)
-            app_private_key = self.config.get(NEXMO_APP_PRIVATE_KEY, None)
-            if api_key and api_secret:
-                return NexmoClient(api_key, api_secret, app_id, app_private_key, org=self)
+            return NexmoClient(api_key, api_secret, org=self)
 
         return None
 
@@ -1368,16 +1327,6 @@ class Org(SmartModel):
 
     def get_user(self):
         return self.administrators.filter(is_active=True).first()
-
-    def is_nearing_expiration(self):
-        """
-        Determines if the org is nearing expiration
-        """
-        newest_topup = TopUp.objects.filter(org=self, is_active=True).order_by("-created_on").first()
-        if newest_topup:
-            if timezone.now() + timedelta(days=30) > newest_topup.expires_on:
-                return newest_topup.get_remaining() > 0
-        return False
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -2807,16 +2756,17 @@ class CreditAlert(SmartModel):
         (ORG_CREDIT_EXPIRING, _("Credits expiring soon")),
     )
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this alert was triggered for")
-    alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES, help_text="The type of this alert")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
+
+    alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES)
 
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
-        # is there already an active alert at this threshold? if so, exit
-        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):  # pragma: needs cover
-            return None
+        # don't create a new alert if there is already an alert of this type for the org
+        if org.credit_alerts.filter(is_active=True, alert_type=alert_type).exists():
+            return
 
-        print("triggering %s credits alert type for %s" % (alert_type, org.name))
+        logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
         admin = org.get_org_admins().first()
 
@@ -2832,14 +2782,15 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        email = self.created_by.email
-        if not email:  # pragma: needs cover
+        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
+
+        if len(admin_emails) == 0:
             return
 
         branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
-        to_email = email
+        to_email = admin_emails
 
         context = dict(org=self.org, now=timezone.now(), branding=branding, alert=self, customer=self.created_by)
         context["subject"] = subject
@@ -2848,7 +2799,7 @@ class CreditAlert(SmartModel):
 
     @classmethod
     def reset_for_org(cls, org):
-        CreditAlert.objects.filter(org=org).update(is_active=False)
+        org.credit_alerts.filter(is_active=True).update(is_active=False)
 
     @classmethod
     def check_org_credits(cls):
@@ -2869,5 +2820,30 @@ class CreditAlert(SmartModel):
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
             elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            elif org.is_nearing_expiration():  # pragma: needs cover
-                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
+
+    @classmethod
+    def check_topup_expiration(cls):
+        """
+        Triggers an ORG_CREDIT_EXPIRING credit alert for any org that has its last
+        active topup expiring in the next 30 days and still has available credits
+        """
+
+        # get the ids of the last to expire topup, with credits, for each org
+        final_topups = (
+            TopUp.objects.filter(is_active=True, org__is_active=True, credits__gt=0)
+            .order_by("org_id", "-expires_on")
+            .distinct("org_id")
+            .values_list("id", flat=True)
+        )
+
+        # figure out which of those have credits remaining, and will expire in next 30 days
+        expiring_final_topups = (
+            TopUp.objects.filter(id__in=final_topups)
+            .annotate(used_credits=Sum("topupcredits__used"))
+            .filter(expires_on__gt=timezone.now(), expires_on__lte=(timezone.now() + timedelta(days=30)))
+            .filter(Q(used_credits__lt=F("credits")) | Q(used_credits=None))
+            .select_related("org")
+        )
+
+        for topup in expiring_final_topups:
+            CreditAlert.trigger_credit_alert(topup.org, ORG_CREDIT_EXPIRING)

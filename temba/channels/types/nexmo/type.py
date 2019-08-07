@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import Channel, ChannelType
 from temba.channels.types.nexmo.views import ClaimView
 from temba.channels.views import UpdateNexmoForm
 from temba.contacts.models import TEL_SCHEME
@@ -97,3 +97,9 @@ class NexmoType(ChannelType):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
         return countrycode in NEXMO_RECOMMENDED_COUNTRIES
+
+    def deactivate(self, channel):
+        app_id = channel.config.get(Channel.CONFIG_NEXMO_APP_ID)
+        if app_id:
+            client = channel.org.get_nexmo_client()
+            client.delete_application(app_id)

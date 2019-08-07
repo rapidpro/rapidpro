@@ -31,7 +31,7 @@ import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
-from temba.tests import ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
+from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
 from temba.utils.json import TembaJsonAdapter
 
@@ -70,8 +70,8 @@ from .expressions import (
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
-from .models import JSONAsTextField
-from .nexmo import NCCOException, NCCOResponse
+from .models import JSONAsTextField, patch_queryset_count
+from .ncco import NCCOException, NCCOResponse
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -1246,6 +1246,16 @@ class ModelsTest(TembaTest):
 
         self.assertEqual(curr, 100)
 
+    def test_patch_queryset_count(self):
+        self.create_contact("Ann", twitter="ann")
+        self.create_contact("Bob", twitter="bob")
+
+        with self.assertNumQueries(0):
+            qs = Contact.objects.all()
+            patch_queryset_count(qs, lambda: 33)
+
+            self.assertEqual(qs.count(), 33)
+
 
 class ExportTest(TembaTest):
     def setUp(self):
@@ -1809,7 +1819,6 @@ class MiddlewareTest(TembaTest):
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
-    @uses_legacy_engine
     def test_command(self):
         self.create_anonymous_user()
 
@@ -1846,7 +1855,10 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
             call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
 
         # but simulate can
-        call_command("test_db", "simulate", num_runs=2)
+        with patch("temba.flows.models.FlowStart.async_start") as mock_async_start:
+            call_command("test_db", "simulate", num_runs=2)
+
+            self.assertGreaterEqual(mock_async_start.call_count, 2)  # num_runs is only the minimum
 
 
 class JsonModelTestDefaultNull(models.Model):

@@ -3,7 +3,6 @@ import copy
 import hashlib
 import hmac
 import time
-import uuid
 from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import quote
@@ -25,18 +24,7 @@ from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
-from temba.orgs.models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    APPLICATION_SID,
-    FREE_PLAN,
-    NEXMO_APP_ID,
-    NEXMO_APP_PRIVATE_KEY,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    Org,
-)
+from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, FREE_PLAN, Org
 from temba.tests import MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
@@ -1234,12 +1222,7 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
-            connect.return_value = True
-            with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-                self.org.connect_nexmo("123", "456", self.admin)
-                self.org.save()
+        self.org.connect_nexmo("123", "456", self.admin)
         self.assertTrue(self.org.is_connected_to_nexmo())
 
         # now adding Nexmo bulk sender should work
@@ -1255,8 +1238,6 @@ class ChannelTest(TembaTest):
         channel_config = nexmo.config
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], "123")
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], "456")
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], "app-id")
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "private-key\n")
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type="NX").first()
@@ -1375,21 +1356,7 @@ class ChannelTest(TembaTest):
             self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
         )
 
-        self.nexmo_uuid = str(uuid.uuid4())
-        nexmo_config = {
-            NEXMO_KEY: "1234",
-            NEXMO_SECRET: "1234",
-            NEXMO_UUID: self.nexmo_uuid,
-            NEXMO_APP_ID: "nexmo-app-id",
-            NEXMO_APP_PRIVATE_KEY: "nexmo-private-key\n",
-        }
-
-        org = self.channel.org
-
-        config = org.config
-        config.update(nexmo_config)
-        org.config = config
-        org.save()
+        self.org.connect_nexmo("1234", "secret", self.admin)
 
         search_nexmo_url = reverse("channels.channel_search_nexmo")
 
@@ -1403,11 +1370,13 @@ class ChannelTest(TembaTest):
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
             ]
 
@@ -1483,12 +1452,7 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
 
         # connect org to Nexmo and add bulk sender
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
-            connect.return_value = True
-            with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-                self.org.connect_nexmo("123", "456", self.admin)
-                self.org.save()
+        self.org.connect_nexmo("123", "456", self.admin)
 
         claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
         self.client.post(claim_nexmo_url, dict(connection="NX", channel=android.pk))
@@ -2055,40 +2019,6 @@ class ChannelTest(TembaTest):
         for response in responses:
             if "p_id" in response and response["p_id"] == p_id:
                 return response
-
-    def test_nexmo_create_application(self):
-        from nexmo import Client as NexmoClient
-        from uuid import uuid4
-
-        self.login(self.admin)
-        with patch("requests.post") as nexmo_post:
-            nexmo_post.return_value = MockResponse(
-                200,
-                json.dumps({"id": "app-id", "keys": {"private_key": "private_key"}}),
-                headers={"content-type": "application/json"},
-            )
-
-            nexmo_client = NexmoClient(key="key", secret="secret")
-
-            nexmo_uuid = str(uuid4())
-            domain = self.org.get_brand_domain()
-            app_name = "%s/%s" % (domain, nexmo_uuid)
-
-            answer_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]))
-
-            event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]))
-
-            params = dict(
-                name=app_name,
-                type="voice",
-                answer_url=answer_url,
-                answer_method="POST",
-                event_url=event_url,
-                event_method="POST",
-            )
-
-            response = nexmo_client.create_application(params=params)
-            self.assertEqual(response, {"id": "app-id", "keys": {"private_key": "private_key"}})
 
     @patch("nexmo.Client.update_call")
     @patch("nexmo.Client.create_application")

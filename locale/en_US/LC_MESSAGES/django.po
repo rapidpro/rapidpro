@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-18 09:40+0000\n"
+"POT-Creation-Date: 2019-08-06 19:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2642,51 +2642,6 @@ msgstr ""
 msgid "Any configuration options for this flow export"
 msgstr ""
 
-msgid "Info"
-msgstr ""
-
-msgid "Warning"
-msgstr ""
-
-msgid "Error"
-msgstr ""
-
-msgid "Log event text"
-msgstr ""
-
-msgid "Log event level"
-msgstr ""
-
-msgid "When this log event occurred"
-msgstr ""
-
-msgid "The flow that is being started"
-msgstr ""
-
-msgid "Groups that will start the flow"
-msgstr ""
-
-msgid "Contacts that will start the flow"
-msgstr ""
-
-msgid "Whether to restart any participants already in this flow"
-msgstr ""
-
-msgid "Include contacts currently active in flows"
-msgstr ""
-
-msgid "The campaign event which created this flow start"
-msgstr ""
-
-msgid "How many unique contacts were started down the flow"
-msgstr ""
-
-msgid "The status of this flow start"
-msgstr ""
-
-msgid "Any extra parameters to pass to the flow start (json)"
-msgstr ""
-
 msgid "Unique Identifier"
 msgstr ""
 
@@ -2801,10 +2756,7 @@ msgstr ""
 msgid "Choose the method for your flow"
 msgstr ""
 
-msgid "New Editor (Beta)"
-msgstr ""
-
-msgid "Use new editor when authoring this flow"
+msgid "If you are unsure, use the new editor"
 msgstr ""
 
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
@@ -4901,6 +4853,9 @@ msgid "Message Error"
 msgstr ""
 
 msgid "Message Log"
+msgstr ""
+
+msgid "Error"
 msgstr ""
 
 msgid "Change Alert Settings"
@@ -7006,16 +6961,17 @@ msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
+"\n"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -7024,8 +6980,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -7034,8 +6998,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -7439,44 +7411,6 @@ msgid ""
 "\n"
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
 "        "
-msgstr ""
-
-msgid ""
-"\n"
-"        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
-"        Nexmo website under your account settings page.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "API Key:"
-msgstr ""
-
-msgid "API Secret:"
-msgstr ""
-
-msgid ""
-"\n"
-"        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "Once the settings are succefully updated on Nexmo"
-msgstr ""
-
-msgid "Add a Nexmo Channel"
 msgstr ""
 
 msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."

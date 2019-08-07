@@ -3097,7 +3097,8 @@ class APITest(TembaTest):
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
-        joe_run1, = start1.start()
+        start1.async_start()
+        joe_run1 = start1.runs.get()
         frank_run1, = flow1.start([], [self.frank])
         self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
         self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()

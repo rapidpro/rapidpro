@@ -2,6 +2,7 @@ import logging
 
 from twilio.twiml.voice_response import VoiceResponse
 
+from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.encoding import force_text
@@ -11,7 +12,6 @@ from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact
 from temba.flows.models import Flow, FlowRun
-from temba.orgs.models import NEXMO_UUID
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.http import HttpEvent
@@ -34,6 +34,13 @@ class BaseChannelHandler(View):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
+        if not settings.TESTING:  # pragma: no cover
+            logger.error(
+                "%s mailroom IVR handler called in RapidPro with URL: %s"
+                % (self.handler_name, request.get_full_path())
+            )
+            return HttpResponse("%s IVR handling only implemented in Mailroom" % self.handler_name, status=404)
+
         return super().dispatch(request, *args, **kwargs)
 
     @classmethod
@@ -213,8 +220,6 @@ class NexmoCallHandler(BaseChannelHandler):
         request_path = request.get_full_path()
         request_method = request.method
 
-        request_uuid = kwargs["uuid"]
-
         if action == "event":
             if not request_body:
                 return HttpResponse("")
@@ -276,12 +281,7 @@ class NexmoCallHandler(BaseChannelHandler):
             address_q = Q(address=channel_number) | Q(address=("+" + channel_number))
             channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type="NX").first()
 
-            # make sure we got one, and that it matches the key for our org
-            org_uuid = None
-            if channel:
-                org_uuid = channel.org.config.get(NEXMO_UUID, None)
-
-            if not channel or org_uuid != request_uuid:
+            if not channel:
                 return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
             urn = URN.from_tel(from_number)

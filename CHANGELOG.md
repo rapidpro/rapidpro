@@ -1,3 +1,29 @@
+v5.1.14
+----------
+ * Fix Nexmo IVR to work with mailroom
+ * Add migration to populate session UUIDs
+ * Update to Django 2.2
+ * Send topup expiration emails to all org administrators
+
+v5.1.12
+----------
+ * Drop ActionLog model
+ * Switch to new editor as the default, use v1.6.10
+ * Add query field to FlowStart
+
+v5.1.11
+----------
+ * Add FlowSession.uuid which is nullable for now
+ * Update to floweditor 1.6.9, scrolling rules
+
+v5.1.10
+----------
+ * Update to flow editor 1.6.8, add completion config
+ * Add FlowStart.parent_summary, start deprecating fields
+ * Switch to bionic beaver for CI builds
+ * Add trigger params access to ivr flow
+ * Drop no longer used Broadcast.purged field
+
 v5.1.9
 ----------
  * Make Broadcast.purged nullable in preparation for dropping it

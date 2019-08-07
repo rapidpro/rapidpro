@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-18 09:40+0000\n"
+"POT-Creation-Date: 2019-08-06 19:39+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3640,58 +3640,6 @@ msgstr "Os fluxos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "JSON codificou configurações para este relatório"
 
-#, fuzzy
-#| msgid "Infobip"
-msgid "Info"
-msgstr "Infobip"
-
-msgid "Warning"
-msgstr ""
-
-#, fuzzy
-msgid "Error"
-msgstr "Contagem de erros"
-
-msgid "Log event text"
-msgstr ""
-
-msgid "Log event level"
-msgstr ""
-
-#, fuzzy
-#| msgid "When this flow run expired"
-msgid "When this log event occurred"
-msgstr "Quando o prazo de execução deste fluxo expirou"
-
-msgid "The flow that is being started"
-msgstr "O fluxo que está sendo iniciado"
-
-msgid "Groups that will start the flow"
-msgstr "Grupos que irão iniciar o fluxo"
-
-msgid "Contacts that will start the flow"
-msgstr "Contatos que irão iniciar o fluxo"
-
-msgid "Whether to restart any participants already in this flow"
-msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
-
-msgid "Include contacts currently active in flows"
-msgstr ""
-
-#, fuzzy
-msgid "The campaign event which created this flow start"
-msgstr "iniciou este fluxo"
-
-#, fuzzy
-msgid "How many unique contacts were started down the flow"
-msgstr "Nenhum contato iniciou este fluxo"
-
-msgid "The status of this flow start"
-msgstr "O estado do início deste fluxo"
-
-msgid "Any extra parameters to pass to the flow start (json)"
-msgstr ""
-
 msgid "Unique Identifier"
 msgstr ""
 
@@ -3813,10 +3761,7 @@ msgstr ""
 msgid "Choose the method for your flow"
 msgstr ""
 
-msgid "New Editor (Beta)"
-msgstr ""
-
-msgid "Use new editor when authoring this flow"
+msgid "If you are unsure, use the new editor"
 msgstr ""
 
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
@@ -6289,6 +6234,10 @@ msgstr "Mensagem"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensagem"
+
+#, fuzzy
+msgid "Error"
+msgstr "Contagem de erros"
 
 msgid "Change Alert Settings"
 msgstr "Alterar configurações de alerta"
@@ -8966,16 +8915,17 @@ msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
+"\n"
 msgstr "Junte-se a %(name)s"
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -8984,8 +8934,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -8994,8 +8952,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -9456,74 +9422,6 @@ msgid ""
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
-#| "        Infobip website under your account.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
-"        Nexmo website under your account settings page.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
-
-msgid "API Key:"
-msgstr "Chave da API:"
-
-msgid "API Secret:"
-msgstr "Segredo da API:"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
-"<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
-"<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
-
-msgid "Once the settings are succefully updated on Nexmo"
-msgstr ""
-
-#, fuzzy
-msgid "Add a Nexmo Channel"
-msgstr "Transmissor"
 
 msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
 msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chave da API e segredo Nexmo."
@@ -11127,6 +11025,104 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
+#~| "        Infobip website under your account.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
+#~ "        Nexmo website under your account settings page.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
+
+#~ msgid "API Key:"
+#~ msgstr "Chave da API:"
+
+#~ msgid "API Secret:"
+#~ msgstr "Segredo da API:"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
+#~ "<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
+#~ "<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
+
+#, fuzzy
+#~ msgid "Add a Nexmo Channel"
+#~ msgstr "Transmissor"
+
+#, fuzzy
+#~| msgid "Infobip"
+#~ msgid "Info"
+#~ msgstr "Infobip"
+
+#, fuzzy
+#~| msgid "When this flow run expired"
+#~ msgid "When this log event occurred"
+#~ msgstr "Quando o prazo de execução deste fluxo expirou"
+
+#~ msgid "The flow that is being started"
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#~ msgid "Groups that will start the flow"
+#~ msgstr "Grupos que irão iniciar o fluxo"
+
+#~ msgid "Contacts that will start the flow"
+#~ msgstr "Contatos que irão iniciar o fluxo"
+
+#~ msgid "Whether to restart any participants already in this flow"
+#~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
+
+#, fuzzy
+#~ msgid "The campaign event which created this flow start"
+#~ msgstr "iniciou este fluxo"
+
+#, fuzzy
+#~ msgid "How many unique contacts were started down the flow"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#~ msgid "The status of this flow start"
+#~ msgstr "O estado do início deste fluxo"
 
 #, fuzzy
 #~| msgid "missed call"

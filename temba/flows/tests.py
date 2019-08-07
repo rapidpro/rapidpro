@@ -34,6 +34,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
+    MigrationTest,
     MockResponse,
     TembaTest,
     matchers,
@@ -236,7 +237,7 @@ class FlowTest(TembaTest):
 
         def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action=None, HTTP_X_FORWARDED_HTTPS="https")
+                post_data = dict(file=data, action="", HTTP_X_FORWARDED_HTTPS="https")
                 response = self.client.post(upload_media_action_url, post_data)
 
                 self.assertEqual(response.status_code, 200)
@@ -357,7 +358,7 @@ class FlowTest(TembaTest):
     def test_goflow_revisions(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
@@ -4057,10 +4058,6 @@ class FlowTest(TembaTest):
         # we should have a flow start
         start = FlowStart.objects.get(flow=self.flow)
 
-        # should be in a completed state
-        self.assertEqual(FlowStart.STATUS_COMPLETE, start.status)
-        self.assertEqual(1, start.contact_count)
-
         # do so again but don't restart the participants
         del post_data["restart_participants"]
 
@@ -4070,7 +4067,6 @@ class FlowTest(TembaTest):
         new_start = FlowStart.objects.filter(flow=self.flow).order_by("-created_on").first()
         self.assertNotEqual(start, new_start)
         self.assertEqual(FlowStart.STATUS_COMPLETE, new_start.status)
-        self.assertEqual(0, new_start.contact_count)
 
         # mark that start as incomplete
         new_start.status = FlowStart.STATUS_STARTING
@@ -5812,7 +5808,7 @@ class FlowsTest(FlowFileTest):
         rule_set1, rule_set2 = favorites.rule_sets.order_by("y")[:2]
 
         start = FlowStart.create(favorites, self.admin, contacts=[self.contact])
-        start.start()
+        start.async_start()
 
         Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
         Msg.create_incoming(self.channel, "tel:+12065552020", "primus")
@@ -6358,7 +6354,7 @@ class FlowsTest(FlowFileTest):
         # old flow definition
         self.client.post(
             reverse("flows.flow_create"),
-            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="0"),
+            data=dict(name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="1"),
         )
         flow = Flow.objects.get(
             org=self.org, name="Normal Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.FINAL_LEGACY_VERSION
@@ -6370,7 +6366,7 @@ class FlowsTest(FlowFileTest):
 
         # new flow definition
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
@@ -6383,7 +6379,7 @@ class FlowsTest(FlowFileTest):
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, use_new_editor="1")
+            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
@@ -8218,7 +8214,7 @@ class FlowsTest(FlowFileTest):
         start = FlowStart.objects.create(flow=parent, created_by=self.admin, modified_by=self.admin)
         for contact in contacts:
             start.contacts.add(contact)
-        start.start()
+        start.async_start()
 
         # all our contacts should have a name of Greg now (set in the child flow)
         for contact in contacts:
@@ -11206,3 +11202,25 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class PopulateSessionUUIDMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0210_drop_action_log"
+    migrate_to = "0211_populate_session_uuid"
+
+    def setUpBeforeMigration(self, apps):
+        # override the batch size constant
+        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        contact = self.create_contact("Bob", twitter="bob")
+
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+
+    def test_merged(self):
+        self.assertEqual(FlowSession.objects.count(), 3)
+        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
