@@ -1,9 +1,7 @@
 import calendar
 import itertools
 import logging
-import mimetypes
 import os
-import re
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -2040,32 +2038,6 @@ class Org(SmartModel):
         archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
         if archive:
             return archive.get_end_date()
-
-    def save_response_media(self, response):
-        disposition = response.headers.get("Content-Disposition", None)
-        content_type = response.headers.get("Content-Type", None)
-
-        downloaded = None
-
-        if content_type:
-            extension = None
-            if disposition == "inline":
-                extension = mimetypes.guess_extension(content_type)
-                extension = extension.strip(".")
-            elif disposition:
-                filename = re.findall('filename="(.+)"', disposition)[0]
-                extension = filename.rpartition(".")[2]
-            elif content_type == "audio/x-wav":
-                extension = "wav"
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # save our file off
-            downloaded = self.save_media(File(temp), extension)
-
-        return content_type, downloaded
 
     def save_media(self, file, extension):
         """

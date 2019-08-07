@@ -3,7 +3,6 @@ import time
 from abc import ABCMeta
 from datetime import timedelta
 from enum import Enum
-from urllib.parse import urlparse
 from xml.sax.saxutils import escape
 
 import phonenumbers
@@ -1142,10 +1141,6 @@ class Channel(TembaModel):
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
 
-    @staticmethod
-    def redis_active_events_key(channel_id):
-        return f"channel_active_events_{channel_id}"
-
     def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
@@ -1414,20 +1409,6 @@ class ChannelLog(models.Model):
         )
 
     @classmethod
-    def log_ivr_interaction(cls, call, description, event, is_error=False):
-        return ChannelLog.objects.create(
-            channel_id=call.channel_id,
-            connection_id=call.id,
-            request=str(event.request_body),
-            response=str(event.response_body),
-            url=event.url,
-            method=event.method,
-            is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
-        )
-
-    @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000
@@ -1443,10 +1424,6 @@ class ChannelLog(models.Model):
             description=description[:255],
             request_time=request_time_ms,
         )
-
-    def get_url_host(self):
-        parsed = urlparse(self.url)
-        return "%s://%s%s" % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
         if self.msg:
@@ -1898,24 +1875,11 @@ class ChannelConnection(models.Model):
 
                 self.__class__ = IVRCall
 
-    def get_logs(self):
-        return self.channel_logs.all().order_by("created_on")
-
-    def is_done(self):
-        return self.status in self.DONE
-
-    def is_ivr(self):
-        return self.connection_type == self.IVR
-
-    def close(self):  # pragma: no cover
-        pass
-
-    def get(self):
-        if self.connection_type == self.IVR:
-            from temba.ivr.models import IVRCall
-
-            return IVRCall.objects.filter(id=self.id).first()
-        return self  # pragma: no cover
+    def has_logs(self):
+        """
+        Returns whether this connection has any channel logs
+        """
+        return self.channel.is_active and self.channel_logs.count() > 0
 
     def get_session(self):
         """

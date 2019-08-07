@@ -652,10 +652,6 @@ class Flow(TembaModel):
         resume_parent_run=False,
         continue_parent=True,
     ):
-
-        if started_flows is None:
-            started_flows = []
-
         def add_to_path(path, uuid):
             if uuid in path:
                 path.append(uuid)
@@ -1513,7 +1509,7 @@ class Flow(TembaModel):
         if not all_contact_ids:
             return []
 
-        if self.flow_type == Flow.TYPE_VOICE:
+        if self.flow_type == Flow.TYPE_VOICE:  # pragma: no cover
             raise ValueError("IVR flow '%s' no longer supported" % self.name)
 
         return self._start_msg_flow(
@@ -2488,11 +2484,6 @@ class FlowSession(models.Model):
     def release(self):
         self.delete()
 
-    def end(self, status):
-        self.status = status
-        self.ended_on = timezone.now()
-        self.save(update_fields=("status", "ended_on"))
-
     def __str__(self):  # pragma: no cover
         return str(self.contact)
 
@@ -2815,10 +2806,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         needs_update = False
 
         for msg in msgs:
-            # don't include pseudo msgs
-            if not msg.id:
-                continue
-
             # or messages which have already been attached to this run
             if str(msg.uuid) in existing_msg_uuids:
                 continue
@@ -2975,12 +2962,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             current_run = current_run.parent
 
         return False
-
-    def is_ivr(self):
-        """
-        If this run is over an IVR connection
-        """
-        return self.connection and self.connection.is_ivr()
 
     def release(self, delete_reason=None):
         """

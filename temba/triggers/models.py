@@ -392,44 +392,6 @@ class Trigger(SmartModel):
         return True
 
     @classmethod
-    def find_flow_for_inbound_call(cls, contact):
-
-        groups_ids = contact.user_groups.values_list("pk", flat=True)
-
-        # Check first if we have a trigger for the contact groups
-        matching = (
-            Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups__in=groups_ids,
-            )
-            .order_by("groups__name")
-            .prefetch_related("groups", "groups__contacts")
-        )
-
-        # If no trigger for contact groups find there is a no group trigger
-        if not matching:
-            matching = Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups=None,
-            ).prefetch_related("groups", "groups__contacts")
-
-        if not matching:
-            return None
-
-        trigger = matching[0]
-        return trigger.flow
-
-    @classmethod
     def apply_action_archive(cls, user, triggers):
         for trigger in triggers:
             trigger.archive(user)
