@@ -1173,10 +1173,7 @@ class ContactTest(TembaTest):
         send("hola mundo", old_contact)
         urn = old_contact.get_urn()
 
-        call = IVRCall.objects.create(
-            org=self.org, channel=self.channel, direction=IVRCall.INCOMING, contact=old_contact, contact_urn=urn
-        )
-        FlowRun.create(msg_flow, old_contact, connection=call)
+        self.create_incoming_call(msg_flow, old_contact)
 
         # steal his urn into a new contact
         contact = self.create_contact("Joe", "tweettweet")
@@ -1194,17 +1191,14 @@ class ContactTest(TembaTest):
         send("red", contact)
         send("primus", contact)
 
-        call = IVRCall.objects.create(
-            org=self.org, channel=self.channel, direction=IVRCall.INCOMING, contact=contact, contact_urn=urn
-        )
-        FlowRun.create(msg_flow, contact, connection=call)
+        self.create_incoming_call(msg_flow, contact)
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
-        self.assertEqual(6, contact.msgs.all().count())
+        self.assertEqual(7, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
         # first try a regular release and make sure our urns are anonymized
@@ -3866,13 +3860,7 @@ class ContactTest(TembaTest):
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")
 
-        call = IVRCall.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.all().first(),
-            direction=IVRCall.INCOMING,
-        )
+        call = self.create_incoming_call(self.reminder_flow, contact)
 
         item = {"type": "call", "obj": call}
         self.assertEqual(history_class(item), "non-msg")

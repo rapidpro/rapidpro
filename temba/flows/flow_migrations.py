@@ -1247,9 +1247,9 @@ def migrate_to_version_5(json_flow, flow=None):
 
                 if response_type == "K":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGITS
-                elif response_type == "M":  # pragma: needs cover
+                elif response_type == "M":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGIT
-                elif response_type == "R":
+                elif response_type == "R":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_RECORDING
                 else:
 

@@ -618,7 +618,7 @@ class Org(SmartModel):
                 if channel:
                     if role == Channel.ROLE_SEND:
                         return self.get_channel_delegate(channel, Channel.ROLE_SEND)
-                    else:
+                    else:  # pragma: no cover
                         return channel
 
         # get any send channel without any country or URN hints

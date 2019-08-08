@@ -754,14 +754,12 @@ class Channel(TembaModel):
         """
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
-        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN)
 
         if callback_domain:
             return callback_domain
-        elif self.org:
-            return self.org.get_brand_domain()
         else:
-            return None
+            return self.org.get_brand_domain()
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role

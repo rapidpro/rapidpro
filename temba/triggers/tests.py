@@ -156,6 +156,57 @@ class TriggerTest(TembaTest):
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
 
+    def test_inbound_call_trigger(self):
+        self.login(self.admin)
+
+        # inbound call trigger can be made without a call channel
+        response = self.client.get(reverse("triggers.trigger_create"))
+        self.assertContains(response, "Start a flow after receiving a call")
+
+        # make our channel support ivr
+        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+        self.channel.save()
+
+        # flow is required
+        response = self.client.post(reverse("triggers.trigger_inbound_call"), dict())
+        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
+
+        # flow must be an ivr flow
+        message_flow = self.create_flow()
+        post_data = dict(flow=message_flow.pk)
+        response = self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
+        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
+
+        # now lets create our first valid inbound call trigger
+        guitarist_flow = self.create_flow()
+        guitarist_flow.flow_type = Flow.TYPE_VOICE
+        guitarist_flow.save()
+
+        post_data = dict(flow=guitarist_flow.pk)
+        response = self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
+        trigger = Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).first()
+        self.assertIsNotNone(trigger)
+
+        # now lets check that group specific call triggers work
+        mike = self.create_contact("Mike", "+17075551213")
+        bassists = self.create_group("Bassists", [mike])
+
+        # flow specific to our group
+        bassist_flow = self.create_flow()
+        bassist_flow.flow_type = Flow.TYPE_VOICE
+        bassist_flow.save()
+
+        post_data = dict(flow=bassist_flow.pk, groups=[bassists.pk])
+        response = self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
+        self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).count())
+
+        # release our channel
+        self.channel.release()
+
+        # should still have two voice flows and triggers (they aren't archived)
+        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.TYPE_VOICE, is_archived=False).count())
+        self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
+
     def test_referral_trigger(self):
         self.login(self.admin)
         flow = self.create_flow()
@@ -537,6 +588,63 @@ class TriggerTest(TembaTest):
         # we should be in the group now
         self.assertEqual(msg.msg_type, "F")
         self.assertEqual(set(contact.user_groups.all()), {group})
+
+    def test_missed_call_trigger(self):
+        self.login(self.admin)
+        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
+        flow = self.create_flow()
+
+        self.assertFalse(missed_call_trigger)
+
+        trigger_url = reverse("triggers.trigger_missed_call")
+
+        response = self.client.get(trigger_url)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(trigger_url, {"flow": flow.id})
+        self.assertEqual(response.status_code, 200)
+
+        trigger = Trigger.objects.all().order_by("-id")[0]
+        self.assertEqual(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
+        self.assertEqual(trigger.flow.id, flow.id)
+
+        missed_call_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_MISSED_CALL).first()
+
+        self.assertEqual(missed_call_trigger.id, trigger.id)
+
+        other_flow = Flow.copy(flow, self.admin)
+
+        response = self.client.post(reverse("triggers.trigger_update", args=[trigger.pk]), {"flow": other_flow.id})
+        self.assertEqual(response.status_code, 302)
+
+        trigger.refresh_from_db()
+        self.assertEqual(trigger.flow.id, other_flow.id)
+
+        # create ten missed call triggers
+        for i in range(10):
+            response = self.client.get(trigger_url)
+            self.assertEqual(response.status_code, 200)
+
+            self.client.post(trigger_url, {"flow": flow.id})
+
+            self.assertEqual(Trigger.objects.all().count(), i + 2)
+            self.assertEqual(
+                Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count(), 1
+            )
+
+        # even unarchiving we only have one active trigger at a time
+        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
+        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
+
+        post_data = {"action": "restore", "objects": [t.id for t in triggers]}
+
+        response = self.client.post(reverse("triggers.trigger_archived"), post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
+        self.assertNotEqual(
+            active_trigger.id, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].id
+        )
 
     def test_new_conversation_trigger_viber(self):
         self.login(self.admin)

@@ -3031,14 +3031,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
         )
 
-    def update_expiration(self, point_in_time=None):
+    def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
         """
         if self.flow.expires_after_minutes:
-            now = timezone.now()
-            if not point_in_time:
-                point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
 
             # save our updated fields
@@ -3047,14 +3044,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # parent should always have a later expiration than the children
         if self.parent:
             self.parent.update_expiration(self.expires_on)
-
-    def expire(self):
-        self.bulk_exit(FlowRun.objects.filter(id=self.id), FlowRun.EXIT_TYPE_EXPIRED)
-
-    @classmethod
-    def exit_all_for_contacts(cls, contacts, exit_type):
-        contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.bulk_exit(contact_runs, exit_type)
 
     def update_fields(self, field_map, do_save=True):
         # validate our field
