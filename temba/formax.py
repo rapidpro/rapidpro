@@ -39,8 +39,13 @@ class Formax(object):
         :return: result of django.urls.resolve(prefix_stripped_url).
         """
         prefix = get_script_prefix()
-        if url and prefix and url.startswith(prefix):
-            return resolve(url[len(prefix) :])
+        if (
+                url
+                and prefix
+                and prefix != "/"
+                and url.startswith(prefix)
+        ):
+            return resolve(url[len(prefix): ])
         else:
             return resolve(url)
 
