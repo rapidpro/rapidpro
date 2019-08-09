@@ -33,16 +33,22 @@ window.simStart = ->
   window.session = null
   window.resetForm()
   request = getStartRequest()
-  $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
-    window.session = response.session
+  $.ajax({
+    url:getSimulateURL(),
+    type:"POST",
+    data:JSON.stringify(request),
+    contentType:"application/json; charset=utf-8",
+    dataType:"json"
+  }).done (response) ->
+      window.session = response.session
 
-    # first clear our body
-    $(".simulator-body").html ""
+      # first clear our body
+      $(".simulator-body").html ""
 
-    # the initial flow doesn't get a flow start event
-    scope = $("#ctlr").data('$scope')
+      # the initial flow doesn't get a flow start event
+      scope = $("#ctlr").data('$scope')
 
-    window.updateSimResults(response.session, response.events)
+      window.updateSimResults(response.session, response.events)
 
 window.sendSimUpdate = (postData) ->
   msg = {
@@ -71,7 +77,13 @@ window.sendSimUpdate = (postData) ->
     }
   }
 
-  $.post(getSimulateURL(), JSON.stringify(request)).done (response) ->
+  $.ajax({
+    url:getSimulateURL(),
+    type:"POST",
+    data:JSON.stringify(request),
+    contentType:"application/json; charset=utf-8",
+    dataType:"json"
+  }).done (response) ->
     window.session = response.session
     window.updateSimResults(response.session, response.events)
     window.resetForm()
