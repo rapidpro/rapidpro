@@ -4,11 +4,15 @@ from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import resolve, get_script_prefix
 
-from temba.orgs.context_processors import user_group_perms_processor
+from temba.orgs.context_processors import (
+    user_group_perms_processor,
+)
 
 
 class FormaxMixin(object):
-    def derive_formax_sections(self, formax, context):  # pragma: needs cover
+    def derive_formax_sections(
+        self, formax, context
+    ):  # pragma: needs cover
         return None
 
     def get_context_data(self, *args, **kwargs):
@@ -40,16 +44,25 @@ class Formax(object):
         """
         prefix = get_script_prefix()
         if (
-                url
-                and prefix
-                and prefix != "/"
-                and url.startswith(prefix)
+            url
+            and prefix
+            and prefix != "/"
+            and url.startswith(prefix)
         ):
-            return resolve(url[len(prefix): ])
+            return resolve(url[len(prefix) :])
         else:
             return resolve(url)
 
-    def add_section(self, name, url, icon, action="formax", button="Save", nobutton=False, dependents=None):
+    def add_section(
+        self,
+        name,
+        url,
+        icon,
+        action="formax",
+        button="Save",
+        nobutton=False,
+        dependents=None,
+    ):
         resolver = self.resolve_prefixed_url(url)
         self.request.META["HTTP_X_FORMAX"] = 1
         self.request.META["HTTP_X_PJAX"] = 1
@@ -60,7 +73,9 @@ class Formax(object):
         if open == name:  # pragma: needs cover
             action = "open"
 
-        response = resolver.func(self.request, *resolver.args, **resolver.kwargs)
+        response = resolver.func(
+            self.request, *resolver.args, **resolver.kwargs
+        )
 
         # redirects don't do us any good
         if not isinstance(response, HttpResponseRedirect):
@@ -78,4 +93,6 @@ class Formax(object):
             )
 
         if settings.DEBUG:
-            print("%s took: %f" % (url, time.time() - start))
+            print(
+                "%s took: %f" % (url, time.time() - start)
+            )
