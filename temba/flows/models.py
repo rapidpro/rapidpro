@@ -809,7 +809,7 @@ class Flow(TembaModel):
             run.add_messages([msg_in])
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:  # pragma: no cover
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
@@ -1197,7 +1197,7 @@ class Flow(TembaModel):
 
                 if "recording" in action:
                     # if its a localized
-                    if isinstance(action["recording"], dict):
+                    if isinstance(action["recording"], dict):  # pragma: no cover
                         for lang, url in action["recording"].items():
                             path = copy_recording(
                                 url, "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"])

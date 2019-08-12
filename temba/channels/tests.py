@@ -3,7 +3,7 @@ import copy
 import hashlib
 import hmac
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import call, patch
 from urllib.parse import quote
 
@@ -22,9 +22,10 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
+from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, FREE_PLAN, Org
-from temba.tests import MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -2413,22 +2414,16 @@ class ChannelCountTest(TembaTest):
 
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
-        self.contact = self.create_contact("Fred Jones", "+12067799191")
+        contact = self.create_contact("Fred Jones", "+12067799191")
         self.create_secondary_org(100_000)
 
-        incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
-        self.assertEqual(self.contact, incoming_msg.contact)
+        # create unrelated incoming message
+        Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=contact)
 
+        # create sent outgoing message with success channel log
         success_msg = Msg.create_outgoing(
-            self.org,
-            self.admin,
-            self.contact,
-            "success message",
-            channel=self.channel,
-            status="D",
-            sent_on=timezone.now(),
+            self.org, self.admin, contact, "success message", channel=self.channel, status="D", sent_on=timezone.now()
         )
-
         success_log = ChannelLog.objects.create(
             channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False
         )
@@ -2436,12 +2431,20 @@ class ChannelLogTest(TembaTest):
         success_log.request = "POST https://foo.bar/send?msg=failed+message"
         success_log.save(update_fields=["request", "response"])
 
-        failed_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "failed message", channel=self.channel)
+        # create failed outgoing message with error channel log
+        failed_msg = Msg.create_outgoing(self.org, self.admin, contact, "failed message", channel=self.channel)
         failed_log = ChannelLog.log_error(dict_to_struct("MockMsg", failed_msg.as_task_json()), "Error Sending")
 
         failed_log.response = json.dumps(dict(error="invalid credentials"))
         failed_log.request = "POST https://foo.bar/send?msg=failed+message"
         failed_log.save(update_fields=["request", "response"])
+
+        # create call with an interaction log
+        ivr_flow = self.get_flow("ivr")
+        call = self.create_incoming_call(ivr_flow, contact)
+
+        # create failed call with an interaction log
+        self.create_incoming_call(ivr_flow, contact, status=IVRCall.FAILED)
 
         # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
@@ -2490,23 +2493,45 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
         self.assertContains(response, "Successfully Sent")
 
-        self.assertEqual(1, self.channel.get_success_log_count())
-        self.assertEqual(1, self.channel.get_error_log_count())
+        self.assertEqual(self.channel.get_success_log_count(), 2)
+        self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
+
+        # check that IVR logs are displayed correctly
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
+        self.assertContains(response, "15 seconds")
+        self.assertContains(response, "2 results")
+
+        # if duration isn't set explicitly, it can be calculated
+        call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
+        call.status = IVRCall.IN_PROGRESS
+        call.duration = None
+        call.save(update_fields=("started_on", "status", "duration"))
+
+        with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
+            response = self.client.get(
+                reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
+            )
+            self.assertContains(response, "30 seconds")
+
+        # show only IVR calls with errors
+        response = self.client.get(
+            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
+        )
+        self.assertContains(response, "warning")
+        self.assertContains(response, "1 result")
 
         # change our org to anonymous
-        self.org.is_anon = True
-        self.org.save()
+        with AnonymousOrg(self.org):
+            # should no longer be able to see read page
+            response = self.client.get(read_url)
+            self.assertLoginRedirect(response)
 
-        # should no longer be able to see read page
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
+            # but if our admin is a superuser they can
+            self.admin.is_superuser = True
+            self.admin.save()
 
-        # but if our admin is a superuser they can
-        self.admin.is_superuser = True
-        self.admin.save()
-
-        response = self.client.get(read_url)
-        self.assertContains(response, "invalid credentials")
+            response = self.client.get(read_url)
+            self.assertContains(response, "invalid credentials")
 
 
 class FacebookWhitelistTest(TembaTest):

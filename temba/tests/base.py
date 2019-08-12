@@ -347,12 +347,14 @@ class TembaTestMixin:
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
+            duration=15,
         )
         session = FlowSession.create(contact, connection=call)
         FlowRun.create(flow, contact, connection=call, session=session)
         Msg.objects.create(
             org=self.org,
             channel=self.channel,
+            connection=call,
             direction="O",
             contact=contact,
             contact_urn=contact.get_urn(),
@@ -364,10 +366,10 @@ class TembaTestMixin:
             channel=self.channel,
             connection=call,
             request='{"say": "Hello"}',
-            response='{"status": "OK"}',
+            response='{"status": "%s"}' % ("error" if status == IVRCall.FAILED else "OK"),
             url="https://acme-calls.com/reply",
             method="POST",
-            is_error=False,
+            is_error=status == IVRCall.FAILED,
             response_status=200,
             description="Looks good",
         )

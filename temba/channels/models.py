@@ -1879,6 +1879,17 @@ class ChannelConnection(models.Model):
         """
         return self.channel.is_active and self.channel_logs.count() > 0
 
+    def get_duration(self):
+        """
+        Either gets the set duration as reported by provider, or tries to calculate it
+        """
+        duration = self.duration or 0
+
+        if not duration and self.status == self.IN_PROGRESS and self.started_on:
+            duration = (timezone.now() - self.started_on).seconds
+
+        return timedelta(seconds=duration)
+
     def get_session(self):
         """
         There is a one-to-one relationship between flow sessions and connections, but as connection can be null
