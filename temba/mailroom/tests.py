@@ -220,7 +220,7 @@ class MailroomQueueTest(TembaTest):
             {
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
-                "task": {"org_id": self.org.id, "contact_ids": [jim.id, bob.id], "channel_id": None},
+                "task": {"contact_ids": [jim.id, bob.id]},
                 "queued_on": matchers.ISODate(),
             },
         )
@@ -234,7 +234,7 @@ class MailroomQueueTest(TembaTest):
             {
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
-                "task": {"org_id": self.org.id, "contact_ids": None, "channel_id": self.channel.id},
+                "task": {"channel_ids": [self.channel.id]},
                 "queued_on": matchers.ISODate(),
             },
         )
