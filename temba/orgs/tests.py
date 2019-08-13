@@ -40,7 +40,7 @@ from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
+from temba.orgs.models import Debit, UserSettings
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -1776,8 +1776,8 @@ class OrgTest(TembaTest):
             self.assertNoFormErrors(response)
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertFalse(self.org.is_connected_to_transferto())
-            self.assertFalse(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"])
-            self.assertFalse(self.org.config["TRANSFERTO_AIRTIME_API_TOKEN"])
+            self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
+            self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
 
             mock_post_transterto_request.side_effect = Exception("foo")
             response = self.client.post(
@@ -2147,8 +2147,8 @@ class OrgTest(TembaTest):
 
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[NEXMO_KEY])
-            self.assertEqual("secret", config[NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
 
             # post without api token, should get validation error
             response = self.client.post(account_url, dict(disconnect="false"), follow=True)
@@ -2160,8 +2160,8 @@ class OrgTest(TembaTest):
             # nexmo config should remain the same
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[NEXMO_KEY])
-            self.assertEqual("secret", config[NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
 
             # now try with all required fields, and a bonus field we shouldn't change
             self.client.post(
@@ -2182,8 +2182,8 @@ class OrgTest(TembaTest):
 
                 self.org.refresh_from_db()
                 config = self.org.config
-                self.assertEqual("other_key", config[NEXMO_KEY])
-                self.assertEqual("secret-too", config[NEXMO_SECRET])
+                self.assertEqual("other_key", config[Org.CONFIG_NEXMO_KEY])
+                self.assertEqual("secret-too", config[Org.CONFIG_NEXMO_SECRET])
 
             self.assertTrue(self.org.is_connected_to_nexmo())
             self.client.post(account_url, dict(disconnect="true"), follow=True)
@@ -2194,8 +2194,8 @@ class OrgTest(TembaTest):
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
-        self.assertFalse(self.org.config["NEXMO_KEY"])
-        self.assertFalse(self.org.config["NEXMO_SECRET"])
+        self.assertNotIn("NEXMO_KEY", self.org.config)
+        self.assertNotIn("NEXMO_SECRET", self.org.config)
 
     def test_connect_plivo(self):
         self.login(self.admin)

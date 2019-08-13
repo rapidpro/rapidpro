@@ -27,7 +27,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, NEXMO_KEY, NEXMO_SECRET, Org
+from temba.orgs.models import Org
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
@@ -606,8 +606,8 @@ class Channel(TembaModel):
 
         org = user.get_org()
         config = {
-            Channel.CONFIG_NEXMO_API_KEY: org.config[NEXMO_KEY],
-            Channel.CONFIG_NEXMO_API_SECRET: org.config[NEXMO_SECRET],
+            Channel.CONFIG_NEXMO_API_KEY: org.config[Org.CONFIG_NEXMO_KEY],
+            Channel.CONFIG_NEXMO_API_SECRET: org.config[Org.CONFIG_NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -636,7 +636,10 @@ class Channel(TembaModel):
             address=channel.address,
             role=Channel.ROLE_CALL,
             parent=channel,
-            config={"account_sid": org.config[ACCOUNT_SID], "auth_token": org.config[ACCOUNT_TOKEN]},
+            config={
+                "account_sid": org.config[Org.CONFIG_TWILIO_SID],
+                "auth_token": org.config[Org.CONFIG_TWILIO_TOKEN],
+            },
         )
 
     @classmethod

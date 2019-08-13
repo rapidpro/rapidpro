@@ -76,26 +76,6 @@ PLANS = (
 
 DATE_PARSING = ((DAYFIRST, "DD-MM-YYYY"), (MONTHFIRST, "MM-DD-YYYY"))
 
-APPLICATION_SID = "APPLICATION_SID"
-ACCOUNT_SID = "ACCOUNT_SID"
-ACCOUNT_TOKEN = "ACCOUNT_TOKEN"
-
-NEXMO_KEY = "NEXMO_KEY"
-NEXMO_SECRET = "NEXMO_SECRET"
-
-TRANSFERTO_ACCOUNT_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
-TRANSFERTO_AIRTIME_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
-TRANSFERTO_ACCOUNT_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
-
-SMTP_SERVER = "smtp_server"
-
-CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
-CHATBASE_API_KEY = "CHATBASE_API_KEY"
-CHATBASE_TYPE_AGENT = "agent"
-CHATBASE_TYPE_USER = "user"
-CHATBASE_FEEDBACK = "CHATBASE_FEEDBACK"
-CHATBASE_VERSION = "CHATBASE_VERSION"
-
 ORG_STATUS = "STATUS"
 SUSPENDED = "suspended"
 RESTORED = "restored"
@@ -144,8 +124,8 @@ class OrgCache(Enum):
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
-    know their country so they can deal with locally formatted numbers (numbers provided without a country code). As such,
-    each org can only add phone channels from one country.
+    know their country so they can deal with locally formatted numbers (numbers provided without a country code).
+    As such, each org can only add phone channels from one country.
 
     Users will create new Org for Flows that should be kept separate (say for distinct projects), or for
     each country where they are deploying messaging applications.
@@ -162,6 +142,18 @@ class Org(SmartModel):
 
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
+
+    CONFIG_SMTP_SERVER = "smtp_server"
+    CONFIG_TWILIO_SID = "ACCOUNT_SID"
+    CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
+    CONFIG_NEXMO_KEY = "NEXMO_KEY"
+    CONFIG_NEXMO_SECRET = "NEXMO_SECRET"
+    CONFIG_TRANSFERTO_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
+    CONFIG_TRANSFERTO_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
+    CONFIG_TRANSFERTO_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
+    CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
+    CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
+    CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -776,30 +768,28 @@ class Org(SmartModel):
                     Msg.send_messages(pending)
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
+        username = quote(username)
+        password = quote(password, safe="")
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
-        config = self.config
-        config.update({SMTP_SERVER: f"smtp://{quote(username)}:{quote(password, safe='')}@{host}:{port}/?{query}"})
-        self.config = config
+        self.config.update({Org.CONFIG_SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"})
         self.modified_by = user
-        self.save()
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def remove_smtp_config(self, user):
         if self.config:
-            self.config.pop(SMTP_SERVER)
+            self.config.pop(Org.CONFIG_SMTP_SERVER, None)
             self.modified_by = user
-            self.save()
+            self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def has_smtp_config(self):
         if self.config:
-            smtp_server = self.config.get(SMTP_SERVER, None)
-            return bool(smtp_server)
-        else:
-            return False
+            return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
+        return False
 
     def email_action_send(self, recipients, subject, body):
         if self.has_smtp_config():
-            smtp_server = self.config.get(SMTP_SERVER, None)
+            smtp_server = self.config.get(Org.CONFIG_SMTP_SERVER)
             parsed_smtp_server = urlparse(smtp_server)
             smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
             use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
@@ -821,82 +811,50 @@ class Org(SmartModel):
 
         return AirtimeTransfer.objects.filter(org=self).exists()
 
-    def connect_transferto(self, account_login, airtime_api_token, user):
-        transferto_config = {
-            TRANSFERTO_ACCOUNT_LOGIN: account_login.strip(),
-            TRANSFERTO_AIRTIME_API_TOKEN: airtime_api_token.strip(),
-        }
-
-        config = self.config
-        config.update(transferto_config)
-        self.config = config
-        self.modified_by = user
-        self.save()
-
-    def refresh_transferto_account_currency(self):
-        config = self.config
-        account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-        airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
-
-        from temba.airtime.models import AirtimeTransfer
-
-        response = AirtimeTransfer.post_transferto_api_response(
-            account_login, airtime_api_token, action="check_wallet"
-        )
-        parsed_response = AirtimeTransfer.parse_transferto_response(response.text)
-        account_currency = parsed_response.get("currency", "")
-        config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
-        self.config = config
-        self.save()
-
-    def is_connected_to_transferto(self):
-        if self.config:
-            transferto_account_login = self.config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-            transferto_airtime_api_token = self.config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
-
-            return transferto_account_login and transferto_airtime_api_token
-        else:
-            return False
-
-    def remove_transferto_account(self, user):
-        if self.config:
-            self.config[TRANSFERTO_ACCOUNT_LOGIN] = ""
-            self.config[TRANSFERTO_AIRTIME_API_TOKEN] = ""
-            self.config[TRANSFERTO_ACCOUNT_CURRENCY] = ""
-            self.modified_by = user
-            self.save()
-
     def connect_nexmo(self, api_key, api_secret, user):
-        nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip()}
-
-        config = self.config
-        config.update(nexmo_config)
-        self.config = config
+        self.config.update({Org.CONFIG_NEXMO_KEY: api_key.strip(), Org.CONFIG_NEXMO_SECRET: api_secret.strip()})
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def connect_twilio(self, account_sid, account_token, user):
-        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
+        self.config.update({Org.CONFIG_TWILIO_SID: account_sid, Org.CONFIG_TWILIO_TOKEN: account_token})
+        self.modified_by = user
+        self.save(update_fields=("config", "modified_by", "modified_on"))
 
-        config = self.config
-        config.update(twilio_config)
-        self.config = config
+    def connect_transferto(self, account_login, airtime_api_token, user):
+        self.config.update(
+            {
+                Org.CONFIG_TRANSFERTO_LOGIN: account_login.strip(),
+                Org.CONFIG_TRANSFERTO_API_TOKEN: airtime_api_token.strip(),
+            }
+        )
+        self.modified_by = user
+        self.save(update_fields=("config", "modified_by", "modified_on"))
+
+    def connect_chatbase(self, agent_name, api_key, version, user):
+        self.config.update(
+            {
+                Org.CONFIG_CHATBASE_AGENT_NAME: agent_name,
+                Org.CONFIG_CHATBASE_API_KEY: api_key,
+                Org.CONFIG_CHATBASE_VERSION: version,
+            }
+        )
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def is_connected_to_nexmo(self):
         if self.config:
-            nexmo_key = self.config.get(NEXMO_KEY, None)
-            nexmo_secret = self.config.get(NEXMO_SECRET, None)
-            return nexmo_key and nexmo_secret
-        else:
-            return False
+            return self.config.get(Org.CONFIG_NEXMO_KEY) and self.config.get(Org.CONFIG_NEXMO_SECRET)
+        return False
 
     def is_connected_to_twilio(self):
         if self.config:
-            account_sid = self.config.get(ACCOUNT_SID, None)
-            account_token = self.config.get(ACCOUNT_TOKEN, None)
-            return account_sid and account_token
+            return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
+        return False
+
+    def is_connected_to_transferto(self):
+        if self.config:
+            return self.config.get(Org.CONFIG_TRANSFERTO_LOGIN) and self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
         return False
 
     def remove_nexmo_account(self, user):
@@ -905,59 +863,56 @@ class Org(SmartModel):
             for channel in self.channels.filter(is_active=True, channel_type="NX"):  # pragma: needs cover
                 channel.release()
 
-            self.config[NEXMO_KEY] = ""
-            self.config[NEXMO_SECRET] = ""
+            self.config.pop(Org.CONFIG_NEXMO_KEY, None)
+            self.config.pop(Org.CONFIG_NEXMO_SECRET, None)
             self.modified_by = user
-            self.save()
+            self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def remove_twilio_account(self, user):
         if self.config:
-            # release any twilio and twilio messaging sevice channels
+            # release any Twilio and Twilio Messaging Service channels
             for channel in self.channels.filter(is_active=True, channel_type__in=["T", "TMS"]):
                 channel.release()
 
-            self.config[ACCOUNT_SID] = ""
-            self.config[ACCOUNT_TOKEN] = ""
-            self.config[APPLICATION_SID] = ""
+            self.config.pop(Org.CONFIG_TWILIO_SID, None)
+            self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
             self.modified_by = user
-            self.save()
+            self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_chatbase(self, agent_name, api_key, version, user):
-        chatbase_config = {CHATBASE_AGENT_NAME: agent_name, CHATBASE_API_KEY: api_key, CHATBASE_VERSION: version}
-
-        config = self.config
-        config.update(chatbase_config)
-        self.config = config
-        self.modified_by = user
-        self.save()
+    def remove_transferto_account(self, user):
+        if self.config:
+            self.config.pop(Org.CONFIG_TRANSFERTO_LOGIN, None)
+            self.config.pop(Org.CONFIG_TRANSFERTO_API_TOKEN, None)
+            self.config.pop(Org.CONFIG_TRANSFERTO_CURRENCY, None)
+            self.modified_by = user
+            self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def remove_chatbase_account(self, user):
-        config = self.config
-
-        if CHATBASE_AGENT_NAME in config:
-            del config[CHATBASE_AGENT_NAME]
-
-        if CHATBASE_API_KEY in config:
-            del config[CHATBASE_API_KEY]
-
-        if CHATBASE_VERSION in config:
-            del config[CHATBASE_VERSION]
-
-        self.config = config
-        self.modified_by = user
-        self.save()
-
-    def get_chatbase_credentials(self):
         if self.config:
-            chatbase_api_key = self.config.get(CHATBASE_API_KEY, None)
-            chatbase_version = self.config.get(CHATBASE_VERSION, None)
-            return chatbase_api_key, chatbase_version
-        else:
-            return None, None
+            self.config.pop(Org.CONFIG_CHATBASE_AGENT_NAME, None)
+            self.config.pop(Org.CONFIG_CHATBASE_API_KEY, None)
+            self.config.pop(Org.CONFIG_CHATBASE_VERSION, None)
+            self.modified_by = user
+            self.save(update_fields=("config", "modified_by", "modified_on"))
+
+    def refresh_transferto_account_currency(self):
+        account_login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
+        airtime_api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
+
+        from temba.airtime.models import AirtimeTransfer
+
+        response = AirtimeTransfer.post_transferto_api_response(
+            account_login, airtime_api_token, action="check_wallet"
+        )
+        parsed_response = AirtimeTransfer.parse_transferto_response(response.text)
+        account_currency = parsed_response.get("currency", "")
+
+        self.config.update({Org.CONFIG_TRANSFERTO_CURRENCY: account_currency})
+        self.save(update_fields=("config", "modified_on"))
 
     def get_twilio_client(self):
-        account_sid = self.config.get(ACCOUNT_SID)
-        auth_token = self.config.get(ACCOUNT_TOKEN)
+        account_sid = self.config.get(Org.CONFIG_TWILIO_SID)
+        auth_token = self.config.get(Org.CONFIG_TWILIO_TOKEN)
         if account_sid and auth_token:
             return TwilioClient(account_sid, auth_token)
         return None
@@ -965,11 +920,16 @@ class Org(SmartModel):
     def get_nexmo_client(self):
         from temba.channels.types.nexmo.client import Client
 
-        api_key = self.config.get(NEXMO_KEY)
-        api_secret = self.config.get(NEXMO_SECRET)
+        api_key = self.config.get(Org.CONFIG_NEXMO_KEY)
+        api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
             return Client(api_key, api_secret)
         return None
+
+    def get_chatbase_credentials(self):
+        if self.config:
+            return self.config.get(Org.CONFIG_CHATBASE_API_KEY), self.config.get(Org.CONFIG_CHATBASE_VERSION)
+        return None, None
 
     def get_country_code(self):
         """
