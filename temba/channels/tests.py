@@ -24,7 +24,7 @@ from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
-from temba.orgs.models import FREE_PLAN, Org
+from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
@@ -1558,8 +1558,8 @@ class ChannelTest(TembaTest):
 
     def test_quota_exceeded(self):
         # set our org to be on the trial plan
-        self.org.plan = FREE_PLAN
-        self.org.save()
+        self.org.plan = Org.PLAN_FREE
+        self.org.save(update_fields=("plan",))
         self.org.topups.all().update(credits=10)
 
         self.assertEqual(10, self.org.get_credits_remaining())

@@ -49,44 +49,6 @@ from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
 
-
-FREE_PLAN = "FREE"
-TRIAL_PLAN = "TRIAL"
-TIER1_PLAN = "TIER1"
-TIER2_PLAN = "TIER2"
-TIER3_PLAN = "TIER3"
-
-TIER_39_PLAN = "TIER_39"
-TIER_249_PLAN = "TIER_249"
-TIER_449_PLAN = "TIER_449"
-
-DAYFIRST = "D"
-MONTHFIRST = "M"
-
-PLANS = (
-    (FREE_PLAN, _("Free Plan")),
-    (TRIAL_PLAN, _("Trial")),
-    (TIER_39_PLAN, _("Bronze")),
-    (TIER1_PLAN, _("Silver")),
-    (TIER2_PLAN, _("Gold (Legacy)")),
-    (TIER3_PLAN, _("Platinum (Legacy)")),
-    (TIER_249_PLAN, _("Gold")),
-    (TIER_449_PLAN, _("Platinum")),
-)
-
-DATE_PARSING = ((DAYFIRST, "DD-MM-YYYY"), (MONTHFIRST, "MM-DD-YYYY"))
-
-ORG_STATUS = "STATUS"
-SUSPENDED = "suspended"
-RESTORED = "restored"
-WHITELISTED = "whitelisted"
-
-ORG_LOW_CREDIT_THRESHOLD = 500
-
-ORG_CREDIT_OVER = "O"
-ORG_CREDIT_LOW = "L"
-ORG_CREDIT_EXPIRING = "E"
-
 # cache keys and TTLs
 ORG_LOCK_KEY = "org:%d:lock:%s"
 ORG_CREDITS_TOTAL_CACHE_KEY = "org:%d:cache:credits_total"
@@ -131,18 +93,34 @@ class Org(SmartModel):
     each country where they are deploying messaging applications.
     """
 
-    # items in export JSON
-    EXPORT_VERSION = "version"
-    EXPORT_SITE = "site"
-    EXPORT_FLOWS = "flows"
-    EXPORT_CAMPAIGNS = "campaigns"
-    EXPORT_TRIGGERS = "triggers"
-    EXPORT_FIELDS = "fields"
-    EXPORT_GROUPS = "groups"
+    DATE_FORMAT_DAY_FIRST = "D"
+    DATE_FORMAT_MONTH_FIRST = "M"
+    DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
 
-    EARLIEST_IMPORT_VERSION = "3"
-    CURRENT_EXPORT_VERSION = "13"
+    PLAN_FREE = "FREE"
+    PLAN_TRIAL = "TRIAL"
+    PLAN_TIER1 = "TIER1"
+    PLAN_TIER2 = "TIER2"
+    PLAN_TIER3 = "TIER3"
+    PLAN_TIER_39 = "TIER_39"
+    PLAN_TIER_249 = "TIER_249"
+    PLAN_TIER_449 = "TIER_449"
+    PLANS = (
+        (PLAN_FREE, _("Free Plan")),
+        (PLAN_TRIAL, _("Trial")),
+        (PLAN_TIER_39, _("Bronze")),
+        (PLAN_TIER1, _("Silver")),
+        (PLAN_TIER2, _("Gold (Legacy)")),
+        (PLAN_TIER3, _("Platinum (Legacy)")),
+        (PLAN_TIER_249, _("Gold")),
+        (PLAN_TIER_449, _("Platinum")),
+    )
 
+    STATUS_SUSPENDED = "suspended"
+    STATUS_RESTORED = "restored"
+    STATUS_WHITELISTED = "whitelisted"
+
+    CONFIG_STATUS = "STATUS"
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
@@ -155,6 +133,18 @@ class Org(SmartModel):
     CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
     CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
 
+    # items in export JSON
+    EXPORT_VERSION = "version"
+    EXPORT_SITE = "site"
+    EXPORT_FLOWS = "flows"
+    EXPORT_CAMPAIGNS = "campaigns"
+    EXPORT_TRIGGERS = "triggers"
+    EXPORT_FIELDS = "fields"
+    EXPORT_GROUPS = "groups"
+
+    EARLIEST_IMPORT_VERSION = "3"
+    CURRENT_EXPORT_VERSION = "13"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -162,7 +152,7 @@ class Org(SmartModel):
         verbose_name=_("Plan"),
         max_length=16,
         choices=PLANS,
-        default=FREE_PLAN,
+        default=PLAN_FREE,
         help_text=_("What plan your organization is on"),
     )
     plan_start = models.DateTimeField(
@@ -213,8 +203,8 @@ class Org(SmartModel):
     date_format = models.CharField(
         verbose_name=_("Date Format"),
         max_length=1,
-        choices=DATE_PARSING,
-        default=DAYFIRST,
+        choices=DATE_FORMATS,
+        default=DATE_FORMAT_DAY_FIRST,
         help_text=_("Whether day comes first or month comes first in dates"),
     )
 
@@ -364,25 +354,23 @@ class Org(SmartModel):
         )
 
     def set_status(self, status):
-        config = self.config
-        config[ORG_STATUS] = status
-        self.config = config
-        self.save(update_fields=["config"])
+        self.config[Org.CONFIG_STATUS] = status
+        self.save(update_fields=("config", "modified_on"))
 
     def set_suspended(self):
-        self.set_status(SUSPENDED)
+        self.set_status(Org.STATUS_SUSPENDED)
 
     def set_whitelisted(self):
-        self.set_status(WHITELISTED)
+        self.set_status(Org.STATUS_WHITELISTED)
 
     def set_restored(self):
-        self.set_status(RESTORED)
+        self.set_status(Org.STATUS_RESTORED)
 
     def is_suspended(self):
-        return self.config.get(ORG_STATUS, None) == SUSPENDED
+        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_SUSPENDED
 
     def is_whitelisted(self):
-        return self.config.get(ORG_STATUS, None) == WHITELISTED
+        return self.config.get(Org.CONFIG_STATUS) == Org.STATUS_WHITELISTED
 
     def import_app(self, export_json, user, site=None):
         """
@@ -987,7 +975,7 @@ class Org(SmartModel):
             delattr(self, "_language_codes")
 
     def get_dayfirst(self):
-        return self.date_format == DAYFIRST
+        return self.date_format == Org.DATE_FORMAT_DAY_FIRST
 
     def format_datetime(self, datetime, show_time=True):
         """
@@ -1145,7 +1133,7 @@ class Org(SmartModel):
         return admin
 
     def is_free_plan(self):  # pragma: needs cover
-        return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
+        return self.plan == Org.PLAN_FREE or self.plan == Org.PLAN_TRIAL
 
     def is_import_flows_tier(self):
         return self.get_purchased_credits() >= self.get_branding().get("tiers", {}).get("import_flows", 0)
@@ -1787,7 +1775,7 @@ class Org(SmartModel):
             stripe_customer = customer.id
 
         # cancel our plan on our stripe customer
-        if new_plan == FREE_PLAN:
+        if new_plan == Org.PLAN_FREE:
             if customer:
                 analytics.track(user.username, "temba.plan_cancelled", dict(cancelledPlan=self.plan))
 
@@ -1837,7 +1825,7 @@ class Org(SmartModel):
         self.stripe_customer = stripe_customer
 
         if subscription["status"] != "active":
-            self.plan = FREE_PLAN
+            self.plan = Org.PLAN_FREE
         else:
             self.plan = new_plan
 
@@ -2671,15 +2659,14 @@ class CreditAlert(SmartModel):
     Tracks when we have sent alerts to organization admins about low credits.
     """
 
-    ALERT_TYPES_CHOICES = (
-        (ORG_CREDIT_OVER, _("Credits Over")),
-        (ORG_CREDIT_LOW, _("Low Credits")),
-        (ORG_CREDIT_EXPIRING, _("Credits expiring soon")),
-    )
+    TYPE_OVER = "O"
+    TYPE_LOW = "L"
+    TYPE_EXPIRING = "E"
+    TYPES = ((TYPE_OVER, _("Credits Over")), (TYPE_LOW, _("Low Credits")), (TYPE_EXPIRING, _("Credits expiring soon")))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="credit_alerts")
 
-    alert_type = models.CharField(max_length=1, choices=ALERT_TYPES_CHOICES)
+    alert_type = models.CharField(max_length=1, choices=TYPES)
 
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
@@ -2738,14 +2725,14 @@ class CreditAlert(SmartModel):
             org_low_credits = org.has_low_credits()
 
             if org_remaining_credits <= 0:
-                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
+                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_OVER)
             elif org_low_credits:  # pragma: needs cover
-                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
+                CreditAlert.trigger_credit_alert(org, CreditAlert.TYPE_LOW)
 
     @classmethod
     def check_topup_expiration(cls):
         """
-        Triggers an ORG_CREDIT_EXPIRING credit alert for any org that has its last
+        Triggers an expiring credit alert for any org that has its last
         active topup expiring in the next 30 days and still has available credits
         """
 
@@ -2767,4 +2754,4 @@ class CreditAlert(SmartModel):
         )
 
         for topup in expiring_final_topups:
-            CreditAlert.trigger_credit_alert(topup.org, ORG_CREDIT_EXPIRING)
+            CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)

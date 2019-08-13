@@ -56,18 +56,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
-from .models import (
-    MONTHFIRST,
-    RESTORED,
-    SUSPENDED,
-    WHITELISTED,
-    Invitation,
-    Org,
-    OrgCache,
-    TopUp,
-    UserSettings,
-    get_stripe_credentials,
-)
+from .models import Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -1175,11 +1164,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if "status" in request.POST:
-                if request.POST.get("status", None) == SUSPENDED:
+                if request.POST.get("status", None) == Org.STATUS_SUSPENDED:
                     self.get_object().set_suspended()
-                elif request.POST.get("status", None) == WHITELISTED:
+                elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.POST.get("status", None) == RESTORED:
+                elif request.POST.get("status", None) == Org.STATUS_RESTORED:
                     self.get_object().set_restored()
                 elif request.POST.get("status", None) == "delete":
                     self.get_object().release()
@@ -1932,7 +1921,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
-                obj.date_format = MONTHFIRST
+                obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
             return obj
 
