@@ -7,13 +7,14 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
-from temba.contacts.models import Contact
 from temba.flows.models import FlowStart
 from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
 from temba.utils import json
+
+from . import queue_interrupt
 
 
 class MailroomClientTest(TembaTest):
@@ -212,7 +213,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", "+12065551212")
         bob = self.create_contact("Bob", "+12065551313")
 
-        Contact.bulk_interrupt(self.org, [jim, bob])
+        queue_interrupt(self.org, contacts=[jim, bob])
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
