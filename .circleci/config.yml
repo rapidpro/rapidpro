@@ -24,7 +24,7 @@ jobs:
             docker build . -t istresearch/rapidpro:${VERSION_TAG}
             # TODO: run unit tests
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push istresearch/pollsterpro:${VERSION_TAG}
+            docker push istresearch/engage:${VERSION_TAG}
       - run:
           name: Deploy
           command: |
