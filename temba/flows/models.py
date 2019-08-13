@@ -2670,7 +2670,7 @@ class FlowSession(models.Model):
 
     GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
 
-    uuid = models.UUIDField(null=True)
+    uuid = models.UUIDField(unique=True)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
