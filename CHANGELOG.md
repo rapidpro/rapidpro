@@ -1,3 +1,7 @@
+v5.1.17
+----------
+ * Remove all IVR flow running functionality which is now handled by mailroom
+
 v5.1.15
 ----------
  * Update to flow editor v1.6.11
