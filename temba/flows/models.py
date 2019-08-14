@@ -2477,10 +2477,6 @@ class FlowSession(models.Model):
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
 
-    @classmethod
-    def create(cls, contact, connection):
-        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
-
     def release(self):
         self.delete()
 

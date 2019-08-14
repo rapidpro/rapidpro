@@ -34,7 +34,6 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
-    MigrationTest,
     MockResponse,
     TembaTest,
     matchers,
@@ -5258,12 +5257,15 @@ class FlowRunTest(TembaTest):
 
     def test_session_release(self):
         # create some runs that have sessions
-        run1 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
-        run2 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
-        run3 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
+        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
+        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
+        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
+        run1 = FlowRun.create(self.flow, self.contact, session=session1)
+        run2 = FlowRun.create(self.flow, self.contact, session=session2)
+        run3 = FlowRun.create(self.flow, self.contact, session=session3)
 
         # create an IVR run and session
-        connection = IVRCall.objects.create(
+        call = IVRCall.objects.create(
             channel=self.channel,
             contact=self.contact,
             contact_urn=self.contact.urns.get(),
@@ -5271,8 +5273,8 @@ class FlowRunTest(TembaTest):
             org=self.org,
             status=IVRCall.PENDING,
         )
-        session = FlowSession.create(self.contact, connection)
-        run4 = FlowRun.create(self.flow, self.contact, connection=connection, session=session)
+        session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=self.contact, connection=call)
+        run4 = FlowRun.create(self.flow, self.contact, connection=call, session=session)
 
         self.assertIsNotNone(run1.session)
         self.assertIsNotNone(run2.session)
@@ -7027,7 +7029,9 @@ class FlowsTest(FlowFileTest):
 
         # create a flow session for our first one
         first = FlowRun.objects.filter(is_active=True).first()
-        session = FlowSession.objects.create(org=self.org, contact=first.contact, status=FlowSession.STATUS_WAITING)
+        session = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=first.contact, status=FlowSession.STATUS_WAITING
+        )
         first.session = session
         first.save(update_fields=["session"])
 
@@ -10623,6 +10627,7 @@ class FlowSessionCRUDLTest(TembaTest):
 
         # create a fake session for this run
         session = FlowSession.objects.create(
+            uuid=uuid4(),
             org=self.org,
             contact=contact,
             status=FlowSession.STATUS_WAITING,
@@ -11231,25 +11236,3 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
-
-
-class PopulateSessionUUIDMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0210_drop_action_log"
-    migrate_to = "0211_populate_session_uuid"
-
-    def setUpBeforeMigration(self, apps):
-        # override the batch size constant
-        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        contact = self.create_contact("Bob", twitter="bob")
-
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-
-    def test_merged(self):
-        self.assertEqual(FlowSession.objects.count(), 3)
-        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
