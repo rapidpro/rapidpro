@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 19:39+0000\n"
+"POT-Creation-Date: 2019-08-14 19:33+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3408,83 +3408,6 @@ msgstr "Arquivado"
 #| msgid "User Role"
 msgid "User delete"
 msgstr "Função do Usuário"
-
-#, fuzzy
-#| msgid "The call that handled this flow run, only for voice flows"
-msgid "The session that handled this flow run, only for voice flows"
-msgstr "A chamada que controlou a execução deste fluxo, apenas para os fluxos de voz"
-
-msgid "Whether this flow run is currently active"
-msgstr "Se a execução desse fluxo está ativa agora"
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr "Uma representação JSON de quaisquer valores do fluxo customizado que o usuário salvou em outro local"
-
-msgid "When this flow run was created"
-msgstr "Quando a execução deste fluxo foi criada"
-
-#, fuzzy
-#| msgid "When this flow run was created"
-msgid "When this flow run was last updated"
-msgstr "Quando a execução deste fluxo foi criada"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "When the contact exited this flow run"
-msgstr "%s saiu desse fluxo"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "Why the contact exited this flow run"
-msgstr "%s saiu desse fluxo"
-
-msgid "When this flow run will expire"
-msgstr "Quando o prazo de execução deste fluxo vai expirar"
-
-#, fuzzy
-#| msgid "When this flow run will expire"
-msgid "When this flow will next time out (if any)"
-msgstr "Quando o prazo de execução deste fluxo vai expirar"
-
-#, fuzzy
-msgid "The FlowStart objects that started this run"
-msgstr "Nenhum contato iniciou este fluxo"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "The parent run that triggered us"
-msgstr "O tipo desse disparo"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "Context of the parent run that triggered us"
-msgstr "O tipo desse disparo"
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-#, fuzzy
-msgid "Fields"
-msgstr "Gerenciar campos"
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "When the user left this step in the flow"
-msgid "The current node location of this run in the flow"
-msgstr "Quando o usuário saiu neste passo no fluxo"
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "Why the run is being deleted"
-msgstr "A mensagem que está sendo entregue"
 
 #, fuzzy
 msgid "The label for this field"
@@ -10968,6 +10891,71 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid "The call that handled this flow run, only for voice flows"
+#~ msgid "The session that handled this flow run, only for voice flows"
+#~ msgstr "A chamada que controlou a execução deste fluxo, apenas para os fluxos de voz"
+
+#~ msgid "Whether this flow run is currently active"
+#~ msgstr "Se a execução desse fluxo está ativa agora"
+
+#~ msgid "A JSON representation of any custom flow values the user has saved away"
+#~ msgstr "Uma representação JSON de quaisquer valores do fluxo customizado que o usuário salvou em outro local"
+
+#~ msgid "When this flow run was created"
+#~ msgstr "Quando a execução deste fluxo foi criada"
+
+#, fuzzy
+#~| msgid "When this flow run was created"
+#~ msgid "When this flow run was last updated"
+#~ msgstr "Quando a execução deste fluxo foi criada"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "When the contact exited this flow run"
+#~ msgstr "%s saiu desse fluxo"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "Why the contact exited this flow run"
+#~ msgstr "%s saiu desse fluxo"
+
+#~ msgid "When this flow run will expire"
+#~ msgstr "Quando o prazo de execução deste fluxo vai expirar"
+
+#, fuzzy
+#~| msgid "When this flow run will expire"
+#~ msgid "When this flow will next time out (if any)"
+#~ msgstr "Quando o prazo de execução deste fluxo vai expirar"
+
+#, fuzzy
+#~ msgid "The FlowStart objects that started this run"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "The parent run that triggered us"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "Context of the parent run that triggered us"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~ msgid "Fields"
+#~ msgstr "Gerenciar campos"
+
+#, fuzzy
+#~| msgid "When the user left this step in the flow"
+#~ msgid "The current node location of this run in the flow"
+#~ msgstr "Quando o usuário saiu neste passo no fluxo"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "Why the run is being deleted"
+#~ msgstr "A mensagem que está sendo entregue"
 
 #, fuzzy
 #~| msgid ""
