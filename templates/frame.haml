@@ -120,6 +120,34 @@
     -load i18n
 
     -block styles
+
+      :css
+        html {
+
+          --curvature: 5px;
+
+          --color-text: #666;
+
+          --color-primary: #2387ca;
+          --color-secondary: #ccc;
+          --color-hover: #e4eff8;
+          --color-selected: #e4eff8;
+          --color-help: #aaa;
+          
+          --color-bg-dark: #666;
+          --color-bg-light: #eee;
+          --color-textarea: #666;
+
+          --color-link-primary: var(--color-primary);
+          --color-link-secondary: var(--color-secondary);
+          --color-link-primary-hover: var(--color-secondary);
+          --color-link-secondary-hover: var(--color-secondary);
+
+          --color-button-primary: var(--color-primary);
+          --color-button-secondary: var(--color-secondary);
+        }
+
+
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/animate.css/animate.css',  media:'all' }

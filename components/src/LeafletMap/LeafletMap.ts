@@ -14,13 +14,12 @@ export default class LeafletMap extends LitElement {
     return css`
       :host {
         display: block;
-        padding: 15px;        
+        padding: 0px;        
       }
 
       #alias-map {
-        top: 20px;
+        top: 0px;
         height: 100%;
-        position: relative;
       }
 
       .leaflet-container {
@@ -44,6 +43,7 @@ export default class LeafletMap extends LitElement {
 
       .path > .step.linked {
         text-decoration: underline; 
+        color: var(--color-link-primary);
         cursor: pointer;
       }
     `;
@@ -76,6 +76,10 @@ export default class LeafletMap extends LitElement {
 
   private getRenderRoot(): DocumentFragment {
     return this.renderRoot as DocumentFragment;
+  }
+
+  private getEndpoint(): string {
+    return this.endpoint + (!this.endpoint.endsWith('/') ? '/' : '');
   }
 
   paths: { [osmId: string]: Path } = {}
@@ -121,7 +125,7 @@ export default class LeafletMap extends LitElement {
 
 
 
-    getUrl(this.endpoint + "geometry/" + this.osmId + "/").then((response: AxiosResponse) => {
+    getUrl(this.getEndpoint() + "geometry/" + this.osmId + "/").then((response: AxiosResponse) => {
 
       if (this.states) {
         this.renderedMap.removeLayer(this.states);
@@ -152,7 +156,9 @@ export default class LeafletMap extends LitElement {
       if (this.hovered) {
         const layer = this.paths[this.hovered.osm_id];
         this.lastHovered = layer;
-        layer.setStyle(highlightedFeature);
+        if (layer) {
+          layer.setStyle(highlightedFeature);
+        }
       }
     }
 
@@ -217,10 +223,6 @@ export default class LeafletMap extends LitElement {
 
     return html`
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"/>
-      <div class="path">
-        ${this.path.map((feature: FeatureProperties, idx: number) => html`<div class="step ${idx !== this.path.length - 1 ? 'linked' : ''}" data-osmid="${feature.osm_id}" @click=${this.handleClickedBreadcrumb}>${feature.name}</div>`)}
-        <div class="step hovered">${this.hovered ? this.hovered.name : ''}</div>
-      </div>
       <div id="alias-map"></div>
     `;
   }

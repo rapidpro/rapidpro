@@ -76,7 +76,7 @@ class AdminBoundary(MPTTModel, models.Model):
         return geojson.dumps({"name": name, "geometry": feature_collection})
 
     def as_json(self):
-        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases="")
+        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases="", path=self.path)
 
         if self.parent:
             result["parent_osm_id"] = self.parent.osm_id
