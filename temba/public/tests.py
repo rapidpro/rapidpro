@@ -1,22 +1,19 @@
 from unittest.mock import MagicMock
 
-from smartmin.tests import SmartminTest, _CRUDLTest
+from smartmin.tests import _CRUDLTest
 
 from django.contrib.auth.models import User
 from django.core.files import File
 from django.urls import reverse
 
 from temba.apks.models import Apk
+from temba.tests import TembaTest, TembaTestMixin
 
 from .models import Lead, Video
 from .views import VideoCRUDL
 
 
-class PublicTest(SmartminTest):
-    def setUp(self):
-        self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
-        self.user = self.create_user("tito")
-
+class PublicTest(TembaTest):
     def test_index(self):
         home_url = reverse("public.public_index")
         response = self.client.get(home_url, follow=True)
@@ -194,7 +191,7 @@ class PublicTest(SmartminTest):
         self.assertEqual(len(response.context["urlset"]), num_fixed_items + 1)
 
 
-class VideoCRUDLTest(_CRUDLTest):
+class VideoCRUDLTest(TembaTestMixin, _CRUDLTest):
     def setUp(self):
         super().setUp()
         self.crudl = VideoCRUDL

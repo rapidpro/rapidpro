@@ -6,13 +6,11 @@ from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 from uuid import uuid4
 
-import nexmo
 import pytz
 import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.tests import SmartminTest
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -42,7 +40,7 @@ from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, Debit, UserSettings
+from temba.orgs.models import Debit, UserSettings
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -51,22 +49,7 @@ from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import (
-    DAYFIRST,
-    MONTHFIRST,
-    ORG_CREDIT_EXPIRING,
-    ORG_CREDIT_LOW,
-    ORG_CREDIT_OVER,
-    RESTORED,
-    SUSPENDED,
-    WHITELISTED,
-    CreditAlert,
-    Invitation,
-    Language,
-    Org,
-    TopUp,
-    TopUpCredits,
-)
+from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
 from .tasks import squash_topupcredits
 
 
@@ -474,11 +457,11 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # update the name and slug of the organization
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=DAYFIRST, slug="nice temba")
+        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_DAY_FIRST, slug="nice temba")
         response = self.client.post(reverse("orgs.org_edit"), data)
         self.assertIn("slug", response.context["form"].errors)
 
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=MONTHFIRST, slug="nice-temba")
+        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST, slug="nice-temba")
         response = self.client.post(reverse("orgs.org_edit"), data)
         self.assertEqual(302, response.status_code)
 
@@ -731,27 +714,27 @@ class OrgTest(TembaTest):
             "editors": [self.editor.id],
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
-            "surveyor_password": None,
+            "surveyor_password": "",
         }
 
         response = self.client.post(update_url, post_data)
         self.assertEqual(302, response.status_code)
 
         # restore
-        post_data["status"] = RESTORED
+        post_data["status"] = Org.STATUS_RESTORED
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
         self.assertEqual(parent, self.org.parent)
 
         # white list
-        post_data["status"] = WHITELISTED
+        post_data["status"] = Org.STATUS_WHITELISTED
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_whitelisted())
 
         # suspend
-        post_data["status"] = SUSPENDED
+        post_data["status"] = Org.STATUS_SUSPENDED
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_suspended())
@@ -1522,14 +1505,10 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(2):
-            self.assertTrue(self.org.is_nearing_expiration())
-
         with self.assertNumQueries(5):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(2):
-            self.assertTrue(self.org.is_nearing_expiration())
+        with self.assertNumQueries(0):
             self.assertEqual(15, self.org.get_low_credits_threshold())
 
         # some credits expires but more credits will remain active
@@ -1539,14 +1518,10 @@ class OrgTest(TembaTest):
         later_active_topup.save(update_fields=["expires_on"])
         self.org.apply_topups()
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
-
         with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
+        with self.assertNumQueries(0):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # no expiring credits
@@ -1554,14 +1529,10 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
-
         with self.assertNumQueries(6):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
+        with self.assertNumQueries(0):
             self.assertEqual(45, self.org.get_low_credits_threshold())
 
         # do not consider expired topup
@@ -1569,14 +1540,10 @@ class OrgTest(TembaTest):
         gift_topup.save(update_fields=["expires_on"])
         self.org.clear_credit_cache()
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
-
         with self.assertNumQueries(5):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
-        with self.assertNumQueries(1):
-            self.assertFalse(self.org.is_nearing_expiration())
+        with self.assertNumQueries(0):
             self.assertEqual(30, self.org.get_low_credits_threshold())
 
         TopUp.objects.all().update(is_active=False)
@@ -1794,8 +1761,8 @@ class OrgTest(TembaTest):
             self.assertNoFormErrors(response)
             self.org = Org.objects.get(pk=self.org.pk)
             self.assertFalse(self.org.is_connected_to_transferto())
-            self.assertFalse(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"])
-            self.assertFalse(self.org.config["TRANSFERTO_AIRTIME_API_TOKEN"])
+            self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
+            self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
 
             mock_post_transterto_request.side_effect = Exception("foo")
             response = self.client.post(
@@ -2131,163 +2098,89 @@ class OrgTest(TembaTest):
             },
         )
 
-    @patch("nexmo.Client.create_application")
-    def test_connect_nexmo(self, mock_create_application):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
+    def test_connect_nexmo(self):
         self.login(self.admin)
 
-        # connect nexmo
         connect_url = reverse("orgs.org_nexmo_connect")
+        account_url = reverse("orgs.org_nexmo_account")
 
-        # simulate invalid credentials
-        with patch("requests.get") as nexmo:
-            nexmo.return_value = MockResponse(401, '{"error-code": "401"}')
+        # simulate invalid credentials on both pages
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
+
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
             self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_nexmo())
 
+            response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
+            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+
         # ok, now with a success
-        with patch("requests.get") as nexmo_get:
-            with patch("requests.post") as nexmo_post:
-                # believe it or not nexmo returns 'error-code' 200
-                nexmo_get.return_value = MockResponse(
-                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-                )
-                nexmo_post.return_value = MockResponse(
-                    200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-                )
-                response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-                self.assertEqual(response.status_code, 302)
+        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
+            # believe it or not nexmo returns 'error-code' 200
+            nexmo_get.return_value = MockResponse(
+                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+            )
+            nexmo_post.return_value = MockResponse(
+                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
+            )
+            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
+            self.assertEqual(response.status_code, 302)
 
-                # nexmo should now be connected
-                self.org = Org.objects.get(pk=self.org.pk)
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.assertEqual(self.org.config["NEXMO_KEY"], "key")
-                self.assertEqual(self.org.config["NEXMO_SECRET"], "secret")
+            response = self.client.get(account_url)
+            self.assertEqual("key", response.context["api_key"])
 
-                nexmo_uuid = self.org.config["NEXMO_UUID"]
+            self.org.refresh_from_db()
+            config = self.org.config
+            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
 
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["answer_url"],
-                    "https://%s%s"
-                    % (
-                        self.org.get_brand_domain().lower(),
-                        reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]),
-                    ),
-                )
+            # post without api token, should get validation error
+            response = self.client.post(account_url, dict(disconnect="false"), follow=True)
+            self.assertEqual(
+                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
+                response.context["form"].errors["__all__"].as_json(),
+            )
 
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["event_url"],
-                    "https://%s%s"
-                    % (
-                        self.org.get_brand_domain().lower(),
-                        reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]),
-                    ),
-                )
+            # nexmo config should remain the same
+            self.org.refresh_from_db()
+            config = self.org.config
+            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
 
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["answer_method"], "POST")
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["event_method"], "POST")
+            # now try with all required fields, and a bonus field we shouldn't change
+            self.client.post(
+                account_url,
+                dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
+                follow=True,
+            )
+            # name shouldn't change
+            self.org.refresh_from_db()
+            self.assertEqual(self.org.name, "Temba")
 
-                self.assertEqual(mock_create_application.call_args_list[0][1]["params"]["type"], "voice")
-                self.assertEqual(
-                    mock_create_application.call_args_list[0][1]["params"]["name"],
-                    "%s/%s" % (self.org.get_brand_domain().lower(), nexmo_uuid),
-                )
-
-                nexmo_account_url = reverse("orgs.org_nexmo_account")
-                response = self.client.get(nexmo_account_url)
-                self.assertEqual("key", response.context["api_key"])
-
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("key", config[NEXMO_KEY])
-                self.assertEqual("secret", config[NEXMO_SECRET])
-
-                # post without api token, should get validation error
-                response = self.client.post(nexmo_account_url, dict(disconnect="false"), follow=True)
-                self.assertEqual(
-                    '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                    response.context["form"].errors["__all__"].as_json(),
-                )
-
-                # nexmo config should remain the same
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("key", config[NEXMO_KEY])
-                self.assertEqual("secret", config[NEXMO_SECRET])
-
-                # now try with all required fields, and a bonus field we shouldn't change
+            # should change nexmo config
+            with patch("nexmo.Client.get_balance") as mock_get_balance:
+                mock_get_balance.return_value = 120
                 self.client.post(
-                    nexmo_account_url,
-                    dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHNAGE ME"),
-                    follow=True,
+                    account_url, dict(api_key="other_key", api_secret="secret-too", disconnect="false"), follow=True
                 )
-                # name shouldn't change
-                self.org.refresh_from_db()
-                self.assertEqual(self.org.name, "Temba")
-
-                # should change nexmo config
-                with patch("nexmo.Client.get_balance") as mock_get_balance:
-                    mock_get_balance.return_value = 120
-                    self.client.post(
-                        nexmo_account_url,
-                        dict(api_key="other_key", api_secret="secret-too", disconnect="false"),
-                        follow=True,
-                    )
-
-                    self.org.refresh_from_db()
-                    config = self.org.config
-                    self.assertEqual("other_key", config[NEXMO_KEY])
-                    self.assertEqual("secret-too", config[NEXMO_SECRET])
-
-                self.assertTrue(self.org.is_connected_to_nexmo())
-                self.client.post(nexmo_account_url, dict(disconnect="true"), follow=True)
 
                 self.org.refresh_from_db()
-                self.assertFalse(self.org.is_connected_to_nexmo())
+                config = self.org.config
+                self.assertEqual("other_key", config[Org.CONFIG_NEXMO_KEY])
+                self.assertEqual("secret-too", config[Org.CONFIG_NEXMO_SECRET])
+
+            self.assertTrue(self.org.is_connected_to_nexmo())
+            self.client.post(account_url, dict(disconnect="true"), follow=True)
+
+            self.org.refresh_from_db()
+            self.assertFalse(self.org.is_connected_to_nexmo())
 
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
-        self.assertFalse(self.org.config["NEXMO_KEY"])
-        self.assertFalse(self.org.config["NEXMO_SECRET"])
-
-    @patch("nexmo.Client.create_application")
-    def test_nexmo_configuration(self, mock_create_application):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-
-        self.login(self.admin)
-
-        nexmo_configuration_url = reverse("orgs.org_nexmo_configuration")
-
-        # try nexmo not connected
-        response = self.client.get(nexmo_configuration_url)
-
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(nexmo_configuration_url, follow=True)
-
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_nexmo_connect"))
-
-        self.org.connect_nexmo("key", "secret", self.admin)
-
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as mock_update_account:
-            # try automatic nexmo settings update
-            mock_update_account.return_value = True
-
-            response = self.client.get(nexmo_configuration_url)
-            self.assertEqual(response.status_code, 302)
-
-            response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.nexmo.claim"))
-
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as mock_update_account:
-            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
-
-            response = self.client.get(nexmo_configuration_url)
-            self.assertEqual(response.status_code, 200)
-
-            response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_nexmo_configuration"))
+        self.assertNotIn("NEXMO_KEY", self.org.config)
+        self.assertNotIn("NEXMO_SECRET", self.org.config)
 
     def test_connect_plivo(self):
         self.login(self.admin)
@@ -2704,7 +2597,7 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="Oculus")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, DAYFIRST)
+        self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         # check user exists and is admin
         User.objects.get(username="john@carmack.com")
@@ -2721,7 +2614,7 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="id Software")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, DAYFIRST)
+        self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
@@ -2735,7 +2628,7 @@ class OrgCRUDLTest(TembaTest):
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, MONTHFIRST)
+        self.assertEqual(org.date_format, Org.DATE_FORMAT_MONTH_FIRST)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
@@ -3543,11 +3436,11 @@ class BulkExportTest(TembaTest):
 
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
-        self.get_flow("ivr_child_flow")
+        self.get_flow("ivr")
 
         self.assertEqual(Flow.objects.filter(flow_type=Flow.TYPE_VOICE).count(), 1)
         voice_flow = Flow.objects.get(flow_type=Flow.TYPE_VOICE)
-        self.assertEqual(voice_flow.name, "Voice Flow")
+        self.assertEqual(voice_flow.name, "IVR Flow")
         self.assertEqual(voice_flow.expires_after_minutes, 15)
 
     def test_missing_flows_on_import(self):
@@ -4102,6 +3995,102 @@ class BulkExportTest(TembaTest):
 
 
 class CreditAlertTest(TembaTest):
+    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
+    def test_check_topup_expiration(self):
+        from .tasks import check_topup_expiration_task
+
+        # get the topup, it expires in a year by default
+        topup = self.org.topups.order_by("-expires_on").first()
+
+        # there are no credit alerts
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
+
+        # check if credit alerts should be created
+        check_topup_expiration_task()
+
+        # no alert since no expiring credits
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
+
+        # update topup to expire in 10 days
+        topup.expires_on = timezone.now() + timedelta(days=10)
+        topup.save(update_fields=("expires_on",))
+
+        # create another expiring topup, newer than the most recent one
+        TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
+
+        # recheck the expiration
+        check_topup_expiration_task()
+
+        # expiring credit alert created and email sent
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
+
+        # email sent
+        sent_email = mail.outbox[0]
+        self.assertEqual(1, len(sent_email.to))
+        self.assertIn("RapidPro account for Temba", sent_email.body)
+        self.assertIn("expiring credits in less than one month.", sent_email.body)
+
+        # check topup expiration, it should no create a new one, because last one is still active
+        check_topup_expiration_task()
+
+        # no new alrets, and no new emails have been sent
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 1)
+
+        # reset alerts, this is normal procedure after someone adds a new topup
+        CreditAlert.reset_for_org(self.org)
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
+
+        # check topup expiration, it should create a new topup alert email
+        check_topup_expiration_task()
+
+        self.assertEqual(
+            CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_EXPIRING).count(), 1
+        )
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_creditalert_sendemail_all_org_admins(self):
+        # add some administrators to the org
+        self.org.administrators.add(self.user)
+        self.org.administrators.add(self.surveyor)
+
+        # create a CreditAlert
+        creditalert = CreditAlert.objects.create(
+            org=self.org, alert_type=CreditAlert.TYPE_EXPIRING, created_by=self.admin, modified_by=self.admin
+        )
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            creditalert.send_email()
+
+            self.assertEqual(len(mail.outbox), 1)
+
+            sent_email = mail.outbox[0]
+            self.assertIn("RapidPro account for Temba", sent_email.body)
+
+            # this email has been sent to multiple recipients
+            self.assertListEqual(
+                sent_email.recipients(), ["Administrator@nyaruka.com", "Surveyor@nyaruka.com", "User@nyaruka.com"]
+            )
+
+    def test_creditalert_sendemail_no_org_admins(self):
+        # remove administrators from org
+        self.org.administrators.clear()
+
+        # create a CreditAlert
+        creditalert = CreditAlert.objects.create(
+            org=self.org, alert_type=CreditAlert.TYPE_EXPIRING, created_by=self.admin, modified_by=self.admin
+        )
+        with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
+            creditalert.send_email()
+
+            # no emails have been sent
+            self.assertEqual(len(mail.outbox), 0)
+
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
         self.create_msg(contact=self.joe)
@@ -4116,7 +4105,8 @@ class CreditAlertTest(TembaTest):
 
                 # one alert created and sent
                 self.assertEqual(
-                    1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_OVER).count()
+                    1,
+                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
                 )
                 self.assertEqual(1, len(mail.outbox))
 
@@ -4129,7 +4119,8 @@ class CreditAlertTest(TembaTest):
                 # no new alert if one is sent and no new email
                 CreditAlert.check_org_credits()
                 self.assertEqual(
-                    1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_OVER).count()
+                    1,
+                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
                 )
                 self.assertEqual(1, len(mail.outbox))
 
@@ -4140,7 +4131,8 @@ class CreditAlertTest(TembaTest):
                 # can resend a new alert
                 CreditAlert.check_org_credits()
                 self.assertEqual(
-                    1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_OVER).count()
+                    1,
+                    CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=CreditAlert.TYPE_OVER).count(),
                 )
                 self.assertEqual(2, len(mail.outbox))
 
@@ -4149,13 +4141,16 @@ class CreditAlertTest(TembaTest):
                 with patch("temba.orgs.models.Org.has_low_credits") as mock_has_low_credits:
                     mock_has_low_credits.return_value = True
 
-                    self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_LOW))
+                    self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_LOW))
 
                     CreditAlert.check_org_credits()
 
                     # low credit alert created and email sent
                     self.assertEqual(
-                        1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_LOW).count()
+                        1,
+                        CreditAlert.objects.filter(
+                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
+                        ).count(),
                     )
                     self.assertEqual(3, len(mail.outbox))
 
@@ -4168,7 +4163,10 @@ class CreditAlertTest(TembaTest):
                     # no new alert if one is sent and no new email
                     CreditAlert.check_org_credits()
                     self.assertEqual(
-                        1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_LOW).count()
+                        1,
+                        CreditAlert.objects.filter(
+                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
+                        ).count(),
                     )
                     self.assertEqual(3, len(mail.outbox))
 
@@ -4179,70 +4177,20 @@ class CreditAlertTest(TembaTest):
                     # can resend a new alert
                     CreditAlert.check_org_credits()
                     self.assertEqual(
-                        1, CreditAlert.objects.filter(is_active=True, org=self.org, alert_type=ORG_CREDIT_LOW).count()
+                        1,
+                        CreditAlert.objects.filter(
+                            is_active=True, org=self.org, alert_type=CreditAlert.TYPE_LOW
+                        ).count(),
                     )
                     self.assertEqual(4, len(mail.outbox))
 
                     mock_has_low_credits.return_value = False
 
-                    with patch("temba.orgs.models.Org.is_nearing_expiration") as is_nearing_expiration:
-                        is_nearing_expiration.return_value = False
 
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
-
-                        CreditAlert.check_org_credits()
-
-                        # no alert since no expiring credits
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=ORG_CREDIT_EXPIRING))
-
-                        is_nearing_expiration.return_value = True
-
-                        CreditAlert.check_org_credits()
-
-                        # expiring credit alert created and email sent
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(5, len(mail.outbox))
-
-                        # email sent
-                        sent_email = mail.outbox[4]
-                        self.assertEqual(len(sent_email.to), 1)
-                        self.assertIn("RapidPro account for Temba", sent_email.body)
-                        self.assertIn("expiring credits in less than one month.", sent_email.body)
-
-                        # no new alert if one is sent and no new email
-                        CreditAlert.check_org_credits()
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(5, len(mail.outbox))
-
-                        # reset alerts
-                        CreditAlert.reset_for_org(self.org)
-                        self.assertFalse(CreditAlert.objects.filter(org=self.org, is_active=True))
-
-                        # can resend a new alert
-                        CreditAlert.check_org_credits()
-                        self.assertEqual(
-                            1,
-                            CreditAlert.objects.filter(
-                                is_active=True, org=self.org, alert_type=ORG_CREDIT_EXPIRING
-                            ).count(),
-                        )
-                        self.assertEqual(6, len(mail.outbox))
-
-
-class EmailContextProcessorsTest(SmartminTest):
+class EmailContextProcessorsTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.admin = self.create_user("Administrator")
+
         self.middleware = BrandingMiddleware(get_response=HttpResponse)
 
     def test_link_components(self):

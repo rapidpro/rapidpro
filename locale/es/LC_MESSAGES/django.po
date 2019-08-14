@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-01 15:22+0000\n"
+"POT-Creation-Date: 2019-08-07 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3858,13 +3858,6 @@ msgstr "El nombre de la etiqueta de este flujo"
 msgid "Parent"
 msgstr "Matriz"
 
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-#, fuzzy
-msgid "Played contact recording"
-msgstr "Escuchó mensaje grabado para \"%s\""
-
 msgid "After 5 minutes"
 msgstr "Después de 5 minutos"
 
@@ -4223,16 +4216,6 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
-msgstr ""
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -9369,21 +9352,23 @@ msgid ""
 "<br/>\n"
 msgstr ""
 
-#, python-format
+#, fuzzy, python-format
+#| msgid "Join %(name)s"
 msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
-msgstr ""
+"\n"
+msgstr "Participar en %(name)s"
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -9392,8 +9377,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -9402,8 +9395,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, fuzzy, python-format
@@ -9866,81 +9867,6 @@ msgid ""
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
-#| "        Africa's Talking website under your account.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
-"        Nexmo website under your account settings page.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Para terminar de configurar su conexión a Africa's Talking tendrá que configurar los siguientes URLs de devolución de llamadas en el\n"
-"        sitio web de Africa's Talking en su cuenta.\n"
-"\n"
-"      "
-
-msgid "API Key:"
-msgstr "Clave API:"
-
-msgid "API Secret:"
-msgstr "Código secreto API:"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Puede configurar el URL de devolución de llamadas en su cuenta de Africa's Talking visitando la página de Panel de mensajería y haciendo clic en\n"
-"        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-"\n"
-"      "
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"        Puede configurar el URL de devolución de llamadas en su cuenta de Africa's Talking visitando la página de Panel de mensajería y haciendo clic en\n"
-"        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-"\n"
-"      "
-
-msgid "Once the settings are succefully updated on Nexmo"
-msgstr ""
-
-#, fuzzy
-msgid "Add a Nexmo Channel"
-msgstr "Transmisor"
 
 msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
 msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secreto API de Nexmo."
@@ -11650,6 +11576,82 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~ msgid "Played contact recording"
+#~ msgstr "Escuchó mensaje grabado para \"%s\""
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#~| "        Africa's Talking website under your account.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
+#~ "        Nexmo website under your account settings page.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Para terminar de configurar su conexión a Africa's Talking tendrá que configurar los siguientes URLs de devolución de llamadas en el\n"
+#~ "        sitio web de Africa's Talking en su cuenta.\n"
+#~ "\n"
+#~ "      "
+
+#~ msgid "API Key:"
+#~ msgstr "Clave API:"
+
+#~ msgid "API Secret:"
+#~ msgstr "Código secreto API:"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Puede configurar el URL de devolución de llamadas en su cuenta de Africa's Talking visitando la página de Panel de mensajería y haciendo clic en\n"
+#~ "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~ "\n"
+#~ "      "
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "        Puede configurar el URL de devolución de llamadas en su cuenta de Africa's Talking visitando la página de Panel de mensajería y haciendo clic en\n"
+#~ "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~ "\n"
+#~ "      "
+
+#, fuzzy
+#~ msgid "Add a Nexmo Channel"
+#~ msgstr "Transmisor"
 
 #, fuzzy
 #~| msgid "Infobip"

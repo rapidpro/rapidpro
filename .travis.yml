@@ -18,13 +18,17 @@ cache:
     - "$HOME/.cache/pip"
 
 before_install:
+  # add PPA for PG 9.6 on bionic
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+  - sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main" >> /etc/apt/sources.list.d/postgresql.list'
+
   # install the chosen PG version
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install postgresql-$PGDB postgresql-client-$PGDB postgresql-$PGDB-postgis-2.4 postgresql-$PGDB-postgis-2.4-scripts
   - sudo -E sed -i -e '/local.*peer/s/postgres/all/' -e 's/peer\|md5/trust/g' /etc/postgresql/*/main/pg_hba.conf
   - sudo -E sed -i 's/port = 5433/port = 5432/' /etc/postgresql/*/main/postgresql.conf
 
-  # possibly a Travis bug but data directory not being initialized
-  - sudo -u postgres /usr/lib/postgresql/$PGDB/bin/initdb -D /var/ramfs/postgresql/$PGDB/main
+  # give PG some time to finish setup
+  - sleep 10
 
   # stop any running postgres versions
   - sudo -E service postgresql stop 9.2
@@ -35,6 +39,9 @@ before_install:
   - sudo -E service postgresql stop 10
   - sudo -E service postgresql stop 11
   - sudo -E ps axuwww | grep -i postg
+
+  # possibly a Travis bug but data directory sometimes not initialized
+  - if [ ! -d /var/ramfs/postgresql/$PGDB/main ]; then sudo -u postgres /usr/lib/postgresql/$PGDB/bin/initdb -D /var/ramfs/postgresql/$PGDB/main; fi
 
   # start the chosen PG version
   - sudo -E systemctl -l restart postgresql@$PGDB-main
@@ -48,7 +55,7 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=2.0.9
+  - MAILROOM_VERSION=2.0.19
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 

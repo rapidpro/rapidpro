@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-01 15:22+0000\n"
+"POT-Creation-Date: 2019-08-07 20:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2615,12 +2615,6 @@ msgstr ""
 msgid "Parent"
 msgstr ""
 
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-msgid "Played contact recording"
-msgstr ""
-
 msgid "After 5 minutes"
 msgstr ""
 
@@ -2935,16 +2929,6 @@ msgid "Your message template {template.name} is not approved and cannot be sent.
 msgstr ""
 
 msgid "Name already used"
-msgstr ""
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
 msgstr ""
 
 msgid "After 1 minute"
@@ -6922,16 +6906,17 @@ msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
+"\n"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -6940,8 +6925,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -6950,8 +6943,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -7355,44 +7356,6 @@ msgid ""
 "\n"
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
 "        "
-msgstr ""
-
-msgid ""
-"\n"
-"        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
-"        Nexmo website under your account settings page.\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "API Key:"
-msgstr ""
-
-msgid "API Secret:"
-msgstr ""
-
-msgid ""
-"\n"
-"        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-
-msgid ""
-"\n"
-"        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-
-msgid "Once the settings are succefully updated on Nexmo"
-msgstr ""
-
-msgid "Add a Nexmo Channel"
 msgstr ""
 
 msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."

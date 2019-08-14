@@ -3,9 +3,8 @@ import copy
 import hashlib
 import hmac
 import time
-import uuid
-from datetime import timedelta
-from unittest.mock import patch
+from datetime import datetime, timedelta
+from unittest.mock import call, patch
 from urllib.parse import quote
 
 from django_redis import get_redis_connection
@@ -25,24 +24,13 @@ from temba.channels.views import channel_status_processor
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
-from temba.orgs.models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    APPLICATION_SID,
-    FREE_PLAN,
-    NEXMO_APP_ID,
-    NEXMO_APP_PRIVATE_KEY,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    NEXMO_UUID,
-    Org,
-)
-from temba.tests import MockResponse, TembaTest
+from temba.orgs.models import Org
+from temba.tests import AnonymousOrg, MockResponse, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, get_anonymous_user, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
-from .models import Alert, Channel, ChannelConnection, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import check_channels_task, squash_channelcounts, sync_old_seen_channels_task, trim_sync_events_task
 
 
@@ -179,8 +167,8 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.supports_ivr())
 
         # pretend we are connected to twiliko
-        self.org.config = dict(ACCOUNT_SID="AccountSid", ACCOUNT_TOKEN="AccountToken", APPLICATION_SID="AppSid")
-        self.org.save()
+        self.org.config = {"ACCOUNT_SID": "AccountSid", "ACCOUNT_TOKEN": "AccountToken"}
+        self.org.save(update_fields=("config",))
 
         # add a delegate caller
         post_data = dict(channel=self.tel_channel.pk, connection="T")
@@ -846,11 +834,8 @@ class ChannelTest(TembaTest):
         self.assertNotContains(response, "Enable Voice")
 
         # Add twilio credentials to make sure we can add calling for our android channel
-        twilio_config = {ACCOUNT_SID: "SID", ACCOUNT_TOKEN: "TOKEN", APPLICATION_SID: "APP SID"}
-        config = self.org.config
-        config.update(twilio_config)
-        self.org.config = config
-        self.org.save(update_fields=["config"])
+        self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
+        self.org.save(update_fields=("config",))
 
         response = self.fetch_protected(reverse("orgs.org_home"), self.admin)
         self.assertTrue(self.org.is_connected_to_twilio())
@@ -1234,12 +1219,7 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
-            connect.return_value = True
-            with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-                self.org.connect_nexmo("123", "456", self.admin)
-                self.org.save()
+        self.org.connect_nexmo("123", "456", self.admin)
         self.assertTrue(self.org.is_connected_to_nexmo())
 
         # now adding Nexmo bulk sender should work
@@ -1255,8 +1235,6 @@ class ChannelTest(TembaTest):
         channel_config = nexmo.config
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], "123")
         self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], "456")
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_ID], "app-id")
-        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "private-key\n")
 
         # reading our nexmo channel should now offer a disconnect option
         nexmo = self.org.channels.filter(channel_type="NX").first()
@@ -1375,21 +1353,7 @@ class ChannelTest(TembaTest):
             self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
         )
 
-        self.nexmo_uuid = str(uuid.uuid4())
-        nexmo_config = {
-            NEXMO_KEY: "1234",
-            NEXMO_SECRET: "1234",
-            NEXMO_UUID: self.nexmo_uuid,
-            NEXMO_APP_ID: "nexmo-app-id",
-            NEXMO_APP_PRIVATE_KEY: "nexmo-private-key\n",
-        }
-
-        org = self.channel.org
-
-        config = org.config
-        config.update(nexmo_config)
-        org.config = config
-        org.save()
+        self.org.connect_nexmo("1234", "secret", self.admin)
 
         search_nexmo_url = reverse("channels.channel_search_nexmo")
 
@@ -1403,11 +1367,13 @@ class ChannelTest(TembaTest):
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
                     '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
+                    headers={"Content-Type": "application/json"},
                 ),
             ]
 
@@ -1469,7 +1435,8 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(str(release_error.exception), "Cannot delete Channel: Nexus, used by 1 flows")
 
-    def test_release(self):
+    @patch("temba.mailroom.queue_interrupt")
+    def test_release(self, mock_queue_interrupt):
         Channel.objects.all().delete()
         self.login(self.admin)
 
@@ -1483,12 +1450,7 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
 
         # connect org to Nexmo and add bulk sender
-        with patch("temba.utils.nexmo.NexmoClient.update_account") as connect:
-            connect.return_value = True
-            with patch("nexmo.Client.create_application") as create_app:
-                create_app.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-                self.org.connect_nexmo("123", "456", self.admin)
-                self.org.save()
+        self.org.connect_nexmo("123", "456", self.admin)
 
         claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
         self.client.post(claim_nexmo_url, dict(connection="NX", channel=android.pk))
@@ -1504,6 +1466,9 @@ class ChannelTest(TembaTest):
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
         self.releaseChannels(delete=True)
+
+        # check we queued session interrupt tasks for each channel
+        mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])
 
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
@@ -1522,19 +1487,6 @@ class ChannelTest(TembaTest):
         # check that some details are cleared and channel is now in active
         self.assertFalse(android.is_active)
         self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
-
-    @override_settings(IS_PROD=True)
-    def test_release_ivr_channel(self):
-
-        # create outgoing call for the channel
-        contact = self.create_contact("Bruno Mars", "+252788123123")
-        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME))
-
-        self.assertNotEqual(call.status, ChannelConnection.INTERRUPTED)
-        self.tel_channel.release()
-
-        call.refresh_from_db()
-        self.assertEqual(call.status, ChannelConnection.INTERRUPTED)
 
     def test_unclaimed(self):
         response = self.sync(self.unclaimed_channel)
@@ -1606,8 +1558,8 @@ class ChannelTest(TembaTest):
 
     def test_quota_exceeded(self):
         # set our org to be on the trial plan
-        self.org.plan = FREE_PLAN
-        self.org.save()
+        self.org.plan = Org.PLAN_FREE
+        self.org.save(update_fields=("plan",))
         self.org.topups.all().update(credits=10)
 
         self.assertEqual(10, self.org.get_credits_remaining())
@@ -2056,69 +2008,6 @@ class ChannelTest(TembaTest):
             if "p_id" in response and response["p_id"] == p_id:
                 return response
 
-    def test_nexmo_create_application(self):
-        from nexmo import Client as NexmoClient
-        from uuid import uuid4
-
-        self.login(self.admin)
-        with patch("requests.post") as nexmo_post:
-            nexmo_post.return_value = MockResponse(
-                200,
-                json.dumps({"id": "app-id", "keys": {"private_key": "private_key"}}),
-                headers={"content-type": "application/json"},
-            )
-
-            nexmo_client = NexmoClient(key="key", secret="secret")
-
-            nexmo_uuid = str(uuid4())
-            domain = self.org.get_brand_domain()
-            app_name = "%s/%s" % (domain, nexmo_uuid)
-
-            answer_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["answer", nexmo_uuid]))
-
-            event_url = "https://%s%s" % (domain, reverse("handlers.nexmo_call_handler", args=["event", nexmo_uuid]))
-
-            params = dict(
-                name=app_name,
-                type="voice",
-                answer_url=answer_url,
-                answer_method="POST",
-                event_url=event_url,
-                event_method="POST",
-            )
-
-            response = nexmo_client.create_application(params=params)
-            self.assertEqual(response, {"id": "app-id", "keys": {"private_key": "private_key"}})
-
-    @patch("nexmo.Client.update_call")
-    @patch("nexmo.Client.create_application")
-    def test_get_ivr_client(self, mock_create_application, mock_update_call):
-        mock_create_application.return_value = dict(id="app-id", keys=dict(private_key="private-key\n"))
-        mock_update_call.return_value = dict(uuid="12345")
-
-        channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            "Tigo",
-            "+250725551212",
-            secret="11111",
-            config={Channel.CONFIG_FCM_ID: "456"},
-        )
-        self.assertIsNone(channel.get_ivr_client())
-
-        self.org.connect_nexmo("123", "456", self.admin)
-        self.org.save()
-
-        channel.channel_type = "NX"
-        channel.save()
-
-        self.assertIsNotNone(channel.get_ivr_client())
-
-        channel.release()
-        self.assertIsNone(channel.get_ivr_client())
-
     def test_channel_status_processor(self):
 
         request = RequestFactory().get("/")
@@ -2522,22 +2411,16 @@ class ChannelCountTest(TembaTest):
 
 class ChannelLogTest(TembaTest):
     def test_channellog_views(self):
-        self.contact = self.create_contact("Fred Jones", "+12067799191")
+        contact = self.create_contact("Fred Jones", "+12067799191")
         self.create_secondary_org(100_000)
 
-        incoming_msg = Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=self.contact)
-        self.assertEqual(self.contact, incoming_msg.contact)
+        # create unrelated incoming message
+        Msg.create_incoming(self.channel, "tel:+12067799191", "incoming msg", contact=contact)
 
+        # create sent outgoing message with success channel log
         success_msg = Msg.create_outgoing(
-            self.org,
-            self.admin,
-            self.contact,
-            "success message",
-            channel=self.channel,
-            status="D",
-            sent_on=timezone.now(),
+            self.org, self.admin, contact, "success message", channel=self.channel, status="D", sent_on=timezone.now()
         )
-
         success_log = ChannelLog.objects.create(
             channel=self.channel, msg=success_msg, description="Successfully Sent", is_error=False
         )
@@ -2545,12 +2428,20 @@ class ChannelLogTest(TembaTest):
         success_log.request = "POST https://foo.bar/send?msg=failed+message"
         success_log.save(update_fields=["request", "response"])
 
-        failed_msg = Msg.create_outgoing(self.org, self.admin, self.contact, "failed message", channel=self.channel)
+        # create failed outgoing message with error channel log
+        failed_msg = Msg.create_outgoing(self.org, self.admin, contact, "failed message", channel=self.channel)
         failed_log = ChannelLog.log_error(dict_to_struct("MockMsg", failed_msg.as_task_json()), "Error Sending")
 
         failed_log.response = json.dumps(dict(error="invalid credentials"))
         failed_log.request = "POST https://foo.bar/send?msg=failed+message"
         failed_log.save(update_fields=["request", "response"])
+
+        # create call with an interaction log
+        ivr_flow = self.get_flow("ivr")
+        call = self.create_incoming_call(ivr_flow, contact)
+
+        # create failed call with an interaction log
+        self.create_incoming_call(ivr_flow, contact, status=IVRCall.FAILED)
 
         # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
@@ -2599,23 +2490,45 @@ class ChannelLogTest(TembaTest):
         response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
         self.assertContains(response, "Successfully Sent")
 
-        self.assertEqual(1, self.channel.get_success_log_count())
-        self.assertEqual(1, self.channel.get_error_log_count())
+        self.assertEqual(self.channel.get_success_log_count(), 2)
+        self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
+
+        # check that IVR logs are displayed correctly
+        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1")
+        self.assertContains(response, "15 seconds")
+        self.assertContains(response, "2 results")
+
+        # if duration isn't set explicitly, it can be calculated
+        call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
+        call.status = IVRCall.IN_PROGRESS
+        call.duration = None
+        call.save(update_fields=("started_on", "status", "duration"))
+
+        with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
+            response = self.client.get(
+                reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1"
+            )
+            self.assertContains(response, "30 seconds")
+
+        # show only IVR calls with errors
+        response = self.client.get(
+            reverse("channels.channellog_list", args=[self.channel.uuid]) + "?connections=1&errors=1"
+        )
+        self.assertContains(response, "warning")
+        self.assertContains(response, "1 result")
 
         # change our org to anonymous
-        self.org.is_anon = True
-        self.org.save()
+        with AnonymousOrg(self.org):
+            # should no longer be able to see read page
+            response = self.client.get(read_url)
+            self.assertLoginRedirect(response)
 
-        # should no longer be able to see read page
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
+            # but if our admin is a superuser they can
+            self.admin.is_superuser = True
+            self.admin.save()
 
-        # but if our admin is a superuser they can
-        self.admin.is_superuser = True
-        self.admin.save()
-
-        response = self.client.get(read_url)
-        self.assertContains(response, "invalid credentials")
+            response = self.client.get(read_url)
+            self.assertContains(response, "invalid credentials")
 
 
 class FacebookWhitelistTest(TembaTest):
@@ -2734,3 +2647,8 @@ class CourierTest(TembaTest):
         self.assertEqual(low_priority_msgs[1][0]["tps_cost"], 1)
         self.assertEqual(low_priority_msgs[1][0]["response_to_external_id"], "external-id")
         self.assertIsNone(low_priority_msgs[2][0]["attachments"])
+
+    def test_courier_urls(self):
+        response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")

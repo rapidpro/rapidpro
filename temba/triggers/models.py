@@ -7,10 +7,9 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
-from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 
@@ -305,9 +304,6 @@ class Trigger(SmartModel):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
-        elif isinstance(entity, ChannelEvent) or isinstance(entity, IVRCall):
-            contact = entity.contact
-            start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
             start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
@@ -394,44 +390,6 @@ class Trigger(SmartModel):
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
 
         return True
-
-    @classmethod
-    def find_flow_for_inbound_call(cls, contact):
-
-        groups_ids = contact.user_groups.values_list("pk", flat=True)
-
-        # Check first if we have a trigger for the contact groups
-        matching = (
-            Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups__in=groups_ids,
-            )
-            .order_by("groups__name")
-            .prefetch_related("groups", "groups__contacts")
-        )
-
-        # If no trigger for contact groups find there is a no group trigger
-        if not matching:
-            matching = Trigger.objects.filter(
-                is_archived=False,
-                is_active=True,
-                org=contact.org,
-                trigger_type=Trigger.TYPE_INBOUND_CALL,
-                flow__is_archived=False,
-                flow__is_active=True,
-                groups=None,
-            ).prefetch_related("groups", "groups__contacts")
-
-        if not matching:
-            return None
-
-        trigger = matching[0]
-        return trigger.flow
 
     @classmethod
     def apply_action_archive(cls, user, triggers):

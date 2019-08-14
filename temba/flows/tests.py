@@ -34,6 +34,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     ESMockWithScroll,
     FlowFileTest,
+    MigrationTest,
     MockResponse,
     TembaTest,
     matchers,
@@ -236,7 +237,7 @@ class FlowTest(TembaTest):
 
         def assert_media_upload(filename, expected_type, expected_path):
             with open(filename, "rb") as data:
-                post_data = dict(file=data, action=None, HTTP_X_FORWARDED_HTTPS="https")
+                post_data = dict(file=data, action="", HTTP_X_FORWARDED_HTTPS="https")
                 response = self.client.post(upload_media_action_url, post_data)
 
                 self.assertEqual(response.status_code, 200)
@@ -5262,7 +5263,14 @@ class FlowRunTest(TembaTest):
         run3 = FlowRun.create(self.flow, self.contact, session=FlowSession.create(self.contact, None))
 
         # create an IVR run and session
-        connection = IVRCall.create_outgoing(self.channel, self.contact, self.contact.urns.get())
+        connection = IVRCall.objects.create(
+            channel=self.channel,
+            contact=self.contact,
+            contact_urn=self.contact.urns.get(),
+            direction=IVRCall.OUTGOING,
+            org=self.org,
+            status=IVRCall.PENDING,
+        )
         session = FlowSession.create(self.contact, connection)
         run4 = FlowRun.create(self.flow, self.contact, connection=connection, session=session)
 
@@ -5692,18 +5700,39 @@ class SimulationTest(FlowFileTest):
 
     def test_simulation_ivr(self):
         self.login(self.admin)
-        flow = self.get_flow("ivr_flow")
+        flow = self.get_flow("ivr")
 
         # create our payload
-        payload = dict(version=2, trigger={}, flow={})
-        url = reverse("flows.flow_simulate", args=[flow.pk])
+        payload = {"version": 2, "trigger": {}, "flow": {}}
+        url = reverse("flows.flow_simulate", args=[flow.id])
 
         with override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io"):
             with patch("requests.post") as mock_post:
                 mock_post.return_value = MockResponse(200, '{"session": {}}')
-                response = self.client.post(url, json.dumps(payload), content_type="application/json")
-                self.assertEqual(200, response.status_code)
-                self.assertEqual({}, response.json()["session"])
+                response = self.client.post(url, payload, content_type="application/json")
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"session": {}})
+
+                # since this is an IVR flow, the session trigger will have a connection
+                self.assertEqual(
+                    mock_post.call_args[1]["json"]["trigger"],
+                    {
+                        "connection": {
+                            "channel": {"uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b", "name": "Test Channel"},
+                            "urn": "tel:+12065551212",
+                        },
+                        "environment": {
+                            "date_format": "DD-MM-YYYY",
+                            "time_format": "tt:mm",
+                            "timezone": "Africa/Kigali",
+                            "default_language": None,
+                            "allowed_languages": [],
+                            "default_country": "RW",
+                            "redaction_policy": "none",
+                        },
+                    },
+                )
 
     def test_simulation(self):
         self.login(self.admin)
@@ -9259,15 +9288,15 @@ class FlowMigrationTest(FlowFileTest):
         self.assertFalse(ActionSet.objects.filter(flow=flow, uuid=actionset1["uuid"]).exists())
 
     def test_ensure_current_version(self):
-        flow_json = self.get_flow_json("call_me_maybe")["definition"]
+        flow_json = self.get_flow_json("favorites_v4")["definition"]
         flow = Flow.objects.create(
-            name="Call Me Maybe",
+            name="Favorites",
             org=self.org,
             created_by=self.admin,
             modified_by=self.admin,
             saved_by=self.admin,
-            version_number=3,
-            flow_type="V",
+            version_number="4",
+            flow_type="M",
         )
 
         FlowRevision.objects.create(
@@ -9279,12 +9308,13 @@ class FlowMigrationTest(FlowFileTest):
 
         # and that the format looks correct
         flow_json = flow.as_json()
-        self.assertEqual(flow_json["metadata"]["name"], "Call Me Maybe")
+
+        self.assertEqual(flow_json["metadata"]["name"], "Favorites")
         self.assertEqual(flow_json["metadata"]["revision"], 2)
         self.assertEqual(flow_json["metadata"]["expires"], 720)
         self.assertEqual(flow_json["base_language"], "base")
-        self.assertEqual(5, len(flow_json["action_sets"]))
-        self.assertEqual(1, len(flow_json["rule_sets"]))
+        self.assertEqual(len(flow_json["action_sets"]), 6)
+        self.assertEqual(len(flow_json["rule_sets"]), 6)
 
     def test_migrate_to_11_12(self):
         flow = self.get_flow("favorites")
@@ -10170,7 +10200,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json["rule_sets"][1]["operand"], "@(step.value + 3)")
 
     def test_migrate_to_7(self):
-        flow_json = self.get_flow_json("call_me_maybe")
+        flow_json = self.get_flow_json("ivr_v3")
 
         # migrate to the version right before us first
         flow_json = migrate_to_version_5(flow_json)
@@ -10193,7 +10223,7 @@ class FlowMigrationTest(FlowFileTest):
     def test_migrate_to_6(self):
 
         # file format is old non-localized format
-        voice_json = self.get_flow_json("call_me_maybe")
+        voice_json = self.get_flow_json("ivr_v3")
         definition = voice_json.get("definition")
 
         # no language set
@@ -10217,7 +10247,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual("/recording.mp3", definition["action_sets"][0]["actions"][0]["recording"]["base"])
 
         # now try one that doesn't have a recording set
-        voice_json = self.get_flow_json("call_me_maybe")
+        voice_json = self.get_flow_json("ivr_v3")
         definition = voice_json.get("definition")
         del definition["action_sets"][0]["actions"][0]["recording"]
         voice_json = migrate_to_version_5(voice_json)
@@ -11201,3 +11231,25 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
+
+
+class PopulateSessionUUIDMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0210_drop_action_log"
+    migrate_to = "0211_populate_session_uuid"
+
+    def setUpBeforeMigration(self, apps):
+        # override the batch size constant
+        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        contact = self.create_contact("Bob", twitter="bob")
+
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
+
+    def test_merged(self):
+        self.assertEqual(FlowSession.objects.count(), 3)
+        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
