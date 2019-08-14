@@ -78,7 +78,7 @@ class CampaignTest(TembaTest):
 
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
-        flow_json = self.get_flow_json("call_me_maybe")["definition"]
+        flow_json = self.get_flow_json("favorites")
         flow = Flow.objects.create(
             name="Call Me Maybe",
             org=self.org,

@@ -1,9 +1,7 @@
 import calendar
 import itertools
 import logging
-import mimetypes
 import os
-import re
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -21,6 +19,7 @@ from packaging.version import Version
 from requests import Session
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
+from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -619,7 +618,7 @@ class Org(SmartModel):
                 if channel:
                     if role == Channel.ROLE_SEND:
                         return self.get_channel_delegate(channel, Channel.ROLE_SEND)
-                    else:
+                    else:  # pragma: no cover
                         return channel
 
         # get any send channel without any country or URN hints
@@ -956,32 +955,20 @@ class Org(SmartModel):
         else:
             return None, None
 
-    def get_verboice_client(self):  # pragma: needs cover
-        from temba.ivr.clients import VerboiceClient
-
-        channel = self.get_call_channel()
-        if channel.channel_type == "VB":
-            return VerboiceClient(channel)
-        return None
-
     def get_twilio_client(self):
-        from temba.ivr.clients import TwilioClient
-
-        if self.config:
-            account_sid = self.config.get(ACCOUNT_SID, None)
-            auth_token = self.config.get(ACCOUNT_TOKEN, None)
-            if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self)
+        account_sid = self.config.get(ACCOUNT_SID)
+        auth_token = self.config.get(ACCOUNT_TOKEN)
+        if account_sid and auth_token:
+            return TwilioClient(account_sid, auth_token)
         return None
 
     def get_nexmo_client(self):
-        from temba.ivr.clients import NexmoClient
+        from temba.channels.types.nexmo.client import Client
 
-        if self.config:
-            api_key = self.config.get(NEXMO_KEY, None)
-            api_secret = self.config.get(NEXMO_SECRET, None)
-            return NexmoClient(api_key, api_secret, org=self)
-
+        api_key = self.config.get(NEXMO_KEY)
+        api_secret = self.config.get(NEXMO_SECRET)
+        if api_key and api_secret:
+            return Client(api_key, api_secret)
         return None
 
     def get_country_code(self):
@@ -2051,32 +2038,6 @@ class Org(SmartModel):
         archive = self.archives.filter(needs_deletion=False, archive_type=archive_type).order_by("-start_date").first()
         if archive:
             return archive.get_end_date()
-
-    def save_response_media(self, response):
-        disposition = response.headers.get("Content-Disposition", None)
-        content_type = response.headers.get("Content-Type", None)
-
-        downloaded = None
-
-        if content_type:
-            extension = None
-            if disposition == "inline":
-                extension = mimetypes.guess_extension(content_type)
-                extension = extension.strip(".")
-            elif disposition:
-                filename = re.findall('filename="(.+)"', disposition)[0]
-                extension = filename.rpartition(".")[2]
-            elif content_type == "audio/x-wav":
-                extension = "wav"
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # save our file off
-            downloaded = self.save_media(File(temp), extension)
-
-        return content_type, downloaded
 
     def save_media(self, file, extension):
         """

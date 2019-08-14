@@ -24,9 +24,9 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, RuleSet, clear_flow_users
+from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowSession, RuleSet, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
@@ -335,6 +335,45 @@ class TembaTestMixin:
         flow.update(json_flow)
 
         return flow
+
+    def create_incoming_call(self, flow, contact, status=IVRCall.COMPLETED):
+        """
+        Create something that looks like an incoming IVR call handled by mailroom
+        """
+        call = IVRCall.objects.create(
+            org=self.org,
+            channel=self.channel,
+            direction=IVRCall.INCOMING,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=status,
+            duration=15,
+        )
+        session = FlowSession.create(contact, connection=call)
+        FlowRun.create(flow, contact, connection=call, session=session)
+        Msg.objects.create(
+            org=self.org,
+            channel=self.channel,
+            connection=call,
+            direction="O",
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            text="Hello",
+            status="S",
+            created_on=timezone.now(),
+        )
+        ChannelLog.objects.create(
+            channel=self.channel,
+            connection=call,
+            request='{"say": "Hello"}',
+            response='{"status": "%s"}' % ("error" if status == IVRCall.FAILED else "OK"),
+            url="https://acme-calls.com/reply",
+            method="POST",
+            is_error=status == IVRCall.FAILED,
+            response_status=200,
+            description="Looks good",
+        )
+        return call
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()

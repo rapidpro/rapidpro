@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 19:39+0000\n"
+"POT-Creation-Date: 2019-08-07 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3858,13 +3858,6 @@ msgstr "El nombre de la etiqueta de este flujo"
 msgid "Parent"
 msgstr "Matriz"
 
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-#, fuzzy
-msgid "Played contact recording"
-msgstr "Escuchó mensaje grabado para \"%s\""
-
 msgid "After 5 minutes"
 msgstr "Después de 5 minutos"
 
@@ -4223,16 +4216,6 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
-msgstr ""
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -11593,6 +11576,10 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~ msgid "Played contact recording"
+#~ msgstr "Escuchó mensaje grabado para \"%s\""
 
 #, fuzzy
 #~| msgid ""

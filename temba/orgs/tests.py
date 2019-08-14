@@ -3451,11 +3451,11 @@ class BulkExportTest(TembaTest):
 
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
-        self.get_flow("ivr_child_flow")
+        self.get_flow("ivr")
 
         self.assertEqual(Flow.objects.filter(flow_type=Flow.TYPE_VOICE).count(), 1)
         voice_flow = Flow.objects.get(flow_type=Flow.TYPE_VOICE)
-        self.assertEqual(voice_flow.name, "Voice Flow")
+        self.assertEqual(voice_flow.name, "IVR Flow")
         self.assertEqual(voice_flow.expires_after_minutes, 15)
 
     def test_missing_flows_on_import(self):
