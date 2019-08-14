@@ -25,6 +25,7 @@ export default class Label extends LitElement {
       .label {
         border-radius: 2px;
         font-size: 10px;
+        line-height: 10px;
         font-weight: 400;
         border-radius: var(--curvature);
         background: tomato;
