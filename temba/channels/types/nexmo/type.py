@@ -68,7 +68,7 @@ class NexmoType(ChannelType):
         ),
         dict(
             label=_("Callback URL for Incoming Call"),
-            url="https://{{ channel.callback_domain }}{% url 'handlers.nexmo_call_handler' 'answer' channel.uuid %}",
+            url="https://{{ channel.callback_domain }}{% url 'mailroom.ivr_handler' channel.uuid 'incoming' %}",
             description=_("The callback URL is called by Nexmo when you receive an incoming call."),
         ),
     )
