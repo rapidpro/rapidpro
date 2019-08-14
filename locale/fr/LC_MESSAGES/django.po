@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-07 20:53+0000\n"
+"POT-Creation-Date: 2019-08-14 20:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3522,83 +3522,6 @@ msgstr "Archivé"
 #| msgid "User Role"
 msgid "User delete"
 msgstr "Rôle de l'utilisateur"
-
-#, fuzzy
-#| msgid "The call that handled this flow run, only for voice flows"
-msgid "The session that handled this flow run, only for voice flows"
-msgstr "L'appel qui a traité ce terme de flux, seulement pour les flux voix"
-
-msgid "Whether this flow run is currently active"
-msgstr "Que ce terme de flux est actuellement actif"
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr "Une représentation JSON de tout valeurs de flux personnalisés que l'utilisateur a sauvé loin"
-
-msgid "When this flow run was created"
-msgstr "Lorsque ce terme de débit a été créé"
-
-#, fuzzy
-#| msgid "When this flow run was created"
-msgid "When this flow run was last updated"
-msgstr "Lorsque ce terme de débit a été créé"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "When the contact exited this flow run"
-msgstr "%s a quitté ce flux"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "Why the contact exited this flow run"
-msgstr "%s a quitté ce flux"
-
-msgid "When this flow run will expire"
-msgstr "Lorsque ce terme de flux expirera"
-
-#, fuzzy
-#| msgid "When this flow run will expire"
-msgid "When this flow will next time out (if any)"
-msgstr "Lorsque ce terme de flux expirera"
-
-msgid "The FlowStart objects that started this run"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "The parent run that triggered us"
-msgstr "Le type de ce déclencheur"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "Context of the parent run that triggered us"
-msgstr "Le type de ce déclencheur"
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "{} fields"
-msgid "Fields"
-msgstr "{} Champs"
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "When the user left this step in the flow"
-msgid "The current node location of this run in the flow"
-msgstr "Lorsque l'utilisateur quitte cette étape dans le flux"
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "Why the run is being deleted"
-msgstr "Le message qui est livré"
 
 msgid "The label for this field"
 msgstr "Le label pour ce champ"
@@ -11402,6 +11325,68 @@ msgstr "Supprimer téléphone"
 #, fuzzy
 #~ msgid "Played contact recording"
 #~ msgstr "Joué le message enregistré pour\"%s\""
+
+#, fuzzy
+#~| msgid "The call that handled this flow run, only for voice flows"
+#~ msgid "The session that handled this flow run, only for voice flows"
+#~ msgstr "L'appel qui a traité ce terme de flux, seulement pour les flux voix"
+
+#~ msgid "Whether this flow run is currently active"
+#~ msgstr "Que ce terme de flux est actuellement actif"
+
+#~ msgid "A JSON representation of any custom flow values the user has saved away"
+#~ msgstr "Une représentation JSON de tout valeurs de flux personnalisés que l'utilisateur a sauvé loin"
+
+#~ msgid "When this flow run was created"
+#~ msgstr "Lorsque ce terme de débit a été créé"
+
+#, fuzzy
+#~| msgid "When this flow run was created"
+#~ msgid "When this flow run was last updated"
+#~ msgstr "Lorsque ce terme de débit a été créé"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "When the contact exited this flow run"
+#~ msgstr "%s a quitté ce flux"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "Why the contact exited this flow run"
+#~ msgstr "%s a quitté ce flux"
+
+#~ msgid "When this flow run will expire"
+#~ msgstr "Lorsque ce terme de flux expirera"
+
+#, fuzzy
+#~| msgid "When this flow run will expire"
+#~ msgid "When this flow will next time out (if any)"
+#~ msgstr "Lorsque ce terme de flux expirera"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "The parent run that triggered us"
+#~ msgstr "Le type de ce déclencheur"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "Context of the parent run that triggered us"
+#~ msgstr "Le type de ce déclencheur"
+
+#, fuzzy
+#~| msgid "{} fields"
+#~ msgid "Fields"
+#~ msgstr "{} Champs"
+
+#, fuzzy
+#~| msgid "When the user left this step in the flow"
+#~ msgid "The current node location of this run in the flow"
+#~ msgstr "Lorsque l'utilisateur quitte cette étape dans le flux"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "Why the run is being deleted"
+#~ msgstr "Le message qui est livré"
 
 #, fuzzy
 #~| msgid ""

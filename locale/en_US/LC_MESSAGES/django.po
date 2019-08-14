@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-07 20:53+0000\n"
+"POT-Creation-Date: 2019-08-14 20:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2463,63 +2463,6 @@ msgid "Archive delete"
 msgstr ""
 
 msgid "User delete"
-msgstr ""
-
-msgid "The session that handled this flow run, only for voice flows"
-msgstr ""
-
-msgid "Whether this flow run is currently active"
-msgstr ""
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr ""
-
-msgid "When this flow run was created"
-msgstr ""
-
-msgid "When this flow run was last updated"
-msgstr ""
-
-msgid "When the contact exited this flow run"
-msgstr ""
-
-msgid "Why the contact exited this flow run"
-msgstr ""
-
-msgid "When this flow run will expire"
-msgstr ""
-
-msgid "When this flow will next time out (if any)"
-msgstr ""
-
-msgid "The FlowStart objects that started this run"
-msgstr ""
-
-msgid "The parent run that triggered us"
-msgstr ""
-
-msgid "Context of the parent run that triggered us"
-msgstr ""
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-msgid "Fields"
-msgstr ""
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-msgid "The current node location of this run in the flow"
-msgstr ""
-
-msgid "Why the run is being deleted"
 msgstr ""
 
 msgid "The label for this field"
