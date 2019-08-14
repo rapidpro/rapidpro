@@ -14,6 +14,8 @@ from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
 from temba.utils import json
 
+from . import queue_interrupt
+
 
 class MailroomClientTest(TembaTest):
     @override_settings(TESTING=False)
@@ -203,6 +205,37 @@ class MailroomQueueTest(TembaTest):
                     "include_active": True,
                     "extra": {"foo": "bar"},
                 },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_contacts(self):
+        jim = self.create_contact("Jim", "+12065551212")
+        bob = self.create_contact("Bob", "+12065551313")
+
+        queue_interrupt(self.org, contacts=[jim, bob])
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"contact_ids": [jim.id, bob.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_channel(self):
+        self.channel.release()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"channel_ids": [self.channel.id]},
                 "queued_on": matchers.ISODate(),
             },
         )

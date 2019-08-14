@@ -24,23 +24,14 @@ from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, QuerySet, Sum
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel, ChannelConnection, ChannelLog
-from temba.contacts.models import (
-    NEW_CONTACT_VARIABLE,
-    TEL_SCHEME,
-    URN,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-)
+from temba.channels.models import Channel, ChannelConnection
+from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
@@ -48,7 +39,6 @@ from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.http import HttpEvent
 from temba.utils.models import (
     JSONAsTextField,
     JSONField,
@@ -576,127 +566,6 @@ class Flow(TembaModel):
         return node
 
     @classmethod
-    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = (
-            FlowRun.objects.filter(connection=call, is_active=True)
-            .select_related("org")
-            .order_by("-created_on")
-            .first()
-        )
-
-        # what we will send back
-        voice_response = call.channel.generate_ivr_response()
-
-        if run is None:  # pragma: no cover
-            voice_response.hangup()
-            return voice_response
-
-        flow = run.flow
-
-        # make sure we have the latest version
-        flow.ensure_current_version()
-
-        run.voice_response = voice_response
-
-        # create a message to hold our inbound message
-        from temba.msgs.models import IVR
-
-        if text or saved_media_url:
-
-            # we don't have text for media, so lets use the media value there too
-            if saved_media_url and ":" in saved_media_url:
-                text = saved_media_url.partition(":")[2]
-
-            msg = Msg.create_incoming(
-                call.channel,
-                str(call.contact_urn),
-                text,
-                status=PENDING,
-                msg_type=IVR,
-                attachments=[saved_media_url] if saved_media_url else None,
-                connection=run.connection,
-            )
-        else:
-            msg = Msg(org=call.org, contact=call.contact, text="", id=0)
-
-        # find out where we last left off
-        last_step = run.path[-1] if run.path else None
-
-        # if we are just starting the flow, create our first step
-        if not last_step:
-            # lookup our entry node
-            destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
-            if not destination:
-                destination = RuleSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
-
-            # and add our first step for our run
-            if destination:
-                flow.add_step(run, destination, [])
-        else:
-            destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
-
-        if not destination:  # pragma: no cover
-            voice_response.hangup()
-            run.set_completed(exit_uuid=None)
-            return voice_response
-
-        # go and actually handle wherever we are in the flow
-        (handled, msgs) = Flow.handle_destination(
-            destination, run, msg, user_input=text is not None, resume_parent_run=resume
-        )
-
-        # if we stopped needing user input (likely), then wrap our response accordingly
-        voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
-
-        # if we handled it, mark it so
-        if handled and msg.id:
-            from temba.msgs import legacy
-
-            legacy.mark_handled(msg)
-
-        # if we didn't handle it, this is a good time to hangup
-        if not handled or hangup:
-            voice_response.hangup()
-            run.set_completed(exit_uuid=None)
-
-        return voice_response
-
-    @classmethod
-    def wrap_voice_response_with_input(cls, call, run, voice_response):
-        """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
-        last_step = run.path[-1]
-        destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
-
-        if isinstance(destination, RuleSet):
-            response = call.channel.generate_ivr_response()
-            callback = "https://%s%s" % (run.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
-            gather = destination.get_voice_input(response, action=callback)
-
-            # recordings have to be tacked on last
-            if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
-                voice_response.record(action=callback)
-
-            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                voice_response.redirect(url=callback)
-
-            elif gather and hasattr(gather, "document"):  # voicexml case
-                gather.join(voice_response)
-
-                voice_response = response
-
-            elif gather:  # TwiML case
-                # nest all of our previous verbs in our gather
-                for verb in voice_response.verbs:
-                    gather.append(verb)
-
-                voice_response = response
-
-                # append a redirect at the end in case the user sends #
-                voice_response.redirect(url=callback + "?empty=1")
-
-        return voice_response
-
-    @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
         """
         Generates a unique flow name based on the given base name
@@ -722,7 +591,6 @@ class Flow(TembaModel):
         cls,
         msg,
         started_flows=None,
-        voice_response=None,
         triggered_start=False,
         resume_parent_run=False,
         user_input=True,
@@ -784,10 +652,6 @@ class Flow(TembaModel):
         resume_parent_run=False,
         continue_parent=True,
     ):
-
-        if started_flows is None:
-            started_flows = []
-
         def add_to_path(path, uuid):
             if uuid in path:
                 path.append(uuid)
@@ -945,7 +809,7 @@ class Flow(TembaModel):
             run.add_messages([msg_in])
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:  # pragma: no cover
             # store the media path as the value
             result_value = msg_in.attachments[0].split(":", 1)[1]
 
@@ -1333,7 +1197,7 @@ class Flow(TembaModel):
 
                 if "recording" in action:
                     # if its a localized
-                    if isinstance(action["recording"], dict):
+                    if isinstance(action["recording"], dict):  # pragma: no cover
                         for lang, url in action["recording"].items():
                             path = copy_recording(
                                 url, "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"])
@@ -1411,10 +1275,6 @@ class Flow(TembaModel):
         Trigger.objects.filter(flow=self).update(is_archived=True)
 
     def restore(self):
-        if self.flow_type == Flow.TYPE_VOICE:  # pragma: needs cover
-            if not self.org.supports_ivr():
-                raise FlowException("%s requires a Twilio number")
-
         self.is_archived = False
         self.save(update_fields=["is_archived"])
 
@@ -1649,110 +1509,17 @@ class Flow(TembaModel):
         if not all_contact_ids:
             return []
 
-        if self.flow_type == Flow.TYPE_VOICE:
-            return self._start_call_flow(all_contact_ids, extra=extra, flow_start=flow_start, parent_run=parent_run)
-        else:
-            return self._start_msg_flow(
-                all_contact_ids,
-                started_flows=started_flows,
-                start_msg=start_msg,
-                extra=extra,
-                flow_start=flow_start,
-                parent_run=parent_run,
-            )
+        if self.flow_type == Flow.TYPE_VOICE:  # pragma: no cover
+            raise ValueError("IVR flow '%s' no longer supported" % self.name)
 
-    def _start_call_flow(self, all_contact_ids, extra=None, flow_start=None, parent_run=None):
-        from temba.ivr.models import IVRCall
-
-        there_are_calls_to_start = False
-
-        runs = []
-        channel = self.org.get_call_channel()
-
-        if not channel or Channel.ROLE_CALL not in channel.role:  # pragma: needs cover
-            return runs
-
-        for contact_id in all_contact_ids:
-            contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
-            contact_urn = contact.get_urn(TEL_SCHEME)
-            channel = self.org.get_call_channel(contact_urn=contact_urn)
-
-            # can't reach this contact, move on
-            if not contact or not contact_urn or not channel:  # pragma: no cover
-                continue
-
-            run = FlowRun.create(self, contact, start=flow_start, parent=parent_run)
-            if extra:  # pragma: needs cover
-                run.update_fields(extra)
-
-            # create our call objects
-            if parent_run and parent_run.connection:
-                call = parent_run.connection
-                session = parent_run.session
-            else:
-                call = IVRCall.create_outgoing(channel, contact, contact_urn)
-                session = FlowSession.create(contact, connection=call)
-
-            # save away our created call
-            run.session = session
-            run.connection = call
-            run.save(update_fields=["connection"])
-
-            # update our expiration date on our run initially to 7 days for IVR, that will be adjusted when the call is answered
-            next_week = timezone.now() + timedelta(days=IVRCall.DEFAULT_MAX_IVR_EXPIRATION_WINDOW_DAYS)
-            run.update_expiration(next_week)
-
-            if not parent_run or not parent_run.connection:
-                # trigger the call to start (in the background)
-                there_are_calls_to_start = True
-
-            # no start msgs in call flows but we want the variable there
-            run.start_msgs = []
-
-            runs.append(run)
-
-        if flow_start:  # pragma: needs cover
-            flow_start.update_status()
-
-        # eagerly enqueue calls
-        if there_are_calls_to_start:
-
-            r = get_redis_connection()
-
-            pending_call_events = (
-                IVRCall.objects.filter(status=IVRCall.PENDING)
-                .filter(direction=IVRCall.OUTGOING)
-                .filter(channel__is_active=True)
-                .filter(modified_on__gt=timezone.now() - timedelta(days=IVRCall.IGNORE_PENDING_CALLS_OLDER_THAN_DAYS))
-                .select_related("channel")
-                .order_by("modified_on")[:1000]
-            )
-
-            for call in pending_call_events:
-
-                # are we handling a call on a throttled channel ?
-                max_concurrent_events = call.channel.config.get(Channel.CONFIG_MAX_CONCURRENT_EVENTS)
-
-                if max_concurrent_events:
-                    channel_key = Channel.redis_active_events_key(call.channel_id)
-                    current_active_events = r.get(channel_key)
-
-                    # skip this call if are on the limit
-                    if current_active_events and int(current_active_events) >= max_concurrent_events:
-                        continue
-                    else:
-                        # we can start a new call event
-                        call.register_active_event()
-
-                # enqueue the call
-                ChannelLog.log_ivr_interaction(call, "Call queued internally", HttpEvent(method="INTERNAL", url=None))
-
-                call.status = IVRCall.QUEUED
-                call.save(update_fields=("status",))
-
-                call.do_start_call()
-
-        return runs
+        return self._start_msg_flow(
+            all_contact_ids,
+            started_flows=started_flows,
+            start_msg=start_msg,
+            extra=extra,
+            flow_start=flow_start,
+            parent_run=parent_run,
+        )
 
     def _start_msg_flow(
         self, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None
@@ -2717,11 +2484,6 @@ class FlowSession(models.Model):
     def release(self):
         self.delete()
 
-    def end(self, status):
-        self.status = status
-        self.ended_on = timezone.now()
-        self.save(update_fields=("status", "ended_on"))
-
     def __str__(self):  # pragma: no cover
         return str(self.contact)
 
@@ -2976,18 +2738,10 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Exits (expires, interrupts) runs in bulk
         """
-        # when expiring phone calls, we want to issue hangups
-        connection_runs = runs.exclude(connection=None)
-        for run in connection_runs:
-            connection = run.connection.get()
-
-            # have our session close itself
-            if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
-                connection.close()
-
-        run_ids = list(runs[:5000].values_list("id", flat=True))
 
         from .tasks import continue_parent_flows
+
+        run_ids = list(runs[:5000].values_list("id", flat=True))
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for id_batch in chunk_list(run_ids, 500):
@@ -3033,10 +2787,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         needs_update = False
 
         for msg in msgs:
-            # don't include pseudo msgs
-            if not msg.id:
-                continue
-
             # or messages which have already been attached to this run
             if str(msg.uuid) in existing_msg_uuids:
                 continue
@@ -3194,19 +2944,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return False
 
-    def is_ivr(self):
-        """
-        If this run is over an IVR connection
-        """
-        return self.connection and self.connection.is_ivr()
-
-    def keep_active_on_exit(self):
-        """
-        If our run should be completed when we leave the last node
-        """
-        # we let parent runs over ivr get closed by the provider
-        return self.is_ivr() and not self.parent and not self.connection.is_done()
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -3234,38 +2971,30 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if not completed_on:
             completed_on = now
 
-        # mark this flow as inactive
-        if not self.keep_active_on_exit():
-            if exit_uuid:
-                self.path[-1]["exit_uuid"] = str(exit_uuid)
-            self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-            self.exited_on = completed_on
-            self.is_active = False
-            self.parent_context = None
-            self.child_context = None
-            self.save(
-                update_fields=(
-                    "path",
-                    "exit_type",
-                    "exited_on",
-                    "modified_on",
-                    "is_active",
-                    "parent_context",
-                    "child_context",
-                )
+        # mark this run as inactive
+        if exit_uuid:
+            self.path[-1]["exit_uuid"] = str(exit_uuid)
+        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        self.exited_on = completed_on
+        self.is_active = False
+        self.parent_context = None
+        self.child_context = None
+        self.save(
+            update_fields=(
+                "path",
+                "exit_type",
+                "exited_on",
+                "modified_on",
+                "is_active",
+                "parent_context",
+                "child_context",
             )
+        )
 
-        if hasattr(self, "voice_response") and self.parent and self.parent.is_active:
-            callback = "https://%s%s" % (
-                self.org.get_brand_domain(),
-                reverse("ivr.ivrcall_handle", args=[self.connection.pk]),
-            )
-            self.voice_response.redirect(url=callback + "?resume=1")
-        else:
-            # if we have a parent to continue
-            if self.parent:
-                # mark it for continuation
-                self.continue_parent = True
+        # if we have a parent to continue
+        if self.parent:
+            # mark it for continuation
+            self.continue_parent = True
 
     def set_interrupted(self):
         """
@@ -3283,14 +3012,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
         )
 
-    def update_expiration(self, point_in_time=None):
+    def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
         """
         if self.flow.expires_after_minutes:
-            now = timezone.now()
-            if not point_in_time:
-                point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
 
             # save our updated fields
@@ -3299,14 +3025,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # parent should always have a later expiration than the children
         if self.parent:
             self.parent.update_expiration(self.expires_on)
-
-    def expire(self):
-        self.bulk_exit(FlowRun.objects.filter(id=self.id), FlowRun.EXIT_TYPE_EXPIRED)
-
-    @classmethod
-    def exit_all_for_contacts(cls, contacts, exit_type):
-        contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.bulk_exit(contact_runs, exit_type)
 
     def update_fields(self, field_map, do_save=True):
         # validate our field
@@ -3326,37 +3044,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def is_interrupted(self):  # pragma: no cover
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
-
-    def create_outgoing_ivr(self, text, recording_url, connection, response_to=None):
-
-        # create a Msg object to track what happened
-        from temba.msgs.models import DELIVERED, IVR
-
-        attachments = None
-        if recording_url:
-            attachments = ["%s/x-wav:%s" % (Msg.MEDIA_AUDIO, recording_url)]
-
-        msg = Msg.create_outgoing(
-            self.flow.org,
-            self.flow.created_by,
-            self.contact,
-            text,
-            channel=self.connection.channel,
-            response_to=response_to,
-            attachments=attachments,
-            status=DELIVERED,
-            msg_type=IVR,
-            connection=connection,
-        )
-
-        # play a recording or read some text
-        if msg:
-            if recording_url:
-                self.voice_response.play(url=recording_url)
-            else:
-                self.voice_response.say(text)
-
-        return msg
 
     @classmethod
     def serialize_value(cls, value):
@@ -3598,17 +3285,6 @@ class RuleSet(models.Model):
             value_type = rule_type
 
         return value_type if value_type else Value.TYPE_TEXT
-
-    def get_voice_input(self, voice_response, action=None):
-
-        # recordings aren't wrapped input they get tacked on at the end
-        if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
-            return voice_response
-        elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
-            return voice_response.gather(finish_on_key=self.finished_key, timeout=120, action=action)
-        else:
-            # otherwise we assume it's single digit entry
-            return voice_response.gather(num_digits=1, timeout=120, action=action)
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
@@ -5278,30 +4954,8 @@ class SayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
-    def execute(self, run, context, actionset_uuid, event):
-
-        media_url = None
-        if self.recording:
-
-            # localize our recording
-            recording = run.flow.get_localized_text(self.recording, run.contact)
-
-            # if we have a localized recording, create the url
-            if recording:  # pragma: needs cover
-                media_url = f"{settings.STORAGE_URL}/{recording}"
-
-        # localize the text for our message, need this either way for logging
-        message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, errors) = Msg.evaluate_template(message, context)
-
-        msg = run.create_outgoing_ivr(message, media_url, run.connection)
-
-        if msg:
-            return [msg]
-        else:  # pragma: needs cover
-            # no message, possibly failed loop detection
-            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
-            return []
+    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
+        pass
 
 
 class PlayAction(Action):
@@ -5324,16 +4978,8 @@ class PlayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
 
-    def execute(self, run, context, actionset_uuid, event):
-        (recording_url, errors) = Msg.evaluate_template(self.url, context)
-        msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
-
-        if msg:
-            return [msg]
-        else:  # pragma: needs cover
-            # no message, possibly failed loop detection
-            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
-            return []
+    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
+        pass
 
 
 class ReplyAction(Action):
@@ -5710,24 +5356,13 @@ class StartFlowAction(Action):
         # our extra will be our flow variables in our message context
         extra = context.get("extra", dict())
 
-        # if they are both flow runs, just redirect the call
-        if run.flow.flow_type == Flow.TYPE_VOICE and self.flow.flow_type == Flow.TYPE_VOICE:
-            new_run = self.flow.start(
-                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
-            )[0]
-            url = "https://%s%s" % (
-                new_run.org.get_brand_domain(),
-                reverse("ivr.ivrcall_handle", args=[new_run.connection.pk]),
-            )
-            run.voice_response.redirect(url)
-        else:
-            child_runs = self.flow.start(
-                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
-            )
-            for run in child_runs:
-                for msg in run.start_msgs:
-                    msg.from_other_run = True
-                    msgs.append(msg)
+        child_runs = self.flow.start(
+            [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
+        )
+        for run in child_runs:
+            for msg in run.start_msgs:
+                msg.from_other_run = True
+                msgs.append(msg)
 
         return msgs
 

@@ -12,7 +12,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from django.db.models import Q
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -2112,16 +2111,11 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
-        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
-        self.assertEqual(response.status_code, 204)
+        with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
+            response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
+            self.assertEqual(response.status_code, 204)
 
-        # check that their flow runs were interrupted
-        interrupted = FlowRun.objects.filter(contact__in=[contact1, contact2])
-        self.assertFalse(interrupted.filter(Q(is_active=True) | Q(exited_on=None)).exists())
-        self.assertFalse(interrupted.exclude(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).exists())
-
-        # check other contact's runs weren't
-        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True, exited_on=None).exists())
+            mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive"})
