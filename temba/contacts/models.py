@@ -2720,7 +2720,7 @@ class ContactGroup(TembaModel):
         existing = None
 
         if uuid:
-            existing = org.get_group(uuid)
+            existing = ContactGroup.user_groups.filter(org=org, uuid=uuid).first()
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)

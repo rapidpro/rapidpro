@@ -4971,7 +4971,6 @@ class ActionTest(TembaTest):
         action = DeleteFromGroupAction(str(uuid4()), [group])
         group.is_active = False
         group.save()
-        self.org.clear_cached_groups()
 
         self.assertIn(group, action.groups)
 
