@@ -22,7 +22,6 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
@@ -1928,14 +1927,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if user is None:
             user = get_anonymous_user()
         self.unstop(user)
-
-    @classmethod
-    def bulk_interrupt(cls, org, contacts):
-        """
-        Interrupt the active runs and sessions of the given contacts
-        """
-
-        mailroom.queue_interrupt(org, contacts=contacts)
 
     def release(self, user, *, immediately=True):
         """

@@ -124,11 +124,11 @@ def queue_interrupt(org, *, contacts=None, channel=None):
 
     assert contacts or channel, "must specify either a set of contacts or a channel"
 
-    task = {
-        "org_id": org.id,
-        "contact_ids": [c.id for c in contacts] if contacts else None,
-        "channel_id": channel.id if channel else None,
-    }
+    task = {}
+    if contacts:
+        task["contact_ids"] = [c.id for c in contacts]
+    if channel:
+        task["channel_ids"] = [channel.id]
 
     _queue_batch_task(org.id, BatchTask.INTERRUPT_SESSIONS, task, HIGH_PRIORITY)
 
