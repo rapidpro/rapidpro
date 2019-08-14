@@ -2537,7 +2537,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
 
-    # TODO make non-null once we no longer have legacy engine runs
+    # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
     # for an IVR session this is the connection to the IVR channel
