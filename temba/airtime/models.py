@@ -11,7 +11,7 @@ from django.utils.encoding import force_bytes
 
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, Contact
-from temba.orgs.models import TRANSFERTO_ACCOUNT_CURRENCY, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, Org
+from temba.orgs.models import Org
 from temba.utils import get_country_code_by_name, json
 
 logger = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ class AirtimeTransfer(SmartModel):
 
     def get_transferto_response(self, **kwargs):
         config = self.org.config
-        login = config.get(TRANSFERTO_ACCOUNT_LOGIN, "")
-        token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, "")
+        login = config.get(Org.CONFIG_TRANSFERTO_LOGIN, "")
+        token = config.get(Org.CONFIG_TRANSFERTO_API_TOKEN, "")
 
         return AirtimeTransfer.post_transferto_api_response(login, token, airtime_obj=self, **kwargs)
 
@@ -144,11 +144,11 @@ class AirtimeTransfer(SmartModel):
                 raise Exception(message)
 
             config = org.config
-            account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, "")
+            account_currency = config.get(Org.CONFIG_TRANSFERTO_CURRENCY, "")
             if not account_currency:
                 org.refresh_transferto_account_currency()
                 config = org.config
-                account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, "")
+                account_currency = config.get(Org.CONFIG_TRANSFERTO_CURRENCY, "")
 
             action = "msisdn_info"
             request_kwargs = dict(

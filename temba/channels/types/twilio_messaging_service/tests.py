@@ -5,7 +5,7 @@ from twilio.base.exceptions import TwilioRestException
 from django.urls import reverse
 
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
-from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
+from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
@@ -32,9 +32,8 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_twilio_connect"))
 
         twilio_config = dict()
-        twilio_config[ACCOUNT_SID] = "account-sid"
-        twilio_config[ACCOUNT_TOKEN] = "account-token"
-        twilio_config[APPLICATION_SID] = "TwilioTestSid"
+        twilio_config[Org.CONFIG_TWILIO_SID] = "account-sid"
+        twilio_config[Org.CONFIG_TWILIO_TOKEN] = "account-token"
 
         self.org.config = twilio_config
         self.org.save()
