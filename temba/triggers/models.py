@@ -248,7 +248,7 @@ class Trigger(SmartModel):
                     group = ContactGroup.user_groups.filter(org=org, uuid=group_spec["uuid"]).first()
 
                 if not group:
-                    group = ContactGroup.get_user_group(org, group_spec["name"])
+                    group = ContactGroup.get_user_group_by_name(org, group_spec["name"])
 
                 if not group:
                     group = ContactGroup.create_static(org, user, group_spec["name"])  # pragma: needs cover

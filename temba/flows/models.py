@@ -1074,7 +1074,7 @@ class Flow(TembaModel):
 
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
         for ref in dependencies.get("groups", []):
-            if ref["uuid"] not in dependency_mapping and "name" in ref:
+            if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref["name"], uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
@@ -4782,7 +4782,7 @@ class AddToGroupAction(Action):
                 if g and g[0] == "@":
                     groups.append(g)
                 else:  # pragma: needs cover
-                    group = ContactGroup.get_user_group(org, g)
+                    group = ContactGroup.get_user_group_by_name(org, g)
                     if group:
                         groups.append(group)
                     else:
@@ -4814,7 +4814,7 @@ class AddToGroupAction(Action):
                     group = None
 
                     if not errors:
-                        group = ContactGroup.get_user_group(contact.org, value)
+                        group = ContactGroup.get_user_group_by_name(contact.org, value)
 
                 if group:
                     # TODO should become a failure (because it should be impossible) and not just a simulator error
@@ -5216,7 +5216,7 @@ class VariableContactAction(Action):
                     contacts.append(contact_variable_by_uuid)
                     continue
 
-                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
+                variable_group = ContactGroup.get_user_group_by_name(run.flow.org, name=variable)
                 if variable_group:  # pragma: needs cover
                     groups.append(variable_group)
                 else:
