@@ -2694,7 +2694,7 @@ class ContactGroup(TembaModel):
         """
         Returns the user group with the passed in name
         """
-        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
+        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
 
     @classmethod
     def get_user_groups(cls, org, dynamic=None, ready_only=True):
@@ -2714,7 +2714,7 @@ class ContactGroup(TembaModel):
         existing = None
 
         if uuid:
-            existing = ContactGroup.user_groups.filter(org=org, uuid=uuid).first()
+            existing = ContactGroup.user_groups.filter(uuid=uuid, org=org, is_active=True).first()
 
         if not existing and name:
             existing = ContactGroup.get_user_group_by_name(org, name)
