@@ -2493,6 +2493,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     A single contact's journey through a flow. It records the path taken, results collected, events generated etc.
     """
 
+    STATUS_ACTIVE = "A"
+    STATUS_WAITING = "W"
+    STATUS_COMPLETED = "C"
+    STATUS_INTERRUPTED = "I"
+    STATUS_EXPIRED = "X"
+    STATUS_FAILED = "F"
+
     STATE_ACTIVE = "A"
 
     EXIT_TYPE_COMPLETED = "C"
@@ -2539,6 +2546,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
+
+    # current status of this run
+    status = models.CharField(null=True, max_length=1)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
