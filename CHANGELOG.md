@@ -1,3 +1,11 @@
+v5.1.19
+----------
+ * Migration to add FlowRun.status
+
+v5.1.18
+----------
+ * Cleanup fields on FlowRun (single migration with no real SQL changes which can be faked)
+
 v5.1.17
 ----------
  * Remove all IVR flow running functionality which is now handled by mailroom
