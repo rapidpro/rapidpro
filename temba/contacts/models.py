@@ -600,17 +600,11 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_by_key(cls, org, key):
-        field = org.cached_contact_fields.get(key)
-        if field is None:
-            field = ContactField.user_fields.active_for_org(org=org).filter(key=key).first()
-            if field:
-                org.cached_contact_fields[key] = field
-
-        return field
+        return cls.user_fields.active_for_org(org=org).filter(key=key).first()
 
     @classmethod
-    def get_location_field(cls, org, type):
-        return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
+    def get_location_field(cls, org, value_type):
+        return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
     @classmethod
     def import_fields(cls, org, user, field_defs):
@@ -2071,7 +2065,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
         # add all active fields to our context
-        for field in org.cached_contact_fields.values():
+        for field in ContactField.user_fields.active_for_org(org=self.org):
             field_value = self.get_field_serialized(field)
             context[field.key] = field_value if field_value is not None else ""
 

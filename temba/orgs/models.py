@@ -2,7 +2,7 @@ import calendar
 import itertools
 import logging
 import os
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -1580,18 +1580,6 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
-
-    @cached_property
-    def cached_contact_fields(self):
-        from temba.contacts.models import ContactField
-
-        # build an ordered dictionary of key->contact field
-        fields = OrderedDict()
-        for cf in ContactField.user_fields.active_for_org(org=self).order_by("key"):
-            cf.org = self
-            fields[cf.key] = cf
-
-        return fields
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
