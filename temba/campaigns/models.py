@@ -79,7 +79,7 @@ class Campaign(TembaModel):
 
             # fall back to lookups by name
             if not group:
-                group = ContactGroup.get_user_group(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
+                group = ContactGroup.get_user_group_by_name(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign = Campaign.objects.filter(org=org, name=name).first()

@@ -2696,7 +2696,7 @@ class ContactGroup(TembaModel):
     user_groups = UserContactGroupManager()
 
     @classmethod
-    def get_user_group(cls, org, name):
+    def get_user_group_by_name(cls, org, name):
         """
         Returns the user group with the passed in name
         """
@@ -2722,11 +2722,13 @@ class ContactGroup(TembaModel):
         if uuid:
             existing = org.get_group(uuid)
 
-        if not existing:
-            existing = ContactGroup.get_user_group(org, name)
+        if not existing and name:
+            existing = ContactGroup.get_user_group_by_name(org, name)
 
         if existing:
             return existing
+
+        assert name, "can't create group without a name"
 
         if query:
             return cls.create_dynamic(org, user, name, query)
@@ -2760,12 +2762,12 @@ class ContactGroup(TembaModel):
             raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
-        existing = cls.get_user_group(org, full_group_name)
+        existing = cls.get_user_group_by_name(org, full_group_name)
 
         count = 2
         while existing:
             full_group_name = "%s %d" % (name, count)
-            existing = cls.get_user_group(org, full_group_name)
+            existing = cls.get_user_group_by_name(org, full_group_name)
             count += 1
 
         return cls.user_groups.create(
