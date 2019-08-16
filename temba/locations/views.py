@@ -121,9 +121,9 @@ class BoundaryCRUDL(SmartCRUDL):
                 matches = set(
                     AdminBoundary.objects.filter(
                         path__startswith=f"{boundary.name} {AdminBoundary.PATH_SEPARATOR}"
-                    ).filter(name__istartswith=query)
+                    ).filter(name__icontains=query)
                 )
-                aliases = BoundaryAlias.objects.filter(name__istartswith=query, org=org)
+                aliases = BoundaryAlias.objects.filter(name__icontains=query, org=org)
                 for alias in aliases:
                     matches.add(alias.boundary)
 

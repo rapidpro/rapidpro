@@ -12,7 +12,8 @@ export default class Choice extends LitElement {
         width: 100%;
         height: 100%;
         margin: 0;
-        background: #f2f6fa;
+        background: var(--color-widget-bg);
+        color: var(--color-text);
         font-size: 16px;
         cursor: pointer;
         transition: all ease-in-out 200ms;
@@ -34,27 +35,26 @@ export default class Choice extends LitElement {
         border: 1px solid transparent;
         border-radius: 5px;
         overflow: hidden;
-        background: #f2f6fa;
+        background: var(--color-widget-bg);
         cursor: pointer;
         transition: all ease-in-out 200ms;
       }
 
       .input-container:hover {
-        background: #e8ebef;
+        background: var(--color-widget-hover);
       }
 
       .input-container:hover input {
-        background: #e8ebef;
+        background: var(--color-widget-hover);
       }
 
       .options {
         overflow-y: scroll;
         background: #fff;
         border-radius: 5px;
-        border: 0px solid #e6e6e6;
         visibility: hidden;
         position: absolute;
-        border: 1px solid #e9e9e9;
+        border: 1px solid var(--color-borders);
         box-shadow: 0px 0px 6px 1px rgba(0,0,0,.08);
         transition: opacity ease-in-out 150ms;
         opacity: 0;
@@ -72,21 +72,29 @@ export default class Choice extends LitElement {
         border-radius: 5px;
         margin: 5px;
         cursor: pointer;
-      }
-
-      .detail {
-        font-size: 10px;
-        color: rgba(0, 0, 0, .6);
+        color: var(--color-text);
       }
 
       .option.focused {
-        background: var(--color-selected);
+        background: rgba(var(--primary-rgb), .8);
+        color: var(--color-text-light);
+      }
+
+      .option .detail {
+        font-size: 80%;
+        color: rgba(255,255,255,.6);
       }
     `
   }
 
   @property({attribute: false})
   renderOption: (option: any, selected: boolean) => void = this.renderOptionDefault;
+
+  @property({attribute: false})
+  renderOptionName: (option: any, selected: boolean) => void = this.renderOptionNameDefault;
+
+  @property({attribute: false})
+  renderOptionDetail: (option: any, selected: boolean) => void = this.renderOptionDetailDefault;
 
   @property({type: Array})
   selected: any[] = [];
@@ -247,8 +255,21 @@ export default class Choice extends LitElement {
   }
 
   private renderOptionDefault(option: any, selected: boolean): TemplateResult {
-    return html`<div class="name">${option.name}</div>`
+    if (selected) {
+      return html`<div class="name">${this.renderOptionName(option, selected)}</div><div class="detail">${this.renderOptionDetail(option, selected)}</div>`;
+    } else {
+      return html`<div class="name">${this.renderOptionName(option, selected)}</div>`;
+    }
   }
+
+  private renderOptionNameDefault(option: any, selected: boolean): TemplateResult {
+    return html`${option.name}`
+  }
+
+  private renderOptionDetailDefault(option: any, selected: boolean): TemplateResult {
+    return html`${option.detail}`
+  }
+
 
   public render(): TemplateResult {
     return html`

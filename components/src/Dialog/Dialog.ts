@@ -8,11 +8,6 @@ export default class Dialog extends LitElement {
 
   static get styles() {
     return css`
-      :host {
-        font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
-        font-size: 13px;
-        font-weight: 200;
-      }
 
       .mask {
         width: 100%;
@@ -46,19 +41,19 @@ export default class Dialog extends LitElement {
       .title {
         padding: 10px 20px;
         font-size: 18px;
-        color: #fff;
-        background: var(--color-primary);
+        color: var(--color-text-light);
+        background: var(--color-primary-dark);
       }
 
       .footer {
-        background: var(--color-bg-light);
+        background: var(--color-primary-light);
         padding: 10px;
         display: flex;
         flex-flow: row-reverse;
       }
 
       rp-button {
-        margin-left: 3px;
+        margin-left: 5px;
       }
   `;
   }

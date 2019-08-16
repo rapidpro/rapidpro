@@ -40,6 +40,7 @@ export default class Button extends LitElement {
 
       .primary {
         background: var(--color-button-primary);
+        color: var(--color-button-primary-text);
       }
 
       .secondary {

@@ -18,17 +18,11 @@ export default class AliasEditor extends LitElement {
   static get styles() {
     return css`
 
-      :host {
-        font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
-        font-size: 13px;
-        font-weight: 200;
-      }
-
       textarea {
         border-radius: 5px;
-        border-color: #ccc;
+        border-color: var(--color-borders);
         padding: 10px;
-        color: var(--color-textarea);
+        color: var(--color-text);
         font-size: 14px;
         resize: none;
       }
@@ -126,7 +120,7 @@ export default class AliasEditor extends LitElement {
       .selected .help {
         padding: 5px 2px;
         font-size: 11px;
-        color: var(--color-help);
+        color: var(--color-secondary-light);
       }
 
       #right-column {
@@ -308,35 +302,20 @@ export default class AliasEditor extends LitElement {
     }
   }
 
-  private renderSearchOption(option: FeatureProperties, selected: boolean): TemplateResult {
+  private renderOptionDetail(option: FeatureProperties, selected: boolean): TemplateResult {
 
     const style = html`
       <style>
-        .name {
-          font-size: 16px;
-        }
-
-        .path {
-          font-size: 13px;
-          color: rgba(140,140,140,.9);
-        }
-
         rp-label {
           margin-top: 3px;
           margin-right: 3px;
         }
-
       </style>
-    `
+    `;
+
     const aliasList = option.aliases.split('\n');
     const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" secondary>${alias}</rp-label>`: null);
-    
-    if (selected){
-      const path = option.path.replace(/>/gi, "‣");
-      return html`${style}<div class="name">${option.name}</div><div class="path">${path}</div><div class="aliases">${aliases}</div>`
-    } else {
-      return html`${style}<div class="name">${option.name}</div><div class="aliases">${aliases}</div>`
-    }
+    return html`${style}<div class="path">${option.path.replace(/>/gi, "‣")}</div><div class="aliases">${aliases}</div>`;    
   }
 
   public render(): TemplateResult {
@@ -351,7 +330,6 @@ export default class AliasEditor extends LitElement {
     const editFeatureId = this.editFeature ? this.editFeature.osm_id : null;
     const editFeatureName = this.editFeature ? this.editFeature.name : null;
     const editFeatureAliases = this.editFeature ? this.editFeature.aliases : null;
-    
     return html`
       <div id="left-column">
         <div class="search">
@@ -359,7 +337,7 @@ export default class AliasEditor extends LitElement {
             placeholder="Search" 
             endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}?q="
             @rp-choice-selected=${this.handleSearchSelection.bind(this)}
-            .renderOption=${this.renderSearchOption}
+            .renderOptionDetail=${this.renderOptionDetail}
           ></rp-choice>
         </div>
 

@@ -24,8 +24,7 @@ export default class Label extends LitElement {
 
       .label {
         border-radius: 2px;
-        font-size: 10px;
-        line-height: 11px;
+        font-size: 80%;
         font-weight: 400;
         border-radius: var(--curvature);
         background: tomato;
@@ -34,13 +33,14 @@ export default class Label extends LitElement {
       }
 
       .primary {
-        background: var(--color-label-background-primary);
-        color:  var(--color-label-text-primary);
+        background: var(--color-label-primary);
+        color: var(--color-label-primary-text);
       }
 
       .secondary {
-        background: var(--color-label-background-secondary);
-        color:  var(--color-label-text-secondary);
+        background: var(--color-label-secondary);
+        color: var(--color-label-secondary-text);
+        text-shadow: none;
       }
 
       .clickable {
