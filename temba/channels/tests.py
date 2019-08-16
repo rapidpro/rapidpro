@@ -272,8 +272,6 @@ class ChannelTest(TembaTest):
         tigo.address = "1235"
         tigo.save()
 
-        self.org.clear_cached_channels()
-
         # should return the newest channel which is TIGO
         msg = self.send_message(["+250788382382"], "Sent to an MTN number, but with shortcode channels")
         self.assertEqual(tigo, msg.channel)
@@ -282,8 +280,6 @@ class ChannelTest(TembaTest):
         # if we have prefixes matching set should honor those
         mtn.config = {Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ["25078", "25072"]}
         mtn.save()
-
-        self.org.clear_cached_channels()
 
         msg = self.send_message(["+250788382382"], "Sent to an MTN number with shortcode channels and prefixes set")
         self.assertEqual(mtn, msg.channel)

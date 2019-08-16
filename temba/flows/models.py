@@ -1074,7 +1074,7 @@ class Flow(TembaModel):
 
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
         for ref in dependencies.get("groups", []):
-            if ref["uuid"] not in dependency_mapping and "name" in ref:
+            if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref["name"], uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
@@ -2493,6 +2493,13 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     A single contact's journey through a flow. It records the path taken, results collected, events generated etc.
     """
 
+    STATUS_ACTIVE = "A"
+    STATUS_WAITING = "W"
+    STATUS_COMPLETED = "C"
+    STATUS_INTERRUPTED = "I"
+    STATUS_EXPIRED = "X"
+    STATUS_FAILED = "F"
+
     STATE_ACTIVE = "A"
 
     EXIT_TYPE_COMPLETED = "C"
@@ -2539,6 +2546,9 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # session this run belongs to (can be null if session has been trimmed)
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
+
+    # current status of this run
+    status = models.CharField(null=True, max_length=1)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
@@ -4092,7 +4102,7 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
 
-        contact_fields = [cf for cf in self.org.cached_contact_fields.values() if cf.id in contact_field_ids]
+        contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
 
         groups = ContactGroup.user_groups.filter(
             org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
@@ -4772,7 +4782,7 @@ class AddToGroupAction(Action):
                 if g and g[0] == "@":
                     groups.append(g)
                 else:  # pragma: needs cover
-                    group = ContactGroup.get_user_group(org, g)
+                    group = ContactGroup.get_user_group_by_name(org, g)
                     if group:
                         groups.append(group)
                     else:
@@ -4804,7 +4814,7 @@ class AddToGroupAction(Action):
                     group = None
 
                     if not errors:
-                        group = ContactGroup.get_user_group(contact.org, value)
+                        group = ContactGroup.get_user_group_by_name(contact.org, value)
 
                 if group:
                     # TODO should become a failure (because it should be impossible) and not just a simulator error
@@ -5206,7 +5216,7 @@ class VariableContactAction(Action):
                     contacts.append(contact_variable_by_uuid)
                     continue
 
-                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
+                variable_group = ContactGroup.get_user_group_by_name(run.flow.org, name=variable)
                 if variable_group:  # pragma: needs cover
                     groups.append(variable_group)
                 else:
