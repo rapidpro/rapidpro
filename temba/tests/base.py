@@ -706,11 +706,8 @@ class FlowFileTest(TembaTest):
             contact = self.contact
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
-        # evaluate the inbound message against our triggers first
-        from temba.triggers.models import Trigger
+        Flow.find_and_handle(incoming)
 
-        if not Trigger.find_and_handle(incoming):
-            Flow.find_and_handle(incoming)
         return Msg.objects.filter(response_to=incoming).order_by("pk").first()
 
     def send_message(
