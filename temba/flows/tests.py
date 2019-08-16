@@ -11252,3 +11252,61 @@ class PopulateSessionUUIDMigrationTest(MigrationTest):
     def test_merged(self):
         self.assertEqual(FlowSession.objects.count(), 3)
         self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
+
+
+class PopulateRunStatusMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0213_flowrun_status"
+    migrate_to = "0214_populate_run_status"
+
+    def setUpBeforeMigration(self, apps):
+        # override the batch size constant
+        patcher = patch("temba.flows.migrations.0214_populate_run_status.BATCH_SIZE", 2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        flow1 = Flow.create_single_message(self.org, self.admin, {"eng": "Hi there"}, "eng")
+        flow2 = Flow.create_single_message(self.org, self.admin, {"eng": "Goodbye"}, "eng")
+        contact = self.create_contact("Bob", twitter="bob")
+
+        completed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="C")
+        failed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="F")
+        waiting1 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow1
+        )
+        waiting2 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow2
+        )
+
+        def create_run(exit_type, is_active, session=None):
+            FlowRun.objects.create(
+                org=self.org, contact=contact, flow=flow1, exit_type=exit_type, is_active=is_active, session=session
+            )
+
+        create_run(exit_type="I", is_active=False, session=failed)
+        create_run(exit_type="C", is_active=False)
+        create_run(exit_type="I", is_active=False)
+        create_run(exit_type="E", is_active=False)
+        create_run(exit_type="Z", is_active=False)
+        create_run(exit_type=None, is_active=True, session=waiting1)
+        create_run(exit_type=None, is_active=True, session=waiting2)  # session is waiting but different flow
+        create_run(exit_type=None, is_active=True, session=completed)  # shouldn't occur
+        create_run(exit_type=None, is_active=True)
+        create_run(exit_type=None, is_active=False)  # shouldn't occur
+
+    def test_migrate(self):
+        self.assertEqual(
+            list(FlowRun.objects.values_list("status", flat=True).order_by("id")),
+            [
+                FlowRun.STATUS_FAILED,
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_INTERRUPTED,
+                FlowRun.STATUS_EXPIRED,
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_WAITING,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_INTERRUPTED,
+            ],
+        )
