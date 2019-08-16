@@ -50,7 +50,7 @@ def populate_run_status(apps, schema_editor):
     while True:
         batch = list(
             FlowRun.objects.filter(status=None, id__gt=max_id)
-            .only("id", "exit_type", "is_active", "flow_id")
+            .only("id", "exit_type", "is_active", "flow_id", "session")
             .prefetch_related(Prefetch("session", FlowSession.objects.only("id", "status", "current_flow_id")))
             .order_by("id")[:BATCH_SIZE]
         )
