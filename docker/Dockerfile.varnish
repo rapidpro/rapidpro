@@ -4,4 +4,6 @@ ARG BACKEND_ADDRESS
 
 COPY varnish.vcl /etc/varnish/default.vcl
 
+RUN chmod -R 755 /etc/varnish/
+
 RUN sed -i "s/BACKEND_ADDRESS/${BACKEND_ADDRESS}/g" /etc/varnish/default.vcl
