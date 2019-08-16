@@ -8545,62 +8545,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(msgs[4].text, "Message 5 (FLOW B)")
 
     @uses_legacy_engine
-    def test_subflow_resumes(self):
-        self.get_flow("subflow_resumes")
-
-        self.send("radio")
-
-        # upon starting, we see our starting message, then our language subflow question
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("radio", msgs[0].text)
-        self.assertEqual("Welcome message.", msgs[1].text)
-        self.assertEqual("What language? English or French?", msgs[2].text)
-
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(2, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-        self.assertEqual("Ask Language", runs[1].flow.name)
-
-        # choose english as our language
-        self.send("english")
-
-        # we bounce back to the parent flow, and then into the gender flow
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(5, msgs.count())
-        self.assertEqual("english", msgs[3].text)
-        self.assertEqual("Are you Male or Female?", msgs[4].text)
-
-        # still two runs, except a different subflow is active now
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(2, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-        self.assertEqual("Ask Gender", runs[1].flow.name)
-
-        # choose our gender
-        self.send("male")
-
-        # back in the parent flow, asking our first parent question
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(7, msgs.count())
-        self.assertEqual("male", msgs[5].text)
-        self.assertEqual("Have you heard of show X? Yes or No?", msgs[6].text)
-
-        # now only one run should be active, our parent
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(1, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-
-        # let's start over, we should pass right through language and gender
-        self.send("radio")
-
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(10, msgs.count())
-        self.assertEqual("radio", msgs[7].text)
-        self.assertEqual("Welcome message.", msgs[8].text)
-        self.assertEqual("Have you heard of show X? Yes or No?", msgs[9].text)
-
-    @uses_legacy_engine
     def test_subflow_with_startflow(self):
         self.get_flow("subflow_with_startflow")
 

@@ -701,14 +701,17 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEqual(message, response.text)
 
-    def send(self, message, contact=None):
+    def send(self, message, contact=None, start_flow=None):
         if not contact:
             contact = self.contact
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
 
-        Flow.find_and_handle(incoming)
+        if start_flow:
+            start_flow.start(groups=[], contacts=[contact], start_msg=incoming)
+        else:
+            Flow.find_and_handle(incoming)
 
-        return Msg.objects.filter(response_to=incoming).order_by("pk").first()
+        return Msg.objects.filter(response_to=incoming).order_by("id").first()
 
     def send_message(
         self,

@@ -32,79 +32,97 @@ class TriggerTest(TembaTest):
 
     def test_keyword_trigger(self):
         self.login(self.admin)
+
         flow = self.create_flow()
         voice_flow = self.get_flow("ivr")
 
         # flow options should show sms and voice flows
         response = self.client.get(reverse("triggers.trigger_keyword"))
+
         self.assertContains(response, flow.name)
         self.assertContains(response, voice_flow.name)
 
         # try a keyword with spaces
-        post_data = dict(keyword="keyword with spaces", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
+        response = self.client.post(
+            reverse("triggers.trigger_keyword"), {"keyword": "keyword with spaces", "flow": flow.id, "match_type": "F"}
+        )
+
+        self.assertEqual(len(response.context["form"].errors), 1)
 
         # try a keyword with special characters
-        post_data = dict(keyword="keyw!o^rd__", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
+        response = self.client.post(
+            reverse("triggers.trigger_keyword"), {"keyword": "keyw!o^rd__", "flow": flow.id, "match_type": "F"}
+        )
 
-        # non-latin keyword (Arabic)
-        post_data = dict(keyword="١٠٠", flow=flow.id, match_type="F")
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.assertEqual(len(response.context["form"].errors), 1)
+
+        self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "١٠٠", "flow": flow.id, "match_type": "F"})
+
         trigger = Trigger.objects.get(keyword="١٠٠")
-        self.assertEqual(flow.pk, trigger.flow.pk)
+        self.assertEqual(flow, trigger.flow)
 
         # non-latin keyword (Hindi)
-        post_data = dict(keyword="मिलाए", flow=flow.id, match_type="F")
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "मिलाए", "flow": flow.id, "match_type": "F"})
+
         trigger = Trigger.objects.get(keyword="मिलाए")
-        self.assertEqual(flow.pk, trigger.flow.pk)
+        self.assertEqual(flow, trigger.flow)
 
         # a valid keyword
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.client.post(
+            reverse("triggers.trigger_keyword"), {"keyword": "startkeyword", "flow": flow.id, "match_type": "F"}
+        )
+
         trigger = Trigger.objects.get(keyword="startkeyword")
-        self.assertEqual(flow.pk, trigger.flow.pk)
+        self.assertEqual(flow, trigger.flow)
 
         # try a duplicate keyword
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
+        response = self.client.post(
+            reverse("triggers.trigger_keyword"), {"keyword": "startkeyword", "flow": flow.id, "match_type": "F"}
+        )
+
+        self.assertEqual(len(response.context["form"].errors), 1)
 
         # see our trigger on the list page
         response = self.client.get(reverse("triggers.trigger_list"))
+
         self.assertContains(response, "startkeyword")
 
+        # can search by keyword
         response = self.client.get(reverse("triggers.trigger_list") + "?search=Key")
+
         self.assertContains(response, "startkeyword")
         self.assertTrue(response.context["object_list"])
 
         response = self.client.get(reverse("triggers.trigger_list") + "?search=Tottenham")
+
         self.assertNotContains(response, "startkeyword")
         self.assertFalse(response.context["object_list"])
 
-        # archive it
-        post_data = dict(action="archive", objects=trigger.pk)
-        self.client.post(reverse("triggers.trigger_list"), post_data)
+        # can archive it
+        self.client.post(reverse("triggers.trigger_list"), {"action": "archive", "objects": trigger.id})
         response = self.client.get(reverse("triggers.trigger_list"))
+
         self.assertNotContains(response, "startkeyword")
 
-        # unarchive it
-        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
+        # and it now appears on the archive page
+        response = self.client.get(reverse("triggers.trigger_archived"))
         self.assertContains(response, "startkeyword")
-        post_data = dict(action="restore", objects=trigger.pk)
-        self.client.post(reverse("triggers.trigger_archived"), post_data)
-        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
+
+        # can restore it
+        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger.id})
+        response = self.client.get(reverse("triggers.trigger_archived"))
+
         self.assertNotContains(response, "startkeyword")
-        response = self.client.get(reverse("triggers.trigger_list"), post_data)
+
+        response = self.client.get(reverse("triggers.trigger_list"))
+
+        # should be back in the main trigger list
         self.assertContains(response, "startkeyword")
 
         # once archived we can duplicate it but with one active at a time
         trigger = Trigger.objects.get(keyword="startkeyword")
         trigger.is_archived = True
-        trigger.save()
+        trigger.save(update_fields=("is_archived",))
 
         post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
         response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)

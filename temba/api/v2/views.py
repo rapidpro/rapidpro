@@ -1987,7 +1987,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         triggers = instance.trigger_set.filter(is_archived=False)
         if triggers.count() > 0:
             raise InvalidQueryError(
-                f"This group is used by active triggers. In order to delete it, first archive triggers: {', '.join(str(trigger) for trigger in triggers)}"
+                f"This group is used by active triggers. In order to delete it, first archive associated triggers."
             )
 
         flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
