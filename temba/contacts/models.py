@@ -1912,15 +1912,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Unstops this contact, re-adding them to any dynamic groups they belong to
         """
         self.is_stopped = False
-        self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
+        self.modified_by = user
+        self.save(update_fields=("is_stopped", "modified_by", "modified_on"), handle_update=False)
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
-
-    def ensure_unstopped(self, user=None):
-        if user is None:
-            user = get_anonymous_user()
-        self.unstop(user)
 
     def release(self, user, *, immediately=True):
         """

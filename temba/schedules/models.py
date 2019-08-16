@@ -167,7 +167,7 @@ class Schedule(SmartModel):
             broadcast.fire()
 
         elif trigger:
-            trigger.fire()
+            trigger.fire_from_schedule()
 
         else:
             logger.error("Tried to fire schedule but it wasn't attached to anything", extra={"schedule_id": self.id})
