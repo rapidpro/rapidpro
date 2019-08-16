@@ -1,3 +1,9 @@
+v5.1.20
+----------
+ * Limit group fetching to active groups
+ * Get rid of caching on org object as that's no longer used needed
+ * Fix importing/copying flows when flow has group dependency with no name
+
 v5.1.19
 ----------
  * Migration to add FlowRun.status
