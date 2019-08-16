@@ -607,7 +607,7 @@ class Flow(TembaModel):
 
             # it's possible Flow.start is in the process of creating a run for this contact, in which case
             # record this message has handled so it doesn't start any new flows
-            if not run.path:
+            if not run.path:  # pragma: no cover
                 if run.created_on > timezone.now() - timedelta(minutes=10):
                     return True, []
                 else:
