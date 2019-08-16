@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-14 20:04+0000\n"
+"POT-Creation-Date: 2019-08-16 18:59+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -5189,9 +5189,6 @@ msgstr "Dernier SMS consulté"
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr "L'organisation à laquelle ce déclencheur appartient"
-
 msgid "Keyword"
 msgstr "Mot-clé"
 
@@ -5214,24 +5211,6 @@ msgstr "Flux"
 msgid "Which flow will be started"
 msgstr "Quel flux sera débuté"
 
-msgid "Last Triggered"
-msgstr "dernière Déclenchée"
-
-msgid "The last time this trigger was fired"
-msgstr "La dernière fois que ce déclencheur a été lancé"
-
-msgid "Trigger Count"
-msgstr "Nombre de déclenchement"
-
-msgid "How many times this trigger has fired"
-msgstr "Combien de fois ce déclencheur a été activé"
-
-msgid "Is Archived"
-msgstr "est archivée"
-
-msgid "Whether this trigger is archived"
-msgstr "Si ce déclencheur a été archivé"
-
 msgid "The groups to broadcast the flow to"
 msgstr "Les groupes pour diffuser le flux de"
 
@@ -5240,12 +5219,6 @@ msgstr "Contacts individuels pour diffuser le flux de"
 
 msgid "Our recurring schedule"
 msgstr "Notre planification récurrente"
-
-msgid "Trigger Type"
-msgstr "Type de déclenchement"
-
-msgid "The type of this trigger"
-msgstr "Le type de ce déclencheur"
 
 #, fuzzy
 #| msgid "Trigger Type"
@@ -11321,6 +11294,33 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
+
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "L'organisation à laquelle ce déclencheur appartient"
+
+#~ msgid "Last Triggered"
+#~ msgstr "dernière Déclenchée"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "La dernière fois que ce déclencheur a été lancé"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Nombre de déclenchement"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Combien de fois ce déclencheur a été activé"
+
+#~ msgid "Is Archived"
+#~ msgstr "est archivée"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Si ce déclencheur a été archivé"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Type de déclenchement"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "Le type de ce déclencheur"
 
 #, fuzzy
 #~ msgid "Played contact recording"

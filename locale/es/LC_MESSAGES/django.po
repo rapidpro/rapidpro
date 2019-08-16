@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-14 20:04+0000\n"
+"POT-Creation-Date: 2019-08-16 18:59+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5355,9 +5355,6 @@ msgstr "Último mensaje de texto visualizado"
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr "La organización a la que pertenece este activador"
-
 msgid "Keyword"
 msgstr "Palabra clave"
 
@@ -5380,24 +5377,6 @@ msgstr "Flujo"
 msgid "Which flow will be started"
 msgstr "Qué flujo se iniciará"
 
-msgid "Last Triggered"
-msgstr "Último activado"
-
-msgid "The last time this trigger was fired"
-msgstr "La última vez que se disparó este activador"
-
-msgid "Trigger Count"
-msgstr "Conteo del activador"
-
-msgid "How many times this trigger has fired"
-msgstr "Cuántas veces se ha disparado este activador"
-
-msgid "Is Archived"
-msgstr "está achivada"
-
-msgid "Whether this trigger is archived"
-msgstr "Si este activador está archivado"
-
 msgid "The groups to broadcast the flow to"
 msgstr "Los grupos para comunicar el flujo a"
 
@@ -5406,12 +5385,6 @@ msgstr "Contactos individuales para comunicar el flujo a"
 
 msgid "Our recurring schedule"
 msgstr "Nuestro programa periódico"
-
-msgid "Trigger Type"
-msgstr "Tipo de activador"
-
-msgid "The type of this trigger"
-msgstr "El tipo de este activador"
 
 #, fuzzy
 #| msgid "Trigger Type"
@@ -11499,6 +11472,33 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "La organización a la que pertenece este activador"
+
+#~ msgid "Last Triggered"
+#~ msgstr "Último activado"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "La última vez que se disparó este activador"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Conteo del activador"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Cuántas veces se ha disparado este activador"
+
+#~ msgid "Is Archived"
+#~ msgstr "está achivada"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Si este activador está archivado"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Tipo de activador"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "El tipo de este activador"
 
 #, fuzzy
 #~ msgid "Played contact recording"
