@@ -4,6 +4,7 @@
 .ipynb_checkpoints
 *.pyc
 *~
+.envrc
 
 # temba
 dump.rdb
@@ -30,9 +31,10 @@ temba/settings.py
 temba/smartmin
 temba.db
 smartmin
-
+mailroom_test.dump
 
 # Exclude media folder except files used for import testing
+media/apks
 media/contacts
 media/csv_imports
 media/flow
@@ -61,6 +63,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+venv/
 build/
 develop-eggs/
 dist/
@@ -96,7 +99,6 @@ coverage.xml
 js-coverage/
 
 # Translations
-*.mo
 *.pot
 
 # Django stuff:
@@ -116,3 +118,6 @@ ansible/site.retry
 
 # sublime projects
 *.sublime*
+
+# VS Code projects
+.vscode/

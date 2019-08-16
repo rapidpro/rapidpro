@@ -107,7 +107,10 @@
 
 </script>
 
+{# embed refresh script if refresh is active #}
+{% if refresh %}
 <script>
+var refreshTimeout = 10000;
 function refresh(onSuccess, forceReload){
 
   var url = "{{url_params|safe}}"
@@ -119,7 +122,7 @@ function refresh(onSuccess, forceReload){
       url = '?';
   }
 
-  url += '&ts=' + new Date().getTime();
+  url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
 
   fetchPJAXContent(url, '#pjax', {
       forceReload: forceReload,
@@ -130,7 +133,7 @@ function refresh(onSuccess, forceReload){
   });
 }
 
-{% if refresh %}
+refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
     window.setTimeout(refresh, {{ refresh }});
 }
@@ -138,9 +141,8 @@ function scheduleRefresh() {
 $(document).ready(function(){
     scheduleRefresh();
 });
-{% endif %}
 </script>
-
+{% endif %}
 {% endblock %}
 
 

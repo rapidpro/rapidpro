@@ -1,6 +1,6 @@
 - extends "contacts/contact_import.html"
 
-- load smartmin
+- load smartmin temba
 -load i18n
 
 - block import-status
@@ -8,7 +8,7 @@
     -trans "Hold up!"
   %p
     -blocktrans
-      We noticed your file contains some extra columns, you can add these as custom fields on
+      We noticed your file contains some extra columns to import, you can add these as custom fields on
       your contact by selecting them below.
   %p
     %form.smartmin-form.horizontal-form{method:"post", action:"{% url 'contacts.contact_customize' object.pk %}", enctype:"multipart/form-data"}
@@ -51,7 +51,7 @@
       useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
     });
 
-    var contactFields = {{contact_fields|safe}};
+    var contactFields = {{ contact_fields|to_json }};
     $('.smartmin-form .field-as-name input').select2({
        data:contactFields,
        width: 'element',

@@ -1,7 +1,3 @@
-from __future__ import absolute_import, print_function, unicode_literals
-
-import six
-
 from django.conf import settings
 
 
@@ -15,9 +11,7 @@ def http_headers(extra=None):
     return headers
 
 
-@six.python_2_unicode_compatible
 class HttpEvent(object):
-
     def __init__(self, method, url, request_body=None, status_code=None, response_body=None):
         self.method = method
         self.url = url

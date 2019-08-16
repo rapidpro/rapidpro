@@ -42,7 +42,7 @@
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
       %li.nav-groups
-        %a.icon-nav-groups{href:"{% url 'users.user_list' %}", class:"{% active request 'users' %}"}
+        %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
           .title
             -trans "users"
 
@@ -52,6 +52,18 @@
         %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
           .title
             -trans "orgs"
+
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    %li.nav-dashboard
+      %a.icon-nav-dashboard{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+        .title
+          -trans "dashboard"
+
+  -if request.user.is_superuser or perms.apks.apk_list
+    %li.nav-android
+      %a.icon-nav-android{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apks' %}"}
+        .title
+          -trans "android"
 
   -if not request.user.is_anonymous
     %li.more

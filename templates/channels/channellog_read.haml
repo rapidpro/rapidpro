@@ -10,7 +10,7 @@
     -if object.is_error
       -trans "Message Error"
     -else
-      -if object.session_type
+      -if object.connection_type
         -trans "Call Log"
       -else
         -trans "Message Log"
@@ -19,7 +19,7 @@
     Provider: {{ object.channel.get_channel_type_display }}
 
 -block above-bar
-  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}' } Message Log
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}' } Message Log
 
 -block content
 
@@ -30,7 +30,7 @@
           -if object.msg
             %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
               {{object.msg.contact_urn.path}}
-          -elif object.session_type
+          -elif object.connection_type
             %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
               {{object.contact_urn.path}}
     .detail.channel
@@ -41,7 +41,7 @@
     .detail.direction
       .header
         Direction
-      -if object.session_type
+      -if object.connection_type
         {{object.get_direction_display}}
       -else
         {{object.msg.get_direction_display}}
@@ -59,7 +59,7 @@
     .detail.status
       .header
         Status
-      -if object.session_type
+      -if object.connection_type
         {{object.get_status_display}}
       -else
         -if object.is_error
@@ -67,7 +67,7 @@
         -else
           {{object.msg.get_status_display}}
 
-  -if object.session_type
+  -if object.connection_type
     -for log in object.get_logs
       -include "channels/channellog_log.haml"
   -else

@@ -48,7 +48,7 @@
         %p{class:"description"}
           -blocktrans
             Call out to another flow and return the results to this flow in the @child variable.
-        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl()]]",type:"hidden"}
+        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl(true,true)]]",type:"hidden"}
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
@@ -155,47 +155,10 @@
             %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
               -trans "Add header"
 
-        .div{ng-show:'formData.supportsLegacy && formData.webhook_action == "POST"'}
-
-          .success{ng-show:'formData.newFormat'}
-            %p
-              This webhook is set to use the
-              %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
-                new version
-              of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
-              box below. Keep in mind that the deprecated format will be removed January 31, 2018.
-
-            .div{style:'margin-top:10px'}
-              %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-                %label{for:'new_format'}
-                  Use the new webhook format
-
-          .warning{ng-hide:'formData.newFormat'}
-            %p
-              This webhook is using a
-              %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
-                deprecated version
-              of the POST Webhook API which will be removed on January 31, 2018.
-              Prior to that date, you will need to update any services depending on the deprecated API format.
-
-            %p
-              Review the
-              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-                new version
-              and check the box below when this webhook is ready to start receiving the new format.
-
-            .div{style:'margin-top:10px'}
-              %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-                %label{for:'new_format'}
-                  Use the new webhook format
-
-        .div{ng-hide:'formData.supportsLegacy && formData.webhook_action == "POST"'}
-          .help-text
+        .div
+          .help-text{ng-show:'formData.webhook_action == "POST"'}
             -blocktrans
-              We'll include the message text along with data specified in the
-              %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-                Webhook Flow Event API
-              . This step will be identified as [[ruleset.uuid]]
+              This step will be identified as [[ruleset.uuid]]
 
           %p
           %p{class:"description response"}
@@ -276,7 +239,7 @@
   .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
     [[characters]] characters remaining
 
-  .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
+  .timeout{ng-show:'flow.type == "M" && isPausingRuleset()', style:'float:left'}
 
     %label
       %input{type:'checkbox', ng-model:'formData.hasTimeout'}

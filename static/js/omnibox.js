@@ -28,6 +28,10 @@ function omnibox(ele, types, options) {
     var placeholder = null;
     if (types == 'g'){
         placeholder = gettext("Enter one or more contact groups");
+    } else if (types == 'c') {
+        placeholder = gettext("Recipients, enter contacts");
+    } else if (types == 'cu'){
+        placeholder = gettext("Recipients, enter contacts or phone numbers");
     }
     else {
         placeholder = gettext("Recipients, enter contacts or groups");
@@ -97,8 +101,8 @@ function omnibox(ele, types, options) {
     });
 }
 
-function prepareOmnibox() {
-    omnibox($(".omni_widget"));
+function prepareOmnibox(types) {
+    omnibox($(".omni_widget"), types);
 }
 
 function initializeOmnibox(initial) {

@@ -1,0 +1,52 @@
+{
+  "version": "13",
+  "flows": [
+    {
+      "uuid": "c07d368e-fe1d-469d-b267-bca02d17c3e3",
+      "name": "Template Flow",
+      "spec_version": "13.0.0",
+      "language": "eng",
+      "type": "messaging",
+      "revision": 11,
+      "expire_after_minutes": 10080,
+      "localization": {},
+      "nodes": [
+        {
+          "uuid": "5bf98a89-d38d-40ba-8e5e-d54cad1777f1",
+          "actions": [
+            {
+              "attachments": [],
+              "text": "This is my test template message.",
+              "type": "send_msg",
+              "quick_replies": [],
+              "uuid": "b103d563-9320-40fe-8f96-c9d3fbe0262d",
+              "templating": {
+                "template": {
+                  "uuid": "f712e05c-bbed-40f1-b3d9-671bb9b60775",
+                  "name": "affirmation"
+                },
+                "variables": []
+              }
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "29dd720b-00ed-4304-97b0-38c65bc38e30"
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "5bf98a89-d38d-40ba-8e5e-d54cad1777f1": {
+            "position": {
+              "left": 20,
+              "top": 40
+            },
+            "type": "execute_actions"
+          }
+        }
+      }
+    }
+  ]
+}

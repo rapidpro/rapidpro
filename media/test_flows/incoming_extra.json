@@ -1,0 +1,50 @@
+{
+  "version": "11.10",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "entry": "849133b9-732e-4e62-9da3-48132960d38c",
+      "action_sets": [
+        {
+          "uuid": "849133b9-732e-4e62-9da3-48132960d38c",
+          "x": 100,
+          "y": 0,
+          "destination": null,
+          "actions": [
+            {
+              "type": "save",
+              "uuid": "4c7439f0-38a5-44c5-a35f-e9a72c459445",
+              "label": "Contact Name",
+              "field": "name",
+              "value": "@extra.name"
+            },
+            {
+              "type": "reply",
+              "uuid": "c58fed5a-81b8-487e-a360-320b3a3ab4e3",
+              "msg": {
+                "eng": "Great to meet you @contact.name. Your age is @extra.age."
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "f0129714-a2b1-413c-9d8f-38673e0173ac"
+        }
+      ],
+      "rule_sets": [],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.10",
+      "metadata": {
+        "name": "Extra Flow",
+        "saved_on": "2019-02-06T22:58:44.870273Z",
+        "revision": 4,
+        "uuid": "dc9a2be2-7706-4539-b9ef-4cbb42bce34e",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

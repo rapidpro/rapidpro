@@ -1,13 +1,13 @@
-from __future__ import print_function, unicode_literals
-
+import base64
 import random
 import re
 import string
+import sys
 from collections import Counter
 
 import regex
-import sys
 
+from django.utils.encoding import force_text
 from django.utils.text import slugify
 
 CONTROL_CHARACTERES_REGEX = r"[\000-\010]|[\013-\014]|[\016-\037]"
@@ -73,13 +73,13 @@ def clean_string(string_text):
 
     matches = 1
     while matches:
-        (string_text, matches) = rexp.subn('\ufffd', string_text)
+        (string_text, matches) = rexp.subn("\ufffd", string_text)
 
     rexp = regex.compile(CONTROL_CHARACTERES_REGEX, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
 
     matches = 1
     while matches:
-        (string_text, matches) = rexp.subn('', string_text)
+        (string_text, matches) = rexp.subn("", string_text)
 
     return string_text
 
@@ -94,7 +94,7 @@ def decode_base64(original):
 
     Returns decoded base64 or the original string
     """
-    stripped = original.replace('\r', '').replace('\n', '').strip()
+    stripped = original.replace("\r", "").replace("\n", "").strip()
 
     if len(stripped) < 60:
         return original
@@ -102,13 +102,13 @@ def decode_base64(original):
     if len(stripped) % 4 != 0:
         return original
 
-    p = re.compile(r'^([a-zA-Z0-9+/=]{4})+$')
+    p = re.compile(r"^([a-zA-Z0-9+/=]{4})+$")
     if not p.match(stripped[:-4]):
         return original
 
     decoded = original
     try:
-        decoded = stripped.decode('base64', 'strict').decode('utf-8', 'ignore')
+        decoded = force_text(base64.standard_b64decode(stripped), errors="ignore")
         count = Counter(decoded)
         letters = sum(count[letter] for letter in string.ascii_letters)
         if float(letters) / len(decoded) < 0.5:
@@ -125,16 +125,16 @@ def truncate(text, max_len):
     Truncates text to be less than max_len characters. If truncation is required, text ends with ...
     """
     if len(text) > max_len:
-        return "%s..." % text[:(max_len - 3)]
+        return "%s..." % text[: (max_len - 3)]
     else:
         return text
 
 
-def slugify_with(value, sep='_'):
+def slugify_with(value, sep="_"):
     """
     Slugifies a value using a word separator other than -
     """
-    return slugify(value).replace('-', sep)
+    return slugify(value).replace("-", sep)
 
 
 def random_string(length):
@@ -142,4 +142,4 @@ def random_string(length):
     Generates a random alphanumeric string
     """
     letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-    return ''.join([random.choice(letters) for _ in range(length)])
+    return "".join([random.choice(letters) for _ in range(length)])

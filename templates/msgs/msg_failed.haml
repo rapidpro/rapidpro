@@ -1,12 +1,5 @@
 -extends "msgs/message_box.html"
--load smartmin sms i18n
 
 -block title-icon
   %span.title-icon
     .glyph.icon-bubble-notification
-
-
--block buttons-right
-  -if org_is_purged
-    %i
-      -trans "Only showing messages sent in the last 90 days"

@@ -26,12 +26,49 @@
       .imessage
         %textarea
         %span.send-message{style:"padding-left:2px"} Send
+
+      .keypad.hide
+        .display
+        %table
+          %tr
+            %td
+              %a.btn.btn-primary 1
+            %td
+              %a.btn.btn-primary 2
+            %td
+              %a.btn.btn-primary 3
+          %tr
+            %td
+              %a.btn.btn-primary 4
+            %td
+              %a.btn.btn-primary 5
+            %td
+              %a.btn.btn-primary 6
+          %tr
+            %td
+              %a.btn.btn-primary 7
+            %td
+              %a.btn.btn-primary 8
+            %td
+              %a.btn.btn-primary 9
+          %tr
+            %td
+              %a.btn.btn-primary *
+            %td
+              %a.btn.btn-primary 0
+            %td
+              %a.btn.btn-primary #
+
     .simulator-actions
       .simulator-refresh.icon-loop
 
 :css
   .simulator-content {
-    background: url('{{STATIC_URL}}images/simulator_bg.png') top center no-repeat;
+    background: url('{{STATIC_URL}}images/simulator/bg.png') top center no-repeat;
+  }
+
+  .simulator-content.v2 {
+    background: url('{{STATIC_URL}}images/simulator/bg_v2.png') top center no-repeat;
   }
 
   .media-button {

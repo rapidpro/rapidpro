@@ -1,7 +1,7 @@
-from __future__ import unicode_literals, absolute_import
-
 from django.urls import reverse
+
 from temba.tests import TembaTest
+
 from ...models import Channel
 
 
@@ -10,10 +10,10 @@ class JunebugTypeTest(TembaTest):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        url = reverse('channels.claim_junebug')
+        url = reverse("channels.types.junebug.claim")
 
         # check that claim page URL appears on claim list page
-        response = self.client.get(reverse('channels.channel_claim'))
+        response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
 
         response = self.client.get(url)
@@ -31,21 +31,21 @@ class JunebugTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
-        self.assertEqual(channel.channel_type, 'JN')
+        self.assertEqual(channel.country, post_data["country"])
+        self.assertEqual(channel.address, post_data["number"])
+        self.assertEqual(channel.config["send_url"], post_data["url"])
+        self.assertEqual(channel.config["username"], post_data["username"])
+        self.assertEqual(channel.config["password"], post_data["password"])
+        self.assertEqual(channel.channel_type, "JN")
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
+        self.assertContains(response, reverse("courier.jn", args=[channel.uuid, "inbound"]))
 
         Channel.objects.all().delete()
         self.login(self.admin)
@@ -59,26 +59,26 @@ class JunebugTypeTest(TembaTest):
             "url": "http://example.com/messages.json",
             "username": "foo",
             "password": "bar",
-            "secret": "UjOq8ATo2PDS6L08t6vlqSoK"
+            "secret": "UjOq8ATo2PDS6L08t6vlqSoK",
         }
 
         response = self.client.post(url, post_data)
 
         channel = Channel.objects.get()
 
-        self.assertEqual(channel.country, post_data['country'])
-        self.assertEqual(channel.address, post_data['number'])
-        self.assertEqual(channel.secret, post_data['secret'])
-        self.assertEqual(channel.config_json()['send_url'], post_data['url'])
-        self.assertEqual(channel.config_json()['username'], post_data['username'])
-        self.assertEqual(channel.config_json()['password'], post_data['password'])
-        self.assertEqual(channel.channel_type, 'JN')
+        self.assertEqual(channel.country, post_data["country"])
+        self.assertEqual(channel.address, post_data["number"])
+        self.assertEqual(channel.config["secret"], post_data["secret"])
+        self.assertEqual(channel.config["send_url"], post_data["url"])
+        self.assertEqual(channel.config["username"], post_data["username"])
+        self.assertEqual(channel.config["password"], post_data["password"])
+        self.assertEqual(channel.channel_type, "JN")
         self.assertEqual(channel.role, Channel.DEFAULT_ROLE)
 
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
 
         response = self.client.get(config_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
+        self.assertContains(response, reverse("courier.jn", args=[channel.uuid, "inbound"]))

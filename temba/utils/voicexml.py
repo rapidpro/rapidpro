@@ -1,6 +1,3 @@
-from __future__ import absolute_import, print_function, unicode_literals
-
-
 class VoiceXMLException(Exception):
     pass
 
@@ -12,9 +9,9 @@ class VXMLResponse(object):
         self.document = self.DOC_START
 
     def __str__(self):
-        if self.document.find('</form></vxml>') > 0:
+        if self.document.find("</form></vxml>") > 0:
             return self.document
-        return self.document + '</form></vxml>'
+        return self.document + "</form></vxml>"
 
     def __enter__(self):
         return self
@@ -27,17 +24,17 @@ class VXMLResponse(object):
         return self
 
     def say(self, text, **kwargs):
-        result = '<block><prompt>' + text + '</prompt></block>'
+        result = "<block><prompt>" + text + "</prompt></block>"
         self.document += result
         return self
 
     def play(self, url=None, digits=None, **kwargs):
         if url is None and digits is None:
-            raise VoiceXMLException("Please specify either a url or digits to play.",)
+            raise VoiceXMLException("Please specify either a url or digits to play.")
 
-        result = ''
+        result = ""
         if digits:
-            result += '<block><prompt>' + digits + '</prompt></block>'
+            result += "<block><prompt>" + digits + "</prompt></block>"
 
         if url:
             result += '<block><prompt><audio src="' + url + '" /></prompt></block>'
@@ -46,11 +43,11 @@ class VXMLResponse(object):
         return self
 
     def pause(self, **kwargs):
-        result = '<block><prompt><break '
-        if kwargs.get('length', False):
-            result += 'time="' + str(kwargs.get('length')) + 's"'
+        result = "<block><prompt><break "
+        if kwargs.get("length", False):
+            result += 'time="' + str(kwargs.get("length")) + 's"'
 
-        result += '/></prompt></block>'
+        result += "/></prompt></block>"
 
         self.document += result
         return self
@@ -62,7 +59,7 @@ class VXMLResponse(object):
         return self
 
     def hangup(self, **kwargs):
-        result = '<exit />'
+        result = "<exit />"
         self.document += result
         return self
 
@@ -73,44 +70,46 @@ class VXMLResponse(object):
     def gather(self, **kwargs):
         result = '<field name="Digits"><grammar '
 
-        if kwargs.get('timeout', False):
-            result += 'termtimeout="' + str(kwargs.get('timeout')) + 's" '
-            result += 'timeout="' + str(kwargs.get('timeout')) + 's" '
+        if kwargs.get("timeout", False):
+            result += 'termtimeout="' + str(kwargs.get("timeout")) + 's" '
+            result += 'timeout="' + str(kwargs.get("timeout")) + 's" '
 
-        result += 'termchar="%s" ' % kwargs.get('finishOnKey', '#')
+        result += 'termchar="%s" ' % kwargs.get("finish_on_key", "#")
 
         result += 'src="builtin:dtmf/digits'
 
-        if kwargs.get('numDigits', False):
-            result += '?minlength=%s;maxlength=%s' % (kwargs.get('numDigits'), kwargs.get('numDigits'))
+        if kwargs.get("num_digits", False):
+            result += "?minlength=%s;maxlength=%s" % (kwargs.get("num_digits"), kwargs.get("num_digits"))
 
         result += '" />'
 
-        if kwargs.get('action', False):
-            method = kwargs.get('method', 'post')
-            result += '<nomatch><submit next="' + kwargs.get('action') + '?empty=1" method="' + method + '" /></nomatch>'
+        if kwargs.get("action", False):
+            method = kwargs.get("method", "post")
+            result += (
+                '<nomatch><submit next="' + kwargs.get("action") + '?empty=1" method="' + method + '" /></nomatch>'
+            )
 
-        result += '</field>'
-        if kwargs.get('action', False):
-            method = kwargs.get('method', 'post')
-            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '" /></filled>'
+        result += "</field>"
+        if kwargs.get("action", False):
+            method = kwargs.get("method", "post")
+            result += '<filled><submit next="' + kwargs.get("action") + '" method="' + method + '" /></filled>'
 
         self.document += result
         return self
 
     def record(self, **kwargs):
         result = '<record name="UserRecording" beep="true" '
-        if kwargs.get('maxLength', False):
-            result += 'maxtime="' + str(kwargs.get('maxLength')) + 's" '
+        if kwargs.get("max_length", False):
+            result += 'maxtime="' + str(kwargs.get("max_length")) + 's" '
 
         result += 'finalsilence="4000ms" dtmfterm="true" type="audio/x-wav">'
 
-        if kwargs.get('action', False):
-            method = kwargs.get('method', 'post')
-            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '" '
+        if kwargs.get("action", False):
+            method = kwargs.get("method", "post")
+            result += '<filled><submit next="' + kwargs.get("action") + '" method="' + method + '" '
             result += 'enctype="multipart/form-data" /></filled>'
 
-        result += '</record>'
+        result += "</record>"
 
         self.document += result
         return self

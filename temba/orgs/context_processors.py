@@ -1,6 +1,5 @@
-from __future__ import unicode_literals
-
 from collections import defaultdict
+
 from .models import get_stripe_credentials
 
 
@@ -11,7 +10,7 @@ class GroupPermWrapper(object):
 
         self.apps = dict()
         if self.group:
-            for perm in self.group.permissions.all().select_related('content_type'):
+            for perm in self.group.permissions.all().select_related("content_type"):
                 app_name = perm.content_type.app_label
                 app_perms = self.apps.get(app_name, None)
 
@@ -32,15 +31,23 @@ class GroupPermWrapper(object):
         """
         Lookup by "someapp" or "someapp.someperm" in perms.
         """
-        if '.' not in perm_name:  # pragma: needs cover
+        if "." not in perm_name:  # pragma: needs cover
             return perm_name in self.apps
 
         else:  # pragma: needs cover
-            module_name, perm_name = perm_name.split('.', 1)
+            module_name, perm_name = perm_name.split(".", 1)
             if module_name in self.apps:
                 return perm_name in self.apps[module_name]
             else:
                 return False
+
+
+def user_orgs_for_brand(request):
+    if hasattr(request, "user"):
+        if not request.user.is_anonymous:
+            user_orgs = request.user.get_user_orgs(request.branding.get("brand"))
+            return dict(user_orgs=user_orgs)
+    return {}
 
 
 def user_group_perms_processor(request):
@@ -50,8 +57,8 @@ def user_group_perms_processor(request):
     org = None
     group = None
 
-    if hasattr(request, 'user'):
-        if request.user.is_anonymous():
+    if hasattr(request, "user"):
+        if request.user.is_anonymous:
             group = None
         else:
             group = request.user.get_org_group()
@@ -63,7 +70,7 @@ def user_group_perms_processor(request):
         context = dict()
 
     # make sure user_org is set on our request based on their session
-    context['user_org'] = org
+    context["user_org"] = org
 
     return context
 

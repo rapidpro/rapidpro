@@ -162,7 +162,7 @@
                       -else
                         %td.value-status
                           %a.href{href:'{% url "flows.flow_results" object.uuid %}'}
-                            {% blocktrans count run_count=object.run_stats.total|intcomma %}
+                            {% blocktrans with run_count=object.run_stats.total|intcomma count cc=object.run_stats.total %}
                               {{ run_count }} run
                             {% plural %}
                               {{run_count}} runs

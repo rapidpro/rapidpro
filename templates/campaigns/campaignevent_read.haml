@@ -19,6 +19,8 @@
     %h2
       %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
         {{object.campaign}}
+        -if object.campaign.is_archived
+          -trans "(Archived)"
     %h4
       -if object.offset < 0
         {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
@@ -102,7 +104,7 @@
                 %a.href{ href: "{% url 'contacts.contact_read' fire.contact.uuid %}" }= fire.contact.name
 
               .relative-to
-                {{object.relative_to}} of {{fire.get_relative_to_value}}
+                {{object.relative_to}}
 
             %td.event_date
               {{fire.fired|naturaltime}}
@@ -131,9 +133,7 @@
         $(".update-event").live('click', function(){
           var modal = new Modax('Update Event', '{% url "campaigns.campaignevent_update" object.pk %}');
           modal.setIcon('icon-instant');
-          modal.setListeners({
-            onSuccess: function(data) {location.reload(); },
-          });
+          modal.setRedirectOnSuccess(true);
           modal.show();
         });
       {% endif %}

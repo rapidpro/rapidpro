@@ -1,0 +1,96 @@
+{
+  "version": "11.4",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "2618298e-fce9-4b3f-8152-118b06cb6d2b",
+      "action_sets": [
+        {
+          "uuid": "2618298e-fce9-4b3f-8152-118b06cb6d2b",
+          "x": 100,
+          "y": 0,
+          "destination": "0c70dfec-78b6-4210-9485-37806c5deebc",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "7b3ba21e-e83b-4dcf-ba4b-7dea06485423",
+              "msg": {
+                "base": "Hi this is a survey. Which color is best? Red, Green, or Blue?"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "bd76d746-e0fc-43b0-a0c6-aef3015c7ba6"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "0c70dfec-78b6-4210-9485-37806c5deebc",
+          "x": 85,
+          "y": 155,
+          "label": "Color",
+          "rules": [
+            {
+              "uuid": "5a304369-c86d-40b9-8b81-43c74eaee994",
+              "category": {
+                "base": "All Responses"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "base",
+      "flow_type": "F",
+      "version": "11.4",
+      "metadata": {
+        "name": "Survey One",
+        "saved_on": "2018-06-28T21:45:01.821820Z",
+        "revision": 4,
+        "uuid": "6d8250f9-3781-40f5-b76c-35fe2a2c9712",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [
+    {
+      "name": "Survey Campaign",
+      "uuid": "17da8fee-8c29-4b12-a3f5-f2be042d00a5",
+      "group": {
+        "uuid": "1019499d-fcee-4910-b05c-ca18ccdcbadb",
+        "name": "Survey Group"
+      },
+      "events": [
+        {
+          "uuid": "bc7b249c-f5f4-4b9f-9193-f4ef007b0d77",
+          "offset": 15,
+          "unit": "D",
+          "event_type": "F",
+          "delivery_hour": 12,
+          "message": null,
+          "relative_to": {
+            "label": "Survey Start",
+            "key": "survey_start"
+          },
+          "flow": {
+            "uuid": "6d8250f9-3781-40f5-b76c-35fe2a2c9712",
+            "name": "Survey One"
+          }
+        }
+      ]
+    }
+  ],
+  "triggers": []
+}

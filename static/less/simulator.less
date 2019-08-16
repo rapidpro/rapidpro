@@ -26,6 +26,12 @@
   top: 130px;
   right: 30px;
 
+  &.disabled {
+    .simulator-footer {
+      visibility: hidden;
+    }
+  }
+
   &:hover {
   }
 
@@ -40,6 +46,11 @@
     margin-top:-540px;
   }
 
+}
+
+.link {
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .simulator-spacer {
@@ -129,6 +140,7 @@
   textarea {
     line-height: 20px;
   }
+
 }
 
 #footer {
@@ -139,7 +151,7 @@
 .simulator-body {
   width: 240px;
   padding-top: 5px;
-  margin-left: 20px;
+  margin-left: 18px;
   margin-top: -20px;
   height: 355px;
   overflow-x: hidden;
@@ -152,25 +164,6 @@
       }
     }
   }
-
-  .imsg.to.media-msg {
-
-    // background: #afafaf;
-    margin-left: 144px;
-
-    &:before {
-      // border-color: #afafaf;
-    }
-
-    .media-icon {
-      font-size:28px;
-      height:32px;
-      width: 100%;
-      line-height:28px;
-      text-align: center;
-    }
-
-  }
 }
 
 .simulator-body > .messages-wrapper {
@@ -179,6 +172,7 @@
   border: 1px solid #ddd;
   border-top: 0 none;
 }
+
 .simulator-footer {
   width: 234px;
   height: 35px;
@@ -188,11 +182,29 @@
   background: #f5f5f7;
   border-top: 1px solid #bbb;
   cursor: pointer;
+
+  .keypad {
+    .display {
+      height: 20px;
+      padding: 8px;
+      text-align: center;
+      font-size: 20px;
+    }
+
+    table {
+      width: 100%;
+
+      .btn {
+        width: 32px;
+        height: 16px;
+      }
+    }
+  }
 }
 
 .ilog {
   margin: 0px 25px 5px 15px;
-  color: #bbb;
+  color: #777;
   font-size: 10px;
   padding: 5px 8px;
   line-height: 12px;
@@ -271,6 +283,10 @@
   &.from:before {
     display: none;
   }
+}
+
+.quick-replies {
+  text-align: center;
 }
 
 .quick-reply{

@@ -1,61 +1,62 @@
-from __future__ import unicode_literals
-
 from django import template
 from django.utils.safestring import mark_safe
+
 from temba.channels.models import ChannelEvent
 
 register = template.Library()
 
 PLAYABLE_CONTENT_TYPES = {
-    'audio/wav',
-    'audio/x-wav',
-    'audio/vnd.wav',
-    'audio/ogg',
-    'audio/mp3',
-    'audio/m4a',
-    'video/mp4',
-    'video/webm'
+    "audio/wav",
+    "audio/x-wav",
+    "audio/vnd.wav",
+    "audio/ogg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+    "video/mp4",
+    "video/webm",
 }
 
 
 @register.filter
 def as_icon(contact_event):
-    icon = 'icon-bubble-dots-2 green'
-    direction = getattr(contact_event, 'direction', 'O')
-    msg_type = getattr(contact_event, 'msg_type', 'I')
+    icon = "icon-bubble-dots-2 green"
+    direction = getattr(contact_event, "direction", "O")
+    msg_type = getattr(contact_event, "msg_type", "I")
 
-    if hasattr(contact_event, 'status'):
+    if hasattr(contact_event, "status"):
         status = contact_event.status
     elif isinstance(contact_event, ChannelEvent):
         status = contact_event.event_type
     else:
         status = None
 
-    if msg_type == 'V':
-        icon = 'icon-phone'
-    elif direction == 'I':
-        icon = 'icon-bubble-user primary'
-    elif status in ['P', 'Q']:
-        icon = 'icon-bubble-dots-2 green'
-    elif status == 'D':
-        icon = 'icon-bubble-check green'
-    elif status in ['W', 'S']:
-        icon = 'icon-bubble-right green'
-    elif status in ['E', 'F']:
-        icon = 'icon-bubble-notification red'
+    if msg_type == "V":
+        icon = "icon-phone"
+    elif direction == "I":
+        icon = "icon-bubble-user primary"
+    elif status in ["P", "Q"]:
+        icon = "icon-bubble-dots-2 green"
+    elif status == "D":
+        icon = "icon-bubble-check green"
+    elif status in ["W", "S"]:
+        icon = "icon-bubble-right green"
+    elif status in ["E", "F"]:
+        icon = "icon-bubble-notification red"
     elif status == ChannelEvent.TYPE_CALL_IN:
-        icon = 'icon-call-incoming green'
+        icon = "icon-call-incoming green"
     elif status == ChannelEvent.TYPE_CALL_IN_MISSED:
-        icon = 'icon-call-incoming red'
+        icon = "icon-call-incoming red"
     elif status == ChannelEvent.TYPE_CALL_OUT:
-        icon = 'icon-call-outgoing green'
+        icon = "icon-call-outgoing green"
     elif status == ChannelEvent.TYPE_CALL_OUT_MISSED:
-        icon = 'icon-call-outgoing red'
+        icon = "icon-call-outgoing red"
 
     return mark_safe('<span class="glyph %s"></span>' % icon)
 
 
-@register.tag(name='render')
+@register.tag(name="render")
 def render(parser, token):
     """
     A block tag that renders its contents to a context variable.
@@ -90,45 +91,54 @@ def render(parser, token):
         def render(self, context):
             output = self.nodelist.render(context)
             context[self.as_var] = mark_safe(output.strip())
-            return ''
+            return ""
 
     bits = token.split_contents()
-    if len(bits) != 3 or bits[1] != 'as':
+    if len(bits) != 3 or bits[1] != "as":
         raise ValueError("render tag should be followed by keyword as and the name of a context variable")
     as_var = bits[2]
 
-    nodes = parser.parse(('endrender',))
+    nodes = parser.parse(("endrender",))
     parser.delete_first_token()
     return RenderNode(nodes, as_var)
 
 
-@register.inclusion_tag('msgs/tags/attachment.haml')
+@register.inclusion_tag("msgs/tags/attachment.haml")
 def attachment_button(attachment):
     content_type, delim, url = attachment.partition(":")
 
     # some OGG/OGA attachments may have wrong content type
-    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or url.endswith('.oga')):  # pragma: no cover
-        content_type = 'audio/ogg'
+    if content_type == "application/octet-stream" and (
+        url.endswith(".ogg") or url.endswith(".oga")
+    ):  # pragma: no cover
+        content_type = "audio/ogg"
 
-    category = content_type.split('/')[0] if '/' in content_type else content_type
+    category = content_type.split("/")[0] if "/" in content_type else content_type
 
-    if category == 'geo':
+    if category == "geo":
         preview = url
 
-        (lat, lng) = url.split(',')
-        url = 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
+        (lat, lng) = url.split(",")
+        url = "http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s" % {
+            "lat": lat,
+            "lng": lng,
+        }
     else:
-        preview = url.rpartition('.')[2].upper()  # preview is the file extension in uppercase
+        preview = url.rpartition(".")[2].upper()  # preview is the file extension in uppercase
 
     return {
-        'content_type': content_type,
-        'category': category,
-        'preview': preview,
-        'url': url,
-        'is_playable': content_type in PLAYABLE_CONTENT_TYPES
+        "content_type": content_type,
+        "category": category,
+        "preview": preview,
+        "url": url,
+        "is_playable": content_type in PLAYABLE_CONTENT_TYPES,
     }
 
 
-@register.inclusion_tag('msgs/tags/channel_log_link.haml')
+@register.inclusion_tag("msgs/tags/channel_log_link.haml")
 def channel_log_link(msg_or_call):
-    return {'log': msg_or_call.get_last_log()}
+    if hasattr(msg_or_call, "connection_type"):
+        if msg_or_call.has_logs():
+            return {"connection_id": msg_or_call.id}
+    else:
+        return {"log": msg_or_call.get_last_log()}

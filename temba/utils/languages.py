@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function, unicode_literals
-
 import pycountry
 
 iso_codes = {}
@@ -20,9 +18,11 @@ def get_language_name(iso_code):
 
 
 def _get_language_name_iso6393(iso_code):
-    try:
-        lang_name = pycountry.languages.get(alpha_3=iso_code).name
-    except KeyError:
+    language = pycountry.languages.get(alpha_3=iso_code)
+
+    if language:
+        lang_name = language.name
+    else:
         lang_name = None
     return lang_name
 
@@ -49,22 +49,21 @@ def search_language_names(query):
 # maps country and iso639-2 codes to a specific iso639-3 language code. It isn't inclusive but covers the cases
 # we know about at the time of our 639-2 -> 639-3 migration.
 MIGRATION_OVERRIDES = {
-    'NG:cpe': 'pcm',
-    'LR:cpe': 'lir',
-    'NI:cpe': 'bzk',
-
-    'XX:mkh': 'khm',
-    'XX:cpe': 'pcm',
-    'XX:art': 'epo',
-    'XX:cpf': 'gcr',
-    'XX:phi': 'fil',
-    'XX:smi': 'smj',
-    'XX:afa': 'ara',
-    'XX:aus': 'rop',
-    'XX:cpp': 'kea',
-    'XX:him': 'xnr',
-    'XX:kar': 'blk',
-    'XX:esp': 'spa',
+    "NG:cpe": "pcm",
+    "LR:cpe": "lir",
+    "NI:cpe": "bzk",
+    "XX:mkh": "khm",
+    "XX:cpe": "pcm",
+    "XX:art": "epo",
+    "XX:cpf": "gcr",
+    "XX:phi": "fil",
+    "XX:smi": "smj",
+    "XX:afa": "ara",
+    "XX:aus": "rop",
+    "XX:cpp": "kea",
+    "XX:him": "xnr",
+    "XX:kar": "blk",
+    "XX:esp": "spa",
 }
 
 
@@ -79,19 +78,19 @@ def iso6392_to_iso6393(iso_code, country_code=None):
 
     iso_code = iso_code.lower().strip()
 
-    if iso_code == '':
-        raise ValueError('iso_code must not be empty')
+    if iso_code == "":
+        raise ValueError("iso_code must not be empty")
 
-    cache_key = '{}:{}'.format('XX' if country_code is None else country_code, iso_code)
+    cache_key = "{}:{}".format("XX" if country_code is None else country_code, iso_code)
 
     if cache_key not in migration_lang_cache:
 
         # build our key
-        override_key = '%s:%s' % (country_code, iso_code) if country_code else 'XX:%s' % iso_code
+        override_key = "%s:%s" % (country_code, iso_code) if country_code else "XX:%s" % iso_code
         override = MIGRATION_OVERRIDES.get(override_key)
 
         if not override and country_code:
-            override_key = 'XX:%s' % iso_code
+            override_key = "XX:%s" % iso_code
             override = MIGRATION_OVERRIDES.get(override_key)
 
         if override:

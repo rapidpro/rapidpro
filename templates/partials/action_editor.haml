@@ -72,7 +72,7 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
-        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !quickReplies.length'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media'}
           .attach-button{ng-show:'!showAttachOptions'}
             .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
@@ -105,7 +105,7 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-        .icon-button-quick-reply{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+        .icon-quick-reply{ng-click: 'addNewQuickReply();', ng-show: 'showQuickReplyButton && flow.flow_type=="M"'}
 
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header
@@ -140,7 +140,7 @@
 
 
     %span{ng-if:'config.type == "send"'}
-      %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
+      %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"cg", "completions":true}', groups:"action.groups", type:"hidden"}
       -include 'partials/invalid_fields.haml'
       %span{msg:"action.msg", data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
@@ -229,7 +229,7 @@
       %p{class:"description"}
         -blocktrans
           This action redirects contacts to a new flow. When they start that flow, they will exit this one.
-      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden"}
+      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden", exclude-current-flow: "true", same-flow-type: "true"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected)",class:"submit hide"}
         -trans "Ok"
 
@@ -269,47 +269,10 @@
           %a.add-header{href:"javascript:;",ng-click:"addNewActionWebhookHeader()"}
             -trans "Add header"
 
-      .div{ng-show:'formData.supportsLegacy && action.action == "POST"'}
-
-        .success{ng-show:'formData.newFormat'}
-          %p
-            This webhook is set to use the
-            %a{href:"/webhooks/webhook/#flow_", target:"_new"}<
-              new version
-            of the POST Webhook API. If you need to temporarily re-enable the deprecated API, uncheck the
-            box below. Keep in mind that the deprecated format will be removed January 31, 2018.
-
-          .div{style:'margin-top:10px'}
-            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-              %label{for:'new_format'}
-                Use the new webhook format
-
-        .warning{ng-hide:'formData.newFormat'}
-          %p
-            This webhook is using a
-            %a{href:"/webhooks/webhook/#flow_legacy", target:"_new"}<
-              deprecated version
-            of the POST Webhook API which will be removed on January 31, 2018.
-            Prior to that date, you will need to update any services depending on the deprecated API format.
-
-          %p
-            Review the
-            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-              new version
-            and check the box below when this webhook is ready to start receiving the new format.
-
-          .div{style:'margin-top:10px'}
-            %input{id:'new_format', style:'width:15px;margin-top:-3px', ng-model:'formData.newFormat', type:'checkbox'}
-              %label{for:'new_format'}
-                Use the new webhook format
-
-      .div{ng-hide:'formData.supportsLegacy && action.action == "POST"'}
-        .help-text
+      .div
+        .help-text{ng-show:'action.action == "POST"'}
           -blocktrans
-            We'll include the message text along with data specified in the
-            %a{href:"/webhooks/webhook/#flow", target:"_new"}<
-              Webhook Flow Event API
-            . This step will be identified as [[actionset.uuid]]
+            This step will be identified as [[actionset.uuid]]
 
         %p
         %p{class:"description response"}

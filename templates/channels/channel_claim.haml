@@ -25,7 +25,7 @@
         .claim-row.recommended
           .row
             .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
                 .btn-container
                   .claim-glyph{class:"{{ ch_type.icon }}"}
                   %p.claim-text= ch_type.name
@@ -77,27 +77,11 @@
                   you already have. You just need an Android phone
                   to get started.
 
-    -if False
-      .claim-row.verboice-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_verboice' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Verboice"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
-
     -for ch_type in channel_types.PHONE
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
@@ -113,7 +97,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
@@ -129,23 +113,7 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
-              .btn-container
-                .claim-glyph{class:"{{ ch_type.icon }}"}
-                %p.claim-text= ch_type.name
-          .span9
-            .claim-description
-              %div
-                {% include ch_type.get_claim_blurb %}
-
-    %h3
-      -trans "USSD Channels"
-
-    -for ch_type in channel_types.USSD
-      .claim-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name

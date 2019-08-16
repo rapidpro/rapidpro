@@ -1,0 +1,345 @@
+{
+  "campaigns": [], 
+  "version": "11.3", 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "3331d0dd-8c0b-4af9-b786-f44767ed128e", 
+          "exit_uuid": "990bb70d-0407-4b8c-b8f6-3854be7fa3a3", 
+          "y": 0, 
+          "x": 100, 
+          "destination": "20009b71-bb65-40de-ba07-469eb366a495", 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Do you want to run a flow?"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "8279db65-e0ad-4078-8029-a5f3a7c78837"
+            }
+          ]
+        }, 
+        {
+          "uuid": "2c9aaf06-9ce2-46bb-b248-9fe13939ee7a", 
+          "exit_uuid": "1275c3ad-b336-49f1-b7a8-76451a469dd9", 
+          "y": 374, 
+          "x": 150, 
+          "destination": null, 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "This message should never be sent."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "fabfcbad-df18-42ab-82ec-c977f133def7"
+            }
+          ]
+        }, 
+        {
+          "uuid": "c6bb8dd4-9f35-482b-ab6e-3fb40f64bccb", 
+          "exit_uuid": "8e76a377-2a6f-41bd-a230-30c33c657397", 
+          "y": 182, 
+          "x": 465, 
+          "destination": null, 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "Okay, nevermind then."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "f5a05d69-0a48-4592-bbaa-547eb1070a18"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "3331d0dd-8c0b-4af9-b786-f44767ed128e", 
+      "rule_sets": [
+        {
+          "uuid": "fc3bdff1-f999-48bb-9a02-85889eb09e25", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Completed"
+              }, 
+              "uuid": "b7e9fc20-2661-464b-80d5-3c4c2ebbfdab", 
+              "destination": "2c9aaf06-9ce2-46bb-b248-9fe13939ee7a", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "2fc489e3-906d-42ce-91ac-f5c43b460c80", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 183, 
+          "x": 37, 
+          "config": {
+            "flow": {
+              "name": "Flow B", 
+              "uuid": "ff40469a-a6df-406b-9934-2df45d969d00"
+            }
+          }
+        }, 
+        {
+          "uuid": "20009b71-bb65-40de-ba07-469eb366a495", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Yes"
+              }, 
+              "uuid": "65612fa6-54c6-4cfc-9f28-2efd92bd38a8", 
+              "destination": "fc3bdff1-f999-48bb-9a02-85889eb09e25", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "test": {
+                  "eng": "Yes"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "df43cde7-4c69-4c6d-806d-8a94e6a40bfa", 
+              "destination": "c6bb8dd4-9f35-482b-ab6e-3fb40f64bccb", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 75, 
+          "x": 346, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 18, 
+        "uuid": "8186863a-4556-4392-a741-06bbd0b63cc0", 
+        "name": "Flow A - Wait", 
+        "saved_on": "2018-01-09T19:42:21.674433Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "1e026a16-b6a1-4bd2-a80f-0d7cdaf8a1ba", 
+          "exit_uuid": "21c47d25-df24-47fd-89e7-bb7b0b86f37f", 
+          "y": 132, 
+          "x": 85, 
+          "destination": null, 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "This message should never be sent."
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "82185df0-55ee-4bbf-93d5-e90cda05eba3"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "841cf832-6320-429f-a8b6-1de7a492fdae", 
+      "rule_sets": [
+        {
+          "uuid": "841cf832-6320-429f-a8b6-1de7a492fdae", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Completed"
+              }, 
+              "uuid": "4093f6a1-2c9a-4a4e-ac5e-8234c23bb54b", 
+              "destination": "1e026a16-b6a1-4bd2-a80f-0d7cdaf8a1ba", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "5def6aa9-1d76-4f82-a6e9-3658b0eae0d0", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 82, 
+          "config": {
+            "flow": {
+              "name": "Flow B", 
+              "uuid": "ff40469a-a6df-406b-9934-2df45d969d00"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 26, 
+        "uuid": "ebd6a0b5-4442-4734-bee6-476f23bae25e", 
+        "name": "Flow A", 
+        "saved_on": "2018-01-09T16:54:07.653151Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "7d796bd6-2aec-4c55-b47a-f2ba95e7abe6", 
+          "exit_uuid": "61074aae-f0c8-499b-8e24-37c55ab8465a", 
+          "y": 0, 
+          "x": 99, 
+          "destination": null, 
+          "actions": [
+            {
+              "type": "flow", 
+              "flow": {
+                "name": "Flow C", 
+                "uuid": "1d2473a0-2dd5-438d-b32a-fe3bbe7f4575"
+              }, 
+              "uuid": "850a17a0-dee9-4e8e-9530-36f22710f488"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "7d796bd6-2aec-4c55-b47a-f2ba95e7abe6", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "saved_on": "2018-01-09T16:49:37.776290Z", 
+        "uuid": "ff40469a-a6df-406b-9934-2df45d969d00", 
+        "name": "Flow B", 
+        "revision": 6
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "uuid": "f6a62745-881c-488e-89fd-23b701130943", 
+          "exit_uuid": "e86e3273-85ff-4416-a58c-f5f45e763d39", 
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "actions": [
+            {
+              "quick_replies": [], 
+              "media": {}, 
+              "msg": {
+                "eng": "This message should be queued"
+              }, 
+              "send_all": false, 
+              "type": "reply", 
+              "uuid": "53b54f97-9e33-4093-b3ef-fe78da315424"
+            }
+          ]
+        }
+      ], 
+      "version": "11.3", 
+      "flow_type": "F", 
+      "entry": "f6a62745-881c-488e-89fd-23b701130943", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 2, 
+        "uuid": "1d2473a0-2dd5-438d-b32a-fe3bbe7f4575", 
+        "name": "Flow C", 
+        "saved_on": "2018-01-09T16:53:09.743802Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Flow B", 
+        "uuid": "ff40469a-a6df-406b-9934-2df45d969d00"
+      }, 
+      "groups": [], 
+      "keyword": "flowb", 
+      "channel": null
+    }, 
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Flow A", 
+        "uuid": "ebd6a0b5-4442-4734-bee6-476f23bae25e"
+      }, 
+      "groups": [], 
+      "keyword": "flowa", 
+      "channel": null
+    }, 
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Flow A - Wait", 
+        "uuid": "8186863a-4556-4392-a741-06bbd0b63cc0"
+      }, 
+      "groups": [], 
+      "keyword": "flowawait", 
+      "channel": null
+    }
+  ]
+}

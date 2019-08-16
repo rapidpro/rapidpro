@@ -2,75 +2,69 @@
 django
 django-compressor
 django-countries
-django-debug-toolbar
-django-digest
-django-excel
-django-extensions
 django-hamlpy
 django-mptt
 django-redis
-django-rosetta
-django_select2
 django-storages
 django-timezone-field
-djangorestframework==3.5.1
+djangorestframework
 dj-database-url
 smartmin
 
 ########################## services ##########################
-analytics-python==0.4.4
+analytics-python
 boto3
-google
 librato_bg
-nexmo==1.4.0
-plivo
+nexmo
 pyfcm
 python-gcm
 python-telegram-bot
 raven
 stripe
-twilio==3.6.15
+twilio
 twython
-uservoice
+elasticsearch
+elasticsearch_dsl
 
 ########################## file types ##########################
 geojson
-lxml
 markdown
-openpyxl
-pisa
+pyexcel
 pyexcel-xls
 pyexcel-xlsx
 python-magic
-xlutils
+xlsxlite
 
 ########################## misc ##########################
-antlr4-python2-runtime
+antlr4-python3-runtime
 celery[redis]
 colorama
-enum34
 gunicorn
 iptools
 iso-639
 iso8601
-isoweek
 phonenumbers
 pycountry
 pycrypto
 python-dateutil==2.2
 pytz
-psycopg2
+psycopg2-binary
 rapidpro-expressions
-redis
+redis<3.0  # see https://github.com/celery/celery/issues/4495
 requests
-stop-words
-unidecode
+simplejson
+python-intercom
+pysocks
+pip-tools
+packaging
 
 ########################## testing ##########################
+black
 coverage
 flake8
 flake8-deprecated
-flake8-print
-mock
+flake8-print==2.0.2  # pinned temporary, a lot of updates === new PR
+isort
+openpyxl
 responses
-selenium
+beautifulsoup4

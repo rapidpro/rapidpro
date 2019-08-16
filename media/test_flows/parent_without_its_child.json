@@ -1,0 +1,90 @@
+{
+  "version": "11.12",
+  "site": "https://textit.staging.nyaruka.com",
+  "flows": [
+    {
+      "name": "Single Parent",
+      "uuid": "6228646f-6c67-4237-a2d9-6e2c6060e8cd",
+      "spec_version": "13.0.0",
+      "language": "eng",
+      "type": "messaging",
+      "nodes": [
+        {
+          "uuid": "18ba4d96-1393-4db0-93e4-5adc5aedf736",
+          "actions": [
+            {
+              "uuid": "24e46982-4376-4078-b5c2-039d341bd951",
+              "type": "enter_flow",
+              "flow": {
+                "uuid": "a925453e-ad31-46bd-858a-e01136732181",
+                "name": "New Child"
+              }
+            }
+          ],
+          "router": {
+            "type": "switch",
+            "operand": "@child.run.status",
+            "cases": [
+              {
+                "uuid": "f976a429-f740-45b7-a532-7414f60b271d",
+                "type": "has_only_text",
+                "arguments": [
+                  "completed"
+                ],
+                "category_uuid": "552cbd8f-f0fb-4013-bc3a-f27810ee53cf"
+              },
+              {
+                "uuid": "90b00afd-8f26-43df-979e-e0e754f60bbc",
+                "arguments": [
+                  "expired"
+                ],
+                "type": "has_only_text",
+                "category_uuid": "f79974c7-cfe7-45ff-90a5-ffbcae3bb201"
+              }
+            ],
+            "categories": [
+              {
+                "uuid": "552cbd8f-f0fb-4013-bc3a-f27810ee53cf",
+                "name": "Complete",
+                "exit_uuid": "d15dcab5-ccb2-425f-aeaa-f0a3f307370c"
+              },
+              {
+                "uuid": "f79974c7-cfe7-45ff-90a5-ffbcae3bb201",
+                "name": "Expired",
+                "exit_uuid": "ba8ffb45-793b-4cd0-a998-01a36e0dcc3d"
+              }
+            ],
+            "default_category_uuid": "f79974c7-cfe7-45ff-90a5-ffbcae3bb201"
+          },
+          "exits": [
+            {
+              "uuid": "d15dcab5-ccb2-425f-aeaa-f0a3f307370c",
+              "destination_uuid": null
+            },
+            {
+              "uuid": "ba8ffb45-793b-4cd0-a998-01a36e0dcc3d",
+              "destination_uuid": null
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "18ba4d96-1393-4db0-93e4-5adc5aedf736": {
+            "type": "split_by_subflow",
+            "position": {
+              "left": 0,
+              "top": 0
+            },
+            "config": {}
+          }
+        }
+      },
+      "revision": 7,
+      "expire_after_minutes": 10080,
+      "version": "13.0.0"
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

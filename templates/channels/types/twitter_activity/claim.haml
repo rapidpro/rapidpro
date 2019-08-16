@@ -10,10 +10,11 @@
 -block pre-form
   .info
     .important
-      %p
-        This channel type uses the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter Activity API</a> which is
-        still in beta. If your Twitter account has not been granted access to this API, then you can still
-        <a href="{% url 'channels.claim_twitter' %}">add a regular Twitter channel</a>.
+      This channel type uses the new <a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">Twitter Activity API.</a>
+      You will need to <a href="https://developer.twitter.com/en/apply-for-access">apply for access</a> and
+      <a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/guides/getting-started-with-webhooks">create a
+      Twitter application</a>. Make sure your Twitter application has "Read, Write and Direct Message" permissions.
+
     %p
       -blocktrans with name=brand.name
         After connecting your account, any incoming direct messages will automatically be read by {{ name }},
@@ -64,4 +65,14 @@
 
     .form-group {
       margin-bottom:15px;
+    }
+
+    .controls input[type="checkbox"] {
+      display: inline-block;
+      margin-top: -3px;
+    }
+
+    .field_clear_webhooks p {
+      display: inline-block;
+      margin-left:3px;
     }

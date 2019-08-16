@@ -1,21 +1,21 @@
-from __future__ import unicode_literals
+from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartListView, SmartReadView, SmartCRUDL
+
 from temba.airtime.models import AirtimeTransfer
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
 
 class AirtimeCRUDL(SmartCRUDL):
     model = AirtimeTransfer
-    actions = ('list', 'read')
+    actions = ("list", "read")
 
     class List(OrgPermsMixin, SmartListView):
-        fields = ('status', 'message', 'amount', 'contact', 'created_on')
+        fields = ("status", "message", "amount", "contact", "created_on")
         title = _("Recent Airtime Transfers")
-        default_order = ('-created_on',)
+        default_order = ("-created_on",)
         field_config = dict(created_on=dict(label="Time"))
-        link_fields = ('message',)
+        link_fields = ("message",)
 
         def get_status(self, obj):
             return obj.get_status_display()
@@ -30,8 +30,8 @@ class AirtimeCRUDL(SmartCRUDL):
             return "--"
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.List, self).get_context_data(**kwargs)
-            context['org'] = self.derive_org()
+            context = super().get_context_data(**kwargs)
+            context["org"] = self.derive_org()
             return context
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -39,8 +39,8 @@ class AirtimeCRUDL(SmartCRUDL):
         field_config = dict(created_on=dict(label="Time"))
 
         def get_context_data(self, **kwargs):
-            context = super(AirtimeCRUDL.Read, self).get_context_data(**kwargs)
-            context['show_logs'] = self.show_logs()
+            context = super().get_context_data(**kwargs)
+            context["show_logs"] = self.show_logs()
             return context
 
         def show_logs(self):
@@ -52,10 +52,9 @@ class AirtimeCRUDL(SmartCRUDL):
 
         def derive_fields(self):
             if self.show_logs():
-                return ('contact', 'status', 'channel', 'amount', 'message',
-                        'recipient', 'denomination', 'created_on')
+                return ("contact", "status", "channel", "amount", "message", "recipient", "denomination", "created_on")
 
-            return ('contact', 'status', 'channel', 'amount', 'message', 'created_on')  # pragma: needs cover
+            return ("contact", "status", "channel", "amount", "message", "created_on")  # pragma: needs cover
 
         def get_status(self, obj):
             return obj.get_status_display()

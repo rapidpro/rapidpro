@@ -1,8 +1,8 @@
-from __future__ import unicode_literals, absolute_import
+from smartmin.views import SmartFormView
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-from smartmin.views import SmartFormView
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -19,11 +19,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         cleaned_data = form.cleaned_data
 
         config = {
-            'jiochat_app_id': cleaned_data.get('app_id'),
-            'jiochat_app_secret': cleaned_data.get('app_secret')
+            "jiochat_app_id": cleaned_data.get("app_id"),
+            "jiochat_app_secret": cleaned_data.get("app_secret"),
+            "secret": Channel.generate_secret(32),
         }
 
-        self.object = Channel.create(org, self.request.user, None, self.channel_type, name='', address='',
-                                     config=config, secret=Channel.generate_secret(32))
+        self.object = Channel.create(
+            org, self.request.user, None, self.channel_type, name="", address="", config=config
+        )
 
-        return super(ClaimView, self).form_valid(form)
+        return super().form_valid(form)

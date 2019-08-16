@@ -1,11 +1,9 @@
-from __future__ import print_function, unicode_literals
-
 import calendar
 import datetime
+
 import iso8601
 import pytz
 import regex
-import six
 
 from django.utils import timezone
 
@@ -13,46 +11,107 @@ from django.utils import timezone
 MAX_UTC_OFFSET = 14 * 60 * 60
 
 # pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
-FULL_ISO8601_REGEX = regex.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{6})?([\+\-]\d{2}:\d{2}|Z)$')
+FULL_ISO8601_REGEX = regex.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$")
+ISO_YYYY_MM_DD = regex.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})$")
 
 # patterns for date and time formats supported for human-entered data
-DD_MM_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-MM_DD_YYYY = regex.compile(r'\b([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{4}|[0-9]{2})\b')
-YYYY_MM_DD = regex.compile(r'\b([0-9]{4}|[0-9]{2})[-.\\/_ ]([0-9]{1,2})[-.\\/_ ]([0-9]{1,2})\b')
-HH_MM_SS = regex.compile(r'\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b')
+DD_MM_YYYY = regex.compile(r"\b([0-9]{1,2})[-.\\/_]([0-9]{1,2})[-.\\/_]([0-9]{4}|[0-9]{2})\b")
+YYYY_MM_DD = regex.compile(r"\b([0-9]{4})[-.\\/_]([0-9]{1,2})[-.\\/_]([0-9]{1,2})\b")
+HH_MM_SS = regex.compile(r"\b([0-9]{1,2}):([0-9]{2})(:([0-9]{2})(\.(\d+))?)?\W*([aApP][mM])?\b")
 
 
-def datetime_to_str(date_obj, format=None, ms=True, tz=None):
+def datetime_to_str(date_obj, format, tz):
     """
     Formats a datetime or date as a string
     :param date_obj: the datetime or date
-    :param format: the format (defaults to ISO8601)
-    :param ms: whether to include microseconds
+    :param format: the format
     :param tz: the timezone to localize in
     :return: the formatted date string
     """
     if not date_obj:
         return None
 
-    if not tz:
-        tz = timezone.utc
-
     if type(date_obj) == datetime.date:
         date_obj = tz.localize(datetime.datetime.combine(date_obj, datetime.time(0, 0, 0)))
-
-    if date_obj.year < 1900:  # pragma: no cover
-        return "%d-%d-%dT%d:%d:%d.%dZ" % (date_obj.year, date_obj.month, date_obj.day, date_obj.hour, date_obj.minute, date_obj.second, date_obj.microsecond)
 
     if isinstance(date_obj, datetime.datetime):
         date_obj = timezone.localtime(date_obj, tz)
 
-    if not format or not tz:
-        if ms:
-            return date_obj.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    return date_obj.strftime(format)
+
+
+def str_to_date(date_str, dayfirst=True):
+    """
+    Parses a date from the given text value
+
+    Function uses several regex expressions to extract a valid date.
+
+    Initially FULL_ISO8601_REGEX will match ISO8601 timetamp strings mostly used
+    in JSON serialized timestamps.
+        2013-02-01T04:38:09.100000+02:00 -> 2013-02-01
+
+    Following test will match a ISO8601 date and only that, a format of the
+    string must conform to: YYYY-MM-DD
+
+    Next test is matching dates that are similar to the ISO8601. The date must
+    start with a year and it is followed by either month or a day. Day and month
+    have an optional leading zero, and year must have 4 characters. In this test
+    ORG level attribute `date_format` is applied.
+        2019-06-18, dayfirst=True -> 2019-06-18
+        2019-18-06, dayfirst=False -> 2019-06-18
+    Following delimiters are supported:
+        2019-06-18
+        2019.6.18
+        2019\06\18
+        2019/06/18
+        2019_6_18
+        2019-6/02
+
+    The last test is similar to the previous one because it supports same
+    delimiters and honours `Org.date_format`, but in this we check for dates
+    that end with a year  and start with either day or the month. Year can have
+    either 2 or 4 characters:
+        18-06-2019
+        06/18/2019
+        6-18-19
+
+    Note:
+        `Org.date_format` can produce incorrect dates. For example, 2018-06-11
+        is a valid date in both cases:
+            dayfirst=True -> 2018-06-11
+            dayfirst=False -> 2018-11-06
+
+    Returns:
+        date|None: datetime.date object
+    """
+    if not date_str:
+        return None
+
+    # try first as full ISO string
+    if FULL_ISO8601_REGEX.match(date_str):
+        try:
+            return iso8601.parse_date(date_str).date()
+        except iso8601.ParseError:  # pragma: no cover
+            pass
+
+    # is this an iso date ?
+    parsed = _date_from_formats(date_str, ISO_YYYY_MM_DD, 3, 2, 1)
+
+    # maybe it is similar to iso date ?
+    if not parsed:
+        if dayfirst:
+            parsed = _date_from_formats(date_str, YYYY_MM_DD, 3, 2, 1)
         else:
-            return date_obj.strftime('%Y-%m-%dT%H:%M:%SZ')
-    else:
-        return date_obj.strftime(format)
+            parsed = _date_from_formats(date_str, YYYY_MM_DD, 2, 3, 1)
+
+    # no? then try org specific formats
+    if not parsed:
+        if dayfirst:
+            parsed = _date_from_formats(date_str, DD_MM_YYYY, 1, 2, 3)
+        else:
+            parsed = _date_from_formats(date_str, DD_MM_YYYY, 2, 1, 3)
+
+    return parsed
 
 
 def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
@@ -68,7 +127,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     # remove whitespace any trailing period
-    date_str = six.text_type(date_str).strip().rstrip('.')
+    date_str = str(date_str).strip().rstrip(".")
 
     # try first as full ISO string
     if FULL_ISO8601_REGEX.match(date_str):
@@ -77,14 +136,8 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         except iso8601.ParseError:  # pragma: no cover
             pass
 
-    current_year = datetime.datetime.now().year
+    parsed = str_to_date(date_str, dayfirst)
 
-    if dayfirst:
-        parsed = _date_from_formats(date_str, current_year, DD_MM_YYYY, 1, 2, 3)
-    else:
-        parsed = _date_from_formats(date_str, current_year, MM_DD_YYYY, 2, 1, 3)
-
-    # couldn't find a date? bail
     if not parsed:
         return None
 
@@ -109,10 +162,11 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     return parsed
 
 
-def _date_from_formats(date_str, current_year, pattern, d, m, y):
+def _date_from_formats(date_str, pattern, d, m, y):
     """
     Parses a human-entered date which should be in the org display format
     """
+
     for match in pattern.finditer(date_str):
         day = _atoi(match[d])
         month = _atoi(match[m])
@@ -120,6 +174,8 @@ def _date_from_formats(date_str, current_year, pattern, d, m, y):
 
         # convert to four digit year
         if len(match[y]) == 2:
+            current_year = datetime.datetime.now().year
+
             if year > current_year % 1000:
                 year += 1900
             else:
@@ -145,9 +201,9 @@ def str_to_time(value):
         # do we have an AM/PM marker?
         am_pm = match[7].lower() if match[7] else None
 
-        if hour < 12 and am_pm == 'pm':
+        if hour < 12 and am_pm == "pm":
             hour += 12
-        elif hour == 12 and am_pm == 'am':
+        elif hour == 12 and am_pm == "am":
             hour -= 12
 
         seconds = 0
@@ -183,42 +239,12 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
-def datetime_to_json_date(dt, micros=False):
-    """
-    Formats a datetime as a string for inclusion in JSON
-    :param dt: the datetime to format
-    :param micros: whether to include microseconds
-    """
-    # always output as UTC / Z and always include milliseconds
-    as_utc = dt.astimezone(pytz.utc)
-    as_str = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')
-    return (as_str if micros else as_str[:-3]) + 'Z'
-
-
-def json_date_to_datetime(date_str):
-    """
-    Parses a datetime from a JSON string value
-    """
-    iso_format = '%Y-%m-%dT%H:%M:%S.%f'
-    if date_str.endswith('Z'):
-        iso_format += 'Z'
-    return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
-
-
-def datetime_to_s(dt):
-    """
-    Converts a datetime to a fractional second epoch
-    """
-    seconds = calendar.timegm(dt.utctimetuple())
-    return seconds + dt.microsecond / float(100000)
-
-
 def datetime_to_ms(dt):
     """
     Converts a datetime to a millisecond accuracy timestamp
     """
     seconds = calendar.timegm(dt.utctimetuple())
-    return seconds * 1000 + dt.microsecond / 1000
+    return seconds * 1000 + dt.microsecond // 1000
 
 
 def ms_to_datetime(ms):
@@ -237,42 +263,15 @@ def datetime_to_epoch(dt):
     return (utc_naive - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
-def date_to_utc_range(d, org):
+def date_to_day_range_utc(input_date, org):
     """
     Converts a date in the given org's timezone, to a range of datetimes in UTC
     """
-    local_midnight = org.timezone.localize(datetime.datetime.combine(d, datetime.time(0, 0)))
+    local_midnight = org.timezone.localize(datetime.datetime.combine(input_date, datetime.datetime.min.time()))
+
     utc_midnight = local_midnight.astimezone(pytz.UTC)
+
     return utc_midnight, utc_midnight + datetime.timedelta(days=1)
-
-
-def datetime_decoder(d):
-    """
-    Looks through strings in a dictionary trying to find things that look like date or
-    datetimes and converting them back to datetimes.
-    """
-    if isinstance(d, list):
-        pairs = enumerate(d)  # pragma: no cover
-    elif isinstance(d, dict):
-        pairs = d.items()
-    result = []
-    for k, v in pairs:
-        if isinstance(v, six.string_types):
-            try:
-                # The %f format code is only supported in Python >= 2.6.
-                # For Python <= 2.5 strip off microseconds
-                # v = datetime.datetime.strptime(v.rsplit('.', 1)[0],
-                #     '%Y-%m-%dT%H:%M:%S')
-                v = json_date_to_datetime(v)
-            except ValueError:
-                pass
-        elif isinstance(v, (dict, list)):
-            v = datetime_decoder(v)  # pragma: no cover
-        result.append((k, v))
-    if isinstance(d, list):
-        return [x[1] for x in result]  # pragma: no cover
-    elif isinstance(d, dict):
-        return dict(result)
 
 
 def _atoi(s):

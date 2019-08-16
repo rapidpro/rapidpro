@@ -1,0 +1,168 @@
+{
+  "version": "11.3",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "019d0fab-eb51-4431-9f51-ddf207d0a744",
+      "action_sets": [
+        {
+          "uuid": "92fb739f-4a99-4e29-8078-1f8fb06d127e",
+          "x": 241,
+          "y": 425,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "0382e5aa-bfda-42c8-84d3-7893aba002f8",
+              "msg": {
+                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            },
+            {
+              "type": "send",
+              "uuid": "b5860896-db39-4ebb-b842-d38edf46fb61",
+              "msg": {
+                "eng": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
+              },
+              "contacts": [
+                {
+                  "id": 277738,
+                  "name": "05fe51bf5a434b9",
+                  "uuid": "74eed75b-dd4f-4d24-9fc5-474052dbc086",
+                  "urns": [
+                    {
+                      "scheme": "tel",
+                      "path": "+2353265262",
+                      "priority": 90
+                    }
+                  ]
+                }
+              ],
+              "groups": [],
+              "variables": [],
+              "media": {}
+            },
+            {
+              "type": "email",
+              "uuid": "c9130ab6-d2b2-419c-8109-65b5afc47039",
+              "emails": [
+                "test@test.com"
+              ],
+              "subject": "Testing",
+              "msg": "@flow.response_1.text\n@flow.response_2.text\n@flow.response_3.text\n@flow.response_3\n@(CONCATENATE(flow.response_2.text, \"blerg\"))"
+            }
+          ],
+          "exit_uuid": "ea5640be-105b-4277-b04e-7ad55d2c898e"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "019d0fab-eb51-4431-9f51-ddf207d0a744",
+          "x": 226,
+          "y": 118,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "7fd3aae5-66ca-4d8d-9923-3ef4424e7658",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "fc1b062c-52c0-4c9e-87bd-1f9437d513bf",
+              "destination_type": "R",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "fc1b062c-52c0-4c9e-87bd-1f9437d513bf",
+          "x": 226,
+          "y": 232,
+          "label": "Response 2",
+          "rules": [
+            {
+              "uuid": "58a4e6f6-fe44-4ac9-bf98-edffd6dfad04",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "518b6f12-0192-4a75-8900-43a5dea02340",
+              "destination_type": "R",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "expression",
+          "response_type": "",
+          "operand": "@contact.uuid",
+          "config": {}
+        },
+        {
+          "uuid": "518b6f12-0192-4a75-8900-43a5dea02340",
+          "x": 226,
+          "y": 335,
+          "label": "Response 3",
+          "rules": [
+            {
+              "uuid": "0d1b5fd9-bfee-4df6-9837-9883787f0661",
+              "category": {
+                "eng": "Bucket 1"
+              },
+              "destination": "92fb739f-4a99-4e29-8078-1f8fb06d127e",
+              "destination_type": "A",
+              "test": {
+                "type": "between",
+                "min": "0",
+                "max": "0.5"
+              },
+              "label": null
+            },
+            {
+              "uuid": "561b7ce2-5975-4925-a76a-f4a618b11c8b",
+              "category": {
+                "eng": "Bucket 2"
+              },
+              "destination": "92fb739f-4a99-4e29-8078-1f8fb06d127e",
+              "destination_type": "A",
+              "test": {
+                "type": "between",
+                "min": "0.5",
+                "max": "1"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "random",
+          "response_type": "",
+          "operand": "@(RAND())",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "F",
+      "version": "11.3",
+      "metadata": {
+        "name": "Migrate to 11.4",
+        "saved_on": "2018-06-25T21:58:04.000768Z",
+        "revision": 123,
+        "uuid": "025f1d6e-ec87-4045-8471-0a028b9483aa",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}

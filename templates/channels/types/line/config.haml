@@ -1,0 +1,25 @@
+-load i18n
+
+    %h4
+      -blocktrans
+        To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:
+    
+    .info
+    
+      %p
+    
+        %ol.line-steps
+          %li
+            -blocktrans
+              Configure "Callback URL" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
+    
+          %li
+            -blocktrans
+              Fill the IP addresses in the "Server IP Whitelist" with the list of addresses displayed below.
+    
+    %h4
+      -trans "Callback URL"
+    
+    %code
+      https://{{ channel.callback_domain }}{% url 'courier.ln' channel.uuid %}
+    

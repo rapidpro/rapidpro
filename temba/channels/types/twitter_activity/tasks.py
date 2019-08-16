@@ -1,29 +1,27 @@
-from __future__ import print_function, unicode_literals
-
-import six
-
-from celery.task import task
 from django_redis import get_redis_connection
 from twython import Twython
 
-from temba.contacts.models import ContactURN, URN, TWITTER_SCHEME
-from temba.utils import chunk_list
 from django.conf import settings
 
+from celery.task import task
 
-@task(track_started=True, name='resolve_twitter_ids_task')
+from temba.contacts.models import TWITTER_SCHEME, URN, ContactURN
+from temba.utils import chunk_list
+
+
+@task(track_started=True, name="resolve_twitter_ids_task")
 def resolve_twitter_ids():
     r = get_redis_connection()
     # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering
-    if r.get('resolve_twitter_ids_task'):  # pragma: no cover
+    if r.get("resolve_twitter_ids_task"):  # pragma: no cover
         return
 
-    with r.lock('resolve_twitter_ids_task', 1800):
+    with r.lock("resolve_twitter_ids_task", 1800):
         # look up all 'twitter' URNs, limiting to 30k since that's the most our API would allow anyways
-        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME,
-                                                 contact__is_stopped=False,
-                                                 contact__is_blocked=False).exclude(contact=None)
-        twitter_urns = twitter_urns[:30000].only('id', 'org', 'contact', 'path')
+        twitter_urns = ContactURN.objects.filter(
+            scheme=TWITTER_SCHEME, contact__is_stopped=False, contact__is_blocked=False
+        ).exclude(contact=None)
+        twitter_urns = twitter_urns[:30000].only("id", "org", "contact", "path")
         api_key = settings.TWITTER_API_KEY
         api_secret = settings.TWITTER_API_SECRET
         client = Twython(api_key, api_secret)
@@ -44,10 +42,10 @@ def resolve_twitter_ids():
                 resp = client.lookup_user(screen_name=",".join(screen_names))
 
                 for twitter_user in resp:
-                    screen_name = twitter_user['screen_name'].lower()
-                    twitter_id = twitter_user['id']
+                    screen_name = twitter_user["screen_name"].lower()
+                    twitter_id = twitter_user["id"]
 
-                    if screen_name in screen_map and twitter_user['id']:
+                    if screen_name in screen_map and twitter_user["id"]:
                         twitterid_urn = URN.normalize(URN.from_twitterid(twitter_id, screen_name))
                         old_urn = screen_map[screen_name]
 
@@ -56,9 +54,12 @@ def resolve_twitter_ids():
 
                         # if our new URN already existed for another contact and it is newer
                         # than our old contact, reassign it to the old contact
-                        if new_urn.contact != old_urn.contact and new_urn.contact.created_on > old_urn.contact.created_on:
+                        if (
+                            new_urn.contact != old_urn.contact
+                            and new_urn.contact.created_on > old_urn.contact.created_on
+                        ):
                             new_urn.contact = old_urn.contact
-                            new_urn.save(update_fields=['contact'])
+                            new_urn.save(update_fields=["contact"])
 
                         # get rid of our old URN
                         ContactURN.objects.filter(id=old_urn.id).update(contact=None)
@@ -67,7 +68,7 @@ def resolve_twitter_ids():
 
             except Exception as e:
                 # if this wasn't an exception caused by not finding any of the users, then break
-                if six.text_type(e).find("No user matches") < 0:
+                if str(e).find("No user matches") < 0:
                     # exit, we'll try again later
                     print("exiting resolve_twitter_ids due to exception: %s" % e)
                     break

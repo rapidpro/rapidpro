@@ -1,39 +1,74 @@
-from __future__ import unicode_literals
-
 import cProfile
+import logging
 import pstats
 import traceback
+from io import StringIO
 
 from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone, translation
-from io import StringIO
+
 from temba.orgs.models import Org
-from temba.contacts.models import Contact
+from temba.policies.models import Policy
+
+logger = logging.getLogger(__name__)
 
 
-class ExceptionMiddleware(object):
+class ExceptionMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        return response
 
     def process_exception(self, request, exception):
         if settings.DEBUG:
-            traceback.print_exc(exception)
+            traceback.print_exc()
 
         return None
 
 
-class OrgHeaderMiddleware(object):
+class OrgHeaderMiddleware:
     """
     Simple middleware to add a response header with the current org id, which can then be included in logs
     """
-    def process_response(self, request, response):
-        # if we have a user, log our org id
-        if hasattr(request, 'user') and request.user.is_authenticated():
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        if hasattr(request, "user") and request.user.is_authenticated:
             org = request.user.get_org()
             if org:
-                response['X-Temba-Org'] = org.id
+                response["X-Temba-Org"] = org.id
+
         return response
 
 
-class BrandingMiddleware(object):
+class BrandingMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        """
+        Check for any branding options based on the current host
+        """
+
+        host = "localhost"
+        try:
+            host = request.get_host()
+        except Exception as e:  # pragma: needs cover
+            logger.error(f"Could not get host: {host}, {str(e)}", exc_info=True)
+
+        request.branding = BrandingMiddleware.get_branding_for_host(host)
+
+        response = self.get_response(request)
+        return response
 
     @classmethod
     def get_branding_for_host(cls, host):
@@ -41,59 +76,71 @@ class BrandingMiddleware(object):
         brand_key = host
 
         # ignore subdomains
-        if len(brand_key.split('.')) > 2:  # pragma: needs cover
-            brand_key = '.'.join(brand_key.split('.')[-2:])
+        if len(brand_key.split(".")) > 2:  # pragma: needs cover
+            brand_key = ".".join(brand_key.split(".")[-2:])
 
         # prune off the port
-        if ':' in brand_key:
-            brand_key = brand_key[0:brand_key.rindex(':')]
+        if ":" in brand_key:
+            brand_key = brand_key[0 : brand_key.rindex(":")]
 
         # override with site specific branding if we have that
         branding = settings.BRANDING.get(brand_key, None)
 
         if branding:
-            branding['brand'] = brand_key
+            branding["brand"] = brand_key
         else:
             # if that brand isn't configured, use the default
             branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
 
         return branding
 
-    def process_request(self, request):
-        """
-        Check for any branding options based on the current host
-        """
-        host = 'localhost'
-        try:
-            host = request.get_host()
-        except Exception:  # pragma: needs cover
-            traceback.print_exc()
 
-        request.branding = BrandingMiddleware.get_branding_for_host(host)
+class ConsentMiddleware:  # pragma: no cover
+
+    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel")
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user and request.user.is_authenticated:
+            for path in ConsentMiddleware.REQUIRES_CONSENT:
+                if request.path.startswith(path):
+                    if Policy.get_policies_needing_consent(request.user):
+                        return HttpResponseRedirect(reverse("policies.policy_list"))
+        response = self.get_response(request)
+        return response
 
 
-class ActivateLanguageMiddleware(object):
+class ActivateLanguageMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
 
-    def process_request(self, request):
+    def __call__(self, request):
         user = request.user
-        language = request.branding.get('language', settings.DEFAULT_LANGUAGE)
-        if user.is_anonymous() or user.is_superuser:
+        language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
+        if user.is_anonymous or user.is_superuser:
             translation.activate(language)
 
         else:
             user_settings = user.get_settings()
             translation.activate(user_settings.language)
 
+        response = self.get_response(request)
+        return response
 
-class OrgTimezoneMiddleware(object):
 
-    def process_request(self, request):
+class OrgTimezoneMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
         user = request.user
         org = None
 
-        if not user.is_anonymous():
+        if not user.is_anonymous:
 
-            org_id = request.session.get('org_id', None)
+            org_id = request.session.get("org_id", None)
             if org_id:
                 org = Org.objects.filter(is_active=True, pk=org_id).first()
 
@@ -103,8 +150,10 @@ class OrgTimezoneMiddleware(object):
 
             # otherwise, show them what orgs are available
             else:
-                user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-                user_orgs = user_orgs.distinct('pk')
+                user_orgs = (
+                    user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+                )
+                user_orgs = user_orgs.distinct("pk")
 
                 if user_orgs.count() == 1:
                     user.set_org(user_orgs[0])
@@ -116,19 +165,11 @@ class OrgTimezoneMiddleware(object):
         else:
             timezone.activate(settings.USER_TIME_ZONE)
 
-        return None
+        response = self.get_response(request)
+        return response
 
 
-class FlowSimulationMiddleware(object):
-    """
-    Resets Contact.set_simulation(False) for every request
-    """
-    def process_request(self, request):
-        Contact.set_simulation(False)
-        return None
-
-
-class ProfilerMiddleware(object):  # pragma: no cover
+class ProfilerMiddleware:  # pragma: no cover
     """
     Simple profile middleware to profile django views. To run it, add ?prof to
     the URL like this:
@@ -146,21 +187,27 @@ class ProfilerMiddleware(object):  # pragma: no cover
     This is adapted from an example found here:
     http://www.slideshare.net/zeeg/django-con-high-performance-django-presentation.
     """
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        if self.can(request):
+            self.profiler.create_stats()
+            io = StringIO()
+            stats = pstats.Stats(self.profiler, stream=io)
+            stats.strip_dirs().sort_stats(request.GET.get("sort", "time"))
+            stats.print_stats(int(request.GET.get("count", 100)))
+            response.content = "<pre>%s</pre>" % io.getvalue()
+        return response
+
     def can(self, request):
-        return settings.DEBUG and 'prof' in request.GET
+        return settings.DEBUG and "prof" in request.GET
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         if self.can(request):
             self.profiler = cProfile.Profile()
             args = (request,) + callback_args
             return self.profiler.runcall(callback, *args, **callback_kwargs)
-
-    def process_response(self, request, response):
-        if self.can(request):
-            self.profiler.create_stats()
-            io = StringIO()
-            stats = pstats.Stats(self.profiler, stream=io)
-            stats.strip_dirs().sort_stats(request.GET.get('sort', 'time'))
-            stats.print_stats(int(request.GET.get('count', 100)))
-            response.content = '<pre>%s</pre>' % io.getvalue()
-        return response

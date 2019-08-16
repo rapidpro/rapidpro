@@ -1,0 +1,168 @@
+- extends 'smartmin/list.haml'
+- load i18n policies
+
+- block content
+
+  - blocktrans with brand.name as name
+    {{name}} cares deeply about your privacy. We've designed this privacy page to help guide you through what kind of
+    data we collect and what we do with it. Please take the time to review the following policies
+    as your consent is required to continue to use {{name}}.
+
+  .policies
+
+    - if needs_consent
+      .item.needs-consent
+        .summary
+          - blocktrans with brand.name as name
+            Ahoy! We've updated our policies. Before you continue to use {{name}} you will first need to agree to
+            the updated policies below. Don't worry, you can revoke your consent at any time.
+
+    - elif consent_date
+      .item.has-consent
+        .summary
+          %a.pull-right.posterize.revoke{href:'{% url "policies.policy_give_consent" %}?consent=false'}
+            -trans "Revoke"
+          - blocktrans with brand.name as name and consent_date|date:"M d, Y" as day
+            You agreed to the these policies on {{day}}
+
+    - for policy in object_list
+      .item.policy.collapsed{data-policy:'{{policy.id}}', onclick:'javascript:toggle({{policy.id}});'}
+
+        .summary
+
+          .consent
+            -if not policy|has_consent:user
+              Needs Consent
+
+          .name
+            {{policy.get_policy_type_display}}
+          .updated
+            Updated {{policy.created_on|date:"M d, Y"}}
+
+        -if policy.summary and not policy|has_consent:user
+          .preview
+            {{ policy.get_rendered_summary }}
+            .more-link.pull-right
+              See all changes
+              %span.icon-arrow-down
+        .body
+          {{policy.get_rendered_body}}
+
+          - include "policies/addendum.haml"
+
+  -if needs_consent
+    .give-consent
+      %a.btn.btn-primary.posterize{href:'{% url "policies.policy_give_consent" %}?consent=true'}
+        -trans "I agree to the above policies"
+
+- block extra-script
+  :javascript
+    function toggle(policy) {
+      var ele = $('.policy[data-policy="' + policy + '"]');
+      if (ele.hasClass('collapsed')) {
+        ele.removeClass('collapsed')
+      } else {
+        ele.addClass('collapsed');
+      }
+    }
+
+- block extra-style
+  :css
+
+    .more-link {
+      display:none;
+      margin-top: -20px;
+      color: #999;
+    }
+
+    .collapsed .more-link {
+      display: block;
+    }
+
+    .icon-arrow-down {
+      padding-left:3px;
+      padding-top:1px;
+
+    }
+    .revoke {
+      color: #5ca869;
+    }
+
+
+    .give-consent {
+      margin-top: 30px;
+    }
+
+    .policies {
+      margin-top: 20px;
+    }
+
+    .summary {
+      padding: 10px 20px;
+    }
+
+    .body {
+      border-top: 1px solid #e6e6e6;
+      padding: 10px 20px;
+      background: #fff;
+      border-bottom-right-radius: 10px;
+      border-bottom-left-radius: 10px;
+    }
+
+    .preview {
+      border-top: 1px solid #e6e6e6;
+      padding: 10px 20px;
+      background: #fff;
+      border-radius: 0;
+      background: #f9f9f9;
+    }
+
+    .collapsed .preview {
+      border-bottom-right-radius: 10px;
+      border-bottom-left-radius: 10px;
+      background: #ffffff;
+    }
+
+    .collapsed .body {
+      display: none;
+    }
+
+    .consent {
+      color: darkorange;
+      float: right;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .item {
+      background: #f9f9f9;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      margin-top: 10px;
+      border: 1px solid #e6e6e6;
+    }
+
+    .needs-consent {
+      border-color: darkorange;
+      color: darkorange;
+      background: #fff;
+    }
+
+    .has-consent {
+      background: #fff;
+      color: #5ca869;
+      border-color: #5ca869;
+
+    }
+
+    .policy:hover {
+      background: #f3f3f3;
+      cursor: pointer;
+    }
+
+    .updated {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+

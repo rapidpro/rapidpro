@@ -1,4 +1,3 @@
-from __future__ import absolute_import, unicode_literals
 
 # -----------------------------------------------------------------------------------
 # Sample RapidPro settings file, this should allow you to deploy RapidPro locally on
@@ -10,33 +9,36 @@ from __future__ import absolute_import, unicode_literals
 #     - a redis instance listening on localhost
 # -----------------------------------------------------------------------------------
 
-import warnings
 import copy
+import warnings
 
 from .settings_common import *  # noqa
 
-DEBUG_TOOLBAR = False
+STORAGE_URL = "http://localhost:8000/media"
 
 # -----------------------------------------------------------------------------------
 # Add a custom brand for development
 # -----------------------------------------------------------------------------------
 
-custom = copy.deepcopy(BRANDING['rapidpro.io'])
-custom['name'] = 'Custom Brand'
-custom['slug'] = 'custom'
-custom['org'] = 'Custom'
-custom['api_link'] = 'http://custom-brand.io'
-custom['domain'] = 'custom-brand.io'
-custom['email'] = 'join@custom-brand.io'
-custom['support_email'] = 'support@custom-brand.io'
-custom['allow_signups'] = True
-BRANDING['custom-brand.io'] = custom
+custom = copy.deepcopy(BRANDING["rapidpro.io"])
+custom["name"] = "Custom Brand"
+custom["slug"] = "custom"
+custom["org"] = "Custom"
+custom["api_link"] = "http://custom-brand.io"
+custom["domain"] = "custom-brand.io"
+custom["email"] = "join@custom-brand.io"
+custom["support_email"] = "support@custom-brand.io"
+custom["allow_signups"] = True
+BRANDING["custom-brand.io"] = custom
 
-# -----------------------------------------------------------------------------------
-# Used when creating callbacks for Twilio, Nexmo etc..
-# -----------------------------------------------------------------------------------
-HOSTNAME = 'temba.ngrok.io'
-ALLOWED_HOSTS = ['*']
+# set our domain on our brands to our tunnel domain if set
+localhost_domain = os.environ.get("LOCALHOST_TUNNEL_DOMAIN")
+if localhost_domain is not None:
+    for b in BRANDING.values():
+        b["domain"] = localhost_domain
+
+# allow all hosts in dev
+ALLOWED_HOSTS = ["*"]
 
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
@@ -45,43 +47,44 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     }
 }
 
-INTERNAL_IPS = ('127.0.0.1',)
+INTERNAL_IPS = ("127.0.0.1",)
+
+# -----------------------------------------------------------------------------------
+# Mailroom - localhost for dev, no auth token
+# -----------------------------------------------------------------------------------
+MAILROOM_URL = os.environ.get('MAILROOM_URL', 'http://localhost:8090')
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
 # Load development apps
 # -----------------------------------------------------------------------------------
-INSTALLED_APPS = INSTALLED_APPS + ('storages',)
-if DEBUG_TOOLBAR:
-    INSTALLED_APPS = INSTALLED_APPS + ('debug_toolbar', )
+INSTALLED_APPS = INSTALLED_APPS + ("storages",)
 
 # -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
-MIDDLEWARE_CLASSES = ('temba.middleware.ExceptionMiddleware',) + MIDDLEWARE_CLASSES
-if DEBUG_TOOLBAR:
-    MIDDLEWARE_CLASSES = ('debug_toolbar.middleware.DebugToolbarMiddleware',) + MIDDLEWARE_CLASSES
+MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
 
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)
 # -----------------------------------------------------------------------------------
 CELERY_ALWAYS_EAGER = True
 CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
-BROKER_BACKEND = 'memory'
+BROKER_BACKEND = "memory"
 
 # -----------------------------------------------------------------------------------
 # This setting throws an exception if a naive datetime is used anywhere. (they should
 # always contain a timezone)
 # -----------------------------------------------------------------------------------
-warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
-                        RuntimeWarning, r'django\.db\.models\.fields')
+warnings.filterwarnings(
+    "error", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+)
 
 # -----------------------------------------------------------------------------------
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
-STATIC_URL = '/sitestatic/'
+STATIC_URL = "/sitestatic/"

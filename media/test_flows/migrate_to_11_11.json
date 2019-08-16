@@ -1,0 +1,107 @@
+{
+  "version": "11.10",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "entry": "22505d46-43c5-42ba-975e-725c01ea440f",
+      "action_sets": [
+        {
+          "uuid": "22505d46-43c5-42ba-975e-725c01ea440f",
+          "x": 100,
+          "y": 0,
+          "destination": "f3a1a671-5f5b-489e-9410-9a09fa5eaafb",
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "27dfd8ac-55c5-49c9-88e3-3fb84a9894ff",
+              "msg": {
+                "eng": "Hey"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "6e2b09ec-3cc0-4ee6-ae7b-b76bad3ab6d3"
+        },
+        {
+          "uuid": "f3a1a671-5f5b-489e-9410-9a09fa5eaafb",
+          "x": 95,
+          "y": 101,
+          "destination": "78c20ee4-94bd-45e6-8510-8e602568fb6e",
+          "actions": [
+            {
+              "type": "add_label",
+              "uuid": "bc82c11d-7654-44e4-966c-fb39e2851df0",
+              "labels": [
+                {
+                  "uuid": "0bfecd01-9612-48ab-8c49-72170de6ee49",
+                  "name": "Hello"
+                }
+              ]
+            }
+          ],
+          "exit_uuid": "84bf44a1-13fd-44cb-8014-d6feb06e010f"
+        },
+        {
+          "uuid": "7ca2b0ef-0b23-4c6e-bccb-c5f2d62d2663",
+          "x": 146,
+          "y": 358,
+          "destination": null,
+          "actions": [
+            {
+              "type": "add_label",
+              "uuid": "910bf3b5-951f-47a8-93df-11a6eac8bf0f",
+              "labels": [
+                {
+                  "uuid": "0bfecd01-9612-48ab-8c49-72170de6ee49",
+                  "name": "Hello"
+                }
+              ]
+            }
+          ],
+          "exit_uuid": "6d579c28-9f3f-4584-bd2e-74009612fdbb"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "78c20ee4-94bd-45e6-8510-8e602568fb6e",
+          "x": 85,
+          "y": 219,
+          "label": "Response 1",
+          "rules": [
+            {
+              "uuid": "33438bbf-49bd-4468-9a74-bbd7e1f58f57",
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "7ca2b0ef-0b23-4c6e-bccb-c5f2d62d2663",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "eng",
+      "flow_type": "M",
+      "version": "11.10",
+      "metadata": {
+        "name": "Add Label",
+        "saved_on": "2019-02-12T09:23:05.746930Z",
+        "revision": 7,
+        "uuid": "e9b5b8ba-43f4-4bc2-a790-811ee1cfe392",
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": []
+}
