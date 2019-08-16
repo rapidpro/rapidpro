@@ -150,7 +150,7 @@ class BoundaryCRUDL(SmartCRUDL):
                     children_json.append(child_json)
 
                 item["children"] = children_json
-                item["has_children"] = len(children_json)
+                item["has_children"] = len(children_json) > 0
                 path.append(item)
                 boundary = boundary.parent
 
