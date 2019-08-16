@@ -1,0 +1,179 @@
+import environ
+import sentry_sdk
+from django.utils.translation import ugettext_lazy as _  # noqa
+from sentry_sdk.integrations.django import DjangoIntegration
+from .settings_common import *  # noqa
+
+env = environ.Env()
+
+# GENERAL
+# ------------------------------------------------------------------------------
+DEBUG = env.bool("DEBUG", default=False)
+IS_PROD = env.bool("IS_PROD", default=True)
+IP_ADDRESSES = env.tuple("IP_ADDRESSES", default=("localhost",))
+SECRET_KEY = env("SECRET_KEY")
+USER_TIME_ZONE = env("USER_TIME_ZONE", default="America/Sao_Paulo")
+ALLOWED_HOSTS = env("ALLOWED_HOSTS", default=["*"])
+TEMPLATE_DEBUG = DEBUG
+
+SEND_MESSAGES = env.bool("SEND_MESSAGES", default=True)
+SEND_WEBHOOKS = env.bool("SEND_WEBHOOKS", default=True)
+SEND_EMAILS = env.bool("SEND_EMAILS", default=True)
+SEND_AIRTIME = env.bool("SEND_AIRTIME", default=True)
+SEND_CALLS = env.bool("SEND_CALLS", default=True)
+SEND_CHATBASE = env.bool("SEND_CHATBASE", default=True)
+
+# BRANDING = env.dict("BRANDING")  #  TODO
+BRANDING = {
+    "rapidpro.ilhasoft.dev": {
+        "slug": "rapidpro",
+        "name": "RapidPro",
+        "org": "UNICEF",
+        "colors": dict(primary="#0c6596"),
+        "styles": ["brands/rapidpro/font/style.css", "brands/rapidpro/less/style.less"],
+        "welcome_topup": 1000,
+        "email": "join@rapidpro.io",
+        "support_email": "support@rapidpro.io",
+        "link": "https://rapidpro.ilhasoft.dev",
+        "api_link": "https://rapidpro.ilhasoft.dev",
+        "docs_link": "http://knowledge.rapidpro.io",
+        "domain": "rapidpro.ilhasoft.dev",
+        "favico": "brands/rapidpro/rapidpro.ico",
+        "splash": "/brands/rapidpro/splash.jpg",
+        "logo": "/brands/rapidpro/logo.png",
+        "allow_signups": True,
+        "tiers": dict(multi_user=0, multi_org=0),
+        "bundles": [],
+        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
+        "credits": _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved."),
+    }
+}
+DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.ilhasoft.dev")
+HOSTNAME = DEFAULT_BRAND
+
+# EMAIL
+# ------------------------------------------------------------------------------
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+FLOW_FROM_EMAIL = DEFAULT_FROM_EMAIL
+
+# COMPRESS
+# ------------------------------------------------------------------------------
+COMPRESS_ENABLED = env.bool("COMPRESS_ENABLED", default=True)
+COMPRESS_OFFLINE = env.bool("COMPRESS_OFFLINE", default=True)
+COMPRESS_CSS_FILTERS = ["compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"]
+COMPRESS_JS_FILTERS = ["compressor.filters.jsmin.JSMinFilter"]
+COMPRESS_CSS_HASHING_METHOD = "content"
+COMPRESS_OFFLINE_CONTEXT = dict(
+    STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING.get(DEFAULT_BRAND), debug=False, testing=False
+)
+
+# REDIS
+# ------------------------------------------------------------------------------
+REDIS_HOST = env("REDIS_HOST")
+REDIS_PORT = env("REDIS_PORT", default=6379)
+REDIS_DB = env("REDIS_DB", default=10)
+REDIS_URL = "redis://{}:{}/{}".format(REDIS_HOST, REDIS_PORT, REDIS_DB)
+
+# DATABASE
+# ------------------------------------------------------------------------------
+DATABASES = {}
+DATABASES["default"] = env.db("DATABASE_URL")
+DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+
+if env.bool("DATABASE_USE_SSL", default=True):
+    DATABASES["default"]["OPTIONS"]["sslmode"] = "verify-ca"
+    DATABASES["default"]["OPTIONS"]["sslrootcert"] = "/etc/ssl/certs/rds.pem"
+
+# BROKER
+# ------------------------------------------------------------------------------
+BROKER_URL = REDIS_URL
+BROKER_BACKEND = env("BROKER_BACKEND", default="redis")
+
+# CACHES
+# ------------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+    }
+}
+
+# AWS BUCKET AND MEDIA STORAGE
+# ------------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+AWS_QUERYSTRING_AUTH = env.bool("AWS_QUERYSTRING_AUTH", default=False)
+AWS_BUCKET_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+STORAGE_URL = f"https://{AWS_BUCKET_DOMAIN}"
+
+DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE", default="storages.backends.s3boto3.S3Boto3Storage")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# CELERY
+# ------------------------------------------------------------------------------
+CELERY_TIMEZONE = env("CELERY_TIMEZONE", default="UTC")
+
+# SEGMENT
+# ------------------------------------------------------------------------------
+SEGMENT_IO_KEY = env("SEGMENT_IO_KEY", default="")
+
+# TWITTER
+# ------------------------------------------------------------------------------
+TWITTER_API_KEY = env("TWITTER_API_KEY", default="")
+TWITTER_API_SECRET = env("TWITTER_API_SECRET", default="")
+
+# MAILROOM
+# ------------------------------------------------------------------------------
+MAILROOM_URL = env("MAILROOM_URL")
+MAILROOM_AUTH_TOKEN = env("MAILROOM_AUTH_TOKEN")
+
+# ELASTIC SEARCH
+# ------------------------------------------------------------------------------
+ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
+
+# APPS
+# ------------------------------------------------------------------------------
+INSTALLED_APPS += ("gunicorn", "storages")
+
+# SENTRY
+# ------------------------------------------------------------------------------
+sentry_sdk.init(dsn=env("SENTRY_DSN", default=""), integrations=[DjangoIntegration()])
+
+# LOGGING
+# ------------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "root": {"level": "WARNING", "handlers": ["console"]},
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s"
+        }
+    },
+    "handlers": {
+        "gunicorn": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "verbose",
+            "filename": "./gunicorn.error.log",
+            "maxBytes": 1024 * 1024 * 100,
+        },
+        "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
+        "null": {"class": "logging.NullHandler"},
+    },
+    "loggers": {
+        "gunicorn.errors": {"level": "DEBUG", "handlers": ["gunicorn"], "propagate": True},
+        "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
+        "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+    },
+}

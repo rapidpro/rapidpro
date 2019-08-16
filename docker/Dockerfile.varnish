@@ -1,0 +1,7 @@
+FROM varnish:6.0
+
+ARG BACKEND_ADDRESS
+
+COPY varnish.vcl /etc/varnish/default.vcl
+
+RUN sed -i "s/BACKEND_ADDRESS/${BACKEND_ADDRESS}/g" /etc/varnish/default.vcl
