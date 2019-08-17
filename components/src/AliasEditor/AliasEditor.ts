@@ -335,7 +335,7 @@ export default class AliasEditor extends LitElement {
         <div class="search">
           <rp-choice 
             placeholder="Search" 
-            endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}?q="
+            endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
             @rp-choice-selected=${this.handleSearchSelection.bind(this)}
             .renderOptionDetail=${this.renderOptionDetail}
           ></rp-choice>

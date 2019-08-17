@@ -2,6 +2,8 @@ import { LitElement, customElement, TemplateResult, html, css, property } from '
 import { getUrl } from '../utils';
 import axios, { AxiosResponse, CancelTokenSource } from 'axios';
 
+const LOOK_AHEAD = 20;
+
 @customElement("rp-choice")
 export default class Choice extends LitElement {
 
@@ -126,8 +128,14 @@ export default class Choice extends LitElement {
   @property({type: Number})
   optionsHeight: number;
 
+  @property({type: Boolean})
+  fetching: boolean;
+
   private lastQuery: number;
   private cancelToken: CancelTokenSource;
+  private complete: boolean;
+  private page: number;
+  private query: string;
 
   public constructor() {
     super();
@@ -190,6 +198,13 @@ export default class Choice extends LitElement {
           scrollBox.scrollTo({ top: scrollTo });
         }
       }
+
+      if (this.options.length > 0 && 
+          this.query && 
+          !this.complete && 
+          this.cursorIndex > this.options.length - LOOK_AHEAD) {
+        this.fetchOptions(this.query, this.page + 1);
+      }
     }
   }
 
@@ -226,24 +241,43 @@ export default class Choice extends LitElement {
   private handleKeyUp(evt: KeyboardEvent) {
     const ele = evt.currentTarget as HTMLInputElement;
     this.input = ele.value.trim();
+
+    if(evt.key === "Escape") {
+      this.options = [];
+    }
   }
 
-  public fetchOptions(query: string) {
+  public fetchOptions(query: string, page: number = 0) {
     
-    // make sure we cancel any previous request
-    if (this.cancelToken) {
-      this.cancelToken.cancel();
+    if (!this.fetching) {
+      // make sure we cancel any previous request
+      if (this.cancelToken) {
+        this.cancelToken.cancel();
+      }
+
+      const CancelToken = axios.CancelToken;
+      this.cancelToken = CancelToken.source();
+
+      this.fetching = true;
+      getUrl(this.endpoint + encodeURIComponent(query) + "&page=" + page, this.cancelToken.token).then((response: AxiosResponse) => {
+        if (page === 0) {
+          this.options = response.data.filter((option: any) => option.level > 0);
+          this.cursorIndex = 0;
+          this.query = query;
+          this.complete = this.options.length === 0;
+        } else {
+          const newResults = response.data.filter((option: any) => option.level > 0);
+          if (newResults.length > 0) {
+            this.options = [ ...this.options, ...newResults];
+          }
+          this.complete = newResults.length === 0
+        }
+        this.fetching = false;
+        this.page = page;
+      }).catch((reason: any)=>{
+        // cancelled
+      });
     }
-
-    const CancelToken = axios.CancelToken;
-    this.cancelToken = CancelToken.source();
-
-    getUrl(this.endpoint + encodeURIComponent(query), this.cancelToken.token).then((response: AxiosResponse) => {
-      this.options = response.data.filter((option: any) => option.level > 0);
-      this.cursorIndex = 0;
-    }).catch((reason: any)=>{
-      // cancelled
-    });
   }
 
   private handleBlur() {

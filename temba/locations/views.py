@@ -115,9 +115,12 @@ class BoundaryCRUDL(SmartCRUDL):
             org = request.user.get_org()
             boundary = self.get_object()
 
+            page_size = 25
+
             # searches just return a list of all matches
             query = request.GET.get("q", None)
             if query:
+                page = int(request.GET.get("page", 0))
                 matches = set(
                     AdminBoundary.objects.filter(
                         path__startswith=f"{boundary.name} {AdminBoundary.PATH_SEPARATOR}"
@@ -127,7 +130,10 @@ class BoundaryCRUDL(SmartCRUDL):
                 for alias in aliases:
                     matches.add(alias.boundary)
 
-                matches = sorted(matches, key=lambda match: match.name)
+                start = page * page_size
+                end = start + page_size
+
+                matches = sorted(matches, key=lambda match: match.name)[start:end]
                 response = [match.as_json() for match in matches]
                 return JsonResponse(response, safe=False)
 
