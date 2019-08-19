@@ -35,7 +35,7 @@ class TelegramType(ChannelType):
     attachment_support = True
     free_sending = True
 
-    mask_response_body_keys = {"first_name", "last_name", "username"}
+    redact_response_keys = {"first_name", "last_name", "username"}
 
     def activate(self, channel):
         config = channel.config

@@ -17,11 +17,11 @@
         {{ log.response_status }}
     %span.url
       %span.method= log.method
-        {% anonymize_channellog_url log %}
+        {% channellog_url log %}
   .details.hide
     %pre.prettyprint.request<
       :plain
-        {% anonymize_channellog_request log %}
+        {% channellog_request log %}
     %pre.prettyprint.response<
       :plain
-        {% anonymize_channellog_response log %}
+        {% channellog_response log %}

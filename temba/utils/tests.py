@@ -35,7 +35,16 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
 from temba.utils.json import TembaJsonAdapter
 
-from . import chunk_list, dict_to_struct, format_number, get_country_code_by_name, percentage, sizeof_fmt, str_to_bool
+from . import (
+    chunk_list,
+    dict_to_struct,
+    format_number,
+    get_country_code_by_name,
+    percentage,
+    redact,
+    sizeof_fmt,
+    str_to_bool,
+)
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .currencies import currency_for_country
@@ -62,7 +71,6 @@ from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import JSONAsTextField, patch_queryset_count
-from .redaction import redact
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -1928,31 +1936,43 @@ class AnalyticsTest(TestCase):
 
 
 class RedactionTest(TestCase):
-    def test_does_not_match(self):
-        self.assertEqual(redact("this is <+private>", "<public>", "********"), ("this is <+private>", False))
-        self.assertEqual(redact("this is 0123456789", "9876543210", "********"), ("this is 0123456789", False))
+    def test_text(self):
+        # no match returns original and false
+        self.assertEqual(redact.text("this is <+private>", "<public>", "********"), ("this is <+private>", False))
+        self.assertEqual(redact.text("this is 0123456789", "9876543210", "********"), ("this is 0123456789", False))
 
-    def test_matches_an_encoding(self):
         # text contains un-encoded raw value to be redacted
-        self.assertEqual(redact("this is <+private>", "<+private>", "********"), ("this is ********", True))
+        self.assertEqual(redact.text("this is <+private>", "<+private>", "********"), ("this is ********", True))
 
         # text contains URL encoded version of the value to be redacted
-        self.assertEqual(redact("this is %2Bprivate", "+private", "********"), ("this is ********", True))
+        self.assertEqual(redact.text("this is %2Bprivate", "+private", "********"), ("this is ********", True))
 
         # text contains JSON encoded version of the value to be redacted
-        self.assertEqual(redact('this is "+private"', "+private", "********"), ("this is ********", True))
+        self.assertEqual(redact.text('this is "+private"', "+private", "********"), ("this is ********", True))
 
         # text contains XML encoded version of the value to be redacted
-        self.assertEqual(redact("this is &lt;+private&gt;", "<+private>", "********"), ("this is ********", True))
+        self.assertEqual(redact.text("this is &lt;+private&gt;", "<+private>", "********"), ("this is ********", True))
 
-    def test_match_reverse(self):
-        self.assertEqual(redact("this is 123456789", "+123456789", "********"), ("this is ********", True))
+        # test matching the value partially
+        self.assertEqual(redact.text("this is 123456789", "+123456789", "********"), ("this is ********", True))
 
-        self.assertEqual(redact("this is +123456789", "123456789", "********"), ("this is ********", True))
-        self.assertEqual(redact("this is 123456789", "0123456789", "********"), ("this is ********", True))
+        self.assertEqual(redact.text("this is +123456789", "123456789", "********"), ("this is ********", True))
+        self.assertEqual(redact.text("this is 123456789", "0123456789", "********"), ("this is ********", True))
 
         # '3456789' matches the input string
-        self.assertEqual(redact("this is 03456789", "+123456789", "********"), ("this is 0********", True))
+        self.assertEqual(redact.text("this is 03456789", "+123456789", "********"), ("this is 0********", True))
 
         # only 1/3 of the test matches the input string '6789'
-        self.assertEqual(redact("this is 123456789", "543216789", "********"), ("this is 12345********", True))
+        self.assertEqual(redact.text("this is 123456789", "543216789", "********"), ("this is 12345********", True))
+
+    def test_http_trace(self):
+        # not an HTTP trace
+        self.assertEqual(redact.http_trace("hello", "12345", ("number",), "********"), ("hello", False))
+
+        trace = 'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 314\r\n\r\n{"number": "+2352365222", "text": "hello 12345!"}'
+        redacted, changed = redact.http_trace(trace, "12345", ("number",), "********")
+        self.assertTrue(changed)
+        self.assertEqual(
+            redacted,
+            'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 314\r\n\r\n{"number": "********", "text": "hello ********!"}',
+        )

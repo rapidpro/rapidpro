@@ -28,11 +28,10 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import get_anonymous_user, json, on_transaction_commit
+from temba.utils import get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
-from temba.utils.redaction import redact, redact_http_trace
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
@@ -97,8 +96,8 @@ class ChannelType(metaclass=ABCMeta):
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
-    mask_request_body_keys = set()
-    mask_response_body_keys = set()
+    redact_request_keys = set()
+    redact_response_keys = set()
 
     def is_available_to(self, user):
         """
@@ -229,78 +228,6 @@ class ChannelType(metaclass=ABCMeta):
 
         else:
             return ""
-
-    def anonymize_channellog_url(self, channellog):
-        from temba.contacts.models import ContactURN
-
-        # if nothing is matched, redact the whole thing
-        redacted = ContactURN.ANON_MASK
-
-        if channellog.msg_id:
-            redacted, changed = redact(channellog.url, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
-
-            if not changed:
-                return ContactURN.ANON_MASK
-
-        return redacted
-
-    def anonymize_channellog_request(self, channellog):
-        from temba.contacts.models import ContactURN
-
-        # if nothing is matched, redact the whole thing
-        redacted = ContactURN.ANON_MASK
-
-        if channellog.msg_id:
-            formatted_request = channellog.request
-
-            if self.mask_request_body_keys:
-                masked_http_request = redact_http_trace(
-                    formatted_request, self.mask_request_body_keys, ContactURN.ANON_MASK
-                )
-
-                if masked_http_request:
-                    redacted, changed = redact(
-                        masked_http_request, channellog.msg.contact_urn.path, ContactURN.ANON_MASK
-                    )
-
-                    if not changed:
-                        return ContactURN.ANON_MASK
-            else:
-                redacted, changed = redact(formatted_request, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
-
-                if not changed:
-                    return ContactURN.ANON_MASK
-
-        return redacted
-
-    def anonymize_channellog_response(self, channellog):
-        from temba.contacts.models import ContactURN
-
-        # if nothing is matched, redact the whole thing
-        redacted = ContactURN.ANON_MASK
-
-        if channellog.msg_id:
-            formatted_response = channellog.response
-
-            if self.mask_response_body_keys:
-                masked_http_response = redact_http_trace(
-                    formatted_response, self.mask_response_body_keys, ContactURN.ANON_MASK
-                )
-
-                if masked_http_response:
-                    redacted, changed = redact(
-                        masked_http_response, channellog.msg.contact_urn.path, ContactURN.ANON_MASK
-                    )
-
-                    if not changed:
-                        return ContactURN.ANON_MASK
-            else:
-                redacted, changed = redact(formatted_response, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
-
-                if not changed:
-                    return ContactURN.ANON_MASK
-
-        return redacted
 
     def __str__(self):
         return self.name
@@ -1475,9 +1402,6 @@ class ChannelLog(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log message was logged"))
     request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
 
-    def release(self):
-        self.delete()
-
     @classmethod
     def log_error(cls, msg, description):
         print("[%d] ERROR - %s" % (msg.id, description))
@@ -1507,6 +1431,78 @@ class ChannelLog(models.Model):
             return ChannelLog.objects.filter(msg=self.msg).order_by("-created_on")
 
         return ChannelLog.objects.filter(id=self.id)
+
+    def get_url(self, user):
+        from temba.contacts.models import ContactURN
+
+        if not self._redact_for(user):
+            return self.url
+
+        if not self.msg_id:
+            return ContactURN.ANON_MASK
+
+        redacted, changed = redact.text(self.url, self.msg.contact_urn.path, ContactURN.ANON_MASK)
+        if changed:
+            return redacted
+
+        # if nothing is changed, redact the whole thing
+        return ContactURN.ANON_MASK
+
+    def get_request(self, user):
+        from temba.contacts.models import ContactURN
+
+        if not self._redact_for(user):
+            return self.request
+
+        if not self.msg_id:
+            return ContactURN.ANON_MASK
+
+        needle = self.msg.contact_urn.path
+        channel_type = Channel.get_type_from_code(self.channel.channel_type)
+        redact_keys = channel_type.redact_request_keys
+
+        if redact_keys:
+            redacted, changed = redact.http_trace(self.request, needle, redact_keys, ContactURN.ANON_MASK)
+            if changed:
+                return redacted
+        else:
+            redacted, changed = redact.text(self.request, needle, ContactURN.ANON_MASK)
+            if changed:
+                return redacted
+
+        # if nothing is changed, redact the whole thing
+        return ContactURN.ANON_MASK
+
+    def get_response(self, user):
+        from temba.contacts.models import ContactURN
+
+        if not self._redact_for(user):
+            return self.response
+
+        if not self.msg_id:
+            return ContactURN.ANON_MASK
+
+        needle = self.msg.contact_urn.path
+        channel_type = Channel.get_type_from_code(self.channel.channel_type)
+        redact_keys = channel_type.redact_response_keys
+
+        if redact_keys:
+            redacted, changed = redact.http_trace(self.response, needle, redact_keys, ContactURN.ANON_MASK)
+            if changed:
+                return redacted
+        else:
+            redacted, changed = redact.text(self.response, needle, ContactURN.ANON_MASK)
+            if changed:
+                return redacted
+
+        # if nothing is changed, redact the whole thing
+        return ContactURN.ANON_MASK
+
+    def _redact_for(self, user):
+        return self.channel.org.is_anon and not user.has_org_perm(self.channel.org, "contacts.contact_break_anon")
+
+    def release(self):
+        self.delete()
 
 
 class SyncEvent(SmartModel):

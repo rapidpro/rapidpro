@@ -9,36 +9,18 @@ def channel_icon(channel):
 
 
 @register.simple_tag(takes_context=True)
-def anonymize_channellog_url(context, log, *args, **kwargs):
-    channel_type = log.channel.get_type_from_code(log.channel.channel_type)
-    user = context["user"]
-
-    if log.channel.org.is_anon and not user.has_org_perm(user.get_org(), "contacts.contact_break_anon"):
-        return channel_type.anonymize_channellog_url(log)
-
-    return log.url
+def channellog_url(context, log, *args, **kwargs):
+    return log.get_url(context["user"])
 
 
 @register.simple_tag(takes_context=True)
-def anonymize_channellog_request(context, log, *args, **kwargs):
-    channel_type = log.channel.get_type_from_code(log.channel.channel_type)
-    user = context["user"]
-
-    if log.channel.org.is_anon and not user.has_org_perm(user.get_org(), "contacts.contact_break_anon"):
-        return channel_type.anonymize_channellog_request(log)
-
-    return log.request
+def channellog_request(context, log, *args, **kwargs):
+    return log.get_request(context["user"])
 
 
 @register.simple_tag(takes_context=True)
-def anonymize_channellog_response(context, log, *args, **kwargs):
-    channel_type = log.channel.get_type_from_code(log.channel.channel_type)
-    user = context["user"]
-
-    if log.channel.org.is_anon and not user.has_org_perm(user.get_org(), "contacts.contact_break_anon"):
-        return channel_type.anonymize_channellog_response(log)
-
+def channellog_response(context, log, *args, **kwargs):
     if not log.response:
         return log.description
-    else:
-        return log.response
+
+    return log.get_response(context["user"])
