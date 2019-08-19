@@ -2544,7 +2544,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
     # current status of this run
-    status = models.CharField(null=True, max_length=1)
+    status = models.CharField(max_length=1)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
@@ -2646,6 +2646,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             parent=parent,
             parent_context=parent_context,
             responded=responded,
+            status=FlowRun.STATUS_ACTIVE,
         )
 
         if created_on:

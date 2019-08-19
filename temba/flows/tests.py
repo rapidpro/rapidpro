@@ -10927,7 +10927,13 @@ class PopulateRunStatusMigrationTest(MigrationTest):
 
         def create_run(exit_type, is_active, session=None):
             FlowRun.objects.create(
-                org=self.org, contact=contact, flow=flow1, exit_type=exit_type, is_active=is_active, session=session
+                org=self.org,
+                contact=contact,
+                flow=flow1,
+                exit_type=exit_type,
+                is_active=is_active,
+                session=session,
+                status=None,
             )
 
         create_run(exit_type="I", is_active=False, session=failed)
