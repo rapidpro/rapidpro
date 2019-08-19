@@ -1,3 +1,7 @@
+v5.1.23
+----------
+ * Really fix copying of flows with nameless has_group tests and add a test this time
+
 v5.1.22
 ----------
  * Remove trigger firing functionality (except schedule triggers) and drop unused fields on trigger
