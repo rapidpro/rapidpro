@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 13:38+0000\n"
+"POT-Creation-Date: 2019-08-19 19:55+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3410,83 +3410,6 @@ msgid "User delete"
 msgstr "Função do Usuário"
 
 #, fuzzy
-#| msgid "The call that handled this flow run, only for voice flows"
-msgid "The session that handled this flow run, only for voice flows"
-msgstr "A chamada que controlou a execução deste fluxo, apenas para os fluxos de voz"
-
-msgid "Whether this flow run is currently active"
-msgstr "Se a execução desse fluxo está ativa agora"
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr "Uma representação JSON de quaisquer valores do fluxo customizado que o usuário salvou em outro local"
-
-msgid "When this flow run was created"
-msgstr "Quando a execução deste fluxo foi criada"
-
-#, fuzzy
-#| msgid "When this flow run was created"
-msgid "When this flow run was last updated"
-msgstr "Quando a execução deste fluxo foi criada"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "When the contact exited this flow run"
-msgstr "%s saiu desse fluxo"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "Why the contact exited this flow run"
-msgstr "%s saiu desse fluxo"
-
-msgid "When this flow run will expire"
-msgstr "Quando o prazo de execução deste fluxo vai expirar"
-
-#, fuzzy
-#| msgid "When this flow run will expire"
-msgid "When this flow will next time out (if any)"
-msgstr "Quando o prazo de execução deste fluxo vai expirar"
-
-#, fuzzy
-msgid "The FlowStart objects that started this run"
-msgstr "Nenhum contato iniciou este fluxo"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "The parent run that triggered us"
-msgstr "O tipo desse disparo"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "Context of the parent run that triggered us"
-msgstr "O tipo desse disparo"
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-#, fuzzy
-msgid "Fields"
-msgstr "Gerenciar campos"
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "When the user left this step in the flow"
-msgid "The current node location of this run in the flow"
-msgstr "Quando o usuário saiu neste passo no fluxo"
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "Why the run is being deleted"
-msgstr "A mensagem que está sendo entregue"
-
-#, fuzzy
 msgid "The label for this field"
 msgstr "O nome para esse fluxo"
 
@@ -3583,58 +3506,6 @@ msgstr "Os fluxos para exportar"
 msgid "Any configuration options for this flow export"
 msgstr "JSON codificou configurações para este relatório"
 
-#, fuzzy
-#| msgid "Infobip"
-msgid "Info"
-msgstr "Infobip"
-
-msgid "Warning"
-msgstr ""
-
-#, fuzzy
-msgid "Error"
-msgstr "Contagem de erros"
-
-msgid "Log event text"
-msgstr ""
-
-msgid "Log event level"
-msgstr ""
-
-#, fuzzy
-#| msgid "When this flow run expired"
-msgid "When this log event occurred"
-msgstr "Quando o prazo de execução deste fluxo expirou"
-
-msgid "The flow that is being started"
-msgstr "O fluxo que está sendo iniciado"
-
-msgid "Groups that will start the flow"
-msgstr "Grupos que irão iniciar o fluxo"
-
-msgid "Contacts that will start the flow"
-msgstr "Contatos que irão iniciar o fluxo"
-
-msgid "Whether to restart any participants already in this flow"
-msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
-
-msgid "Include contacts currently active in flows"
-msgstr ""
-
-#, fuzzy
-msgid "The campaign event which created this flow start"
-msgstr "iniciou este fluxo"
-
-#, fuzzy
-msgid "How many unique contacts were started down the flow"
-msgstr "Nenhum contato iniciou este fluxo"
-
-msgid "The status of this flow start"
-msgstr "O estado do início deste fluxo"
-
-msgid "Any extra parameters to pass to the flow start (json)"
-msgstr ""
-
 msgid "Unique Identifier"
 msgstr ""
 
@@ -3648,13 +3519,6 @@ msgstr "O nome deste rótulo"
 
 msgid "Parent"
 msgstr "Pais"
-
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-#, fuzzy
-msgid "Played contact recording"
-msgstr "Mensagem gravada executada para \"%s\""
 
 msgid "After 5 minutes"
 msgstr ""
@@ -3756,10 +3620,7 @@ msgstr ""
 msgid "Choose the method for your flow"
 msgstr ""
 
-msgid "New Editor (Beta)"
-msgstr ""
-
-msgid "Use new editor when authoring this flow"
+msgid "If you are unsure, use the new editor"
 msgstr ""
 
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
@@ -4011,16 +3872,6 @@ msgstr ""
 #, fuzzy
 msgid "Name already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
-msgstr ""
 
 msgid "After 1 minute"
 msgstr ""
@@ -5227,9 +5078,6 @@ msgstr "Último SMS visualizado"
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr "A organização a qual este disparador pertence"
-
 msgid "Keyword"
 msgstr "Palavra-chave"
 
@@ -5252,24 +5100,6 @@ msgstr "Fluxo"
 msgid "Which flow will be started"
 msgstr "Qual fluxo será iniciado"
 
-msgid "Last Triggered"
-msgstr "Último disparo"
-
-msgid "The last time this trigger was fired"
-msgstr "A última vez que este disparador foi acionado"
-
-msgid "Trigger Count"
-msgstr "Contagem de disparos"
-
-msgid "How many times this trigger has fired"
-msgstr "Quantas vezes o disparo foi acionado"
-
-msgid "Is Archived"
-msgstr "Arquivado"
-
-msgid "Whether this trigger is archived"
-msgstr "Se esse disparo foi arquivado"
-
 msgid "The groups to broadcast the flow to"
 msgstr "Os grupos para os quais distribuir o fluxo"
 
@@ -5278,12 +5108,6 @@ msgstr "Contatos individuais para os quais distribuir o fluxo"
 
 msgid "Our recurring schedule"
 msgstr "Nosso agendamento recorrente"
-
-msgid "Trigger Type"
-msgstr "Tipo de disparo"
-
-msgid "The type of this trigger"
-msgstr "O tipo desse disparo"
 
 #, fuzzy
 #| msgid "Trigger Type"
@@ -6232,6 +6056,10 @@ msgstr "Mensagem"
 #, fuzzy
 msgid "Message Log"
 msgstr "Mensagem"
+
+#, fuzzy
+msgid "Error"
+msgstr "Contagem de erros"
 
 msgid "Change Alert Settings"
 msgstr "Alterar configurações de alerta"
@@ -8909,16 +8737,17 @@ msgid ""
 "\n"
 "\n"
 "Hi %(customer)s,\n"
+"\n"
 msgstr "Junte-se a %(name)s"
 
-#, python-format
 msgid ""
 "\n"
-"\n"
-"Your %(brand)s account for %(org)s is out of credit. You will no longer be able to send messages and users will no longer be able to interact in flows.\n"
-"\n"
 "To resume your service please visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"To resume your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -8927,8 +8756,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s has expiring credits in less than one month.\n"
 "\n"
-"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits expire, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -8937,8 +8774,16 @@ msgid ""
 "\n"
 "Your %(brand)s account for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 "\n"
-"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
 "\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your account page to purchase a top up.\n"
+msgstr ""
+
+msgid ""
+"\n"
+"Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service, please contact your account manager.\n"
 msgstr ""
 
 #, python-format
@@ -9399,74 +9244,6 @@ msgid ""
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
 "        "
 msgstr ""
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
-#| "        Infobip website under your account.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
-"        Nexmo website under your account settings page.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
-
-msgid "API Key:"
-msgstr "Chave da API:"
-
-msgid "API Secret:"
-msgstr "Segredo da API:"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
-"<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-#| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
-"        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
-"<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
-
-msgid "Once the settings are succefully updated on Nexmo"
-msgstr ""
-
-#, fuzzy
-msgid "Add a Nexmo Channel"
-msgstr "Transmissor"
 
 msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
 msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chave da API e segredo Nexmo."
@@ -11070,6 +10847,200 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+#~| msgid "The call that handled this flow run, only for voice flows"
+#~ msgid "The session that handled this flow run, only for voice flows"
+#~ msgstr "A chamada que controlou a execução deste fluxo, apenas para os fluxos de voz"
+
+#~ msgid "Whether this flow run is currently active"
+#~ msgstr "Se a execução desse fluxo está ativa agora"
+
+#~ msgid "A JSON representation of any custom flow values the user has saved away"
+#~ msgstr "Uma representação JSON de quaisquer valores do fluxo customizado que o usuário salvou em outro local"
+
+#~ msgid "When this flow run was created"
+#~ msgstr "Quando a execução deste fluxo foi criada"
+
+#, fuzzy
+#~| msgid "When this flow run was created"
+#~ msgid "When this flow run was last updated"
+#~ msgstr "Quando a execução deste fluxo foi criada"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "When the contact exited this flow run"
+#~ msgstr "%s saiu desse fluxo"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "Why the contact exited this flow run"
+#~ msgstr "%s saiu desse fluxo"
+
+#~ msgid "When this flow run will expire"
+#~ msgstr "Quando o prazo de execução deste fluxo vai expirar"
+
+#, fuzzy
+#~| msgid "When this flow run will expire"
+#~ msgid "When this flow will next time out (if any)"
+#~ msgstr "Quando o prazo de execução deste fluxo vai expirar"
+
+#, fuzzy
+#~ msgid "The FlowStart objects that started this run"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "The parent run that triggered us"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "Context of the parent run that triggered us"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~ msgid "Fields"
+#~ msgstr "Gerenciar campos"
+
+#, fuzzy
+#~| msgid "When the user left this step in the flow"
+#~ msgid "The current node location of this run in the flow"
+#~ msgstr "Quando o usuário saiu neste passo no fluxo"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "Why the run is being deleted"
+#~ msgstr "A mensagem que está sendo entregue"
+
+#, fuzzy
+#~| msgid "Infobip"
+#~ msgid "Info"
+#~ msgstr "Infobip"
+
+#, fuzzy
+#~| msgid "When this flow run expired"
+#~ msgid "When this log event occurred"
+#~ msgstr "Quando o prazo de execução deste fluxo expirou"
+
+#~ msgid "The flow that is being started"
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#~ msgid "Groups that will start the flow"
+#~ msgstr "Grupos que irão iniciar o fluxo"
+
+#~ msgid "Contacts that will start the flow"
+#~ msgstr "Contatos que irão iniciar o fluxo"
+
+#~ msgid "Whether to restart any participants already in this flow"
+#~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
+
+#, fuzzy
+#~ msgid "The campaign event which created this flow start"
+#~ msgstr "iniciou este fluxo"
+
+#, fuzzy
+#~ msgid "How many unique contacts were started down the flow"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#~ msgid "The status of this flow start"
+#~ msgstr "O estado do início deste fluxo"
+
+#, fuzzy
+#~ msgid "Played contact recording"
+#~ msgstr "Mensagem gravada executada para \"%s\""
+
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "A organização a qual este disparador pertence"
+
+#~ msgid "Last Triggered"
+#~ msgstr "Último disparo"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "A última vez que este disparador foi acionado"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Contagem de disparos"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Quantas vezes o disparo foi acionado"
+
+#~ msgid "Is Archived"
+#~ msgstr "Arquivado"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Se esse disparo foi arquivado"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Tipo de disparo"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
+#~| "        Infobip website under your account.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the\n"
+#~ "        Nexmo website under your account settings page.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Para finalizar a configuração da sua conexão Infobip, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Infobip."
+
+#~ msgid "API Key:"
+#~ msgstr "Chave da API:"
+
+#~ msgid "API Secret:"
+#~ msgstr "Segredo da API:"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
+#~ "<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
+#~| "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard\n"
+#~ "        <a href=\"https://dashboard.nexmo.com/settings\" target=\"nexmo\">API settings section</a>.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
+#~ "<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
+
+#, fuzzy
+#~ msgid "Add a Nexmo Channel"
+#~ msgstr "Transmissor"
 
 #, fuzzy
 #~| msgid "missed call"
