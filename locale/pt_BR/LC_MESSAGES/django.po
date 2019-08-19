@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-19 19:55+0000\n"
+"POT-Creation-Date: 2019-08-16 18:59+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10848,6 +10848,37 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 msgid "Facebook Channel"
 msgstr "Remover telefone"
 
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "A organização a qual este disparador pertence"
+
+#~ msgid "Last Triggered"
+#~ msgstr "Último disparo"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "A última vez que este disparador foi acionado"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Contagem de disparos"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Quantas vezes o disparo foi acionado"
+
+#~ msgid "Is Archived"
+#~ msgstr "Arquivado"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Se esse disparo foi arquivado"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Tipo de disparo"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "O tipo desse disparo"
+
+#, fuzzy
+#~ msgid "Played contact recording"
+#~ msgstr "Mensagem gravada executada para \"%s\""
+
 #, fuzzy
 #~| msgid "The call that handled this flow run, only for voice flows"
 #~ msgid "The session that handled this flow run, only for voice flows"
@@ -10914,70 +10945,6 @@ msgstr "Remover telefone"
 #~ msgstr "A mensagem que está sendo entregue"
 
 #, fuzzy
-#~| msgid "Infobip"
-#~ msgid "Info"
-#~ msgstr "Infobip"
-
-#, fuzzy
-#~| msgid "When this flow run expired"
-#~ msgid "When this log event occurred"
-#~ msgstr "Quando o prazo de execução deste fluxo expirou"
-
-#~ msgid "The flow that is being started"
-#~ msgstr "O fluxo que está sendo iniciado"
-
-#~ msgid "Groups that will start the flow"
-#~ msgstr "Grupos que irão iniciar o fluxo"
-
-#~ msgid "Contacts that will start the flow"
-#~ msgstr "Contatos que irão iniciar o fluxo"
-
-#~ msgid "Whether to restart any participants already in this flow"
-#~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
-
-#, fuzzy
-#~ msgid "The campaign event which created this flow start"
-#~ msgstr "iniciou este fluxo"
-
-#, fuzzy
-#~ msgid "How many unique contacts were started down the flow"
-#~ msgstr "Nenhum contato iniciou este fluxo"
-
-#~ msgid "The status of this flow start"
-#~ msgstr "O estado do início deste fluxo"
-
-#, fuzzy
-#~ msgid "Played contact recording"
-#~ msgstr "Mensagem gravada executada para \"%s\""
-
-#~ msgid "The organization this trigger belongs to"
-#~ msgstr "A organização a qual este disparador pertence"
-
-#~ msgid "Last Triggered"
-#~ msgstr "Último disparo"
-
-#~ msgid "The last time this trigger was fired"
-#~ msgstr "A última vez que este disparador foi acionado"
-
-#~ msgid "Trigger Count"
-#~ msgstr "Contagem de disparos"
-
-#~ msgid "How many times this trigger has fired"
-#~ msgstr "Quantas vezes o disparo foi acionado"
-
-#~ msgid "Is Archived"
-#~ msgstr "Arquivado"
-
-#~ msgid "Whether this trigger is archived"
-#~ msgstr "Se esse disparo foi arquivado"
-
-#~ msgid "Trigger Type"
-#~ msgstr "Tipo de disparo"
-
-#~ msgid "The type of this trigger"
-#~ msgstr "O tipo desse disparo"
-
-#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To finish configuring your Infobip connection you'll need to set the following callback URLs on the\n"
@@ -11041,6 +11008,39 @@ msgstr "Remover telefone"
 #, fuzzy
 #~ msgid "Add a Nexmo Channel"
 #~ msgstr "Transmissor"
+
+#, fuzzy
+#~| msgid "Infobip"
+#~ msgid "Info"
+#~ msgstr "Infobip"
+
+#, fuzzy
+#~| msgid "When this flow run expired"
+#~ msgid "When this log event occurred"
+#~ msgstr "Quando o prazo de execução deste fluxo expirou"
+
+#~ msgid "The flow that is being started"
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#~ msgid "Groups that will start the flow"
+#~ msgstr "Grupos que irão iniciar o fluxo"
+
+#~ msgid "Contacts that will start the flow"
+#~ msgstr "Contatos que irão iniciar o fluxo"
+
+#~ msgid "Whether to restart any participants already in this flow"
+#~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
+
+#, fuzzy
+#~ msgid "The campaign event which created this flow start"
+#~ msgstr "iniciou este fluxo"
+
+#, fuzzy
+#~ msgid "How many unique contacts were started down the flow"
+#~ msgstr "Nenhum contato iniciou este fluxo"
+
+#~ msgid "The status of this flow start"
+#~ msgstr "O estado do início deste fluxo"
 
 #, fuzzy
 #~| msgid "missed call"
