@@ -61,8 +61,8 @@ from .expressions import (
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
-from .masking import apply_mask
 from .models import JSONAsTextField, patch_queryset_count
+from .redaction import redact
 from .templatetags.temba import short_datetime
 from .text import clean_string, decode_base64, random_string, slugify_with, truncate
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -1927,39 +1927,32 @@ class AnalyticsTest(TestCase):
         )
 
 
-class ApplyMaskTest(TestCase):
-    def test_empty_test(self):
-        self.assertIsNone(apply_mask("", ""))
-
-        self.assertIsNone(apply_mask("input", ""))
-
-        self.assertIsNone(apply_mask("", "test"))
-
+class RedactionTest(TestCase):
     def test_does_not_match(self):
-        self.assertIsNone(apply_mask("this is <+private>", "<public>"))
+        self.assertEqual(redact("this is <+private>", "<public>", "********"), ("this is <+private>", False))
+        self.assertEqual(redact("this is 0123456789", "9876543210", "********"), ("this is 0123456789", False))
 
-        self.assertIsNone(apply_mask("this is 0123456789", "9876543210"))
+    def test_matches_an_encoding(self):
+        # text contains un-encoded raw value to be redacted
+        self.assertEqual(redact("this is <+private>", "<+private>", "********"), ("this is ********", True))
 
-    def test_matches_exactly(self):
-        self.assertEqual(apply_mask("this is <+private>", "<+private>"), "this is ********")
+        # text contains URL encoded version of the value to be redacted
+        self.assertEqual(redact("this is %2Bprivate", "+private", "********"), ("this is ********", True))
 
-        # urlencoded
-        self.assertEqual(apply_mask("this is %2Bprivate", "+private"), "this is ********")
+        # text contains JSON encoded version of the value to be redacted
+        self.assertEqual(redact('this is "+private"', "+private", "********"), ("this is ********", True))
 
-        # jsonencoded
-        self.assertEqual(apply_mask('this is "+private"', "+private"), "this is ********")
-
-        # xmlencoded
-        self.assertEqual(apply_mask("this is &lt;+private&gt;", "<+private>"), "this is ********")
+        # text contains XML encoded version of the value to be redacted
+        self.assertEqual(redact("this is &lt;+private&gt;", "<+private>", "********"), ("this is ********", True))
 
     def test_match_reverse(self):
-        self.assertEqual(apply_mask("this is 123456789", "+123456789"), "this is ********")
+        self.assertEqual(redact("this is 123456789", "+123456789", "********"), ("this is ********", True))
 
-        self.assertEqual(apply_mask("this is +123456789", "123456789"), "this is ********")
-        self.assertEqual(apply_mask("this is 123456789", "0123456789"), "this is ********")
+        self.assertEqual(redact("this is +123456789", "123456789", "********"), ("this is ********", True))
+        self.assertEqual(redact("this is 123456789", "0123456789", "********"), ("this is ********", True))
 
         # '3456789' matches the input string
-        self.assertEqual(apply_mask("this is 03456789", "+123456789"), "this is 0********")
+        self.assertEqual(redact("this is 03456789", "+123456789", "********"), ("this is 0********", True))
 
         # only 1/3 of the test matches the input string '6789'
-        self.assertEqual(apply_mask("this is 123456789", "543216789"), "this is 12345********")
+        self.assertEqual(redact("this is 123456789", "543216789", "********"), ("this is 12345********", True))

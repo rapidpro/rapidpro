@@ -2526,533 +2526,533 @@ class ChannelLogTest(TembaTest):
             response = self.client.get(read_url)
             self.assertContains(response, "invalid credentials")
 
-        def test_channellog_connection_anonymous(self):
-            url = reverse("channels.channellog_connection", args=(1,))
+    def test_channellog_connection_anonymous(self):
+        url = reverse("channels.channellog_connection", args=(1,))
 
-            self.login(self.admin)
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        self.assertTrue(response.status_code, 200)
+
+        with AnonymousOrg(self.org):
             response = self.client.get(url)
+            # admin has no access
+            self.assertLoginRedirect(response)
 
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(url)
+            # customer_support has access
             self.assertTrue(response.status_code, 200)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(url)
-                # admin has no access
-                self.assertLoginRedirect(response)
+    def test_channellog_anonymous_org_telegram_channel(self):
+        telegram_urn = "telegram:3527065"
 
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
 
-            self.login(self.customer_support)
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(url)
-                # customer_support has access
-                self.assertTrue(response.status_code, 200)
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"https://api.telegram.org/<redacted>/sendMessage",
+            method="POST",
+            request=r"POST /<redacted>/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
+            response=r'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
+            response_status=200,
+        )
 
-        def test_channellog_anonymous_org_telegram_channel(self):
-            telegram_urn = "telegram:3527065"
+        self.login(self.admin)
 
-            tg_contact = self.create_contact("Fred Jones", telegram_urn)
-            tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        response = self.client.get(list_url)
 
-            incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+        self.assertContains(response, "3527065", count=1)
 
-            success_log = ChannelLog.objects.create(
-                channel=tg_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url=r"https://api.telegram.org/<redacted>/sendMessage",
-                method="POST",
-                request=r"POST /<redacted>/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3527065&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
-                response=r'HTTP/1.1 200 OK\r\nContent-Length: 298\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Length,Content-Type,Date,Server,Connection\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nDate: Tue, 11 Jun 2019 15:33:06 GMT\r\nServer: nginx/1.12.2\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\n{"ok":true,"result":{"message_id":1440,"from":{"id":678777066,"is_bot":true,"first_name":"textit_staging","username":"textit_staging_bot"},"chat":{"id":3527065,"first_name":"Nic","last_name":"Pottier","username":"Nicpottier","type":"private"},"date":1560267186,"text":"Your balance is now $6.00."}}',
-                response_status=200,
-            )
-
-            self.login(self.admin)
-
-            list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        with AnonymousOrg(self.org):
             response = self.client.get(list_url)
 
-            self.assertContains(response, "3527065", count=1)
+            self.assertContains(response, "3527065", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(list_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                self.assertContains(response, "3527065", count=0)
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        self.assertContains(response, "3527065", count=3)
+        self.assertContains(response, "Nic", count=2)
+        self.assertContains(response, "Pottier", count=1)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "3527065", count=3)
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, "Nic", count=0)
+            self.assertContains(response, "Pottier", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=9)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=3)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "3527065", count=2)
             self.assertContains(response, "Nic", count=2)
             self.assertContains(response, "Pottier", count=1)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                self.assertContains(response, "3527065", count=0)
-                self.assertContains(response, "Nic", count=0)
-                self.assertContains(response, "Pottier", count=0)
+    def test_channellog_anonymous_org_telegram_channel_parse_error(self):
+        telegram_urn = "telegram:3527065"
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=9)
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
 
-            self.login(self.customer_support)
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"not important",
+            method="POST",
+            request=r"not important",
+            response=r'Content-Type: application/json\r\n\r\n{"bad_json":true, "first_name": "Nic"',
+            response_status=200,
+        )
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "3527065", count=3)
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, "Nic", count=0)
+            self.assertContains(response, "Pottier", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-                # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-                self.assertContains(response, "3527065", count=2)
-                self.assertContains(response, "Nic", count=2)
-                self.assertContains(response, "Pottier", count=1)
+            # everything is masked
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
 
-        def test_channellog_anonymous_org_telegram_channel_parse_error(self):
-            telegram_urn = "telegram:3527065"
+        self.login(self.customer_support)
 
-            tg_contact = self.create_contact("Fred Jones", telegram_urn)
-            tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
 
-            incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+        self.assertContains(response, "3527065", count=1)
 
-            success_log = ChannelLog.objects.create(
-                channel=tg_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url=r"not important",
-                method="POST",
-                request=r"not important",
-                response=r'Content-Type: application/json\r\n\r\n{"bad_json":true, "first_name": "Nic"',
-                response_status=200,
-            )
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "Nic", count=1)
 
-            self.login(self.admin)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+    def test_channellog_anonymous_org_telegram_channel_apply_mask_cant_find_match(self):
+        telegram_urn = "telegram:3527065"
+
+        tg_contact = self.create_contact("Fred Jones", telegram_urn)
+        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+
+        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+
+        success_log = ChannelLog.objects.create(
+            channel=tg_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "3527065", count=1)
+        self.assertContains(response, "There is no contact identifying information", count=3)
+
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "3527065", count=1)
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, "3527065", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
-                self.assertContains(response, "3527065", count=0)
-                self.assertContains(response, "Nic", count=0)
-                self.assertContains(response, "Pottier", count=0)
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
 
-                # everything is masked
-                self.assertContains(response, ContactURN.ANON_MASK, count=4)
+        self.login(self.customer_support)
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        response = self.client.get(read_url)
 
-            self.login(self.customer_support)
+        self.assertContains(response, "3527065", count=1)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            self.assertContains(response, "3527065", count=1)
-
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                self.assertContains(response, "Nic", count=1)
-
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
-
-        def test_channellog_anonymous_org_telegram_channel_apply_mask_cant_find_match(self):
-            telegram_urn = "telegram:3527065"
-
-            tg_contact = self.create_contact("Fred Jones", telegram_urn)
-            tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
-
-            incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
-
-            success_log = ChannelLog.objects.create(
-                channel=tg_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url="There is no contact identifying information",
-                method="POST",
-                request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-                response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-                response_status=200,
-            )
-
-            self.login(self.admin)
-
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
-            response = self.client.get(read_url)
-
-            self.assertContains(response, "3527065", count=1)
             self.assertContains(response, "There is no contact identifying information", count=3)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                # url/request/reponse are masked
-                self.assertContains(response, "There is no contact identifying information", count=0)
+    def test_channellog_anonymous_org_twitter_activity_channel(self):
+        twitter_urn = "twitterid:767659860"
 
-                self.assertContains(response, "3527065", count=0)
-                self.assertContains(response, ContactURN.ANON_MASK, count=4)
+        tw_contact = self.create_contact("Fred Jones", twitter_urn)
+        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
 
-            self.login(self.customer_support)
+        success_log = ChannelLog.objects.create(
+            channel=tw_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=r"https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
+            method="POST",
+            request=r"""POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"\ud83c\uddfa\ud83c\uddecTeheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https:\/\/t.co\/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png"}}}""",
+            response=r'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
+            response_status=200,
+        )
 
-            response = self.client.get(read_url)
+        self.login(self.admin)
 
-            self.assertContains(response, "3527065", count=1)
+        list_url = reverse("channels.channellog_list", args=[tw_channel.uuid])
+        response = self.client.get(list_url)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                self.assertContains(response, "There is no contact identifying information", count=3)
+        self.assertContains(response, "767659860", count=1)
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
-
-        def test_channellog_anonymous_org_twitter_activity_channel(self):
-            twitter_urn = "twitterid:767659860"
-
-            tw_contact = self.create_contact("Fred Jones", twitter_urn)
-            tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
-
-            incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
-
-            success_log = ChannelLog.objects.create(
-                channel=tw_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url=r"https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
-                method="POST",
-                request=r"""POST /c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 1596\r\nContent-Type: application/json\r\nFinagle-Ctx-Com.twitter.finagle.deadline: 1560853608671000000 1560853611615000000\r\nFinagle-Ctx-Com.twitter.finagle.retries: 0\r\nFinagle-Http-Retryable-Request: \r\nX-Amzn-Trace-Id: Root=1-5d08bc68-de52174e83904d614a32a5c6\r\nX-B3-Flags: 2\r\nX-B3-Parentspanid: fe22fff79af84311\r\nX-B3-Sampled: false\r\nX-B3-Spanid: 86f3c3871ae31c2d\r\nX-B3-Traceid: fe22fff79af84311\r\nX-Forwarded-For: 199.16.157.173\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twitter-Webhooks-Signature: sha256=CYVI5q7e7bzKufCD3GnZoJheSmjVRmNQo9uzO/gi4tA=\r\n\r\n{"for_user_id":"3753944237","direct_message_events":[{"type":"message_create","id":"1140928844112814089","created_timestamp":"1560853608526","message_create":{"target":{"recipient_id":"3753944237"},"sender_id":"767659860","message_data":{"text":"Briefly what will you be talking about and do you have any feature stories","entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[]}}}}],"users":{"767659860":{"id":"767659860","created_timestamp":"1345386861000","name":"Aaron Tumukunde","screen_name":"tumaaron","description":"Mathematics \u25a1 Media \u25a1 Real Estate \u25a1 And Jesus above all.","protected":false,"verified":false,"followers_count":167,"friends_count":485,"statuses_count":237,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/860380640029573120\/HKuXgxR__normal.jpg"},"3753944237":{"id":"3753944237","created_timestamp":"1443048916258","name":"\ud83c\uddfa\ud83c\uddecTeheca","screen_name":"tehecaug","location":"Uganda","description":"We connect new mothers & parents to nurses for postnatal care. #Google LaunchPad Africa 2018, #UNFPA UpAccelerate 2017 #MasterCard Innovation exp 2017 #YCSUS18","url":"https:\/\/t.co\/i0hcLRwEj7","protected":false,"verified":false,"followers_count":3369,"friends_count":4872,"statuses_count":1128,"profile_image_url":"http:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png","profile_image_url_https":"https:\/\/pbs.twimg.com\/profile_images\/694638274204143616\/Q4Mbg1tO_normal.png"}}}""",
-                response=r'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\n{"message":"Message Accepted","data":[{"type":"msg","channel_uuid":"5c70a767-f3dc-4a99-9323-4774f6432af5","msg_uuid":"6c26277d-7002-4489-9b7f-998d4be5d0db","text":"Briefly what will you be talking about and do you have any feature stories","urn":"twitterid:767659860#tumaaron","external_id":"1140928844112814089","received_on":"2019-06-18T10:26:48.526Z"}]}',
-                response_status=200,
-            )
-
-            self.login(self.admin)
-
-            list_url = reverse("channels.channellog_list", args=[tw_channel.uuid])
+        with AnonymousOrg(self.org):
             response = self.client.get(list_url)
 
-            self.assertContains(response, "767659860", count=1)
+            self.assertContains(response, "767659860", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(list_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                self.assertContains(response, "767659860", count=0)
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        self.assertContains(response, "767659860", count=5)
+        self.assertContains(response, "Aaron Tumukunde", count=1)
+        self.assertContains(response, "tumaaron", count=2)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "767659860", count=5)
+            self.assertContains(response, "767659860", count=0)
+            self.assertContains(response, "Aaron Tumukunde", count=0)
+            self.assertContains(response, "tumaaron", count=0)
+
+            self.assertContains(response, ContactURN.ANON_MASK, count=14)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=5)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "767659860", count=4)
             self.assertContains(response, "Aaron Tumukunde", count=1)
             self.assertContains(response, "tumaaron", count=2)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                self.assertContains(response, "767659860", count=0)
-                self.assertContains(response, "Aaron Tumukunde", count=0)
-                self.assertContains(response, "tumaaron", count=0)
+    def test_channellog_anonymous_org_twitter_activity_channel_apply_mask_cant_find_match(self):
+        twitter_urn = "twitterid:767659860"
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=14)
+        tw_contact = self.create_contact("Fred Jones", twitter_urn)
+        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
 
-            self.login(self.customer_support)
+        success_log = ChannelLog.objects.create(
+            channel=tw_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
+            response_status=200,
+        )
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "767659860", count=1)
+        self.assertContains(response, "There is no contact identifying information", count=3)
+
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "767659860", count=5)
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-                # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-                self.assertContains(response, "767659860", count=4)
-                self.assertContains(response, "Aaron Tumukunde", count=1)
-                self.assertContains(response, "tumaaron", count=2)
+            self.assertContains(response, "767659860", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
 
-        def test_channellog_anonymous_org_twitter_activity_channel_apply_mask_cant_find_match(self):
-            twitter_urn = "twitterid:767659860"
+        self.login(self.customer_support)
 
-            tw_contact = self.create_contact("Fred Jones", twitter_urn)
-            tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        response = self.client.get(read_url)
 
-            incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
+        self.assertContains(response, "767659860", count=1)
 
-            success_log = ChannelLog.objects.create(
-                channel=tw_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url="There is no contact identifying information",
-                method="POST",
-                request=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-                response=r"""There is no contact identifying information\r\n\r\n{"json": "ok"}""",
-                response_status=200,
-            )
-
-            self.login(self.admin)
-
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            self.assertContains(response, "767659860", count=1)
             self.assertContains(response, "There is no contact identifying information", count=3)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-                # url/request/reponse are masked
-                self.assertContains(response, "There is no contact identifying information", count=0)
+    def test_channellog_anonymous_org(self):
+        fb_urn = "facebook:2150393045080607"
 
-                self.assertContains(response, "767659860", count=0)
-                self.assertContains(response, ContactURN.ANON_MASK, count=4)
+        fb_contact = self.create_contact("Fred Jones", fb_urn)
+        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
 
-            self.login(self.customer_support)
+        success_log = ChannelLog.objects.create(
+            channel=fb_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url=f"https://textit.in/c/fb/{fb_channel.uuid}/receive",
+            method="POST",
+            request="""POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1
+Host: textit.in
+Accept: */*
+Accept-Encoding: deflate, gzip
+Content-Length: 314
+Content-Type: application/json
 
-            response = self.client.get(read_url)
+{"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}
+""",
+            response="""HTTP/1.1 200 OK
+Content-Encoding: gzip
+Content-Type: application/json
 
-            self.assertContains(response, "767659860", count=1)
+{"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                self.assertContains(response, "There is no contact identifying information", count=3)
+""",
+            response_status=200,
+        )
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        self.login(self.admin)
 
-        def test_channellog_anonymous_org(self):
-            fb_urn = "facebook:2150393045080607"
+        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        response = self.client.get(list_url)
 
-            fb_contact = self.create_contact("Fred Jones", fb_urn)
-            fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        self.assertContains(response, "2150393045080607", count=1)
+        self.assertContains(response, "facebook:2150393045080607", count=0)
 
-            incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
-
-            success_log = ChannelLog.objects.create(
-                channel=fb_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url=f"https://textit.in/c/fb/{fb_channel.uuid}/receive",
-                method="POST",
-                request="""POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1
-    Host: textit.in
-    Accept: */*
-    Accept-Encoding: deflate, gzip
-    Content-Length: 314
-    Content-Type: application/json
-
-    {"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}
-    """,
-                response="""HTTP/1.1 200 OK
-    Content-Encoding: gzip
-    Content-Type: application/json
-
-    {"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}
-
-    """,
-                response_status=200,
-            )
-
-            self.login(self.admin)
-
-            list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        with AnonymousOrg(self.org):
             response = self.client.get(list_url)
 
-            self.assertContains(response, "2150393045080607", count=1)
+            self.assertContains(response, "2150393045080607", count=0)
             self.assertContains(response, "facebook:2150393045080607", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(list_url)
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
 
-                self.assertContains(response, "2150393045080607", count=0)
-                self.assertContains(response, "facebook:2150393045080607", count=0)
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        response = self.client.get(read_url)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        self.assertContains(response, "2150393045080607", count=3)
+        self.assertContains(response, "facebook:2150393045080607", count=1)
 
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "2150393045080607", count=3)
-            self.assertContains(response, "facebook:2150393045080607", count=1)
+            self.assertContains(response, "2150393045080607", count=0)
+            self.assertContains(response, "facebook:", count=1)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
-                self.assertContains(response, "2150393045080607", count=0)
-                self.assertContains(response, "facebook:", count=1)
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=4)
+        self.login(self.customer_support)
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
 
-            self.login(self.customer_support)
+        response = self.client.get(read_url)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        self.assertContains(response, "2150393045080607", count=3)
+        self.assertContains(response, "facebook:2150393045080607", count=1)
 
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "2150393045080607", count=2)
+            self.assertContains(response, "facebook:", count=1)
 
-            self.assertContains(response, "2150393045080607", count=3)
-            self.assertContains(response, "facebook:2150393045080607", count=1)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-                # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-                self.assertContains(response, "2150393045080607", count=2)
-                self.assertContains(response, "facebook:", count=1)
+    def test_channellog_anonymous_org_apply_mask_cant_find_match(self):
+        # in this case we are paranoid and mask everything
+        fb_urn = "facebook:2150393045080607"
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        fb_contact = self.create_contact("Fred Jones", fb_urn)
+        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
 
-        def test_channellog_anonymous_org_apply_mask_cant_find_match(self):
-            # in this case we are paranoid and mask everything
-            fb_urn = "facebook:2150393045080607"
+        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
 
-            fb_contact = self.create_contact("Fred Jones", fb_urn)
-            fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        success_log = ChannelLog.objects.create(
+            channel=fb_channel,
+            msg=incoming_msg,
+            description="Successfully Sent",
+            is_error=False,
+            url="There is no contact identifying information",
+            method="POST",
+            request="""There is no contact identifying information""",
+            response="""There is no contact identifying information""",
+            response_status=200,
+        )
 
-            incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
+        self.login(self.admin)
 
-            success_log = ChannelLog.objects.create(
-                channel=fb_channel,
-                msg=incoming_msg,
-                description="Successfully Sent",
-                is_error=False,
-                url="There is no contact identifying information",
-                method="POST",
-                request="""There is no contact identifying information""",
-                response="""There is no contact identifying information""",
-                response_status=200,
-            )
+        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        response = self.client.get(list_url)
 
-            self.login(self.admin)
+        self.assertContains(response, "2150393045080607", count=1)
 
-            list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        with AnonymousOrg(self.org):
             response = self.client.get(list_url)
 
-            self.assertContains(response, "2150393045080607", count=1)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(list_url)
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
 
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
+        response = self.client.get(read_url)
 
-            read_url = reverse("channels.channellog_read", args=[success_log.id])
+        self.assertContains(response, "2150393045080607", count=1)
 
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "2150393045080607", count=1)
+            # url/request/reponse are masked
+            self.assertContains(response, "There is no contact identifying information", count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
+            self.assertContains(response, "2150393045080607", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=4)
 
-                # url/request/reponse are masked
-                self.assertContains(response, "There is no contact identifying information", count=0)
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
 
-                self.assertContains(response, "2150393045080607", count=0)
-                self.assertContains(response, ContactURN.ANON_MASK, count=4)
+        self.login(self.customer_support)
 
-            # login as customer support, must see URNs
-            self.customer_support.is_staff = True
-            self.customer_support.save()
+        response = self.client.get(read_url)
 
-            self.login(self.customer_support)
+        self.assertContains(response, "2150393045080607", count=1)
 
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            self.assertContains(response, "There is no contact identifying information", count=3)
+
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_channellog_anonymous_org_no_msg(self):
+        tw_urn = "15128505839"
+
+        tw_channel = Channel.create(self.org, self.user, None, "TW", name="Test TW Channel")
+
+        failed_log = ChannelLog.objects.create(
+            channel=tw_channel,
+            msg=None,
+            description="Channel Error",
+            is_error=True,
+            url=f"https://textit.in/c/tw/{tw_channel.uuid}/status?action=callback&id=58027120",
+            method="POST",
+            request="""
+POST /c/tw/8388f8cd-658f-4fae-925e-ee0792588e68/status?action=callback&id=58027120 HTTP/1.1
+Host: textit.in
+Accept: */*
+Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+Content-Length: 343
+Content-Type: application/x-www-form-urlencoded
+User-Agent: SignalwireCallback/1.0
+
+MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
+            response="""
+HTTP/1.1 400 Bad Request
+Content-Encoding: gzip
+Content-Type: application/json
+
+{"message":"Error","data":[{"type":"error","error":"missing request signature"}]}
+
+
+Error: missing request signature""",
+            response_status=400,
+        )
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
+
+        response = self.client.get(read_url)
+
+        # non anon user can see contact identifying data (in the request)
+        self.assertContains(response, tw_urn, count=1)
+
+        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
 
-            self.assertContains(response, "2150393045080607", count=1)
+            self.assertContains(response, tw_urn, count=0)
 
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-                self.assertContains(response, "There is no contact identifying information", count=3)
-
-                # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-                # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
-                self.assertContains(response, ContactURN.ANON_MASK, count=1)
-
-        def test_channellog_anonymous_org_no_msg(self):
-            tw_urn = "15128505839"
-
-            tw_channel = Channel.create(self.org, self.user, None, "TW", name="Test TW Channel")
-
-            failed_log = ChannelLog.objects.create(
-                channel=tw_channel,
-                msg=None,
-                description="Channel Error",
-                is_error=True,
-                url=f"https://textit.in/c/tw/{tw_channel.uuid}/status?action=callback&id=58027120",
-                method="POST",
-                request="""
-    POST /c/tw/8388f8cd-658f-4fae-925e-ee0792588e68/status?action=callback&id=58027120 HTTP/1.1
-    Host: textit.in
-    Accept: */*
-    Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
-    Content-Length: 343
-    Content-Type: application/x-www-form-urlencoded
-    User-Agent: SignalwireCallback/1.0
-
-    MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
-                response="""
-    HTTP/1.1 400 Bad Request
-    Content-Encoding: gzip
-    Content-Type: application/json
-
-    {"message":"Error","data":[{"type":"error","error":"missing request signature"}]}
-
-
-    Error: missing request signature""",
-                response_status=400,
-            )
-
-            self.login(self.admin)
-
-            read_url = reverse("channels.channellog_read", args=[failed_log.id])
-
-            response = self.client.get(read_url)
-
-            # non anon user can see contact identifying data (in the request)
-            self.assertContains(response, tw_urn, count=1)
-
-            with AnonymousOrg(self.org):
-                response = self.client.get(read_url)
-
-                self.assertContains(response, tw_urn, count=0)
-
-                # when we can't identify the contact, url, request and response objects are completely masked
-                self.assertContains(response, ContactURN.ANON_MASK, count=3)
+            # when we can't identify the contact, url, request and response objects are completely masked
+            self.assertContains(response, ContactURN.ANON_MASK, count=3)
 
 
 class FacebookWhitelistTest(TembaTest):

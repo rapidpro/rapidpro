@@ -31,8 +31,8 @@ from temba.orgs.models import Org
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
-from temba.utils.masking import apply_mask, mask_http_trace
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
+from temba.utils.redaction import redact, redact_http_trace
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
@@ -233,65 +233,74 @@ class ChannelType(metaclass=ABCMeta):
     def anonymize_channellog_url(self, channellog):
         from temba.contacts.models import ContactURN
 
-        # default, in case nothing is matched, mask the whole url
-        masked_url = ContactURN.ANON_MASK
+        # if nothing is matched, redact the whole thing
+        redacted = ContactURN.ANON_MASK
 
         if channellog.msg_id:
-            masked_url = apply_mask(channellog.url, channellog.msg.contact_urn.path)
+            redacted, changed = redact(channellog.url, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
 
-            if not masked_url:
-                masked_url = ContactURN.ANON_MASK
+            if not changed:
+                return ContactURN.ANON_MASK
 
-        return masked_url
+        return redacted
 
     def anonymize_channellog_request(self, channellog):
         from temba.contacts.models import ContactURN
 
-        # default, in case nothing is matched, mask the whole request
-        masked_request = ContactURN.ANON_MASK
+        # if nothing is matched, redact the whole thing
+        redacted = ContactURN.ANON_MASK
 
         if channellog.msg_id:
             formatted_request = channellog.request
 
             if self.mask_request_body_keys:
-                masked_http_request = mask_http_trace(formatted_request, keys=self.mask_request_body_keys)
+                masked_http_request = redact_http_trace(
+                    formatted_request, self.mask_request_body_keys, ContactURN.ANON_MASK
+                )
 
                 if masked_http_request:
-                    masked_request = apply_mask(masked_http_request, channellog.msg.contact_urn.path)
+                    redacted, changed = redact(
+                        masked_http_request, channellog.msg.contact_urn.path, ContactURN.ANON_MASK
+                    )
 
-                    if not masked_request:
-                        masked_request = ContactURN.ANON_MASK
+                    if not changed:
+                        return ContactURN.ANON_MASK
             else:
-                masked_request = apply_mask(formatted_request, channellog.msg.contact_urn.path)
+                redacted, changed = redact(formatted_request, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
 
-                if not masked_request:
-                    masked_request = ContactURN.ANON_MASK
+                if not changed:
+                    return ContactURN.ANON_MASK
 
-        return masked_request
+        return redacted
 
     def anonymize_channellog_response(self, channellog):
         from temba.contacts.models import ContactURN
 
-        masked_response = ContactURN.ANON_MASK
+        # if nothing is matched, redact the whole thing
+        redacted = ContactURN.ANON_MASK
 
         if channellog.msg_id:
             formatted_response = channellog.response
 
             if self.mask_response_body_keys:
-                masked_http_response = mask_http_trace(formatted_response, keys=self.mask_response_body_keys)
+                masked_http_response = redact_http_trace(
+                    formatted_response, self.mask_response_body_keys, ContactURN.ANON_MASK
+                )
 
                 if masked_http_response:
-                    masked_response = apply_mask(masked_http_response, channellog.msg.contact_urn.path)
+                    redacted, changed = redact(
+                        masked_http_response, channellog.msg.contact_urn.path, ContactURN.ANON_MASK
+                    )
 
-                    if not masked_response:
-                        masked_response = ContactURN.ANON_MASK
+                    if not changed:
+                        return ContactURN.ANON_MASK
             else:
-                masked_response = apply_mask(formatted_response, channellog.msg.contact_urn.path)
+                redacted, changed = redact(formatted_response, channellog.msg.contact_urn.path, ContactURN.ANON_MASK)
 
-                if not masked_response:
-                    masked_response = ContactURN.ANON_MASK
+                if not changed:
+                    return ContactURN.ANON_MASK
 
-        return masked_response
+        return redacted
 
     def __str__(self):
         return self.name
