@@ -100,6 +100,12 @@ class LocationTest(TembaTest):
         self.assertEqual("Kigali City", children[1]["name"])
         self.assertEqual("kig\nkigs", children[1]["aliases"])
 
+        # query for our alias
+        search_result = self.client.get(
+            f"{reverse('locations.adminboundary_boundaries', args=[self.country.osm_id])}?q=kigs"
+        )
+        self.assertEqual("Kigali City", search_result.json()[0]["name"])
+
         # update our alias for kigali with duplicates
         with self.assertNumQueries(17):
             response = self.client.post(
