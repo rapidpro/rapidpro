@@ -10,33 +10,51 @@
     <style>
       html {
 
+        font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
+        font-size: 13px;
+        font-weight: 200;
+        
         --curvature: 5px;
 
+        /* primary colors, should be dark */
+        --primary-rgb: 35, 135, 202;
+        --secondary-rgb: 0, 77, 129;
+
+        /** --- secondary configuration, only for fine tuning --- */
+
+        /* page text, borders, widgets */
         --color-text: #666;
+        --color-borders: #ccc;
+        --color-widget-bg: #f2f6fa;
+        --color-widget-hover: #e8ebef;
 
-        --color-primary: #2387ca;
-        --color-secondary: #ccc;
-        --color-hover: #e4eff8;
-        --color-selected: #e4eff8;
-        --color-help: #aaa;
+        /* light colors, panel backgrounds, selection, etc */
+        --color-primary-light: #eee;
+        --color-secondary-light: #ccc;
 
-        --color-label-background-primary: var(--color-primary);
-        --color-label-text-primary: #fff;        
+        /* dark colors, nav bar, buttons, etc */
+        --color-primary-dark: rgb(var(--primary-rgb));
+        --color-secondary-dark: rgb(var(--secondary-rgb));
 
-        --color-label-background-secondary: var(--color-secondary);
-        --color-label-text-secondary: #fff;
+        /* light text goes over dark, dark over lights */
+        --color-text-light: rgba(255,255,255,.92);
+        --color-text-dark: rgba(0,0,0,.5);
 
-        --color-bg-dark: #666;
-        --color-bg-light: #eee;
-        --color-textarea: #666;
-
-        --color-link-primary: var(--color-primary);
-        --color-link-secondary: var(--color-secondary);
-        --color-link-primary-hover: var(--color-secondary);
-        --color-link-secondary-hover: var(--color-secondary);
-
-        --color-button-primary: var(--color-primary);
-        --color-button-secondary: var(--color-secondary);
+        /* links, buttons, and label badges */
+        --color-link-primary: rgba(var(--primary-rgb), .8);
+        --color-link-primary-hover: rgba(var(--primary-rgb), .9);
+        --color-link-secondary: rgba(var(--secondary-rgb), .8);
+        --color-link-secondary-hover: rgba(var(--secondary-rgb), .9);
+        --color-button-primary: var(--color-primary-dark);
+        --color-button-primary-text: var(--color-text-light);
+        --color-button-secondary: var(--color-secondary-light);
+        --color-button-secondary-text: var(--color-text-dark);
+        
+        --color-label-primary: var(--color-primary-dark);
+        --color-label-primary-text: var(--color-text-light);        
+        --color-label-secondary: rgba(0,0,0, .2);
+        --color-label-secondary-text: #fff;
+        
       }
     </style>
 
