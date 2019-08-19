@@ -75,6 +75,7 @@ COMPRESS_OFFLINE_CONTEXT = dict(
 MIDDLEWARE += (
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "elasticapm.contrib.django.middleware.TracingMiddleware",
+    "elasticapm.contrib.django.middleware.Catch404Middleware",
 )
 
 # REDIS
@@ -146,7 +147,7 @@ ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django",)
+INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django")
 
 # SENTRY
 # ------------------------------------------------------------------------------
@@ -173,18 +174,22 @@ LOGGING = {
         },
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
         "null": {"class": "logging.NullHandler"},
+        "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
     },
     "loggers": {
         "gunicorn.errors": {"level": "DEBUG", "handlers": ["gunicorn"], "propagate": True},
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "elasticapm.errors": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "rapidpro": {"level": "WARNING", "handlers": ["elasticapm"], "propagate": False},
     },
 }
 
 # APM SERVER
 # ------------------------------------------------------------------------------
 ELASTIC_APM = {
+    "DEBUG": env.bool("APM_SERVICE_DEBUG", default=False),
     "SERVICE_NAME": env("APM_SERVICE_NAME", default=""),
     "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
     "SERVER_URL": env("APM_SERVER_URL", default=""),
