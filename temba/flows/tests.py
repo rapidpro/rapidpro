@@ -4360,40 +4360,6 @@ class FlowTest(TembaTest):
         self.assertEqual(results["color"]["value"], "blue")
         self.assertEqual(results["color"]["input"], incoming.text)
 
-    @uses_legacy_engine
-    def test_ignore_keyword_triggers(self):
-        self.flow.start([], [self.contact])
-
-        # create a second flow
-        self.flow2 = Flow.create(self.org, self.admin, "Kiva Flow")
-
-        self.flow2 = self.flow.copy(self.flow, self.flow.created_by)
-
-        # add a trigger on flow2
-        Trigger.objects.create(
-            org=self.org, keyword="kiva", flow=self.flow2, created_by=self.admin, modified_by=self.admin
-        )
-
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="kiva")
-
-        self.assertTrue(Trigger.find_and_handle(incoming))
-        self.assertTrue(FlowRun.objects.filter(flow=self.flow2, contact=self.contact))
-
-        self.flow.ignore_triggers = True
-        self.flow.save()
-        self.flow.start([], [self.contact], restart_participants=True)
-
-        other_incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="kiva")
-
-        self.assertFalse(Trigger.find_and_handle(other_incoming))
-
-        # complete the flow
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(Flow.find_and_handle(incoming)[0])
-
-        # now we should trigger the other flow as we are at our terminal flow
-        self.assertTrue(Trigger.find_and_handle(other_incoming))
-
 
 class ActionTest(TembaTest):
     def setUp(self):
@@ -6108,49 +6074,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
 
     @uses_legacy_engine
-    def test_noninteractive_subflow(self):
-        self.get_flow("keywords")
-
-        msg_in = Msg.create_incoming(self.channel, "tel:+12065552020", "Start!")
-
-        parent_run, child_run = FlowRun.objects.order_by("id")
-        msg_out = Msg.objects.get(direction="O")
-
-        self.assertEqual(
-            parent_run.events,
-            [
-                {
-                    "type": "msg_received",
-                    "created_on": matchers.ISODate(),
-                    "step_uuid": parent_run.path[0]["uuid"],
-                    "msg": {
-                        "uuid": str(msg_in.uuid),
-                        "text": "Start!",
-                        "urn": "tel:+12065552020",
-                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    },
-                }
-            ],
-        )
-
-        self.assertEqual(
-            child_run.events,
-            [
-                {
-                    "type": "msg_created",
-                    "created_on": matchers.ISODate(),
-                    "step_uuid": child_run.path[0]["uuid"],
-                    "msg": {
-                        "uuid": str(msg_out.uuid),
-                        "text": "Hi there Ben Haggerty",
-                        "urn": "tel:+12065552020",
-                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    },
-                }
-            ],
-        )
-
-    @uses_legacy_engine
     def test_resuming_run_with_old_uuidless_message(self):
         favorites = self.get_flow("favorites")
         run, = favorites.start([], [self.contact])
@@ -6257,32 +6180,6 @@ class FlowsTest(FlowFileTest):
 
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
-
-    @uses_legacy_engine
-    def test_start_flow_queueing(self):
-        self.get_flow("start_flow_queued")
-        self.channel.channel_type = "EX"
-        self.channel.save()
-
-        # trigger Flow A
-        self.send("flowa")
-
-        # make sure the message sent after our start flow action is never created
-        self.assertIsNone(Msg.objects.filter(text="This message should never be sent").first())
-
-        # the message sent by the flow started by our start action should have gotten queued
-        msg = Msg.objects.filter(text="This message should be queued").first()
-        self.assertIsNotNone(msg.queued_on)
-        self.assertEqual(WIRED, msg.status)
-        msg.delete()
-
-        # now lets do the same test but with a flow that prompts first
-        self.send("flowawait")
-        self.send("yes")
-
-        msg = Msg.objects.filter(text="This message should be queued").first()
-        self.assertIsNotNone(msg.queued_on)
-        self.assertEqual(WIRED, msg.status)
 
     @uses_legacy_engine
     def test_send_msg_to_urnless(self):
@@ -7577,35 +7474,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
 
     @uses_legacy_engine
-    def test_flow_start_race(self):
-        # setup a catchall trigger to a flow
-        flow1 = self.get_flow("color")
-        Trigger.create(self.org, self.user, Trigger.TYPE_CATCH_ALL, flow1)
-
-        # simulate contact being started in a flow in a batch task - i.e. they have an active run but no steps yet
-        flow = self.get_flow("favorites")
-        starting_run = FlowRun.create(flow, self.contact)
-
-        # whilst that is happening, contact sends a message...
-        msg1 = Msg.create_incoming(self.channel, "tel:+12065552020", "test")
-
-        # message should be recorded as handled but not associated with a flow
-        msg1.refresh_from_db()
-        self.assertEqual(msg1.status, "H")
-        self.assertEqual(msg1.msg_type, "I")
-
-        # however if for some reason our empty run is old, ignore it
-        starting_run.created_on = timezone.now() - timedelta(days=1)
-        starting_run.save(update_fields=("created_on",))
-
-        msg2 = Msg.create_incoming(self.channel, "tel:+12065552020", "test")
-
-        # message should have been allowed fall through to the catch call trigger
-        msg2.refresh_from_db()
-        self.assertEqual(msg2.status, "H")
-        self.assertEqual(msg2.msg_type, "F")
-
-    @uses_legacy_engine
     def test_server_runtime_cycle(self):
         flow = self.get_flow("loop_detection")
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
@@ -8517,20 +8385,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(4, Msg.objects.filter(high_priority=False).count())
 
     @uses_legacy_engine
-    def test_priority_keyword_trigger(self):
-        self.get_flow("priorities")
-
-        # now lets kick a flow off with a message trigger
-        self.send("priority")
-
-        # now we should have two runs
-        self.assertEqual(2, FlowRun.objects.count())
-
-        # since the contact started us, all our messages should be high priority
-        self.assertEqual(0, Msg.objects.filter(high_priority=False).count())
-        self.assertEqual(4, Msg.objects.filter(direction="O", high_priority=True).count())
-
-    @uses_legacy_engine
     def test_subflow(self):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
@@ -8689,62 +8543,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(msgs[2].text, "Message 3 (FLOW B)")
         self.assertEqual(msgs[3].text, "Message 2/4")
         self.assertEqual(msgs[4].text, "Message 5 (FLOW B)")
-
-    @uses_legacy_engine
-    def test_subflow_resumes(self):
-        self.get_flow("subflow_resumes")
-
-        self.send("radio")
-
-        # upon starting, we see our starting message, then our language subflow question
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("radio", msgs[0].text)
-        self.assertEqual("Welcome message.", msgs[1].text)
-        self.assertEqual("What language? English or French?", msgs[2].text)
-
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(2, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-        self.assertEqual("Ask Language", runs[1].flow.name)
-
-        # choose english as our language
-        self.send("english")
-
-        # we bounce back to the parent flow, and then into the gender flow
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(5, msgs.count())
-        self.assertEqual("english", msgs[3].text)
-        self.assertEqual("Are you Male or Female?", msgs[4].text)
-
-        # still two runs, except a different subflow is active now
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(2, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-        self.assertEqual("Ask Gender", runs[1].flow.name)
-
-        # choose our gender
-        self.send("male")
-
-        # back in the parent flow, asking our first parent question
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(7, msgs.count())
-        self.assertEqual("male", msgs[5].text)
-        self.assertEqual("Have you heard of show X? Yes or No?", msgs[6].text)
-
-        # now only one run should be active, our parent
-        runs = FlowRun.objects.filter(is_active=True).order_by("created_on")
-        self.assertEqual(1, runs.count())
-        self.assertEqual("Radio Show Poll", runs[0].flow.name)
-
-        # let's start over, we should pass right through language and gender
-        self.send("radio")
-
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(10, msgs.count())
-        self.assertEqual("radio", msgs[7].text)
-        self.assertEqual("Welcome message.", msgs[8].text)
-        self.assertEqual("Have you heard of show X? Yes or No?", msgs[9].text)
 
     @uses_legacy_engine
     def test_subflow_with_startflow(self):
@@ -10518,60 +10316,6 @@ class GhostActionNodeTest(FlowFileTest):
         )
 
 
-class TriggerStartTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_trigger_start(self):
-        """
-        Test case for a flow starting with a split on a contact field, sending an action, THEN waiting for a message.
-        Having this flow start from a trigger should NOT advance the contact past the first wait.
-        """
-        flow = self.get_flow("trigger_start")
-
-        # create our message that will start our flow
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger")
-
-        self.assertTrue(Trigger.find_and_handle(incoming))
-
-        # flow should have started
-        self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
-
-        # but we shouldn't have our name be trigger
-        contact = Contact.objects.get(pk=self.contact.pk)
-        self.assertNotEqual(contact.name, "trigger")
-
-        self.assertLastResponse("Thanks for participating, what is your name?")
-
-        # if we send another message, that should set our name
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Rudolph")
-        self.assertTrue(Flow.find_and_handle(incoming)[0])
-        contact = Contact.objects.get(pk=self.contact.pk)
-        self.assertEqual(contact.name, "Rudolph")
-
-        self.assertLastResponse("Great to meet you Rudolph")
-
-    @uses_legacy_engine
-    def test_trigger_capture(self):
-        """
-        Test case for a flow starting with a wait. Having this flow start with a trigger should advance the flow
-        past that wait and process the rest of the flow (until the next wait)
-        """
-        flow = self.get_flow("trigger_capture")
-
-        # create our incoming message that will start our flow
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger2 Rudolph")
-
-        self.assertTrue(Trigger.find_and_handle(incoming))
-
-        # flow should have started
-        self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
-
-        # and our name should be set to Nic
-        contact = Contact.objects.get(pk=self.contact.pk)
-        self.assertEqual(contact.name, "Rudolph")
-
-        self.assertLastResponse("Hi Rudolph, how old are you?")
-
-
 class TwoInRowTest(FlowFileTest):
     @uses_legacy_engine
     def test_two_in_row(self):
@@ -10662,38 +10406,6 @@ class ExitTest(FlowFileTest):
         # start in second via manual start
         second_flow = self.get_flow("favorites")
         second_flow.start([], [self.contact])
-
-        second_run = FlowRun.objects.get(is_active=True)
-        first_run.refresh_from_db()
-        self.assertFalse(first_run.is_active)
-        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertTrue(second_run.is_active)
-
-    @uses_legacy_engine
-    def test_exit_via_trigger(self):
-        # start contact in one flow
-        first_flow = self.get_flow("substitution")
-        first_flow.start([], [self.contact])
-
-        # should have one active flow run
-        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
-
-        # start in second via a keyword trigger
-        second_flow = self.get_flow("favorites")
-
-        Trigger.objects.create(
-            org=self.org,
-            keyword="favorites",
-            flow=second_flow,
-            trigger_type=Trigger.TYPE_KEYWORD,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        # start it via the keyword
-        msg = self.create_msg(contact=self.contact, direction=INCOMING, text="favorites")
-        msg.handle()
 
         second_run = FlowRun.objects.get(is_active=True)
         first_run.refresh_from_db()
@@ -10898,32 +10610,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacked", runs[2].flow.name)
 
 
-class AndroidChildStatus(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, "RW", "A", None, "+250788123123", schemes=["tel"])
-
-    @uses_legacy_engine
-    def test_split_first(self):
-        self.get_flow("split_first_child_msg")
-
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="split")
-        self.assertTrue(Trigger.find_and_handle(incoming))
-
-        # get the msgs for our contact
-        msgs = Msg.objects.filter(contact=self.contact, status=WIRED, direction=OUTGOING).order_by("created_on")
-        self.assertEqual(msgs[0].text, "Child Msg 1")
-
-        # respond
-        msg = self.create_msg(contact=self.contact, direction="I", text="Response")
-        Flow.find_and_handle(msg)
-
-        msgs = Msg.objects.filter(contact=self.contact, status=WIRED, direction=OUTGOING).order_by("created_on")
-        self.assertEqual(msgs[0].text, "Child Msg 1")
-        self.assertEqual(msgs[1].text, "Child Msg 2")
-
-
 class FlowChannelSelectionTest(FlowFileTest):
     def setUp(self):
         super().setUp()
@@ -10946,57 +10632,12 @@ class FlowChannelSelectionTest(FlowFileTest):
         self.assertEqual(channel, self.sms_channel)
 
 
-class FlowTriggerTest(TembaTest):
-    @uses_legacy_engine
-    def test_group_trigger(self):
-        flow = self.get_flow("favorites")
-
-        contact = self.create_contact("Joe", "+250788373373")
-        group = self.create_group("Contact Group", [contact])
-
-        # create a trigger, first just for the contact
-        contact_trigger = Trigger.objects.create(
-            org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE, created_by=self.admin, modified_by=self.admin
-        )
-        contact_trigger.contacts.add(contact)
-
-        # fire it manually
-        contact_trigger.fire()
-
-        # contact should be added to flow with a flow start
-        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 1)
-        self.assertEqual(FlowStart.objects.count(), 1)
-
-        # now create a trigger for the group
-        group_trigger = Trigger.objects.create(
-            org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE, created_by=self.admin, modified_by=self.admin
-        )
-        group_trigger.groups.add(group)
-
-        group_trigger.fire()
-
-        # contact should be added to flow again
-        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
-        self.assertEqual(FlowStart.objects.count(), 2)
-        self.assertEqual(FlowStart.objects.filter(groups=group).count(), 1)
-
-        # clear our the group on our group trigger
-        group_trigger.groups.clear()
-
-        # refire
-        group_trigger.fire()
-
-        # nothing should have changed
-        self.assertEqual(FlowRun.objects.filter(flow=flow, contact=contact).count(), 2)
-        self.assertEqual(FlowStart.objects.all().count(), 2)
-
-
 class TypeTest(TembaTest):
     @uses_legacy_engine
     def test_value_types(self):
 
         contact = self.create_contact("Joe", "+250788373373")
-        self.get_flow("type_flow")
+        flow = self.get_flow("type_flow")
 
         self.org.set_languages(self.admin, ["eng", "fra"], "eng")
 
@@ -11008,7 +10649,7 @@ class TypeTest(TembaTest):
         self.assertEqual(Value.TYPE_WARD, RuleSet.objects.get(label="Ward").value_type)
 
         incoming = self.create_msg(direction=INCOMING, contact=contact, text="types")
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        flow.start(groups=[], contacts=[contact], start_msg=incoming)
 
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
         self.assertTrue(Flow.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date")))
@@ -11252,3 +10893,61 @@ class PopulateSessionUUIDMigrationTest(MigrationTest):
     def test_merged(self):
         self.assertEqual(FlowSession.objects.count(), 3)
         self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
+
+
+class PopulateRunStatusMigrationTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0213_flowrun_status"
+    migrate_to = "0214_populate_run_status"
+
+    def setUpBeforeMigration(self, apps):
+        # override the batch size constant
+        patcher = patch("temba.flows.migrations.0214_populate_run_status.BATCH_SIZE", 2)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        flow1 = Flow.create_single_message(self.org, self.admin, {"eng": "Hi there"}, "eng")
+        flow2 = Flow.create_single_message(self.org, self.admin, {"eng": "Goodbye"}, "eng")
+        contact = self.create_contact("Bob", twitter="bob")
+
+        completed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="C")
+        failed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="F")
+        waiting1 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow1
+        )
+        waiting2 = FlowSession.objects.create(
+            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow2
+        )
+
+        def create_run(exit_type, is_active, session=None):
+            FlowRun.objects.create(
+                org=self.org, contact=contact, flow=flow1, exit_type=exit_type, is_active=is_active, session=session
+            )
+
+        create_run(exit_type="I", is_active=False, session=failed)
+        create_run(exit_type="C", is_active=False)
+        create_run(exit_type="I", is_active=False)
+        create_run(exit_type="E", is_active=False)
+        create_run(exit_type="Z", is_active=False)
+        create_run(exit_type=None, is_active=True, session=waiting1)
+        create_run(exit_type=None, is_active=True, session=waiting2)  # session is waiting but different flow
+        create_run(exit_type=None, is_active=True, session=completed)  # shouldn't occur
+        create_run(exit_type=None, is_active=True)
+        create_run(exit_type=None, is_active=False)  # shouldn't occur
+
+    def test_migrate(self):
+        self.assertEqual(
+            list(FlowRun.objects.values_list("status", flat=True).order_by("id")),
+            [
+                FlowRun.STATUS_FAILED,
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_INTERRUPTED,
+                FlowRun.STATUS_EXPIRED,
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_WAITING,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_ACTIVE,
+                FlowRun.STATUS_INTERRUPTED,
+            ],
+        )

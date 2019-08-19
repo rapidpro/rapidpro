@@ -1,3 +1,11 @@
+v5.1.22
+----------
+ * Remove trigger firing functionality (except schedule triggers) and drop unused fields on trigger
+
+v5.1.21
+----------
+ * Migration to backfill FlowRun.status
+
 v5.1.20
 ----------
  * Limit group fetching to active groups

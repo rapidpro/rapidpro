@@ -2647,7 +2647,7 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {
-                "detail": "This group is used by active triggers. In order to delete it, first archive triggers: block_group"
+                "detail": "This group is used by active triggers. In order to delete it, first archive associated triggers."
             },
         )
 
