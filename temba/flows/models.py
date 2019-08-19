@@ -607,7 +607,7 @@ class Flow(TembaModel):
 
             # it's possible Flow.start is in the process of creating a run for this contact, in which case
             # record this message has handled so it doesn't start any new flows
-            if not run.path:
+            if not run.path:  # pragma: no cover
                 if run.created_on > timezone.now() - timedelta(minutes=10):
                     return True, []
                 else:
@@ -1074,7 +1074,7 @@ class Flow(TembaModel):
 
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
         for ref in dependencies.get("groups", []):
-            if ref["uuid"] not in dependency_mapping and "name" in ref:
+            if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref["name"], uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
@@ -2485,6 +2485,17 @@ class FlowSession(models.Model):
 
 
 class FlowRun(RequireUpdateFieldsMixin, models.Model):
+    """
+    A single contact's journey through a flow. It records the path taken, results collected, events generated etc.
+    """
+
+    STATUS_ACTIVE = "A"
+    STATUS_WAITING = "W"
+    STATUS_COMPLETED = "C"
+    STATUS_INTERRUPTED = "I"
+    STATUS_EXPIRED = "X"
+    STATUS_FAILED = "F"
+
     STATE_ACTIVE = "A"
 
     EXIT_TYPE_COMPLETED = "C"
@@ -2529,90 +2540,70 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
 
-    session = models.ForeignKey(
-        FlowSession,
-        on_delete=models.PROTECT,
-        related_name="runs",
-        null=True,
-        help_text=_("The session that handled this flow run, only for voice flows"),
-    )
+    # session this run belongs to (can be null if session has been trimmed)
+    session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
+    # current status of this run
+    status = models.CharField(null=True, max_length=1)
+
+    # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
-        "channels.ChannelConnection",
-        on_delete=models.PROTECT,
-        related_name="runs",
-        null=True,
-        blank=True,
-        help_text=_("The session that handled this flow run, only for voice flows"),
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="runs", null=True
     )
 
-    is_active = models.BooleanField(default=True, help_text=_("Whether this flow run is currently active"))
+    # when this run was created
+    created_on = models.DateTimeField(default=timezone.now)
 
-    fields = JSONAsTextField(
-        blank=True,
-        null=True,
-        default=dict,
-        help_text=_("A JSON representation of any custom flow values the user has saved away"),
-    )
+    # when this run was last modified
+    modified_on = models.DateTimeField(auto_now=True)
 
-    created_on = models.DateTimeField(default=timezone.now, help_text=_("When this flow run was created"))
+    # when this run ended
+    exited_on = models.DateTimeField(null=True)
 
-    modified_on = models.DateTimeField(auto_now=True, help_text=_("When this flow run was last updated"))
+    # when this run will expire
+    expires_on = models.DateTimeField(null=True)
 
-    exited_on = models.DateTimeField(null=True, help_text=_("When the contact exited this flow run"))
+    # next wait timeout in this run (if any)
+    timeout_on = models.DateTimeField(null=True)
 
-    exit_type = models.CharField(
-        null=True, max_length=1, choices=EXIT_TYPE_CHOICES, help_text=_("Why the contact exited this flow run")
-    )
+    # true if the contact has responded in this run
+    responded = models.BooleanField(default=False)
 
-    expires_on = models.DateTimeField(null=True, help_text=_("When this flow run will expire"))
+    # flow start which started the session this run belongs to
+    start = models.ForeignKey("flows.FlowStart", on_delete=models.PROTECT, null=True, related_name="runs")
 
-    timeout_on = models.DateTimeField(null=True, help_text=_("When this flow will next time out (if any)"))
+    # if this run is part of a Surveyor session, the user that submitted it
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
 
-    responded = models.BooleanField(default=False, help_text="Whether contact has responded in this run")
+    # parent run that started this run (if any)
+    parent = models.ForeignKey("flows.FlowRun", on_delete=models.PROTECT, null=True)
 
-    start = models.ForeignKey(
-        "flows.FlowStart",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="runs",
-        help_text=_("The FlowStart objects that started this run"),
-    )
-
-    submitted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        null=True,
-        db_index=False,
-        help_text="The user which submitted this flow run",
-    )
-
-    parent = models.ForeignKey(
-        "flows.FlowRun", on_delete=models.PROTECT, null=True, help_text=_("The parent run that triggered us")
-    )
-
-    parent_context = JSONField(null=True, help_text=_("Context of the parent run that triggered us"))
-
+    # UUID of the parent run (if any)
     parent_uuid = models.UUIDField(null=True)
 
-    child_context = JSONField(null=True, help_text=_("Context of the last child subflow triggered by us"))
+    # results collected in this run keyed by snakified result name
+    results = JSONAsTextField(null=True, default=dict)
 
-    results = JSONAsTextField(
-        null=True, default=dict, help_text=_("The results collected during this flow run in JSON format")
-    )
+    # path taken by this run through the flow
+    path = JSONAsTextField(null=True, default=list)
 
-    path = JSONAsTextField(null=True, default=list, help_text=_("The path taken during this flow run in JSON format"))
+    # engine events generated by this run
+    events = JSONField(null=True)
 
-    events = JSONField(
-        verbose_name=_("Fields"), null=True, help_text=_("The events recorded on this run in JSON format")
-    )
+    # current node location of this run in the flow
+    current_node_uuid = models.UUIDField(null=True)
 
-    current_node_uuid = models.UUIDField(null=True, help_text=_("The current node location of this run in the flow"))
+    # if this run is scheduled for deletion, why
+    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
 
-    delete_reason = models.CharField(
-        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the run is being deleted")
-    )
+    # TODO to be replaced by new status field
+    is_active = models.BooleanField(default=True)
+    exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
+
+    # TODO remove when legacy engine is gone
+    fields = JSONAsTextField(blank=True, null=True, default=dict)
+    parent_context = JSONField(null=True)
+    child_context = JSONField(null=True)
 
     @classmethod
     def get_active_for_contact(cls, contact):
@@ -4107,7 +4098,7 @@ class ExportFlowResultsTask(BaseExportTask):
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
 
-        contact_fields = [cf for cf in self.org.cached_contact_fields.values() if cf.id in contact_field_ids]
+        contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
 
         groups = ContactGroup.user_groups.filter(
             org=self.org, id__in=group_memberships, status=ContactGroup.STATUS_READY, is_active=True
@@ -4787,7 +4778,7 @@ class AddToGroupAction(Action):
                 if g and g[0] == "@":
                     groups.append(g)
                 else:  # pragma: needs cover
-                    group = ContactGroup.get_user_group(org, g)
+                    group = ContactGroup.get_user_group_by_name(org, g)
                     if group:
                         groups.append(group)
                     else:
@@ -4819,7 +4810,7 @@ class AddToGroupAction(Action):
                     group = None
 
                     if not errors:
-                        group = ContactGroup.get_user_group(contact.org, value)
+                        group = ContactGroup.get_user_group_by_name(contact.org, value)
 
                 if group:
                     # TODO should become a failure (because it should be impossible) and not just a simulator error
@@ -5221,7 +5212,7 @@ class VariableContactAction(Action):
                     contacts.append(contact_variable_by_uuid)
                     continue
 
-                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
+                variable_group = ContactGroup.get_user_group_by_name(run.flow.org, name=variable)
                 if variable_group:  # pragma: needs cover
                     groups.append(variable_group)
                 else:

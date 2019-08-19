@@ -179,7 +179,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                group = ContactGroup.get_user_group(self.user.get_org(), value)
+                group = ContactGroup.get_user_group_by_name(self.user.get_org(), value)
                 if not group:
                     group = ContactGroup.create_static(self.user.get_org(), self.user, name=value)
                 return group
@@ -557,7 +557,7 @@ class TriggerCRUDL(SmartCRUDL):
             return folders
 
     class List(BaseList):
-        fields = ("keyword", "flow", "trigger_count")
+        fields = ("keyword", "flow")
         link_fields = ("keyword", "flow")
         actions = ("archive",)
         title = _("Triggers")
@@ -585,7 +585,7 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Archived(BaseList):
         actions = ("restore",)
-        fields = ("keyword", "flow", "trigger_count", "last_triggered")
+        fields = ("keyword", "flow")
 
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)

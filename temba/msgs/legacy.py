@@ -8,19 +8,12 @@ def handle_message(msg):
 
     from temba.flows.models import Flow
     from temba.msgs.models import Msg
-    from temba.triggers.models import Trigger
 
     if msg.contact.is_blocked:
         msg.visibility = Msg.VISIBILITY_ARCHIVED
         msg.save(update_fields=["visibility", "modified_on"])
     else:
-        handled = Trigger.find_and_handle(msg)
-
-        if not handled:
-            handled, msgs = Flow.find_and_handle(msg)
-
-        if not handled:
-            Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
+        Flow.find_and_handle(msg)
 
     mark_handled(msg)
 

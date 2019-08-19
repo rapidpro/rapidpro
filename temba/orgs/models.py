@@ -2,7 +2,7 @@ import calendar
 import itertools
 import logging
 import os
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -520,19 +520,6 @@ class Org(SmartModel):
 
         return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
 
-    @cached_property
-    def cached_channels(self):
-        channels = [c for c in self.channels.filter(is_active=True)]
-        for ch in channels:
-            ch.org = self
-
-        return channels
-
-    def clear_cached_channels(self):
-        if "cached_channels" in self.__dict__:
-            del self.__dict__["cached_channels"]
-        self.clear_cached_schemes()
-
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
@@ -543,7 +530,7 @@ class Org(SmartModel):
 
             # if URN has a previously used channel that is still active, use that
             if contact_urn.channel and contact_urn.channel.is_active:
-                previous_sender = self.get_channel_delegate(contact_urn.channel, role)
+                previous_sender = contact_urn.channel.get_delegate(role)
                 if previous_sender:
                     return previous_sender
 
@@ -562,13 +549,13 @@ class Org(SmartModel):
 
                 channels = []
                 if country_code:
-                    for c in self.cached_channels:
+                    for c in self.channels.filter(is_active=True):
                         if c.country == country_code and TEL_SCHEME in c.schemes:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.cached_channels if TEL_SCHEME in c.schemes]
+                    channels = [c for c in self.channels.filter(is_active=True) if TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -597,7 +584,7 @@ class Org(SmartModel):
 
                 if channel:
                     if role == Channel.ROLE_SEND:
-                        return self.get_channel_delegate(channel, Channel.ROLE_SEND)
+                        return channel.get_delegate(Channel.ROLE_SEND)
                     else:  # pragma: no cover
                         return channel
 
@@ -633,18 +620,6 @@ class Org(SmartModel):
         return self.get_channel_for_role(
             Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code
         )
-
-    def get_channel_delegate(self, channel, role):
-        """
-        Gets a channel's delegate for the given role with caching on the org object
-        """
-        cache_attr = "__%d__delegate_%s" % (channel.id, role)
-        if hasattr(self, cache_attr):
-            return getattr(self, cache_attr)
-
-        delegate = channel.get_delegate(role)
-        setattr(self, cache_attr, delegate)
-        return delegate
 
     def get_schemes(self, role):
         """
@@ -1605,37 +1580,6 @@ class Org(SmartModel):
 
     def get_bundles(self):
         return get_brand_bundles(self.get_branding())
-
-    @cached_property
-    def cached_contact_fields(self):
-        from temba.contacts.models import ContactField
-
-        # build an ordered dictionary of key->contact field
-        fields = OrderedDict()
-        for cf in ContactField.user_fields.active_for_org(org=self).order_by("key"):
-            cf.org = self
-            fields[cf.key] = cf
-
-        return fields
-
-    def clear_cached_groups(self):
-        if "__cached_groups" in self.__dict__:
-            del self.__dict__["__cached_groups"]
-
-    def get_group(self, uuid):
-        cached_groups = self.__dict__.get("__cached_groups", {})
-        existing = cached_groups.get(uuid, None)
-
-        if existing:
-            return existing
-
-        from temba.contacts.models import ContactGroup
-
-        existing = ContactGroup.user_groups.filter(org=self, uuid=uuid).first()
-        if existing:
-            cached_groups[uuid] = existing
-            self.__dict__["__cached_groups"] = cached_groups
-        return existing
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
