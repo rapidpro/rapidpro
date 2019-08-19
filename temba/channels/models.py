@@ -1432,74 +1432,53 @@ class ChannelLog(models.Model):
 
         return ChannelLog.objects.filter(id=self.id)
 
-    def get_url(self, user):
+    def get_url_display(self, user):
+        """
+        Gets the URL as it should be displayed to the given user
+        """
+        return self._get_display_value(user, self.url)
+
+    def get_request_display(self, user):
+        """
+        Gets the request trace as it should be displayed to the given user
+        """
+        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
+
+        return self._get_display_value(user, self.request, redact_keys)
+
+    def get_response_display(self, user):
+        """
+        Gets the response trace as it should be displayed to the given user
+        """
+        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
+
+        return self._get_display_value(user, self.response, redact_keys)
+
+    def _get_display_value(self, user, original, redact_keys=()):
+        """
+        Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
+        """
         from temba.contacts.models import ContactURN
 
-        if not self._redact_for(user):
-            return self.url
-
-        if not self.msg_id:
-            return ContactURN.ANON_MASK
-
-        redacted, changed = redact.text(self.url, self.msg.contact_urn.path, ContactURN.ANON_MASK)
-        if changed:
-            return redacted
-
-        # if nothing is changed, redact the whole thing
-        return ContactURN.ANON_MASK
-
-    def get_request(self, user):
-        from temba.contacts.models import ContactURN
-
-        if not self._redact_for(user):
-            return self.request
-
-        if not self.msg_id:
-            return ContactURN.ANON_MASK
-
-        needle = self.msg.contact_urn.path
-        channel_type = Channel.get_type_from_code(self.channel.channel_type)
-        redact_keys = channel_type.redact_request_keys
-
-        if redact_keys:
-            redacted, changed = redact.http_trace(self.request, needle, redact_keys, ContactURN.ANON_MASK)
-            if changed:
-                return redacted
-        else:
-            redacted, changed = redact.text(self.request, needle, ContactURN.ANON_MASK)
-            if changed:
-                return redacted
-
-        # if nothing is changed, redact the whole thing
-        return ContactURN.ANON_MASK
-
-    def get_response(self, user):
-        from temba.contacts.models import ContactURN
-
-        if not self._redact_for(user):
-            return self.response
+        if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
+            return original
 
         if not self.msg_id:
             return ContactURN.ANON_MASK
 
         needle = self.msg.contact_urn.path
-        channel_type = Channel.get_type_from_code(self.channel.channel_type)
-        redact_keys = channel_type.redact_response_keys
 
         if redact_keys:
-            redacted, changed = redact.http_trace(self.response, needle, redact_keys, ContactURN.ANON_MASK)
+            redacted, changed = redact.http_trace(original, needle, redact_keys, ContactURN.ANON_MASK)
             if changed:
                 return redacted
         else:
-            redacted, changed = redact.text(self.response, needle, ContactURN.ANON_MASK)
+            redacted, changed = redact.text(original, needle, ContactURN.ANON_MASK)
             if changed:
                 return redacted
 
         # if nothing is changed, redact the whole thing
         return ContactURN.ANON_MASK
-
-    def _redact_for(self, user):
-        return self.channel.org.is_anon and not user.has_org_perm(self.channel.org, "contacts.contact_break_anon")
 
     def release(self):
         self.delete()

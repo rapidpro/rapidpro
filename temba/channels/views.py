@@ -2191,7 +2191,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                     ChannelLog.objects.filter(channel=channel, connection=None)
                     .exclude(msg=None)
                     .order_by("-created_on")
-                    .select_related("msg__contact", "msg", "channel", "msg__contact_urn")
+                    .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
                 )
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 

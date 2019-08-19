@@ -5,41 +5,35 @@ import xml.sax.saxutils
 # search range is set to 2/3 of test string length, we assume that 1/3 of the test is invariant
 VARIABLE_RATIO = 2 / 3
 
-HTTP_DELIMITER = "\r\n\r\n"
+HTTP_BODY_BOUNDARY = "\r\n\r\n"
 
 
 def text(s, value, mask):
     """
-    Masks contact identifying information in the given text
+    Redacts a value from the given text by replacing it with a mask.
 
-    For example:
-      * contact identity: +252615518585
-      * input: https://textit.in/c/sq/a7c4ae01-b6af-4dc4-9331-8aa2f01b99d4/receive?text=&to=378&from=0615518585&id=2
-      * output: https://textit.in/c/sq/a7c4ae01-b6af-4dc4-9331-8aa2f01b99d4/receive?text=&to=378&from=0********&id=2
+    Variations of the value are generated, e.g. 252615518585 becomes 0252615518585 +252615518585 etc and if these are
+    found in the text they are redacted. Variations include different encodings as well, e.g. %2B252615518585
 
-    Contact identifying information is more volatile at the start of the string than the end. In this case contact
+    Contact identifying information is more volatile at the start of the value than the end. In this case contact
     identity is masked regardless of a different prefix: 0615518585 -> 0******** for +252615518585
 
-    To handle most known use cases process uses: fuzzers and encoders. Fuzzers are functions that convert test to a
-    known variation. For example: 252615518585 -> +252615518585. Encoders are functions that encode/escape test to a
-    known variation: For example: +252615518585 -> %2B252615518585
-
-    The process collects all valid matches and selects the one that has most characters replaced (is the shortest).
+    The process collects all matches and selects the one that has most characters replaced (the shortest).
     """
 
-    matches = []
+    redactions = []
 
     for variation in _variations(value):
         if variation in s:
-            matches.append(s.replace(variation, mask))
+            redactions.append(s.replace(variation, mask))
         else:
-            matches.append(_reverse_match(s, variation, mask))
+            redactions.append(_reverse_match(s, variation, mask))
 
-    match_candidates = [match for match in matches if match is not None]
+    candidates = [r for r in redactions if r is not None]
 
-    if match_candidates:
-        # the shortest match is the one with most characters replaced, use that one
-        return min(match_candidates, key=len), True
+    if candidates:
+        # use the shortest, i.e. the one with most characters replaced
+        return min(candidates, key=len), True
 
     return s, False
 
@@ -49,7 +43,7 @@ def http_trace(trace, value, json_keys, mask):
     Redacts the values with the given key names in the JSON payload of an HTTP trace
     """
 
-    *rest, body = trace.split(HTTP_DELIMITER)
+    *rest, body = trace.split(HTTP_BODY_BOUNDARY)
     keys_replaced = []
 
     try:
@@ -57,12 +51,12 @@ def http_trace(trace, value, json_keys, mask):
     except ValueError:
         return trace, False
 
-    redacted_body = _json_recursive(json_body, json_keys, mask, keys_replaced)
+    redacted_body = _json_replace(json_body, json_keys, mask, keys_replaced)
 
     # reconstruct the trace
     rest.append(json.dumps(redacted_body))
 
-    redacted = HTTP_DELIMITER.join(rest)
+    redacted = HTTP_BODY_BOUNDARY.join(rest)
 
     # finally do a regular text-level redaction of the value
     redacted, changed = text(redacted, value, mask)
@@ -70,30 +64,32 @@ def http_trace(trace, value, json_keys, mask):
     return redacted, changed or len(keys_replaced) > 0
 
 
-def _json_recursive(obj, keys, mask, keys_replaced):
+def _json_replace(obj, keys, mask, keys_replaced):
+    """
+    Recursively looks for specified keys in JSON and replaces their values with mask if found
+    """
     if isinstance(obj, dict):
         tmp = {}
         for k, v in obj.items():
-            # replace values with mask
             if k in keys:
                 tmp[k] = mask
                 keys_replaced.append(k)
             else:
-                tmp[k] = _json_recursive(v, keys, mask, keys_replaced)
+                tmp[k] = _json_replace(v, keys, mask, keys_replaced)
 
         return tmp
 
     elif isinstance(obj, list):
-        return [_json_recursive(v, keys, mask, keys_replaced) for v in obj]
+        return [_json_replace(v, keys, mask, keys_replaced) for v in obj]
 
     else:
         return obj
 
 
-def _reverse_match(text, value, mask):
+def _reverse_match(s, value, mask):
     # reverse input and test
     r_value = value[::-1]
-    r_text = text[::-1]
+    r_text = s[::-1]
 
     search_range = int(len(value) * VARIABLE_RATIO)
 
@@ -103,7 +99,7 @@ def _reverse_match(text, value, mask):
         tmp_str = r_value[0:cut_position]
 
         if tmp_str in r_text:
-            return text.replace(tmp_str[::-1], mask)
+            return s.replace(tmp_str[::-1], mask)
 
 
 def _variations(value):
