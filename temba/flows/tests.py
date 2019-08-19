@@ -2556,6 +2556,32 @@ class FlowTest(TembaTest):
         self.assertEqual(copy.action_sets.all().count(), self.flow.action_sets.all().count())
         self.assertEqual(copy.rule_sets.all().count(), self.flow.rule_sets.all().count())
 
+    def test_copy_group_split_no_name(self):
+        flow = self.get_flow("group_split_no_name")
+        flow_json = flow.as_json()
+
+        copy = Flow.copy(flow, self.admin)
+
+        copy_json = copy.as_json()
+
+        self.assertEqual(len(copy_json["nodes"]), 1)
+        self.assertEqual(len(copy_json["nodes"][0]["router"]["cases"]), 1)
+        self.assertEqual(
+            copy_json["nodes"][0]["router"]["cases"][0],
+            {
+                "uuid": matchers.UUID4String(),
+                "type": "has_group",
+                "arguments": [matchers.UUID4String()],
+                "category_uuid": matchers.UUID4String(),
+            },
+        )
+
+        # check that the original and the copy reference the same group
+        self.assertEqual(
+            flow_json["nodes"][0]["router"]["cases"][0]["arguments"],
+            copy_json["nodes"][0]["router"]["cases"][0]["arguments"],
+        )
+
     @override_settings(SEND_WEBHOOKS=True)
     @uses_legacy_engine
     def test_optimization_reply_action(self):

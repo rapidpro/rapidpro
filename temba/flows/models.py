@@ -1075,7 +1075,7 @@ class Flow(TembaModel):
         # lookup/create additional group dependencies (i.e. for flows not in the export itself)
         for ref in dependencies.get("groups", []):
             if ref["uuid"] not in dependency_mapping:
-                group = ContactGroup.get_or_create(self.org, user, ref["name"], uuid=ref["uuid"])
+                group = ContactGroup.get_or_create(self.org, user, ref.get("name"), uuid=ref["uuid"])
                 dependency_mapping[ref["uuid"]] = str(group.uuid)
 
         # ensure any label dependencies exist
