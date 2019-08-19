@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-15 01:27+0000\n"
+"POT-Creation-Date: 2019-08-16 18:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3929,9 +3929,6 @@ msgstr ""
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr ""
-
 msgid "Keyword"
 msgstr ""
 
@@ -3950,24 +3947,6 @@ msgstr ""
 msgid "Which flow will be started"
 msgstr ""
 
-msgid "Last Triggered"
-msgstr ""
-
-msgid "The last time this trigger was fired"
-msgstr ""
-
-msgid "Trigger Count"
-msgstr ""
-
-msgid "How many times this trigger has fired"
-msgstr ""
-
-msgid "Is Archived"
-msgstr ""
-
-msgid "Whether this trigger is archived"
-msgstr ""
-
 msgid "The groups to broadcast the flow to"
 msgstr ""
 
@@ -3975,12 +3954,6 @@ msgid "Individual contacts to broadcast the flow to"
 msgstr ""
 
 msgid "Our recurring schedule"
-msgstr ""
-
-msgid "Trigger Type"
-msgstr ""
-
-msgid "The type of this trigger"
 msgstr ""
 
 msgid "Trigger When"
@@ -6540,17 +6513,29 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"            Aliases for %(name)s\n"
+"          "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"            regions, aliases.\n"
 "\n"
-"        "
+"          "
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "(one per alias line)"
+msgstr ""
+
+msgid "Alias names must be unique, try again."
+msgstr ""
+
+msgid "Your changes could not be saved. Please reload the page and try again."
 msgstr ""
 
 #, python-format

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-15 01:27+0000\n"
+"POT-Creation-Date: 2019-08-16 18:59+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5078,9 +5078,6 @@ msgstr "Último SMS visualizado"
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr "A organização a qual este disparador pertence"
-
 msgid "Keyword"
 msgstr "Palavra-chave"
 
@@ -5103,24 +5100,6 @@ msgstr "Fluxo"
 msgid "Which flow will be started"
 msgstr "Qual fluxo será iniciado"
 
-msgid "Last Triggered"
-msgstr "Último disparo"
-
-msgid "The last time this trigger was fired"
-msgstr "A última vez que este disparador foi acionado"
-
-msgid "Trigger Count"
-msgstr "Contagem de disparos"
-
-msgid "How many times this trigger has fired"
-msgstr "Quantas vezes o disparo foi acionado"
-
-msgid "Is Archived"
-msgstr "Arquivado"
-
-msgid "Whether this trigger is archived"
-msgstr "Se esse disparo foi arquivado"
-
 msgid "The groups to broadcast the flow to"
 msgstr "Os grupos para os quais distribuir o fluxo"
 
@@ -5129,12 +5108,6 @@ msgstr "Contatos individuais para os quais distribuir o fluxo"
 
 msgid "Our recurring schedule"
 msgstr "Nosso agendamento recorrente"
-
-msgid "Trigger Type"
-msgstr "Tipo de disparo"
-
-msgid "The type of this trigger"
-msgstr "O tipo desse disparo"
 
 #, fuzzy
 #| msgid "Trigger Type"
@@ -8384,8 +8357,8 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"          Aliases for %(name)s\n"
-"        "
+"            Aliases for %(name)s\n"
+"          "
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
@@ -8393,10 +8366,24 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"          regions, aliases.\n"
+"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"            regions, aliases.\n"
 "\n"
-"        "
+"          "
+msgstr ""
+
+#, fuzzy
+msgid "Clear"
+msgstr "aprender"
+
+msgid "(one per alias line)"
+msgstr ""
+
+#, fuzzy
+msgid "Alias names must be unique, try again."
+msgstr "Número de telefone inválido, tente novamente."
+
+msgid "Your changes could not be saved. Please reload the page and try again."
 msgstr ""
 
 #, fuzzy, python-format
@@ -10861,13 +10848,32 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 msgid "Facebook Channel"
 msgstr "Remover telefone"
 
-#, fuzzy
-#~ msgid "Clear"
-#~ msgstr "aprender"
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "A organização a qual este disparador pertence"
 
-#, fuzzy
-#~ msgid "Alias names must be unique, try again."
-#~ msgstr "Número de telefone inválido, tente novamente."
+#~ msgid "Last Triggered"
+#~ msgstr "Último disparo"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "A última vez que este disparador foi acionado"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Contagem de disparos"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Quantas vezes o disparo foi acionado"
+
+#~ msgid "Is Archived"
+#~ msgstr "Arquivado"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Se esse disparo foi arquivado"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Tipo de disparo"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "O tipo desse disparo"
 
 #, fuzzy
 #~ msgid "Played contact recording"
