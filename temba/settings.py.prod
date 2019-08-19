@@ -72,7 +72,10 @@ COMPRESS_CSS_HASHING_METHOD = "content"
 COMPRESS_OFFLINE_CONTEXT = dict(
     STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING.get(DEFAULT_BRAND), debug=False, testing=False
 )
-MIDDLEWARE += ("whitenoise.middleware.WhiteNoiseMiddleware",)
+MIDDLEWARE += (
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "elasticapm.contrib.django.middleware.TracingMiddleware",
+)
 
 # REDIS
 # ------------------------------------------------------------------------------
@@ -143,7 +146,7 @@ ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ("gunicorn", "storages")
+INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django",)
 
 # SENTRY
 # ------------------------------------------------------------------------------
@@ -177,4 +180,12 @@ LOGGING = {
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
     },
+}
+
+# APM SERVER
+# ------------------------------------------------------------------------------
+ELASTIC_APM = {
+    "SERVICE_NAME": env("APM_SERVICE_NAME", default=""),
+    "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
+    "SERVER_URL": env("APM_SERVER_URL", default=""),
 }
