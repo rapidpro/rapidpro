@@ -2,6 +2,7 @@ import iso8601
 import pytz
 from rest_framework import serializers
 
+from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
@@ -719,7 +720,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.REMOVE:
             group.update_contacts(user, contacts, add=False)
         elif action == self.INTERRUPT:
-            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
+            mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:
@@ -887,7 +888,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         # request is parsed by DRF.JSONParser, and if extra is a valid json it gets deserialized as dict
         # in any other case we need to raise a ValidationError
         if not isinstance(value, dict):
-            raise serializers.ValidationError("Must be a valid JSON value")
+            raise serializers.ValidationError("Must be a valid JSON object")
 
         if not value:  # pragma: needs cover
             return None

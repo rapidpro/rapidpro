@@ -2,7 +2,6 @@ import base64
 from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import quote_plus
-from uuid import uuid4
 
 import iso8601
 import pytz
@@ -13,7 +12,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from django.db.models import Q
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -23,12 +21,12 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, ReplyAction, RuleSet
+from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, RuleSet
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -2012,9 +2010,11 @@ class APITest(TembaTest):
         with ESMockWithScroll():
             self.create_group("Developers", query="isdeveloper = YES")
 
-        # start contacts in a flow
-        flow = self.get_flow("color")
-        flow.start([], [contact1, contact2, contact3])
+        # create some "active" runs for some of the contacts
+        flow = self.get_flow("favorites_v13")
+        FlowRun.create(flow, contact1)
+        FlowRun.create(flow, contact2)
+        FlowRun.create(flow, contact3)
 
         self.create_msg(direction="I", contact=contact1, text="Hello")
         self.create_msg(direction="I", contact=contact2, text="Hello")
@@ -2111,16 +2111,11 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
-        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
-        self.assertEqual(response.status_code, 204)
+        with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
+            response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
+            self.assertEqual(response.status_code, 204)
 
-        # check that their flow runs were interrupted
-        interrupted = FlowRun.objects.filter(contact__in=[contact1, contact2])
-        self.assertFalse(interrupted.filter(Q(is_active=True) | Q(exited_on=None)).exists())
-        self.assertFalse(interrupted.exclude(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).exists())
-
-        # check other contact's runs weren't
-        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True, exited_on=None).exists())
+            mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive"})
@@ -2344,9 +2339,12 @@ class APITest(TembaTest):
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
         color.labels.add(reporting)
 
-        # run joe through through a flow
-        color.start([], [self.joe])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
+        # make it look like joe completed a the color flow
+        run = FlowRun.create(color, contact=self.joe)
+        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        run.exited_on = timezone.now()
+        run.is_active = False
+        run.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active"))
 
         # flow belong to other org
         self.create_flow(org=self.org2, name="Other")
@@ -2649,7 +2647,7 @@ class APITest(TembaTest):
         self.assertEqual(
             response.json(),
             {
-                "detail": "This group is used by active triggers. In order to delete it, first archive triggers: block_group"
+                "detail": "This group is used by active triggers. In order to delete it, first archive associated triggers."
             },
         )
 
@@ -3073,6 +3071,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
+    @uses_legacy_engine
     def test_runs(self):
         url = reverse("api.v2.runs")
 
@@ -3092,7 +3091,8 @@ class APITest(TembaTest):
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
 
-        joe_run1, = start1.start()
+        start1.async_start()
+        joe_run1 = start1.runs.get()
         frank_run1, = flow1.start([], [self.frank])
         self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
         self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()
@@ -3185,10 +3185,6 @@ class APITest(TembaTest):
                 "exit_type": "completed",
             },
         )
-
-        # check when all broadcasts have been purged
-        Broadcast.objects.all().update(purged=True)
-        Msg.objects.filter(direction="O").delete()
 
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
@@ -3565,20 +3561,12 @@ class APITest(TembaTest):
             ],
         )
 
-    def test_flow_starts(self):
+    @patch("temba.flows.models.FlowStart.async_start")
+    def test_flow_starts(self, mock_async_start):
         url = reverse("api.v2.flow_starts")
         self.assertEndpointAccess(url)
 
-        flow = self.get_flow("favorites")
-
-        # update our flow to use @extra.first_name and @extra.last_name
-        first_action = flow.action_sets.all().order_by("y")[0]
-        first_action.actions = [
-            ReplyAction(
-                str(uuid4()), dict(base="Hi @extra.first_name @extra.last_name, " "what's your favorite color?")
-            ).as_json()
-        ]
-        first_action.save()
+        flow = self.get_flow("favorites_v13")
 
         # try to create an empty flow start
         response = self.postJSON(url, None, {})
@@ -3595,24 +3583,23 @@ class APITest(TembaTest):
         self.assertTrue(start1.restart_participants)
         self.assertEqual(start1.extra, {})
 
-        # check our first msg
-        msg = Msg.objects.get(direction="O", contact=self.joe)
-        self.assertEqual("Hi @extra.first_name @extra.last_name, what's your favorite color?", msg.text)
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
 
         # start a flow with all parameters
-        extra = dict(first_name="Ryan", last_name="Lewis")
         hans_group = self.create_group("hans", contacts=[self.hans])
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra=extra,
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+            },
         )
 
         self.assertEqual(response.status_code, 201)
@@ -3624,46 +3611,47 @@ class APITest(TembaTest):
         self.assertTrue(start2.contacts.filter(id=self.joe.id))
         self.assertTrue(start2.groups.filter(id=hans_group.id))
         self.assertFalse(start2.restart_participants)
-        self.assertTrue(start2.extra, extra)
+        self.assertTrue(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
 
-        msg = Msg.objects.get(direction="O", contact__urns__path="+12067791212")
-        self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
+        # check we tried to start the new flow start
+        mock_async_start.assert_called_once()
+        mock_async_start.reset_mock()
 
         # try to start a flow with no contact/group/URN
-        response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True))
+        response = self.postJSON(url, None, {"flow": flow.uuid, "restart_participants": True})
         self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
 
         # should raise validation error for invalid JSON in extra
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra="YES",
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": "YES",
+            },
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+        self.assertResponseError(response, "extra", "Must be a valid JSON object")
 
         # a list is valid JSON, but extra has to be a dict
         response = self.postJSON(
             url,
             None,
-            dict(
-                urns=["tel:+12067791212"],
-                contacts=[self.joe.uuid],
-                groups=[hans_group.uuid],
-                flow=flow.uuid,
-                restart_participants=False,
-                extra=[],
-            ),
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": False,
+                "extra": [1],
+            },
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON value")
+        self.assertResponseError(response, "extra", "Must be a valid JSON object")
 
         # invalid URN
         response = self.postJSON(
@@ -3712,7 +3700,7 @@ class APITest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
-                "status": "complete",
+                "status": "pending",
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
                 "created_on": format_datetime(start2.created_on),
                 "modified_on": format_datetime(start2.modified_on),

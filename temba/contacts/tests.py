@@ -34,7 +34,14 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests import (
+    AnonymousOrg,
+    ESMockWithScroll,
+    ESMockWithScrollMultiple,
+    TembaTest,
+    TembaTestMixin,
+    uses_legacy_engine,
+)
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -395,6 +402,7 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(SearchException):
             Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
+    @uses_legacy_engine
     def test_evaluate_dynamic_groups_from_flow(self):
         flow = self.get_flow("initialize")
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
@@ -413,7 +421,7 @@ class ContactGroupTest(TembaTest):
                 ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
                 ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), "(%s > 10)" % key)
 
-        with QueryTracker(assert_query_count=122, stack_count=16, skip_unique_queries=False):
+        with QueryTracker(assert_query_count=137, stack_count=16, skip_unique_queries=False):
             flow.start([], [self.joe])
 
     def test_get_or_create(self):
@@ -1128,9 +1136,10 @@ class ContactTest(TembaTest):
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
-    @patch("temba.ivr.clients.TwilioClient", MockTwilioClient)
+    @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     @override_settings(SEND_CALLS=True)
+    @uses_legacy_engine
     def test_release(self):
 
         # configure our org for ivr
@@ -1156,14 +1165,15 @@ class ContactTest(TembaTest):
             )
             Flow.find_and_handle(msg)
 
-        ivr_flow = self.get_flow("call_me_maybe")
+        ivr_flow = self.get_flow("ivr")
         msg_flow = self.get_flow("favorites")
 
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
         send("hola mundo", old_contact)
         urn = old_contact.get_urn()
-        ivr_flow.start([], [old_contact])
+
+        self.create_incoming_call(msg_flow, old_contact)
 
         # steal his urn into a new contact
         contact = self.create_contact("Joe", "tweettweet")
@@ -1181,14 +1191,14 @@ class ContactTest(TembaTest):
         send("red", contact)
         send("primus", contact)
 
-        ivr_flow.start([], [contact])
+        self.create_incoming_call(msg_flow, contact)
 
         self.assertEqual(1, group.contacts.all().count())
         self.assertEqual(1, contact.connections.all().count())
         self.assertEqual(1, contact.addressed_broadcasts.all().count())
         self.assertEqual(2, contact.urns.all().count())
         self.assertEqual(2, contact.runs.all().count())
-        self.assertEqual(6, contact.msgs.all().count())
+        self.assertEqual(7, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
 
         # first try a regular release and make sure our urns are anonymized
@@ -3552,6 +3562,7 @@ class ContactTest(TembaTest):
             ],
         )
 
+    @uses_legacy_engine
     def test_history(self):
 
         # use a max history size of 100
@@ -3830,6 +3841,7 @@ class ContactTest(TembaTest):
         event.unit = "M"
         self.assertEqual("1 minute before Planting Date", event_time(event))
 
+    @uses_legacy_engine
     def test_activity_tags(self):
         self.create_campaign()
 
@@ -3848,7 +3860,7 @@ class ContactTest(TembaTest):
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")
 
-        call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(), self.admin)
+        call = self.create_incoming_call(self.reminder_flow, contact)
 
         item = {"type": "call", "obj": call}
         self.assertEqual(history_class(item), "non-msg")
@@ -6841,6 +6853,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
 
+    @uses_legacy_engine
     def test_contact_export(self):
         self.clear_storage()
 
@@ -8119,6 +8132,7 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
+    @uses_legacy_engine
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")

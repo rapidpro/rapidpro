@@ -30,6 +30,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
 from temba.utils.expressions import get_function_listing
+from temba.utils.models import patch_queryset_count
 from temba.utils.views import BaseActionForm
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
@@ -153,9 +154,9 @@ class InboxView(OrgPermsMixin, SmartListView):
         # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
         if "search" not in self.request.GET:
             if isinstance(label, Label) and not label.is_folder():
-                self.object_list.count = lambda: label.get_visible_count()
+                patch_queryset_count(self.object_list, label.get_visible_count)
             elif isinstance(label, str):
-                self.object_list.count = lambda: counts[label]
+                patch_queryset_count(self.object_list, lambda: counts[label])
 
         context = super().get_context_data(**kwargs)
 

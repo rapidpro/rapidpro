@@ -482,7 +482,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map and group.get("name"):
-                group_instance = ContactGroup.get_user_group(flow.org, group["name"])
+                group_instance = ContactGroup.get_user_group_by_name(flow.org, group["name"])
                 if group_instance:
                     # map group references that started with a uuid
                     if "uuid" in group:
@@ -1247,9 +1247,9 @@ def migrate_to_version_5(json_flow, flow=None):
 
                 if response_type == "K":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGITS
-                elif response_type == "M":  # pragma: needs cover
+                elif response_type == "M":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGIT
-                elif response_type == "R":
+                elif response_type == "R":  # pragma: no cover
                     ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_RECORDING
                 else:
 

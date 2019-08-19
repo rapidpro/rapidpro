@@ -600,17 +600,11 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_by_key(cls, org, key):
-        field = org.cached_contact_fields.get(key)
-        if field is None:
-            field = ContactField.user_fields.active_for_org(org=org).filter(key=key).first()
-            if field:
-                org.cached_contact_fields[key] = field
-
-        return field
+        return cls.user_fields.active_for_org(org=org).filter(key=key).first()
 
     @classmethod
-    def get_location_field(cls, org, type):
-        return cls.user_fields.active_for_org(org=org).filter(value_type=type).first()
+    def get_location_field(cls, org, value_type):
+        return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
     @classmethod
     def import_fields(cls, org, user, field_defs):
@@ -1918,15 +1912,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Unstops this contact, re-adding them to any dynamic groups they belong to
         """
         self.is_stopped = False
-        self.save(update_fields=["is_stopped", "modified_on"], handle_update=False)
+        self.modified_by = user
+        self.save(update_fields=("is_stopped", "modified_by", "modified_on"), handle_update=False)
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
-
-    def ensure_unstopped(self, user=None):
-        if user is None:
-            user = get_anonymous_user()
-        self.unstop(user)
 
     def release(self, user, *, immediately=True):
         """
@@ -2071,7 +2061,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
         # add all active fields to our context
-        for field in org.cached_contact_fields.values():
+        for field in ContactField.user_fields.active_for_org(org=self.org):
             field_value = self.get_field_serialized(field)
             context[field.key] = field_value if field_value is not None else ""
 
@@ -2696,11 +2686,11 @@ class ContactGroup(TembaModel):
     user_groups = UserContactGroupManager()
 
     @classmethod
-    def get_user_group(cls, org, name):
+    def get_user_group_by_name(cls, org, name):
         """
         Returns the user group with the passed in name
         """
-        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
+        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
 
     @classmethod
     def get_user_groups(cls, org, dynamic=None, ready_only=True):
@@ -2720,13 +2710,15 @@ class ContactGroup(TembaModel):
         existing = None
 
         if uuid:
-            existing = org.get_group(uuid)
+            existing = ContactGroup.user_groups.filter(uuid=uuid, org=org, is_active=True).first()
 
-        if not existing:
-            existing = ContactGroup.get_user_group(org, name)
+        if not existing and name:
+            existing = ContactGroup.get_user_group_by_name(org, name)
 
         if existing:
             return existing
+
+        assert name, "can't create group without a name"
 
         if query:
             return cls.create_dynamic(org, user, name, query)
@@ -2760,12 +2752,12 @@ class ContactGroup(TembaModel):
             raise ValueError("Invalid group name: %s" % name)
 
         # look for name collision and append count if necessary
-        existing = cls.get_user_group(org, full_group_name)
+        existing = cls.get_user_group_by_name(org, full_group_name)
 
         count = 2
         while existing:
             full_group_name = "%s %d" % (name, count)
-            existing = cls.get_user_group(org, full_group_name)
+            existing = cls.get_user_group_by_name(org, full_group_name)
             count += 1
 
         return cls.user_groups.create(

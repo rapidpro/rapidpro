@@ -11,7 +11,6 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
-from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
 from django.conf.urls import url
@@ -28,21 +27,12 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.orgs.models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    NEXMO_APP_ID,
-    NEXMO_APP_PRIVATE_KEY,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    Org,
-)
+from temba.orgs.models import Org
 from temba.utils import get_anonymous_user, json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.masking import apply_mask, mask_http_trace
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
-from temba.utils.nexmo import NCCOResponse
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
@@ -145,19 +135,6 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return []
 
-    def get_courier_url(self):
-        """
-        Returns the url pattern for our courier URL
-        """
-        from .handlers import CourierHandler
-
-        courier_url = self.__class__.courier_url
-        return (
-            url(courier_url, CourierHandler.as_view(channel_name=self.name), name="courier.%s" % self.code.lower())
-            if courier_url
-            else None
-        )
-
     def get_claim_url(self):
         """
         Gets the URL/view configuration for this channel types's claim page
@@ -177,11 +154,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a channel of this type has been created. Can be used to setup things like callbacks required by the
         channel. Note: this will only be called if IS_PROD setting is True.
-        """
-
-    def enable_flow_server(self, channel):
-        """
-        Called when an org is switched to being flow server enabled, noop in most cases
         """
 
     def deactivate(self, channel):
@@ -694,19 +666,15 @@ class Channel(TembaModel):
         )
 
     @classmethod
-    def add_send_channel(cls, user, channel):
+    def add_nexmo_bulk_sender(cls, user, channel):
         # nexmo ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
         nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         org = user.get_org()
-        org_config = org.config
-
         config = {
-            Channel.CONFIG_NEXMO_APP_ID: org_config.get(NEXMO_APP_ID),
-            Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: org_config[NEXMO_APP_PRIVATE_KEY],
-            Channel.CONFIG_NEXMO_API_KEY: org_config[NEXMO_KEY],
-            Channel.CONFIG_NEXMO_API_SECRET: org_config[NEXMO_SECRET],
+            Channel.CONFIG_NEXMO_API_KEY: org.config[Org.CONFIG_NEXMO_KEY],
+            Channel.CONFIG_NEXMO_API_SECRET: org.config[Org.CONFIG_NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -735,7 +703,10 @@ class Channel(TembaModel):
             address=channel.address,
             role=Channel.ROLE_CALL,
             parent=channel,
-            config={"account_sid": org.config[ACCOUNT_SID], "auth_token": org.config[ACCOUNT_TOKEN]},
+            config={
+                "account_sid": org.config[Org.CONFIG_TWILIO_SID],
+                "auth_token": org.config[Org.CONFIG_TWILIO_TOKEN],
+            },
         )
 
     @classmethod
@@ -853,55 +824,18 @@ class Channel(TembaModel):
         """
         Returns the domain to use for callbacks, this can be channel specific if set on the config, otherwise the brand domain
         """
-        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN, None)
+        callback_domain = self.config.get(Channel.CONFIG_CALLBACK_DOMAIN)
 
         if callback_domain:
             return callback_domain
-        elif self.org:
-            return self.org.get_brand_domain()
         else:
-            return None
+            return self.org.get_brand_domain()
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
 
     def is_delegate_caller(self):
         return self.parent and Channel.ROLE_CALL in self.role
-
-    def generate_ivr_response(self):
-        ivr_protocol = Channel.get_type_from_code(self.channel_type).ivr_protocol
-        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
-            return VoiceResponse()
-        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
-            return NCCOResponse()
-
-    def get_ivr_client(self):
-
-        # no client for released channels
-        if not (self.is_active and self.org):
-            return None
-
-        if self.channel_type == "T":
-            return self.org.get_twilio_client()
-        elif self.channel_type == "TW":
-            return self.get_twiml_client()
-        elif self.channel_type == "VB":  # pragma: no cover
-            return self.org.get_verboice_client()
-        elif self.channel_type == "NX":
-            return self.org.get_nexmo_client()
-
-    def get_twiml_client(self):
-        from temba.ivr.clients import TwilioClient
-
-        if self.config:
-            account_sid = self.config.get(Channel.CONFIG_ACCOUNT_SID, None)
-            auth_token = self.config.get(Channel.CONFIG_AUTH_TOKEN, None)
-            base = self.config.get(Channel.CONFIG_SEND_URL, None)
-
-            if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self, base=base)
-
-        return None
 
     def supports_ivr(self):
         return Channel.ROLE_CALL in self.role or Channel.ROLE_ANSWER in self.role
@@ -1117,11 +1051,8 @@ class Channel(TembaModel):
                 # proceed with removing this channel but log the problem
                 logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
 
-            # hangup all its calls
-            from temba.ivr.models import IVRCall
-
-            for call in IVRCall.objects.filter(channel=self).exclude(status__in=IVRCall.DONE):
-                call.close()
+        # interrupt any sessions using this channel as a connection
+        mailroom.queue_interrupt(self.org, channel=self)
 
         # save off our org and fcm id before nullifying
         org = self.org
@@ -1277,10 +1208,6 @@ class Channel(TembaModel):
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
-
-    @staticmethod
-    def redis_active_events_key(channel_id):
-        return f"channel_active_events_{channel_id}"
 
     def __str__(self):  # pragma: no cover
         if self.name:
@@ -1547,20 +1474,6 @@ class ChannelLog(models.Model):
         print("[%d] ERROR - %s" % (msg.id, description))
         return ChannelLog.objects.create(
             channel_id=msg.channel, msg_id=msg.id, is_error=True, description=description[:255]
-        )
-
-    @classmethod
-    def log_ivr_interaction(cls, call, description, event, is_error=False):
-        return ChannelLog.objects.create(
-            channel_id=call.channel_id,
-            connection_id=call.id,
-            request=str(event.request_body),
-            response=str(event.response_body),
-            url=event.url,
-            method=event.method,
-            is_error=is_error,
-            response_status=event.status_code,
-            description=description[:255],
         )
 
     @classmethod
@@ -2013,24 +1926,22 @@ class ChannelConnection(models.Model):
 
                 self.__class__ = IVRCall
 
-    def get_logs(self):
-        return self.channel_logs.all().order_by("created_on")
+    def has_logs(self):
+        """
+        Returns whether this connection has any channel logs
+        """
+        return self.channel.is_active and self.channel_logs.count() > 0
 
-    def is_done(self):
-        return self.status in self.DONE
+    def get_duration(self):
+        """
+        Either gets the set duration as reported by provider, or tries to calculate it
+        """
+        duration = self.duration or 0
 
-    def is_ivr(self):
-        return self.connection_type == self.IVR
+        if not duration and self.status == self.IN_PROGRESS and self.started_on:
+            duration = (timezone.now() - self.started_on).seconds
 
-    def close(self):  # pragma: no cover
-        pass
-
-    def get(self):
-        if self.connection_type == self.IVR:
-            from temba.ivr.models import IVRCall
-
-            return IVRCall.objects.filter(id=self.id).first()
-        return self  # pragma: no cover
+        return timedelta(seconds=duration)
 
     def get_session(self):
         """

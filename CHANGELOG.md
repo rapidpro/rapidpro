@@ -1,3 +1,68 @@
+v5.1.22
+----------
+ * Remove trigger firing functionality (except schedule triggers) and drop unused fields on trigger
+
+v5.1.21
+----------
+ * Migration to backfill FlowRun.status
+
+v5.1.20
+----------
+ * Limit group fetching to active groups
+ * Get rid of caching on org object as that's no longer used needed
+ * Fix importing/copying flows when flow has group dependency with no name
+
+v5.1.19
+----------
+ * Migration to add FlowRun.status
+
+v5.1.18
+----------
+ * Cleanup fields on FlowRun (single migration with no real SQL changes which can be faked)
+
+v5.1.17
+----------
+ * Remove all IVR flow running functionality which is now handled by mailroom
+
+v5.1.15
+----------
+ * Update to flow editor v1.6.11
+ * Releasing Nexmo channel shouldn't blow up if application can't be deleted on Nexmo side
+
+v5.1.14
+----------
+ * Fix Nexmo IVR to work with mailroom
+ * Add migration to populate session UUIDs
+ * Update to Django 2.2
+ * Send topup expiration emails to all org administrators
+
+v5.1.12
+----------
+ * Drop ActionLog model
+ * Switch to new editor as the default, use v1.6.10
+ * Add query field to FlowStart
+
+v5.1.11
+----------
+ * Add FlowSession.uuid which is nullable for now
+ * Update to floweditor 1.6.9, scrolling rules
+
+v5.1.10
+----------
+ * Update to flow editor 1.6.8, add completion config
+ * Add FlowStart.parent_summary, start deprecating fields
+ * Switch to bionic beaver for CI builds
+ * Add trigger params access to ivr flow
+ * Drop no longer used Broadcast.purged field
+
+v5.1.9
+----------
+ * Make Broadcast.purged nullable in preparation for dropping it
+
+v5.1.8
+----------
+ * Update floweditor to 1.6.7 and npm audit
+
 v5.1.7
 ----------
  * Remove unused IVR tasks
