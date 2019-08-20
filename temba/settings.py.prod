@@ -196,6 +196,7 @@ ELASTIC_APM = {
     "SERVICE_NAME": env("APM_SERVICE_NAME", default=""),
     "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
     "SERVER_URL": env("APM_SERVER_URL", default=""),
+    "ENVIRONMENT": env("APM_SERVICE_ENVIRONMENT", default="production"),
     "DJANGO_TRANSACTION_NAME_FROM_ROUTE": True,
     "PROCESSORS": (
         "elasticapm.processors.sanitize_stacktrace_locals",
