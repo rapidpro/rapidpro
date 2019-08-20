@@ -2420,7 +2420,7 @@ class ContactURN(models.Model):
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
-    ANON_MASK_HTML = "\u2022" * 8  # Pretty HTML version of anon mask
+    ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask
 
     contact = models.ForeignKey(
         Contact,

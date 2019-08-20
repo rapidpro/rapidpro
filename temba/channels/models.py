@@ -1432,53 +1432,52 @@ class ChannelLog(models.Model):
 
         return ChannelLog.objects.filter(id=self.id)
 
-    def get_url_display(self, user):
+    def get_url_display(self, user, anon_mask):
         """
         Gets the URL as it should be displayed to the given user
         """
-        return self._get_display_value(user, self.url)
+        return self._get_display_value(user, self.url, anon_mask)
 
-    def get_request_display(self, user):
+    def get_request_display(self, user, anon_mask):
         """
         Gets the request trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
 
-        return self._get_display_value(user, self.request, redact_keys)
+        return self._get_display_value(user, self.request, anon_mask, redact_keys)
 
-    def get_response_display(self, user):
+    def get_response_display(self, user, anon_mask):
         """
         Gets the response trace as it should be displayed to the given user
         """
         redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
 
-        return self._get_display_value(user, self.response, redact_keys)
+        return self._get_display_value(user, self.response, anon_mask, redact_keys)
 
-    def _get_display_value(self, user, original, redact_keys=()):
+    def _get_display_value(self, user, original, mask, redact_keys=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
-        from temba.contacts.models import ContactURN
 
         if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
             return original
 
+        # if this log doesn't have a msg then we don't know what to redact, so redact completely
         if not self.msg_id:
-            return ContactURN.ANON_MASK
+            return mask
 
         needle = self.msg.contact_urn.path
 
         if redact_keys:
-            redacted, changed = redact.http_trace(original, needle, redact_keys, ContactURN.ANON_MASK)
-            if changed:
-                return redacted
+            redacted = redact.http_trace(original, needle, redact_keys, mask)
         else:
-            redacted, changed = redact.text(original, needle, ContactURN.ANON_MASK)
-            if changed:
-                return redacted
+            redacted = redact.text(original, needle, mask)
 
-        # if nothing is changed, redact the whole thing
-        return ContactURN.ANON_MASK
+        # if nothing was redacted, don't risk returning sensitive information we didn't find
+        if original == redacted:
+            return mask
+
+        return redacted
 
     def release(self):
         self.delete()
