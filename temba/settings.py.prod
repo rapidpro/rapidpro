@@ -72,10 +72,25 @@ COMPRESS_CSS_HASHING_METHOD = "content"
 COMPRESS_OFFLINE_CONTEXT = dict(
     STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING.get(DEFAULT_BRAND), debug=False, testing=False
 )
-MIDDLEWARE += (
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+
+# MIDDLEWARE
+# ------------------------------------------------------------------------------
+MIDDLEWARE = (
     "elasticapm.contrib.django.middleware.TracingMiddleware",
     "elasticapm.contrib.django.middleware.Catch404Middleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "temba.middleware.ConsentMiddleware",
+    "temba.middleware.BrandingMiddleware",
+    "temba.middleware.OrgTimezoneMiddleware",
+    "temba.middleware.ActivateLanguageMiddleware",
+    "temba.middleware.OrgHeaderMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 
 # REDIS
@@ -155,50 +170,22 @@ sentry_sdk.init(dsn=env("SENTRY_DSN", default=""), integrations=[DjangoIntegrati
 
 # LOGGING
 # ------------------------------------------------------------------------------
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": True,
-#     "root": {"level": "WARNING", "handlers": ["console"]},
-#     "formatters": {
-#         "verbose": {
-#             "format": "%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s"
-#         }
-#     },
-#     "handlers": {
-#         "gunicorn": {
-#             "level": "DEBUG",
-#             "class": "logging.handlers.RotatingFileHandler",
-#             "formatter": "verbose",
-#             "filename": "./gunicorn.error.log",
-#             "maxBytes": 1024 * 1024 * 100,
-#         },
-#         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
-#         "null": {"class": "logging.NullHandler"},
-#         "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
-#     },
-#     "loggers": {
-#         "gunicorn.errors": {"level": "DEBUG", "handlers": ["gunicorn"], "propagate": True},
-#         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-#         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
-#         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-#         "elasticapm.errors": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-#         "rapidpro": {"level": "WARNING", "handlers": ["elasticapm"], "propagate": False},
-#     },
-# }
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
+    "root": {"level": "WARNING", "handlers": ["console"]},
     "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
     "handlers": {
         "elasticapm": {"level": "WARNING", "class": "elasticapm.contrib.django.handlers.LoggingHandler"},
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
+        "null": {"class": "logging.NullHandler"},
     },
     "loggers": {
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "rapidpro": {"level": "WARNING", "handlers": ["elasticapm"], "propagate": False},
-        # Log errors from the Elastic APM module to the console (recommended)
         "elasticapm.errors": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
     },
 }
 
@@ -210,7 +197,6 @@ ELASTIC_APM = {
     "SECRET_TOKEN": env("APM_SECRET_TOKEN", default=""),
     "SERVER_URL": env("APM_SERVER_URL", default=""),
     "PROCESSORS": (
-        "path.to.my_processor",
         "elasticapm.processors.sanitize_stacktrace_locals",
         "elasticapm.processors.sanitize_http_request_cookies",
         "elasticapm.processors.sanitize_http_headers",
