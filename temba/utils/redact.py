@@ -4,8 +4,11 @@ import xml.sax.saxutils
 
 HTTP_BODY_BOUNDARY = "\r\n\r\n"
 
+# variations of the needle being redacted will be trimmed to this number of chars
+TRIM_NEEDLE_TO = 7
 
-def text(s, value, mask):
+
+def text(s, needle, mask):
     """
     Redacts a value from the given text by replacing it with a mask.
 
@@ -16,15 +19,15 @@ def text(s, value, mask):
     identity is masked regardless of a different prefix: 0615518585 -> 0******** for +252615518585
     """
 
-    assert isinstance(s, str) and isinstance(value, str) and isinstance(mask, str)
+    assert isinstance(s, str) and isinstance(needle, str) and isinstance(mask, str)
 
-    for variation in _variations(value):
+    for variation in _variations(needle):
         s = s.replace(variation, mask)
 
     return s
 
 
-def http_trace(trace, value, json_keys, mask):
+def http_trace(trace, needle, json_keys, mask):
     """
     Redacts the values with the given key names in the JSON payload of an HTTP trace
     """
@@ -44,7 +47,7 @@ def http_trace(trace, value, json_keys, mask):
     redacted = HTTP_BODY_BOUNDARY.join(rest)
 
     # finally do a regular text-level redaction of the value
-    return text(redacted, value, mask)
+    return text(redacted, needle, mask)
 
 
 def _json_replace(obj, keys, mask):
@@ -68,28 +71,28 @@ def _json_replace(obj, keys, mask):
         return obj
 
 
-def _variations(value):
+def _variations(needle):
     """
     Generates variations based on a given base value
     """
 
-    bases = {value}
+    bases = {needle}
 
     # include variations with 0 and + prepended, and replaced with the other
-    if value.startswith("0"):
-        bases.add("+" + value[1:])
-    elif not value.startswith("+"):
-        bases.add("0" + value)
+    if needle.startswith("0"):
+        bases.add("+" + needle[1:])
+    elif not needle.startswith("+"):
+        bases.add("0" + needle)
 
-    if value.startswith("+"):
-        bases.add("0" + value[1:])
-    elif not value.startswith("0"):
-        bases.add("+" + value)
+    if needle.startswith("+"):
+        bases.add("0" + needle[1:])
+    elif not needle.startswith("0"):
+        bases.add("+" + needle)
 
-    max_trim = int(len(value) / 2)  # trim up to a half off the start
-
-    for i in range(0, max_trim):
-        bases.add(value[(i + 1) :])
+    trimmed = needle[1:]
+    while len(trimmed) >= TRIM_NEEDLE_TO:
+        bases.add(trimmed)
+        trimmed = trimmed[1:]
 
     # for each base variation, generate new variations using different encodings
     variations = set()

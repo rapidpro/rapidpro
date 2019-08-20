@@ -1963,15 +1963,9 @@ class RedactionTest(TestCase):
                 "&lt;?&amp;&gt;",
                 "0%3C%3F%26%3E",
                 "%3C%3F%26%3E",
-                "?&amp;&gt;",
-                "&amp;&gt;",
-                "%3F%26%3E",
-                "%26%3E",
                 "0<?&>",
                 "+<?&>",
                 "<?&>",
-                "?&>",
-                "&>",
             ],
         )
 
@@ -1985,15 +1979,9 @@ class RedactionTest(TestCase):
                 "0\\n\\r\\t\\ud83d\\ude04",
                 "+\\n\\r\\t\\ud83d\\ude04",
                 "\\n\\r\\t\\ud83d\\ude04",
-                "%0D%09%F0%9F%98%84",
-                "\\r\\t\\ud83d\\ude04",
-                "%09%F0%9F%98%84",
-                "\\t\\ud83d\\ude04",
                 "0\n\r\t😄",
                 "+\n\r\t😄",
                 "\n\r\t😄",
-                "\r\t😄",
-                "\t😄",
             ],
         )
 
@@ -2023,8 +2011,8 @@ class RedactionTest(TestCase):
         # '3456789' matches the input string
         self.assertEqual(redact.text("this is 03456789", "+123456789", "********"), "this is 0********")
 
-        # only 1/2 half of the test matches
-        self.assertEqual(redact.text("this is 0123456789", "4321056789", "********"), "this is 01234********")
+        # only rightmost 7 chars of the test matches
+        self.assertEqual(redact.text("this is 0123456789", "xxx3456789", "********"), "this is 012********")
 
         # all matches replaced
         self.assertEqual(
