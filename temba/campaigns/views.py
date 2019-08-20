@@ -352,7 +352,7 @@ class CampaignEventForm(forms.ModelForm):
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
             else:
                 # set our single message on our flow
-                obj.flow.update_single_message_flow(translations, base_language)
+                obj.flow.update_single_message_flow(self.user, translations, base_language)
 
             obj.message = translations
             obj.full_clean()

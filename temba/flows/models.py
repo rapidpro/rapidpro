@@ -366,7 +366,7 @@ class Flow(TembaModel):
         """
         name = "Single Message (%s)" % str(uuid4())
         flow = Flow.create(org, user, name, flow_type=Flow.TYPE_MESSAGE, is_system=True)
-        flow.update_single_message_flow(message, base_language)
+        flow.update_single_message_flow(user, message, base_language)
         return flow
 
     @classmethod
@@ -1278,33 +1278,36 @@ class Flow(TembaModel):
         self.is_archived = False
         self.save(update_fields=["is_archived"])
 
-    def update_single_message_flow(self, translations, base_language):
-        if base_language not in translations:  # pragma: no cover
-            raise ValueError("Must include translation for base language")
+    def update_single_message_flow(self, user, translations, base_language):
+        assert translations and base_language in translations, "must include translation for base language"
 
         self.base_language = base_language
-        self.version_number = Flow.FINAL_LEGACY_VERSION
+        self.version_number = Flow.GOFLOW_VERSION
         self.save(update_fields=("name", "base_language", "version_number"))
 
-        entry_uuid = str(uuid4())
+        translations = translations.copy()  # don't modify instance being saved on event object
+
+        action_uuid = str(uuid4())
+        base_text = translations.pop(base_language)
+        localization = {k: {action_uuid: {"text": [v]}} for k, v in translations.items()}
+
         definition = {
-            "version": self.version_number,
-            "flow_type": "M",
-            "entry": entry_uuid,
-            "base_language": base_language,
-            "rule_sets": [],
-            "action_sets": [
+            "uuid": "8ca44c09-791d-453a-9799-a70dd3303306",
+            "name": self.name,
+            "spec_version": self.version_number,
+            "language": base_language,
+            "type": "messaging",
+            "localization": localization,
+            "nodes": [
                 {
-                    "x": 100,
-                    "y": 0,
-                    "uuid": entry_uuid,
-                    "exit_uuid": str(uuid4()),
-                    "actions": [{"uuid": str(uuid4()), "type": "reply", "msg": translations}],
+                    "uuid": str(uuid4()),
+                    "actions": [{"uuid": action_uuid, "type": "send_msg", "text": base_text}],
+                    "exits": [{"uuid": "0c599307-8222-4386-b43c-e41654f03acf"}],
                 }
             ],
         }
 
-        self.update(FlowRevision.migrate_definition(definition, self))
+        self.save_revision(user, definition)
 
     def get_run_stats(self):
         totals_by_exit = FlowRunCount.get_totals(self)
@@ -1985,7 +1988,8 @@ class Flow(TembaModel):
 
         if current_revision:
             # check we aren't walking over someone else
-            if definition.get(Flow.DEFINITION_REVISION) < current_revision.revision:
+            definition_revision = definition.get(Flow.DEFINITION_REVISION)
+            if definition_revision and definition_revision < current_revision.revision:
                 raise FlowUserConflictException(self.saved_by, self.saved_on)
 
             revision = current_revision.revision + 1

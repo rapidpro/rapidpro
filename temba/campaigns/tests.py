@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, ImportTask
-from temba.flows.models import ActionSet, Flow, FlowRevision
+from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
@@ -289,14 +289,6 @@ class CampaignTest(TembaTest):
 
         # should have one event, which created a corresponding flow
         event = CampaignEvent.objects.filter(is_active=True).first()
-        flow = event.flow
-        self.assertTrue(flow.is_system)
-
-        entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
-        msg = entry.get_actions()[0].msg
-
-        self.assertEqual(flow.base_language, "base")
-        self.assertEqual(msg, {"base": "This is my message", "spa": "hola"})
 
         self.assertEqual(event.offset, -1)
         self.assertEqual(event.delivery_hour, 13)
@@ -307,6 +299,33 @@ class CampaignTest(TembaTest):
         self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
         self.assertEqual(event.get_message(contact=self.farmer2), "hola")
         self.assertEqual(event.get_message(), "This is my message")
+
+        self.assertTrue(event.flow.is_system)
+        self.assertTrue(event.flow.base_language, "base")
+
+        flow_json = event.flow.as_json()
+        action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
+
+        self.assertEqual(
+            flow_json,
+            {
+                "uuid": str(event.flow.uuid),
+                "name": f"Single Message ({event.id})",
+                "spec_version": "13.0.0",
+                "revision": 1,
+                "expire_after_minutes": 720,
+                "language": "base",
+                "type": "messaging",
+                "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
+                "nodes": [
+                    {
+                        "uuid": matchers.UUID4String(),
+                        "actions": [{"uuid": action_uuid, "type": "send_msg", "text": "This is my message"}],
+                        "exits": [{"uuid": matchers.UUID4String()}],
+                    }
+                ],
+            },
+        )
 
         url = reverse("campaigns.campaignevent_update", args=[event.id])
         response = self.client.get(url)
@@ -337,7 +356,7 @@ class CampaignTest(TembaTest):
                 "relative_to": self.planting_date.id,
                 "event_type": "M",
                 "base": "Required",
-                "spa": "This is my spanish @contact.planting_date",
+                "spa": "This is my spanish @fields.planting_date",
                 "ace": "",
                 "direction": "B",
                 "offset": 1,
@@ -348,10 +367,10 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(response.status_code, 302)
-        flow.refresh_from_db()
+        event.flow.refresh_from_db()
 
         # we should retain 'base' as our base language
-        self.assertEqual("base", flow.base_language)
+        self.assertEqual("base", event.flow.base_language)
 
         # now we can remove our primary language
         self.org.primary_language = None
@@ -363,8 +382,8 @@ class CampaignTest(TembaTest):
         response = self.client.get(url)
 
         self.assertIn("base", response.context["form"].fields)
-        self.assertEqual("This is my spanish @contact.planting_date", response.context["form"].fields["spa"].initial)
-        self.assertEqual("", response.context["form"].fields["ace"].initial)
+        self.assertEqual(response.context["form"].fields["spa"].initial, "This is my spanish @fields.planting_date")
+        self.assertEqual(response.context["form"].fields["ace"].initial, "")
 
         # our single message flow should have a dependency on planting_date
         event.flow.refresh_from_db()
