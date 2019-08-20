@@ -1177,8 +1177,6 @@ class FlowCRUDL(SmartCRUDL):
             context["styles"] = styles
             context["migrate"] = "migrate" in self.request.GET
 
-            print(context["styles"])
-
             if flow.is_archived:
                 context["mutable"] = False
                 context["can_start"] = False

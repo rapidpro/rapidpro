@@ -3,7 +3,7 @@ import { LitElement, TemplateResult, html, css } from 'lit-element';
 
 
 @customElement("rp-icon")
-export default class FontIcon extends LitElement {
+export default class VectorIcon extends LitElement {
 
   static get styles() {
     return css`

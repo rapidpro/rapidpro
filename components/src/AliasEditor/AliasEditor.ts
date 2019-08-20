@@ -2,7 +2,7 @@ import './../LeafletMap/LeafletMap';
 import './../Dialog/Dialog';
 import './../Choice/Choice';
 import './../Label/Label';
-import './../FontIcon/FontIcon';
+import '../VectorIcon/VectorIcon';
 
 import { AxiosResponse } from 'axios';
 import { css, customElement, html, LitElement, property, TemplateResult } from 'lit-element';
