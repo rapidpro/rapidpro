@@ -240,7 +240,7 @@ export default class AliasEditor extends LitElement {
 
         <div class="aliases">
           ${feature.aliases.split('\n').map((alias: string)=>alias.trim().length > 0 ? html`
-            <rp-label class="alias" @click=${()=>{this.showAliasDialog(feature);}} overlight clickable>${alias}</rp-label>
+            <rp-label class="alias" @click=${()=>{this.showAliasDialog(feature);}} light clickable>${alias}</rp-label>
           `: null)}
 
           ${feature.level > 0 ? html`
@@ -325,7 +325,7 @@ export default class AliasEditor extends LitElement {
     `;
 
     const aliasList = option.aliases.split('\n');
-    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" overdark>${alias}</rp-label>`: null);
+    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" dark>${alias}</rp-label>`: null);
     return html`${style}<div class="path">${option.path.replace(/>/gi, "‣")}</div><div class="aliases">${aliases}</div>`;    
   }
 

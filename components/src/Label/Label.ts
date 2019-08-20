@@ -43,15 +43,15 @@ export default class Label extends LitElement {
         text-shadow: none;
       }
 
-      .overlight {
-        background: var(--color-label-overlight);
-        color: var(--color-label-overlight-text);
+      .light {
+        background: var(--color-overlay-light);
+        color: var(--color-overlay-light-text);
         text-shadow: none;
       }
 
-      .overdark {
-        background: var(--color-label-overdark);
-        color: var(--color-label-overdark-text);
+      .dark {
+        background: var(--color-overlay-dark);
+        color: var(--color-overlay-dark-text);
         text-shadow: none;
       }
 
@@ -71,10 +71,10 @@ export default class Label extends LitElement {
   secondary: boolean;
 
   @property({type: Boolean})
-  overlight: boolean;
+  light: boolean;
 
   @property({type: Boolean})
-  overdark: boolean;
+  dark: boolean;
 
   @property()
   backgroundColor: string;
@@ -97,8 +97,8 @@ export default class Label extends LitElement {
         "clickable": this.clickable,
         "primary": this.primary,
         "secondary": this.secondary,
-        "overlight": this.overlight,
-        "overdark": this.overdark
+        "light": this.light,
+        "dark": this.dark
         })}"
        >
         <div class="mask">
