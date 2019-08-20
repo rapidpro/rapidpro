@@ -3553,8 +3553,8 @@ class BulkExportTest(TembaTest):
         sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
 
         # shoud have one event fire
-        self.assertEqual(1, event.event_fires.all().count())
-        original_fire = event.event_fires.all().first()
+        self.assertEqual(1, event.fires.all().count())
+        original_fire = event.fires.all().first()
 
         # importing it again shouldn't result in failures
         self.import_file("survey_campaign")
@@ -3568,8 +3568,8 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(event.id, new_event.id)
 
         # should still have one fire, but it's been recreated
-        self.assertEqual(1, new_event.event_fires.all().count())
-        self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
+        self.assertEqual(1, new_event.fires.all().count())
+        self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions")

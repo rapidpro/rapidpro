@@ -991,8 +991,8 @@ class ContactCRUDL(SmartCRUDL):
             # the users group membership
             context["contact_groups"] = contact.user_groups.order_by(Lower("name"))
 
-            # event fires
-            event_fires = contact.fire_events.filter(
+            # campaign event fires
+            event_fires = contact.campaign_fires.filter(
                 event__is_active=True, event__campaign__is_archived=False, scheduled__gte=timezone.now()
             ).order_by("scheduled")
 
@@ -1974,7 +1974,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True).all())
             context["dep_campaignevents"] = list(
-                self.object.campaigns.filter(is_active=True).select_related("campaign").all()
+                self.object.campaign_events.filter(is_active=True).select_related("campaign").all()
             )
             context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
 

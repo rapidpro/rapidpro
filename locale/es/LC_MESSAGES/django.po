@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-16 18:59+0000\n"
+"POT-Creation-Date: 2019-08-20 15:39+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -77,13 +77,14 @@ msgid "You do not have permission to access this file"
 msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Flow Event"
-msgstr "Evento del transmisor"
+#| msgid "The name of this contact"
+msgid "The name of this campaign"
+msgstr "El nombre de este contacto"
 
 #, fuzzy
-msgid "Message Event"
-msgstr "Reintentar el conteo de mensajes"
+#| msgid "The org this call is connected to"
+msgid "The group this campaign operates on"
+msgstr "La organización a la que esta llamada está conectada"
 
 msgid "Minutes"
 msgstr ""
@@ -98,44 +99,6 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
-
-msgid "Interrupt"
-msgstr ""
-
-msgid "Skip"
-msgstr ""
-
-msgid "Passive"
-msgstr ""
-
-#, fuzzy
-#| msgid "Wired"
-msgid "Fired"
-msgstr "Wired"
-
-msgid "Skipped"
-msgstr ""
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "The event that will be fired"
-msgstr "El mensaje que se está entregando"
-
-#, fuzzy
-#| msgid "a unique code associated with this invitation"
-msgid "The contact that is scheduled to have an event run"
-msgstr "un código único asociado con esta invitación"
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "When this event is scheduled to run"
-msgstr "Cuando se creó este mensaje"
-
-msgid "When this event actually fired, null if not yet fired"
-msgstr ""
-
-msgid "Whether the event is fired or skipped, null if not yet fired"
-msgstr ""
 
 msgid "Export"
 msgstr "Exportar"
@@ -11473,6 +11436,35 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
 
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Flow Event"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~ msgid "Message Event"
+#~ msgstr "Reintentar el conteo de mensajes"
+
+#, fuzzy
+#~| msgid "Wired"
+#~ msgid "Fired"
+#~ msgstr "Wired"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "The event that will be fired"
+#~ msgstr "El mensaje que se está entregando"
+
+#, fuzzy
+#~| msgid "a unique code associated with this invitation"
+#~ msgid "The contact that is scheduled to have an event run"
+#~ msgstr "un código único asociado con esta invitación"
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "When this event is scheduled to run"
+#~ msgstr "Cuando se creó este mensaje"
+
 #~ msgid "The organization this trigger belongs to"
 #~ msgstr "La organización a la que pertenece este activador"
 
@@ -13646,9 +13638,6 @@ msgstr "Borrar teléfono"
 #, fuzzy
 #~ msgid "When this message was delivered to the final recipient (for incoming messages, when the message was handled)"
 #~ msgstr "Cuando este mensaje se entregó al destinatario final"
-
-#~ msgid "The org this call is connected to"
-#~ msgstr "La organización a la que esta llamada está conectada"
 
 #~ msgid "The duration of this call in seconds, if appropriate"
 #~ msgstr "La duración de esta llamada en segundos, según convenga"
