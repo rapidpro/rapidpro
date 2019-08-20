@@ -1623,7 +1623,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group = self.get_object()
 
             context["triggers"] = group.trigger_set.filter(is_archived=False)
-            context["campaigns"] = group.campaign_set.filter(is_archived=False)
+            context["campaigns"] = group.campaigns.filter(is_archived=False)
 
             return context
 
@@ -1642,16 +1642,15 @@ class ContactGroupCRUDL(SmartCRUDL):
 
             from temba.flows.models import Flow
 
-            flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
-            if flows.count():
+            if Flow.objects.filter(org=group.org, group_dependencies__in=[group]).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            if group.campaign_set.filter(is_archived=False).exists():
+            if group.campaigns.filter(is_archived=False).exists():
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
             # deactivate the group, this makes it 'invisible'
             group.is_active = False
-            group.save()
+            group.save(update_fields=("is_active",))
 
             # release the group in a background task
             on_transaction_commit(lambda: release_group_task.delay(group.id))

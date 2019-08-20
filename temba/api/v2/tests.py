@@ -2646,9 +2646,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {
-                "detail": "This group is used by active triggers. In order to delete it, first archive associated triggers."
-            },
+            {"detail": "This group is used by triggers. In order to delete it, first archive associated triggers."},
         )
 
     def test_api_groups_cant_delete_with_flow_dependency(self):
@@ -2664,7 +2662,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {"detail": "This group is used by active flows. In order to delete it, first archive flows: Dependencies"},
+            {"detail": "This group is used by flows. In order to delete it, first archive associated flows."},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):
@@ -2673,17 +2671,14 @@ class APITest(TembaTest):
 
         customers = self.create_group("Customers", [self.frank])
 
-        post_data = dict(name="Don't forget to ...", group=customers.pk)
-        self.client.post(reverse("campaigns.campaign_create"), post_data)
+        self.client.post(reverse("campaigns.campaign_create"), {"name": "Don't forget to ...", "group": customers.id})
 
-        response = self.deleteJSON(url, "uuid=%s" % customers.uuid)
+        response = self.deleteJSON(url, f"uuid={customers.uuid}")
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {
-                "detail": "This group is used by active campaigns. In order to delete it, first archive campaigns: Don't forget to ..."
-            },
+            {"detail": "This group is used by campaigns. In order to delete it, first archive associated campaigns."},
         )
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)

@@ -27,7 +27,10 @@ class Campaign(TembaModel):
     name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this campaign"))
 
     group = models.ForeignKey(
-        ContactGroup, on_delete=models.PROTECT, help_text=_("The group this campaign operates on")
+        ContactGroup,
+        on_delete=models.PROTECT,
+        help_text=_("The group this campaign operates on"),
+        related_name="campaigns",
     )
 
     is_archived = models.BooleanField(default=False)

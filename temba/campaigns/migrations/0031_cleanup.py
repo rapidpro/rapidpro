@@ -16,6 +16,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="orgs.Org"),
         ),
         migrations.AlterField(
+            model_name="campaign",
+            name="group",
+            field=models.ForeignKey(
+                help_text="The group this campaign operates on",
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="campaigns",
+                to="contacts.ContactGroup",
+            ),
+        ),
+        migrations.AlterField(
             model_name="campaignevent",
             name="campaign",
             field=models.ForeignKey(

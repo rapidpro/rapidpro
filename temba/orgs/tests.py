@@ -3809,7 +3809,9 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1).order_by("pk").first()
+        message_flow = (
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
+        )
         action_set = message_flow.action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
@@ -3841,11 +3843,11 @@ class BulkExportTest(TembaTest):
 
         # find our new message flow, and see that the original message is there
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
-            .order_by("pk")
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            .order_by("id")
             .first()
         )
-        action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by("-y").first()
+        action_set = Flow.objects.get(id=message_flow.id).action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
@@ -3908,8 +3910,8 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
-            .order_by("pk")
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            .order_by("id")
             .first()
         )
 
