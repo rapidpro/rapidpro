@@ -19,7 +19,7 @@ export default class Label extends LitElement {
       }
 
       .label.clickable .mask:hover {
-        background: rgb(0,0,0,.1);
+        background: rgb(0,0,0,.05);
       }
 
       .label {
@@ -43,6 +43,18 @@ export default class Label extends LitElement {
         text-shadow: none;
       }
 
+      .overlight {
+        background: var(--color-label-overlight);
+        color: var(--color-label-overlight-text);
+        text-shadow: none;
+      }
+
+      .overdark {
+        background: var(--color-label-overdark);
+        color: var(--color-label-overdark-text);
+        text-shadow: none;
+      }
+
       .clickable {
         cursor: pointer;
       }
@@ -57,6 +69,12 @@ export default class Label extends LitElement {
 
   @property({type: Boolean})
   secondary: boolean;
+
+  @property({type: Boolean})
+  overlight: boolean;
+
+  @property({type: Boolean})
+  overdark: boolean;
 
   @property()
   backgroundColor: string;
@@ -78,7 +96,9 @@ export default class Label extends LitElement {
       <div class="label ${getClasses({ 
         "clickable": this.clickable,
         "primary": this.primary,
-        "secondary": this.secondary
+        "secondary": this.secondary,
+        "overlight": this.overlight,
+        "overdark": this.overdark
         })}"
        >
         <div class="mask">

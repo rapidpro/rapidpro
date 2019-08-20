@@ -70,12 +70,6 @@ class BoundaryCRUDL(SmartCRUDL):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
 
         def post(self, request, *args, **kwargs):
-            def update_boundary_aliases(boundary):
-                level_boundary = AdminBoundary.objects.filter(osm_id=boundary["osm_id"]).first()
-                if level_boundary:
-                    boundary_aliases = boundary.get("aliases", "")
-                    update_aliases(level_boundary, boundary_aliases)
-
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()

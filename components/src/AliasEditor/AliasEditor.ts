@@ -2,6 +2,7 @@ import './../LeafletMap/LeafletMap';
 import './../Dialog/Dialog';
 import './../Choice/Choice';
 import './../Label/Label';
+import './../FontIcon/FontIcon';
 
 import { AxiosResponse } from 'axios';
 import { css, customElement, html, LitElement, property, TemplateResult } from 'lit-element';
@@ -17,6 +18,10 @@ export default class AliasEditor extends LitElement {
 
   static get styles() {
     return css`
+
+      :host {
+        line-height: normal;
+      }
 
       textarea {
         border-radius: 5px;
@@ -97,13 +102,14 @@ export default class AliasEditor extends LitElement {
       .aliases {
         color: #bbb;
         font-size: 80%;
-        
+        display: inline;
+        margin-left: 5px;
       }
 
       rp-label {
-        margin-top: 3px;
         margin-right: 3px;
         margin-bottom: 3px;
+        vertical-align: top;
       }
 
       .selected {
@@ -138,8 +144,7 @@ export default class AliasEditor extends LitElement {
 
       .edit {
         display: inline-block;
-        font-size: 11px;
-        margin-left: 3px;
+        margin-right: 0px;
       }
 
    `;
@@ -225,16 +230,23 @@ export default class AliasEditor extends LitElement {
           @mouseout=${() => { this.hovered = null }}
           class="level-${feature.level}"
         >
+
+ 
+
         <div class="feature-name ${ clickable ? 'clickable' : ''}" 
           @click=${() => { if (clickable) {this.handlePlaceClicked(feature) }}}>
           ${feature.name}
         </div>
-        ${feature.level > 0 && !feature.aliases ? html`<div class="edit clickable secondary showonhover" @click=${(evt: MouseEvent)=> { this.showAliasDialog(feature); evt.preventDefault(); evt.stopPropagation()}}>Add aliases</div>`: ''}        
 
         <div class="aliases">
           ${feature.aliases.split('\n').map((alias: string)=>alias.trim().length > 0 ? html`
-            <rp-label class="alias" @click=${()=>{this.showAliasDialog(feature);}} secondary clickable>${alias}</rp-label>
+            <rp-label class="alias" @click=${()=>{this.showAliasDialog(feature);}} overlight clickable>${alias}</rp-label>
           `: null)}
+
+          ${feature.level > 0 ? html`
+          <div class="edit clickable showonhover" @click=${(evt: MouseEvent)=> { this.showAliasDialog(feature); evt.preventDefault(); evt.stopPropagation()}}>
+            <rp-icon name="register" size="12"></rp-icon>
+          </div>`: ''}
         </div>
 
       </div>
@@ -303,7 +315,6 @@ export default class AliasEditor extends LitElement {
   }
 
   private renderOptionDetail(option: FeatureProperties, selected: boolean): TemplateResult {
-
     const style = html`
       <style>
         rp-label {
@@ -314,7 +325,7 @@ export default class AliasEditor extends LitElement {
     `;
 
     const aliasList = option.aliases.split('\n');
-    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" secondary>${alias}</rp-label>`: null);
+    const aliases = aliasList.map((alias: string)=>alias.trim().length > 0 ? html`<rp-label class="alias" overdark>${alias}</rp-label>`: null);
     return html`${style}<div class="path">${option.path.replace(/>/gi, "‣")}</div><div class="aliases">${aliases}</div>`;    
   }
 
