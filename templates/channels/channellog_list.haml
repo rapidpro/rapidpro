@@ -86,17 +86,7 @@
             %td
               -trans "Channel interaction"
             %td.clickable
-                -# user has permission to see logs
-              -if perms.contacts.contact_break_anon
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-
-                -# user org is_anon and log has msg_id, we can show logs
-              -elif user_org.is_anon and obj.msg_id
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-
-              -else
-                {{obj.description}}
-
+              %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
             %td
               Request time:
               %span
@@ -112,17 +102,7 @@
                 %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
                   {{obj.msg.contact_urn.get_display}}
             %td.clickable
-                -# user has permission to see logs
-              -if perms.contacts.contact_break_anon
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-
-                -# user org is_anon and log has msg_id, we can show logs
-              -elif user_org.is_anon and obj.msg_id
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-
-              -else
-                {{obj.description}}
-
+              %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
             %td
               Request time:
               %span
