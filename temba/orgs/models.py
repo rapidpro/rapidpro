@@ -881,12 +881,12 @@ class Org(SmartModel):
         return None
 
     def get_nexmo_client(self):
-        from temba.channels.types.nexmo.client import Client
+        from temba.channels.types.nexmo.client import NexmoClient
 
         api_key = self.config.get(Org.CONFIG_NEXMO_KEY)
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
-            return Client(api_key, api_secret)
+            return NexmoClient(api_key, api_secret)
         return None
 
     def get_chatbase_credentials(self):

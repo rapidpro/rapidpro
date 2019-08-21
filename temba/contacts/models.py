@@ -76,7 +76,7 @@ URN_SCHEME_CONFIG = (
     (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
     (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
     (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
-    (JIOCHAT_SCHEME, _("Jiochat identifier"), JIOCHAT_SCHEME),
+    (JIOCHAT_SCHEME, _("JioChat identifier"), JIOCHAT_SCHEME),
     (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),

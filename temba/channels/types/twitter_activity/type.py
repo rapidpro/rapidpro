@@ -5,10 +5,10 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
-from temba.utils.twitter import TembaTwython
 
 from ...models import ChannelType
 from ...views import UpdateTwitterForm
+from .client import TwitterClient
 from .views import ClaimView
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ class TwitterActivityType(ChannelType):
 
     def activate(self, channel):
         config = channel.config
-        client = TembaTwython(
+        client = TwitterClient(
             config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
         )
 
@@ -69,7 +69,7 @@ class TwitterActivityType(ChannelType):
     def deactivate(self, channel):
         config = channel.config
         if "webhook_id" in config:
-            client = TembaTwython(
+            client = TwitterClient(
                 config["api_key"], config["api_secret"], config["access_token"], config["access_token_secret"]
             )
             client.delete_webhook(config["env_name"], config["webhook_id"])

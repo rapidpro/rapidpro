@@ -1,11 +1,12 @@
 from unittest.mock import patch
 
+from twython import TwythonError
+
 from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import URN
 from temba.tests import TembaTest
-from temba.utils.twitter import TwythonError
 
 from ...models import Channel
 from .tasks import resolve_twitter_ids
@@ -35,10 +36,10 @@ class TwitterActivityTypeTest(TembaTest):
         )
 
     @override_settings(IS_PROD=True)
-    @patch("temba.utils.twitter.TembaTwython.get_webhooks")
-    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
-    @patch("temba.utils.twitter.TembaTwython.subscribe_to_webhook")
-    @patch("temba.utils.twitter.TembaTwython.register_webhook")
+    @patch("temba.channels.types.twitter_activity.client.TwitterClient.get_webhooks")
+    @patch("temba.channels.types.twitter_activity.client.TwitterClient.delete_webhook")
+    @patch("temba.channels.types.twitter_activity.client.TwitterClient.subscribe_to_webhook")
+    @patch("temba.channels.types.twitter_activity.client.TwitterClient.register_webhook")
     @patch("twython.Twython.verify_credentials")
     def test_claim(
         self,
@@ -139,7 +140,7 @@ class TwitterActivityTypeTest(TembaTest):
         mock_subscribe_to_webhook.assert_called_with("beta")
 
     @override_settings(IS_PROD=True)
-    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
+    @patch("temba.channels.types.twitter_activity.client.TwitterClient.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release()
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
