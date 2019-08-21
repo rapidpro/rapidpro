@@ -1,3 +1,7 @@
+v5.1.24
+----------
+ * Cleanup campaighn models fields
+
 v5.1.23
 ----------
  * Really fix copying of flows with nameless has_group tests and add a test this time
