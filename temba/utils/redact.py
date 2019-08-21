@@ -62,9 +62,9 @@ def http_trace(trace, needle, mask, body_keys=()):
             except ValueError:
                 continue
 
-        # if body couldn't be parsed.. return as is
+        # if body couldn't be parsed.. masked entire body
         if not parsed:
-            return trace
+            body = mask
 
     # reconstruct the trace
     rest.append(body)
