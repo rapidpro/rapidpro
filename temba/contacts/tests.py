@@ -3936,11 +3936,11 @@ class ContactTest(TembaTest):
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
-        event_fire.fired_result = EventFire.FIRED
+        event_fire.fired_result = EventFire.RESULT_FIRED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
-        event_fire.fired_result = EventFire.SKIPPED
+        event_fire.fired_result = EventFire.RESULT_SKIPPED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 

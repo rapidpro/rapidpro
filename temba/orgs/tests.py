@@ -3553,8 +3553,8 @@ class BulkExportTest(TembaTest):
         sally.set_field(self.user, "survey_start", "10-05-2020 12:30:10")
 
         # shoud have one event fire
-        self.assertEqual(1, event.event_fires.all().count())
-        original_fire = event.event_fires.all().first()
+        self.assertEqual(1, event.fires.all().count())
+        original_fire = event.fires.all().first()
 
         # importing it again shouldn't result in failures
         self.import_file("survey_campaign")
@@ -3568,8 +3568,8 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(event.id, new_event.id)
 
         # should still have one fire, but it's been recreated
-        self.assertEqual(1, new_event.event_fires.all().count())
-        self.assertNotEqual(original_fire.id, new_event.event_fires.all().first().id)
+        self.assertEqual(1, new_event.fires.all().count())
+        self.assertNotEqual(original_fire.id, new_event.fires.all().first().id)
 
     def test_import_mixed_flow_versions(self):
         self.import_file("mixed_versions")
@@ -3809,7 +3809,9 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1).order_by("pk").first()
+        message_flow = (
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
+        )
         action_set = message_flow.action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
@@ -3841,11 +3843,11 @@ class BulkExportTest(TembaTest):
 
         # find our new message flow, and see that the original message is there
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
-            .order_by("pk")
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            .order_by("id")
             .first()
         )
-        action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by("-y").first()
+        action_set = Flow.objects.get(id=message_flow.id).action_sets.order_by("-y").first()
         actions = action_set.actions
         self.assertEqual(
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
@@ -3908,8 +3910,8 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, events__offset=-1, is_active=True)
-            .order_by("pk")
+            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            .order_by("id")
             .first()
         )
 

@@ -61,7 +61,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
     class Meta:
         model = Campaign
-        fields = "__all__"
+        fields = ("name", "group")
 
 
 class CampaignCRUDL(SmartCRUDL):
@@ -181,7 +181,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Campaign
-                fields = "__all__"
+                fields = ("name", "group")
 
         fields = ("name", "group")
         form_class = CampaignForm
@@ -458,7 +458,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            event_fires = self.get_object().event_fires.all()
+            event_fires = self.get_object().fires.all()
 
             fired_event_fires = event_fires.exclude(fired=None).order_by("-fired", "pk")
             scheduled_event_fires = event_fires.filter(fired=None).order_by("scheduled", "pk")
