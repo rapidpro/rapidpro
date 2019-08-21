@@ -83,7 +83,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(model_name="eventfire", name="fired", field=models.DateTimeField(null=True)),
         migrations.AlterField(
-            model_name="eventfire", name="fired_result", field=models.CharField(max_length=1, null=True)
+            model_name="eventfire",
+            name="fired_result",
+            field=models.CharField(choices=[("F", "Fired"), ("S", "Skipped")], max_length=1, null=True),
         ),
         migrations.AlterField(model_name="eventfire", name="scheduled", field=models.DateTimeField()),
     ]
