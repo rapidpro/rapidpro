@@ -553,6 +553,7 @@ class EventFire(Model):
 
     RESULT_FIRED = "F"
     RESULT_SKIPPED = "S"
+    RESULTS = ((RESULT_FIRED, "Fired"), (RESULT_SKIPPED, "Skipped"))
 
     event = models.ForeignKey(CampaignEvent, on_delete=models.PROTECT, related_name="fires")
 
@@ -565,7 +566,7 @@ class EventFire(Model):
     fired = models.DateTimeField(null=True)
 
     # result of this event fire or null if we haven't been fired
-    fired_result = models.CharField(max_length=1, null=True)
+    fired_result = models.CharField(max_length=1, null=True, choices=RESULTS)
 
     def is_firing_soon(self):
         return self.scheduled < timezone.now()
