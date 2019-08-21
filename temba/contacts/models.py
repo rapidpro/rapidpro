@@ -358,7 +358,9 @@ class UserContactFieldsQuerySet(models.QuerySet):
             self.annotate(
                 flow_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
             )
-            .annotate(campaign_count=Count("campaigns", distinct=True, filter=Q(campaigns__is_active=True)))
+            .annotate(
+                campaign_count=Count("campaign_events", distinct=True, filter=Q(campaign_events__is_active=True))
+            )
             .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
         )
 
@@ -531,7 +533,10 @@ class ContactField(SmartModel):
                 # update our type if we were given one
                 if value_type and field.value_type != value_type:
                     # no changing away from datetime if we have campaign events
-                    if field.value_type == Value.TYPE_DATETIME and field.campaigns.filter(is_active=True).count() > 0:
+                    if (
+                        field.value_type == Value.TYPE_DATETIME
+                        and field.campaign_events.filter(is_active=True).exists()
+                    ):
                         raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
 
                     field.value_type = value_type
@@ -831,7 +836,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
 
-        event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
+        event_fires = self.campaign_fires.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
         event_fires = event_fires.order_by("-fired").select_related("event__campaign")[:MAX_HISTORY]
 
         webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
@@ -1982,7 +1987,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 run.release()
 
             # and any event fire history
-            self.fire_events.all().delete()
+            self.campaign_fires.all().delete()
 
             # take us out of broadcast addressed contacts
             for broadcast in self.addressed_broadcasts.all():
