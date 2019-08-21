@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-20 15:39+0000\n"
+"POT-Creation-Date: 2019-08-21 21:59+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -1646,10 +1646,10 @@ msgstr "L'URL Webhook"
 msgid "Token"
 msgstr "Signal API"
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -2988,7 +2988,7 @@ msgstr "ID externe"
 
 #, fuzzy
 #| msgid "External ID"
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr "ID externe"
 
 #, fuzzy
