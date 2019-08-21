@@ -13,7 +13,7 @@ from temba.utils.http import HttpEvent
 
 class WeChatClient(JioChatClient):
     """
-    Uses same API as JioChat except makes GET requests to renew API tokens
+    Uses similar API as JioChat except makes GET requests to renew API tokens
     """
 
     api_name = "WeChat"
@@ -31,7 +31,7 @@ class WeChatClient(JioChatClient):
             with r.lock(lock_name, timeout=30):
                 key = self.token_store_key % self.channel_uuid
 
-                data = dict(grant_type="client_credential", appid=self.app_id, secret=self.app_secret)
+                data = {"grant_type": "client_credential", "appid": self.app_id, "secret": self.app_secret}
                 url = self.token_url
 
                 event = HttpEvent("GET", url + "?" + urlencode(data))
@@ -43,7 +43,7 @@ class WeChatClient(JioChatClient):
                 if response.status_code != 200:
                     event.response_body = response.content
                     ChannelLog.log_channel_request(
-                        channel_id, "Got non-200 response from %s" % self.api_name, event, start, True
+                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
                     )
                     return
 
@@ -54,7 +54,7 @@ class WeChatClient(JioChatClient):
 
                 event.response_body = json.dumps(response_json)
                 ChannelLog.log_channel_request(
-                    channel_id, "Successfully fetched access token from %s" % self.api_name, event, start, has_error
+                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start, has_error
                 )
 
                 access_token = response_json.get("access_token", "")

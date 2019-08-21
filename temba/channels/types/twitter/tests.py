@@ -12,7 +12,7 @@ from ...models import Channel
 from .tasks import resolve_twitter_ids
 
 
-class TwitterActivityTypeTest(TembaTest):
+class TwitterTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -36,10 +36,10 @@ class TwitterActivityTypeTest(TembaTest):
         )
 
     @override_settings(IS_PROD=True)
-    @patch("temba.channels.types.twitter_activity.client.TwitterClient.get_webhooks")
-    @patch("temba.channels.types.twitter_activity.client.TwitterClient.delete_webhook")
-    @patch("temba.channels.types.twitter_activity.client.TwitterClient.subscribe_to_webhook")
-    @patch("temba.channels.types.twitter_activity.client.TwitterClient.register_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.get_webhooks")
+    @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.subscribe_to_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.register_webhook")
     @patch("twython.Twython.verify_credentials")
     def test_claim(
         self,
@@ -52,11 +52,11 @@ class TwitterActivityTypeTest(TembaTest):
         mock_get_webhooks.return_value = [{"id": "webhook_id"}]
         mock_delete_webhook.return_value = {"ok", True}
 
-        url = reverse("channels.types.twitter_activity.claim")
+        url = reverse("channels.types.twitter.claim")
         self.login(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "/channels/types/twitter_activity/claim")
+        self.assertContains(response, "/channels/types/twitter/claim")
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -140,7 +140,7 @@ class TwitterActivityTypeTest(TembaTest):
         mock_subscribe_to_webhook.assert_called_with("beta")
 
     @override_settings(IS_PROD=True)
-    @patch("temba.channels.types.twitter_activity.client.TwitterClient.delete_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release()
         mock_delete_webhook.assert_called_once_with("beta", "1234567")

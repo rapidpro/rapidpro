@@ -2710,7 +2710,7 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-    def test_redaction_for_twitter_activity(self):
+    def test_redaction_for_twitter(self):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urn)
         channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
@@ -2778,7 +2778,7 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-    def test_redaction_for_twitter_activity_when_no_match(self):
+    def test_redaction_for_twitter_when_no_match(self):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urn)
         channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")

@@ -44,7 +44,11 @@ class JioChatClient:
             with r.lock(lock_name, timeout=30):
                 key = self.token_store_key % self.channel_uuid
 
-                post_data = dict(grant_type="client_credentials", client_id=self.app_id, client_secret=self.app_secret)
+                post_data = {
+                    "grant_type": "client_credentials",
+                    "client_id": self.app_id,
+                    "client_secret": self.app_secret,
+                }
                 url = self.token_url
 
                 event = HttpEvent("POST", url, json.dumps(post_data))
@@ -56,14 +60,14 @@ class JioChatClient:
                 if response.status_code != 200:
                     event.response_body = response.content
                     ChannelLog.log_channel_request(
-                        channel_id, "Got non-200 response from %s" % self.api_name, event, start, True
+                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
                     )
                     return
 
                 response_json = response.json()
                 event.response_body = json.dumps(response_json)
                 ChannelLog.log_channel_request(
-                    channel_id, "Successfully fetched access token from %s" % self.api_name, event, start
+                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start
                 )
 
                 access_token = response_json["access_token"]
