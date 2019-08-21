@@ -121,3 +121,12 @@ ansible/site.retry
 
 # VS Code projects
 .vscode/
+
+# CCL Custom
+env_py3/
+media/cache/
+media/flow_pdf/
+temba/settings_test.py
+docker.settings.aptible-prod
+docker.settings.aptible-stage
+docker.settings.prod
