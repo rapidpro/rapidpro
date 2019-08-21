@@ -8997,6 +8997,7 @@ class FlowMigrationTest(FlowFileTest):
         # should see the system user on our revision json
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+
         self.assertContains(response, "System Update")
         self.assertEqual(2, len(response.json()["results"]))
 
@@ -9016,8 +9017,15 @@ class FlowMigrationTest(FlowFileTest):
 
         # now refresh and save a new version
         flow.update(flow.as_json(), user=self.admin)
-        self.assertEqual(3, flow.revisions.all().count())
-        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user(self.org)).count())
+
+        self.assertEqual(flow.revisions.count(), 3)
+        self.assertEqual(flow.revisions.filter(created_by=get_flow_user(self.org)).count(), 1)
+
+        # if we request a specific revision by id, flow will be migrated to new format
+        revision = flow.revisions.order_by("id").last()
+        response = self.client.get("%s%s/" % (reverse("flows.flow_revisions", args=[flow.uuid]), str(revision.id)))
+
+        self.assertEqual(response.json()["spec_version"], "13.0.0")
 
     def test_migrate_malformed_single_message_flow(self):
 
