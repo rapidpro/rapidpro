@@ -1,3 +1,8 @@
+v5.1.25
+----------
+ * Update floweditor to 1.6.12
+ * Allow viewing of channel logs in anonymous orgs with URN values redacted
+
 v5.1.24
 ----------
  * Cleanup campaighn models fields
