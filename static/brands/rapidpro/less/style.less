@@ -32,7 +32,28 @@ h5.contact-signup {
 }
 
 a.logo {
-  margin-left: -45px;
-  margin-top: 15px;
   font-size: 65px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  padding-left: 30px;
+  padding-top: 15px;
+  width: auto;
+  height: auto;
+  margin-left: 15px;
+  margin-top: 0;
+
+  &:before{
+    display: none;
+  }
+
+  img{
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    vertical-align: middle;
+    border: 0;
+    -ms-interpolation-mode: bicubic;
+  }
 }

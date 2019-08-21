@@ -1,0 +1,54 @@
+#splash {
+  margin-top: -30px;
+  background: url('/sitestatic/brands/rapidpro/splash.jpg') 0px 0px !important;
+  background-size: cover !important;
+  width: 100%;
+  height: 0px;
+  padding-bottom: 40%;
+}
+#splash h1.description {
+  color: #f3f3f3;
+  position: absolute;
+  font-weight: 100;
+  width: 350px;
+  font-size: 38px;
+  line-height: 110%;
+  padding-left: 50px;
+  padding-top: 50px;
+  text-shadow: 1px 1px 8px #111;
+}
+h5.contact-signup {
+  position: absolute;
+  width: 100%;
+  color: #f3f3f3;
+  text-shadow: 1px 1px #000;
+  text-align: right;
+  margin-top: -40px;
+}
+h5.contact-signup a {
+  color: #eee;
+}
+a.logo {
+  font-size: 65px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  padding-left: 30px;
+  padding-top: 15px;
+  width: auto;
+  height: auto;
+  margin-left: 15px;
+  margin-top: 0;
+}
+a.logo:before {
+  display: none;
+}
+a.logo img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  vertical-align: middle;
+  border: 0;
+  -ms-interpolation-mode: bicubic;
+}
