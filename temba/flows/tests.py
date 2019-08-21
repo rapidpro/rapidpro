@@ -10744,29 +10744,6 @@ class TypeTest(TembaTest):
 
 
 class AssetServerTest(TembaTest):
-    @skip_if_no_mailroom
-    def test_flows(self):
-        flow1 = self.get_flow("color")
-        flow2 = self.get_flow("favorites")
-        self.login(self.admin)
-
-        # get all flows
-        response = self.client.get("/flow/assets/%d/1234/flow/" % self.org.id)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["results"]), 2)
-        self.assertEqual(resp_json["results"][0]["uuid"], str(flow1.uuid))
-        self.assertEqual(resp_json["results"][1]["uuid"], str(flow2.uuid))
-
-        # get a specific flow
-        response = self.client.get("/flow/assets/%d/1234/flow/%s/" % (self.org.id, str(flow2.uuid)))
-        resp_json = response.json()
-        self.assertEqual(resp_json["uuid"], str(flow2.uuid))
-
-        # try to get a non-existent flow
-        response = self.client.get("/flow/assets/%d/1234/flow/%s/" % (self.org.id, str(uuid4())))
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json())
-
     def test_environment(self):
         self.login(self.admin)
         response = self.client.get("/flow/assets/%d/1234/environment/" % self.org.id)
@@ -10789,104 +10766,6 @@ class AssetServerTest(TembaTest):
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
         self.assertEqual(
             response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}]}
-        )
-
-    def test_channels(self):
-        self.login(self.admin)
-
-        # get all channels
-        response = self.client.get("/flow/assets/%d/1234/channel/" % self.org.id)
-        self.assertEqual(
-            response.json(),
-            {
-                "results": [
-                    {
-                        "name": "Test Channel",
-                        "schemes": ["tel"],
-                        "uuid": str(self.channel.uuid),
-                        "roles": ["send", "receive"],
-                        "address": "+250785551212",
-                        "country": "RW",
-                    }
-                ]
-            },
-        )
-
-        # specifying simulator mode, adds the fake simulator channel
-        response = self.client.get("/flow/assets/%d/1234/channel/?simulator=1" % self.org.id)
-        self.assertEqual(
-            response.json(),
-            {
-                "results": [
-                    {
-                        "uuid": str(self.channel.uuid),
-                        "name": "Test Channel",
-                        "address": "+250785551212",
-                        "schemes": ["tel"],
-                        "roles": ["send", "receive"],
-                        "country": "RW",
-                    },
-                    {
-                        "uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b",
-                        "name": "Simulator Channel",
-                        "address": "+18005551212",
-                        "schemes": ["tel"],
-                        "roles": ["send"],
-                    },
-                ]
-            },
-        )
-
-    def test_location_hierarchy(self):
-        self.login(self.admin)
-
-        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
-
-        response = self.client.get("/flow/assets/%d/1234/location_hierarchy/" % self.org.id)
-        resp_json = response.json()
-        self.assertEqual(
-            resp_json,
-            {
-                "results": [
-                    {
-                        "name": "Rwanda",
-                        "children": [
-                            {"name": "Kigali City", "aliases": ["Kigari"], "children": [{"name": "Nyarugenge"}]},
-                            {
-                                "name": "Eastern Province",
-                                "children": [
-                                    {"name": "Gatsibo", "children": [{"name": "Kageyo"}]},
-                                    {"name": "Kay\xf4nza", "children": [{"name": "Kabare"}]},
-                                    {"name": "Rwamagana", "children": [{"name": "Bukure"}]},
-                                ],
-                            },
-                        ],
-                    }
-                ]
-            },
-        )
-
-    def test_resthooks(self):
-        self.login(self.admin)
-
-        response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
-        self.assertEqual(response.json(), {"results": []})
-
-        hook = Resthook.get_or_create(self.org, "new-registration", self.admin)
-        hook.add_subscriber("http://localhost/call_me_maybe", self.admin)
-        hook.add_subscriber("http://localhost/please", self.admin)
-
-        response = self.client.get("/flow/assets/%d/1234/resthook/" % self.org.id)
-        self.assertEqual(
-            response.json(),
-            {
-                "results": [
-                    {
-                        "slug": "new-registration",
-                        "subscribers": ["http://localhost/call_me_maybe", "http://localhost/please"],
-                    }
-                ]
-            },
         )
 
 
