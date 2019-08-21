@@ -2537,16 +2537,14 @@ class ChannelLogTest(TembaTest):
             self.assertTrue(response.status_code, 200)
 
     def test_redaction_for_telegram(self):
-        telegram_urn = "telegram:3527065"
-
-        tg_contact = self.create_contact("Fred Jones", telegram_urn)
-        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
-
-        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+        urn = "telegram:3527065"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tg_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url=r"https://api.telegram.org/65474/sendMessage",
@@ -2558,7 +2556,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[tg_channel.uuid])
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_read", args=[success_log.id])
 
         # check list page shows un-redacted content for a regular org
@@ -2610,16 +2608,14 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_telegram_with_invalid_json(self):
-        telegram_urn = "telegram:3527065"
-
-        tg_contact = self.create_contact("Fred Jones", telegram_urn)
-        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
-
-        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+        urn = "telegram:3527065"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tg_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url=r"not important",
@@ -2664,16 +2660,14 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_telegram_when_no_match(self):
-        telegram_urn = "telegram:3527065"
-
-        tg_contact = self.create_contact("Fred Jones", telegram_urn)
-        tg_channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
-
-        incoming_msg = Msg.create_incoming(tg_channel, telegram_urn, "incoming msg", contact=tg_contact)
+        urn = "telegram:3527065"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tg_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url="There is no contact identifying information",
@@ -2717,16 +2711,14 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_twitter_activity(self):
-        twitter_urn = "twitterid:767659860"
-
-        tw_contact = self.create_contact("Fred Jones", twitter_urn)
-        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
-
-        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
+        urn = "twitterid:767659860"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tw_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url=r"https://textit.in/c/twt/5c70a767-f3dc-4a99-9323-4774f6432af5/receive",
@@ -2738,7 +2730,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[tw_channel.uuid])
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_read", args=[success_log.id])
 
         response = self.client.get(list_url)
@@ -2787,16 +2779,14 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_twitter_activity_when_no_match(self):
-        twitter_urn = "twitterid:767659860"
-
-        tw_contact = self.create_contact("Fred Jones", twitter_urn)
-        tw_channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
-
-        incoming_msg = Msg.create_incoming(tw_channel, twitter_urn, "incoming msg", contact=tw_contact)
+        urn = "twitterid:767659860"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=tw_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url="There is no contact identifying information",
@@ -2840,19 +2830,17 @@ class ChannelLogTest(TembaTest):
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_redaction_for_facebook(self):
-        fb_urn = "facebook:2150393045080607"
-
-        fb_contact = self.create_contact("Fred Jones", fb_urn)
-        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
-
-        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
+        urn = "facebook:2150393045080607"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=fb_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
-            url=f"https://textit.in/c/fb/{fb_channel.uuid}/receive",
+            url=f"https://textit.in/c/fb/{channel.uuid}/receive",
             method="POST",
             request="""POST /c/fb/d1117754-f2ab-4348-9572-996ddc1959a8/receive HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: deflate, gzip\r\nContent-Length: 314\r\nContent-Type: application/json\r\n\r\n{"object":"page","entry":[{"id":"311494332880244","time":1559102364444,"messaging":[{"sender":{"id":"2150393045080607"},"recipient":{"id":"311494332880244"},"timestamp":1559102363925,"message":{"mid":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","seq":0,"text":"hi"}}]}]}""",
             response="""HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: application/json\r\n\r\n{"message":"Events Handled","data":[{"type":"msg","channel_uuid":"d1117754-f2ab-4348-9572-996ddc1959a8","msg_uuid":"55a3387b-f97e-4270-8157-7ba781a86411","text":"hi","urn":"facebook:2150393045080607","external_id":"ld5jgfQP8TLBX9FFc3AETshZgE6Zn5UjpY3vY00t3A_YYC2AYDM3quxaodTiHj7nK6lI_ds4WFUJlTmM2l5xoA","received_on":"2019-05-29T03:59:23.925Z"}]}""",
@@ -2861,7 +2849,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         response = self.client.get(list_url)
 
         self.assertContains(response, "2150393045080607", count=1)
@@ -2911,18 +2899,16 @@ class ChannelLogTest(TembaTest):
 
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
-    def test_channellog_anonymous_org_apply_mask_cant_find_match(self):
+    def test_redaction_for_facebook_when_no_match(self):
         # in this case we are paranoid and mask everything
-        fb_urn = "facebook:2150393045080607"
-
-        fb_contact = self.create_contact("Fred Jones", fb_urn)
-        fb_channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
-
-        incoming_msg = Msg.create_incoming(fb_channel, fb_urn, "incoming msg", contact=fb_contact)
+        urn = "facebook:2150393045080607"
+        contact = self.create_contact("Fred Jones", urn)
+        channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        msg = Msg.create_incoming(channel, urn, "incoming msg", contact=contact)
 
         success_log = ChannelLog.objects.create(
-            channel=fb_channel,
-            msg=incoming_msg,
+            channel=channel,
+            msg=msg,
             description="Successfully Sent",
             is_error=False,
             url="There is no contact identifying information",
@@ -2934,7 +2920,7 @@ class ChannelLogTest(TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[fb_channel.uuid])
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         response = self.client.get(list_url)
 
         self.assertContains(response, "2150393045080607", count=1)
@@ -2975,6 +2961,80 @@ class ChannelLogTest(TembaTest):
 
             # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
             # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+    def test_redaction_for_twilio(self):
+        contact = self.create_contact("Fred Jones", number="+593979099111")
+        channel = Channel.create(self.org, self.user, None, "T", name="Twilio")
+        msg = self.create_msg(contact=contact, direction="O", text="Hi")
+
+        success_log = ChannelLog.objects.create(
+            channel=channel,
+            msg=msg,
+            description="Status Updated",
+            is_error=False,
+            url="https://textit.in/c/t/1234-5678/status?id=2466753&action=callback",
+            method="POST",
+            request="POST /c/t/1234-5678/status?id=86598533&action=callback HTTP/1.1\r\nHost: textit.in\r\nAccept: */*\r\nAccept-Encoding: gzip,deflate\r\nCache-Control: max-age=259200\r\nContent-Length: 237\r\nContent-Type: application/x-www-form-urlencoded; charset=utf-8\r\nUser-Agent: TwilioProxy/1.1\r\nX-Amzn-Trace-Id: Root=1-5d5a10b2-8c8b96c86d45a9c6bdc5f43c\r\nX-Forwarded-For: 54.210.179.19\r\nX-Forwarded-Port: 443\r\nX-Forwarded-Proto: https\r\nX-Twilio-Signature: sdgreh54hehrghssghh55=\r\n\r\nSmsSid=SM357343637&SmsStatus=delivered&MessageStatus=delivered&To=%2B593979099111&MessageSid=SM357343637&AccountSid=AC865965965&From=%2B253262278&ApiVersion=2010-04-01&ToCity=Quito&ToCountry=EC",
+            response='{"message":"Status Update Accepted","data":[{"type":"status","channel_uuid":"1234-5678","status":"D","msg_id":2466753}]}\n',
+            response_status=200,
+        )
+
+        self.login(self.admin)
+
+        list_url = reverse("channels.channellog_list", args=[channel.uuid])
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+
+        # check list page shows un-redacted content for a regular org
+        response = self.client.get(list_url)
+
+        self.assertContains(response, "097 909 9111", count=1)
+
+        # check list page shows redacted content for an anon org
+        with AnonymousOrg(self.org):
+            response = self.client.get(list_url)
+
+            self.assertContains(response, "097 909 9111", count=0)
+            self.assertContains(response, "979099111", count=0)
+            self.assertContains(response, "Quito", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=1)
+
+        # check read page shows un-redacted content for a regular org
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "097 909 9111", count=1)
+        self.assertContains(response, "979099111", count=1)
+        self.assertContains(response, "Quito", count=1)
+
+        # check read page shows redacted content for an anon org
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+
+            self.assertContains(response, "097 909 9111", count=0)
+            self.assertContains(response, "979099111", count=0)
+            self.assertContains(response, "Quito", count=0)
+            self.assertContains(response, ContactURN.ANON_MASK, count=5)
+
+        # login as customer support, must see URNs
+        self.customer_support.is_staff = True
+        self.customer_support.save()
+
+        self.login(self.customer_support)
+
+        read_url = reverse("channels.channellog_read", args=[success_log.id])
+        response = self.client.get(read_url)
+
+        self.assertContains(response, "097 909 9111", count=1)
+        self.assertContains(response, "979099111", count=1)
+        self.assertContains(response, "Quito", count=1)
+
+        with AnonymousOrg(self.org):
+            response = self.client.get(read_url)
+            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
+            # Contact.get_display does not check if user has `contacts.contact_break_anon` permission
+            self.assertContains(response, "097 909 9111", count=0)
+            self.assertContains(response, "979099111", count=1)
+            self.assertContains(response, "Quito", count=1)
             self.assertContains(response, ContactURN.ANON_MASK, count=1)
 
     def test_channellog_anonymous_org_no_msg(self):

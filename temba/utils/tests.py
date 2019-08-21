@@ -1935,7 +1935,7 @@ class AnalyticsTest(TestCase):
         )
 
 
-class RedactionTest(TestCase):
+class RedactTest(TestCase):
     def test_variations(self):
         # phone number variations
         self.assertEqual(
@@ -2025,11 +2025,45 @@ class RedactionTest(TestCase):
 
     def test_http_trace(self):
         # not an HTTP trace
-        self.assertEqual(redact.http_trace("hello", "12345", ("number",), "********"), "hello")
+        self.assertEqual(redact.http_trace("hello", "12345", "********", ("name",)), "hello")
 
-        trace = 'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 314\r\n\r\n{"number": "+2352365222", "text": "hello 12345!"}'
-
+        # a JSON body
         self.assertEqual(
-            redact.http_trace(trace, "12345", ("number",), "********"),
-            'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\nContent-Length: 314\r\n\r\n{"number": "********", "text": "hello ********!"}',
+            redact.http_trace(
+                'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n{"name": "Bob Smith", "number": "xx12345"}',
+                "12345",
+                "********",
+                ("name",),
+            ),
+            'POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n{"name": "********", "number": "xx********"}',
+        )
+
+        # a URL-encoded body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\nnumber=xx12345&name=Bob+Smith",
+                "12345",
+                "********",
+                ("name",),
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\nnumber=xx********&name=********",
+        )
+
+        # a body with neither encoding redacted as text if body keys not provided
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n//xx12345//", "12345", "********"
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n//xx********//",
+        )
+
+        # a body with neither encoding returned as is if body keys provided but we couldn't parse the body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n//xx12345//",
+                "12345",
+                "********",
+                ("name",),
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: textit.in\r\n\r\n//xx12345//",
         )

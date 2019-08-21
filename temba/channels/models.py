@@ -1469,7 +1469,7 @@ class ChannelLog(models.Model):
         needle = self.msg.contact_urn.path
 
         if redact_keys:
-            redacted = redact.http_trace(original, needle, redact_keys, mask)
+            redacted = redact.http_trace(original, needle, mask, redact_keys)
         else:
             redacted = redact.text(original, needle, mask)
 

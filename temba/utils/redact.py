@@ -1,11 +1,25 @@
 import json
 import urllib.parse
 import xml.sax.saxutils
+from urllib.parse import parse_qs, urlencode
 
 HTTP_BODY_BOUNDARY = "\r\n\r\n"
 
 # variations of the needle being redacted will be trimmed to this number of chars
 TRIM_NEEDLE_TO = 7
+
+VARIATION_ENCODERS = (
+    lambda s: s,  # original
+    urllib.parse.quote,  # URL with spaces as %20
+    urllib.parse.quote_plus,  # URL with spaces as +
+    xml.sax.saxutils.escape,  # XML/HTML reserved chars
+    lambda s: json.dumps(s)[1:-1],  # JSON reserved chars
+)
+
+HTTP_BODY_FORMATS = (
+    (json.loads, json.dumps),
+    (lambda s: parse_qs(s, strict_parsing=True), lambda d: urlencode(d, doseq=True, safe="*")),
+)
 
 
 def text(s, needle, mask):
@@ -27,45 +41,56 @@ def text(s, needle, mask):
     return s
 
 
-def http_trace(trace, needle, json_keys, mask):
+def http_trace(trace, needle, mask, body_keys=()):
     """
-    Redacts the values with the given key names in the JSON payload of an HTTP trace
+    Redacts a value from the given HTTP trace by replacing it with a mask. If body_keys is specified then we also try
+    to parse the body and replace those keyed values with the mask. Bodies are parsed as JSON and URL encoded.
     """
 
     *rest, body = trace.split(HTTP_BODY_BOUNDARY)
 
-    try:
-        json_body = json.loads(body)
-    except ValueError:
-        return trace
+    if body and body_keys:
+        parsed = False
+        for decoder, encoder in HTTP_BODY_FORMATS:
+            try:
+                decoded_body = decoder(body)
+                decoded_body = _recursive_replace(decoded_body, body_keys, mask)
 
-    redacted_body = _json_replace(json_body, json_keys, mask)
+                body = encoder(decoded_body)
+                parsed = True
+                break
+            except ValueError:
+                continue
+
+        # if body couldn't be parsed.. return as is
+        if not parsed:
+            return trace
 
     # reconstruct the trace
-    rest.append(json.dumps(redacted_body))
-
-    redacted = HTTP_BODY_BOUNDARY.join(rest)
+    rest.append(body)
+    body = HTTP_BODY_BOUNDARY.join(rest)
 
     # finally do a regular text-level redaction of the value
-    return text(redacted, needle, mask)
+    return text(body, needle, mask)
 
 
-def _json_replace(obj, keys, mask):
+def _recursive_replace(obj, keys, mask):
     """
-    Recursively looks for specified keys in JSON and replaces their values with mask if found
+    Recursively looks for specified keys in structure of dicts and lists and replaces their values with mask if found
     """
+
     if isinstance(obj, dict):
         tmp = {}
         for k, v in obj.items():
             if k in keys:
                 tmp[k] = mask
             else:
-                tmp[k] = _json_replace(v, keys, mask)
+                tmp[k] = _recursive_replace(v, keys, mask)
 
         return tmp
 
     elif isinstance(obj, list):
-        return [_json_replace(v, keys, mask) for v in obj]
+        return [_recursive_replace(v, keys, mask) for v in obj]
 
     else:
         return obj
@@ -97,17 +122,8 @@ def _variations(needle):
     # for each base variation, generate new variations using different encodings
     variations = set()
     for b in bases:
-        for encoder in ENCODERS:
+        for encoder in VARIATION_ENCODERS:
             variations.add(encoder(b))
 
     # return in order of longest to shortest, a-z
     return sorted(variations, key=lambda x: (len(x), x), reverse=True)
-
-
-ENCODERS = (
-    lambda s: s,  # original
-    urllib.parse.quote,  # URL with spaces as %20
-    urllib.parse.quote_plus,  # URL with spaces as +
-    xml.sax.saxutils.escape,  # XML/HTML reserved chars
-    lambda s: json.dumps(s)[1:-1],  # JSON reserved chars
-)
