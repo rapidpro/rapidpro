@@ -2191,7 +2191,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                     ChannelLog.objects.filter(channel=channel, connection=None)
                     .exclude(msg=None)
                     .order_by("-created_on")
-                    .select_related("msg__contact", "msg")
+                    .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
                 )
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 
@@ -2202,10 +2202,10 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["channel"] = self.derive_channel()
             return context
 
-    class Connection(AnonMixin, OrgPermsMixin, SmartReadView):
+    class Connection(AnonMixin, SmartReadView):
         model = ChannelConnection
 
-    class Read(AnonMixin, OrgPermsMixin, SmartReadView):
+    class Read(OrgPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         def derive_org(self):

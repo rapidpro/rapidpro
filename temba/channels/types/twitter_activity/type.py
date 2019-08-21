@@ -42,6 +42,9 @@ class TwitterActivityType(ChannelType):
     async_activation = False
     attachment_support = True
 
+    redact_response_keys = {"urn"}
+    redact_request_keys = {"sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https"}
+
     def activate(self, channel):
         config = channel.config
         client = TembaTwython(
