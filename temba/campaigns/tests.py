@@ -125,39 +125,27 @@ class CampaignTest(TembaTest):
         self.assertEqual(
             event.flow.as_json(),
             {
-                "entry": matchers.UUID4String(),
-                "action_sets": [
+                "uuid": str(event.flow.uuid),
+                "name": event.flow.name,
+                "spec_version": "13.0.0",
+                "revision": 1,
+                "language": "eng",
+                "type": "messaging",
+                "expire_after_minutes": 720,
+                "localization": {},
+                "nodes": [
                     {
                         "uuid": matchers.UUID4String(),
-                        "x": 100,
-                        "y": 0,
-                        "destination": None,
                         "actions": [
                             {
-                                "type": "reply",
                                 "uuid": matchers.UUID4String(),
-                                "msg": {
-                                    "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
-                                },
-                                "media": {},
-                                "quick_replies": [],
-                                "send_all": False,
+                                "type": "send_msg",
+                                "text": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))",
                             }
                         ],
-                        "exit_uuid": matchers.UUID4String(),
+                        "exits": [{"uuid": matchers.UUID4String()}],
                     }
                 ],
-                "rule_sets": [],
-                "base_language": "eng",
-                "flow_type": "M",
-                "version": "11.12",
-                "metadata": {
-                    "uuid": str(event.flow.uuid),
-                    "name": matchers.String(pattern=r"Single Message \([a-z\d\-]{36}\)"),
-                    "saved_on": matchers.ISODate(),
-                    "revision": 1,
-                    "expires": 720,
-                },
             },
         )
 

@@ -1989,7 +1989,7 @@ class Flow(TembaModel):
         if current_revision:
             # check we aren't walking over someone else
             definition_revision = definition.get(Flow.DEFINITION_REVISION)
-            if definition_revision and definition_revision < current_revision.revision:
+            if definition_revision is not None and definition_revision < current_revision.revision:
                 raise FlowUserConflictException(self.saved_by, self.saved_on)
 
             revision = current_revision.revision + 1

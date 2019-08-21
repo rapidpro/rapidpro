@@ -126,7 +126,6 @@ from .models import (
     SendAction,
     SetChannelAction,
     SetLanguageAction,
-    StartFlowAction,
     StartsWithTest,
     Test,
     TriggerFlowAction,
@@ -4895,31 +4894,6 @@ class ActionTest(TembaTest):
         # should clear the contacts language
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
 
-    @uses_legacy_engine
-    def test_start_flow_action(self):
-        self.flow.name = "Parent"
-        self.flow.save()
-
-        self.flow.start([], [self.contact])
-
-        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
-
-        run = FlowRun.objects.get()
-
-        new_flow = Flow.create_single_message(
-            self.org, self.user, {"base": "You chose @parent.color.category"}, base_language="base"
-        )
-        action = StartFlowAction(str(uuid4()), new_flow)
-
-        action_json = action.as_json()
-        action = StartFlowAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, sms, started_flows=[])
-
-        # our contact should now be in the flow
-        self.assertTrue(FlowRun.objects.filter(flow=new_flow, contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction="O", text="You chose Blue"))
-
     def test_group_actions(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact)
@@ -6329,23 +6303,26 @@ class FlowsTest(FlowFileTest):
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
+            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "editor_version": "0"}
         )
+
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
 
-        # can't save old version over new
-        definition = flow.revisions.all().order_by("-id").first().definition
+        # can't save older spec version over newer
+        definition = flow.revisions.order_by("id").last().definition
         definition["spec_version"] = Flow.FINAL_LEGACY_VERSION
-        with self.assertRaises(FlowVersionConflictException):
-            flow.save_revision(flow.created_by, definition)
 
-        # can't save old revision over new
+        with self.assertRaises(FlowVersionConflictException):
+            flow.save_revision(self.admin, definition)
+
+        # can't save older revision over newer
         definition["spec_version"] = Flow.GOFLOW_VERSION
         definition["revision"] = 0
+
         with self.assertRaises(FlowUserConflictException):
-            flow.save_revision(flow.created_by, definition)
+            flow.save_revision(self.admin, definition)
 
     @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):
