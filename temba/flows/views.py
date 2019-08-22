@@ -21,7 +21,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -38,8 +38,6 @@ from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
-from temba.flows.server.assets import get_asset_type
-from temba.flows.server.serialize import serialize_environment, serialize_language
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
@@ -1680,7 +1678,7 @@ class FlowCRUDL(SmartCRUDL):
                         "urn": "tel:+12065551212",
                     }
 
-                payload["trigger"]["environment"] = serialize_environment(flow.org)
+                payload["trigger"]["environment"] = flow.org.as_environment_def()
 
                 try:
                     return JsonResponse(client.sim_start(payload))
@@ -1690,7 +1688,7 @@ class FlowCRUDL(SmartCRUDL):
             # otherwise we are resuming
             elif "resume" in json_dict:
                 payload["resume"] = json_dict["resume"]
-                payload["resume"]["environment"] = serialize_environment(flow.org)
+                payload["resume"]["environment"] = flow.org.as_environment_def()
                 payload["session"] = json_dict["session"]
 
                 try:
@@ -1912,20 +1910,12 @@ class FlowCRUDL(SmartCRUDL):
 
     class Assets(OrgPermsMixin, SmartTemplateView):
         """
-        Flow assets endpoint used by goflow engine and standalone flow editor. For example:
-
-        /flow_assets/123/xyz/flow/0a9f4ddd-895d-4c64-917e-b004fb048306     -> the flow with that UUID in org #123
-        /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779  -> the channel with that UUID in org #123
-        /flow_assets/123/xyz/group                                         -> all groups for org #123
-        /flow_assets/123/xyz/location_hierarchy                            -> country>states>districts>wards for org #123
+        Provides environment and languages to the new editor
         """
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>\w+)/((?P<uuid>[a-z0-9-]{36})/)?$" % (
-                path,
-                action,
-            )
+            return rf"^{path}/{action}/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>environment|language)/((?P<uuid>[a-z0-9-]{{36}})/)?$"
 
         def derive_org(self):
             if not hasattr(self, "org"):
@@ -1935,27 +1925,12 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, *args, **kwargs):
             org = self.derive_org()
             asset_type_name = kwargs["type"]
-            uuid = kwargs.get("uuid")
-            simulator = str_to_bool(self.request.GET.get("simulator", "false"))
 
-            # TODO rethink how environment and languages are provided to the editor
             if asset_type_name == "environment":
-                return JsonResponse(serialize_environment(org))
-            elif asset_type_name == "language":
-                languages = org.languages.filter(is_active=True).order_by("id")
-                return JsonResponse({"results": [serialize_language(l) for l in languages]})
-
-            asset_type = get_asset_type(asset_type_name)
-            if uuid:
-                try:
-                    result = asset_type.serialize_item(org, uuid)
-                except ObjectDoesNotExist:
-                    return JsonResponse({"error": f"no such {asset_type} with UUID '{uuid}'"}, status=400)
-
-                return JsonResponse(result)
+                return JsonResponse(org.as_environment_def())
             else:
-                results = asset_type.serialize_set(org, simulator=simulator)
-                return JsonResponse({"results": results})
+                languages = org.languages.filter(is_active=True).order_by("id")
+                return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
 
 
 # this is just for adhoc testing of the preprocess url

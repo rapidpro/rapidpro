@@ -8,7 +8,6 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowStart
-from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
@@ -43,7 +42,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                serialize_flow(flow)
+                get_client().flow_migrate(flow.as_json())
 
         self.assertEqual(
             e.exception.as_json(),

@@ -2071,6 +2071,21 @@ class Org(SmartModel):
 
         return getattr(user, "_org", None)
 
+    def as_environment_def(self):
+        """
+        Returns this org as an environment definition as used by the flow engine
+        """
+
+        return {
+            "date_format": "DD-MM-YYYY" if self.date_format == Org.DATE_FORMAT_DAY_FIRST else "MM-DD-YYYY",
+            "time_format": "tt:mm",
+            "timezone": str(self.timezone),
+            "default_language": self.primary_language.iso_code if self.primary_language else None,
+            "allowed_languages": list(self.get_language_codes()),
+            "default_country": self.get_country_code(),
+            "redaction_policy": "urns" if self.is_anon else "none",
+        }
+
     def __str__(self):
         return self.name
 
