@@ -881,12 +881,12 @@ class Org(SmartModel):
         return None
 
     def get_nexmo_client(self):
-        from temba.channels.types.nexmo.client import Client
+        from temba.channels.types.nexmo.client import NexmoClient
 
         api_key = self.config.get(Org.CONFIG_NEXMO_KEY)
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
-            return Client(api_key, api_secret)
+            return NexmoClient(api_key, api_secret)
         return None
 
     def get_chatbase_credentials(self):
@@ -2070,6 +2070,21 @@ class Org(SmartModel):
                 user._org = org
 
         return getattr(user, "_org", None)
+
+    def as_environment_def(self):
+        """
+        Returns this org as an environment definition as used by the flow engine
+        """
+
+        return {
+            "date_format": "DD-MM-YYYY" if self.date_format == Org.DATE_FORMAT_DAY_FIRST else "MM-DD-YYYY",
+            "time_format": "tt:mm",
+            "timezone": str(self.timezone),
+            "default_language": self.primary_language.iso_code if self.primary_language else None,
+            "allowed_languages": list(self.get_language_codes()),
+            "default_country": self.get_country_code(),
+            "redaction_policy": "urns" if self.is_anon else "none",
+        }
 
     def __str__(self):
         return self.name

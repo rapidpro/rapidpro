@@ -51,7 +51,6 @@ from temba.utils.s3 import public_file_storage
 from temba.values.constants import Value
 
 from . import legacy
-from .server.serialize import serialize_message
 
 logger = logging.getLogger(__name__)
 
@@ -2795,6 +2794,18 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
                 existing_msg_uuids.add(msg_uuid)
 
         needs_update = False
+
+        def serialize_message(msg):
+            serialized = {"uuid": str(msg.uuid), "text": msg.text}
+
+            if msg.contact_urn_id:
+                serialized["urn"] = msg.contact_urn.urn
+            if msg.channel_id:
+                serialized["channel"] = {"uuid": str(msg.channel.uuid), "name": msg.channel.name or ""}
+            if msg.attachments:
+                serialized["attachments"] = msg.attachments
+
+            return serialized
 
         for msg in msgs:
             # or messages which have already been attached to this run

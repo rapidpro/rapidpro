@@ -1,15 +1,16 @@
 from smartmin.views import SmartFormView
+from twython import TwythonError
 
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
-from temba.utils.twitter import TembaTwython, TwythonError
 from temba.utils.views import NonAtomicMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
+from .client import TwitterClient
 
 
 class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
@@ -28,9 +29,9 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
             access_token_secret = cleaned_data.get("access_token_secret")
 
             if api_key and api_secret and access_token and access_token_secret:
-                twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
+                client = TwitterClient(api_key, api_secret, access_token, access_token_secret)
                 try:
-                    twitter.verify_credentials()
+                    client.verify_credentials()
                 except TwythonError:
                     raise ValidationError(_("The provided Twitter credentials do not appear to be valid."))
 
@@ -48,8 +49,8 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
         access_token_secret = cleaned_data["access_token_secret"]
         env_name = cleaned_data["env_name"]
 
-        twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
-        account_info = twitter.verify_credentials()
+        client = TwitterClient(api_key, api_secret, access_token, access_token_secret)
+        account_info = client.verify_credentials()
         handle_id = str(account_info["id"])
         screen_name = account_info["screen_name"]
 

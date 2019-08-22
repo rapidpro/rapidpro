@@ -3936,11 +3936,11 @@ class ContactTest(TembaTest):
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
-        event_fire.fired_result = EventFire.FIRED
+        event_fire.fired_result = EventFire.RESULT_FIRED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
-        event_fire.fired_result = EventFire.SKIPPED
+        event_fire.fired_result = EventFire.RESULT_SKIPPED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 
@@ -7954,7 +7954,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[8]["key"], "mailto")
         self.assertEqual(response_json[9]["label"], "External identifier")
         self.assertEqual(response_json[9]["key"], "ext")
-        self.assertEqual(response_json[10]["label"], "Jiochat identifier")
+        self.assertEqual(response_json[10]["label"], "JioChat identifier")
         self.assertEqual(response_json[10]["key"], "jiochat")
         self.assertEqual(response_json[11]["label"], "WeChat identifier")
         self.assertEqual(response_json[11]["key"], "wechat")

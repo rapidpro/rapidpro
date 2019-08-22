@@ -6,29 +6,33 @@ from django_redis import get_redis_connection
 from django.utils.http import urlencode
 
 from temba.channels.models import ChannelLog
+from temba.channels.types.jiochat.client import JioChatClient
 from temba.utils import json
-from temba.utils.access_token import APIClient
 from temba.utils.http import HttpEvent
 
 
-class WeChatClient(APIClient):
-    API_NAME = "WeChat"
-    API_SLUG = "wechat"
-    TOKEN_REFRESH_LOCK = "wechat_channel_access_token:refresh-lock:%s"
-    TOKEN_STORE_KEY = "wechat_channel_access_token:%s"
-    TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/token"
+class WeChatClient(JioChatClient):
+    """
+    Uses similar API as JioChat except makes GET requests to renew API tokens
+    """
+
+    api_name = "WeChat"
+    api_slug = "wechat"
+    token_url = "https://api.weixin.qq.com/cgi-bin/token"
+    token_refresh_lock = "wechat_channel_access_token:refresh-lock:%s"
+    token_store_key = "wechat_channel_access_token:%s"
 
     # we use GET for WeChat
     def refresh_access_token(self, channel_id):
         r = get_redis_connection()
-        lock_name = self.TOKEN_REFRESH_LOCK % self.channel_uuid
+        lock_name = self.token_refresh_lock % self.channel_uuid
 
         if not r.get(lock_name):
             with r.lock(lock_name, timeout=30):
-                key = self.TOKEN_STORE_KEY % self.channel_uuid
+                key = self.token_store_key % self.channel_uuid
 
-                data = dict(grant_type="client_credential", appid=self.app_id, secret=self.app_secret)
-                url = self.TOKEN_URL
+                data = {"grant_type": "client_credential", "appid": self.app_id, "secret": self.app_secret}
+                url = self.token_url
 
                 event = HttpEvent("GET", url + "?" + urlencode(data))
                 start = time.time()
@@ -39,7 +43,7 @@ class WeChatClient(APIClient):
                 if response.status_code != 200:
                     event.response_body = response.content
                     ChannelLog.log_channel_request(
-                        channel_id, "Got non-200 response from %s" % self.API_NAME, event, start, True
+                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
                     )
                     return
 
@@ -50,7 +54,7 @@ class WeChatClient(APIClient):
 
                 event.response_body = json.dumps(response_json)
                 ChannelLog.log_channel_request(
-                    channel_id, "Successfully fetched access token from %s" % self.API_NAME, event, start, has_error
+                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start, has_error
                 )
 
                 access_token = response_json.get("access_token", "")

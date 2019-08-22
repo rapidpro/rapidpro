@@ -1,3 +1,12 @@
+v5.1.25
+----------
+ * Update floweditor to 1.6.12
+ * Allow viewing of channel logs in anonymous orgs with URN values redacted
+
+v5.1.24
+----------
+ * Cleanup campaighn models fields
+
 v5.1.23
 ----------
  * Really fix copying of flows with nameless has_group tests and add a test this time

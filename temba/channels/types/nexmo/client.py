@@ -5,7 +5,7 @@ import nexmo
 from django.urls import reverse
 
 
-class Client:
+class NexmoClient:
     """
     Wrapper for the actual Nexmo client that adds some functionality and retries
     """
@@ -100,7 +100,7 @@ class Client:
         except nexmo.ClientError as e:
             message = str(e)
             if message.startswith("420") or message.startswith("429"):
-                time.sleep(Client.RATE_LIMIT_PAUSE)
+                time.sleep(NexmoClient.RATE_LIMIT_PAUSE)
                 return func(**kwargs)
             else:  # pragma: no cover
                 raise e

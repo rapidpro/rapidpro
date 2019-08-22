@@ -2646,9 +2646,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {
-                "detail": "This group is used by active triggers. In order to delete it, first archive associated triggers."
-            },
+            {"detail": f"Group is being used by the following triggers which must be archived first: {trigger.id}"},
         )
 
     def test_api_groups_cant_delete_with_flow_dependency(self):
@@ -2657,6 +2655,7 @@ class APITest(TembaTest):
 
         self.get_flow("dependencies")
 
+        flow = Flow.objects.get(name="Dependencies")
         cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
 
         response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
@@ -2664,7 +2663,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {"detail": "This group is used by active flows. In order to delete it, first archive flows: Dependencies"},
+            {"detail": f"Group is being used by the following flows which must be archived first: {flow.uuid}"},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):
@@ -2673,16 +2672,17 @@ class APITest(TembaTest):
 
         customers = self.create_group("Customers", [self.frank])
 
-        post_data = dict(name="Don't forget to ...", group=customers.pk)
-        self.client.post(reverse("campaigns.campaign_create"), post_data)
+        self.client.post(reverse("campaigns.campaign_create"), {"name": "Don't forget to ...", "group": customers.id})
 
-        response = self.deleteJSON(url, "uuid=%s" % customers.uuid)
+        campaign = Campaign.objects.get()
+
+        response = self.deleteJSON(url, f"uuid={customers.uuid}")
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
-                "detail": "This group is used by active campaigns. In order to delete it, first archive campaigns: Don't forget to ..."
+                "detail": f"Group is being used by the following campaigns which must be archived first: {campaign.uuid}"
             },
         )
 

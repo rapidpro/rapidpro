@@ -1017,7 +1017,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.telegram.TelegramType",
     "temba.channels.types.twiml_api.TwimlAPIType",
     "temba.channels.types.twitter.TwitterType",
-    "temba.channels.types.twitter_activity.TwitterActivityType",
+    "temba.channels.types.twitter_legacy.TwitterLegacyType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
     "temba.channels.types.wavy.WavyType",
