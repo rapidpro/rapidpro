@@ -106,14 +106,18 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
-        # same for plain user
+        # viewers can do get some endpoints
         self.login(self.user)
         response = self.fetchHTML(url, query)
-        self.assertEqual(response.status_code, 403)
+        self.assertIn(response.status_code, [200, 403])
 
-        # 403 for JSON request too
+        # same with JSON
         response = self.fetchJSON(url, query)
-        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+        self.assertIn(response.status_code, [200, 403])
+
+        # but viewers should always be forbidden when posting
+        response = self.postJSON(url, query, {})
+        self.assertEqual(response.status_code, 403)
 
         # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
