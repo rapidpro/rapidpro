@@ -9,6 +9,7 @@ from temba.contacts.models import URN
 from temba.tests import TembaTest
 
 from ...models import Channel
+from .client import TwitterClient
 from .tasks import resolve_twitter_ids
 
 
@@ -204,3 +205,48 @@ class TwitterTypeTest(TembaTest):
 
         self.sarah.refresh_from_db()
         self.assertFalse(self.sarah.is_stopped)
+
+
+class TwitterClientTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.client = TwitterClient("APIKEY", "APISECRET", "ACCESSTOKEN", "ACCESSTOKENSECRET")
+
+    @patch("twython.Twython.request")
+    def test_get_webhooks(self, mock_request):
+        self.client.get_webhooks("temba")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks.json", params=None, version="1.1"
+        )
+
+    @patch("twython.Twython.request")
+    def test_delete_webhook(self, mock_request):
+        self.client.delete_webhook("temba", "1234")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks/1234.json", method="DELETE"
+        )
+
+    @patch("twython.Twython.request")
+    def test_register_webhook(self, mock_request):
+        self.client.register_webhook("temba", "http://temba.com/mycallback.asp")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks.json?url=http%3A%2F%2Ftemba.com%2Fmycallback.asp",
+            "POST",
+            params=None,
+            version="1.1",
+        )
+
+    @patch("twython.Twython.request")
+    def test_subscribe_to_webhook(self, mock_request):
+        self.client.subscribe_to_webhook("temba")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/subscriptions.json",
+            "POST",
+            params=None,
+            version="1.1",
+        )
