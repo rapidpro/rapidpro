@@ -106,7 +106,7 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
-        # viewers can do get some endpoints
+        # viewers can do gets on some endpoints
         self.login(self.user)
         response = self.fetchHTML(url, query)
         self.assertIn(response.status_code, [200, 403])
@@ -115,7 +115,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, query)
         self.assertIn(response.status_code, [200, 403])
 
-        # but viewers should always be forbidden when posting
+        # but viewers should always get a forbidden when posting
         response = self.postJSON(url, query, {})
         self.assertEqual(response.status_code, 403)
 
