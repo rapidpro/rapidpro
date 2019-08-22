@@ -5,14 +5,37 @@ from django.utils import timezone
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.utils.text import slugify_with
 
+# engine session statuses to db statuses
+SESSION_STATUSES = {
+    "waiting": FlowSession.STATUS_WAITING,
+    "completed": FlowSession.STATUS_COMPLETED,
+    "interrupted": FlowSession.STATUS_INTERRUPTED,
+    "failed": FlowSession.STATUS_FAILED,
+}
+
+# engine run statuses to db statuses
+RUN_STATUSES = {
+    "active": FlowRun.STATUS_ACTIVE,
+    "waiting": FlowRun.STATUS_WAITING,
+    "completed": FlowRun.STATUS_COMPLETED,
+    "interrupted": FlowRun.STATUS_INTERRUPTED,
+    "failed": FlowRun.STATUS_FAILED,
+}
+
+# engine run statuses to db exit types
+EXIT_TYPES = {
+    "completed": FlowRun.EXIT_TYPE_COMPLETED,
+    "interrupted": FlowRun.EXIT_TYPE_INTERRUPTED,
+    "expired": FlowRun.EXIT_TYPE_EXPIRED,
+}
+
+PERSIST_EVENTS = {"msg_created", "msg_received"}
+
 
 class MockSessionBuilder:
     """
     Builds sessions and runs that should look almost like the real thing from mailroom/goflow
     """
-
-    PERSIST_EVENTS = {"msg_created", "msg_received"}
-    EXIT_TYPES = {"completed": "C", "interrupted": "I", "expired": "E"}
 
     def __init__(self, contact, flow, start=None):
         self.org = contact.org
@@ -125,7 +148,7 @@ class MockSessionBuilder:
             contact=self.contact,
             session_type=db_flow_types[self.session["type"]],
             output=self.session,
-            status=FlowSession.GOFLOW_STATUSES[self.session["status"]],
+            status=SESSION_STATUSES[self.session["status"]],
         )
 
         for i, run in enumerate(self.session["runs"]):
@@ -137,11 +160,11 @@ class MockSessionBuilder:
                 contact=self.contact,
                 session=session_obj,
                 path=run["path"],
-                events=[e for e in run["events"] if e["type"] in self.PERSIST_EVENTS],
+                events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
                 results=run["results"],
-                exit_type=self.EXIT_TYPES.get(run["status"]),
+                exit_type=EXIT_TYPES.get(run["status"]),
                 is_active=run["status"] in ("waiting", "active"),
-                status=FlowRun.GOFLOW_STATUSES[run["status"]],
+                status=RUN_STATUSES[run["status"]],
                 current_node_uuid=run["path"][-1]["node_uuid"] if run["path"] else None,
                 modified_on=run["modified_on"],
                 exited_on=run["exited_on"],

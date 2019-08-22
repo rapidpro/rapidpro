@@ -2434,13 +2434,6 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
-    GOFLOW_STATUSES = {
-        "waiting": STATUS_WAITING,
-        "completed": STATUS_COMPLETED,
-        "interrupted": STATUS_INTERRUPTED,
-        "failed": STATUS_FAILED,
-    }
-
     uuid = models.UUIDField(null=True)
 
     # the modality of this session
@@ -2511,14 +2504,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         (STATUS_EXPIRED, "Expired"),
         (STATUS_FAILED, "Failed"),
     )
-
-    GOFLOW_STATUSES = {
-        "active": STATUS_ACTIVE,
-        "waiting": STATUS_WAITING,
-        "completed": STATUS_COMPLETED,
-        "interrupted": STATUS_INTERRUPTED,
-        "failed": STATUS_FAILED,
-    }
 
     STATE_ACTIVE = "A"
 
