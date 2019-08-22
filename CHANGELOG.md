@@ -1,3 +1,9 @@
+v5.1.26
+----------
+ * Fix rendering of campaign and event names in UI
+ * Move remaining channel client functionality into channel type packages
+ * Remove unused asset server stuff
+
 v5.1.25
 ----------
  * Update floweditor to 1.6.12
