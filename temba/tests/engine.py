@@ -72,16 +72,28 @@ class MockSessionBuilder:
 
         self.session = session
         self.current_run = session["runs"][0]
+        self.current_node = None
 
-    def add_step(self, exit_uuid, new_node_uuid):
-        if exit_uuid:
-            self.current_run["path"][-1]["exit_uuid"] = exit_uuid
+    def visit(self, node):
+        if self.current_node:
+            from_exit = None
+            for e in self.current_node["exits"]:
+                if e["destination_uuid"] == node["uuid"]:
+                    from_exit = e
+                    break
 
-        self.current_run["path"].append({"uuid": str(uuid4()), "node_uuid": new_node_uuid, "arrived_on": self._now()})
+            assert from_exit, f"previous node {self.current_node['uuid']} has no exit to new node {node['uuid']}"
+
+            self.current_run["path"][-1]["exit_uuid"] = from_exit["uuid"]
+
+        self.current_run["path"].append({"uuid": str(uuid4()), "node_uuid": node["uuid"], "arrived_on": self._now()})
         self.current_run["modified_on"] = self._now()
+        self.current_node = node
         return self
 
-    def add_result(self, name, value, category, node_uuid, input):
+    def set_result(self, name, value, category, input):
+        node_uuid = self.current_node["uuid"]
+
         self.current_run["results"][slugify_with(name)] = {
             "name": name,
             "value": value,
@@ -96,7 +108,7 @@ class MockSessionBuilder:
         )
         return self
 
-    def wait_for_msg(self):
+    def wait(self):
         self.session["wait"] = {"type": "msg"}
         self.session["status"] = "waiting"
         self.current_run["status"] = "waiting"
@@ -104,7 +116,7 @@ class MockSessionBuilder:
         self._log_event("msg_wait")
         return self
 
-    def resume_with_msg(self, msg):
+    def resume(self, msg):
         self.session["wait"] = None
         self.session["status"] = "active"
         self.current_run["status"] = "active"

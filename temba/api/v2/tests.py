@@ -3091,47 +3091,39 @@ class APITest(TembaTest):
 
         joe_run1 = (
             MockSessionBuilder(self.joe, flow1, start=start1)
-            .add_step(None, color_prompt["uuid"])
-            .add_step(color_prompt["exits"][0]["uuid"], color_split["uuid"])
-            .wait_for_msg()
-            .resume_with_msg(joe_msg)
-            .add_result("Color", "blue", "Blue", color_split["uuid"], "it is blue")
-            .add_step(color_split["exits"][1]["uuid"], blue_reply["uuid"])
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=joe_msg)
+            .set_result("Color", "blue", "Blue", "it is blue")
+            .visit(blue_reply)
             .complete()
             .save()
         ).runs.get()
 
         frank_run1 = (
             MockSessionBuilder(self.frank, flow1)
-            .add_step(None, color_prompt["uuid"])
-            .add_step(color_prompt["exits"][0]["uuid"], color_split["uuid"])
-            .wait_for_msg()
-            .resume_with_msg(frank_msg)
-            .add_result("Color", "Indigo", "Other", color_split["uuid"], "Indigo")
-            .wait_for_msg()
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=frank_msg)
+            .set_result("Color", "Indigo", "Other", "Indigo")
+            .wait()
             .save()
         ).runs.get()
 
         joe_run2 = (
-            MockSessionBuilder(self.joe, flow1)
-            .add_step(None, color_prompt["uuid"])
-            .add_step(color_prompt["exits"][0]["uuid"], color_split["uuid"])
-            .wait_for_msg()
-            .save()
+            MockSessionBuilder(self.joe, flow1).visit(color_prompt).visit(color_split).wait().save()
         ).runs.get()
         frank_run2 = (
-            MockSessionBuilder(self.frank, flow1)
-            .add_step(None, color_prompt["uuid"])
-            .add_step(color_prompt["exits"][0]["uuid"], color_split["uuid"])
-            .wait_for_msg()
-            .save()
+            MockSessionBuilder(self.frank, flow1).visit(color_prompt).visit(color_split).wait().save()
         ).runs.get()
 
-        joe_run3 = MockSessionBuilder(self.joe, flow2).wait_for_msg().save().runs.get()
+        joe_run3 = MockSessionBuilder(self.joe, flow2).wait().save().runs.get()
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)
-        MockSessionBuilder(self.hans, flow3).wait_for_msg().save()
+        MockSessionBuilder(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted
         joe_run1.refresh_from_db()
