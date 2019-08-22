@@ -7954,7 +7954,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response_json[8]["key"], "mailto")
         self.assertEqual(response_json[9]["label"], "External identifier")
         self.assertEqual(response_json[9]["key"], "ext")
-        self.assertEqual(response_json[10]["label"], "Jiochat identifier")
+        self.assertEqual(response_json[10]["label"], "JioChat identifier")
         self.assertEqual(response_json[10]["key"], "jiochat")
         self.assertEqual(response_json[11]["label"], "WeChat identifier")
         self.assertEqual(response_json[11]["key"], "wechat")

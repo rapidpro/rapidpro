@@ -8,7 +8,7 @@ from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 
-from .client import Client
+from .client import NexmoClient
 
 
 def mock_json_response(status_code, data):
@@ -226,7 +226,7 @@ class ClientTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.client = Client("abc123", "asecret")
+        self.client = NexmoClient("abc123", "asecret")
 
     @patch("nexmo.Client.get_balance")
     def test_check_credentials(self, mock_get_balance):
@@ -272,7 +272,7 @@ class ClientTest(TembaTest):
 
         mock_delete_application.assert_called_once_with(application_id="myappid")
 
-    @patch("temba.channels.types.nexmo.client.Client.RATE_LIMIT_PAUSE", 0)
+    @patch("temba.channels.types.nexmo.client.NexmoClient.RATE_LIMIT_PAUSE", 0)
     @patch("nexmo.Client.get_account_numbers")
     def test_retry(self, mock_get_account_numbers):
         mock_get_account_numbers.side_effect = [
