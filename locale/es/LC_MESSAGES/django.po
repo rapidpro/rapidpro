@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-21 21:59+0000\n"
+"POT-Creation-Date: 2019-08-23 18:05+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8835,38 +8835,41 @@ msgstr[1] "Le quedan %(credits)s, obtengan más créditos para evitar la interru
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+#| "            regions, aliases.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
+"        "
 msgstr ""
 "\n"
 "            Muchas veces algunas regiones se conocen por más de un nombre. En %(brand)s, a estos nombres alternativos para\n"
 "            las regiones, los llamamos apelativos.\n"
 "\n"
 "          "
-
-msgid "Clear"
-msgstr "Limpiar"
-
-msgid "(one per alias line)"
-msgstr "(uno por línea de apelativo)"
-
-msgid "Alias names must be unique, try again."
-msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-msgid "Your changes could not be saved. Please reload the page and try again."
-msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy, python-format
 msgid ""
@@ -11435,6 +11438,18 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#~ msgid "Clear"
+#~ msgstr "Limpiar"
+
+#~ msgid "(one per alias line)"
+#~ msgstr "(uno por línea de apelativo)"
+
+#~ msgid "Alias names must be unique, try again."
+#~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
+
+#~ msgid "Your changes could not be saved. Please reload the page and try again."
+#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy
 #~| msgid "Channel Event"
