@@ -27,7 +27,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
-from temba.tests.engine import MockSessionBuilder
+from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -3090,7 +3090,7 @@ class APITest(TembaTest):
         frank_msg = self.create_msg(direction="I", contact=self.frank, text="Indigo")
 
         joe_run1 = (
-            MockSessionBuilder(self.joe, flow1, start=start1)
+            MockSessionWriter(self.joe, flow1, start=start1)
             .visit(color_prompt)
             .visit(color_split)
             .wait()
@@ -3099,10 +3099,10 @@ class APITest(TembaTest):
             .visit(blue_reply)
             .complete()
             .save()
-        ).runs.get()
+        ).session.runs.get()
 
         frank_run1 = (
-            MockSessionBuilder(self.frank, flow1)
+            MockSessionWriter(self.frank, flow1)
             .visit(color_prompt)
             .visit(color_split)
             .wait()
@@ -3110,20 +3110,20 @@ class APITest(TembaTest):
             .set_result("Color", "Indigo", "Other", "Indigo")
             .wait()
             .save()
-        ).runs.get()
+        ).session.runs.get()
 
         joe_run2 = (
-            MockSessionBuilder(self.joe, flow1).visit(color_prompt).visit(color_split).wait().save()
-        ).runs.get()
+            MockSessionWriter(self.joe, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
         frank_run2 = (
-            MockSessionBuilder(self.frank, flow1).visit(color_prompt).visit(color_split).wait().save()
-        ).runs.get()
+            MockSessionWriter(self.frank, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
 
-        joe_run3 = MockSessionBuilder(self.joe, flow2).wait().save().runs.get()
+        joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)
-        MockSessionBuilder(self.hans, flow3).wait().save()
+        MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted
         joe_run1.refresh_from_db()
@@ -3135,13 +3135,12 @@ class APITest(TembaTest):
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["next"], None)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(None, response.json()["next"])
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
         resp_json = response.json()
         self.assertEqual(
-            resp_json["results"][2],
             {
                 "id": frank_run2.pk,
                 "uuid": str(frank_run2.uuid),
@@ -3165,9 +3164,9 @@ class APITest(TembaTest):
                 "exited_on": None,
                 "exit_type": None,
             },
+            resp_json["results"][2],
         )
         self.assertEqual(
-            resp_json["results"][4],
             {
                 "id": joe_run1.pk,
                 "uuid": str(joe_run1.uuid),
@@ -3204,6 +3203,7 @@ class APITest(TembaTest):
                 "exited_on": format_datetime(joe_run1.exited_on),
                 "exit_type": "completed",
             },
+            resp_json["results"][4],
         )
 
         # filter by id

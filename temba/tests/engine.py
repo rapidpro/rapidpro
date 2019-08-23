@@ -32,18 +32,20 @@ EXIT_TYPES = {
 PERSIST_EVENTS = {"msg_created", "msg_received"}
 
 
-class MockSessionBuilder:
+class MockSessionWriter:
     """
-    Builds sessions and runs that should look almost like the real thing from mailroom/goflow
+    Writes sessions and runs that should look almost like the real thing from mailroom/goflow
     """
 
     def __init__(self, contact, flow, start=None):
         self.org = contact.org
         self.contact = contact
         self.start = start
+        self.session = None
 
-        contact_def = {"uuid": str(contact.uuid), "name": contact.name, "language": contact.language}
-        session = {
+        contact_def = {"uuid": str(self.contact.uuid), "name": self.contact.name, "language": self.contact.language}
+
+        self.output = {
             "uuid": str(uuid4()),
             "type": Flow.GOFLOW_TYPES[flow.flow_type],
             "environment": self.org.as_environment_def(),
@@ -70,15 +72,14 @@ class MockSessionBuilder:
             "status": "active",
         }
 
-        self.session = session
-        self.current_run = session["runs"][0]
+        self.current_run = self.output["runs"][0]
         self.current_node = None
 
     def visit(self, node):
         if self.current_node:
             from_exit = None
             for e in self.current_node["exits"]:
-                if e["destination_uuid"] == node["uuid"]:
+                if e.get("destination_uuid") == node["uuid"]:
                     from_exit = e
                     break
 
@@ -109,16 +110,19 @@ class MockSessionBuilder:
         return self
 
     def wait(self):
-        self.session["wait"] = {"type": "msg"}
-        self.session["status"] = "waiting"
+        self.output["wait"] = {"type": "msg"}
+        self.output["status"] = "waiting"
         self.current_run["status"] = "waiting"
         self.current_run["modified_on"] = self._now()
         self._log_event("msg_wait")
         return self
 
     def resume(self, msg):
-        self.session["wait"] = None
-        self.session["status"] = "active"
+        assert self.output["status"] == "waiting", "can only resume a waiting session"
+        assert self.current_run["status"] == "waiting", "can only resume a waiting run"
+
+        self.output["wait"] = None
+        self.output["status"] = "active"
         self.current_run["status"] = "active"
         self.current_run["modified_on"] = self._now()
         self._log_event("msg_received", msg={"urn": msg.contact_urn.urn, "text": msg.text})
@@ -138,39 +142,53 @@ class MockSessionBuilder:
         return self
 
     def save(self):
-        assert self.session["status"] != "active", "active sessions never persisted to database"
+        assert self.output["status"] != "active", "active sessions never persisted to database"
 
         db_flow_types = {v: k for k, v in Flow.GOFLOW_TYPES.items()}
 
-        # interrupt any active runs or sessions
-        self.contact.flowsession_set.filter(status=FlowSession.STATUS_WAITING).update(
-            status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
-        )
-        self.contact.runs.filter(is_active=True).update(
-            status=FlowRun.STATUS_INTERRUPTED,
-            exit_type=FlowRun.EXIT_TYPE_INTERRUPTED,
-            is_active=False,
-            modified_on=timezone.now(),
-            exited_on=timezone.now(),
-        )
+        # if we're starting a new session, interrupt any existing ones
+        if not self.session:
+            interrupted_on = self.output["trigger"]["triggered_on"]  # which would have happened at trigger time
 
-        session_obj = FlowSession.objects.create(
-            uuid=self.session["uuid"],
-            org=self.org,
-            contact=self.contact,
-            session_type=db_flow_types[self.session["type"]],
-            output=self.session,
-            status=SESSION_STATUSES[self.session["status"]],
-        )
+            self.contact.flowsession_set.filter(status=FlowSession.STATUS_WAITING).update(
+                status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
+            )
+            self.contact.runs.filter(is_active=True).update(
+                status=FlowRun.STATUS_INTERRUPTED,
+                exit_type=FlowRun.EXIT_TYPE_INTERRUPTED,
+                is_active=False,
+                modified_on=interrupted_on,
+                exited_on=interrupted_on,
+            )
 
-        for i, run in enumerate(self.session["runs"]):
-            FlowRun.objects.create(
-                uuid=run["uuid"],
+        # create or update session object itself
+        if self.session:
+            self.session.output = self.output
+            self.session.status = SESSION_STATUSES[self.output["status"]]
+            self.session.save(update_fields=("output", "status"))
+        else:
+            self.session = FlowSession.objects.create(
+                uuid=self.output["uuid"],
                 org=self.org,
-                start=self.start if i == 0 else None,
-                flow=Flow.objects.get(uuid=run["flow"]["uuid"]),
                 contact=self.contact,
-                session=session_obj,
+                session_type=db_flow_types[self.output["type"]],
+                output=self.output,
+                status=SESSION_STATUSES[self.output["status"]],
+            )
+
+        for i, run in enumerate(self.output["runs"]):
+            run_obj = FlowRun.objects.filter(uuid=run["uuid"]).first()
+            if not run_obj:
+                run_obj = FlowRun.objects.create(
+                    uuid=run["uuid"],
+                    org=self.org,
+                    start=self.start if i == 0 else None,
+                    flow=Flow.objects.get(uuid=run["flow"]["uuid"]),
+                    contact=self.contact,
+                    session=self.session,
+                )
+
+            FlowRun.objects.filter(id=run_obj.id).update(
                 path=run["path"],
                 events=[e for e in run["events"] if e["type"] in PERSIST_EVENTS],
                 results=run["results"],
@@ -183,7 +201,7 @@ class MockSessionBuilder:
                 responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
             )
 
-        return session_obj
+        return self
 
     def _now(self):
         return timezone.now().isoformat()
@@ -192,8 +210,8 @@ class MockSessionBuilder:
         self.current_run["events"].append({"type": _type, "created_on": self._now(), **kwargs})
 
     def _exit(self, status):
-        self.session["status"] = status
+        self.output["status"] = status
 
-        for run in self.session["runs"]:
+        for run in self.output["runs"]:
             run["status"] = status
             run["modified_on"] = self._now()
