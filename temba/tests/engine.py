@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.utils import timezone
 
+from temba.channels.models import Channel
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
@@ -111,8 +112,16 @@ class MockSessionWriter:
         )
         return self
 
-    def send_msg(self, text):
-        self._log_event("msg_created", msg={"uuid": str(uuid4()), "urn": self.contact.get_urn().urn, "text": text})
+    def send_msg(self, text, channel):
+        self._log_event(
+            "msg_created",
+            msg={
+                "uuid": str(uuid4()),
+                "urn": self.contact.get_urn().urn,
+                "text": text,
+                "channel": {"uuid": str(channel.uuid), "name": channel.name},
+            },
+        )
         return self
 
     def wait(self):
@@ -192,6 +201,7 @@ class MockSessionWriter:
                     flow=Flow.objects.get(uuid=run["flow"]["uuid"]),
                     contact=self.contact,
                     session=self.session,
+                    created_on=run["created_on"],
                 )
 
             FlowRun.objects.filter(id=run_obj.id).update(
@@ -218,10 +228,12 @@ class MockSessionWriter:
                     org=self.org,
                     contact=self.contact,
                     contact_urn=self.contact.get_urn(),
+                    channel=Channel.objects.get(uuid=event["msg"]["channel"]["uuid"]),
                     direction="O",
                     text=event["msg"]["text"],
                     created_on=event["created_on"],
-                    status="Q",
+                    msg_type="F",
+                    status="S",
                 )
 
         self.events = []
