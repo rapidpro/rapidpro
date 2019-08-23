@@ -3080,10 +3080,10 @@ class APITest(TembaTest):
         flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        flow1_def = flow1.as_json()
-        color_prompt = flow1_def["nodes"][0]
-        color_split = flow1_def["nodes"][4]
-        blue_reply = flow1_def["nodes"][2]
+        flow1_nodes = flow1.as_json()["nodes"]
+        color_prompt = flow1_nodes[0]
+        color_split = flow1_nodes[4]
+        blue_reply = flow1_nodes[2]
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
         joe_msg = self.create_msg(direction="I", contact=self.joe, text="it is blue")

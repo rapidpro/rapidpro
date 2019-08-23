@@ -44,16 +44,16 @@ class RecalcNodeCountsTest(FlowFileTest):
             self.assertEqual(assert_count, sum(new_counts.values()))
 
         flow = self.get_flow("favorites_v13")
-        flow_def = flow.as_json()
+        nodes = flow.as_json()["nodes"]
 
-        color_prompt = flow_def["nodes"][0]
-        color_other = flow_def["nodes"][1]
-        color_split = flow_def["nodes"][2]
-        beer_prompt = flow_def["nodes"][3]
-        beer_split = flow_def["nodes"][5]
-        name_prompt = flow_def["nodes"][6]
-        name_split = flow_def["nodes"][7]
-        name_reply = flow_def["nodes"][8]
+        color_prompt = nodes[0]
+        color_other = nodes[1]
+        color_split = nodes[2]
+        beer_prompt = nodes[3]
+        beer_split = nodes[5]
+        name_prompt = nodes[6]
+        name_split = nodes[7]
+        name_reply = nodes[8]
 
         session1 = MockSessionWriter(self.contact, flow).visit(color_prompt).visit(color_split).wait().save()
         session2 = MockSessionWriter(self.contact2, flow).visit(color_prompt).visit(color_split).wait().save()

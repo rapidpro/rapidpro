@@ -3,6 +3,7 @@ from uuid import uuid4
 from django.utils import timezone
 
 from temba.flows.models import Flow, FlowRun, FlowSession
+from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
 
 # engine session statuses to db statuses
@@ -74,6 +75,7 @@ class MockSessionWriter:
 
         self.current_run = self.output["runs"][0]
         self.current_node = None
+        self.events = []
 
     def visit(self, node):
         if self.current_node:
@@ -107,6 +109,10 @@ class MockSessionWriter:
         self._log_event(
             "run_result_changed", name=name, value=value, category=category, node_uuid=node_uuid, input=input
         )
+        return self
+
+    def send_msg(self, text):
+        self._log_event("msg_created", msg={"uuid": str(uuid4()), "urn": self.contact.get_urn().urn, "text": text})
         return self
 
     def wait(self):
@@ -201,13 +207,33 @@ class MockSessionWriter:
                 responded=bool([e for e in run["events"] if e["type"] == "msg_received"]),
             )
 
+        self._handle_events()
         return self
+
+    def _handle_events(self):
+        for event in self.events:
+            if event["type"] == "msg_created":
+                Msg.objects.create(
+                    uuid=event["msg"]["uuid"],
+                    org=self.org,
+                    contact=self.contact,
+                    contact_urn=self.contact.get_urn(),
+                    direction="O",
+                    text=event["msg"]["text"],
+                    created_on=event["created_on"],
+                    status="Q",
+                )
+
+        self.events = []
 
     def _now(self):
         return timezone.now().isoformat()
 
     def _log_event(self, _type, **kwargs):
-        self.current_run["events"].append({"type": _type, "created_on": self._now(), **kwargs})
+        event = {"type": _type, "created_on": self._now(), **kwargs}
+
+        self.current_run["events"].append(event)
+        self.events.append(event)
 
     def _exit(self, status):
         self.output["status"] = status
