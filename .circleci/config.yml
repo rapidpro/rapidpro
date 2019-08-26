@@ -10,7 +10,7 @@ jobs:
       - run:
           name: Build 
           command: |
-            apk add --update python openssh git
+            apk add --update python openssh git curl
             BRANCH=${CIRCLE_BRANCH#*/}
             VERSION=`cat VERSION`
             FROM_RP_TAG=v5.0.0
@@ -29,14 +29,15 @@ jobs:
           command: |
             BRANCH=${CIRCLE_BRANCH#*/}
             if [[ $BRANCH == develop ]] || [[ $BRANCH == master ]]; then
-              WORKDIR="/tmp/circleci_traptor/${CIRCLE_SHA1}"
+              curl --user ${CIRCLE_API_USER_TOKEN}: --data build_parameters[CIRCLE_JOB]=eks_deploy --data build_parameters[DEPLOY_PROJECT]=pulse-engage https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/p4-deploy/tree/develop
+              WORKDIR="/tmp/circleci_rapidpro/${CIRCLE_SHA1}"
               mkdir -p ~/.ssh
               echo "Host *" > ~/.ssh/config
               echo "  StrictHostKeyChecking no" >> ~/.ssh/config
               git clone -b develop git@github.com:istresearch/ansible-symphony-ist.git
               echo $ANSIBLE_VAULT_KEY >> ansible-symphony-ist/vault.passwd
               sed -i 's/control_path/#control_path/g' ansible-symphony-ist/ansible.cfg
-              tar -czpf - ansible-symphony-ist | ssh -l $ANSIBLE_EXECUTOR_USER $ANSIBLE_EXECUTOR_HOST "mkdir -p $WORKDIR ; tar -xzpf - -C $WORKDIR" 
+              tar -czpf - ansible-symphony-ist | ssh -l $ANSIBLE_EXECUTOR_USER $ANSIBLE_EXECUTOR_HOST "mkdir -p $WORKDIR ; tar -xzpf - -C $WORKDIR"
               ssh -l $ANSIBLE_EXECUTOR_USER $ANSIBLE_EXECUTOR_HOST "cd ${WORKDIR}/ansible-symphony-ist ; ansible-playbook -i develop.inventory -t site-docker-pollsterpro-all -l docker-pollsterpro-nodes site-docker-infrastructure.yml"
             else
               echo "Skipping deploy step"
