@@ -973,11 +973,6 @@ SEND_AIRTIME = False
 #         could cause data to be sent to Chatbase in test environment
 SEND_CHATBASE = False
 
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause calls in test environments
-SEND_CALLS = False
-
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",

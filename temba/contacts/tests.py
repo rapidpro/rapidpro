@@ -31,23 +31,15 @@ from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import INCOMING, Broadcast, Label, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    ESMockWithScroll,
-    ESMockWithScrollMultiple,
-    TembaTest,
-    TembaTestMixin,
-    uses_legacy_engine,
-)
-from temba.tests.twilio import MockRequestValidator, MockTwilioClient
+from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple, TembaTest, TembaTestMixin
+from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
 from temba.utils.es import ES
-from temba.utils.profiler import QueryTracker
 from temba.values.constants import Value
 
 from .models import (
@@ -401,28 +393,6 @@ class ContactGroupTest(TembaTest):
     def test_query_elasticsearch_for_ids_bad_query(self):
         with self.assertRaises(SearchException):
             Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
-
-    @uses_legacy_engine
-    def test_evaluate_dynamic_groups_from_flow(self):
-        flow = self.get_flow("initialize")
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.admin, name="Joe Blow")
-
-        with ESMockWithScroll():
-            fields = [
-                "total_calls_made",
-                "total_emails_sent",
-                "total_faxes_sent",
-                "total_letters_mailed",
-                "address_changes",
-                "name_changes",
-                "total_editorials_submitted",
-            ]
-            for key in fields:
-                ContactField.get_or_create(self.org, self.admin, key, value_type=Value.TYPE_NUMBER)
-                ContactGroup.create_dynamic(self.org, self.admin, "Group %s" % (key), "(%s > 10)" % key)
-
-        with QueryTracker(assert_query_count=137, stack_count=16, skip_unique_queries=False):
-            flow.start([], [self.joe])
 
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
@@ -1136,42 +1106,14 @@ class ContactTest(TembaTest):
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
-    @patch("twilio.rest.Client", MockTwilioClient)
-    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
-    @override_settings(SEND_CALLS=True)
-    @uses_legacy_engine
     def test_release(self):
-
-        # configure our org for ivr
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
-        self.org.save()
-        config = {
-            Channel.CONFIG_SEND_URL: "https://api.twilio.com",
-            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
-            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
-        }
-
-        Channel.create(self.org, self.org.get_user(), "BR", "TW", "+558299990000", "+558299990000", config, "AC")
-
-        def send(message, contact):
-            msg = Msg.objects.create(
-                org=self.org,
-                direction=INCOMING,
-                contact=contact,
-                contact_urn=contact.get_urn(),
-                text=message,
-                created_on=timezone.now(),
-                modified_on=timezone.now(),
-            )
-            Flow.find_and_handle(msg)
-
-        ivr_flow = self.get_flow("ivr")
-        msg_flow = self.get_flow("favorites")
-
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
-        send("hola mundo", old_contact)
+        self.create_msg(contact=old_contact, direction="I", text="hola mundo")
         urn = old_contact.get_urn()
+
+        ivr_flow = self.get_flow("ivr")
+        msg_flow = self.get_flow("favorites_v13")
 
         self.create_incoming_call(msg_flow, old_contact)
 
@@ -1184,12 +1126,35 @@ class ContactTest(TembaTest):
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",), handle_update=False)
 
-        msg_flow.start([], [contact])
         broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", contacts=[contact])
         broadcast.send()
 
-        send("red", contact)
-        send("primus", contact)
+        flow_nodes = msg_flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+        beer_prompt = flow_nodes[3]
+        beer_split = flow_nodes[5]
+        name_prompt = flow_nodes[6]
+        name_split = flow_nodes[7]
+
+        (
+            MockSessionWriter(contact, msg_flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=self.create_msg(contact=contact, direction="I", text="red"))
+            .visit(beer_prompt)
+            .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
+            .visit(beer_split)
+            .wait()
+            .resume(msg=self.create_msg(contact=contact, direction="I", text="primus"))
+            .visit(name_prompt)
+            .send_msg("Lastly, what is your name?", self.channel)
+            .visit(name_split)
+            .wait()
+            .save()
+        )
 
         self.create_incoming_call(msg_flow, contact)
 
@@ -3562,7 +3527,6 @@ class ContactTest(TembaTest):
             ],
         )
 
-    @uses_legacy_engine
     def test_history(self):
 
         # use a max history size of 100
@@ -3606,13 +3570,32 @@ class ContactTest(TembaTest):
                 created_on=self.joe.created_on - timedelta(seconds=10),
             )
 
-            # start a joe flow
-            self.reminder_flow.start([], [self.joe, kurt])
+            flow = self.get_flow("color_v13")
+            nodes = flow.as_json()["nodes"]
+            color_prompt = nodes[0]
+            color_split = nodes[4]
+
+            (
+                MockSessionWriter(self.joe, flow)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .save()
+            )
+            (
+                MockSessionWriter(kurt, flow)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .save()
+            )
 
             # mark an outgoing message as failed
             failed = Msg.objects.get(direction="O", contact=self.joe)
             failed.status = "F"
-            failed.save()
+            failed.save(update_fields=("status",))
             log = ChannelLog.objects.create(
                 channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
             )
@@ -3745,7 +3728,15 @@ class ContactTest(TembaTest):
             FlowRun.bulk_exit(self.joe.runs.all(), FlowRun.EXIT_TYPE_COMPLETED)
 
             # add a new run
-            self.reminder_flow.start([], [self.joe], restart_participants=True)
+            (
+                MockSessionWriter(self.joe, flow)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .save()
+            )
+
             response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.admin)
             activity = response.context["activity"]
             self.assertEqual(len(activity), 99)
@@ -3841,14 +3832,25 @@ class ContactTest(TembaTest):
         event.unit = "M"
         self.assertEqual("1 minute before Planting Date", event_time(event))
 
-    @uses_legacy_engine
     def test_activity_tags(self):
         self.create_campaign()
 
         contact = self.create_contact("Joe Blow", "tel:+1234")
         msg = Msg.create_incoming(self.channel, "tel:+1234", "Inbound message")
 
-        self.reminder_flow.start([], [self.joe])
+        flow = self.get_flow("color_v13")
+        nodes = flow.as_json()["nodes"]
+        color_prompt = nodes[0]
+        color_split = nodes[4]
+
+        run = (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
         # pretend that flow run made a webhook request
         legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
@@ -3904,10 +3906,6 @@ class ContactTest(TembaTest):
 
         msg.status = "S"
         self.assertEqual(activity_icon(item), '<span class="glyph icon-bullhorn"></span>')
-
-        flow = self.create_flow()
-        flow.start([], [self.joe])
-        run = FlowRun.objects.last()
 
         item = {"type": "run-start", "obj": run}
         self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
@@ -6853,13 +6851,10 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))  # a-z only
 
-    @uses_legacy_engine
     def test_contact_export(self):
         self.clear_storage()
 
         self.login(self.admin)
-
-        flow = self.create_flow()
 
         # archive all our current contacts
         Contact.objects.filter(org=self.org).update(is_blocked=True)
@@ -6874,7 +6869,19 @@ class ContactFieldTest(TembaTest):
 
         contact.set_field(self.user, "Third", "20/12/2015 08:30")
 
-        flow.start([], [contact])
+        flow = self.get_flow("color_v13")
+        nodes = flow.as_json()["nodes"]
+        color_prompt = nodes[0]
+        color_split = nodes[4]
+
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
 
         # create another contact, this should sort before Ben
         contact2 = self.create_contact("Adam Sumner", "+12067799191", twitter="adam", language="eng")
@@ -8132,7 +8139,6 @@ class PhoneNumberTest(TestCase):
 
 
 class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
-    @uses_legacy_engine
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
         self.admin = self.create_user("Administrator")
