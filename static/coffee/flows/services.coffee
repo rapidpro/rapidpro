@@ -102,6 +102,8 @@ app.service "utils", ['$modal', ($modal) ->
       arr[i] for arr in arguments
 
   openModal: (templateUrl, controller, resolveObj) ->
+    if typeof window.subdir is "string" and window.subdir.length > 0
+      templateUrl = '/' + window.subdir + templateUrl
     $modal.open
       keyboard: false
       templateUrl: templateUrl
@@ -1004,7 +1006,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           return cfg
 
     fetchRecentMessages: (exit_uuids, to_uuid) ->
-      return $http.get('/flow/recent_messages/' + Flow.flowUUID + '/?exits=' + exit_uuids.join() + '&to=' + to_uuid).success (data) ->
+      return $http.get((if typeof window.subdir == "string" && window.subdir.length > 0 then '/' +  window.subdir else '') + '/flow/recent_messages/' + Flow.flowUUID + '/?exits=' + exit_uuids.join() + '&to=' + to_uuid).success (data) ->
 
     fetch: (flowUUID, onComplete = null) ->
 
