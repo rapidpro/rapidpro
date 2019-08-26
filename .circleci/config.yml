@@ -2,11 +2,11 @@ version: 2
 jobs:
   build:
     docker:
-      - image: python:3.6-alpine 
+      - image: docker:18.03.0
     steps:
       - checkout
       - setup_remote_docker:
-          docker_layer_caching: true
+          docker_layer_caching: false
       - run:
           name: Build 
           command: |
@@ -21,10 +21,9 @@ jobs:
             else
               VERSION_TAG="ci-${VERSION}-${BRANCH}"
             fi
-            docker build . -t istresearch/rapidpro:${VERSION_TAG}
-            # TODO: run unit tests
+            docker build -t istresearch/p4-engage:code-${VERSION_TAG} .
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push istresearch/engage:${VERSION_TAG}
+            docker push istresearch/p4-engage:code-${VERSION_TAG}
       - run:
           name: Deploy
           command: |
