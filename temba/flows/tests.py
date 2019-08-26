@@ -373,7 +373,7 @@ class FlowTest(TembaTest):
         response = self.client.post(
             reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
         )
-        self.assertRedirect(response, reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertEqual(403, response.status_code)
 
         # check that we can create a new revision
         self.login(self.admin)
