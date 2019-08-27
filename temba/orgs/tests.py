@@ -3631,7 +3631,7 @@ class BulkExportTest(TembaTest):
         self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
-        from temba.flows.tests import get_legacy_groups
+        from temba.flows.legacy.tests import get_legacy_groups
 
         definition_groups = get_legacy_groups(flow.as_json())
 

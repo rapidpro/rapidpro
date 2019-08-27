@@ -814,7 +814,7 @@ class Command(BaseCommand):
 
         org.cache["activity"] = None
 
-        mailroom.queue_interrupt(org, org.contacts.all())
+        mailroom.queue_interrupt(org, contacts=org.contacts.all())
 
     def create_flow_run(self, org):
         activity = org.cache["activity"]
