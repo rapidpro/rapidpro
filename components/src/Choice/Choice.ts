@@ -1,11 +1,14 @@
-import { LitElement, customElement, TemplateResult, html, css, property } from 'lit-element';
+import { customElement, TemplateResult, html, css, property } from 'lit-element';
 import { getUrl } from '../utils';
 import axios, { AxiosResponse, CancelTokenSource } from 'axios';
+import '../Options/Options';
+import RapidElement, { EventHandler } from '../RapidElement';
+import { CustomEventType } from '../interfaces';
 
 const LOOK_AHEAD = 20;
 
 @customElement("rp-choice")
-export default class Choice extends LitElement {
+export default class Choice extends RapidElement {
 
   static get styles() {
     return css`
@@ -49,60 +52,11 @@ export default class Choice extends LitElement {
       .input-container:hover input {
         background: var(--color-widget-hover);
       }
-
-      .options {
-        overflow-y: scroll;
-        background: #fff;
-        border-radius: 5px;
-        visibility: hidden;
-        position: absolute;
-        border: 1px solid var(--color-borders);
-        box-shadow: 0px 0px 6px 1px rgba(0,0,0,.08);
-        transition: opacity ease-in-out 150ms;
-        opacity: 0;
-        max-height: 300px;
-      }
-
-      .show {
-        visibility: visible;
-        opacity: 1;
-      }
-
-      .option {
-        font-size: 14px;
-        padding: 10px 20px;
-        border-radius: 5px;
-        margin: 5px;
-        cursor: pointer;
-        color: var(--color-text);
-      }
-
-      .option.focused {
-        background: rgba(var(--primary-rgb), .8);
-        color: var(--color-text-light);
-      }
-
-      .option .detail {
-        font-size: 80%;
-        color: rgba(255,255,255,.6);
-      }
     `
   }
 
-  @property({attribute: false})
-  renderOption: (option: any, selected: boolean) => void = this.renderOptionDefault;
-
-  @property({attribute: false})
-  renderOptionName: (option: any, selected: boolean) => void = this.renderOptionNameDefault;
-
-  @property({attribute: false})
-  renderOptionDetail: (option: any, selected: boolean) => void = this.renderOptionDetailDefault;
-
   @property({type: Array})
   selected: any[] = [];
-
-  @property({type: Number})
-  cursorIndex: number = 0;
 
   @property()
   placeholder: string = '';
@@ -119,17 +73,14 @@ export default class Choice extends LitElement {
   @property({type: Number})
   quietMillis: number = 200;
 
-  @property({type: Number})
-  optionsTop: number;
-
-  @property({type: Number})
-  optionsWidth: number;
-
-  @property({type: Number})
-  optionsHeight: number;
-
   @property({type: Boolean})
   fetching: boolean;
+
+  @property({attribute: false})
+  cursorIndex: number;
+
+  @property({attribute: false})
+  anchorElement: HTMLElement;
 
   private lastQuery: number;
   private cancelToken: CancelTokenSource;
@@ -139,23 +90,6 @@ export default class Choice extends LitElement {
 
   public constructor() {
     super();
-    document.addEventListener("scroll", ()=>{
-      this.calculateOptionsPosition();
-    });
-  }
-
-  private calculateOptionsPosition() {
-    const optionsHeight = this.shadowRoot.querySelector(".options").getBoundingClientRect().height
-    const input = this.shadowRoot.querySelector(".input-container");
-    const bounds = input.getBoundingClientRect();
-    const space = (window.innerHeight - bounds.bottom);
-    if (space > optionsHeight) {
-      this.optionsTop = bounds.bottom + window.scrollY + 1;
-    } else {
-      this.optionsTop = bounds.top - optionsHeight + window.scrollY - 1;
-    }
-
-    this.optionsWidth = bounds.width - 2;
   }
 
   public updated(changedProperties: Map<string, any>) {
@@ -179,26 +113,8 @@ export default class Choice extends LitElement {
       }, this.quietMillis);
     }
 
-    if(changedProperties.has("options")) {
-      this.calculateOptionsPosition();
-    }
-
-    // if our cursor changed, lets make sure our scrollbox is showing it
+       // if our cursor changed, lets make sure our scrollbox is showing it
     if(changedProperties.has("cursorIndex")) {
-      const focusedEle = this.shadowRoot.querySelector(".focused") as HTMLDivElement;
-      if (focusedEle) {
-        const scrollBox =  this.shadowRoot.querySelector(".options");
-        const scrollBoxHeight = scrollBox.getBoundingClientRect().height
-        const focusedEleHeight = focusedEle.getBoundingClientRect().height;              
-        if (focusedEle.offsetTop + focusedEleHeight > scrollBox.scrollTop + scrollBoxHeight - 5) {
-          const scrollTo = focusedEle.offsetTop - scrollBoxHeight + focusedEleHeight + 5;
-          scrollBox.scrollTo({ top: scrollTo });
-        } else if (focusedEle.offsetTop < scrollBox.scrollTop) {
-          const scrollTo = focusedEle.offsetTop - 5;
-          scrollBox.scrollTo({ top: scrollTo });
-        }
-      }
-
       if (this.options.length > 0 && 
           this.query && 
           !this.complete && 
@@ -208,44 +124,12 @@ export default class Choice extends LitElement {
     }
   }
 
-  private moveCursor(direction: number): void {
-    this.cursorIndex = Math.max(Math.min(this.cursorIndex + direction, this.options.length - 1), 0);
-  }
-
-  private handleSelection() {
-    const selected = this.options[this.cursorIndex];
-
+  private handleOptionSelection(event: CustomEvent) {
+    const selected = event.detail.selected;
     this.selected = [selected];
     this.options = [];
     this.input = selected.name;
-    
-    const selectionEvent = new CustomEvent('rp-choice-selected', { 
-      detail: this.selected,
-      bubbles: true, 
-      composed: true });
-    this.dispatchEvent(selectionEvent);
-  }
-
-  private handleKeyDown(evt: KeyboardEvent) {
-    if ((evt.ctrlKey && evt.key === "n") || evt.key === "ArrowDown") {
-      this.moveCursor(1);
-      evt.preventDefault();
-    } else if ((evt.ctrlKey && evt.key === "p") || evt.key === "ArrowUp") {
-      this.moveCursor(-1);
-      evt.preventDefault();
-    } else if (evt.key === "Enter") {
-      this.handleSelection();
-    }
-  }
-
-  private handleKeyUp(evt: KeyboardEvent) {
-    const ele = evt.currentTarget as HTMLInputElement;
-    this.input = ele.value.trim();
-
-    if(evt.key === "Escape") {
-      this.options = [];
-    }
-  }
+ }
 
   public fetchOptions(query: string, page: number = 0) {
     
@@ -288,35 +172,36 @@ export default class Choice extends LitElement {
   private handleFocus(): void {
   }
 
-  private renderOptionDefault(option: any, selected: boolean): TemplateResult {
-    if (selected) {
-      return html`<div class="name">${this.renderOptionName(option, selected)}</div><div class="detail">${this.renderOptionDetail(option, selected)}</div>`;
-    } else {
-      return html`<div class="name">${this.renderOptionName(option, selected)}</div>`;
-    }
+  private handleKeyUp(evt: KeyboardEvent) {
+    const ele = evt.currentTarget as HTMLInputElement;
+    this.input = ele.value.trim();
   }
 
-  private renderOptionNameDefault(option: any, selected: boolean): TemplateResult {
-    return html`${option.name}`
+  private handleCancel() {
+    this.options = [];
   }
 
-  private renderOptionDetailDefault(option: any, selected: boolean): TemplateResult {
-    return html`${option.detail}`
+  private handleCursorChanged(event: CustomEvent) {
+    this.cursorIndex = event.detail.index;
   }
 
+  public getEventHandlers(): EventHandler[] {
+    return [
+      { event: CustomEventType.Canceled, method: this.handleCancel },
+      { event: CustomEventType.CursorChanged, method: this.handleCursorChanged },
+      { event: CustomEventType.Selection, method: this.handleOptionSelection },
+    ];
+  }
+
+  public firstUpdated(changedProperties: any) {
+    this.anchorElement = this.shadowRoot.querySelector(".input-container")
+  }
 
   public render(): TemplateResult {
     return html`
-      <style>
-        .options {
-          top: ${this.optionsTop}px;
-          width: ${this.optionsWidth}px;
-        }
-      </style>
       <div class="container">
         <div class="input-container" @click=${()=>{ this.shadowRoot.querySelector("input").focus()}}>
           <input 
-            @keydown=${this.handleKeyDown}
             @keyup=${this.handleKeyUp}
             @blur=${this.handleBlur} 
             @focus=${this.handleFocus} 
@@ -324,16 +209,12 @@ export default class Choice extends LitElement {
             .value=${this.input}  
             placeholder="${this.placeholder}">
         </div>
-        <div class="options ${this.input.length > 0 && this.options.length > 0 ? "show": ""}">
-          ${this.options.map((option: any, index: number)=>html`
-            <div 
-              @mousemove=${(evt: MouseEvent)=>{this.cursorIndex = index}}
-              @click=${()=>{this.handleSelection();}}
-              class="option ${index == this.cursorIndex ? 'focused' : ''}">
-                ${this.renderOption(option, index == this.cursorIndex)}
-              </div>
-          `)}
-        </div>
+        <rp-options
+          cursorIndex=${this.cursorIndex}
+          .anchorTo=${this.anchorElement}
+          .options=${this.options}
+          ?visible=${this.input.length > 0 && this.options.length > 0}
+        ></rp-options>
       </div>
     `
   }

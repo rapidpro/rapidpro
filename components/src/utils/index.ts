@@ -1,5 +1,8 @@
 import axios, { AxiosResponse, CancelToken, AxiosRequestConfig } from 'axios';
 import { html, TemplateResult } from 'lit-html';
+import { LitElement } from 'lit-element';
+import { CustomEventType } from '../interfaces';
+import { rejects } from 'assert';
 
 /** Get the value for a named cookie */
 export const getCookie = (name: string): string => {
@@ -75,4 +78,28 @@ export const hexToRgb = (hex: string): { r: number, g: number, b: number } => {
               b: parseInt(result[3], 16)
           }
         : null;
+};
+
+export const getElementOffset = (
+    ele: HTMLElement
+): {
+    top: number,
+    left: number,
+    bottom: number,
+    right: number,
+    width: number,
+    height: number
+} => {
+    const rect = ele.getBoundingClientRect();
+    const scrollLeft =
+        window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    return {
+        top: rect.top + scrollTop,
+        left: rect.left + scrollLeft,
+        bottom: rect.top + rect.height,
+        right: rect.left + rect.width,
+        width: rect.width,
+        height: rect.height
+    };
 };

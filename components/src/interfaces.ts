@@ -9,3 +9,9 @@ export interface FeatureProperties {
     id?: number;
     path?: string;
 }
+
+export enum CustomEventType {
+    Canceled = 'rp-canceled',
+    CursorChanged = 'rp-cursor-changed',
+    Selection = 'rp-selection'
+}

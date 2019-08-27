@@ -150,7 +150,7 @@ export default class AliasEditor extends LitElement {
    `;
   }
 
-  @property({type: Array})
+  @property({type: Array, attribute: false})
   path: FeatureProperties[] = [];
 
   @property()
@@ -216,8 +216,8 @@ export default class AliasEditor extends LitElement {
   }
 
   private handleSearchSelection(evt: CustomEvent) {
-    const selection = evt.detail as FeatureProperties[];
-    this.showAliasDialog(selection[0]);
+    const selection = evt.detail.selected as FeatureProperties;
+    this.showAliasDialog(selection);
   }
 
   private renderFeature(feature: FeatureProperties, remainingPath: FeatureProperties[]): TemplateResult {
@@ -347,11 +347,10 @@ export default class AliasEditor extends LitElement {
           <rp-choice 
             placeholder="Search" 
             endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
-            @rp-choice-selected=${this.handleSearchSelection.bind(this)}
+            @rp-selection=${this.handleSearchSelection.bind(this)}
             .renderOptionDetail=${this.renderOptionDetail}
           ></rp-choice>
-        </div>
-
+      </div>
         <div class="feature-tree">
           ${this.renderFeature(this.path[0], this.path.slice(1))}
         </div>
