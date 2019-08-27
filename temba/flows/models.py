@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import FLOW, INBOX, INCOMING, Broadcast, Label, Msg
+from temba.msgs.models import INCOMING, Broadcast, Label, Msg
 from temba.orgs.models import Language, Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -550,21 +550,6 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
-    def get_node(cls, flow, uuid, destination_type):
-
-        if not uuid or not destination_type:
-            return None
-
-        if destination_type == Flow.NODE_TYPE_RULESET:
-            node = RuleSet.get(flow, uuid)
-        else:
-            node = ActionSet.get(flow, uuid)
-
-        if node:
-            node.flow = flow
-        return node
-
-    @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
         """
         Generates a unique flow name based on the given base name
@@ -584,110 +569,6 @@ class Flow(TembaModel):
             count += 1
 
         return name
-
-    @classmethod
-    def handle_actionset(cls, actionset, run, msg, started_flows):
-
-        # not found, escape out, but we still handled this message, user is now out of the flow
-        if not actionset:  # pragma: no cover
-            run.set_completed(exit_uuid=None)
-            return dict(handled=True, destination=None, destination_type=None)
-
-        # actually execute all the actions in our actionset
-        msgs = actionset.execute_actions(run, msg, started_flows)
-        run.add_messages([m for m in msgs if not getattr(m, "from_other_run", False)])
-
-        # and onto the destination
-        destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
-        if destination:
-            legacy.add_step(run, destination, exit_uuid=actionset.exit_uuid)
-        else:
-            run.set_completed(exit_uuid=actionset.exit_uuid)
-
-        return dict(handled=True, destination=destination, msgs=msgs)
-
-    @classmethod
-    def handle_ruleset(cls, ruleset, run, msg_in, started_flows, resume_parent_run=False):
-        msgs_out = []
-        result_input = str(msg_in)
-
-        if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-            if not resume_parent_run:
-                flow_uuid = ruleset.config.get("flow").get("uuid")
-                flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
-                flow.org = run.org
-                message_context = run.flow.build_expressions_context(run.contact, msg_in, run=run)
-
-                # our extra will be the current flow variables
-                extra = message_context.get("extra", {})
-                extra["flow"] = message_context.get("flow", {})
-
-                if msg_in.id:
-                    run.add_messages([msg_in])
-                    run.update_expiration(timezone.now())
-
-                if flow:
-                    child_runs = legacy.flow_start(
-                        flow,
-                        [],
-                        [run.contact],
-                        started_flows=started_flows,
-                        restart_participants=True,
-                        extra=extra,
-                        parent_run=run,
-                        interrupt=False,
-                    )
-
-                    child_run = child_runs[0] if child_runs else None
-
-                    if child_run:
-                        msgs_out += child_run.start_msgs
-                        continue_parent = getattr(child_run, "continue_parent", False)
-                    else:  # pragma: no cover
-                        continue_parent = False
-
-                    # it's possible that one of our children interrupted us with a start flow action
-                    run.refresh_from_db(fields=("is_active",))
-                    if continue_parent and run.is_active:
-                        started_flows.remove(flow.id)
-
-                        run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
-                        run.save(update_fields=("child_context",))
-                    else:
-                        return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
-
-            else:
-                child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
-                run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
-                run.save(update_fields=("child_context",))
-
-        # find a matching rule
-        result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in)
-
-        flow = ruleset.flow
-
-        # add the message to our step
-        if msg_in.id:
-            run.add_messages([msg_in])
-            run.update_expiration(timezone.now())
-
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:  # pragma: no cover
-            # store the media path as the value
-            result_value = msg_in.attachments[0].split(":", 1)[1]
-
-        ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
-
-        # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
-        if not result_rule.destination:
-            run.set_completed(exit_uuid=result_rule.uuid)
-            return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
-
-        # Create the step for our destination
-        destination = Flow.get_node(flow, result_rule.destination, result_rule.destination_type)
-        if destination:
-            legacy.add_step(run, destination, exit_uuid=result_rule.uuid)
-
-        return dict(handled=True, destination=destination, msgs=msgs_out)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
@@ -2316,103 +2197,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         else:  # pragma: no cover
             raise ValueError("Unsupported type %s in extra" % str(type(fields)))
 
-    @classmethod
-    def bulk_exit(cls, runs, exit_type):
-        """
-        Exits (expires, interrupts) runs in bulk
-        """
-
-        from .tasks import continue_parent_flows
-
-        run_ids = list(runs[:5000].values_list("id", flat=True))
-
-        # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 500):
-            now = timezone.now()
-
-            runs = FlowRun.objects.filter(id__in=id_batch)
-            runs.update(
-                is_active=False,
-                exited_on=now,
-                exit_type=exit_type,
-                modified_on=now,
-                child_context=None,
-                parent_context=None,
-            )
-
-            # continue the parent flows to continue async
-            on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
-
-            # mark all sessions as completed if this is an interruption
-            if exit_type == FlowRun.EXIT_TYPE_INTERRUPTED:
-                (
-                    FlowSession.objects.filter(id__in=runs.exclude(session=None).values_list("session_id", flat=True))
-                    .filter(status=FlowSession.STATUS_WAITING)
-                    .update(status=FlowSession.STATUS_INTERRUPTED, ended_on=now)
-                )
-
-    def add_messages(self, msgs, do_save=True):
-        """
-        Associates the given messages with this run
-        """
-        if self.events is None:
-            self.events = []
-
-        # find the path step these messages belong to
-        path_step = self.path[-1]
-
-        existing_msg_uuids = set()
-        for e in self.get_msg_events():
-            msg_uuid = e["msg"].get("uuid")
-            if msg_uuid:
-                existing_msg_uuids.add(msg_uuid)
-
-        needs_update = False
-
-        def serialize_message(msg):
-            serialized = {"uuid": str(msg.uuid), "text": msg.text}
-
-            if msg.contact_urn_id:
-                serialized["urn"] = msg.contact_urn.urn
-            if msg.channel_id:
-                serialized["channel"] = {"uuid": str(msg.channel.uuid), "name": msg.channel.name or ""}
-            if msg.attachments:
-                serialized["attachments"] = msg.attachments
-
-            return serialized
-
-        for msg in msgs:
-            # or messages which have already been attached to this run
-            if str(msg.uuid) in existing_msg_uuids:
-                continue
-
-            self.events.append(
-                {
-                    FlowRun.EVENT_TYPE: Events.msg_received.name
-                    if msg.direction == INCOMING
-                    else Events.msg_created.name,
-                    FlowRun.EVENT_CREATED_ON: msg.created_on.isoformat(),
-                    FlowRun.EVENT_STEP_UUID: path_step.get(FlowRun.PATH_STEP_UUID),
-                    "msg": serialize_message(msg),
-                }
-            )
-
-            existing_msg_uuids.add(str(msg.uuid))
-            needs_update = True
-
-            # incoming non-IVR messages won't have a type yet so update that
-            if not msg.msg_type or msg.msg_type == INBOX:
-                msg.msg_type = FLOW
-                msg.save(update_fields=["msg_type"])
-
-            # if message is from contact, mark run as responded
-            if msg.direction == INCOMING:
-                if not self.responded:
-                    self.responded = True
-
-        if needs_update and do_save:
-            self.save(update_fields=("responded", "events"))
-
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run
@@ -2458,75 +2242,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         :param direction: the direction of the message to fetch, default INCOMING
         """
         return self.get_messages().filter(direction=direction).order_by("-created_on").first()
-
-    @classmethod
-    def continue_parent_flow_runs(cls, runs):
-        """
-        Hands flow control back to our parent run if we have one
-        """
-        runs = runs.filter(
-            parent__flow__is_active=True, parent__flow__is_archived=False, parent__is_active=True
-        ).select_related("parent__flow")
-        for run in runs:
-            cls.continue_parent_flow_run(run)
-
-    @classmethod
-    def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
-        from temba.flows import legacy
-
-        # TODO: Remove this in favor of responded on session
-        if run.responded and not run.parent.responded:
-            run.parent.responded = True
-            run.parent.save(update_fields=["responded"])
-
-        # if our child was interrupted, so shall we be
-        if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == run.parent.contact_id:
-            FlowRun.bulk_exit(FlowRun.objects.filter(id=run.parent_id), FlowRun.EXIT_TYPE_INTERRUPTED)
-            return
-
-        last_step = run.parent.path[-1]
-        ruleset = (
-            RuleSet.objects.filter(
-                uuid=last_step[FlowRun.PATH_NODE_UUID], ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=run.org
-            )
-            .exclude(flow=None)
-            .first()
-        )
-
-        # can't resume from a ruleset that no longer exists
-        if not ruleset:
-            return []
-
-        # resume via flowserver if this run is using the new engine
-        if run.parent.session and run.parent.session.output:  # pragma: needs cover
-            session = FlowSession.objects.get(id=run.parent.session.id)
-            return session.resume_by_expired_run(run)
-
-        # use the last incoming message on this run
-        msg = run.get_last_msg(direction=INCOMING)
-
-        # if we are routing back to the parent before a msg was sent, we need a placeholder
-        if not msg:
-            msg = Msg()
-            msg.id = 0
-            msg.text = ""
-            msg.org = run.org
-            msg.contact = run.contact
-
-        run.parent.child_context = run.build_expressions_context(contact_context=str(run.contact.uuid))
-        run.parent.save(update_fields=("child_context",))
-
-        # finally, trigger our parent flow
-        (handled, msgs) = legacy.find_and_handle(
-            msg,
-            user_input=False,
-            started_flows=[run.flow, run.parent.flow],
-            resume_parent_run=True,
-            trigger_send=trigger_send,
-            continue_parent=continue_parent,
-        )
-
-        return msgs
 
     def get_session_responded(self):
         """

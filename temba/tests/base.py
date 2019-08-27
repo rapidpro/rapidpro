@@ -392,12 +392,15 @@ class TembaTestMixin:
 
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
+
+        from temba.flows import legacy
+
         # look up our destination, we need this in order to set the correct destination_type
         destination_type = Flow.NODE_TYPE_ACTIONSET
-        action_destination = Flow.get_node(flow, destination, destination_type)
+        action_destination = legacy.get_node(flow, destination, destination_type)
         if not action_destination:
             destination_type = Flow.NODE_TYPE_RULESET
-            ruleset_destination = Flow.get_node(flow, destination, destination_type)
+            ruleset_destination = legacy.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
         actionset = ActionSet.get(flow, node)

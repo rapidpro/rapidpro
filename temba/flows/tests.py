@@ -1058,29 +1058,6 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", context["flow"]["color"]["text"])
 
     @uses_legacy_engine
-    def test_add_messages(self):
-        run, = legacy.flow_start(self.flow, [], [self.contact])
-
-        msgs = run.get_messages().order_by("id")
-        self.assertEqual(len(run.get_msg_events()), 1)
-        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by("id")))
-        self.assertFalse(run.responded)
-
-        # can't add same messages more than once
-        run.add_messages(msgs[:])
-        self.assertEqual(len(run.get_msg_events()), 1)
-        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by("id")))
-        self.assertFalse(run.responded)
-
-        Msg.create_incoming(self.channel, "tel:+250788382382", "hi there")
-
-        run.refresh_from_db()
-        msgs = run.get_messages().order_by("id")
-        self.assertEqual(len(run.get_msg_events()), 3)
-        self.assertEqual(list(msgs), list(Msg.objects.filter(contact=self.contact).order_by("id")))
-        self.assertTrue(run.responded)
-
-    @uses_legacy_engine
     def test_anon_export_results(self):
         self.org.is_anon = True
         self.org.save()
@@ -6874,63 +6851,6 @@ class FlowsTest(FlowFileTest):
 
         assert_in_response(response, "message_completions", "contact.twitter")
 
-    @uses_legacy_engine
-    def test_bulk_exit(self):
-        flow = self.get_flow("favorites")
-        color = RuleSet.objects.get(label="Color", flow=flow)
-        contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
-
-        # add our contacts to the flow
-        for contact in contacts:
-            self.send_message(flow, "chartreuse", contact=contact)
-
-        # should have six active flowruns
-        (active, visited) = flow.get_activity()
-        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 6)
-        self.assertEqual(FlowRun.objects.filter(is_active=False).count(), 0)
-        self.assertEqual(active[color.uuid], 6)
-
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 0, "I": 0})
-
-        # expire them all
-        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
-
-        # should all be expired
-        (active, visited) = flow.get_activity()
-        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 0)
-        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="E").exclude(exited_on=None).count(), 6)
-        self.assertEqual(len(active), 0)
-
-        # assert our flowrun counts
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 0})
-
-        # start all contacts in the flow again
-        for contact in contacts:
-            self.send_message(flow, "chartreuse", contact=contact, restart_participants=True)
-
-        self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 6, "C": 0, "E": 6, "I": 0})
-
-        # create a flow session for our first one
-        first = FlowRun.objects.filter(is_active=True).first()
-        session = FlowSession.objects.create(org=self.org, contact=first.contact, status=FlowSession.STATUS_WAITING)
-        first.session = session
-        first.save(update_fields=["session"])
-
-        # stop them all
-        FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type="I").exclude(exited_on=None).count(), 6)
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
-
-        session.refresh_from_db()
-        self.assertEqual(FlowSession.STATUS_INTERRUPTED, session.status)
-        self.assertIsNotNone(session.ended_on)
-
-        # squash our counts
-        squash_flowruncounts()
-        self.assertEqual(FlowRunCount.get_totals(flow), {"A": 0, "C": 0, "E": 6, "I": 6})
-
     def test_squash_run_counts(self):
         flow = self.get_flow("favorites")
         flow2 = self.get_flow("pick_a_number")
@@ -7090,7 +7010,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(1, len(cga_flow.get_activity()[0]))
 
         # expire the first contact's runs
-        FlowRun.bulk_exit(FlowRun.objects.filter(contact=self.contact), FlowRun.EXIT_TYPE_EXPIRED)
+        legacy.bulk_exit(FlowRun.objects.filter(contact=self.contact), FlowRun.EXIT_TYPE_EXPIRED)
 
         # no active runs for our contact
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -8459,7 +8379,7 @@ class FlowsTest(FlowFileTest):
 
         # now interrupt the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on").first()
-        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
+        legacy.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -8487,7 +8407,7 @@ class FlowsTest(FlowFileTest):
 
         # now expire out of the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on").first()
-        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_EXPIRED)
+        legacy.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_EXPIRED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())

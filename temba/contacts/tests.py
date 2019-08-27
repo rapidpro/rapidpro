@@ -3724,9 +3724,6 @@ class ContactTest(TembaTest):
             response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
             self.assertEqual(len(response.context["activity"]), 0)
 
-            # exit flow runs
-            FlowRun.bulk_exit(self.joe.runs.all(), FlowRun.EXIT_TYPE_COMPLETED)
-
             # add a new run
             (
                 MockSessionWriter(self.joe, flow)
@@ -3751,7 +3748,7 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[1]["obj"].exit_type, None)
             self.assertEqual(activity[2]["type"], "run-exit")
             self.assertIsInstance(activity[2]["obj"], FlowRun)
-            self.assertEqual(activity[2]["obj"].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+            self.assertEqual(activity[2]["obj"].exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
             self.assertIsInstance(activity[3]["obj"], Msg)
             self.assertEqual(activity[3]["obj"].direction, "I")
             self.assertIsInstance(activity[4]["obj"], IVRCall)
