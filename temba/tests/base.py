@@ -702,6 +702,8 @@ class FlowFileTest(TembaTest):
         self.assertEqual(message, response.text)
 
     def send(self, message, contact=None, start_flow=None):
+        from temba.flows import legacy
+
         if not contact:
             contact = self.contact
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
@@ -709,7 +711,7 @@ class FlowFileTest(TembaTest):
         if start_flow:
             start_flow.start(groups=[], contacts=[contact], start_msg=incoming)
         else:
-            Flow.find_and_handle(incoming)
+            legacy.find_and_handle(incoming)
 
         return Msg.objects.filter(response_to=incoming).order_by("id").first()
 
@@ -726,6 +728,9 @@ class FlowFileTest(TembaTest):
         """
         Starts the flow, sends the message, returns the reply
         """
+
+        from temba.flows import legacy
+
         if not contact:
             contact = self.contact
 
@@ -733,10 +738,12 @@ class FlowFileTest(TembaTest):
 
         # start the flow
         if initiate_flow:
-            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
+            legacy.flow_start(
+                flow, groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
+            )
         else:
-            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-            (handled, msgs) = Flow.find_and_handle(incoming)
+            legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=restart_participants)
+            (handled, msgs) = legacy.find_and_handle(incoming)
 
             from temba.msgs import legacy
 

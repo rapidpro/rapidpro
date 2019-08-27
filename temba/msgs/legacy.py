@@ -6,14 +6,15 @@ def handle_message(msg):
     Only used for testing to approximate how mailroom handles a message
     """
 
-    from temba.flows.models import Flow
     from temba.msgs.models import Msg
 
     if msg.contact.is_blocked:
         msg.visibility = Msg.VISIBILITY_ARCHIVED
         msg.save(update_fields=["visibility", "modified_on"])
     else:
-        Flow.find_and_handle(msg)
+        from temba.flows.legacy import find_and_handle
+
+        find_and_handle(msg)
 
     mark_handled(msg)
 
