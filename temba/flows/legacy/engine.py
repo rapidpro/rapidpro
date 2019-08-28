@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import requests
@@ -10,6 +10,7 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Msg
 from temba.utils import json, prepped_request_to_str
 from temba.utils.http import http_headers
@@ -250,7 +251,7 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
                     run_msgs += step_msgs
 
                 else:
-                    run.set_completed(exit_uuid=None)
+                    _set_run_completed(run, exit_uuid=None)
 
             elif entry_rules:
                 _add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
@@ -282,7 +283,7 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
             )
 
             # mark this flow as interrupted
-            run.set_interrupted()
+            _set_run_interrupted(run)
 
             # mark our messages as failed
             Msg.objects.filter(id__in=[m.id for m in run_msgs if m.direction == OUTGOING]).update(status=FAILED)
@@ -353,7 +354,7 @@ def find_and_handle(
     if started_flows is None:
         started_flows = []
 
-    for run in FlowRun.get_active_for_contact(msg.contact):
+    for run in _get_active_runs_for_contact(msg.contact):
         flow = run.flow
         flow.ensure_current_version()
 
@@ -370,7 +371,7 @@ def find_and_handle(
 
         # this node doesn't exist anymore, mark it as left so they leave the flow
         if not destination:  # pragma: no cover
-            run.set_completed(exit_uuid=None)
+            _set_run_completed(run, exit_uuid=None)
             return True, []
 
         (handled, msgs) = _handle_destination(
@@ -476,7 +477,7 @@ def _handle_destination(
 def _handle_actionset(actionset, run, msg, started_flows):
     # not found, escape out, but we still handled this message, user is now out of the flow
     if not actionset:  # pragma: no cover
-        run.set_completed(exit_uuid=None)
+        _set_run_completed(run, exit_uuid=None)
         return dict(handled=True, destination=None, destination_type=None)
 
     # actually execute all the actions in our actionset
@@ -488,7 +489,7 @@ def _handle_actionset(actionset, run, msg, started_flows):
     if destination:
         _add_step(run, destination, exit_uuid=actionset.exit_uuid)
     else:
-        run.set_completed(exit_uuid=actionset.exit_uuid)
+        _set_run_completed(run, exit_uuid=actionset.exit_uuid)
 
     return dict(handled=True, destination=destination, msgs=msgs)
 
@@ -563,11 +564,11 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
         # store the media path as the value
         result_value = msg_in.attachments[0].split(":", 1)[1]
 
-    ruleset.save_run_value(run, result_rule, result_value, result_input, org=flow.org)
+    _save_ruleset_result(ruleset, run, result_rule, result_value, result_input, org=flow.org)
 
     # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
     if not result_rule.destination:
-        run.set_completed(exit_uuid=result_rule.uuid)
+        _set_run_completed(run, exit_uuid=result_rule.uuid)
         return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
     # Create the step for our destination
@@ -854,6 +855,120 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
         )
 
     return result
+
+
+def _save_ruleset_result(ruleset, run, rule, raw_value, raw_input, org=None):
+    org = org or ruleset.flow.org
+    contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
+
+    _save_run_result(
+        run,
+        name=ruleset.label,
+        node_uuid=ruleset.uuid,
+        category=rule.get_category_name(run.flow.base_language),
+        category_localized=rule.get_category_name(run.flow.base_language, contact_language),
+        raw_value=raw_value,
+        raw_input=raw_input,
+    )
+
+
+def _save_run_result(run, name, node_uuid, category, category_localized, raw_value, raw_input):
+    from temba.flows.models import Flow, FlowRun
+
+    # slug our name
+    key = Flow.label_to_slug(name)
+
+    # create our result dict
+    results = run.results
+    results[key] = {
+        FlowRun.RESULT_NAME: name,
+        FlowRun.RESULT_NODE_UUID: node_uuid,
+        FlowRun.RESULT_CATEGORY: category,
+        FlowRun.RESULT_VALUE: _serialize_result_value(raw_value),
+        FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
+    }
+
+    if raw_input is not None:
+        results[key][FlowRun.RESULT_INPUT] = str(raw_input)
+
+    # if we have a different localized name for our category, save it as well
+    if category != category_localized:
+        results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
+
+    run.results = results
+    run.modified_on = timezone.now()
+    run.save(update_fields=["results", "modified_on"])
+
+
+def _serialize_result_value(value):
+    """
+    Utility method to give the serialized value for the passed in value
+    """
+    if value is None:  # pragma: no cover
+        return None
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+    elif isinstance(value, AdminBoundary):
+        return value.path
+    else:
+        return str(value)
+
+
+def _set_run_completed(run, *, exit_uuid, completed_on=None):
+    """
+    Mark a run as complete
+    """
+    now = timezone.now()
+
+    if not completed_on:
+        completed_on = now
+
+    # mark this run as inactive
+    if exit_uuid:
+        run.path[-1]["exit_uuid"] = str(exit_uuid)
+    run.exit_type = run.EXIT_TYPE_COMPLETED
+    run.exited_on = completed_on
+    run.is_active = False
+    run.parent_context = None
+    run.child_context = None
+    run.save(
+        update_fields=("path", "exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
+    )
+
+    # if we have a parent to continue
+    if run.parent:
+        # mark it for continuation
+        run.continue_parent = True
+
+
+def _set_run_interrupted(run):
+    """
+    Mark run as interrupted
+    """
+    now = timezone.now()
+
+    # mark this flow as inactive
+    run.exit_type = run.EXIT_TYPE_INTERRUPTED
+    run.exited_on = now
+    run.is_active = False
+    run.parent_context = None
+    run.child_context = None
+    run.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context"))
+
+
+def _get_active_runs_for_contact(contact):
+    from temba.flows.models import Flow, FlowRun
+
+    runs = FlowRun.objects.filter(is_active=True, flow__is_active=True, contact=contact)
+
+    # don't consider voice runs, those are interactive
+    runs = runs.exclude(flow__flow_type=Flow.TYPE_VOICE)
+
+    # real contacts don't deal with archived flows
+    runs = runs.filter(flow__is_archived=False)
+
+    return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
 
 
 def get_node(flow, uuid, destination_type):

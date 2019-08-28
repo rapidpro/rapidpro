@@ -3,7 +3,7 @@ import numbers
 import time
 from array import array
 from collections import OrderedDict, defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.request import urlopen
@@ -2064,18 +2064,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     child_context = JSONField(null=True)
 
     @classmethod
-    def get_active_for_contact(cls, contact):
-        runs = cls.objects.filter(is_active=True, flow__is_active=True, contact=contact)
-
-        # don't consider voice runs, those are interactive
-        runs = runs.exclude(flow__flow_type=Flow.TYPE_VOICE)
-
-        # real contacts don't deal with archived flows
-        runs = runs.filter(flow__is_archived=False)
-
-        return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
-
-    @classmethod
     def create(
         cls,
         flow,
@@ -2273,56 +2261,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
             self.delete()
 
-    def set_completed(self, *, exit_uuid, completed_on=None):
-        """
-        Mark a run as complete
-        """
-        now = timezone.now()
-
-        if not completed_on:
-            completed_on = now
-
-        # mark this run as inactive
-        if exit_uuid:
-            self.path[-1]["exit_uuid"] = str(exit_uuid)
-        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.exited_on = completed_on
-        self.is_active = False
-        self.parent_context = None
-        self.child_context = None
-        self.save(
-            update_fields=(
-                "path",
-                "exit_type",
-                "exited_on",
-                "modified_on",
-                "is_active",
-                "parent_context",
-                "child_context",
-            )
-        )
-
-        # if we have a parent to continue
-        if self.parent:
-            # mark it for continuation
-            self.continue_parent = True
-
-    def set_interrupted(self):
-        """
-        Mark run as interrupted
-        """
-        now = timezone.now()
-
-        # mark this flow as inactive
-        self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.exited_on = now
-        self.is_active = False
-        self.parent_context = None
-        self.child_context = None
-        self.save(
-            update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
-        )
-
     def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
@@ -2349,52 +2287,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         if do_save:
             self.save(update_fields=["fields"])
-
-    def is_completed(self):
-        return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
-
-    def is_interrupted(self):  # pragma: no cover
-        return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
-
-    @classmethod
-    def serialize_value(cls, value):
-        """
-        Utility method to give the serialized value for the passed in value
-        """
-        if value is None:  # pragma: no cover
-            return None
-
-        if isinstance(value, datetime):
-            return value.isoformat()
-        elif isinstance(value, AdminBoundary):
-            return value.path
-        else:
-            return str(value)
-
-    def save_run_result(self, name, node_uuid, category, category_localized, raw_value, raw_input):
-        # slug our name
-        key = Flow.label_to_slug(name)
-
-        # create our result dict
-        results = self.results
-        results[key] = {
-            FlowRun.RESULT_NAME: name,
-            FlowRun.RESULT_NODE_UUID: node_uuid,
-            FlowRun.RESULT_CATEGORY: category,
-            FlowRun.RESULT_VALUE: FlowRun.serialize_value(raw_value),
-            FlowRun.RESULT_CREATED_ON: timezone.now().isoformat(),
-        }
-
-        if raw_input is not None:
-            results[key][FlowRun.RESULT_INPUT] = str(raw_input)
-
-        # if we have a different localized name for our category, save it as well
-        if category != category_localized:
-            results[key][FlowRun.RESULT_CATEGORY_LOCALIZED] = category_localized
-
-        self.results = results
-        self.modified_on = timezone.now()
-        self.save(update_fields=["results", "modified_on"])
 
     def as_archive_json(self):
         def convert_step(step):
@@ -2726,19 +2618,6 @@ class RuleSet(models.Model):
                     msg.text = orig_text
 
         return None, None, None  # pragma: no cover
-
-    def save_run_value(self, run, rule, raw_value, raw_input, org=None):
-        org = org or self.flow.org
-        contact_language = run.contact.language if run.contact.language in org.get_language_codes() else None
-
-        run.save_run_result(
-            name=self.label,
-            node_uuid=self.uuid,
-            category=rule.get_category_name(run.flow.base_language),
-            category_localized=rule.get_category_name(run.flow.base_language, contact_language),
-            raw_value=raw_value,
-            raw_input=raw_input,
-        )
 
     def get_step_type(self):
         return Flow.NODE_TYPE_RULESET

@@ -5169,17 +5169,6 @@ class FlowRunTest(TembaTest):
         run.update_fields(["zero", "one", "two"])
         self.assertEqual(run.fields, {"0": "zero", "1": "one", "2": "two"})
 
-    @uses_legacy_engine
-    def test_is_completed(self):
-        legacy.flow_start(self.flow, [], [self.contact])
-
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
-
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        legacy.find_and_handle(incoming)
-
-        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
-
     def test_run_release(self):
         run = FlowRun.create(self.flow, self.contact)
 
