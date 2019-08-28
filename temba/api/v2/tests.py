@@ -21,12 +21,13 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, RuleSet
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
@@ -106,14 +107,18 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
-        # same for plain user
+        # viewers can do gets on some endpoints
         self.login(self.user)
         response = self.fetchHTML(url, query)
-        self.assertEqual(response.status_code, 403)
+        self.assertIn(response.status_code, [200, 403])
 
-        # 403 for JSON request too
+        # same with JSON
         response = self.fetchJSON(url, query)
-        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+        self.assertIn(response.status_code, [200, 403])
+
+        # but viewers should always get a forbidden when posting
+        response = self.postJSON(url, query, {})
+        self.assertEqual(response.status_code, 403)
 
         # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
@@ -3071,39 +3076,58 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
-    @uses_legacy_engine
     def test_runs(self):
         url = reverse("api.v2.runs")
 
         self.assertEndpointAccess(url)
 
-        # allow Frank to run the flow in French
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
-        self.frank.language = "fra"
-        self.frank.save(update_fields=("language",), handle_update=False)
-
-        flow1 = self.get_flow("color")
+        flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
-        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
-        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
+        flow1_nodes = flow1.as_json()["nodes"]
+        color_prompt = flow1_nodes[0]
+        color_split = flow1_nodes[4]
+        blue_reply = flow1_nodes[2]
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
+        joe_msg = self.create_msg(direction="I", contact=self.joe, text="it is blue")
+        frank_msg = self.create_msg(direction="I", contact=self.frank, text="Indigo")
 
-        start1.async_start()
-        joe_run1 = start1.runs.get()
-        frank_run1, = flow1.start([], [self.frank])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
-        self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()
+        joe_run1 = (
+            MockSessionWriter(self.joe, flow1, start=start1)
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=joe_msg)
+            .set_result("Color", "blue", "Blue", "it is blue")
+            .visit(blue_reply)
+            .complete()
+            .save()
+        ).session.runs.get()
 
-        joe_run2, = flow1.start([], [self.joe], restart_participants=True)
-        frank_run2, = flow1.start([], [self.frank], restart_participants=True)
-        joe_run3, = flow2.start([], [self.joe], restart_participants=True)
+        frank_run1 = (
+            MockSessionWriter(self.frank, flow1)
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=frank_msg)
+            .set_result("Color", "Indigo", "Other", "Indigo")
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        joe_run2 = (
+            MockSessionWriter(self.joe, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
+        frank_run2 = (
+            MockSessionWriter(self.frank, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
+
+        joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)
-        flow3.start([], [self.hans])
+        MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted
         joe_run1.refresh_from_db()
@@ -3115,27 +3139,26 @@ class APITest(TembaTest):
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["next"], None)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(None, response.json()["next"])
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
         resp_json = response.json()
         self.assertEqual(
-            resp_json["results"][2],
             {
                 "id": frank_run2.pk,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Color Flow"},
+                "flow": {"uuid": flow1.uuid, "name": "Colors"},
                 "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
                 "start": None,
                 "responded": False,
                 "path": [
                     {
-                        "node": color_prompt.uuid,
+                        "node": color_prompt["uuid"],
                         "time": format_datetime(iso8601.parse_date(frank_run2.path[0]["arrived_on"])),
                     },
                     {
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(frank_run2.path[1]["arrived_on"])),
                     },
                 ],
@@ -3145,27 +3168,27 @@ class APITest(TembaTest):
                 "exited_on": None,
                 "exit_type": None,
             },
+            resp_json["results"][2],
         )
         self.assertEqual(
-            resp_json["results"][4],
             {
                 "id": joe_run1.pk,
                 "uuid": str(joe_run1.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Color Flow"},
+                "flow": {"uuid": flow1.uuid, "name": "Colors"},
                 "contact": {"uuid": self.joe.uuid, "name": self.joe.name},
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
                     {
-                        "node": color_prompt.uuid,
+                        "node": color_prompt["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[0]["arrived_on"])),
                     },
                     {
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[1]["arrived_on"])),
                     },
                     {
-                        "node": blue_reply.uuid,
+                        "node": blue_reply["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[2]["arrived_on"])),
                     },
                 ],
@@ -3173,9 +3196,9 @@ class APITest(TembaTest):
                     "color": {
                         "value": "blue",
                         "category": "Blue",
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.results["color"]["created_on"])),
-                        "name": "color",
+                        "name": "Color",
                         "input": "it is blue",
                     }
                 },
@@ -3184,6 +3207,7 @@ class APITest(TembaTest):
                 "exited_on": format_datetime(joe_run1.exited_on),
                 "exit_type": "completed",
             },
+            resp_json["results"][4],
         )
 
         # filter by id

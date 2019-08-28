@@ -221,15 +221,25 @@ class FlowTest(TembaTest):
         self.create_secondary_org()
         self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
 
-    @uses_legacy_engine
-    def test_archive_interrupt_runs(self):
-        self.flow.start([], [self.contact, self.contact2])
-        self.assertEqual(self.flow.runs.filter(exit_type=None).count(), 2)
-
+    @patch("temba.mailroom.queue_interrupt")
+    def test_archive(self, mock_queue_interrupt):
         self.flow.archive()
 
-        self.assertEqual(self.flow.runs.filter(exit_type=None).count(), 0)
-        self.assertEqual(self.flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 2)
+        mock_queue_interrupt.assert_called_once_with(self.org, flow=self.flow)
+
+        self.flow.refresh_from_db()
+        self.assertEqual(self.flow.is_archived, True)
+        self.assertEqual(self.flow.is_active, True)
+
+    @patch("temba.mailroom.queue_interrupt")
+    def test_release(self, mock_queue_interrupt):
+        self.flow.release()
+
+        mock_queue_interrupt.assert_called_once_with(self.org, flow=self.flow)
+
+        self.flow.refresh_from_db()
+        self.assertEqual(self.flow.is_archived, False)
+        self.assertEqual(self.flow.is_active, False)
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
@@ -373,7 +383,7 @@ class FlowTest(TembaTest):
         response = self.client.post(
             reverse("flows.flow_revisions", args=[flow.uuid]), definition, content_type="application/json"
         )
-        self.assertRedirect(response, reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertEqual(403, response.status_code)
 
         # check that we can create a new revision
         self.login(self.admin)
@@ -5785,38 +5795,6 @@ class SimulationTest(FlowFileTest):
 
 
 class FlowsTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_release(self):
-
-        # create a flow run
-        favorites = self.get_flow("favorites")
-        self.send_message(favorites, "green")
-
-        # now release our flow
-        favorites.release()
-
-        # flow should be inactive
-        self.assertFalse(Flow.objects.filter(id=favorites.id, is_active=True).exists())
-
-        # but all the runs should not be deleted
-        self.assertEqual(FlowRun.objects.all().count(), 1)
-
-    @uses_legacy_engine
-    def test_flow_with_runs_release(self):
-        # create a flow run
-        favorites = self.get_flow("favorites")
-        self.send_message(favorites, "green")
-
-        # now release our flow
-        favorites.release()
-        favorites.release_runs()
-
-        # flow should be inactive
-        self.assertFalse(Flow.objects.filter(id=favorites.id, is_active=True).exists())
-
-        # but all the runs should not be deleted
-        self.assertEqual(FlowRun.objects.all().count(), 0)
-
     def run_flowrun_deletion(self, delete_reason, test_cases):
         """
         Runs our favorites flow, then releases the run with the passed in delete_reason, asserting our final

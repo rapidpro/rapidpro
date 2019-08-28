@@ -878,10 +878,9 @@ class Flow(TembaModel):
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import interrupt_flow_runs_task
 
         self.is_active = False
-        self.save()
+        self.save(update_fields=("is_active",))
 
         # release any campaign events that depend on this flow
         from temba.campaigns.models import CampaignEvent
@@ -899,8 +898,8 @@ class Flow(TembaModel):
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
 
-        # interrupt our runs in the background
-        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
+        # queue mailroom to interrupt sessions where contact is currently in this flow
+        mailroom.queue_interrupt(self.org, flow=self)
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -1264,9 +1263,8 @@ class Flow(TembaModel):
         self.is_archived = True
         self.save(update_fields=["is_archived"])
 
-        from .tasks import interrupt_flow_runs_task
-
-        interrupt_flow_runs_task.delay(self.id)
+        # queue mailroom to interrupt sessions where contact is currently in this flow
+        mailroom.queue_interrupt(self.org, flow=self)
 
         # archive our triggers as well
         from temba.triggers.models import Trigger
@@ -2434,8 +2432,6 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
-    GOFLOW_STATUSES = {"waiting": STATUS_WAITING, "completed": STATUS_COMPLETED, "errored": STATUS_FAILED}
-
     uuid = models.UUIDField(null=True)
 
     # the modality of this session
@@ -2498,6 +2494,14 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     STATUS_INTERRUPTED = "I"
     STATUS_EXPIRED = "X"
     STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_WAITING, "Waiting"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_INTERRUPTED, "Interrupted"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_FAILED, "Failed"),
+    )
 
     STATE_ACTIVE = "A"
 
@@ -2547,7 +2551,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
     # current status of this run
-    status = models.CharField(null=True, max_length=1)
+    status = models.CharField(null=True, max_length=1, choices=STATUS_CHOICES)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
