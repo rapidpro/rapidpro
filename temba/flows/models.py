@@ -29,7 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.msgs.models import INCOMING, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -131,8 +131,6 @@ class Flow(TembaModel):
     DESTINATION = "destination"
     EXIT_UUID = "exit_uuid"
     LABEL = "label"
-    WEBHOOK_URL = "webhook"
-    WEBHOOK_ACTION = "webhook_action"
     FINISHED_KEY = "finished_key"
     RULESET_TYPE = "ruleset_type"
     OPERAND = "operand"
@@ -747,33 +745,6 @@ class Flow(TembaModel):
             .exclude(created_by=None)
             .exists()
         )
-
-    def get_localized_text(self, text_translations, contact=None):
-        """
-        Given a language dict and a preferred language, return the best possible text match
-        :param text_translations: The text in all supported languages, or string (which will just return immediately)
-        :param contact: the contact we are interacting with
-        :param default_text: What to use if all else fails
-        :return: the localized text
-        """
-        org_languages = self.org.get_language_codes()
-
-        # We return according to the following precedence:
-        #   1) Contact's language (if it's a valid org language)
-        #   2) Org Primary Language
-        #   3) Flow Base Language
-        #   4) Default Text
-        preferred_languages = []
-
-        if contact and contact.language and contact.language in org_languages:
-            preferred_languages.append(contact.language)
-
-        if self.org.primary_language:
-            preferred_languages.append(self.org.primary_language.iso_code)
-
-        preferred_languages.append(self.base_language)
-
-        return Language.get_localized_text(text_translations, preferred_languages)
 
     def import_definition(self, user, definition, dependency_mapping):
         """
@@ -2433,10 +2404,6 @@ class RuleSet(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this ruleset was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
 
-    @classmethod
-    def get(cls, flow, uuid):
-        return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related("flow", "flow__org").first()
-
     def get_value_type(self):
         """
         Determines the value type that this ruleset will generate.
@@ -2475,9 +2442,6 @@ class RuleSet(models.Model):
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
-
-    def get_step_type(self):
-        return Flow.NODE_TYPE_RULESET
 
     def get_rules(self):
         return legacy.Rule.from_json_array(self.flow.org, self.rules)
@@ -2526,13 +2490,6 @@ class ActionSet(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this action was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this action was last modified"))
-
-    @classmethod
-    def get(cls, flow, uuid):
-        return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related("flow", "flow__org").first()
-
-    def get_step_type(self):
-        return Flow.NODE_TYPE_ACTIONSET
 
     def get_actions(self):
         return legacy.Action.from_json_array(self.flow.org, self.actions)

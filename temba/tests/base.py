@@ -403,13 +403,13 @@ class TembaTestMixin:
             ruleset_destination = legacy.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
-        actionset = ActionSet.get(flow, node)
+        actionset = ActionSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
         if actionset:
             actionset.destination = destination
             actionset.destination_type = destination_type
             actionset.save()
 
-        ruleset = RuleSet.get(flow, node)
+        ruleset = RuleSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
         if ruleset:
             rules = ruleset.get_rules()
             for r in rules:

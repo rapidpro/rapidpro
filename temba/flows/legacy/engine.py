@@ -1,3 +1,7 @@
+# This file will be removed at some point and only still exists to enable some unit tests which have still yet to be
+# rewritten without use of the legacy flow engine. None of this code is run in production and is thus excluded from
+# test coverage checks.
+
 import time
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -11,6 +15,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactGroup
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Msg
+from temba.orgs.models import Language
 from temba.utils import json, prepped_request_to_str
 from temba.utils.http import http_headers
 
@@ -52,7 +57,7 @@ def flow_start(
     parent_run=None,
     interrupt=True,
     include_active=True,
-):  # pragma: no cover
+):
     """
     Starts a flow for the passed in groups and contacts.
     """
@@ -355,7 +360,7 @@ def find_and_handle(
 
         # it's possible Flow.start is in the process of creating a run for this contact, in which case
         # record this message has handled so it doesn't start any new flows
-        if not run.path:  # pragma: no cover
+        if not run.path:
             if run.created_on > timezone.now() - timedelta(minutes=10):
                 return True, []
             else:
@@ -365,7 +370,7 @@ def find_and_handle(
         destination = get_node(flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
 
         # this node doesn't exist anymore, mark it as left so they leave the flow
-        if not destination:  # pragma: no cover
+        if not destination:
             _set_run_completed(run, exit_uuid=None)
             return True, []
 
@@ -398,7 +403,7 @@ def _handle_destination(
     resume_parent_run=False,
     continue_parent=True,
 ):
-    from temba.flows.models import Flow, FlowException
+    from temba.flows.models import FlowException, ActionSet, RuleSet
 
     def add_to_path(path, uuid):
         if uuid in path:
@@ -415,7 +420,7 @@ def _handle_destination(
     while destination:
         result = {"handled": False}
 
-        if destination.get_step_type() == Flow.NODE_TYPE_RULESET:
+        if isinstance(destination, RuleSet):
             should_pause = False
 
             # check if we need to stop
@@ -436,7 +441,7 @@ def _handle_destination(
                 # once we handle user input, reset our path
                 path = []
 
-        elif destination.get_step_type() == Flow.NODE_TYPE_ACTIONSET:
+        elif isinstance(destination, ActionSet):
             result = _handle_actionset(destination, run, msg, started_flows)
             add_to_path(path, destination.uuid)
 
@@ -471,7 +476,7 @@ def _handle_destination(
 
 def _handle_actionset(actionset, run, msg, started_flows):
     # not found, escape out, but we still handled this message, user is now out of the flow
-    if not actionset:  # pragma: no cover
+    if not actionset:
         _set_run_completed(run, exit_uuid=None)
         return dict(handled=True, destination=None, destination_type=None)
 
@@ -559,7 +564,7 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
                 if child_run:
                     msgs_out += child_run.start_msgs
                     continue_parent = getattr(child_run, "continue_parent", False)
-                else:  # pragma: no cover
+                else:
                     continue_parent = False
 
                 # it's possible that one of our children interrupted us with a start flow action
@@ -587,7 +592,7 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
         _add_messages(run, [msg_in])
         run.update_expiration(timezone.now())
 
-    if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:  # pragma: no cover
+    if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg_in.attachments:
         # store the media path as the value
         result_value = msg_in.attachments[0].split(":", 1)[1]
 
@@ -779,7 +784,7 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
     if channel:
         post_data["channel"] = dict(name=channel.name, uuid=channel.uuid)
 
-    if not action:  # pragma: needs cover
+    if not action:
         action = "POST"
 
     if resthook:
@@ -1004,7 +1009,7 @@ def _find_matching_rule(ruleset, run, msg):
             if msg:
                 msg.text = orig_text
 
-    return None, None, None  # pragma: no cover
+    return None, None, None
 
 
 def _save_ruleset_result(ruleset, run, rule, raw_value, raw_input, org=None):
@@ -1054,7 +1059,7 @@ def _serialize_result_value(value):
     """
     Utility method to give the serialized value for the passed in value
     """
-    if value is None:  # pragma: no cover
+    if value is None:
         return None
 
     if isinstance(value, datetime):
@@ -1119,3 +1124,18 @@ def _get_active_runs_for_contact(contact):
     runs = runs.filter(flow__is_archived=False)
 
     return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
+
+
+def get_localized_text(flow, text_translations, contact=None):
+    org_languages = flow.org.get_language_codes()
+    preferred_languages = []
+
+    if contact and contact.language and contact.language in org_languages:
+        preferred_languages.append(contact.language)
+
+    if flow.org.primary_language:
+        preferred_languages.append(flow.org.primary_language.iso_code)
+
+    preferred_languages.append(flow.base_language)
+
+    return Language.get_localized_text(text_translations, preferred_languages)

@@ -89,7 +89,7 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from temba.flows.tasks import send_email_action_task
 
         # build our message from our flow variables
@@ -183,7 +183,7 @@ class AddToGroupAction(Action):
     def get_type(self):
         return AddToGroupAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from temba.flows.models import get_flow_user
 
         contact = run.contact
@@ -233,7 +233,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
 
-    def execute(self, run, context, actionset, msg):
+    def execute(self, run, context, actionset, msg):  # pragma: no cover
         from temba.flows.models import get_flow_user
 
         if len(self.groups) == 0:
@@ -303,7 +303,7 @@ class AddLabelAction(Action):
     def get_type(self):
         return AddLabelAction.TYPE
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
@@ -424,19 +424,22 @@ class ReplyAction(Action):
         )
 
     @staticmethod
-    def get_translated_quick_replies(metadata, run):
+    def get_translated_quick_replies(metadata, run):  # pragma: no cover
         """
         Gets the appropriate metadata translation for the given contact
         """
+        from ..engine import get_localized_text
+
         language_metadata = []
         for item in metadata:
-            text = run.flow.get_localized_text(text_translations=item, contact=run.contact)
+            text = get_localized_text(run.flow, text_translations=item, contact=run.contact)
             language_metadata.append(text)
 
         return language_metadata
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from temba.flows.models import get_flow_user
+        from ..engine import get_localized_text
 
         replies = []
 
@@ -445,7 +448,7 @@ class ReplyAction(Action):
 
             text = ""
             if self.msg:
-                text = run.flow.get_localized_text(self.msg, run.contact)
+                text = get_localized_text(run.flow, self.msg, run.contact)
 
             quick_replies = []
             if self.quick_replies:
@@ -454,7 +457,7 @@ class ReplyAction(Action):
             attachments = None
             if self.media:
                 # localize our media attachment
-                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(":", 1)
+                media_type, media_url = get_localized_text(run.flow, self.media, run.contact).split(":", 1)
 
                 # if we have a localized media, create the url
                 if media_url and len(media_type.split("/")) > 1:
@@ -496,7 +499,7 @@ class ReplyAction(Action):
         return replies
 
 
-class VariableContactAction(Action):
+class VariableContactAction(Action):  # pragma: no cover
     """
     Base action that resolves variables into contacts. Used for actions that take
     SendAction, TriggerAction, etc
@@ -659,7 +662,7 @@ class TriggerFlowAction(VariableContactAction):
             variables=variables,
         )
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from ..engine import flow_start
 
         if self.flow:
@@ -709,7 +712,7 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         old_value = run.contact.language
 
         if len(self.lang) != 3:
@@ -756,7 +759,7 @@ class StartFlowAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
-    def execute(self, run, context, actionset_uuid, msg, started_flows):
+    def execute(self, run, context, actionset_uuid, msg, started_flows):  # pragma: no cover
         from ..engine import flow_start
 
         msgs = []
@@ -843,7 +846,7 @@ class SaveToContactAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from temba.flows.models import get_flow_user
 
         # evaluate our value
@@ -930,7 +933,7 @@ class SetChannelAction(Action):
         )
         return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         # if we found the channel to set
         if self.channel:
             run.contact.set_preferred_channel(self.channel)
@@ -984,7 +987,7 @@ class SendAction(VariableContactAction):
             media=self.media,
         )
 
-    def execute(self, run, context, actionset_uuid, msg):
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         if self.msg or self.media:
             flow = run.flow
             (groups, contacts) = self.build_groups_and_contacts(run, msg)

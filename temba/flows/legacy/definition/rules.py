@@ -445,8 +445,10 @@ class ContainsTest(Test):
         return matches
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
+        from ..engine import get_localized_text
+
         # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
+        test = get_localized_text(run.flow, self.test, run.contact)
         test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
@@ -518,8 +520,10 @@ class ContainsAnyTest(ContainsTest):
         return dict(type=ContainsAnyTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
+        from ..engine import get_localized_text
+
         # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
+        test = get_localized_text(run.flow, self.test, run.contact)
         test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
@@ -561,8 +565,10 @@ class ContainsOnlyPhraseTest(ContainsTest):
         return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
+        from ..engine import get_localized_text
+
         # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
+        test = get_localized_text(run.flow, self.test, run.contact)
         test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
@@ -591,8 +597,10 @@ class ContainsPhraseTest(ContainsTest):
         return dict(type=ContainsPhraseTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
+        from ..engine import get_localized_text
+
         # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
+        test = get_localized_text(run.flow, self.test, run.contact)
         test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # tokenize our test
@@ -644,8 +652,10 @@ class StartsWithTest(Test):
         return dict(type=StartsWithTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
+        from ..engine import get_localized_text
+
         # substitute any variables in our test
-        test = run.flow.get_localized_text(self.test, run.contact)
+        test = get_localized_text(run.flow, self.test, run.contact)
         test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
 
         # strip leading and trailing whitespace
@@ -1054,8 +1064,10 @@ class RegexTest(Test):  # pragma: no cover
         return dict(type=self.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):
+        from ..engine import get_localized_text
+
         try:
-            test = run.flow.get_localized_text(self.test, run.contact)
+            test = get_localized_text(run.flow, self.test, run.contact)
 
             # check whether we match
             rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
