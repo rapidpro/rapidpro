@@ -52,12 +52,6 @@ def continue_parent_flows(run_ids):
     FlowRun.continue_parent_flow_runs(runs)
 
 
-@task(track_started=True, name="interrupt_flow_runs_task")
-def interrupt_flow_runs_task(flow_id):
-    runs = FlowRun.objects.filter(is_active=True, exit_type=None, flow_id=flow_id)
-    FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-
 @task(track_started=True, name="export_flow_results_task")
 def export_flow_results_task(export_id):
     """
