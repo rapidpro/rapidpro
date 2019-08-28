@@ -46,16 +46,6 @@ def update_run_expirations_task(flow_id):
             run.update_expiration(last_arrived_on)
 
 
-@task(track_started=True, name="interrupt_flow_runs_task")
-def interrupt_flow_runs_task(flow_id):
-    from temba.flows import legacy
-
-    runs = FlowRun.objects.filter(is_active=True, exit_type=None, flow_id=flow_id)
-
-    # TODO this should be queuing a mailroom task
-    legacy.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-
 @task(track_started=True, name="export_flow_results_task")
 def export_flow_results_task(export_id):
     """

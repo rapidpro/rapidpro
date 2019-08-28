@@ -622,10 +622,9 @@ class Flow(TembaModel):
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
-        from .tasks import interrupt_flow_runs_task
 
         self.is_active = False
-        self.save()
+        self.save(update_fields=("is_active",))
 
         # release any campaign events that depend on this flow
         from temba.campaigns.models import CampaignEvent
@@ -643,8 +642,8 @@ class Flow(TembaModel):
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
 
-        # interrupt our runs in the background
-        on_transaction_commit(lambda: interrupt_flow_runs_task.delay(self.id))
+        # queue mailroom to interrupt sessions where contact is currently in this flow
+        mailroom.queue_interrupt(self.org, flow=self)
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -1008,9 +1007,8 @@ class Flow(TembaModel):
         self.is_archived = True
         self.save(update_fields=["is_archived"])
 
-        from .tasks import interrupt_flow_runs_task
-
-        interrupt_flow_runs_task.delay(self.id)
+        # queue mailroom to interrupt sessions where contact is currently in this flow
+        mailroom.queue_interrupt(self.org, flow=self)
 
         # archive our triggers as well
         from temba.triggers.models import Trigger
