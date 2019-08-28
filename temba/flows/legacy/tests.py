@@ -13,6 +13,7 @@ from temba.values.constants import Value
 
 from .definition import InGroupTest
 from .engine import flow_start
+from .expressions import _build_function_signature, get_function_listing, migrate_v7_template
 from .migrations import (
     map_actions,
     migrate_export_to_version_9,
@@ -58,6 +59,89 @@ def get_labels(definition):
             for label in action.get("labels", []):
                 labels[label["uuid"]] = label["name"]
     return labels
+
+
+class ExpressionsTest(TembaTest):
+    def test_get_function_listing(self):
+        listing = get_function_listing()
+        self.assertEqual(
+            listing[0],
+            {"signature": "ABS(number)", "name": "ABS", "display": "Returns the absolute value of a number"},
+        )
+
+    def test_build_function_signature(self):
+        self.assertEqual("ABS()", _build_function_signature(dict(name="ABS", params=[])))
+
+        self.assertEqual(
+            "ABS(number)",
+            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=False)])),
+        )
+
+        self.assertEqual(
+            "ABS(number, ...)",
+            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=True)])),
+        )
+
+        self.assertEqual(
+            "ABS([number])",
+            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=False)])),
+        )
+
+        self.assertEqual(
+            "ABS([number], ...)",
+            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=True)])),
+        )
+
+        self.assertEqual(
+            "MOD(number, divisor)",
+            _build_function_signature(
+                dict(
+                    name="MOD",
+                    params=[
+                        dict(optional=False, name="number", vararg=False),
+                        dict(optional=False, name="divisor", vararg=False),
+                    ],
+                )
+            ),
+        )
+
+        self.assertEqual(
+            "MOD(number, ..., divisor)",
+            _build_function_signature(
+                dict(
+                    name="MOD",
+                    params=[
+                        dict(optional=False, name="number", vararg=True),
+                        dict(optional=False, name="divisor", vararg=False),
+                    ],
+                )
+            ),
+        )
+
+    def test_migrate_v7_template(self):
+        self.assertEqual(
+            migrate_v7_template("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
+            "Hi @(PROPER(UPPER(contact.name))) from @(LOWER(flow.chw))",
+        )
+        self.assertEqual(migrate_v7_template('Hi @date.now|time_delta:"1"'), "Hi @(date.now + 1)")
+        self.assertEqual(migrate_v7_template('Hi @date.now|time_delta:"-3"'), "Hi @(date.now - 3)")
+
+        self.assertEqual(migrate_v7_template("Hi =contact.name"), "Hi @contact.name")
+        self.assertEqual(migrate_v7_template("Hi =(contact.name)"), "Hi @(contact.name)")
+        self.assertEqual(migrate_v7_template("Hi =NOW() =(TODAY())"), "Hi @(NOW()) @(TODAY())")
+        self.assertEqual(migrate_v7_template('Hi =LEN("@=")'), 'Hi @(LEN("@="))')
+
+        # handle @ expressions embedded inside = expressions, with optional surrounding quotes
+        self.assertEqual(
+            migrate_v7_template('=AND("Malkapur"= "@flow.stuff.category", 13 = @extra.Depar_city|upper_case)'),
+            '@(AND("Malkapur"= flow.stuff.category, 13 = UPPER(extra.Depar_city)))',
+        )
+
+        # don't convert unnecessarily
+        self.assertEqual(migrate_v7_template("Hi @contact.name from @flow.chw"), "Hi @contact.name from @flow.chw")
+
+        # don't convert things that aren't expressions
+        self.assertEqual(migrate_v7_template("Reply 1=Yes, 2=No"), "Reply 1=Yes, 2=No")
 
 
 class FlowMigrationTest(FlowFileTest):

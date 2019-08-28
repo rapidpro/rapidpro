@@ -7,9 +7,10 @@ from temba_expressions.utils import tokenize
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import ContactGroup
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg
 from temba.utils.dates import str_to_datetime
 from temba.utils.email import is_valid_address
+
+from ..expressions import evaluate
 
 
 class Rule(object):
@@ -449,7 +450,7 @@ class ContainsTest(Test):
 
         # substitute any variables
         test = get_localized_text(run.flow, self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+        test, errors = evaluate(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -524,7 +525,7 @@ class ContainsAnyTest(ContainsTest):
 
         # substitute any variables
         test = get_localized_text(run.flow, self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+        test, errors = evaluate(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -569,7 +570,7 @@ class ContainsOnlyPhraseTest(ContainsTest):
 
         # substitute any variables
         test = get_localized_text(run.flow, self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+        test, errors = evaluate(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -601,7 +602,7 @@ class ContainsPhraseTest(ContainsTest):
 
         # substitute any variables
         test = get_localized_text(run.flow, self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+        test, errors = evaluate(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -656,7 +657,7 @@ class StartsWithTest(Test):
 
         # substitute any variables in our test
         test = get_localized_text(run.flow, self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
+        test, errors = evaluate(test, context, org=run.flow.org)
 
         # strip leading and trailing whitespace
         text = text.strip()
@@ -710,14 +711,13 @@ class HasDistrictTest(Test):
         return dict(type=self.TYPE, test=self.state)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
-
         # if they removed their country since adding the rule
         org = run.flow.org
         if not org.country:
             return 0, None
 
         # evaluate our district in case it has a replacement variable
-        state, errors = Msg.evaluate_template(self.state, context, org=run.flow.org)
+        state, errors = evaluate(self.state, context, org=run.flow.org)
 
         parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
@@ -757,8 +757,8 @@ class HasWardTest(Test):
         district = None
 
         # evaluate our district in case it has a replacement variable
-        district_name, missing_district = Msg.evaluate_template(self.district, context, org=run.flow.org)
-        state_name, missing_state = Msg.evaluate_template(self.state, context, org=run.flow.org)
+        district_name, missing_district = evaluate(self.district, context, org=run.flow.org)
+        state_name, missing_state = evaluate(self.state, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
@@ -808,7 +808,7 @@ class DateTest(Test):
         day_first = org.get_dayfirst()
         tz = org.timezone
 
-        test, errors = Msg.evaluate_template(self.test, context, org=org)
+        test, errors = evaluate(self.test, context, org=org)
         if not errors:
             date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
             date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
@@ -898,8 +898,8 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):  # pragma: no cover
-        min_val, min_errors = Msg.evaluate_template(self.min, context, org=run.flow.org)
-        max_val, max_errors = Msg.evaluate_template(self.max, context, org=run.flow.org)
+        min_val, min_errors = evaluate(self.min, context, org=run.flow.org)
+        max_val, max_errors = evaluate(self.max, context, org=run.flow.org)
 
         if not min_errors and not max_errors:
             try:
@@ -952,9 +952,8 @@ class SimpleNumericTest(NumericTest):
     def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: no cover
         pass
 
-    # test every word in the message against our test
     def evaluate(self, run, sms, context, text):  # pragma: no cover
-        test, errors = Msg.evaluate_template(str(self.test), context, org=run.flow.org)
+        test, errors = evaluate(str(self.test), context, org=run.flow.org)
 
         text = text.replace(",", "")
         for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):

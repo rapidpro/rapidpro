@@ -14,12 +14,12 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING, PENDING, Msg
 from temba.orgs.models import Language
 from temba.utils import json, prepped_request_to_str
 from temba.utils.http import http_headers
 
 from .definition import StartFlowAction, get_node
+from .expressions import contact_context, evaluate, flow_context, run_context
 
 
 def flow_start_start(start):
@@ -62,6 +62,7 @@ def flow_start(
     Starts a flow for the passed in groups and contacts.
     """
 
+    from temba.msgs.models import FLOW
     from temba.flows.models import Flow, FlowRun
 
     if not getattr(settings, "USES_LEGACY_ENGINE", False):
@@ -156,10 +157,11 @@ def flow_start(
 
 
 def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None):
+    from temba.msgs.models import FAILED, OUTGOING, PENDING, Msg
     from temba.flows.models import Flow, FlowRun, ActionSet, RuleSet
 
     if parent_run:
-        parent_context = parent_run.build_expressions_context(contact_context=str(parent_run.contact.uuid))
+        parent_context = run_context(parent_run, contact_ctx=str(parent_run.contact.uuid))
     else:
         parent_context = None
 
@@ -403,6 +405,7 @@ def _handle_destination(
     resume_parent_run=False,
     continue_parent=True,
 ):
+    from temba.msgs.models import DELIVERED, PENDING, Msg
     from temba.flows.models import FlowException, ActionSet, RuleSet
 
     def add_to_path(path, uuid):
@@ -499,7 +502,7 @@ def _execute_actions(actionset, run, msg, started_flows):
     msgs = []
 
     run.contact.org = run.org
-    context = run.flow.build_expressions_context(run.contact, msg, run=run)
+    context = flow_context(run.flow, run.contact, msg, run=run)
 
     for a, action in enumerate(actions):
         if isinstance(action, StartFlowAction):
@@ -520,7 +523,7 @@ def _execute_actions(actionset, run, msg, started_flows):
 
         # if there are more actions, rebuild the parts of the context that may have changed
         if a < len(actions) - 1:
-            context["contact"] = run.contact.build_expressions_context()
+            context["contact"] = contact_context(run.contact)
             context["extra"] = run.fields
 
     return msgs
@@ -537,7 +540,7 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
             flow_uuid = ruleset.config.get("flow").get("uuid")
             flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
             flow.org = run.org
-            message_context = run.flow.build_expressions_context(run.contact, msg_in, run=run)
+            message_context = flow_context(run.flow, run.contact, msg_in, run=run)
 
             # our extra will be the current flow variables
             extra = message_context.get("extra", {})
@@ -572,14 +575,14 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
                 if continue_parent and run.is_active:
                     started_flows.remove(flow.id)
 
-                    run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+                    run.child_context = run_context(child_run, contact_ctx=str(run.contact.uuid))
                     run.save(update_fields=("child_context",))
                 else:
                     return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
 
         else:
             child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
-            run.child_context = child_run.build_expressions_context(contact_context=str(run.contact.uuid))
+            run.child_context = run_context(child_run, contact_ctx=str(run.contact.uuid))
             run.save(update_fields=("child_context",))
 
     # find a matching rule
@@ -615,6 +618,7 @@ def _add_messages(run, msgs, do_save=True):
     """
     Associates the given messages with a run
     """
+    from temba.msgs.models import FLOW, INBOX, INCOMING
     from temba.flows.models import FlowRun, Events
 
     if run.events is None:
@@ -703,6 +707,7 @@ def bulk_exit(runs, exit_type):
 
 
 def _continue_parent_run(run, trigger_send=True, continue_parent=True):
+    from temba.msgs.models import INCOMING, Msg
     from temba.flows.models import FlowRun, RuleSet
 
     if run.responded and not run.parent.responded:
@@ -738,7 +743,7 @@ def _continue_parent_run(run, trigger_send=True, continue_parent=True):
         msg.org = run.org
         msg.contact = run.contact
 
-    run.parent.child_context = run.build_expressions_context(contact_context=str(run.contact.uuid))
+    run.parent.child_context = run_context(run, contact_ctx=str(run.contact.uuid))
     run.parent.save(update_fields=("child_context",))
 
     # finally, trigger our parent flow
@@ -896,7 +901,7 @@ def _find_matching_rule(ruleset, run, msg):
         orig_text = msg.text
 
     msg.contact = run.contact
-    context = run.flow.build_expressions_context(run.contact, msg, run=run)
+    context = flow_context(run.flow, run.contact, msg, run=run)
 
     if ruleset.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
         urls = []
@@ -929,7 +934,7 @@ def _find_matching_rule(ruleset, run, msg):
         last_success, last_failure = None, None
 
         for url in urls:
-            (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
+            (evaled_url, errors) = evaluate(url, context, org=run.flow.org, url_encode=True)
             result = call_webhook(run, evaled_url, ruleset, msg, action, resthook=resthook, headers=header)
 
             # our subscriber is no longer interested, remove this URL as a subscriber
@@ -971,7 +976,7 @@ def _find_matching_rule(ruleset, run, msg):
         # if we have a custom operand, figure that out
         operand = None
         if ruleset.operand:
-            (operand, errors) = Msg.evaluate_template(ruleset.operand, context, org=run.flow.org)
+            (operand, errors) = evaluate(ruleset.operand, context, org=run.flow.org)
         elif msg:
             operand = str(msg)
 
@@ -980,7 +985,7 @@ def _find_matching_rule(ruleset, run, msg):
             airtime = AirtimeTransfer.trigger_airtime_event(ruleset.flow.org, ruleset, run.contact, msg)
 
             # rebuild our context again, the webhook may have populated something
-            context = run.flow.build_expressions_context(run.contact, msg)
+            context = flow_context(run.flow, run.contact, msg)
 
             # airtime test evaluate against the status of the airtime
             operand = airtime.status

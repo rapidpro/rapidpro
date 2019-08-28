@@ -823,11 +823,6 @@ class FlowTest(TembaTest):
             ],
         )
 
-        # test our message context
-        context = self.flow.build_expressions_context(self.contact, None)
-        self.assertEqual(context["flow"]["__default__"], "")
-        self.assertIn("contact", context)
-
         # check flow activity endpoint response
         self.login(self.admin)
 
@@ -964,35 +959,6 @@ class FlowTest(TembaTest):
                 }
             },
         )
-
-        # check what our message context looks like now
-        context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertTrue(context["flow"])
-        self.assertEqual("color: orange", context["flow"]["__default__"])
-        self.assertEqual("orange", str(context["flow"]["color"]["__default__"]))
-        self.assertEqual("orange", str(context["flow"]["color"]["value"]))
-        self.assertEqual("Orange", context["flow"]["color"]["category"])
-        self.assertEqual("orange", context["flow"]["color"]["text"])
-        self.assertIsNotNone(context["flow"]["color"]["time"])
-
-        self.assertEqual(self.channel.get_address_display(e164=True), context["channel"]["tel_e164"])
-        self.assertEqual(self.channel.get_address_display(), context["channel"]["tel"])
-        self.assertEqual(self.channel.get_name(), context["channel"]["name"])
-        self.assertEqual(self.channel.get_address_display(), context["channel"]["__default__"])
-
-        # change our value instead be decimal
-        results = contact1_run.results
-        results["color"]["value"] = "10"
-        contact1_run.results = results
-        contact1_run.save(update_fields=("results",))
-
-        # check our message context again
-        context = self.flow.build_expressions_context(self.contact, incoming)
-        self.assertEqual("10", context["flow"]["color"]["value"])
-        self.assertEqual("Orange", context["flow"]["color"]["category"])
-
-        # this is drawn from the message which didn't change
-        self.assertEqual("orange", context["flow"]["color"]["text"])
 
     @uses_legacy_engine
     def test_anon_export_results(self):
@@ -2662,53 +2628,6 @@ class FlowTest(TembaTest):
         self.assertEqual(1, len(add_group["groups"]))
         self.assertEqual(0, len(send["groups"]))
 
-    def assertTest(self, expected_test, expected_value, test, extra=None):
-        runs = FlowRun.objects.filter(contact=self.contact)
-        if runs:
-            run = runs[0]
-        else:
-            run = FlowRun.create(self.flow, self.contact)
-
-        # clear any extra on this run
-        run.fields = ""
-
-        context = run.flow.build_expressions_context(run.contact, None)
-        if extra:
-            context["extra"] = extra
-
-        result = test.evaluate(run, self.sms, context, self.sms.text)
-        if expected_test:
-            self.assertTrue(result[0])
-        else:
-            self.assertFalse(result[0])
-        self.assertEqual(expected_value, result[1])
-
-        # return our run for later inspection
-        return run
-
-    def assertDateTest(self, expected_result, expected_value, test):
-        run = FlowRun.objects.filter(contact=self.contact).first()
-        tz = run.flow.org.timezone
-        context = run.flow.build_expressions_context(run.contact, None)
-
-        # turn to JSON and back
-        test_json = test.as_json()
-        test = test.__class__.from_json(run.org, test_json)
-
-        result, value = test.evaluate(run, self.sms, context, self.sms.text)
-
-        if expected_result:
-            self.assertTrue(result)
-        else:
-            self.assertFalse(result)
-
-        if expected_result and expected_value:
-            # convert our expected date time the right timezone
-            expected_tz = expected_value.astimezone(tz)
-            self.assertTrue(
-                abs((expected_tz - value).total_seconds()) < 60, "%s does not match expected %s" % (value, expected_tz)
-            )
-
     def test_length(self):
         org = self.org
 
@@ -4011,12 +3930,6 @@ class WebhookTest(TembaTest):
         run3.refresh_from_db()
 
         self.assertEqual(run3.fields, {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'})
-
-        # which is also how it will appear in the expressions context
-        message_context = flow.build_expressions_context(contact, None)
-        self.assertEqual(
-            message_context["extra"], {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'}
-        )
 
         # check that we limit JSON responses to 256 values
         body = json.dumps(["x"] * 300)

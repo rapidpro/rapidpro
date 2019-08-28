@@ -1025,76 +1025,6 @@ class Flow(TembaModel):
             "completion": int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0,
         }
 
-    def build_expressions_context(self, contact, msg, run=None):
-        contact_context = contact.build_expressions_context() if contact else dict()
-
-        # our default value
-        channel_context = None
-
-        # add our message context
-        if msg:
-            message_context = msg.build_expressions_context()
-
-            if msg.channel:
-                channel_context = msg.channel.build_expressions_context()
-        else:
-            message_context = dict(__default__="")
-
-        # If we still don't know our channel and have a contact, derive the right channel to use
-        if not channel_context and contact:
-            _contact, contact_urn = Msg.resolve_recipient(self.org, self.created_by, contact, None)
-
-            # only populate channel if this contact can actually be reached (ie, has a URN)
-            if contact_urn:
-                channel = contact.cached_send_channel(contact_urn=contact_urn)
-                if channel:
-                    channel_context = channel.build_expressions_context()
-
-        if not run:
-            run = self.runs.filter(contact=contact).order_by("-created_on").first()
-
-        if run:
-            run.org = self.org
-            run.contact = contact
-
-            run_context = run.fields
-            flow_context = run.build_expressions_context(contact_context, message_context.get("text"))
-        else:  # pragma: no cover
-            run_context = {}
-            flow_context = {}
-
-        context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
-
-        # if we have parent or child contexts, add them in too
-        if run:
-            run.contact = contact
-
-            if run.parent_context is not None:
-                context["parent"] = run.parent_context.copy()
-                parent_contact_uuid = context["parent"]["contact"]
-
-                if parent_contact_uuid != str(contact.uuid):
-                    parent_contact = Contact.objects.filter(
-                        org=run.org, uuid=parent_contact_uuid, is_active=True
-                    ).first()
-                    if parent_contact:
-                        context["parent"]["contact"] = parent_contact.build_expressions_context()
-                    else:
-                        # contact may have since been deleted
-                        context["parent"]["contact"] = {"uuid": parent_contact_uuid}  # pragma: no cover
-                else:
-                    context["parent"]["contact"] = contact_context
-
-            # see if we spawned any children and add them too
-            if run.child_context is not None:
-                context["child"] = run.child_context.copy()
-                context["child"]["contact"] = contact_context
-
-        if contact:
-            context["contact"] = contact_context
-
-        return context
-
     def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
         """
         Causes us to schedule a flow to start in a background thread.
@@ -2069,41 +1999,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         run.contact = contact
         return run
-
-    def build_expressions_context(self, contact_context=None, raw_input=None):
-        """
-        Builds the @flow expression context for this run
-        """
-
-        def result_wrapper(res):
-            """
-            Wraps a result, lets us do a nice representation of both @flow.foo and @flow.foo.text
-            """
-            return {
-                "__default__": res[FlowRun.RESULT_VALUE],
-                "text": res.get(FlowRun.RESULT_INPUT),
-                "time": res[FlowRun.RESULT_CREATED_ON],
-                "category": res.get(FlowRun.RESULT_CATEGORY_LOCALIZED, res[FlowRun.RESULT_CATEGORY]),
-                "value": res[FlowRun.RESULT_VALUE],
-            }
-
-        context = {}
-        default_lines = []
-
-        for key, result in self.results.items():
-            context[key] = result_wrapper(result)
-            default_lines.append("%s: %s" % (result[FlowRun.RESULT_NAME], result[FlowRun.RESULT_VALUE]))
-
-        context["__default__"] = "\n".join(default_lines)
-
-        # if we don't have a contact context, build one
-        if not contact_context:  # pragma: no cover
-            self.contact.org = self.org
-            contact_context = self.contact.build_expressions_context()
-
-        context["contact"] = contact_context
-
-        return context
 
     @classmethod
     def normalize_field_key(cls, key):

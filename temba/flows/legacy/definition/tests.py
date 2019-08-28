@@ -11,6 +11,7 @@ from temba.msgs.models import INCOMING, Broadcast, Label, Msg
 from temba.tests import ESMockWithScroll, TembaTest, uses_legacy_engine
 
 from ..engine import flow_start
+from ..expressions import flow_context
 from .actions import (
     Action,
     AddLabelAction,
@@ -114,7 +115,7 @@ class ActionTest(TembaTest):
         )
 
     def execute_action(self, action, run, msg, **kwargs):
-        context = run.flow.build_expressions_context(run.contact, msg)
+        context = flow_context(run.flow, run.contact, msg)
         return action.execute(run, context, None, msg, **kwargs)
 
     def test_reply_action(self):

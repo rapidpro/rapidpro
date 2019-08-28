@@ -6,10 +6,11 @@ from django.conf import settings
 
 from temba.channels.models import Channel
 from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.msgs.models import Broadcast, Label, Msg
 from temba.utils import on_transaction_commit
 from temba.utils.email import is_valid_address
 from temba.values.constants import Value
+
+from ..expressions import evaluate
 
 
 class Action(object):
@@ -93,8 +94,8 @@ class EmailAction(Action):
         from temba.flows.tasks import send_email_action_task
 
         # build our message from our flow variables
-        (message, errors) = Msg.evaluate_template(self.message, context, org=run.flow.org)
-        (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
+        (message, errors) = evaluate(self.message, context, org=run.flow.org)
+        (subject, errors) = evaluate(self.subject, context, org=run.flow.org)
 
         # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
         subject = regex.sub(r"\s+", " ", subject, regex.V0)
@@ -104,7 +105,7 @@ class EmailAction(Action):
         for email in self.emails:
             if email.startswith("@"):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = Msg.evaluate_template(email, context, org=run.flow.org)
+                (address, errors) = evaluate(email, context, org=run.flow.org)
             else:
                 address = email
 
@@ -193,7 +194,7 @@ class AddToGroupAction(Action):
         if contact:
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
-                    (value, errors) = Msg.evaluate_template(group, context, org=run.flow.org)
+                    (value, errors) = evaluate(group, context, org=run.flow.org)
                     group = None
 
                     if not errors:
@@ -264,6 +265,8 @@ class AddLabelAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
+        from temba.msgs.models import Label
+
         labels_data = json_obj.get(cls.LABELS)
 
         labels = []
@@ -291,6 +294,8 @@ class AddLabelAction(Action):
         return cls(json_obj.get(cls.UUID), labels)
 
     def as_json(self):
+        from temba.msgs.models import Label
+
         labels = []
         for action_label in self.labels:
             if isinstance(action_label, Label):
@@ -304,10 +309,12 @@ class AddLabelAction(Action):
         return AddLabelAction.TYPE
 
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
+        from temba.msgs.models import Label
+
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
-                (value, errors) = Msg.evaluate_template(label, context, org=run.flow.org)
+                (value, errors) = evaluate(label, context, org=run.flow.org)
 
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
@@ -582,8 +589,9 @@ class VariableContactAction(Action):  # pragma: no cover
 
     def build_groups_and_contacts(self, run, msg):
         from temba.flows.models import get_flow_user
+        from ..expressions import flow_context
 
-        expressions_context = run.flow.build_expressions_context(run.contact, msg, run=run)
+        expressions_context = flow_context(run.flow, run.contact, msg, run=run)
         contacts = list(self.contacts)
         groups = list(self.groups)
 
@@ -595,7 +603,7 @@ class VariableContactAction(Action):  # pragma: no cover
 
             # other type of variable, perform our substitution
             else:
-                (variable, errors) = Msg.evaluate_template(variable, expressions_context, org=run.flow.org)
+                (variable, errors) = evaluate(variable, expressions_context, org=run.flow.org)
 
                 # Check for possible contact uuid and use its contact
                 contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
@@ -852,7 +860,7 @@ class SaveToContactAction(Action):
         # evaluate our value
         contact = run.contact
         user = get_flow_user(run.org)
-        (value, errors) = Msg.evaluate_template(self.value, context, org=run.flow.org)
+        (value, errors) = evaluate(self.value, context, org=run.flow.org)
 
         value = value.strip()
 
@@ -988,6 +996,8 @@ class SendAction(VariableContactAction):
         )
 
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
+        from temba.msgs.models import Broadcast
+
         if self.msg or self.media:
             flow = run.flow
             (groups, contacts) = self.build_groups_and_contacts(run, msg)

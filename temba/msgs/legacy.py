@@ -66,7 +66,9 @@ def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_typ
         if expressions_context is not None:
             message_context = expressions_context.copy()
             if "contact" not in message_context:
-                message_context["contact"] = contact.build_expressions_context()
+                from temba.flows.legacy.expressions import contact_context
+
+                message_context["contact"] = contact_context(contact)
         else:
             message_context = None
 
