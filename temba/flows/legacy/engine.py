@@ -40,7 +40,7 @@ def flow_start_start(start):
     start.save(update_fields=("status",))
 
 
-def flow_start(  # pragma: no cover
+def flow_start(
     flow,
     groups,
     contacts,
@@ -52,7 +52,7 @@ def flow_start(  # pragma: no cover
     parent_run=None,
     interrupt=True,
     include_active=True,
-):
+):  # pragma: no cover
     """
     Starts a flow for the passed in groups and contacts.
     """
