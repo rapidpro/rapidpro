@@ -113,7 +113,7 @@
 var refreshTimeout = 10000;
 function refresh(onSuccess, forceReload){
 
-  var url = "{{url_params|safe}}"
+  var url = "{{url_params}}"
   {% if page_obj %}
     url += "page={{page_obj.number}}";
   {% endif %}
