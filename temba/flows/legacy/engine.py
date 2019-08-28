@@ -1,4 +1,3 @@
-import logging
 import time
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -15,7 +14,7 @@ from temba.msgs.models import DELIVERED, FAILED, FLOW, INBOX, INCOMING, OUTGOING
 from temba.utils import json, prepped_request_to_str
 from temba.utils.http import http_headers
 
-logger = logging.getLogger(__name__)
+from .definition import StartFlowAction, get_node
 
 
 def flow_start_start(start):
@@ -232,7 +231,7 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
 
         try:
             if entry_actions:
-                run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact)
+                run_msgs += _execute_actions(entry_actions, run, start_msg, started_flows_by_contact)
 
                 _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
@@ -278,10 +277,6 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
                     msgs_to_send.append(msg)
 
         except Exception:
-            logger.error(
-                "Failed starting flow %d for contact %d" % (flow.id, contact.id), exc_info=1, extra={"stack": True}
-            )
-
             # mark this flow as interrupted
             _set_run_interrupted(run)
 
@@ -481,7 +476,7 @@ def _handle_actionset(actionset, run, msg, started_flows):
         return dict(handled=True, destination=None, destination_type=None)
 
     # actually execute all the actions in our actionset
-    msgs = actionset.execute_actions(run, msg, started_flows)
+    msgs = _execute_actions(actionset, run, msg, started_flows)
     _add_messages(run, [m for m in msgs if not getattr(m, "from_other_run", False)])
 
     # and onto the destination
@@ -492,6 +487,38 @@ def _handle_actionset(actionset, run, msg, started_flows):
         _set_run_completed(run, exit_uuid=actionset.exit_uuid)
 
     return dict(handled=True, destination=destination, msgs=msgs)
+
+
+def _execute_actions(actionset, run, msg, started_flows):
+    actions = actionset.get_actions()
+    msgs = []
+
+    run.contact.org = run.org
+    context = run.flow.build_expressions_context(run.contact, msg, run=run)
+
+    for a, action in enumerate(actions):
+        if isinstance(action, StartFlowAction):
+            if action.flow.pk in started_flows:
+                pass
+            else:
+                msgs += action.execute(run, context, actionset.uuid, msg, started_flows)
+
+                # reload our contact and reassign it to our run, it may have been changed deep down in our child flow
+                run.contact = Contact.objects.get(pk=run.contact.pk)
+
+        else:
+            msgs += action.execute(run, context, actionset.uuid, msg)
+
+            # actions modify the run.contact, update the msg contact in case they did so
+            if msg:
+                msg.contact = run.contact
+
+        # if there are more actions, rebuild the parts of the context that may have changed
+        if a < len(actions) - 1:
+            context["contact"] = run.contact.build_expressions_context()
+            context["extra"] = run.fields
+
+    return msgs
 
 
 def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False):
@@ -551,7 +578,7 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
             run.save(update_fields=("child_context",))
 
     # find a matching rule
-    result_rule, result_value, result_input = ruleset.find_matching_rule(run, msg_in)
+    result_rule, result_value, result_input = _find_matching_rule(ruleset, run, msg_in)
 
     flow = ruleset.flow
 
@@ -673,7 +700,6 @@ def bulk_exit(runs, exit_type):
 def _continue_parent_run(run, trigger_send=True, continue_parent=True):
     from temba.flows.models import FlowRun, RuleSet
 
-    # TODO: Remove this in favor of responded on session
     if run.responded and not run.parent.responded:
         run.parent.responded = True
         run.parent.save(update_fields=["responded"])
@@ -826,8 +852,6 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
         message = f"Error calling webhook: {str(e)}"
 
     except Exception as e:
-        logger.error(f"Could not trigger flow webhook: {str(e)}", exc_info=True)
-
         message = "Error calling webhook: %s" % str(e)
 
     finally:
@@ -855,6 +879,132 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
         )
 
     return result
+
+
+def _find_matching_rule(ruleset, run, msg):
+    from temba.airtime.models import AirtimeTransfer
+    from temba.api.models import Resthook
+    from temba.flows.models import FlowRun, RuleSet
+
+    orig_text = None
+    if msg:
+        orig_text = msg.text
+
+    msg.contact = run.contact
+    context = run.flow.build_expressions_context(run.contact, msg, run=run)
+
+    if ruleset.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+        urls = []
+        header = {}
+        action = "POST"
+        resthook = None
+
+        # figure out which URLs will be called
+        if ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
+            resthook = None
+            urls = [ruleset.config[RuleSet.CONFIG_WEBHOOK]]
+            action = ruleset.config[RuleSet.CONFIG_WEBHOOK_ACTION]
+
+            if RuleSet.CONFIG_WEBHOOK_HEADERS in ruleset.config:
+                headers = ruleset.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                for item in headers:
+                    header[item.get("name")] = item.get("value")
+
+        elif ruleset.ruleset_type == RuleSet.TYPE_RESTHOOK:
+            # look up the rest hook
+            resthook_slug = ruleset.config[RuleSet.CONFIG_RESTHOOK]
+            resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
+            urls = resthook.get_subscriber_urls()
+
+            # no urls? use None, as our empty case
+            if not urls:
+                urls = [None]
+
+        # track our last successful and failed webhook calls
+        last_success, last_failure = None, None
+
+        for url in urls:
+            (evaled_url, errors) = Msg.evaluate_template(url, context, org=run.flow.org, url_encode=True)
+            result = call_webhook(run, evaled_url, ruleset, msg, action, resthook=resthook, headers=header)
+
+            # our subscriber is no longer interested, remove this URL as a subscriber
+            if resthook and url and result.status_code == 410:
+                resthook.remove_subscriber(url, run.flow.created_by)
+                result.status_code = 200
+
+            if url is None:
+                continue
+
+            as_json = {"input": f"{action} {evaled_url}", "status_code": result.status_code, "body": result.response}
+
+            if 200 <= result.status_code < 300 or result.status_code == 410:
+                last_success = as_json
+            else:
+                last_failure = as_json
+
+        # if we have a failed call, use that, if not the last call, if no calls then mock a successful one
+        use_call = last_failure or last_success
+        if not use_call:
+            use_call = {"input": "", "status_code": 200, "body": "No subscribers to this event"}
+
+        # find our matching rule, we pass in the status from our calls
+        for rule in ruleset.get_rules():
+            (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
+            if result > 0:
+                return rule, str(use_call["status_code"]), use_call["input"]
+
+    else:
+        # if it's a form field, construct an expression accordingly
+        if ruleset.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+            delim = ruleset.config.get("field_delimiter", " ")
+            ruleset.operand = '@(FIELD(%s, %d, "%s"))' % (
+                ruleset.operand[1:],
+                ruleset.config.get("field_index", 0) + 1,
+                delim,
+            )
+
+        # if we have a custom operand, figure that out
+        operand = None
+        if ruleset.operand:
+            (operand, errors) = Msg.evaluate_template(ruleset.operand, context, org=run.flow.org)
+        elif msg:
+            operand = str(msg)
+
+        if ruleset.ruleset_type == RuleSet.TYPE_AIRTIME:
+
+            airtime = AirtimeTransfer.trigger_airtime_event(ruleset.flow.org, ruleset, run.contact, msg)
+
+            # rebuild our context again, the webhook may have populated something
+            context = run.flow.build_expressions_context(run.contact, msg)
+
+            # airtime test evaluate against the status of the airtime
+            operand = airtime.status
+
+        elif ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+            # lookup the subflow run
+            subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+            if subflow_run:
+                if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                    operand = "completed"
+                elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                    operand = "expired"
+
+        elif ruleset.ruleset_type == RuleSet.TYPE_GROUP:
+            # this won't actually be used by the rules, but will end up in the results
+            operand = run.contact.get_display(for_expressions=True) or ""
+
+        try:
+            rules = ruleset.get_rules()
+            for rule in rules:
+                (result, value) = rule.matches(run, msg, context, operand)
+                if result:
+                    # treat category as the base category
+                    return rule, value, operand
+        finally:
+            if msg:
+                msg.text = orig_text
+
+    return None, None, None  # pragma: no cover
 
 
 def _save_ruleset_result(ruleset, run, rule, raw_value, raw_input, org=None):
@@ -969,19 +1119,3 @@ def _get_active_runs_for_contact(contact):
     runs = runs.filter(flow__is_archived=False)
 
     return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
-
-
-def get_node(flow, uuid, destination_type):
-    from temba.flows.models import Flow, ActionSet, RuleSet
-
-    if not uuid or not destination_type:
-        return None
-
-    if destination_type == Flow.NODE_TYPE_RULESET:
-        node = RuleSet.get(flow, uuid)
-    else:
-        node = ActionSet.get(flow, uuid)
-
-    if node:
-        node.flow = flow
-    return node

@@ -5,14 +5,18 @@ from uuid import uuid4
 import regex
 
 from temba.contacts.models import ContactField, ContactGroup
-from temba.flows.models import (
+from temba.flows.models import Flow, RuleSet
+from temba.msgs.models import Label
+from temba.utils import json
+from temba.utils.expressions import migrate_template
+from temba.utils.languages import iso6392_to_iso6393
+
+from .definition import (
     ContainsAnyTest,
     ContainsTest,
-    Flow,
     InGroupTest,
     RegexTest,
     ReplyAction,
-    RuleSet,
     SayAction,
     SendAction,
     StartFlowAction,
@@ -20,10 +24,6 @@ from temba.flows.models import (
     TriggerFlowAction,
     VariableContactAction,
 )
-from temba.msgs.models import Label
-from temba.utils import json
-from temba.utils.expressions import migrate_template
-from temba.utils.languages import iso6392_to_iso6393
 
 
 def migrate_to_version_11_12(json_flow, flow=None):

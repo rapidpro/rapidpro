@@ -5,12 +5,13 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, InGroupTest, RuleSet, get_flow_user
+from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, get_flow_user
 from temba.msgs.models import Label, Msg
 from temba.tests import FlowFileTest, MockResponse, TembaTest, matchers, uses_legacy_engine
 from temba.utils import json
 from temba.values.constants import Value
 
+from .definition import InGroupTest
 from .engine import flow_start
 from .migrations import (
     map_actions,

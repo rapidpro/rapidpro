@@ -184,8 +184,7 @@ class MailroomQueueTest(TembaTest):
             include_active=True,
         )
 
-        with override_settings(TESTING=False):
-            start.async_start()
+        start.async_start()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
