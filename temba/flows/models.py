@@ -1,5 +1,4 @@
 import logging
-import numbers
 import time
 from array import array
 from collections import OrderedDict, defaultdict
@@ -28,7 +27,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.msgs.models import INCOMING, Label, Msg
+from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
 from temba.utils.dates import str_to_datetime
@@ -1860,8 +1859,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         (EXIT_TYPE_EXPIRED, _("Expired")),
     )
 
-    INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
-
     RESULT_NAME = "name"
     RESULT_NODE_UUID = "node_uuid"
     RESULT_CATEGORY = "category"
@@ -2000,51 +1997,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         run.contact = contact
         return run
 
-    @classmethod
-    def normalize_field_key(cls, key):
-        return FlowRun.INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
-
-    @classmethod
-    def normalize_fields(cls, fields, max_values=None, count=-1):
-        """
-        Turns an arbitrary dictionary into a dictionary containing only string keys and values
-        """
-        if max_values is None:
-            max_values = settings.FLOWRUN_FIELDS_SIZE
-
-        if isinstance(fields, str):
-            return fields[: Value.MAX_VALUE_LEN], count + 1
-
-        elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
-            return fields, count + 1
-
-        elif isinstance(fields, dict):
-            count += 1
-            field_dict = OrderedDict()
-            for (k, v) in fields.items():
-                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
-
-                if count >= max_values:
-                    break
-
-            return field_dict, count
-
-        elif isinstance(fields, list):
-            count += 1
-            list_dict = OrderedDict()
-            for (i, v) in enumerate(fields):
-                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
-
-                if count >= max_values:  # pragma: needs cover
-                    break
-
-            return list_dict, count
-
-        elif fields is None:
-            return "", count + 1
-        else:  # pragma: no cover
-            raise ValueError("Unsupported type %s in extra" % str(type(fields)))
-
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run
@@ -2084,25 +2036,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return Msg.objects.filter(uuid__in=msg_uuids)
 
-    def get_last_msg(self, direction=INCOMING):
-        """
-        Returns the last incoming msg on this run
-        :param direction: the direction of the message to fetch, default INCOMING
-        """
-        return self.get_messages().filter(direction=direction).order_by("-created_on").first()
-
-    def get_session_responded(self):
-        """
-        TODO: Replace with Session.responded when it exists
-        """
-        current_run = self
-        while current_run and current_run.contact_id == self.contact_id:
-            if current_run.responded:
-                return True
-            current_run = current_run.parent
-
-        return False
-
     def release(self, delete_reason=None):
         """
         Permanently deletes this flow run
@@ -2134,19 +2067,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         # parent should always have a later expiration than the children
         if self.parent:
             self.parent.update_expiration(self.expires_on)
-
-    def update_fields(self, field_map, do_save=True):
-        # validate our field
-        (field_map, count) = FlowRun.normalize_fields(field_map)
-        if not self.fields:
-            self.fields = field_map
-        else:
-            existing_map = self.fields
-            existing_map.update(field_map)
-            self.fields = existing_map
-
-        if do_save:
-            self.save(update_fields=["fields"])
 
     def as_archive_json(self):
         def convert_step(step):

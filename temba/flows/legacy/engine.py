@@ -2,10 +2,13 @@
 # rewritten without use of the legacy flow engine. None of this code is run in production and is thus excluded from
 # test coverage checks.
 
+import numbers
 import time
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+import regex
 import requests
 
 from django.conf import settings
@@ -17,9 +20,12 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Language
 from temba.utils import json, prepped_request_to_str
 from temba.utils.http import http_headers
+from temba.values.constants import Value
 
 from .definition import StartFlowAction, get_node
 from .expressions import contact_context, evaluate, flow_context, run_context
+
+INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
 
 
 def flow_start_start(start):
@@ -173,7 +179,7 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
     run_fields = {}  # this should be the default value of the FlowRun.fields
     if extra:
         # we keep more values in @extra for new flow runs because we might be passing the state
-        (normalized_fields, count) = FlowRun.normalize_fields(extra, settings.FLOWRUN_FIELDS_SIZE * 4)
+        (normalized_fields, count) = _normalize_fields(extra, 256 * 4)
         run_fields = normalized_fields
 
     # create all our flow runs for this set of contacts at once
@@ -733,7 +739,7 @@ def _continue_parent_run(run, trigger_send=True, continue_parent=True):
         return []
 
     # use the last incoming message on this run
-    msg = run.get_last_msg(direction=INCOMING)
+    msg = run.get_messages().filter(direction=INCOMING).order_by("-created_on").first()
 
     # if we are routing back to the parent before a msg was sent, we need a placeholder
     if not msg:
@@ -836,7 +842,7 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
             status_code = 200
 
         if ruleset:
-            run.update_fields({Flow.label_to_slug(ruleset.label): body}, do_save=False)
+            _update_run_fields(run, {Flow.label_to_slug(ruleset.label): body}, do_save=False)
         new_extra = {}
 
         # process the webhook response
@@ -852,7 +858,7 @@ def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, h
         except ValueError:
             message = "Response must be a JSON dictionary, ignoring response."
 
-        run.update_fields(new_extra)
+        _update_run_fields(run, new_extra)
 
         if not (200 <= status_code < 300):
             message = "Got non 200 response (%d) from webhook." % response.status_code
@@ -1115,6 +1121,65 @@ def _set_run_interrupted(run):
     run.parent_context = None
     run.child_context = None
     run.save(update_fields=("exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context"))
+
+
+def _update_run_fields(run, field_map, do_save=True):
+    # validate our field
+    (field_map, count) = _normalize_fields(field_map)
+    if not run.fields:
+        run.fields = field_map
+    else:
+        existing_map = run.fields
+        existing_map.update(field_map)
+        run.fields = existing_map
+
+    if do_save:
+        run.save(update_fields=["fields"])
+
+
+def _normalize_fields(fields, max_values=None, count=-1):
+    """
+    Turns an arbitrary dictionary into a dictionary containing only string keys and values
+    """
+
+    def normalize_key(key):
+        return INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
+
+    if max_values is None:
+        max_values = 256
+
+    if isinstance(fields, str):
+        return fields[: Value.MAX_VALUE_LEN], count + 1
+
+    elif isinstance(fields, numbers.Number) or isinstance(fields, bool):
+        return fields, count + 1
+
+    elif isinstance(fields, dict):
+        count += 1
+        field_dict = OrderedDict()
+        for (k, v) in fields.items():
+            (field_dict[normalize_key(k)], count) = _normalize_fields(v, max_values, count)
+
+            if count >= max_values:
+                break
+
+        return field_dict, count
+
+    elif isinstance(fields, list):
+        count += 1
+        list_dict = OrderedDict()
+        for (i, v) in enumerate(fields):
+            (list_dict[str(i)], count) = _normalize_fields(v, max_values, count)
+
+            if count >= max_values:  # pragma: needs cover
+                break
+
+        return list_dict, count
+
+    elif fields is None:
+        return "", count + 1
+    else:
+        raise ValueError("Unsupported type %s in extra" % str(type(fields)))
 
 
 def _get_active_runs_for_contact(contact):

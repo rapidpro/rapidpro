@@ -36,7 +36,7 @@ from temba.contacts.models import (
     ContactGroup,
     ContactURN,
 )
-from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
+from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
@@ -3405,6 +3405,8 @@ class BulkExportTest(TembaTest):
         self.assertIn("Child Flow", group)
 
     def test_flow_export_dynamic_group(self):
+        from temba.flows.legacy import AddToGroupAction
+
         flow = self.get_flow("favorites")
 
         # get one of our flow actionsets, change it to an AddToGroupAction

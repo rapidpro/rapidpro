@@ -444,6 +444,15 @@ class ReplyAction(Action):
 
         return language_metadata
 
+    @staticmethod
+    def get_session_responded(run):
+        current_run = run
+        while current_run and current_run.contact_id == run.contact_id:
+            if current_run.responded:
+                return True
+            current_run = current_run.parent
+        return False
+
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
         from temba.flows.models import get_flow_user
         from ..engine import get_localized_text
@@ -489,7 +498,7 @@ class ReplyAction(Action):
             else:
                 # if our run has been responded to or any of our parent runs have
                 # been responded to consider us interactive with high priority
-                high_priority = run.get_session_responded()
+                high_priority = self.get_session_responded(run)
                 replies = run.contact.send(
                     text,
                     user,

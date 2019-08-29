@@ -1063,7 +1063,7 @@ class RegexTest(Test):  # pragma: no cover
         return dict(type=self.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):
-        from ..engine import get_localized_text
+        from ..engine import get_localized_text, _update_run_fields
 
         try:
             test = get_localized_text(run.flow, self.test, run.contact)
@@ -1082,7 +1082,7 @@ class RegexTest(Test):  # pragma: no cover
                     group_dict[str(idx)] = match.group(idx)
 
                 # set it on run@extra
-                run.update_fields(group_dict)
+                _update_run_fields(run, group_dict)
 
                 # return all matched values
                 return True, return_match
