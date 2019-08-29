@@ -481,7 +481,7 @@ class ContainsTest(Test):
             return 0, None
 
 
-class HasEmailTest(Test):
+class HasEmailTest(Test):  # pragma: no cover
     """
     { op: "has_email" }
     """
@@ -498,7 +498,7 @@ class HasEmailTest(Test):
     def as_json(self):
         return dict(type=self.TYPE)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
+    def evaluate(self, run, sms, context, text):
         # split on whitespace
         words = text.split()
         for word in words:
@@ -562,7 +562,7 @@ class ContainsOnlyPhraseTest(ContainsTest):
     TEST = "test"
     TYPE = "contains_only_phrase"
 
-    def as_json(self):
+    def as_json(self):  # pragma: no cover
         return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
@@ -594,7 +594,7 @@ class ContainsPhraseTest(ContainsTest):
     TEST = "test"
     TYPE = "contains_phrase"
 
-    def as_json(self):
+    def as_json(self):  # pragma: no cover
         return dict(type=ContainsPhraseTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover

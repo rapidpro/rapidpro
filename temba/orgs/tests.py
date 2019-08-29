@@ -2917,6 +2917,7 @@ class OrgCRUDLTest(TembaTest):
 
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
 
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
 
@@ -2939,6 +2940,9 @@ class OrgCRUDLTest(TembaTest):
 
         self.org.date_format = "M"
         self.org.save()
+
+        self.assertEqual(("%m-%d-%Y", "%m-%d-%Y %H:%M"), self.org.get_datetime_formats())
+
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)

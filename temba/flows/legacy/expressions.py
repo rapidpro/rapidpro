@@ -21,7 +21,7 @@ evaluator = Evaluator(allowed_top_levels=ALLOWED_TOP_LEVELS)
 listing = None  # lazily initialized
 
 
-def evaluate(text, context, org=None, url_encode=False, partial_vars=False):
+def evaluate(text, context, org=None, url_encode=False, partial_vars=False):  # pragma: no cover
     """
     Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
     the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -39,12 +39,8 @@ def evaluate(text, context, org=None, url_encode=False, partial_vars=False):
     if "contact" not in context["step"]:
         context["step"]["contact"] = context.get("contact")
 
-    if not org:
-        dayfirst = True
-        tz = timezone.get_current_timezone()
-    else:
-        dayfirst = org.get_dayfirst()
-        tz = org.timezone
+    dayfirst = org.get_dayfirst()
+    tz = org.timezone
 
     (format_date, format_time) = org.get_datetime_formats()
 
@@ -66,7 +62,7 @@ def evaluate(text, context, org=None, url_encode=False, partial_vars=False):
     return evaluate_template(text, context, url_encode, partial_vars)
 
 
-def evaluate_template(template, context, url_encode=False, partial_vars=False):
+def evaluate_template(template, context, url_encode=False, partial_vars=False):  # pragma: no cover
     strategy = EvaluationStrategy.RESOLVE_AVAILABLE if partial_vars else EvaluationStrategy.COMPLETE
     return evaluator.evaluate_template(template, context, url_encode, strategy)
 
@@ -108,7 +104,7 @@ def _build_function_signature(f):
     return signature + " ".join(formatted_params_list) + ")"
 
 
-def channel_context(channel):
+def channel_context(channel):  # pragma: no cover
     address = channel.get_address_display()
     default = address if address else str(channel)
 
@@ -123,7 +119,7 @@ def channel_context(channel):
     return dict(__default__=default, name=channel.get_name(), address=address, tel=tel, tel_e164=tel_e164)
 
 
-def contact_context(contact):
+def contact_context(contact):  # pragma: no cover
     """
     Builds a dictionary suitable for use in variable substitution in messages.
     """
@@ -168,7 +164,7 @@ def contact_context(contact):
     return context
 
 
-def urn_context(urn, org):
+def urn_context(urn, org):  # pragma: no cover
     if org.is_anon:
         return {
             "__default__": ContactURN.ANON_MASK,
@@ -182,7 +178,7 @@ def urn_context(urn, org):
     return {"__default__": display, "scheme": urn.scheme, "path": urn.path, "display": display, "urn": urn.urn}
 
 
-def msg_context(msg):
+def msg_context(msg):  # pragma: no cover
     date_format = msg.org.get_datetime_formats()[1]
     value = str(msg)
     attachments = {str(a): attachment.url for a, attachment in enumerate(msg.get_attachments())}
@@ -201,7 +197,7 @@ def msg_context(msg):
     return context
 
 
-def run_context(run, contact_ctx=None, raw_input=None):
+def run_context(run, contact_ctx=None, raw_input=None):  # pragma: no cover
     from temba.flows.models import FlowRun
 
     def result_wrapper(res):
@@ -235,7 +231,7 @@ def run_context(run, contact_ctx=None, raw_input=None):
     return context
 
 
-def flow_context(flow, contact, msg, run=None):
+def flow_context(flow, contact, msg, run=None):  # pragma: no cover
     from temba.msgs.models import Msg
 
     contact_ctx = contact_context(contact) if contact else {}

@@ -275,7 +275,8 @@ class APITest(TembaTest):
     def test_normalize_extra(self):
         self.assertEqual(OrderedDict(), normalize_extra({}))
         self.assertEqual(
-            OrderedDict([("0", "a"), ("1", True), ("2", Decimal("1.0"))]), normalize_extra(["a", True, Decimal("1.0")])
+            OrderedDict([("0", "a"), ("1", True), ("2", Decimal("1.0")), ("3", "")]),
+            normalize_extra(["a", True, Decimal("1.0"), None]),
         )
         self.assertEqual(OrderedDict([("_3__x", "z")]), normalize_extra({"%3 !x": "z"}))
         self.assertEqual(
