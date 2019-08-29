@@ -1,0 +1,196 @@
+{
+    "version": "13.0.0",
+    "flows": [
+        {
+            "uuid": "ca45c8dd-d882-4f56-8522-1cdda67fd5b5",
+            "name": "Colors",
+            "spec_version": "13.0.0",
+            "language": "base",
+            "type": "messaging",
+            "revision": 1,
+            "expire_after_minutes": 720,
+            "localization": {
+                "fra": {
+                    "98388930-7a0f-4eb8-9a0a-09be2f006420": {
+                        "text": [
+                            "Quelle est votre couleur préférée?"
+                        ]
+                    }
+                }
+            },
+            "nodes": [
+                {
+                    "uuid": "e50ac2d5-0704-4970-a450-690b1d03e77f",
+                    "actions": [
+                        {
+                            "type": "send_msg",
+                            "uuid": "98388930-7a0f-4eb8-9a0a-09be2f006420",
+                            "text": "What is your favorite color?"
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "uuid": "bfd3aaf4-a69b-4bd7-b875-136a72b6c3cf",
+                            "destination_uuid": "9a4dca3c-5381-4f0d-8e20-dac3b1e962a2"
+                        }
+                    ]
+                },
+                {
+                    "uuid": "be2ca165-1f64-46ec-80c2-a1762d83b522",
+                    "actions": [
+                        {
+                            "type": "send_msg",
+                            "uuid": "cf57f270-c9d7-4826-b3cc-7bfc22ac4ef6",
+                            "text": "I love orange too! You said: @input which is category: @results.color.category_localized You are: @(format_urn(urns.tel)) SMS: @input Flow: @results"
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "uuid": "7e2ef75f-f637-4aac-9f08-1c903ba8ee31"
+                        }
+                    ]
+                },
+                {
+                    "uuid": "286af277-1b4d-4218-8175-0f6315c25b61",
+                    "actions": [
+                        {
+                            "type": "send_msg",
+                            "uuid": "d6aee40b-3710-4358-b0a6-c0ddc1d7734e",
+                            "text": "Blue is sad. :("
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "uuid": "364af3c6-65e6-4167-a76b-157090eaf030"
+                        }
+                    ]
+                },
+                {
+                    "uuid": "cf4991ac-24ef-405b-9e4a-6f2e7767f8b2",
+                    "actions": [
+                        {
+                            "type": "send_msg",
+                            "uuid": "ca798d2d-2c95-468a-a857-74797a4d5301",
+                            "text": "That is a funny color. Try again."
+                        }
+                    ],
+                    "exits": [
+                        {
+                            "uuid": "dceea983-7d66-4ad5-aa76-7c163db8443a",
+                            "destination_uuid": "9a4dca3c-5381-4f0d-8e20-dac3b1e962a2"
+                        }
+                    ]
+                },
+                {
+                    "uuid": "9a4dca3c-5381-4f0d-8e20-dac3b1e962a2",
+                    "router": {
+                        "type": "switch",
+                        "wait": {
+                            "type": "msg"
+                        },
+                        "result_name": "Color",
+                        "categories": [
+                            {
+                                "uuid": "890ba12e-f0d7-4525-85de-407c77acf86e",
+                                "name": "Orange",
+                                "exit_uuid": "9d5990f9-92ed-45f5-9348-32aa25ee6790"
+                            },
+                            {
+                                "uuid": "fca57502-67f2-43a1-870d-387d7b51b8dc",
+                                "name": "Blue",
+                                "exit_uuid": "6d24941a-6e46-4baf-aded-27c8f81c3d44"
+                            },
+                            {
+                                "uuid": "77fdb926-36c4-41a3-9bab-4605c8563b38",
+                                "name": "Other",
+                                "exit_uuid": "5aefa366-6e0d-4e22-8cd1-2d5f0560f9ac"
+                            },
+                            {
+                                "uuid": "b28cd893-2bc6-4b39-8316-6f523f87d68c",
+                                "name": "Nothing",
+                                "exit_uuid": "218be679-47c4-48c2-9eba-3b45cbab29b2"
+                            }
+                        ],
+                        "operand": "@input",
+                        "cases": [
+                            {
+                                "uuid": "09be1819-ee63-49de-b1b3-820cb64cce69",
+                                "type": "has_all_words",
+                                "arguments": [
+                                    "orange"
+                                ],
+                                "category_uuid": "890ba12e-f0d7-4525-85de-407c77acf86e"
+                            },
+                            {
+                                "uuid": "8027a88f-8378-48e9-adac-3046a24d9327",
+                                "type": "has_all_words",
+                                "arguments": [
+                                    "blue"
+                                ],
+                                "category_uuid": "fca57502-67f2-43a1-870d-387d7b51b8dc"
+                            }
+                        ],
+                        "default_category_uuid": "b28cd893-2bc6-4b39-8316-6f523f87d68c"
+                    },
+                    "exits": [
+                        {
+                            "uuid": "9d5990f9-92ed-45f5-9348-32aa25ee6790",
+                            "destination_uuid": "be2ca165-1f64-46ec-80c2-a1762d83b522"
+                        },
+                        {
+                            "uuid": "6d24941a-6e46-4baf-aded-27c8f81c3d44",
+                            "destination_uuid": "286af277-1b4d-4218-8175-0f6315c25b61"
+                        },
+                        {
+                            "uuid": "5aefa366-6e0d-4e22-8cd1-2d5f0560f9ac",
+                            "destination_uuid": "cf4991ac-24ef-405b-9e4a-6f2e7767f8b2"
+                        },
+                        {
+                            "uuid": "218be679-47c4-48c2-9eba-3b45cbab29b2"
+                        }
+                    ]
+                }
+            ],
+            "_ui": {
+                "nodes": {
+                    "286af277-1b4d-4218-8175-0f6315c25b61": {
+                        "type": "execute_actions",
+                        "position": {
+                            "left": 3,
+                            "top": 3
+                        }
+                    },
+                    "9a4dca3c-5381-4f0d-8e20-dac3b1e962a2": {
+                        "type": "wait_for_response",
+                        "position": {
+                            "left": 5,
+                            "top": 5
+                        }
+                    },
+                    "be2ca165-1f64-46ec-80c2-a1762d83b522": {
+                        "type": "execute_actions",
+                        "position": {
+                            "left": 2,
+                            "top": 2
+                        }
+                    },
+                    "cf4991ac-24ef-405b-9e4a-6f2e7767f8b2": {
+                        "type": "execute_actions",
+                        "position": {
+                            "left": 4,
+                            "top": 4
+                        }
+                    },
+                    "e50ac2d5-0704-4970-a450-690b1d03e77f": {
+                        "type": "execute_actions",
+                        "position": {
+                            "left": 1,
+                            "top": 1
+                        }
+                    }
+                },
+                "stickies": {}
+            }
+        }
+    ]
+}

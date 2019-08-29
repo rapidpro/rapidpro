@@ -37,6 +37,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
+from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
@@ -46,7 +47,6 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
-from temba.utils.expressions import get_function_listing
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
@@ -330,7 +330,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if not self.has_org_perm("flows.flow_update"):
-                return HttpResponseRedirect(reverse("flows.flow_revisions", args=[self.get_object().uuid]))
+                return JsonResponse(
+                    {"status": "failure", "description": _("You don't have permission to edit this flow")}, status=403
+                )
 
             # try to parse our body
             definition = json.loads(force_text(request.body))

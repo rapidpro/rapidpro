@@ -7,7 +7,6 @@ from uuid import uuid4
 import iso8601
 import pytz
 import regex
-from temba_expressions.evaluator import DateStyle, EvaluationContext
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -28,9 +27,7 @@ from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount,
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
-from temba.utils.dates import datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
 
@@ -920,24 +917,6 @@ class Msg(models.Model):
         else:  # pragma: no cover
             mailroom.queue_msg_handling(self)
 
-    def build_expressions_context(self):
-        date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        value = str(self)
-        attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
-
-        context = {
-            "__default__": value,
-            "value": value,
-            "text": self.text,
-            "attachments": attachments,
-            "time": datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone),
-        }
-
-        if self.contact_urn:
-            context["urn"] = self.contact_urn.build_expressions_context(self.org)
-
-        return context
-
     def resend(self):
         """
         Resends this message by creating a clone and triggering a send of that clone
@@ -1148,51 +1127,6 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def evaluate_template(cls, text, context, org=None, url_encode=False, partial_vars=False):
-        """
-        Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
-        the passed in context, contact and org. If some variables are not resolved to values, then the variable
-        name will remain (ie, @foo.bar).
-
-        Returns a tuple of the substituted text and whether there were are substitution failures.
-        """
-        # shortcut for cases where there is no way we would substitute anything as there are no variables
-        if not text or text.find("@") < 0:
-            return text, []
-
-        # add 'step.contact' if it isn't populated for backwards compatibility
-        if "step" not in context:
-            context["step"] = dict()
-        if "contact" not in context["step"]:
-            context["step"]["contact"] = context.get("contact")
-
-        if not org:
-            dayfirst = True
-            tz = timezone.get_current_timezone()
-        else:
-            dayfirst = org.get_dayfirst()
-            tz = org.timezone
-
-        (format_date, format_time) = get_datetime_format(dayfirst)
-
-        now = timezone.now().astimezone(tz)
-
-        # add date.* constants to context
-        context["date"] = {
-            "__default__": now.isoformat(),
-            "now": now.isoformat(),
-            "today": datetime_to_str(timezone.now(), format=format_date, tz=tz),
-            "tomorrow": datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
-            "yesterday": datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz),
-        }
-
-        date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
-        context = EvaluationContext(context, tz, date_style)
-
-        # returns tuple of output and errors
-        return evaluate_template(text, context, url_encode, partial_vars)
-
-    @classmethod
     def create_outgoing(
         cls,
         org,
@@ -1214,6 +1148,7 @@ class Msg(models.Model):
         quick_replies=None,
         uuid=None,
     ):
+        from temba.flows.legacy.expressions import evaluate, channel_context
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1243,16 +1178,16 @@ class Msg(models.Model):
         if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
             if channel and "channel" not in expressions_context:
-                expressions_context["channel"] = channel.build_expressions_context()
+                expressions_context["channel"] = channel_context(channel)
 
-            (text, errors) = Msg.evaluate_template(text, expressions_context, org=org)
+            (text, errors) = evaluate(text, expressions_context, org=org)
             if text:
                 text = text[: Msg.MAX_TEXT_LEN]
 
             evaluated_attachments = []
             if attachments:
                 for attachment in attachments:
-                    (attachment, errors) = Msg.evaluate_template(attachment, expressions_context, org=org)
+                    (attachment, errors) = evaluate(attachment, expressions_context, org=org)
                     evaluated_attachments.append(attachment)
         else:
             text = text[: Msg.MAX_TEXT_LEN]
@@ -1313,7 +1248,7 @@ class Msg(models.Model):
         metadata = {}  # init metadata to the same as the default value of the Msg.metadata field
         if quick_replies:
             for counter, reply in enumerate(quick_replies):
-                (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
+                (value, errors) = evaluate(text=reply, context=expressions_context, org=org)
                 if value:
                     quick_replies[counter] = value
             metadata = dict(quick_replies=quick_replies)

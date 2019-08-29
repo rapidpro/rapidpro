@@ -729,6 +729,8 @@ GROUP_PERMISSIONS = {
         "contacts.contact_list",
         "contacts.contact_read",
         "contacts.contact_stopped",
+        "contacts.contactfield_api",
+        "contacts.contactgroup_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
@@ -753,6 +755,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_filter",
         "flows.flow_list",
         "flows.flow_editor",
+        "flows.flow_editor_next",
         "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
@@ -761,6 +764,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_simulate",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
+        "msgs.label_api",
         "msgs.msg_archived",
         "msgs.msg_export",
         "msgs.msg_failed",
@@ -968,11 +972,6 @@ SEND_AIRTIME = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause data to be sent to Chatbase in test environment
 SEND_CHATBASE = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause calls in test environments
-SEND_CALLS = False
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
