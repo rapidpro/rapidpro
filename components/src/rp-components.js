@@ -1,6 +1,7 @@
+// Our top-level components we can use
 import './aliaseditor/AliasEditor';
-import './leafletmap/LeafletMap';
+import './button/Button';
 import './dialog/Dialog';
 import './textinput/TextInput';
+import './select/Select';
 import './completion/Completion';
-import './Choice/Choice';
