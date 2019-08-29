@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-16 18:59+0000\n"
+"POT-Creation-Date: 2019-08-29 19:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -68,10 +68,10 @@ msgstr ""
 msgid "You do not have permission to access this file"
 msgstr ""
 
-msgid "Flow Event"
+msgid "The name of this campaign"
 msgstr ""
 
-msgid "Message Event"
+msgid "The group this campaign operates on"
 msgstr ""
 
 msgid "Minutes"
@@ -84,36 +84,6 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
-msgstr ""
-
-msgid "Interrupt"
-msgstr ""
-
-msgid "Skip"
-msgstr ""
-
-msgid "Passive"
-msgstr ""
-
-msgid "Fired"
-msgstr ""
-
-msgid "Skipped"
-msgstr ""
-
-msgid "The event that will be fired"
-msgstr ""
-
-msgid "The contact that is scheduled to have an event run"
-msgstr ""
-
-msgid "When this event is scheduled to run"
-msgstr ""
-
-msgid "When this event actually fired, null if not yet fired"
-msgstr ""
-
-msgid "Whether the event is fired or skipped, null if not yet fired"
 msgstr ""
 
 msgid "Export"
@@ -1161,10 +1131,10 @@ msgstr ""
 msgid "Token"
 msgstr ""
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -2026,7 +1996,7 @@ msgstr ""
 msgid "External identifier"
 msgstr ""
 
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr ""
 
 msgid "WeChat identifier"
@@ -2492,9 +2462,6 @@ msgstr ""
 msgid "When this ruleset was last modified"
 msgstr ""
 
-msgid "No subscribers to this event"
-msgstr ""
-
 msgid "When this action was originally created"
 msgstr ""
 
@@ -2627,6 +2594,9 @@ msgstr ""
 
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgstr ""
+
+msgid "You don't have permission to edit this flow"
 msgstr ""
 
 msgid "Your flow failed validation. Please refresh your browser."
@@ -6513,29 +6483,17 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
-msgstr ""
-
-msgid "Clear"
-msgstr ""
-
-msgid "(one per alias line)"
-msgstr ""
-
-msgid "Alias names must be unique, try again."
-msgstr ""
-
-msgid "Your changes could not be saved. Please reload the page and try again."
+"        "
 msgstr ""
 
 #, python-format

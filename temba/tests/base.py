@@ -392,21 +392,24 @@ class TembaTestMixin:
 
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
+
+        from temba.flows import legacy
+
         # look up our destination, we need this in order to set the correct destination_type
         destination_type = Flow.NODE_TYPE_ACTIONSET
-        action_destination = Flow.get_node(flow, destination, destination_type)
+        action_destination = legacy.get_node(flow, destination, destination_type)
         if not action_destination:
             destination_type = Flow.NODE_TYPE_RULESET
-            ruleset_destination = Flow.get_node(flow, destination, destination_type)
+            ruleset_destination = legacy.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
-        actionset = ActionSet.get(flow, node)
+        actionset = ActionSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
         if actionset:
             actionset.destination = destination
             actionset.destination_type = destination_type
             actionset.save()
 
-        ruleset = RuleSet.get(flow, node)
+        ruleset = RuleSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
         if ruleset:
             rules = ruleset.get_rules()
             for r in rules:
@@ -702,6 +705,8 @@ class FlowFileTest(TembaTest):
         self.assertEqual(message, response.text)
 
     def send(self, message, contact=None, start_flow=None):
+        from temba.flows import legacy
+
         if not contact:
             contact = self.contact
         incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
@@ -709,7 +714,7 @@ class FlowFileTest(TembaTest):
         if start_flow:
             start_flow.start(groups=[], contacts=[contact], start_msg=incoming)
         else:
-            Flow.find_and_handle(incoming)
+            legacy.find_and_handle(incoming)
 
         return Msg.objects.filter(response_to=incoming).order_by("id").first()
 
@@ -726,6 +731,9 @@ class FlowFileTest(TembaTest):
         """
         Starts the flow, sends the message, returns the reply
         """
+
+        from temba.flows import legacy
+
         if not contact:
             contact = self.contact
 
@@ -733,10 +741,12 @@ class FlowFileTest(TembaTest):
 
         # start the flow
         if initiate_flow:
-            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
+            legacy.flow_start(
+                flow, groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
+            )
         else:
-            flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-            (handled, msgs) = Flow.find_and_handle(incoming)
+            legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=restart_participants)
+            (handled, msgs) = legacy.find_and_handle(incoming)
 
             from temba.msgs import legacy
 

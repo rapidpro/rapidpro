@@ -6,9 +6,9 @@ from django.urls import reverse
 from temba.channels.types.wechat.tasks import refresh_wechat_access_tokens
 from temba.contacts.models import URN
 from temba.tests import MockResponse, TembaTest
-from temba.utils.wechat import WeChatClient
 
 from ...models import Channel, ChannelLog
+from .client import WeChatClient
 
 
 class WeChatTypeTest(TembaTest):

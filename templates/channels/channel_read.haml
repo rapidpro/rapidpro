@@ -40,12 +40,11 @@
 
 
       -if channel.has_channel_log
-        -if not user_org.is_anon or perms.contacts.contact_break_anon
-          -with channel.get_sender as sender and channel.get_caller as caller
-            -if sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
-            - if caller and caller != sender
-              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
+        -with channel.get_sender as sender and channel.get_caller as caller
+          -if sender
+            <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
+          - if caller and caller != sender
+            <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
 
       -for link in object.get_type.extra_links
         <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>

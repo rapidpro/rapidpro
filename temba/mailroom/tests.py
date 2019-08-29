@@ -8,7 +8,6 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowStart
-from temba.flows.server.serialize import serialize_flow
 from temba.mailroom.client import FlowValidationException, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
@@ -43,7 +42,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                serialize_flow(flow)
+                get_client().flow_migrate(flow.as_json())
 
         self.assertEqual(
             e.exception.as_json(),
@@ -185,8 +184,7 @@ class MailroomQueueTest(TembaTest):
             include_active=True,
         )
 
-        with override_settings(TESTING=False):
-            start.async_start()
+        start.async_start()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -209,7 +207,7 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_queue_interrupt_contacts(self):
+    def test_queue_interrupt_by_contacts(self):
         jim = self.create_contact("Jim", "+12065551212")
         bob = self.create_contact("Bob", "+12065551313")
 
@@ -226,7 +224,7 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
-    def test_queue_interrupt_channel(self):
+    def test_queue_interrupt_by_channel(self):
         self.channel.release()
 
         self.assert_org_queued(self.org, "batch")
@@ -236,6 +234,21 @@ class MailroomQueueTest(TembaTest):
                 "type": "interrupt_sessions",
                 "org_id": self.org.id,
                 "task": {"channel_ids": [self.channel.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_interrupt_by_flow(self):
+        flow = self.get_flow("favorites")
+        flow.archive()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "interrupt_sessions",
+                "org_id": self.org.id,
+                "task": {"flow_ids": [flow.id]},
                 "queued_on": matchers.ISODate(),
             },
         )

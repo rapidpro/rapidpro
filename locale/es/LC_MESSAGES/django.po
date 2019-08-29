@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-16 18:59+0000\n"
+"POT-Creation-Date: 2019-08-29 19:11+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -77,13 +77,14 @@ msgid "You do not have permission to access this file"
 msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Flow Event"
-msgstr "Evento del transmisor"
+#| msgid "The name of this contact"
+msgid "The name of this campaign"
+msgstr "El nombre de este contacto"
 
 #, fuzzy
-msgid "Message Event"
-msgstr "Reintentar el conteo de mensajes"
+#| msgid "The org this call is connected to"
+msgid "The group this campaign operates on"
+msgstr "La organización a la que esta llamada está conectada"
 
 msgid "Minutes"
 msgstr ""
@@ -98,44 +99,6 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
-
-msgid "Interrupt"
-msgstr ""
-
-msgid "Skip"
-msgstr ""
-
-msgid "Passive"
-msgstr ""
-
-#, fuzzy
-#| msgid "Wired"
-msgid "Fired"
-msgstr "Wired"
-
-msgid "Skipped"
-msgstr ""
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "The event that will be fired"
-msgstr "El mensaje que se está entregando"
-
-#, fuzzy
-#| msgid "a unique code associated with this invitation"
-msgid "The contact that is scheduled to have an event run"
-msgstr "un código único asociado con esta invitación"
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "When this event is scheduled to run"
-msgstr "Cuando se creó este mensaje"
-
-msgid "When this event actually fired, null if not yet fired"
-msgstr ""
-
-msgid "Whether the event is fired or skipped, null if not yet fired"
-msgstr ""
 
 msgid "Export"
 msgstr "Exportar"
@@ -1782,10 +1745,10 @@ msgstr "URL de Webhook"
 msgid "Token"
 msgstr "Token API"
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -3170,7 +3133,7 @@ msgstr "ID externo"
 
 #, fuzzy
 #| msgid "External ID"
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr "ID externo"
 
 #, fuzzy
@@ -3704,10 +3667,6 @@ msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
 msgid "When this ruleset was last modified"
 msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
 
-#, fuzzy
-msgid "No subscribers to this event"
-msgstr "El número de teléfono para esta llamada"
-
 msgid "When this action was originally created"
 msgstr "Cuándo fue la primera vez que se creó esta acción"
 
@@ -3858,6 +3817,11 @@ msgstr ""
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
+
+#, fuzzy
+#| msgid "User does not have permission to create an SMS"
+msgid "You don't have permission to edit this flow"
+msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
 #| msgid "Your changes could not be saved. Please reload the page and try again."
@@ -8872,38 +8836,41 @@ msgstr[1] "Le quedan %(credits)s, obtengan más créditos para evitar la interru
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+#| "            regions, aliases.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
+"        "
 msgstr ""
 "\n"
 "            Muchas veces algunas regiones se conocen por más de un nombre. En %(brand)s, a estos nombres alternativos para\n"
 "            las regiones, los llamamos apelativos.\n"
 "\n"
 "          "
-
-msgid "Clear"
-msgstr "Limpiar"
-
-msgid "(one per alias line)"
-msgstr "(uno por línea de apelativo)"
-
-msgid "Alias names must be unique, try again."
-msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-msgid "Your changes could not be saved. Please reload the page and try again."
-msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy, python-format
 msgid ""
@@ -11473,6 +11440,51 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
 
+#, fuzzy
+#~ msgid "No subscribers to this event"
+#~ msgstr "El número de teléfono para esta llamada"
+
+#~ msgid "Clear"
+#~ msgstr "Limpiar"
+
+#~ msgid "(one per alias line)"
+#~ msgstr "(uno por línea de apelativo)"
+
+#~ msgid "Alias names must be unique, try again."
+#~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
+
+#~ msgid "Your changes could not be saved. Please reload the page and try again."
+#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Flow Event"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~ msgid "Message Event"
+#~ msgstr "Reintentar el conteo de mensajes"
+
+#, fuzzy
+#~| msgid "Wired"
+#~ msgid "Fired"
+#~ msgstr "Wired"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "The event that will be fired"
+#~ msgstr "El mensaje que se está entregando"
+
+#, fuzzy
+#~| msgid "a unique code associated with this invitation"
+#~ msgid "The contact that is scheduled to have an event run"
+#~ msgstr "un código único asociado con esta invitación"
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "When this event is scheduled to run"
+#~ msgstr "Cuando se creó este mensaje"
+
 #~ msgid "The organization this trigger belongs to"
 #~ msgstr "La organización a la que pertenece este activador"
 
@@ -13646,9 +13658,6 @@ msgstr "Borrar teléfono"
 #, fuzzy
 #~ msgid "When this message was delivered to the final recipient (for incoming messages, when the message was handled)"
 #~ msgstr "Cuando este mensaje se entregó al destinatario final"
-
-#~ msgid "The org this call is connected to"
-#~ msgstr "La organización a la que esta llamada está conectada"
 
 #~ msgid "The duration of this call in seconds, if appropriate"
 #~ msgstr "La duración de esta llamada en segundos, según convenga"

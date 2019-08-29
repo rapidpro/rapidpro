@@ -1985,21 +1985,22 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         # if there are still dependencies, give up
         triggers = instance.trigger_set.filter(is_archived=False)
-        if triggers.count() > 0:
+        if triggers:
+            deps = ", ".join([str(t.id) for t in triggers])
             raise InvalidQueryError(
-                f"This group is used by active triggers. In order to delete it, first archive associated triggers."
+                f"Group is being used by the following triggers which must be archived first: {deps}"
             )
 
         flows = Flow.objects.filter(org=instance.org, group_dependencies__in=[instance])
-        if flows.count():
-            raise InvalidQueryError(
-                f"This group is used by active flows. In order to delete it, first archive flows: {', '.join(str(flow) for flow in flows)}"
-            )
+        if flows:
+            deps = ", ".join([f.uuid for f in flows])
+            raise InvalidQueryError(f"Group is being used by the following flows which must be archived first: {deps}")
 
-        campaigns = instance.campaign_set.filter(is_archived=False)
-        if campaigns.exists():
+        campaigns = instance.campaigns.filter(is_archived=False)
+        if campaigns:
+            deps = ", ".join([c.uuid for c in campaigns])
             raise InvalidQueryError(
-                f"This group is used by active campaigns. In order to delete it, first archive campaigns: {', '.join(str(campaign) for campaign in campaigns)}"
+                f"Group is being used by the following campaigns which must be archived first: {deps}"
             )
 
         self.perform_destroy(instance)
