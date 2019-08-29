@@ -101,28 +101,6 @@ class ChannelTest(TembaTest):
 
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
 
-    def test_expressions_context(self):
-        context = self.tel_channel.build_expressions_context()
-        self.assertEqual(context["__default__"], "+250 785 551 212")
-        self.assertEqual(context["name"], "Test Channel")
-        self.assertEqual(context["address"], "+250 785 551 212")
-        self.assertEqual(context["tel"], "+250 785 551 212")
-        self.assertEqual(context["tel_e164"], "+250785551212")
-
-        context = self.twitter_channel.build_expressions_context()
-        self.assertEqual(context["__default__"], "@billy_bob")
-        self.assertEqual(context["name"], "Twitter Channel")
-        self.assertEqual(context["address"], "@billy_bob")
-        self.assertEqual(context["tel"], "")
-        self.assertEqual(context["tel_e164"], "")
-
-        context = self.unclaimed_channel.build_expressions_context()
-        self.assertEqual(context["__default__"], "Unclaimed Channel")
-        self.assertEqual(context["name"], "Unclaimed Channel")
-        self.assertEqual(context["address"], "")
-        self.assertEqual(context["tel"], "")
-        self.assertEqual(context["tel_e164"], "")
-
     def test_channel_read_with_customer_support(self):
         self.customer_support.is_staff = True
         self.customer_support.save()

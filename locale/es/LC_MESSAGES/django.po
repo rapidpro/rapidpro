@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-22 19:27+0000\n"
+"POT-Creation-Date: 2019-08-28 22:40+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3666,10 +3666,6 @@ msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
 
 msgid "When this ruleset was last modified"
 msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
-
-#, fuzzy
-msgid "No subscribers to this event"
-msgstr "El número de teléfono para esta llamada"
 
 msgid "When this action was originally created"
 msgstr "Cuándo fue la primera vez que se creó esta acción"
@@ -11440,6 +11436,10 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~ msgid "No subscribers to this event"
+#~ msgstr "El número de teléfono para esta llamada"
 
 #, fuzzy
 #~| msgid "Channel Event"

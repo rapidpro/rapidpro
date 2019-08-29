@@ -1,5 +1,7 @@
 import base64
+from collections import OrderedDict
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus
 
@@ -33,7 +35,7 @@ from temba.utils import json
 from temba.values.constants import Value
 
 from . import fields
-from .serializers import format_datetime
+from .serializers import format_datetime, normalize_extra
 
 NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
 
@@ -268,6 +270,23 @@ class APITest(TembaTest):
         self.assertRaises(
             serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
         )  # base lang not provided
+
+    @override_settings(FLOWRUN_FIELDS_SIZE=4)
+    def test_normalize_extra(self):
+        self.assertEqual(OrderedDict(), normalize_extra({}))
+        self.assertEqual(
+            OrderedDict([("0", "a"), ("1", True), ("2", Decimal("1.0")), ("3", "")]),
+            normalize_extra(["a", True, Decimal("1.0"), None]),
+        )
+        self.assertEqual(OrderedDict([("_3__x", "z")]), normalize_extra({"%3 !x": "z"}))
+        self.assertEqual(
+            OrderedDict([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]), normalize_extra(["a", "b", "c", "d", "e"])
+        )
+        self.assertEqual(
+            OrderedDict([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
+            normalize_extra({"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
+        )
+        self.assertEqual(OrderedDict([("a", "x" * 640)]), normalize_extra({"a": "x" * 641}))
 
     def test_authentication(self):
         def api_request(endpoint, token):

@@ -822,22 +822,6 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_expressions_context(self):
-        from temba.contacts.models import TEL_SCHEME
-
-        address = self.get_address_display()
-        default = address if address else str(self)
-
-        # for backwards compatibility
-        if TEL_SCHEME in self.schemes:
-            tel = address
-            tel_e164 = self.get_address_display(e164=True)
-        else:
-            tel = ""
-            tel_e164 = ""
-
-        return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
-
     def build_registration_command(self):
         # create a claim code if we don't have one
         if not self.claim_code:
