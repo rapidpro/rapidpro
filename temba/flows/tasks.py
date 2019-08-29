@@ -46,12 +46,6 @@ def update_run_expirations_task(flow_id):
             run.update_expiration(last_arrived_on)
 
 
-@task(track_started=True, name="continue_parent_flows")  # pragma: no cover
-def continue_parent_flows(run_ids):
-    runs = FlowRun.objects.filter(pk__in=run_ids)
-    FlowRun.continue_parent_flow_runs(runs)
-
-
 @task(track_started=True, name="export_flow_results_task")
 def export_flow_results_task(export_id):
     """

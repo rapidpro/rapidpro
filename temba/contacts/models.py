@@ -2035,43 +2035,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             contact.org = org
             setattr(contact, "__cache_initialized", True)
 
-    def build_expressions_context(self):
-        """
-        Builds a dictionary suitable for use in variable substitution in messages.
-        """
-        self.initialize_cache()
-
-        org = self.org
-        context = {
-            "__default__": self.get_display(for_expressions=True),
-            Contact.NAME: self.name or "",
-            Contact.FIRST_NAME: self.first_name(org),
-            Contact.LANGUAGE: self.language,
-            "tel_e164": self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-            "groups": ",".join([_.name for _ in self.cached_user_groups]),
-            "uuid": self.uuid,
-            "created_on": self.created_on.isoformat(),
-        }
-
-        # anonymous orgs also get @contact.id
-        if org.is_anon:
-            context["id"] = self.id
-
-        # add all URNs
-        for scheme, label in ContactURN.SCHEME_CHOICES:
-            context[scheme] = self.get_urn_context(org, scheme=scheme)
-
-        # populate twitter address if we have a twitter id
-        if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
-            context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
-
-        # add all active fields to our context
-        for field in ContactField.user_fields.active_for_org(org=self.org):
-            field_value = self.get_field_serialized(field)
-            context[field.key] = field_value if field_value is not None else ""
-
-        return context
-
     def first_name(self, org):
         if not self.name:
             return self.get_urn_display(org)
@@ -2302,18 +2265,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return truncate(res, 20) if short else res
 
-    def get_urn_context(self, org, scheme=None):
-        """
-        Returns a dictionary suitable for use in an expression context for the URN mapping to the
-        passed in scheme.
-        """
-        urn = self.get_urn(scheme)
-
-        if not urn:
-            return ""
-
-        return urn.build_expressions_context(org)
-
     def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
@@ -2519,18 +2470,6 @@ class ContactURN(models.Model):
                 return twitterid_urn
 
         return existing
-
-    def build_expressions_context(self, org):
-        if org.is_anon:
-            return {
-                "__default__": ContactURN.ANON_MASK,
-                "scheme": self.scheme,
-                "path": ContactURN.ANON_MASK,
-                "display": ContactURN.ANON_MASK,
-                "urn": ContactURN.ANON_MASK,
-            }
-        display = self.get_display(org=org, formatted=True, international=False)
-        return {"__default__": display, "scheme": self.scheme, "path": self.path, "display": display, "urn": self.urn}
 
     def release(self):
         for event in ChannelEvent.objects.filter(contact_urn=self):

@@ -1,6 +1,12 @@
+import numbers
+from collections import OrderedDict
+
 import iso8601
 import pytz
+import regex
 from rest_framework import serializers
+
+from django.conf import settings
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -18,12 +24,62 @@ from temba.values.constants import Value
 from . import fields
 from .validators import UniqueForOrgValidator
 
+INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
+
 
 def format_datetime(value):
     """
     Datetime fields are formatted with microsecond accuracy for v2
     """
     return json.encode_datetime(value, micros=True) if value else None
+
+
+def normalize_extra(extra):
+    """
+    Normalizes a dict of extra passed to the flow start endpoint. We need to do this for backwards compatibility with
+    old engine.
+    """
+
+    return _normalize_extra(extra, -1)[0]
+
+
+def _normalize_extra(extra, count):
+    def normalize_key(key):
+        return INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
+
+    if isinstance(extra, str):
+        return extra[: Value.MAX_VALUE_LEN], count + 1
+
+    elif isinstance(extra, numbers.Number) or isinstance(extra, bool):
+        return extra, count + 1
+
+    elif isinstance(extra, dict):
+        count += 1
+        normalized = OrderedDict()
+        for (k, v) in extra.items():
+            (normalized[normalize_key(k)], count) = _normalize_extra(v, count)
+
+            if count >= settings.FLOWRUN_FIELDS_SIZE:
+                break
+
+        return normalized, count
+
+    elif isinstance(extra, list):
+        count += 1
+        normalized = OrderedDict()
+        for (i, v) in enumerate(extra):
+            (normalized[str(i)], count) = _normalize_extra(v, count)
+
+            if count >= settings.FLOWRUN_FIELDS_SIZE:
+                break
+
+        return normalized, count
+
+    elif extra is None:
+        return "", count + 1
+
+    else:  # pragma: no cover
+        raise ValueError("Unsupported type %s in extra" % str(type(extra)))
 
 
 class ReadSerializer(serializers.ModelSerializer):
@@ -890,10 +946,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Must be a valid JSON object")
 
-        if not value:  # pragma: needs cover
-            return None
-        else:
-            return FlowRun.normalize_fields(value)[0]
+        return normalize_extra(value)
 
     def validate(self, data):
         # need at least one of urns, groups or contacts
