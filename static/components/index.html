@@ -26,9 +26,11 @@
 
         /* page text, borders, widgets */
         --color-text: #666;
-        --color-borders: #ccc;
-        --color-widget-bg: #f2f6fa;
-        --color-widget-hover: #e8ebef;
+        --color-borders: rgba(0,0,0,.07);
+        --color-widget-bg: rgba(0, 0, 0, 0.04);
+        --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+        --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
+        --color-widget-border: transparent;
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -66,12 +68,24 @@
       }
     </style>
 
-    <alias-editor
+    <div style="width: 100%">
+      <rp-textinput placeholder="boo"></rp-textinput>
+    </div>
+    
+    <br/>
+    <div style="height: 150px; width: 100%">
+      <rp-textinput placeholder="yaa" textarea></rp-textinput>
+    </div>
+    
+    <br/>
+    <div style="height: 150px; width: 100%">
+      <rp-completion placeholder="you complete me" textarea></rp-completion>
+    </div>
+  
+    <!--alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
-    ></alias-editor>
-
-    <!-- rp-completion></rp-completion-->
+    ></alias-editor-->
       
     
     

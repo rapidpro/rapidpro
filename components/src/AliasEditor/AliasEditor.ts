@@ -1,17 +1,9 @@
-import './../LeafletMap/LeafletMap';
-import './../Dialog/Dialog';
-import './../Choice/Choice';
-import './../Label/Label';
-import '../VectorIcon/VectorIcon';
-
 import { AxiosResponse } from 'axios';
 import { css, customElement, html, LitElement, property, TemplateResult } from 'lit-element';
-
 import { FeatureProperties } from '../interfaces';
 import { getUrl, postUrl } from '../utils';
-import Button from '../Button/Button';
 import autosize from 'autosize';
-
+import Button from '../button/Button';
 
 @customElement("alias-editor")
 export default class AliasEditor extends LitElement {
@@ -366,7 +358,7 @@ export default class AliasEditor extends LitElement {
 
       <rp-dialog id="alias-dialog" 
         title="Aliases for ${editFeatureName}" 
-        primaryButtonName="Save" 
+        primaryButtonName="Save"
         .onButtonClicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">

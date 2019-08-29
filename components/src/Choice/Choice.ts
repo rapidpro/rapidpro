@@ -1,7 +1,7 @@
 import { customElement, TemplateResult, html, css, property } from 'lit-element';
 import { getUrl } from '../utils';
 import axios, { AxiosResponse, CancelTokenSource } from 'axios';
-import '../Options/Options';
+import '../options/Options';
 import RapidElement, { EventHandler } from '../RapidElement';
 import { CustomEventType } from '../interfaces';
 
@@ -177,7 +177,7 @@ export default class Choice extends RapidElement {
         @blur=${this.handleBlur} 
         @focus=${this.handleFocus} 
         .value=${this.input}  
-        placeholder="${this.placeholder}"
+        placeholder=${this.placeholder}
       ></rp-textinput>
       <rp-options
         cursorIndex=${this.cursorIndex}

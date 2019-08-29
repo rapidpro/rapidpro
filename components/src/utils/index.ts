@@ -1,8 +1,5 @@
 import axios, { AxiosResponse, CancelToken, AxiosRequestConfig } from 'axios';
 import { html, TemplateResult } from 'lit-html';
-import { LitElement } from 'lit-element';
-import { CustomEventType } from '../interfaces';
-import { rejects } from 'assert';
 
 /** Get the value for a named cookie */
 export const getCookie = (name: string): string => {

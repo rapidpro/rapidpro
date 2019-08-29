@@ -1,7 +1,6 @@
 import { customElement, property } from 'lit-element/lib/decorators';
 import { LitElement, TemplateResult, html, css } from 'lit-element';
-import "./../Button/Button";
-import Button from './../Button/Button';
+import Button from '../button/Button';
 
 @customElement("rp-dialog")
 export default class Dialog extends LitElement {

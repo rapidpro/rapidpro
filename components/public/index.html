@@ -29,7 +29,7 @@
         --color-borders: rgba(0,0,0,.07);
         --color-widget-bg: rgba(0, 0, 0, 0.04);
         --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
-        --color-widget-shadow-focused: rgba(0, 0, 0, 0.06) 0px 0px 2px 0px inset;
+        --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
         --color-widget-border: transparent;
 
         /* light colors, panel backgrounds, selection, etc */
@@ -68,22 +68,24 @@
       }
     </style>
 
-    <!--div style="height: 150px; width: 100%">
-      <rp-textinput></rp-textinput>
+    <div style="width: 100%">
+      <rp-textinput placeholder="boo"></rp-textinput>
     </div>
-
+    
+    <br/>
     <div style="height: 150px; width: 100%">
-      <rp-textinput textarea></rp-textinput>
+      <rp-textinput placeholder="yaa" textarea></rp-textinput>
     </div>
-
+    
+    <br/>
     <div style="height: 150px; width: 100%">
-      <rp-textinput textarea></rp-textinput>
-    </div-->
+      <rp-completion placeholder="you complete me" textarea></rp-completion>
+    </div>
   
-    <alias-editor
+    <!--alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
-    ></alias-editor>
+    ></alias-editor-->
       
     <script type="module" src="../src/rp-components.js"></script>
     <script defer src="/sitestatic/fonts/temba/svgxuse.js"></script>

@@ -10,7 +10,6 @@ export default class TextInput extends RapidElement {
         border-radius: 5px;
         overflow: hidden;
         cursor: pointer;
-
         background: var(--color-widget-bg);
         border: 1px solid var(--color-widget-border);
         box-shadow: none;
@@ -18,9 +17,9 @@ export default class TextInput extends RapidElement {
       }
 
       .input-container:focus-within {
-        border-color: 1px solid var(--color-widget-border);
-        box-shadow: var(--color-widget-shadow-focused);
+        border-color: var(--color-widget-border);
         background: var(--color-widget-bg-focused);
+        box-shadow: var(--color-widget-shadow-focused) 1px 1px 6px 0px inset;
       }
 
       .input-container:hover {
@@ -55,16 +54,17 @@ export default class TextInput extends RapidElement {
   textarea: boolean;
 
   @property({type: String})
-  value: string;
+  value: string = '';
 
   @property({type: String})
-  placeholder: string;
+  placeholder: string = '';
 
-  private handleKeyUp(evt: KeyboardEvent) {
+  private handleKeyDown(evt: KeyboardEvent) {
     this.value = (evt.target as HTMLInputElement).value.trim();
   }
   
   public render(): TemplateResult {
+    console.log("placeholder:", this.placeholder);
     return html`
     <style>
       .input-container {
@@ -73,9 +73,16 @@ export default class TextInput extends RapidElement {
     </style>
     <div class="input-container" @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>\
       ${this.textarea ? html`
-        <textarea class="textinput" .value=${this.value} @keyup=${this.handleKeyUp} placeholder=${this.placeholder}></textarea>
+        <textarea class="textinput" 
+          .value=${this.value} 
+          @keyDown=${this.handleKeyDown} 
+          placeholder=${this.placeholder}>
+        </textarea>
       ` : html`
-        <input class="textinput" .value=${this.value} @keyup=${this.handleKeyUp} placeholder=${this.placeholder}>
+        <input class="textinput" 
+          .value=${this.value} 
+          @keyDown=${this.handleKeyDown} 
+          placeholder=${this.placeholder}>
       `}
     </div>
     `;
