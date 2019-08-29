@@ -1,3 +1,8 @@
+v5.1.27
+----------
+ * Update to floweditor 1.6.13
+ * Allow viewers to do GETs on some API endpoints
+
 v5.1.26
 ----------
  * Fix rendering of campaign and event names in UI
