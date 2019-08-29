@@ -9,7 +9,6 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-SECRET_KEY}
-      - BRANDING=${BRANDING:-A=1,A=2}
       - EMAIL_HOST=${EMAIL_HOST:-localhost}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER:-admin@localhost.com}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-password}

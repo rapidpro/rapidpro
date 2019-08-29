@@ -1,5 +1,6 @@
 import environ
 import sentry_sdk
+
 from django.utils.translation import ugettext_lazy as _  # noqa
 from sentry_sdk.integrations.django import DjangoIntegration
 from .settings_common import *  # noqa
@@ -23,33 +24,33 @@ SEND_AIRTIME = env.bool("SEND_AIRTIME", default=True)
 SEND_CALLS = env.bool("SEND_CALLS", default=True)
 SEND_CHATBASE = env.bool("SEND_CHATBASE", default=True)
 
-# BRANDING = env.dict("BRANDING")  #  TODO
 BRANDING = {
-    "rapidpro.ilhasoft.dev": {
-        "slug": "rapidpro",
-        "name": "RapidPro",
-        "org": "UNICEF",
-        "colors": dict(primary="#0c6596"),
-        "styles": ["brands/rapidpro/font/style.css", "brands/rapidpro/less/style.less"],
+    "rapidpro.io": {
+        "slug": "push",
+        "name": "Push",
+        "org": "Ilhasoft",
+        "colors": dict(primary="#231859"),
+        "styles": ["brands/push/font/style.css", "brands/push/less/style.less"],
         "welcome_topup": 1000,
-        "email": "join@rapidpro.io",
-        "support_email": "support@rapidpro.io",
-        "link": "https://rapidpro.ilhasoft.dev",
-        "api_link": "https://rapidpro.ilhasoft.dev",
-        "docs_link": "http://knowledge.rapidpro.io",
-        "domain": "rapidpro.ilhasoft.dev",
-        "favico": "brands/rapidpro/rapidpro.ico",
-        "splash": "/brands/rapidpro/splash.jpg",
-        "logo": "/brands/rapidpro/logo.png",
+        "email": "support@ilhasoft.com.br",
+        "support_email": "support@ilhasoft.com.br",
+        "link": "https://new.push.al",
+        "api_link": "https://new.push.al/api/v2/explorer",
+        "docs_link": "https://docs.ilhasoft.mobi",
+        "domain": "new.push.al",
+        "favico": "brands/push/push.ico",
+        "splash": "brands/push/splash.jpg",
+        "logo": "brands/push/logo.png",
         "allow_signups": True,
-        "tiers": dict(multi_user=0, multi_org=0),
+        "flow_types": ["M", "V", "S"],
+        "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
         "bundles": [],
-        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
-        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved."),
+        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=1000000, name="Normal Account")],
+        "description": " ",
+        "credits": "Copyright &copy; 2012-2017 Ilhasoft. All Rights Reserved.",
     }
 }
-DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.ilhasoft.dev")
+DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.io")
 HOSTNAME = DEFAULT_BRAND
 
 # EMAIL
@@ -66,7 +67,8 @@ FLOW_FROM_EMAIL = DEFAULT_FROM_EMAIL
 # ------------------------------------------------------------------------------
 COMPRESS_ENABLED = env.bool("COMPRESS_ENABLED", default=True)
 COMPRESS_OFFLINE = env.bool("COMPRESS_OFFLINE", default=True)
-COMPRESS_CSS_FILTERS = ["compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"]
+COMPRESS_CSS_FILTERS = [
+    "compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"]
 COMPRESS_JS_FILTERS = ["compressor.filters.jsmin.JSMinFilter"]
 COMPRESS_CSS_HASHING_METHOD = "content"
 COMPRESS_OFFLINE_CONTEXT = dict(
@@ -135,7 +137,8 @@ AWS_QUERYSTRING_AUTH = env.bool("AWS_QUERYSTRING_AUTH", default=False)
 AWS_BUCKET_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 STORAGE_URL = f"https://{AWS_BUCKET_DOMAIN}"
 
-DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE", default="storages.backends.s3boto3.S3Boto3Storage")
+DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE",
+                           default="storages.backends.s3boto3.S3Boto3Storage")
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # CELERY
@@ -166,7 +169,8 @@ INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django")
 
 # SENTRY
 # ------------------------------------------------------------------------------
-sentry_sdk.init(dsn=env("SENTRY_DSN", default=""), integrations=[DjangoIntegration()])
+sentry_sdk.init(dsn=env("SENTRY_DSN", default=""),
+                integrations=[DjangoIntegration()])
 
 # LOGGING
 # ------------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+node_modules
+sitestatic
+env
+.env
+static/brands/
