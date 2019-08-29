@@ -4424,7 +4424,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
 
-        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
 
     def test_parse_datetime(self):
         self.assertEqual(self.org.parse_datetime("Not num"), None)
@@ -4433,4 +4433,4 @@ class ParsingTest(TembaTest):
             datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
         )
 
-        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())
+        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())

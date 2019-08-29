@@ -38,7 +38,7 @@ from temba.tests import AnonymousOrg, ESMockWithScroll, ESMockWithScrollMultiple
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_ms, datetime_to_str, get_datetime_format
+from temba.utils.dates import datetime_to_ms, datetime_to_str
 from temba.utils.es import ES
 from temba.values.constants import Value
 
@@ -6639,15 +6639,28 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.get_display(self.org, international=True), "+250 788 383 383")
         self.assertEqual(urn.get_display(self.org, formatted=False, international=True), "+250788383383")
 
+        # friendly tel formatting for whatsapp too
+        urn = ContactURN.objects.create(
+            org=self.org, scheme="whatsapp", path="12065551212", identity="whatsapp:12065551212", priority=50
+        )
+        self.assertEqual(urn.get_display(self.org), "(206) 555-1212")
+
+        # use path for other schemes
         urn = ContactURN.objects.create(
             org=self.org, scheme="twitter", path="billy_bob", identity="twitter:billy_bob", priority=50
         )
         self.assertEqual(urn.get_display(self.org), "billy_bob")
 
+        # unless there's a display property
         urn = ContactURN.objects.create(
-            org=self.org, scheme="whatsapp", path="12065551212", identity="whatsapp:12065551212", priority=50
+            org=self.org,
+            scheme="twitter",
+            path="jimmy_john",
+            identity="twitter:jimmy_john",
+            priority=50,
+            display="JIM",
         )
-        self.assertEqual(urn.get_display(self.org), "(206) 555-1212")
+        self.assertEqual(urn.get_display(self.org), "JIM")
 
 
 class ContactFieldTest(TembaTest):
@@ -8105,7 +8118,7 @@ class ESIntegrationTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
         names = ["Trey", "Mike", "Paige", "Fish", "", None]
         districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
         wards = ["Kageyo", "Kabara", "Bukure", None]
-        date_format = get_datetime_format(True)[0]
+        date_format = self.org.get_datetime_formats()[0]
 
         # reset contact ids so we don't get unexpected collisions with phone numbers
         with connection.cursor() as cursor:

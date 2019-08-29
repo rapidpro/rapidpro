@@ -40,7 +40,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
+from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
@@ -952,27 +952,35 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == Org.DATE_FORMAT_DAY_FIRST
 
-    def format_datetime(self, datetime, show_time=True):
+    def get_datetime_formats(self):
+        if self.date_format == Org.DATE_FORMAT_DAY_FIRST:
+            format_date = "%d-%m-%Y"
+        else:
+            format_date = "%m-%d-%Y"
+
+        format_datetime = format_date + " %H:%M"
+
+        return format_date, format_datetime
+
+    def format_datetime(self, d, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
-        formats = get_datetime_format(self.get_dayfirst())
+        formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, self.timezone)
+        return datetime_to_str(d, format, self.timezone)
 
-    def parse_datetime(self, datetime_string):
-        if not (isinstance(datetime_string, str)):
-            raise ValueError(f"parse_datetime called with param of type: {type(datetime_string)}, expected string")
+    def parse_datetime(self, s):
+        assert isinstance(s, str)
 
-        return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
+        return str_to_datetime(s, self.timezone, self.get_dayfirst())
 
-    def parse_number(self, decimal_string):
-        if not (isinstance(decimal_string, str)):
-            raise ValueError(f"parse_number called with param of type: {type(decimal_string)}, expected string")
+    def parse_number(self, s):
+        assert isinstance(s, str)
 
         parsed = None
         try:
-            parsed = Decimal(decimal_string)
+            parsed = Decimal(s)
 
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None
@@ -1039,7 +1047,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, str):
+        if not self.country_id or not isinstance(location_string, str):  # pragma: no cover
             return []
 
         boundary = None
@@ -2017,10 +2025,7 @@ class Org(SmartModel):
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-
-            # we want to manually release runs so we dont fire a task to do it
             flow.release()
-            flow.release_runs()
 
             for rev in flow.revisions.all():
                 rev.release()

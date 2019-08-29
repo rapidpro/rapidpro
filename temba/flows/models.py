@@ -608,34 +608,6 @@ class Flow(TembaModel):
     def as_select2(self):
         return dict(id=self.uuid, text=self.name)
 
-    def release(self):
-        """
-        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
-        We keep FlowRevisions and FlowStarts however.
-        """
-
-        self.is_active = False
-        self.save(update_fields=("is_active",))
-
-        # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
-        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
-            event.release()
-
-        # release any triggers that depend on this flow
-        for trigger in self.triggers.all():
-            trigger.release()
-
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
-        self.channel_dependencies.clear()
-        self.label_dependencies.clear()
-
-        # queue mailroom to interrupt sessions where contact is currently in this flow
-        mailroom.queue_interrupt(self.org, flow=self)
-
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
         counts = (
@@ -676,23 +648,6 @@ class Flow(TembaModel):
                 result_list.append(result)
 
         return dict(counts=result_list)
-
-    def release_runs(self):
-        """
-        Exits all flow runs
-        """
-
-        # grab the ids of all our runs
-        run_ids = self.runs.all().values_list("id", flat=True)
-
-        # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
-            runs = FlowRun.objects.filter(id__in=id_batch)
-            for run in runs:
-                run.release()
-
-        # clear all our cached stats
-        self.clear_props_cache()
 
     def clear_props_cache(self):
         r = get_redis_connection()
@@ -1750,6 +1705,34 @@ class Flow(TembaModel):
 
         self.label_dependencies.clear()
         self.label_dependencies.add(*labels)
+
+    def release(self):
+        """
+        Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
+        We keep FlowRevisions and FlowStarts however.
+        """
+
+        self.is_active = False
+        self.save(update_fields=("is_active",))
+
+        # release any campaign events that depend on this flow
+        from temba.campaigns.models import CampaignEvent
+
+        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
+            event.release()
+
+        # release any triggers that depend on this flow
+        for trigger in self.triggers.all():
+            trigger.release()
+
+        self.group_dependencies.clear()
+        self.flow_dependencies.clear()
+        self.field_dependencies.clear()
+        self.channel_dependencies.clear()
+        self.label_dependencies.clear()
+
+        # queue mailroom to interrupt sessions where contact is currently in this flow
+        mailroom.queue_interrupt(self.org, flow=self)
 
     def __str__(self):
         return self.name

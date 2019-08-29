@@ -12,7 +12,7 @@ from temba_expressions.evaluator import (
 from django.utils import timezone
 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME, Contact, ContactField, ContactURN
-from temba.utils.dates import datetime_to_str, get_datetime_format
+from temba.utils.dates import datetime_to_str
 
 ALLOWED_TOP_LEVELS = ("channel", "contact", "date", "extra", "flow", "step", "parent", "child")
 
@@ -46,7 +46,7 @@ def evaluate(text, context, org=None, url_encode=False, partial_vars=False):
         dayfirst = org.get_dayfirst()
         tz = org.timezone
 
-    (format_date, format_time) = get_datetime_format(dayfirst)
+    (format_date, format_time) = org.get_datetime_formats()
 
     now = timezone.now().astimezone(tz)
 
@@ -183,7 +183,7 @@ def urn_context(urn, org):
 
 
 def msg_context(msg):
-    date_format = get_datetime_format(msg.org.get_dayfirst())[1]
+    date_format = msg.org.get_datetime_formats()[1]
     value = str(msg)
     attachments = {str(a): attachment.url for a, attachment in enumerate(msg.get_attachments())}
 

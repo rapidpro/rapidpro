@@ -228,17 +228,6 @@ def str_to_time(value):
     return None
 
 
-def get_datetime_format(dayfirst):
-    if dayfirst:
-        format_date = "%d-%m-%Y"
-    else:
-        format_date = "%m-%d-%Y"
-
-    format_time = format_date + " %H:%M"
-
-    return format_date, format_time
-
-
 def datetime_to_ms(dt):
     """
     Converts a datetime to a millisecond accuracy timestamp
