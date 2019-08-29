@@ -1734,6 +1734,23 @@ class Flow(TembaModel):
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
 
+    def release_runs(self):
+        """
+        Exits all flow runs
+        """
+
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list("id", flat=True)
+
+        # batch this for 1,000 runs at a time so we don't grab locks for too long
+        for id_batch in chunk_list(run_ids, 1000):
+            runs = FlowRun.objects.filter(id__in=id_batch)
+            for run in runs:
+                run.release()
+
+        # clear all our cached stats
+        self.clear_props_cache()
+
     def __str__(self):
         return self.name
 

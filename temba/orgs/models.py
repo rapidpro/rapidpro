@@ -1995,7 +1995,7 @@ class Org(SmartModel):
 
         # might be a lot of messages, batch this
         for id_batch in chunk_list(msg_ids, 1000):
-            for msg in self.msgs.filter(id__in=msg_ids):
+            for msg in self.msgs.filter(id__in=id_batch):
                 msg.release()
 
         # our system label counts
@@ -2007,6 +2007,22 @@ class Org(SmartModel):
 
         # any airtime transfers associate with us go away
         self.airtime_transfers.all().delete()
+
+        # delete everything associated with our flows
+        for flow in self.flows.all():
+
+            # we want to manually release runs so we dont fire a task to do it
+            flow.release()
+            flow.release_runs()
+
+            for rev in flow.revisions.all():
+                rev.release()
+
+            flow.rule_sets.all().delete()
+            flow.action_sets.all().delete()
+            flow.counts.all().delete()
+
+            flow.delete()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -2022,19 +2038,6 @@ class Org(SmartModel):
         for group in self.all_groups.all():
             group.release()
             group.delete()
-
-        # delete everything associated with our flows
-        for flow in self.flows.all():
-            flow.release()
-
-            for rev in flow.revisions.all():
-                rev.release()
-
-            flow.rule_sets.all().delete()
-            flow.action_sets.all().delete()
-            flow.counts.all().delete()
-
-            flow.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
