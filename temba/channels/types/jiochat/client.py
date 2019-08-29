@@ -8,12 +8,12 @@ from temba.utils import json
 from temba.utils.http import HttpEvent, http_headers
 
 
-class APIClient:
-    API_NAME = None
-    API_SLUG = None
-    TOKEN_REFRESH_LOCK = None
-    TOKEN_STORE_KEY = None
-    TOKEN_URL = None
+class JioChatClient:
+    api_name = "JioChat"
+    api_slug = "jiochat"
+    token_url = "https://channels.jiochat.com/auth/token.action"
+    token_refresh_lock = "jiochat_channel_access_token:refresh-lock:%s"
+    token_store_key = "jiochat_channel_access_token:%s"
 
     def __init__(self, channel_uuid, app_id, app_secret):
         self.channel_uuid = channel_uuid
@@ -23,29 +23,33 @@ class APIClient:
     @classmethod
     def from_channel(cls, channel):
         config = channel.config
-        app_id = config.get("%s_app_id" % cls.API_SLUG, None)
-        app_secret = config.get("%s_app_secret" % cls.API_SLUG, None)
+        app_id = config.get("%s_app_id" % cls.api_slug, None)
+        app_secret = config.get("%s_app_secret" % cls.api_slug, None)
         return cls(channel.uuid, app_id, app_secret)
 
     def get_access_token(self):
         r = get_redis_connection()
-        lock_name = self.TOKEN_REFRESH_LOCK % self.channel_uuid
+        lock_name = self.token_refresh_lock % self.channel_uuid
 
         with r.lock(lock_name, timeout=5):
-            key = self.TOKEN_STORE_KEY % self.channel_uuid
+            key = self.token_store_key % self.channel_uuid
             access_token = r.get(key)
             return access_token
 
     def refresh_access_token(self, channel_id):
         r = get_redis_connection()
-        lock_name = self.TOKEN_REFRESH_LOCK % self.channel_uuid
+        lock_name = self.token_refresh_lock % self.channel_uuid
 
         if not r.get(lock_name):
             with r.lock(lock_name, timeout=30):
-                key = self.TOKEN_STORE_KEY % self.channel_uuid
+                key = self.token_store_key % self.channel_uuid
 
-                post_data = dict(grant_type="client_credentials", client_id=self.app_id, client_secret=self.app_secret)
-                url = self.TOKEN_URL
+                post_data = {
+                    "grant_type": "client_credentials",
+                    "client_id": self.app_id,
+                    "client_secret": self.app_secret,
+                }
+                url = self.token_url
 
                 event = HttpEvent("POST", url, json.dumps(post_data))
                 start = time.time()
@@ -56,14 +60,14 @@ class APIClient:
                 if response.status_code != 200:
                     event.response_body = response.content
                     ChannelLog.log_channel_request(
-                        channel_id, "Got non-200 response from %s" % self.API_NAME, event, start, True
+                        channel_id, f"Got non-200 response from {self.api_name}", event, start, True
                     )
                     return
 
                 response_json = response.json()
                 event.response_body = json.dumps(response_json)
                 ChannelLog.log_channel_request(
-                    channel_id, "Successfully fetched access token from %s" % self.API_NAME, event, start
+                    channel_id, f"Successfully fetched access token from {self.api_name}", event, start
                 )
 
                 access_token = response_json["access_token"]

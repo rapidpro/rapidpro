@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-20 15:39+0000\n"
+"POT-Creation-Date: 2019-08-28 22:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1131,10 +1131,10 @@ msgstr ""
 msgid "Token"
 msgstr ""
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -1996,7 +1996,7 @@ msgstr ""
 msgid "External identifier"
 msgstr ""
 
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr ""
 
 msgid "WeChat identifier"
@@ -2462,9 +2462,6 @@ msgstr ""
 msgid "When this ruleset was last modified"
 msgstr ""
 
-msgid "No subscribers to this event"
-msgstr ""
-
 msgid "When this action was originally created"
 msgstr ""
 
@@ -2597,6 +2594,9 @@ msgstr ""
 
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgstr ""
+
+msgid "You don't have permission to edit this flow"
 msgstr ""
 
 msgid "Your flow failed validation. Please refresh your browser."

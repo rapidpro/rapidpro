@@ -1,4 +1,4 @@
--load humanize
+-load humanize channels
 
 .log<
   .summary{id:"{{log.id}}"}
@@ -17,14 +17,11 @@
         {{ log.response_status }}
     %span.url
       %span.method= log.method
-      -if log.method == 'GET'
-        {{ log.get_url_host }}
-      -else
-        {{ log.url }}
+        {% channellog_url log %}
   .details.hide
     %pre.prettyprint.request<
       :plain
-        {{ log.get_request_formatted|default:"" }}
+        {% channellog_request log %}
     %pre.prettyprint.response<
       :plain
-        {{log.get_response_formatted}}
+        {% channellog_response log %}

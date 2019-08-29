@@ -1,17 +1,19 @@
 from unittest.mock import patch
 
+from twython import TwythonError
+
 from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import URN
 from temba.tests import TembaTest
-from temba.utils.twitter import TwythonError
 
 from ...models import Channel
+from .client import TwitterClient
 from .tasks import resolve_twitter_ids
 
 
-class TwitterActivityTypeTest(TembaTest):
+class TwitterTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -35,10 +37,10 @@ class TwitterActivityTypeTest(TembaTest):
         )
 
     @override_settings(IS_PROD=True)
-    @patch("temba.utils.twitter.TembaTwython.get_webhooks")
-    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
-    @patch("temba.utils.twitter.TembaTwython.subscribe_to_webhook")
-    @patch("temba.utils.twitter.TembaTwython.register_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.get_webhooks")
+    @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.subscribe_to_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.register_webhook")
     @patch("twython.Twython.verify_credentials")
     def test_claim(
         self,
@@ -51,11 +53,11 @@ class TwitterActivityTypeTest(TembaTest):
         mock_get_webhooks.return_value = [{"id": "webhook_id"}]
         mock_delete_webhook.return_value = {"ok", True}
 
-        url = reverse("channels.types.twitter_activity.claim")
+        url = reverse("channels.types.twitter.claim")
         self.login(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "/channels/types/twitter_activity/claim")
+        self.assertContains(response, "/channels/types/twitter/claim")
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -139,7 +141,7 @@ class TwitterActivityTypeTest(TembaTest):
         mock_subscribe_to_webhook.assert_called_with("beta")
 
     @override_settings(IS_PROD=True)
-    @patch("temba.utils.twitter.TembaTwython.delete_webhook")
+    @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release()
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
@@ -203,3 +205,48 @@ class TwitterActivityTypeTest(TembaTest):
 
         self.sarah.refresh_from_db()
         self.assertFalse(self.sarah.is_stopped)
+
+
+class TwitterClientTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.client = TwitterClient("APIKEY", "APISECRET", "ACCESSTOKEN", "ACCESSTOKENSECRET")
+
+    @patch("twython.Twython.request")
+    def test_get_webhooks(self, mock_request):
+        self.client.get_webhooks("temba")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks.json", params=None, version="1.1"
+        )
+
+    @patch("twython.Twython.request")
+    def test_delete_webhook(self, mock_request):
+        self.client.delete_webhook("temba", "1234")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks/1234.json", method="DELETE"
+        )
+
+    @patch("twython.Twython.request")
+    def test_register_webhook(self, mock_request):
+        self.client.register_webhook("temba", "http://temba.com/mycallback.asp")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/webhooks.json?url=http%3A%2F%2Ftemba.com%2Fmycallback.asp",
+            "POST",
+            params=None,
+            version="1.1",
+        )
+
+    @patch("twython.Twython.request")
+    def test_subscribe_to_webhook(self, mock_request):
+        self.client.subscribe_to_webhook("temba")
+
+        mock_request.assert_called_once_with(
+            "https://api.twitter.com/1.1/account_activity/all/temba/subscriptions.json",
+            "POST",
+            params=None,
+            version="1.1",
+        )

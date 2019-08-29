@@ -19,6 +19,7 @@ from django.core.management.base import CommandParser
 from django.db import connection, transaction
 from django.utils import timezone
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -33,7 +34,7 @@ from temba.contacts.models import (
     ContactGroupCount,
     ContactURN,
 )
-from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.flows.models import Flow, FlowStart
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
@@ -813,8 +814,7 @@ class Command(BaseCommand):
 
         org.cache["activity"] = None
 
-        runs = FlowRun.objects.filter(org=org, is_active=True)
-        FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
+        mailroom.queue_interrupt(org, contacts=org.contacts.all())
 
     def create_flow_run(self, org):
         activity = org.cache["activity"]

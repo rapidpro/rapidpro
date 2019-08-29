@@ -14,7 +14,6 @@ import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
 from smartmin.tests import SmartminTestMixin
-from temba_expressions.evaluator import DateStyle, EvaluationContext
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -35,7 +34,16 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json
 from temba.utils.json import TembaJsonAdapter
 
-from . import chunk_list, dict_to_struct, format_number, get_country_code_by_name, percentage, sizeof_fmt, str_to_bool
+from . import (
+    chunk_list,
+    dict_to_struct,
+    format_number,
+    get_country_code_by_name,
+    percentage,
+    redact,
+    sizeof_fmt,
+    str_to_bool,
+)
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .currencies import currency_for_country
@@ -51,13 +59,6 @@ from .dates import (
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
-from .expressions import (
-    _build_function_signature,
-    evaluate_template,
-    evaluate_template_compat,
-    get_function_listing,
-    migrate_template,
-)
 from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
@@ -869,292 +870,6 @@ class CeleryTest(TembaTest):
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
 
 
-class ExpressionsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        contact = self.create_contact("Joe Blow", "123", language="eng")
-
-        variables = dict()
-        variables["contact"] = contact.build_expressions_context()
-        variables["flow"] = dict(
-            water_source="Well",  # key with underscore
-            blank="",  # blank string
-            arabic="اثنين ثلاثة",  # RTL chars
-            english="two three",  # LTR chars
-            urlstuff=" =&\u0628",  # stuff that needs URL encoding
-            users=5,  # numeric as int
-            count="5",  # numeric as string
-            average=2.5,  # numeric as float
-            joined=datetime.datetime(2014, 12, 1, 9, 0, 0, 0, timezone.utc),  # date as datetime
-            started="1/12/14 9:00",
-        )  # date as string
-
-        self.context = EvaluationContext(variables, timezone.utc, DateStyle.DAY_FIRST)
-
-    def test_evaluate_template(self):
-        self.assertEqual(("Hello World", []), evaluate_template("Hello World", self.context))  # no expressions
-        self.assertEqual(
-            ("Hello = Well 5", []), evaluate_template("Hello = @(flow.water_source) @flow.users", self.context)
-        )
-        self.assertEqual(
-            ("xxJoexx", []), evaluate_template("xx@(contact.first_name)xx", self.context)
-        )  # no whitespace
-        self.assertEqual(
-            ('Hello "World"', []), evaluate_template('@( "Hello ""World""" )', self.context)
-        )  # string with escaping
-        self.assertEqual(
-            ("Hello World", []), evaluate_template('@( "Hello" & " " & "World" )', self.context)
-        )  # string concatenation
-        self.assertEqual(
-            ('("', []), evaluate_template('@("(" & """")', self.context)
-        )  # string literals containing delimiters
-        self.assertEqual(
-            ("Joe Blow and Joe Blow", []), evaluate_template("@contact and @(contact)", self.context)
-        )  # old and new style
-        self.assertEqual(
-            ("Joe Blow language is set to 'eng'", []),
-            evaluate_template("@contact language is set to '@contact.language'", self.context),
-        )  # language
-
-        # test LTR and RTL mixing
-        self.assertEqual(
-            ("one two three four", []), evaluate_template("one @flow.english four", self.context)
-        )  # LTR var, LTR value, LTR text
-        self.assertEqual(
-            ("one اثنين ثلاثة four", []), evaluate_template("one @flow.arabic four", self.context)
-        )  # LTR var, RTL value, LTR text
-        self.assertEqual(
-            ("واحد اثنين ثلاثة أربعة", []), evaluate_template("واحد @flow.arabic أربعة", self.context)
-        )  # LTR var, RTL value, RTL text
-        self.assertEqual(
-            ("واحد two three أربعة", []), evaluate_template("واحد @flow.english أربعة", self.context)
-        )  # LTR var, LTR value, RTL text
-
-        # test decimal arithmetic
-        self.assertEqual(("Result: 7", []), evaluate_template("Result: @(flow.users + 2)", self.context))  # var is int
-        self.assertEqual(
-            ("Result: 0", []), evaluate_template("Result: @(flow.count - 5)", self.context)
-        )  # var is string
-        self.assertEqual(
-            ("Result: 0.5", []), evaluate_template("Result: @(5 / (flow.users * 2))", self.context)
-        )  # result is decimal
-        self.assertEqual(
-            ("Result: -10", []), evaluate_template("Result: @(-5 - flow.users)", self.context)
-        )  # negatives
-
-        # test date arithmetic
-        self.assertEqual(
-            ("Date: 2014-12-02T09:00:00+00:00", []), evaluate_template("Date: @(flow.joined + 1)", self.context)
-        )  # var is datetime
-        self.assertEqual(
-            ("Date: 2014-11-28T09:00:00+00:00", []), evaluate_template("Date: @(flow.started - 3)", self.context)
-        )  # var is string
-        self.assertEqual(
-            ("Date: 04-07-2014", []), evaluate_template("Date: @(DATE(2014, 7, 1) + 3)", self.context)
-        )  # date constructor
-        self.assertEqual(
-            ("Date: 2014-12-01T11:30:00+00:00", []),
-            evaluate_template("Date: @(flow.joined + TIME(2, 30, 0))", self.context),
-        )  # time addition to datetime var
-        self.assertEqual(
-            ("Date: 2014-12-01T06:30:00+00:00", []),
-            evaluate_template("Date: @(flow.joined - TIME(2, 30, 0))", self.context),
-        )  # time subtraction from string var
-
-        # test function calls
-        self.assertEqual(
-            ("Hello joe", []), evaluate_template("Hello @(lower(contact.first_name))", self.context)
-        )  # use lowercase for function name
-        self.assertEqual(
-            ("Hello JOE", []), evaluate_template("Hello @(UPPER(contact.first_name))", self.context)
-        )  # use uppercase for function name
-        self.assertEqual(
-            ("Bonjour world", []), evaluate_template('@(SUBSTITUTE("Hello world", "Hello", "Bonjour"))', self.context)
-        )  # string arguments
-        self.assertRegex(
-            evaluate_template("Today is @(TODAY())", self.context)[0], r"Today is \d\d-\d\d-\d\d\d\d"
-        )  # function with no args
-        self.assertEqual(
-            ("3", []), evaluate_template("@(LEN( 1.2 ))", self.context)
-        )  # auto decimal -> string conversion
-        self.assertEqual(
-            ("25", []), evaluate_template("@(LEN(flow.joined))", self.context)
-        )  # auto datetime -> string conversion
-        self.assertEqual(
-            ("2", []), evaluate_template('@(WORD_COUNT("abc-def", FALSE))', self.context)
-        )  # built-in variable
-        self.assertEqual(
-            ("TRUE", []), evaluate_template("@(OR(AND(True, flow.count = flow.users, 1), 0))", self.context)
-        )  # booleans / varargs
-        self.assertEqual(
-            ("yes", []), evaluate_template('@(IF(IF(flow.count > 4, "x", "y") = "x", "yes", "no"))', self.context)
-        )  # nested conditional
-
-        # evaluation errors
-        self.assertEqual(
-            ("Error: @()", ["Expression error at: )"]), evaluate_template("Error: @()", self.context)
-        )  # syntax error due to empty expression
-        self.assertEqual(
-            ("Error: @('2')", ["Expression error at: '"]), evaluate_template("Error: @('2')", self.context)
-        )  # don't support single quote string literals
-        self.assertEqual(
-            ("Error: @(2 / 0)", ["Division by zero"]), evaluate_template("Error: @(2 / 0)", self.context)
-        )  # division by zero
-        self.assertEqual(
-            ("Error: @(1 + flow.blank)", ["Expression could not be evaluated as decimal or date arithmetic"]),
-            evaluate_template("Error: @(1 + flow.blank)", self.context),
-        )  # string that isn't numeric
-        self.assertEqual(
-            ("Well @flow.boil", ["Undefined variable: flow.boil"]),
-            evaluate_template("@flow.water_source @flow.boil", self.context),
-        )  # undefined variables
-        self.assertEqual(
-            ("Hello @(XXX(1, 2))", ["Undefined function: XXX"]), evaluate_template("Hello @(XXX(1, 2))", self.context)
-        )  # undefined function
-        self.assertEqual(
-            ('Hello @(ABS(1, "x", TRUE))', ["Too many arguments provided for function ABS"]),
-            evaluate_template('Hello @(ABS(1, "x", TRUE))', self.context),
-        )  # wrong number of args
-        self.assertEqual(
-            ("Hello @(REPT(flow.blank, -2))", ['Error calling function REPT with arguments "", -2']),
-            evaluate_template("Hello @(REPT(flow.blank, -2))", self.context),
-        )  # internal function error
-
-    def test_evaluate_template_compat(self):
-        # test old style expressions, i.e. @ and with filters
-        self.assertEqual(
-            ("Hello World Joe Joe", []),
-            evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context),
-        )
-        self.assertEqual(("Hello World Joe Blow", []), evaluate_template_compat("Hello World @contact", self.context))
-        self.assertEqual(
-            ("Hello World: Well", []), evaluate_template_compat("Hello World: @flow.water_source", self.context)
-        )
-        self.assertEqual(("Hello World: ", []), evaluate_template_compat("Hello World: @flow.blank", self.context))
-        self.assertEqual(
-            ("Hello اثنين ثلاثة thanks", []), evaluate_template_compat("Hello @flow.arabic thanks", self.context)
-        )
-        self.assertEqual(
-            (" %20%3D%26%D8%A8 ", []), evaluate_template_compat(" @flow.urlstuff ", self.context, True)
-        )  # url encoding enabled
-        self.assertEqual(
-            ("Hello Joe", []), evaluate_template_compat("Hello @contact.first_name|notthere", self.context)
-        )
-        self.assertEqual(
-            ("Hello joe", []), evaluate_template_compat("Hello @contact.first_name|lower_case", self.context)
-        )
-        self.assertEqual(
-            ("Hello Joe", []),
-            evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context),
-        )
-        self.assertEqual(("Hello Joe", []), evaluate_template_compat("Hello @contact|first_word", self.context))
-        self.assertEqual(
-            ("Hello Blow", []), evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context)
-        )
-        self.assertEqual(("Hello Joe Blow", []), evaluate_template_compat("Hello @contact|title_case", self.context))
-        self.assertEqual(
-            ("Hello JOE", []), evaluate_template_compat("Hello @contact.first_name|upper_case", self.context)
-        )
-        self.assertEqual(
-            ("Hello Joe from info@example.com", []),
-            evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context),
-        )
-        self.assertEqual(("Joe", []), evaluate_template_compat("@contact.first_name", self.context))
-        self.assertEqual(("foo@nicpottier.com", []), evaluate_template_compat("foo@nicpottier.com", self.context))
-        self.assertEqual(
-            ("@nicpottier is on twitter", []), evaluate_template_compat("@nicpottier is on twitter", self.context)
-        )
-
-    def test_migrate_template(self):
-        self.assertEqual(
-            migrate_template("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
-            "Hi @(PROPER(UPPER(contact.name))) from @(LOWER(flow.chw))",
-        )
-        self.assertEqual(migrate_template('Hi @date.now|time_delta:"1"'), "Hi @(date.now + 1)")
-        self.assertEqual(migrate_template('Hi @date.now|time_delta:"-3"'), "Hi @(date.now - 3)")
-
-        self.assertEqual(migrate_template("Hi =contact.name"), "Hi @contact.name")
-        self.assertEqual(migrate_template("Hi =(contact.name)"), "Hi @(contact.name)")
-        self.assertEqual(migrate_template("Hi =NOW() =(TODAY())"), "Hi @(NOW()) @(TODAY())")
-        self.assertEqual(migrate_template('Hi =LEN("@=")'), 'Hi @(LEN("@="))')
-
-        # handle @ expressions embedded inside = expressions, with optional surrounding quotes
-        self.assertEqual(
-            migrate_template('=AND("Malkapur"= "@flow.stuff.category", 13 = @extra.Depar_city|upper_case)'),
-            '@(AND("Malkapur"= flow.stuff.category, 13 = UPPER(extra.Depar_city)))',
-        )
-
-        # don't convert unnecessarily
-        self.assertEqual(migrate_template("Hi @contact.name from @flow.chw"), "Hi @contact.name from @flow.chw")
-
-        # don't convert things that aren't expressions
-        self.assertEqual(migrate_template("Reply 1=Yes, 2=No"), "Reply 1=Yes, 2=No")
-
-    def test_get_function_listing(self):
-        listing = get_function_listing()
-        self.assertEqual(
-            listing[0],
-            {"signature": "ABS(number)", "name": "ABS", "display": "Returns the absolute value of a number"},
-        )
-
-    def test_build_function_signature(self):
-        self.assertEqual("ABS()", _build_function_signature(dict(name="ABS", params=[])))
-
-        self.assertEqual(
-            "ABS(number)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=False)])),
-        )
-
-        self.assertEqual(
-            "ABS(number, ...)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=False, name="number", vararg=True)])),
-        )
-
-        self.assertEqual(
-            "ABS([number])",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=False)])),
-        )
-
-        self.assertEqual(
-            "ABS([number], ...)",
-            _build_function_signature(dict(name="ABS", params=[dict(optional=True, name="number", vararg=True)])),
-        )
-
-        self.assertEqual(
-            "MOD(number, divisor)",
-            _build_function_signature(
-                dict(
-                    name="MOD",
-                    params=[
-                        dict(optional=False, name="number", vararg=False),
-                        dict(optional=False, name="divisor", vararg=False),
-                    ],
-                )
-            ),
-        )
-
-        self.assertEqual(
-            "MOD(number, ..., divisor)",
-            _build_function_signature(
-                dict(
-                    name="MOD",
-                    params=[
-                        dict(optional=False, name="number", vararg=True),
-                        dict(optional=False, name="divisor", vararg=False),
-                    ],
-                )
-            ),
-        )
-
-    def test_percentage(self):
-        self.assertEqual(0, percentage(0, 100))
-        self.assertEqual(0, percentage(0, 0))
-        self.assertEqual(0, percentage(100, 0))
-        self.assertEqual(75, percentage(75, 100))
-        self.assertEqual(76, percentage(759, 1000))
-
-
 class GSM7Test(TembaTest):
     def test_is_gsm7(self):
         self.assertTrue(is_gsm7("Hello World! {} <>"))
@@ -1923,4 +1638,135 @@ class AnalyticsTest(TestCase):
             website="https://example.com",
             industry="Mining",
             monthly_spend="a lot",
+        )
+
+
+class RedactTest(TestCase):
+    def test_variations(self):
+        # phone number variations
+        self.assertEqual(
+            redact._variations("+593979099111"),
+            [
+                "%2B593979099111",
+                "0593979099111",
+                "+593979099111",
+                "593979099111",
+                "93979099111",
+                "3979099111",
+                "979099111",
+                "79099111",
+                "9099111",
+            ],
+        )
+
+        # reserved XML/HTML characters escaped and unescaped
+        self.assertEqual(
+            redact._variations("<?&>"),
+            [
+                "0&lt;?&amp;&gt;",
+                "+&lt;?&amp;&gt;",
+                "%2B%3C%3F%26%3E",
+                "&lt;?&amp;&gt;",
+                "0%3C%3F%26%3E",
+                "%3C%3F%26%3E",
+                "0<?&>",
+                "+<?&>",
+                "<?&>",
+            ],
+        )
+
+        # reserved JSON characters escaped and unescaped
+        self.assertEqual(
+            redact._variations("\n\r\t😄"),
+            [
+                "%2B%0A%0D%09%F0%9F%98%84",
+                "0%0A%0D%09%F0%9F%98%84",
+                "%0A%0D%09%F0%9F%98%84",
+                "0\\n\\r\\t\\ud83d\\ude04",
+                "+\\n\\r\\t\\ud83d\\ude04",
+                "\\n\\r\\t\\ud83d\\ude04",
+                "0\n\r\t😄",
+                "+\n\r\t😄",
+                "\n\r\t😄",
+            ],
+        )
+
+    def test_text(self):
+        # no match returns original and false
+        self.assertEqual(redact.text("this is <+private>", "<public>", "********"), "this is <+private>")
+        self.assertEqual(redact.text("this is 0123456789", "9876543210", "********"), "this is 0123456789")
+
+        # text contains un-encoded raw value to be redacted
+        self.assertEqual(redact.text("this is <+private>", "<+private>", "********"), "this is ********")
+
+        # text contains URL encoded version of the value to be redacted
+        self.assertEqual(redact.text("this is %2Bprivate", "+private", "********"), "this is ********")
+
+        # text contains JSON encoded version of the value to be redacted
+        self.assertEqual(redact.text('this is "+private"', "+private", "********"), 'this is "********"')
+
+        # text contains XML encoded version of the value to be redacted
+        self.assertEqual(redact.text("this is &lt;+private&gt;", "<+private>", "********"), "this is ********")
+
+        # test matching the value partially
+        self.assertEqual(redact.text("this is 123456789", "+123456789", "********"), "this is ********")
+
+        self.assertEqual(redact.text("this is +123456789", "123456789", "********"), "this is ********")
+        self.assertEqual(redact.text("this is 123456789", "0123456789", "********"), "this is ********")
+
+        # '3456789' matches the input string
+        self.assertEqual(redact.text("this is 03456789", "+123456789", "********"), "this is 0********")
+
+        # only rightmost 7 chars of the test matches
+        self.assertEqual(redact.text("this is 0123456789", "xxx3456789", "********"), "this is 012********")
+
+        # all matches replaced
+        self.assertEqual(
+            redact.text('{"number_full": "+593979099111", "number_short": "0979099111"}', "+593979099111", "********"),
+            '{"number_full": "********", "number_short": "0********"}',
+        )
+
+        # custom mask
+        self.assertEqual(redact.text("this is private", "private", "🌼🌼🌼🌼"), "this is 🌼🌼🌼🌼")
+
+    def test_http_trace(self):
+        # not an HTTP trace
+        self.assertEqual(redact.http_trace("hello", "12345", "********", ("name",)), "********")
+
+        # a JSON body
+        self.assertEqual(
+            redact.http_trace(
+                'POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n{"name": "Bob Smith", "number": "xx12345"}',
+                "12345",
+                "********",
+                ("name",),
+            ),
+            'POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n{"name": "********", "number": "xx********"}',
+        )
+
+        # a URL-encoded body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\nnumber=xx12345&name=Bob+Smith",
+                "12345",
+                "********",
+                ("name",),
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\nnumber=xx********&name=********",
+        )
+
+        # a body with neither encoding redacted as text if body keys not provided
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n//xx12345//", "12345", "********"
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n//xx********//",
+        )
+
+        # a body with neither encoding returned as is if body keys provided but we couldn't parse the body
+        self.assertEqual(
+            redact.http_trace(
+                "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy12345\r\n\r\n//xx12345//", "12345", "********", ("name",)
+            ),
+            "POST /c/t/23524/receive HTTP/1.1\r\nHost: yy********\r\n\r\n********",
         )

@@ -36,7 +36,7 @@ from temba.contacts.models import (
     ContactGroup,
     ContactURN,
 )
-from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
+from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
@@ -2917,6 +2917,7 @@ class OrgCRUDLTest(TembaTest):
 
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
 
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
 
@@ -2939,6 +2940,9 @@ class OrgCRUDLTest(TembaTest):
 
         self.org.date_format = "M"
         self.org.save()
+
+        self.assertEqual(("%m-%d-%Y", "%m-%d-%Y %H:%M"), self.org.get_datetime_formats())
+
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
@@ -3405,6 +3409,8 @@ class BulkExportTest(TembaTest):
         self.assertIn("Child Flow", group)
 
     def test_flow_export_dynamic_group(self):
+        from temba.flows.legacy import AddToGroupAction
+
         flow = self.get_flow("favorites")
 
         # get one of our flow actionsets, change it to an AddToGroupAction
@@ -3630,7 +3636,7 @@ class BulkExportTest(TembaTest):
         self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
-        from temba.flows.tests import get_legacy_groups
+        from temba.flows.legacy.tests import get_legacy_groups
 
         definition_groups = get_legacy_groups(flow.as_json())
 
@@ -4412,7 +4418,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
 
-        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
 
     def test_parse_datetime(self):
         self.assertEqual(self.org.parse_datetime("Not num"), None)
@@ -4421,4 +4427,4 @@ class ParsingTest(TembaTest):
             datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
         )
 
-        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())
+        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())

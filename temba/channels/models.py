@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import get_anonymous_user, json, on_transaction_commit
+from temba.utils import get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -95,6 +95,9 @@ class ChannelType(metaclass=ABCMeta):
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
+
+    redact_request_keys = set()
+    redact_response_keys = set()
 
     def is_available_to(self, user):
         """
@@ -819,22 +822,6 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_expressions_context(self):
-        from temba.contacts.models import TEL_SCHEME
-
-        address = self.get_address_display()
-        default = address if address else str(self)
-
-        # for backwards compatibility
-        if TEL_SCHEME in self.schemes:
-            tel = address
-            tel_e164 = self.get_address_display(e164=True)
-        else:
-            tel = ""
-            tel_e164 = ""
-
-        return dict(__default__=default, name=self.get_name(), address=address, tel=tel, tel_e164=tel_e164)
-
     def build_registration_command(self):
         # create a claim code if we don't have one
         if not self.claim_code:
@@ -1399,9 +1386,6 @@ class ChannelLog(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log message was logged"))
     request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
 
-    def release(self):
-        self.delete()
-
     @classmethod
     def log_error(cls, msg, description):
         print("[%d] ERROR - %s" % (msg.id, description))
@@ -1432,22 +1416,55 @@ class ChannelLog(models.Model):
 
         return ChannelLog.objects.filter(id=self.id)
 
-    def get_request_formatted(self):
-        if not self.request:  # pragma: no cover
-            return "%s %s" % (self.method, self.url)
+    def get_url_display(self, user, anon_mask):
+        """
+        Gets the URL as it should be displayed to the given user
+        """
+        return self._get_display_value(user, self.url, anon_mask)
 
-        try:
-            return json.dumps(json.loads(self.request), indent=2)
-        except Exception:
-            return self.request
+    def get_request_display(self, user, anon_mask):
+        """
+        Gets the request trace as it should be displayed to the given user
+        """
+        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_request_keys
 
-    def get_response_formatted(self):
-        try:
-            return json.dumps(json.loads(self.response), indent=2)
-        except Exception:
-            if not self.response:
-                self.response = self.description
-            return self.response
+        return self._get_display_value(user, self.request, anon_mask, redact_keys)
+
+    def get_response_display(self, user, anon_mask):
+        """
+        Gets the response trace as it should be displayed to the given user
+        """
+        redact_keys = Channel.get_type_from_code(self.channel.channel_type).redact_response_keys
+
+        return self._get_display_value(user, self.response, anon_mask, redact_keys)
+
+    def _get_display_value(self, user, original, mask, redact_keys=()):
+        """
+        Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
+        """
+
+        if not self.channel.org.is_anon or user.has_org_perm(self.channel.org, "contacts.contact_break_anon"):
+            return original
+
+        # if this log doesn't have a msg then we don't know what to redact, so redact completely
+        if not self.msg_id:
+            return mask
+
+        needle = self.msg.contact_urn.path
+
+        if redact_keys:
+            redacted = redact.http_trace(original, needle, mask, redact_keys)
+        else:
+            redacted = redact.text(original, needle, mask)
+
+        # if nothing was redacted, don't risk returning sensitive information we didn't find
+        if original == redacted:
+            return mask
+
+        return redacted
+
+    def release(self):
+        self.delete()
 
 
 class SyncEvent(SmartModel):

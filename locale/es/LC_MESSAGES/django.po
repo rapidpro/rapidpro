@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-20 15:39+0000\n"
+"POT-Creation-Date: 2019-08-28 22:40+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1745,10 +1745,10 @@ msgstr "URL de Webhook"
 msgid "Token"
 msgstr "Token API"
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -3133,7 +3133,7 @@ msgstr "ID externo"
 
 #, fuzzy
 #| msgid "External ID"
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr "ID externo"
 
 #, fuzzy
@@ -3667,10 +3667,6 @@ msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
 msgid "When this ruleset was last modified"
 msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
 
-#, fuzzy
-msgid "No subscribers to this event"
-msgstr "El número de teléfono para esta llamada"
-
 msgid "When this action was originally created"
 msgstr "Cuándo fue la primera vez que se creó esta acción"
 
@@ -3821,6 +3817,11 @@ msgstr ""
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
+
+#, fuzzy
+#| msgid "User does not have permission to create an SMS"
+msgid "You don't have permission to edit this flow"
+msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
 #| msgid "Your changes could not be saved. Please reload the page and try again."
@@ -11435,6 +11436,10 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~ msgid "No subscribers to this event"
+#~ msgstr "El número de teléfono para esta llamada"
 
 #, fuzzy
 #~| msgid "Channel Event"

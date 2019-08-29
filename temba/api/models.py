@@ -49,7 +49,13 @@ class APIPermission(BasePermission):
                 return False
 
             codename = view.permission.split(".")[-1]
-            return role_group.permissions.filter(codename=codename).exists()
+            has_perm = role_group.permissions.filter(codename=codename).exists()
+
+            # viewers can only ever get from the API
+            if role_group.name == "Viewers":
+                return has_perm and request.method == "GET"
+
+            return has_perm
 
         else:  # pragma: no cover
             return True

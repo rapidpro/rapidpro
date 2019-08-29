@@ -6,14 +6,15 @@ def handle_message(msg):
     Only used for testing to approximate how mailroom handles a message
     """
 
-    from temba.flows.models import Flow
     from temba.msgs.models import Msg
 
     if msg.contact.is_blocked:
         msg.visibility = Msg.VISIBILITY_ARCHIVED
         msg.save(update_fields=["visibility", "modified_on"])
     else:
-        Flow.find_and_handle(msg)
+        from temba.flows.legacy import find_and_handle
+
+        find_and_handle(msg)
 
     mark_handled(msg)
 
@@ -65,7 +66,9 @@ def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_typ
         if expressions_context is not None:
             message_context = expressions_context.copy()
             if "contact" not in message_context:
-                message_context["contact"] = contact.build_expressions_context()
+                from temba.flows.legacy.expressions import contact_context
+
+                message_context["contact"] = contact_context(contact)
         else:
             message_context = None
 

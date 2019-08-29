@@ -40,7 +40,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
+from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
@@ -881,12 +881,12 @@ class Org(SmartModel):
         return None
 
     def get_nexmo_client(self):
-        from temba.channels.types.nexmo.client import Client
+        from temba.channels.types.nexmo.client import NexmoClient
 
         api_key = self.config.get(Org.CONFIG_NEXMO_KEY)
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
-            return Client(api_key, api_secret)
+            return NexmoClient(api_key, api_secret)
         return None
 
     def get_chatbase_credentials(self):
@@ -952,27 +952,35 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == Org.DATE_FORMAT_DAY_FIRST
 
-    def format_datetime(self, datetime, show_time=True):
+    def get_datetime_formats(self):
+        if self.date_format == Org.DATE_FORMAT_DAY_FIRST:
+            format_date = "%d-%m-%Y"
+        else:
+            format_date = "%m-%d-%Y"
+
+        format_datetime = format_date + " %H:%M"
+
+        return format_date, format_datetime
+
+    def format_datetime(self, d, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
-        formats = get_datetime_format(self.get_dayfirst())
+        formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, self.timezone)
+        return datetime_to_str(d, format, self.timezone)
 
-    def parse_datetime(self, datetime_string):
-        if not (isinstance(datetime_string, str)):
-            raise ValueError(f"parse_datetime called with param of type: {type(datetime_string)}, expected string")
+    def parse_datetime(self, s):
+        assert isinstance(s, str)
 
-        return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
+        return str_to_datetime(s, self.timezone, self.get_dayfirst())
 
-    def parse_number(self, decimal_string):
-        if not (isinstance(decimal_string, str)):
-            raise ValueError(f"parse_number called with param of type: {type(decimal_string)}, expected string")
+    def parse_number(self, s):
+        assert isinstance(s, str)
 
         parsed = None
         try:
-            parsed = Decimal(decimal_string)
+            parsed = Decimal(s)
 
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None
@@ -1039,7 +1047,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, str):
+        if not self.country_id or not isinstance(location_string, str):  # pragma: no cover
             return []
 
         boundary = None
@@ -1987,7 +1995,7 @@ class Org(SmartModel):
 
         # might be a lot of messages, batch this
         for id_batch in chunk_list(msg_ids, 1000):
-            for msg in self.msgs.filter(id__in=msg_ids):
+            for msg in self.msgs.filter(id__in=id_batch):
                 msg.release()
 
         # our system label counts
@@ -1999,21 +2007,6 @@ class Org(SmartModel):
 
         # any airtime transfers associate with us go away
         self.airtime_transfers.all().delete()
-
-        # delete our contacts
-        for contact in self.contacts.all():
-            contact.release(contact.modified_by)
-            contact.delete()
-
-        # delete our contacts
-        for contactfield in self.contactfields(manager="all_fields").all():
-            contactfield.release(contactfield.modified_by)
-            contactfield.delete()
-
-        # and all of the groups
-        for group in self.all_groups.all():
-            group.release()
-            group.delete()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
@@ -2030,6 +2023,21 @@ class Org(SmartModel):
             flow.counts.all().delete()
 
             flow.delete()
+
+        # delete our contacts
+        for contact in self.contacts.all():
+            contact.release(contact.modified_by)
+            contact.delete()
+
+        # delete our contacts
+        for contactfield in self.contactfields(manager="all_fields").all():
+            contactfield.release(contactfield.modified_by)
+            contactfield.delete()
+
+        # and all of the groups
+        for group in self.all_groups.all():
+            group.release()
+            group.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
@@ -2070,6 +2078,21 @@ class Org(SmartModel):
                 user._org = org
 
         return getattr(user, "_org", None)
+
+    def as_environment_def(self):
+        """
+        Returns this org as an environment definition as used by the flow engine
+        """
+
+        return {
+            "date_format": "DD-MM-YYYY" if self.date_format == Org.DATE_FORMAT_DAY_FIRST else "MM-DD-YYYY",
+            "time_format": "tt:mm",
+            "timezone": str(self.timezone),
+            "default_language": self.primary_language.iso_code if self.primary_language else None,
+            "allowed_languages": list(self.get_language_codes()),
+            "default_country": self.get_country_code(),
+            "redaction_policy": "urns" if self.is_anon else "none",
+        }
 
     def __str__(self):
         return self.name
