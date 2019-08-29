@@ -289,7 +289,6 @@ export default class AliasEditor extends LitElement {
       aliasDialog.removeAttribute("open");
     }
 
-    this.editFeature = null;
     this.requestUpdate();
   }
 
@@ -309,7 +308,6 @@ export default class AliasEditor extends LitElement {
     }
 
     if(button.name === "Cancel") {
-      this.editFeature = null;
       this.hideAliasDialog();
     }
   }
@@ -347,8 +345,8 @@ export default class AliasEditor extends LitElement {
           <rp-choice 
             placeholder="Search" 
             endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
-            @rp-selection=${this.handleSearchSelection.bind(this)}
             .renderOptionDetail=${this.renderOptionDetail}
+            @rp-selection=${this.handleSearchSelection.bind(this)}
           ></rp-choice>
       </div>
         <div class="feature-tree">

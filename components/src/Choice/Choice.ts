@@ -12,45 +12,9 @@ export default class Choice extends RapidElement {
 
   static get styles() {
     return css`
-      textarea, input {
-        border: 0;
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        background: var(--color-widget-bg);
-        color: var(--color-text);
-        font-size: 16px;
-        cursor: pointer;
-        transition: all ease-in-out 200ms;
-      }
-
-      textarea:focus, input:focus {
-        outline: none;
-        cursor: text;
-      }
-
-      .container {
+      :host {
         display: flex;
         flex-direction: column;
-        border: 0px solid green;
-      }
-
-      .input-container {
-        padding: 8px 8px;
-        border: 1px solid transparent;
-        border-radius: 5px;
-        overflow: hidden;
-        background: var(--color-widget-bg);
-        cursor: pointer;
-        transition: all ease-in-out 200ms;
-      }
-
-      .input-container:hover {
-        background: var(--color-widget-hover);
-      }
-
-      .input-container:hover input {
-        background: var(--color-widget-hover);
       }
     `
   }
@@ -81,6 +45,15 @@ export default class Choice extends RapidElement {
 
   @property({attribute: false})
   anchorElement: HTMLElement;
+
+  @property({attribute: false})
+  renderOption: (option: any, selected: boolean) => void;
+
+  @property({attribute: false})
+  renderOptionName: (option: any, selected: boolean) => void;
+
+  @property({attribute: false})
+  renderOptionDetail: (option: any, selected: boolean) => void = ()=>{};
 
   private lastQuery: number;
   private cancelToken: CancelTokenSource;
@@ -194,28 +167,27 @@ export default class Choice extends RapidElement {
   }
 
   public firstUpdated(changedProperties: any) {
-    this.anchorElement = this.shadowRoot.querySelector(".input-container")
+    this.anchorElement = this.shadowRoot.querySelector("rp-textinput");
   }
 
   public render(): TemplateResult {
     return html`
-      <div class="container">
-        <div class="input-container" @click=${()=>{ this.shadowRoot.querySelector("input").focus()}}>
-          <input 
-            @keyup=${this.handleKeyUp}
-            @blur=${this.handleBlur} 
-            @focus=${this.handleFocus} 
-            type="text" 
-            .value=${this.input}  
-            placeholder="${this.placeholder}">
-        </div>
-        <rp-options
-          cursorIndex=${this.cursorIndex}
-          .anchorTo=${this.anchorElement}
-          .options=${this.options}
-          ?visible=${this.input.length > 0 && this.options.length > 0}
-        ></rp-options>
-      </div>
+      <rp-textinput
+        @keyup=${this.handleKeyUp}
+        @blur=${this.handleBlur} 
+        @focus=${this.handleFocus} 
+        .value=${this.input}  
+        placeholder="${this.placeholder}"
+      ></rp-textinput>
+      <rp-options
+        cursorIndex=${this.cursorIndex}
+        .renderOptionDetail=${this.renderOptionDetail}
+        .renderOptionName=${this.renderOptionName}
+        .renderOption=${this.renderOption}
+        .anchorTo=${this.anchorElement}
+        .options=${this.options}
+        ?visible=${this.input.length > 0 && this.options.length > 0}
+      ></rp-options>
     `
   }
 }

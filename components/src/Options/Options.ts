@@ -13,7 +13,7 @@ export default class Options extends RapidElement {
         border-radius: 5px;
         position: absolute;
         border: 1px solid var(--color-borders);
-        box-shadow: 0px 0px 6px 1px rgba(0,0,0,.08);
+        box-shadow: 0px 0px 3px 1px rgba(0,0,0,.06);
         transition: opacity ease-in-out 200ms, top ease-in-out 100ms; 
         max-height: 300px;
         opacity: 0;
@@ -65,13 +65,13 @@ export default class Options extends RapidElement {
   options: any[]
 
   @property({attribute: false})
-  renderOption: (option: any, selected: boolean) => void = this.renderOptionDefault;
+  renderOption: (option: any, selected: boolean) => void;
 
   @property({attribute: false})
-  renderOptionName: (option: any, selected: boolean) => void = this.renderOptionNameDefault;
+  renderOptionName: (option: any, selected: boolean) => void;
 
   @property({attribute: false})
-  renderOptionDetail: (option: any, selected: boolean) => void = this.renderOptionDetailDefault;
+  renderOptionDetail: (option: any, selected: boolean) => void;
 
   public updated(changedProperties: Map<string, any>) {
     super.updated(changedProperties);
@@ -99,10 +99,12 @@ export default class Options extends RapidElement {
   }
 
   private renderOptionDefault(option: any, selected: boolean): TemplateResult {
+    const renderOptionName = (this.renderOptionName || this.renderOptionNameDefault);
+    const renderOptionDetail = (this.renderOptionDetail || this.renderOptionDetailDefault);
     if (selected) {
-      return html`<div class="name">${this.renderOptionName(option, selected)}</div><div class="detail">${this.renderOptionDetail(option, selected)}</div>`;
+      return html`<div class="name">${renderOptionName(option, selected)}</div><div class="detail">${renderOptionDetail(option, selected)}</div>`;
     } else {
-      return html`<div class="name">${this.renderOptionName(option, selected)}</div>`;
+      return html`<div class="name">${renderOptionName(option, selected)}</div>`;
     }
   }
 
@@ -132,27 +134,30 @@ export default class Options extends RapidElement {
   }
 
   private handleKeyDown(evt: KeyboardEvent) {
-    if ((evt.ctrlKey && evt.key === "n") || evt.key === "ArrowDown") {
-      this.moveCursor(1);
-      evt.preventDefault();
-    } else if ((evt.ctrlKey && evt.key === "p") || evt.key === "ArrowUp") {
-      this.moveCursor(-1);
-      evt.preventDefault();
-    } else if (evt.key === "Enter") {
-      this.handleSelection();
-    }
+    if (this.visible) {
+      if ((evt.ctrlKey && evt.key === "n") || evt.key === "ArrowDown") {
+        this.moveCursor(1);
+        evt.preventDefault();
+      } else if ((evt.ctrlKey && evt.key === "p") || evt.key === "ArrowUp") {
+        this.moveCursor(-1);
+        evt.preventDefault();
+      } else if (evt.key === "Enter") {
+        this.handleSelection();
+      }
 
-    if(evt.key === "Escape") {
-      this.fireEvent(CustomEventType.Canceled);
+      if(evt.key === "Escape") {
+        this.fireEvent(CustomEventType.Canceled);
+      }
     }
   }
 
   private calculatePosition() {
     const optionsBounds = this.shadowRoot.querySelector('.options').getBoundingClientRect();
     if (this.anchorTo) {
-      const anchorBounds = this.anchorTo.getBoundingClientRect();
-      if (anchorBounds.bottom + optionsBounds.height > window.innerHeight) {
-        this.top = anchorBounds.top - optionsBounds.height + window.pageYOffset;
+      const anchorBounds = this.anchorTo.getBoundingClientRect();    
+      const topTop = anchorBounds.top - optionsBounds.height;
+      if (topTop > 0 && anchorBounds.bottom + optionsBounds.height > window.innerHeight) {
+        this.top = topTop + window.pageYOffset;
       } else {
         this.top = anchorBounds.bottom + window.pageYOffset;
       }
@@ -168,6 +173,7 @@ export default class Options extends RapidElement {
   }
 
   public render(): TemplateResult {
+    const renderOption = (this.renderOption || this.renderOptionDefault).bind(this);
     return html`
       <style>
         .options {
@@ -178,10 +184,10 @@ export default class Options extends RapidElement {
       <div class="options ${this.visible ? "show": ""}">
         ${this.options.map((option: any, index: number)=>html`
           <div 
-            @mousemove=${(evt: MouseEvent)=>{this.setCursor(index)}}
+            @mousemove=${()=>{this.setCursor(index)}}
             @click=${()=>{this.handleSelection();}}
             class="option ${index == this.cursorIndex ? 'focused' : ''}">
-              ${this.renderOption(option, index == this.cursorIndex)}
+              ${renderOption(option, index == this.cursorIndex)}
           </div>
         `)}
       </div>`;

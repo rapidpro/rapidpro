@@ -26,9 +26,11 @@
 
         /* page text, borders, widgets */
         --color-text: #666;
-        --color-borders: #ccc;
-        --color-widget-bg: #f2f6fa;
-        --color-widget-hover: #e8ebef;
+        --color-borders: rgba(0,0,0,.07);
+        --color-widget-bg: rgba(0, 0, 0, 0.04);
+        --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+        --color-widget-shadow-focused: rgba(0, 0, 0, 0.06) 0px 0px 2px 0px inset;
+        --color-widget-border: transparent;
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -66,12 +68,22 @@
       }
     </style>
 
+    <!--div style="height: 150px; width: 100%">
+      <rp-textinput></rp-textinput>
+    </div>
+
+    <div style="height: 150px; width: 100%">
+      <rp-textinput textarea></rp-textinput>
+    </div>
+
+    <div style="height: 150px; width: 100%">
+      <rp-textinput textarea></rp-textinput>
+    </div-->
+  
     <alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
     ></alias-editor>
-
-    <!-- rp-completion></rp-completion-->
       
     <script type="module" src="../src/rp-components.js"></script>
     <script defer src="/sitestatic/fonts/temba/svgxuse.js"></script>
