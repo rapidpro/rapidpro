@@ -34,6 +34,10 @@ def format_datetime(value):
     return json.encode_datetime(value, micros=True) if value else None
 
 
+def migrate_translations(translations):
+    return {lang: mailroom.get_client().expression_migrate(s) for lang, s in translations.items()}
+
+
 def normalize_extra(extra):
     """
     Normalizes a dict of extra passed to the flow start endpoint. We need to do this for backwards compatibility with
@@ -202,6 +206,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     channel = fields.ChannelField(required=False)
+    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -221,6 +226,9 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         text, base_language = self.validated_data["text"]
 
+        if not self.validated_data["new_expressions"]:
+            text = migrate_translations(text)
+
         # create the broadcast
         broadcast = Broadcast.create(
             self.context["org"],
@@ -231,6 +239,7 @@ class BroadcastWriteSerializer(WriteSerializer):
             contacts=self.validated_data.get("contacts", []),
             urns=contact_urns,
             channel=self.validated_data.get("channel"),
+            template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
         # send it
@@ -338,6 +347,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     relative_to = fields.ContactFieldField(required=True)
     message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
+    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate_unit(self, value):
         return self.UNITS[value]
@@ -383,6 +393,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
             # we are being set to a message
             else:
                 translations, base_language = message
+
+                if not self.validated_data["new_expressions"]:
+                    translations = migrate_translations(translations)
+
                 self.instance.message = translations
 
                 # if we aren't currently a message event, we need to create our hidden message flow
@@ -412,6 +426,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 )
             else:
                 translations, base_language = message
+
+                if not self.validated_data["new_expressions"]:
+                    translations = migrate_translations(translations)
+
                 self.instance = CampaignEvent.create_message_event(
                     self.context["org"],
                     self.context["user"],

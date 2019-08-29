@@ -28,7 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, skip_if_no_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -611,7 +611,10 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json()["results"], [])
 
-    def test_broadcasts(self):
+    @skip_if_no_mailroom
+    @override_settings(TESTING=False)
+    @patch("temba.mailroom.queue_broadcast")
+    def test_broadcasts(self, mock_queue_broadcast):
         url = reverse("api.v2.broadcasts")
 
         self.assertEndpointAccess(url)
@@ -641,9 +644,8 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
         self.assertEqual(
-            resp_json["results"][0],
             {
-                "id": bcast4.pk,
+                "id": bcast4.id,
                 "urns": ["twitter:franky"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
@@ -651,6 +653,7 @@ class APITest(TembaTest):
                 "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
+            resp_json["results"][0],
         )
 
         # filter by id
@@ -667,8 +670,8 @@ class APITest(TembaTest):
 
         with AnonymousOrg(self.org):
             # URNs shouldn't be included
-            response = self.fetchJSON(url, "id=%d" % bcast1.pk)
-            self.assertEqual(response.json()["results"][0]["urns"], None)
+            response = self.fetchJSON(url, "id=%d" % bcast1.id)
+            self.assertIsNone(response.json()["results"][0]["urns"])
 
         # try to create new broadcast with no data at all
         response = self.postJSON(url, None, {})
@@ -683,7 +686,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "text": "Hi @contact",
+                "text": "Hi @contact.tel",  # will be migrated
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -691,24 +694,37 @@ class APITest(TembaTest):
             },
         )
 
-        broadcast = Broadcast.objects.get(pk=response.json()["id"])
-        self.assertEqual(broadcast.text, {"base": "Hi @contact"})
-        self.assertEqual(set(broadcast.urns.values_list("identity", flat=True)), {"twitter:franky"})
-        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
-        self.assertEqual(set(broadcast.groups.all()), {reporters})
-        self.assertEqual(broadcast.channel, self.channel)
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
+        self.assertEqual({"twitter:franky"}, set(broadcast.urns.values_list("identity", flat=True)))
+        self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
+        self.assertEqual({reporters}, set(broadcast.groups.all()))
+        self.assertEqual(self.channel, broadcast.channel)
 
-        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
-        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
+        mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # create new broadcast with translations
         response = self.postJSON(
             url, None, {"text": {"base": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
         )
 
-        broadcast = Broadcast.objects.get(pk=response.json()["id"])
-        self.assertEqual(broadcast.text, {"base": "Hello", "fra": "Bonjour"})
-        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
+        self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
+
+        # create new broadcast with explicitly old expressions
+        response = self.postJSON(
+            url, None, {"text": "You are @contact.age", "contacts": [self.joe.uuid], "new_expressions": False}
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
+
+        # create new broadcast with explicitly new expressions
+        response = self.postJSON(
+            url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid], "new_expressions": True}
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
         # try sending as a suspended org
         self.org.set_suspended()
@@ -951,6 +967,7 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 404)
 
+    @skip_if_no_mailroom
     def test_campaign_events(self):
         url = reverse("api.v2.campaign_events")
 
@@ -1109,7 +1126,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "Nice job",
+                "message": "You are @contact.age",  # will be migrated
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1120,7 +1137,7 @@ class APITest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "W")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice job"})
+        self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
         response = self.postJSON(
@@ -1132,7 +1149,8 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "days",
                 "delivery_hour": -1,
-                "message": "Nice unit of work",
+                "message": "Nice unit of work @fields.code",
+                "new_expressions": True,
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1143,7 +1161,7 @@ class APITest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "D")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice unit of work"})
+        self.assertEqual(event1.message, {"base": "Nice unit of work @fields.code"})
         self.assertIsNotNone(event1.flow)
 
         # create a flow event
@@ -1204,14 +1222,14 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK", "fra": "D'accord"},
+                "message": {"base": "OK @contact.tel", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord"})
+        self.assertEqual(event2.message, {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(

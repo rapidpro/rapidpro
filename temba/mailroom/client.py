@@ -50,6 +50,14 @@ class MailroomClient:
         if auth_token:
             self.headers["Authorization"] = "Token " + auth_token
 
+    def expression_migrate(self, expression):
+        try:
+            resp = self._request("expression/migrate", {"expression": expression})
+            return resp["migrated"]
+        except FlowValidationException:
+            # if the expression is invalid.. just return original
+            return expression
+
     def flow_migrate(self, definition):
         return self._request("flow/migrate", {"flow": definition})
 
