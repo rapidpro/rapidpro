@@ -7,8 +7,8 @@ import { CustomEventType } from '../interfaces';
 
 const LOOK_AHEAD = 20;
 
-@customElement("rp-choice")
-export default class Choice extends RapidElement {
+@customElement("rp-select")
+export default class Select extends RapidElement {
 
   static get styles() {
     return css`

@@ -334,12 +334,12 @@ export default class AliasEditor extends LitElement {
     return html`
       <div id="left-column">
         <div class="search">
-          <rp-choice 
+          <rp-select 
             placeholder="Search" 
             endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
             .renderOptionDetail=${this.renderOptionDetail}
             @rp-selection=${this.handleSearchSelection.bind(this)}
-          ></rp-choice>
+          ></rp-select>
       </div>
         <div class="feature-tree">
           ${this.renderFeature(this.path[0], this.path.slice(1))}
