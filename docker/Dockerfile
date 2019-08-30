@@ -1,6 +1,8 @@
 FROM python:3.6-alpine
 
 ARG COMPRESS_ENABLED
+ARG BRANDING_ENABLED
+
 ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
@@ -35,8 +37,6 @@ COPY ./docker/start /start
 RUN sed -i 's/\r$//g' /start
 RUN chmod +x /start
 RUN chown django /start
-
-RUN git clone https://github.com/push-platform/push-branding /app/static/brands/
 
 RUN chown -R django /app
 USER django

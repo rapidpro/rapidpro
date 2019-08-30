@@ -23,6 +23,7 @@ services:
       - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-""}
       - COMPRESS_ENABLED=${COMPRESS_ENABLED:-false}
       - COMPRESS_OFFLINE=${COMPRESS_OFFLINE:-false}
+      - BRANDING_ENABLED=${BRANDING_ENABLED:-false}
     ports:
       - 8000:8000
   redis:
