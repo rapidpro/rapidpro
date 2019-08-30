@@ -7,20 +7,16 @@ RUN update-ca-certificates
 RUN mkdir /rapidpro
 WORKDIR /rapidpro
 
-RUN virtualenv -p /usr/bin/python3.6 env
-RUN . env/bin/activate
+COPY pip-freeze.txt /rapidpro/pip-freeze.txt
+RUN pip3 install --upgrade pip setuptools
+RUN pip3 install -r pip-freeze.txt
 
-ADD pip-freeze.txt /rapidpro/pip-freeze.txt
-RUN pip install --upgrade pip
-RUN pip install -r pip-freeze.txt --upgrade
+COPY . /rapidpro
+COPY docker/docker.settings /rapidpro/temba/settings.py
 
-ADD . /rapidpro
-COPY docker.settings /rapidpro/temba/settings.py
+RUN npm install && bower install --allow-root
 
-RUN cd /rapidpro && npm install && bower install --allow-root
-
-RUN python manage.py collectstatic --noinput
-RUN python manage.py compress --extension=.haml --force
+RUN python3.6 manage.py collectstatic --noinput
 
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
@@ -29,7 +25,7 @@ RUN ln -sf /rapidpro/nginx.conf /etc/nginx/sites-enabled/
 
 RUN rm -f /rapidpro/temba/settings.pyc
 
-COPY entrypoint.sh /
+COPY docker/entrypoint.sh /
 
 RUN rm -rf /tmp/* /var/tmp/*[~]$
 

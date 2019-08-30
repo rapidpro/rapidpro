@@ -1,1 +1,3 @@
-docker.settings
+env
+env_py3
+node_modules
