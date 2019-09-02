@@ -39,12 +39,18 @@ FLOW_FROM_EMAIL = DEFAULT_FROM_EMAIL
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_PW = os.environ.get("REDIS_PW", None)
 REDIS_DB = int(os.environ.get("REDIS_DB", 10))
+
+if REDIS_PW:
+    REDIS_LOCATION = "redis://:%s@%s:%s/%s" % (REDIS_PW, REDIS_HOST, REDIS_PORT, REDIS_DB)
+else:
+    REDIS_LOCATION = "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "LOCATION": REDIS_LOCATION,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         }
