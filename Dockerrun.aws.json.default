@@ -1,7 +1,7 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "greatnonprofits/ccl:production-BUILD_NUMBER",
+    "Name": "greatnonprofits/ccl:dev-BUILD_NUMBER",
     "Update": "true"
   },
   "Ports": [
