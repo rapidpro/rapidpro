@@ -4,6 +4,7 @@ import axios, { AxiosResponse, CancelTokenSource } from 'axios';
 import '../options/Options';
 import RapidElement, { EventHandler } from '../RapidElement';
 import { CustomEventType } from '../interfaces';
+import TextInput from '../textinput/TextInput';
 
 const LOOK_AHEAD = 20;
 
@@ -146,8 +147,8 @@ export default class Select extends RapidElement {
   }
 
   private handleKeyUp(evt: KeyboardEvent) {
-    const ele = evt.currentTarget as HTMLInputElement;
-    this.input = ele.value.trim();
+    const ele = evt.currentTarget as TextInput;
+    this.input = ele.inputElement.value.trim();
   }
 
   private handleCancel() {
@@ -162,7 +163,7 @@ export default class Select extends RapidElement {
     return [
       { event: CustomEventType.Canceled, method: this.handleCancel },
       { event: CustomEventType.CursorChanged, method: this.handleCursorChanged },
-      { event: CustomEventType.Selection, method: this.handleOptionSelection },
+      // { event: CustomEventType.Selection, method: this.handleOptionSelection },
     ];
   }
 
@@ -181,6 +182,7 @@ export default class Select extends RapidElement {
       ></rp-textinput>
       <rp-options
         cursorIndex=${this.cursorIndex}
+        @rp-selection=${this.handleOptionSelection}
         .renderOptionDetail=${this.renderOptionDetail}
         .renderOptionName=${this.renderOptionName}
         .renderOption=${this.renderOption}

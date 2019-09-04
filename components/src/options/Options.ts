@@ -14,7 +14,7 @@ export default class Options extends RapidElement {
         position: absolute;
         border: 1px solid var(--color-borders);
         box-shadow: 0px 0px 3px 1px rgba(0,0,0,.06);
-        transition: opacity ease-in-out 200ms, top ease-in-out 100ms; 
+        /* transition: opacity ease-in-out 200ms, top ease-in-out 100ms; */
         max-height: 300px;
         opacity: 0;
         visibility: hidden;
@@ -40,14 +40,23 @@ export default class Options extends RapidElement {
       }
 
       .option .detail {
-        font-size: 80%;
-        color: rgba(255,255,255,.6);
+        font-size: 85%;
+        color: rgba(255,255,255,.9);
+      }
+
+      code {
+        background: rgba(0,0,0,.15);
+        padding: 1px 5px;
+        border-radius: 4px;
       }
     `
   }
 
   @property({type: Number})
   top: number;
+
+  @property({type: Number})
+  left: number;
 
   @property({type: Number})
   width: number;
@@ -95,6 +104,7 @@ export default class Options extends RapidElement {
 
     if(changedProperties.has("options")) {
       this.calculatePosition();
+      this.cursorIndex = 0;
     }
   }
 
@@ -116,9 +126,9 @@ export default class Options extends RapidElement {
     return html`${option.detail}`
   }
 
-  private handleSelection() {
+  private handleSelection(tabbed: boolean = false) {
     const selected = this.options[this.cursorIndex];
-    this.fireEvent(CustomEventType.Selection, { selected })
+    this.fireEvent(CustomEventType.Selection, { selected, tabbed });
   }
 
   private moveCursor(direction: number): void {
@@ -141,8 +151,9 @@ export default class Options extends RapidElement {
       } else if ((evt.ctrlKey && evt.key === "p") || evt.key === "ArrowUp") {
         this.moveCursor(-1);
         evt.preventDefault();
-      } else if (evt.key === "Enter") {
-        this.handleSelection();
+      } else if (evt.key === "Enter" || evt.key === "Tab") {
+        this.handleSelection(evt.key === "Tab");
+        evt.preventDefault();
       }
 
       if(evt.key === "Escape") {
@@ -161,6 +172,8 @@ export default class Options extends RapidElement {
       } else {
         this.top = anchorBounds.bottom + window.pageYOffset;
       }
+
+      this.left = anchorBounds.left;
       this.width = anchorBounds.width;
     }
   }
@@ -178,6 +191,7 @@ export default class Options extends RapidElement {
       <style>
         .options {
           top: ${this.top}px;
+          left: ${this.left}px;
           width: ${this.width}px;
         }
       </style>

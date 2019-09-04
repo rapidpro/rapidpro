@@ -69,20 +69,21 @@
     </style>
 
     <div style="width: 100%">
-      <rp-textinput placeholder="boo"></rp-textinput>
+      <rp-completion 
+        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+      </rp-completion>
     </div>
-    
     <br/>
     <div style="height: 150px; width: 100%">
-      <rp-textinput placeholder="yaa" textarea></rp-textinput>
-    </div>
-    
-    <br/>
-    <div style="height: 150px; width: 100%">
-      <rp-completion placeholder="you complete me" textarea></rp-completion>
+      <rp-completion 
+        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+        textarea>
+      </rp-completion>
     </div>
   
-    <!--alias-editor
+    <!-- alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
     ></alias-editor-->
