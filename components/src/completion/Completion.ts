@@ -2,8 +2,8 @@ import { customElement, TemplateResult, html, css, property } from 'lit-element'
 import RapidElement, { EventHandler } from '../RapidElement';
 import ExcellentParser, { Expression } from './ExcellentParser';
 import TextInput from '../textinput/TextInput';
-import { getCompletions, CompletionSchema, getFunctions, getCursorPosition, Position } from './helpers';
-import { getUrl } from '../utils';
+import { getCompletions, CompletionSchema, getFunctions, Position, KeyedAssets } from './helpers';
+import { getUrl, getAssets, Asset } from '../utils';
 import { AxiosResponse } from 'axios';
 import getCaretCoordinates from 'textarea-caret';
 import { directive, Part} from 'lit-html';
@@ -65,6 +65,8 @@ export default class Completion extends RapidElement {
   /** Remote list of our function options */
   private functions: CompletionOption[];
 
+  private keyedAssets: KeyedAssets;
+
   @property({ type: Object})
   anchorPosition: Position = { left: 0, top: 0};
 
@@ -92,6 +94,9 @@ export default class Completion extends RapidElement {
   @property({type: String})
   functionsEndpoint: string;
 
+  @property({type: String})
+  fieldsEndpoint: string;
+
   @property({type: Boolean})
   textarea: boolean;
 
@@ -101,6 +106,8 @@ export default class Completion extends RapidElement {
   public firstUpdated(changedProperties: Map<string, any>) {
     this.textInputElement = this.shadowRoot.querySelector("rp-textinput") as TextInput;
     this.anchorElement = this.shadowRoot.querySelector("#anchor");
+
+    // TODO: fetch these once per page, not once per control
     
     if (this.completionsEndpoint) {
       getUrl(this.completionsEndpoint).then((response: AxiosResponse) => {
@@ -112,6 +119,12 @@ export default class Completion extends RapidElement {
       getUrl(this.functionsEndpoint).then((response: AxiosResponse) => {
         this.functions = response.data as CompletionOption[];
       });
+    }
+
+    if (this.fieldsEndpoint) {
+      getAssets(this.fieldsEndpoint).then((assets: Asset[])=>{
+        this.keyedAssets = { fields: assets.map((asset: Asset)=> asset.key ) }
+      });      
     }
   }
 
@@ -181,7 +194,7 @@ export default class Completion extends RapidElement {
 
             this.query = currentExpression.text.substr(i, currentExpression.text.length - i);
             this.options = [
-              ...getCompletions(this.schema, this.query), 
+              ...getCompletions(this.schema, this.query, this.keyedAssets),
               ...(includeFunctions ? getFunctions(this.functions, this.query) : [])
             ];
 

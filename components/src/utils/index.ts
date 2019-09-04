@@ -1,6 +1,15 @@
 import axios, { AxiosResponse, CancelToken, AxiosRequestConfig } from 'axios';
 import { html, TemplateResult } from 'lit-html';
 
+export interface Asset {
+    key?: string;
+}
+
+interface AssetPage {
+    assets: Asset[];
+    next: string;
+}
+
 /** Get the value for a named cookie */
 export const getCookie = (name: string): string => {
     for (const cookie of document.cookie.split(';')) {
@@ -36,6 +45,34 @@ export const getClasses = (map: ClassMap): string => {
         result = ' ' + result;
     }
     return result;
+};
+
+export const getAssetPage = (url: string): Promise<AssetPage> => {
+    return new Promise<AssetPage>((resolve, reject) => {
+        getUrl(url)
+            .then((response: AxiosResponse) => {
+                resolve({
+                    assets: response.data.results,
+                    next: response.data.next
+                });
+            })
+            .catch(error => reject(error));
+    });
+};
+
+export const getAssets = async (url: string): Promise<Asset[]> => {
+    if (!url) {
+        return new Promise<Asset[]>((resolve, reject) => resolve([]));
+    }
+
+    let assets: Asset[] = [];
+    let pageUrl = url;
+    while (pageUrl) {
+        const assetPage = await getAssetPage(pageUrl);
+        assets = assets.concat(assetPage.assets);
+        pageUrl = assetPage.next;
+    }
+    return assets;
 };
 
 export const getUrl = (
