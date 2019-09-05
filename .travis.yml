@@ -127,5 +127,4 @@ after_success:
   - coverage report -i --rcfile .coveragerc_todo
 
 notifications:
-  slack:
-    secure: "b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68="
+  slack: greatnonprofits:1WMrWSjkASDxZ16KphVlI8Sq
