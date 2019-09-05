@@ -50,6 +50,32 @@ export default class Completion extends RapidElement {
         font-weight: bold;
         font-size: 42px;
       }
+
+      .option-slot {
+        background: #fff;
+      }
+
+      .current-fn {
+        padding: 10px;
+        margin: 5px;
+        background: var(--color-widget-bg);
+        color: rgba(0, 0, 0, .5);
+        border-radius: var(--curvature);
+        font-size: 90%;
+      }
+
+      .footer {
+        padding: 5px 10px;
+        background: var(--color-widget-bg);
+        color: rgba(0, 0, 0, .5);
+        font-size: 80%;
+      }
+
+      code {
+        background: rgba(0,0,0,.1);
+        padding: 1px 5px;
+        border-radius: var(--curvature);
+      }
     `
   }
 
@@ -160,6 +186,7 @@ export default class Completion extends RapidElement {
    */
   private executeQuery(ele: TextInput) {
     this.inputElement = ele.inputElement;
+    this.currentFunction = null;
 
     if (this.schema) {
       const cursor = ele.inputElement.selectionStart;
@@ -213,6 +240,11 @@ export default class Completion extends RapidElement {
     this.executeQuery(ele);
   }
 
+  private handleOptionCanceled(evt: CustomEvent) {
+    this.options = [];
+    this.query = "";
+  }
+  
   private handleOptionSelection(evt: CustomEvent) {
     const option = evt.detail.selected as CompletionOption;
     const tabbed = evt.detail.tabbed;
@@ -246,22 +278,24 @@ export default class Completion extends RapidElement {
     }
   }
 
+
   private renderCompletionOption(option: CompletionOption, selected: boolean) {
     if(option.signature) {
+
       const argStart = option.signature.indexOf("(")
       const name = option.signature.substr(0, argStart);
       const args = option.signature.substr(argStart);
 
       return html`
-      <div style="${selected ? 'font-weight: 400' : ''}">
-        <div style="display:inline-block;">ƒ</div>
-        <div style="display:inline-block">${name}</div>
-        ${selected ? html`
-          <div style="display:inline-block; font-weight: 300; font-size: 85%">${args}</div>
-          <div class="detail">${markedRender(option.summary)}</div>
-        ` : null}
-      </div>`;
-    }
+        <div style="${selected ? 'font-weight: 400' : ''}">
+          <div style="display:inline-block;">ƒ</div>
+          <div style="display:inline-block">${name}</div>
+          ${selected ? html`
+            <div style="display:inline-block; font-weight: 300; font-size: 85%">${args}</div>
+            <div class="detail">${markedRender(option.summary)}</div>
+          ` : null}
+        </div>`;
+      }
 
     return html`
     <div>
@@ -290,11 +324,15 @@ export default class Completion extends RapidElement {
       </rp-textinput>
       <rp-options
         @rp-selection=${this.handleOptionSelection}
+        @rp-canceled=${this.handleOptionCanceled}
         .anchorTo=${this.anchorElement}
         .options=${this.options}
         .renderOption=${this.renderCompletionOption}
         ?visible=${this.options.length > 0}
-      ></rp-options>
+      >
+        ${this.currentFunction ? html`<div class="current-fn">${this.renderCompletionOption(this.currentFunction, true)}</div>`: null}
+        <div class="footer">Tab to complete, enter to select</div>
+    </rp-options>
     `;
   }
 }

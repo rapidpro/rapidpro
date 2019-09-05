@@ -7,17 +7,21 @@ export default class Options extends RapidElement {
 
   static get styles() {
     return css`
-      .options {
-        overflow-y: scroll;
-        background: #fff;
-        border-radius: 5px;
+      .container {
         position: absolute;
+        visibility: hidden;
+        opacity: 0;
+        border-radius: var(--curvature);
         border: 1px solid var(--color-borders);
         box-shadow: 0px 0px 3px 1px rgba(0,0,0,.06);
-        /* transition: opacity ease-in-out 200ms, top ease-in-out 100ms; */
+        background: #fff;
+      }
+
+      .options {
+        border-radius: var(--curvature);
+        overflow-y: scroll;
+        background: #fff;
         max-height: 300px;
-        opacity: 0;
-        visibility: hidden;
       }
 
       .show {
@@ -47,7 +51,7 @@ export default class Options extends RapidElement {
       code {
         background: rgba(0,0,0,.15);
         padding: 1px 5px;
-        border-radius: 4px;
+        border-radius: var(--curvature);
       }
     `
   }
@@ -91,13 +95,14 @@ export default class Options extends RapidElement {
       if (focusedEle) {
         const scrollBox =  this.shadowRoot.querySelector(".options");
         const scrollBoxHeight = scrollBox.getBoundingClientRect().height
-        const focusedEleHeight = focusedEle.getBoundingClientRect().height;              
+        const focusedEleHeight = focusedEle.getBoundingClientRect().height;    
+
         if (focusedEle.offsetTop + focusedEleHeight > scrollBox.scrollTop + scrollBoxHeight - 5) {
           const scrollTo = focusedEle.offsetTop - scrollBoxHeight + focusedEleHeight + 5;
-          scrollBox.scrollTo({ top: scrollTo });
+          scrollBox.scrollTop = scrollTo;
         } else if (focusedEle.offsetTop < scrollBox.scrollTop) {
           const scrollTo = focusedEle.offsetTop - 5;
-          scrollBox.scrollTo({ top: scrollTo });
+          scrollBox.scrollTop = scrollTo;
         }
       }
     }
@@ -189,21 +194,33 @@ export default class Options extends RapidElement {
     const renderOption = (this.renderOption || this.renderOptionDefault).bind(this);
     return html`
       <style>
-        .options {
+        .container {
           top: ${this.top}px;
           left: ${this.left}px;
           width: ${this.width}px;
         }
+
+        .options {
+          width: ${this.width}px;
+        }
       </style>
-      <div class="options ${this.visible ? "show": ""}">
-        ${this.options.map((option: any, index: number)=>html`
-          <div 
-            @mousemove=${()=>{this.setCursor(index)}}
-            @click=${()=>{this.handleSelection();}}
-            class="option ${index == this.cursorIndex ? 'focused' : ''}">
-              ${renderOption(option, index == this.cursorIndex)}
-          </div>
-        `)}
-      </div>`;
+      <div class="container ${this.visible ? "show": ""}">
+        <div class="options">
+          ${this.options.map((option: any, index: number)=>html`
+            <div 
+              @mouseover=${(evt: MouseEvent)=>{
+                  if (Math.abs(evt.movementX) + Math.abs(evt.movementY) > 0) {
+                    this.setCursor(index);
+                  }
+              }}
+              @click=${()=>{this.handleSelection();}}
+              class="option ${index == this.cursorIndex ? 'focused' : ''}">
+                ${renderOption(option, index == this.cursorIndex)}
+            </div>
+          `)}
+        </div>
+        <slot></slot>
+      </div>
+      `;
   }
 }
