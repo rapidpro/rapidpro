@@ -4,7 +4,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-if [ "${BRANDING_ENABLED}" = true ]; then
+if [ ! -z "${BRANDING_FILES}" ]; then
     git clone $BRANDING_FILES /app/$BRANDING_SLUG/
     mv /app/$BRANDING_SLUG/$BRANDING_SLUG/ /app/static/brands/
 fi
