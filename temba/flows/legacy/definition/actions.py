@@ -3,7 +3,7 @@ from uuid import uuid4
 from django.conf import settings
 
 from temba.channels.models import Channel
-from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.values.constants import Value
 
 from ..expressions import evaluate
@@ -563,44 +563,6 @@ class VariableContactAction(Action):  # pragma: no cover
             variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
         return variables
 
-    def build_groups_and_contacts(self, run, msg):
-        from temba.flows.models import get_flow_user
-        from ..expressions import flow_context
-
-        expressions_context = flow_context(run.flow, run.contact, msg, run=run)
-        contacts = list(self.contacts)
-        groups = list(self.groups)
-
-        # see if we've got groups or contacts
-        for variable in self.variables:
-            # this is a marker for a new contact
-            if variable == NEW_CONTACT_VARIABLE:
-                contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
-
-            # other type of variable, perform our substitution
-            else:
-                (variable, errors) = evaluate(variable, expressions_context, org=run.flow.org)
-
-                # Check for possible contact uuid and use its contact
-                contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
-                if contact_variable_by_uuid:
-                    contacts.append(contact_variable_by_uuid)
-                    continue
-
-                variable_group = ContactGroup.get_user_group_by_name(run.flow.org, name=variable)
-                if variable_group:  # pragma: needs cover
-                    groups.append(variable_group)
-                else:
-                    country = run.flow.org.get_country_code()
-                    (number, valid) = URN.normalize_number(variable, country)
-                    if number and valid:
-                        contact, contact_urn = Contact.get_or_create(
-                            run.org, URN.from_tel(number), user=get_flow_user(run.org)
-                        )
-                        contacts.append(contact)
-
-        return groups, contacts
-
 
 class TriggerFlowAction(VariableContactAction):
     """
@@ -647,31 +609,7 @@ class TriggerFlowAction(VariableContactAction):
         )
 
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from ..engine import flow_start
-
-        if self.flow:
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-            # start our contacts down the flow
-            # our extra will be our flow variables in our message context
-            extra = context.get("extra", dict())
-            child_runs = flow_start(
-                self.flow,
-                groups,
-                contacts,
-                restart_participants=True,
-                started_flows=[run.flow.pk],
-                extra=extra,
-                parent_run=run,
-            )
-
-            # build up all the msgs that where sent by our flow
-            msgs = []
-            for run in child_runs:
-                msgs += run.start_msgs
-
-            return msgs
-        else:  # pragma: no cover
-            return []
+        pass
 
 
 class SetLanguageAction(Action):
@@ -972,25 +910,4 @@ class SendAction(VariableContactAction):
         )
 
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.msgs.models import Broadcast
-
-        if self.msg or self.media:
-            flow = run.flow
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
-            # no-op if neither text nor media are defined in the flow base language
-            if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
-                return list()
-
-            broadcast = Broadcast.create(
-                flow.org,
-                flow.modified_by,
-                self.msg,
-                groups=groups,
-                contacts=contacts,
-                media=self.media,
-                base_language=flow.base_language,
-            )
-            broadcast.send(expressions_context=context)
-
-        return []
+        pass

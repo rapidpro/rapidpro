@@ -3736,28 +3736,6 @@ class FlowLabelTest(FlowFileTest):
 class WebhookTest(TembaTest):
     @override_settings(SEND_WEBHOOKS=True)
     @uses_legacy_engine
-    def test_webhook_subflow_extra(self):
-        # import out flow that triggers another flow
-        contact1 = self.create_contact("Marshawn", "+14255551212")
-        substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions)
-
-        self.mockRequest("GET", "/where", '{ "text": "(I came from a webhook)" }')
-        legacy.flow_start(flow, groups=[], contacts=[contact1], restart_participants=True)
-
-        # first message from our trigger flow action
-        msg = Msg.objects.all().order_by("-created_on")[0]
-        self.assertEqual("Honey, I triggered the flow! (I came from a webhook)", msg.text)
-
-        # second message from our start flow action
-        msg = Msg.objects.all().order_by("-created_on")[1]
-        self.assertEqual("Honey, I triggered the flow! (I came from a webhook)", msg.text)
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
     def test_webhook_decimals(self):
         flow = self.get_flow("webhook_decimal")
         contact = self.create_contact("Ben Haggerty", "+250788383383")
@@ -6096,20 +6074,6 @@ class FlowsTest(FlowFileTest):
             [f"image/jpeg:{settings.STORAGE_URL}/attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"],
         )
 
-    @uses_legacy_engine
-    def test_substitution(self):
-        flow = self.get_flow("substitution")
-        self.contact.name = "Ben Haggerty"
-        self.contact.save(update_fields=("name",), handle_update=False)
-
-        runs = legacy.flow_start(flow, [], [self.contact])
-        self.assertEqual(1, len(runs))
-        self.assertEqual(self.contact.msgs.get().text, "Hi Ben Haggerty, what is your phone number?")
-
-        self.assertEqual("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
-        sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
-        self.assertEqual("Hi from Ben Haggerty! Your phone is (206) 555-2020.", sms.text)
-
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
         group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
@@ -6121,26 +6085,6 @@ class FlowsTest(FlowFileTest):
 
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
-
-    @uses_legacy_engine
-    def test_new_contact(self):
-        mother_flow = self.get_flow("mama_mother_registration")
-        registration_flow = self.get_flow("mama_registration", dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
-        self.assertEqual("Enter the expected delivery date.", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEqual(
-            "Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015")
-        )
-
-        mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(
-            mother.get_field_serialized(ContactField.get_by_key(self.org, "edd")).startswith("2015-01-31T")
-        )
-        self.assertEqual(
-            mother.get_field_serialized(ContactField.get_by_key(self.org, "chw_phone")),
-            self.contact.get_urn(TEL_SCHEME).path,
-        )
-        self.assertEqual(mother.get_field_serialized(ContactField.get_by_key(self.org, "chw_name")), self.contact.name)
 
     @uses_legacy_engine
     def test_group_rule_first(self):
@@ -6157,37 +6101,6 @@ class FlowsTest(FlowFileTest):
 
         legacy.flow_start(rule_flow, [], [self.contact], restart_participants=True)
         self.assertLastResponse("You are a father.")
-
-    @uses_legacy_engine
-    def test_mother_registration(self):
-        mother_flow = self.get_flow("new_mother")
-        registration_flow = self.get_flow("mother_registration", dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-        self.assertEqual(mother_flow.runs.count(), 0)
-
-        self.assertEqual("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEqual("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
-        self.assertEqual(
-            "Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383")
-        )
-
-        # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
-        self.assertEqual(mother_flow.runs.count(), 2)
-
-        edd_field = ContactField.get_by_key(self.org, "expected_delivery_date")
-        chw_field = ContactField.get_by_key(self.org, "chw")
-
-        mother = Contact.from_urn(self.org, "tel:+250788383383")
-        self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_serialized(edd_field).startswith("2014-01-31T"))
-        self.assertEqual("+12065552020", mother.get_field_serialized(chw_field))
-        self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
-
-        pain_flow = self.get_flow("pain_flow")
-        self.assertEqual("Your CHW will be in contact soon!", self.send_message(pain_flow, "yes", contact=mother))
-
-        chw = self.contact
-        sms = Msg.objects.filter(contact=chw).order_by("-created_on")[0]
-        self.assertEqual("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
@@ -6803,27 +6716,6 @@ class FlowsTest(FlowFileTest):
         legacy.flow_start(parent, groups=[], contacts=[self.contact])
 
     @uses_legacy_engine
-    def test_trigger_flow_complete(self):
-        contact2 = self.create_contact(name="Jason Tatum", number="+250788123123")
-
-        self.get_flow("trigger_flow_complete", dict(contact2_uuid=contact2.uuid))
-
-        parent = Flow.objects.get(org=self.org, name="Flow A")
-
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-
-        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=contact2).count())
-
-        run1 = FlowRun.objects.filter(contact=self.contact).first()
-        run2 = FlowRun.objects.filter(contact=contact2).first()
-
-        self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-        self.assertFalse(run1.is_active)
-
-        self.assertEqual(run2.parent.id, run1.id)
-
-    @uses_legacy_engine
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
@@ -6851,97 +6743,6 @@ class FlowsTest(FlowFileTest):
         msgs = list(self.contact.msgs.order_by("id"))
         self.assertEqual(len(msgs), 2)
         self.assertEqual(msgs[1].text, "You are in the enrolled group.")
-
-    @uses_legacy_engine
-    def test_translations(self):
-
-        favorites = self.get_flow("favorites")
-
-        # create a new language on the org
-        self.org.set_languages(self.admin, ["eng"], "eng")
-
-        # everything should work as normal with our flow
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
-        json_dict = favorites.as_json()
-        reply = json_dict["action_sets"][0]["actions"][0]
-
-        # we should be a normal unicode response
-        self.assertIsInstance(reply["msg"], dict)
-        self.assertIsInstance(reply["msg"]["base"], str)
-
-        # now our replies are language dicts
-        json_dict = favorites.as_json()
-        reply = json_dict["action_sets"][1]["actions"][0]
-        self.assertEqual(
-            "Good choice, I like @flow.color.category too! What is your favorite beer?", reply["msg"]["base"]
-        )
-
-        # now interact with the flow and make sure we get an appropriate response
-        self.releaseRuns()
-
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
-        self.assertEqual(
-            "Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED")
-        )
-
-        # now let's add a second language
-        self.org.set_languages(self.admin, ["eng", "tlh"], "eng")
-
-        # update our initial message
-        initial_message = json_dict["action_sets"][0]["actions"][0]
-        initial_message["msg"]["tlh"] = "Kikshtik derklop?"
-        json_dict["action_sets"][0]["actions"][0] = initial_message
-
-        # and the first response
-        reply["msg"]["tlh"] = "Katishklick Shnik @flow.color.category Errrrrrrrklop"
-        json_dict["action_sets"][1]["actions"][0] = reply
-
-        # save the changes
-        favorites.update(json_dict, self.admin)
-
-        # should get org primary language (english) since our contact has no preferred language
-        self.releaseRuns()
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorite", initiate_flow=True))
-        self.assertEqual(
-            "Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED")
-        )
-
-        # now set our contact's preferred language to klingon
-        self.releaseRuns()
-        self.contact.language = "tlh"
-        self.contact.save(update_fields=("language",), handle_update=False)
-
-        self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
-        self.assertEqual("Katishklick Shnik Red Errrrrrrrklop", self.send_message(favorites, "RED"))
-
-        # we support localized rules and categories as well
-        json_dict = favorites.as_json()
-        rule = json_dict["rule_sets"][0]["rules"][0]
-        self.assertTrue(isinstance(rule["test"]["test"], dict))
-        rule["test"]["test"]["tlh"] = "klerk"
-        rule["category"]["tlh"] = "Klerkistikloperopikshtop"
-        json_dict["rule_sets"][0]["rules"][0] = rule
-        favorites.update(json_dict, self.admin)
-
-        self.releaseRuns()
-        self.assertEqual(
-            "Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", self.send_message(favorites, "klerk")
-        )
-
-        # test the send action as well
-        json_dict = favorites.as_json()
-        action = json_dict["action_sets"][1]["actions"][0]
-        action["type"] = "send"
-        action["contacts"] = [dict(uuid=self.contact.uuid)]
-        action["groups"] = []
-        action["variables"] = []
-        json_dict["action_sets"][1]["actions"][0] = action
-        favorites.update(json_dict, self.admin)
-
-        self.releaseRuns()
-        self.send_message(favorites, "klerk", assert_reply=False)
-        sms = Msg.objects.filter(contact=self.contact).order_by("-pk")[0]
-        self.assertEqual("Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", sms.text)
 
     @uses_legacy_engine
     def test_airtime_flow(self):
@@ -7334,37 +7135,6 @@ class ExitTest(FlowFileTest):
         self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertTrue(second_run.is_active)
-
-
-class TriggerFlowTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_trigger_then_loop(self):
-        # start our parent flow
-        flow = self.get_flow("parent_child_loop")
-        legacy.flow_start(flow, [], [self.contact])
-
-        # trigger our second flow to start
-        msg = self.create_msg(contact=self.contact, direction="I", text="add 12067797878")
-        legacy.find_and_handle(msg)
-
-        child_run = FlowRun.objects.get(contact__urns__path="+12067797878")
-        msg = self.create_msg(contact=child_run.contact, direction="I", text="Christine")
-        legacy.find_and_handle(msg)
-        child_run.refresh_from_db()
-        self.assertEqual("C", child_run.exit_type)
-
-        # main contact should still be in the flow
-        run = FlowRun.objects.get(flow=flow, contact=self.contact)
-        self.assertTrue(run.is_active)
-        self.assertIsNone(run.exit_type)
-
-        # and can do it again
-        msg = self.create_msg(contact=self.contact, direction="I", text="add 12067798080")
-        legacy.find_and_handle(msg)
-
-        FlowRun.objects.get(contact__urns__path="+12067798080")
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
 
 
 class StackedExitsTest(FlowFileTest):

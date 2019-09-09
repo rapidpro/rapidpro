@@ -1,8 +1,6 @@
-import copy
 from uuid import uuid4
 
 from django.conf import settings
-from django.test import override_settings
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
@@ -252,201 +250,41 @@ class ActionTest(TembaTest):
         self.assertEqual(action.msg, dict(base="Are you fine?"))
         self.assertEqual(action.quick_replies, payload)
 
-    @uses_legacy_engine
-    def test_trigger_flow_action(self):
+    def test_trigger_flow(self):
         flow = self.create_flow()
-        run = FlowRun.create(self.flow, self.contact)
-
-        # add a channel to make sure that country is ambiguous
-        Channel.create(self.org, self.admin, "US", "EX", schemes=["tel"])
-        delattr(self.org, "_country_code")
-        self.org.country = None
-        self.org.save()
-
-        # set a contact field with another phone number
-        self.contact.set_field(self.admin, "other_contact_tel", "+12065551212", "Other Contact Tel")
-
         action = TriggerFlowAction(str(uuid4()), flow, [], [self.contact], ["@contact.other_contact_tel"])
-        self.execute_action(action, run, None)
-
-        # should have created a new contact with the above variable
-        self.assertIsNotNone(Contact.from_urn(self.org, "tel:+12065551212"))
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)
-        self.assertEqual(action.flow.pk, flow.pk)
 
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
-
-        action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [], [])
-        run = FlowRun.create(self.flow, self.contact)
-        msgs = self.execute_action(action, run, None)
-
-        self.assertFalse(msgs)
-
-        self.other_group.update_contacts(self.user, [self.contact2], True)
-
-        action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [self.contact], [])
-        run = FlowRun.create(self.flow, self.contact)
-        self.execute_action(action, run, None)
-
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
-
-        # delete the group
-        self.other_group.is_active = False
-        self.other_group.save()
-
-        self.assertTrue(action.groups)
-        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
-        # should create new group the next time the flow is read
-        updated_action = TriggerFlowAction.from_json(self.org, action.as_json())
-        self.assertTrue(updated_action.groups)
-        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+        self.assertEqual(flow, action.flow)
+        self.assertEqual([self.contact], action.contacts)
+        self.assertEqual([], action.groups)
+        self.assertEqual(["@contact.other_contact_tel"], action.variables)
 
     def test_send_action(self):
-        # previously @step.contact was the run contact and @contact would become the recipient but that has been
-        # changed so that both are the run contact
-        msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
-
-        self.contact.set_field(self.user, "state", "WA", label="State")
-        self.contact2.set_field(self.user, "state", "GA", label="State")
-        run = FlowRun.create(self.flow, self.contact)
-
-        action = SendAction(str(uuid4()), dict(base=msg_body), [], [self.contact2], [])
-        self.execute_action(action, run, None)
+        action = SendAction(str(uuid4()), dict(base="Hello"), [], [self.contact2], [])
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
-        self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media, dict())
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, dict(base=msg_body))
-        self.assertEqual(broadcast.base_language, "base")
-        self.assertEqual(broadcast.get_messages().count(), 1)
-        msg = broadcast.get_messages().first()
-        self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, "Hi Eric (WA). Eric (WA) is in the flow")
-
-        # empty message should be a no-op
-        action = SendAction(str(uuid4()), dict(base=""), [], [self.contact], [])
-        self.execute_action(action, run, None)
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-
-        # support sending to groups inside SendAction
-        SendAction.from_json(self.org, action.as_json())
-
-        # test send media to someone else
-        run = FlowRun.create(self.flow, self.contact)
-        msg_body = "I am a media message message"
-
-        action = SendAction(
-            str(uuid4()),
-            dict(base=msg_body),
-            [],
-            [self.contact2],
-            [],
-            dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"),
-        )
-        self.execute_action(action, run, None)
-
-        action_json = action.as_json()
-        action = SendAction.from_json(self.org, action_json)
-        self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media["base"], f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg")
-
-        self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
-
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.media, dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"))
-        self.assertEqual(broadcast.get_messages().count(), 1)
-        msg = broadcast.get_messages().first()
-        self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, msg_body)
-        self.assertEqual(msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"])
-
-        # also send if we have empty message but have an attachment
-        action = SendAction(
-            str(uuid4()), dict(base=""), [], [self.contact], [], dict(base="image/jpeg:attachments/picture.jpg")
-        )
-        self.execute_action(action, run, None)
-
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.text, dict(base=""))
-        self.assertEqual(broadcast.media, dict(base="image/jpeg:attachments/picture.jpg"))
-        self.assertEqual(broadcast.base_language, "base")
+        self.assertEqual("Hello", action.msg["base"])
+        self.assertEqual({}, action.media)
+        self.assertEqual([self.contact2], action.contacts)
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])
         groups = VariableContactAction.parse_groups(self.org, groups)
         self.assertTrue("Missing", groups[0].name)
 
-    @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
 
         # check to and from JSON
         action_json = action.as_json()
         action = EmailAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-        self.assertOutbox(0, "no-reply@temba.io", "Subject", "Body", ["steve@apple.com"])
-
-        try:
-            EmailAction(str(uuid4()), [], "Subject", "Body")
-            self.fail("Should have thrown due to empty recipient list")
-        except FlowException:
-            pass
-
-        # check expression evaluation in action fields
-        action = EmailAction(
-            str(uuid4()),
-            ["@contact.name", "xyz", "", '@(SUBSTITUTE(LOWER(contact), " ", "") & "@nyaruka.com")'],
-            "@contact.name added in subject",
-            "@contact.name uses phone @contact.tel",
-        )
-
-        action_json = action.as_json()
-        action = EmailAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-        self.assertOutbox(
-            1, "no-reply@temba.io", "Eric added in subject", "Eric uses phone 0788 382 382", ["eric@nyaruka.com"]
-        )
-
-        # check that all white space is replaced with single spaces in the subject
-        test = EmailAction(
-            str(uuid4()), ["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo"
-        )
-        self.execute_action(test, run, msg)
-
-        self.assertOutbox(
-            2, "no-reply@temba.io", "Allo allo message", "Email notification for allo allo", ["steve@apple.com"]
-        )
-
-        # now try with a custom from address
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["flow_email"] = "no-reply@mybrand.com"
-        with self.settings(BRANDING=branding):
-            self.execute_action(action, run, msg)
-            self.assertOutbox(
-                3,
-                "no-reply@mybrand.com",
-                "Eric added in subject",
-                "Eric uses phone 0788 382 382",
-                ["eric@nyaruka.com"],
-            )
-
-        # same thing, but with a custom smtp server
-        self.org.add_smtp_config(
-            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", self.admin
-        )
-        action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
-        self.execute_action(action, run, msg)
-        self.assertOutbox(4, "support@example.com", "Subject", "Body", ["steve@apple.com"])
+        self.assertEqual(["steve@apple.com"], action.emails)
+        self.assertEqual("Subject", action.subject)
+        self.assertEqual("Body", action.message)
 
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
