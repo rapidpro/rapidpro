@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -41,7 +41,7 @@ from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
-from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
+from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
@@ -749,25 +749,6 @@ class Org(SmartModel):
         if self.config:
             return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
         return False
-
-    def email_action_send(self, recipients, subject, body):
-        if self.has_smtp_config():
-            smtp_server = self.config.get(Org.CONFIG_SMTP_SERVER)
-            parsed_smtp_server = urlparse(smtp_server)
-            smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
-            use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
-
-            smtp_host = parsed_smtp_server.hostname
-            smtp_port = parsed_smtp_server.port
-            smtp_username = unquote(parsed_smtp_server.username)
-            smtp_password = unquote(parsed_smtp_server.password)
-
-            send_custom_smtp_email(
-                recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
-            )
-        else:
-            from_email = self.get_branding().get("flow_email", settings.FLOW_FROM_EMAIL)
-            send_simple_email(recipients, subject, body, from_email=from_email)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer

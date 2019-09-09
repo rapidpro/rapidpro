@@ -1,13 +1,9 @@
 from uuid import uuid4
 
-import regex
-
 from django.conf import settings
 
 from temba.channels.models import Channel
 from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.utils import on_transaction_commit
-from temba.utils.email import is_valid_address
 from temba.values.constants import Value
 
 from ..expressions import evaluate
@@ -91,36 +87,7 @@ class EmailAction(Action):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
     def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.tasks import send_email_action_task
-
-        # build our message from our flow variables
-        (message, errors) = evaluate(self.message, context, org=run.flow.org)
-        (subject, errors) = evaluate(self.subject, context, org=run.flow.org)
-
-        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-        subject = regex.sub(r"\s+", " ", subject, regex.V0)
-
-        valid_addresses = []
-        invalid_addresses = []
-        for email in self.emails:
-            if email.startswith("@"):
-                # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = evaluate(email, context, org=run.flow.org)
-            else:
-                address = email
-
-            address = address.strip()
-
-            if is_valid_address(address):
-                valid_addresses.append(address)
-            else:
-                invalid_addresses.append(address)
-
-        if valid_addresses:
-            on_transaction_commit(
-                lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
-            )
-        return []
+        pass
 
 
 class AddToGroupAction(Action):
