@@ -1092,7 +1092,7 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     return JsonResponse({"status": "failed"})
 
-            return HttpResponse("unknown action", status=400)
+            return HttpResponse("unknown action", status=400)  # pragma: no cover
 
         def get_gear_links(self):
             links = []

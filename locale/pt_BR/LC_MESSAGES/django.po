@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-29 19:11+0000\n"
+"POT-Creation-Date: 2019-09-09 19:21+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3179,9 +3179,6 @@ msgstr "\"%s\" seria enviado para %s"
 #, python-format
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
-
-msgid "Invalid group or contact id"
-msgstr "Grupo ou id do contato inválido"
 
 msgid "Send Message"
 msgstr "Enviar mensagem"
@@ -10797,6 +10794,9 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid "Invalid group or contact id"
+#~ msgstr "Grupo ou id do contato inválido"
 
 #, fuzzy
 #~ msgid "No subscribers to this event"
