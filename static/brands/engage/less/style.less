@@ -1,28 +1,40 @@
+@import "variables.less";
+
+#header, #footer {
+  background-color: @color-primary
+}
+
+#lead-form {
+  display: none !important;
+}
+
 #splash {
   margin-top: -30px;
-  background: url('/sitestatic/brands/rapidpro/splash.jpg') 0px 0px !important;
+  background: url('/sitestatic/images/splash.jpg') 0px 0px !important;
   background-size: cover !important;
   width: 100%;
   height: 0px;
   padding-bottom: 40%;
 
   h1.description {
-    color: #f3f3f3;
+    color: @color-secondary;
     position:absolute;
     font-weight: 100;
     width: 350px;
     font-size: 38px;
     line-height: 110%;
-    padding-left:50px;
+    padding-right:50px;
     padding-top:50px;
-    text-shadow: 1px 1px 8px #111;
+    text-shadow: 1px 1px 4px #000;
+    float: right;
+    text-align: right;
   }
 }
 
 h5.contact-signup {
   position: absolute;
   width:100%;
-  color: #f3f3f3;
+  color: @color-secondary;
   text-shadow: 1px 1px #000;
   text-align:right;
   margin-top:-40px;
@@ -37,11 +49,6 @@ a.logo {
   text-decoration: none;
 }
 
-.icon-logo:before {
-  font-family: 'pulse';
-  content: "\e900";
-}
-
 #header {
   height: 65px;
 }
@@ -54,7 +61,7 @@ a.logo {
 
 .btn-primary {
   border: 1px solid #32638e;
-  background-color: #386995;
+  background-color: @color-button-primary;
   background-image: -webkit-linear-gradient(top, #4d8ac1, #3f73a2);
   background: -moz-linear-gradient(top, #4d8ac1, #3f73a2);
 }

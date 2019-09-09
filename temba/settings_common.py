@@ -275,8 +275,8 @@ LOGGING = {
 # Branding Configuration
 # -----------------------------------------------------------------------------------
 BRANDING = {
-    "rapidpro.io": {
-        "slug": "rapidpro",
+    "engage": {
+        "slug": "engage",
         "name": "RapidPro",
         "org": "UNICEF",
         "colors": dict(primary="#0c6596"),
@@ -288,9 +288,9 @@ BRANDING = {
         "api_link": "https://api.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
         "domain": "app.rapidpro.io",
-        "favico": "brands/rapidpro/rapidpro.ico",
-        "splash": "brands/rapidpro/splash.jpg",
-        "logo": "brands/rapidpro/logo.png",
+        "favico": "brands/engage/rapidpro.ico",
+        "splash": "brands/engage/splash.jpg",
+        "logo": "brands/engage/logo.png",
         "allow_signups": True,
         "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
         "tiers": dict(import_flows=0, multi_user=0, multi_org=0),
@@ -300,7 +300,7 @@ BRANDING = {
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
+DEFAULT_BRAND = "engage"
 
 # -----------------------------------------------------------------------------------
 # Permission Management
@@ -805,9 +805,9 @@ TEST_EXCLUDE = ("smartmin",)
 # -----------------------------------------------------------------------------------
 _default_database_config = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
-    "NAME": "temba",
-    "USER": "temba",
-    "PASSWORD": "temba",
+    "NAME": "rapidpro",
+    "USER": "postgres",
+    "PASSWORD": "",
     "HOST": "localhost",
     "PORT": "5432",
     "ATOMIC_REQUESTS": True,
