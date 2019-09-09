@@ -840,12 +840,8 @@ class Org(SmartModel):
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def refresh_transferto_account_currency(self):
-        account_login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
-        airtime_api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
-
-        from temba.airtime.models import AirtimeTransfer
-
-        response = AirtimeTransfer.transferto_check_wallet(account_login, airtime_api_token)
+        client = self.get_transferto_client()
+        response = client.check_wallet()
         account_currency = response.get("currency", "")
 
         self.config.update({Org.CONFIG_TRANSFERTO_CURRENCY: account_currency})
@@ -865,6 +861,16 @@ class Org(SmartModel):
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
             return NexmoClient(api_key, api_secret)
+        return None
+
+    def get_transferto_client(self):
+        from temba.airtime.transferto import TransferToClient
+
+        login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
+        api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
+
+        if login and api_token:
+            return TransferToClient(login, api_token)
         return None
 
     def get_chatbase_credentials(self):

@@ -2269,9 +2269,10 @@ class OrgCRUDL(SmartCRUDL):
                     airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
 
                     try:
-                        from temba.airtime.models import AirtimeTransfer
+                        from temba.airtime.transferto import TransferToClient
 
-                        response = AirtimeTransfer.transferto_ping(account_login, airtime_api_token)
+                        client = TransferToClient(account_login, airtime_api_token)
+                        response = client.ping()
 
                         error_code = int(response.get("error_code", None))
                         info_txt = response.get("info_txt", None)
