@@ -4121,6 +4121,11 @@ class ContactTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(2, self.joe.user_groups.count())
 
+        # try removing from non-existent group
+        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": 2341533})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, self.joe.user_groups.count())
+
         # try removing from dynamic group (shouldnt happen, UI doesnt allow this)
         with self.assertRaises(AssertionError):
             response = self.client.post(
