@@ -9,7 +9,7 @@ from temba.values.constants import Value
 from ..expressions import evaluate
 
 
-class Action(object):
+class Action:
     """
     Base class for actions that can be added to an action set and executed during a flow run
     """

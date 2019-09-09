@@ -965,11 +965,6 @@ SEND_EMAILS = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause airtime transfers in test environment
-SEND_AIRTIME = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause data to be sent to Chatbase in test environment
 SEND_CHATBASE = False
 

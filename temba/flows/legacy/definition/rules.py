@@ -4,7 +4,6 @@ import phonenumbers
 import regex
 from temba_expressions.utils import tokenize
 
-from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import ContactGroup
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime
@@ -13,7 +12,7 @@ from temba.utils.email import is_valid_address
 from ..expressions import evaluate
 
 
-class Rule(object):
+class Rule:
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
@@ -93,7 +92,7 @@ class Rule(object):
         return rules
 
 
-class Test(object):
+class Test:
     TYPE = "type"
     __test_mapping = None
 
@@ -191,11 +190,6 @@ class AirtimeStatusTest(Test):
     TYPE = "airtime_status"
     EXIT = "exit_status"
 
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-
-    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS, STATUS_FAILED: AirtimeTransfer.FAILED}
-
     def __init__(self, exit_status):
         self.exit_status = exit_status
 
@@ -207,10 +201,7 @@ class AirtimeStatusTest(Test):
         return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
-        status = text
-        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
-            return 1, status
-        return 0, None
+        pass
 
 
 class InGroupTest(Test):

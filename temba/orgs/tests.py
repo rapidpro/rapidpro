@@ -1707,10 +1707,8 @@ class OrgTest(TembaTest):
         # connect transferTo
         transferto_account_url = reverse("orgs.org_transfer_to_account")
 
-        with patch(
-            "temba.airtime.models.AirtimeTransfer.post_transferto_api_response"
-        ) as mock_post_transterto_request:
-            mock_post_transterto_request.return_value = MockResponse(200, "Unexpected content")
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, "Unexpected content")
             response = self.client.post(
                 transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
@@ -1718,8 +1716,8 @@ class OrgTest(TembaTest):
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
-            mock_post_transterto_request.return_value = MockResponse(
-                200, "authentication_key=123\r\n" "error_code=400\r\n" "error_txt=Failed Authentication\r\n"
+            mock_post.return_value = MockResponse(
+                200, "authentication_key=123\r\nerror_code=400\r\nerror_txt=Failed Authentication\r\n"
             )
 
             response = self.client.post(
@@ -1727,12 +1725,12 @@ class OrgTest(TembaTest):
             )
 
             self.assertContains(
-                response, "Connecting to your TransferTo account failed " "with error text: Failed Authentication"
+                response, "Connecting to your TransferTo account failed with error text: Failed Authentication"
             )
 
             self.assertFalse(self.org.is_connected_to_transferto())
 
-            mock_post_transterto_request.return_value = MockResponse(
+            mock_post.return_value = MockResponse(
                 200,
                 "info_txt=pong\r\n"
                 "authentication_key=123\r\n"
@@ -1764,14 +1762,14 @@ class OrgTest(TembaTest):
             self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
             self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
 
-            mock_post_transterto_request.side_effect = Exception("foo")
+            mock_post.side_effect = Exception("foo")
             response = self.client.post(
                 transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
-        # No account connected, do not show the button to Transfer logs
+        # no account connected, do not show the button to Transfer logs
         response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
         self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
         self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
