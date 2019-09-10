@@ -7,7 +7,7 @@ import { getUrl, getAssets, Asset } from '../utils';
 import { AxiosResponse } from 'axios';
 import getCaretCoordinates from 'textarea-caret';
 import { directive, Part} from 'lit-html';
-import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
+import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
 
 const marked = require('marked');
 
@@ -255,11 +255,20 @@ export default class Completion extends RapidElement {
       }
     }
   }
+  
+  public updated(changedProperties: Map<string, any>) {
+    super.updated(changedProperties);
+
+    // if our cursor changed, lets make sure our scrollbox is showing it
+    if(changedProperties.has("value")) {
+      this.hiddenElement.setAttribute("value", this.value);
+    }
+  }
 
   private handleInput(evt: KeyboardEvent) {
     const ele = evt.currentTarget as TextInput;
     this.executeQuery(ele);
-    this.hiddenElement.setAttribute("value", ele.inputElement.value);
+    this.value = ele.inputElement.value;
   }
 
   private handleOptionCanceled(evt: CustomEvent) {
@@ -351,7 +360,7 @@ export default class Completion extends RapidElement {
           @keyup=${this.handleKeyUp}
           @click=${this.handleClick}
           @input=${this.handleInput}
-          .value=${this.value || ""}
+          .value=${this.value}
           ?textarea=${this.textarea}
           >
         </rp-textinput>

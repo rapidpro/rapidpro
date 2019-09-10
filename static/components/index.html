@@ -68,12 +68,17 @@
       }
     </style>
 
-<!--alias-editor
-osmid="192787"
-endpoint="http://localhost:8888/adminboundary"
-></alias-editor-->
+    <!--alias-editor
+    osmid="192787"
+    endpoint="http://localhost:8888/adminboundary"
+    ></alias-editor-->
 
+    <!-- rp-select 
+      placeholder="Search" 
+      endpoint="/adminboundary/boundaries/192787/?q="
+    ></rp-select -->
 
+    <!--
     <div style="width: 30%">
       <rp-completion 
         placeholder="This is a placeholder"
@@ -82,7 +87,6 @@ endpoint="http://localhost:8888/adminboundary"
         fieldsEndpoint="http://localhost:8888/api/v2/fields.json">
       </rp-completion>
     </div>
-    <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
     <div style="width: 100%">
       <rp-completion 
         placeholder="This is a placeholder"
@@ -93,6 +97,7 @@ endpoint="http://localhost:8888/adminboundary"
       >
       </rp-completion>
     </div>
+    -->
 
     <rp-button name="Open Dialog" primary onClick="javascript:showDialog();"></rp-button>
 
@@ -111,11 +116,6 @@ endpoint="http://localhost:8888/adminboundary"
         </div>
       </div>
     </rp-dialog>
-
-    <!-- rp-select 
-      placeholder="Search" 
-      endpoint="/adminboundary/boundaries/192787/?q="
-    ></rp-select -->
 
     <script>
       function showDialog() {

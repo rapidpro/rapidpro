@@ -30,6 +30,7 @@ from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
+from temba.utils.fields import CompletionTextarea
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BaseActionForm
 
@@ -201,7 +202,12 @@ class InboxView(OrgPermsMixin, SmartListView):
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(required=True, widget=forms.Textarea, max_length=Broadcast.MAX_TEXT_LEN)
+    message = forms.CharField(
+        required=True,
+        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
+        max_length=Broadcast.MAX_TEXT_LEN,
+    )
+
     omnibox = OmniboxField()
 
     def __init__(self, user, *args, **kwargs):
