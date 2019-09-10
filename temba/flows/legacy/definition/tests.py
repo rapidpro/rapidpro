@@ -26,6 +26,7 @@ from .actions import (
     VariableContactAction,
 )
 from .rules import (
+    AirtimeStatusTest,
     AndTest,
     BetweenTest,
     ContainsTest,
@@ -34,60 +35,37 @@ from .rules import (
     GteTest,
     GtTest,
     HasWardTest,
+    LteTest,
     LtTest,
     OrTest,
     Test,
     TrueTest,
+    WebhookStatusTest,
 )
 
 
 class TestsTest(TembaTest):
     def test_factories(self):
-        org = self.org
+        tests = [
+            (AirtimeStatusTest("success"), {"type": "airtime_status", "exit_status": "success"}),
+            (AndTest([TrueTest()]), {"type": "and", "tests": [{"type": "true"}]}),
+            (BetweenTest("5", "10"), {"type": "between", "min": "5", "max": "10"}),
+            (ContainsTest("green"), {"type": "contains", "test": "green"}),
+            (EqTest("5"), {"type": "eq", "test": "5"}),
+            (FalseTest(), {"type": "false"}),
+            (GtTest("5"), {"type": "gt", "test": "5"}),
+            (GteTest("5"), {"type": "gte", "test": "5"}),
+            (LtTest("5"), {"type": "lt", "test": "5"}),
+            (LteTest("5"), {"type": "lte", "test": "5"}),
+            (HasWardTest("Kano", "Ajingi"), {"type": "ward", "state": "Kano", "district": "Ajingi"}),
+            (OrTest([TrueTest()]), {"type": "or", "tests": [{"type": "true"}]}),
+            (TrueTest(), {"type": "true"}),
+            (WebhookStatusTest("success"), {"type": "webhook_status", "status": "success"}),
+        ]
 
-        js = dict(type="true")
-        self.assertEqual(TrueTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, TrueTest().as_json())
-
-        js = dict(type="false")
-        self.assertEqual(FalseTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, FalseTest().as_json())
-
-        js = dict(type="and", tests=[dict(type="true")])
-        self.assertEqual(AndTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, AndTest([TrueTest()]).as_json())
-
-        js = dict(type="or", tests=[dict(type="true")])
-        self.assertEqual(OrTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, OrTest([TrueTest()]).as_json())
-
-        js = dict(type="contains", test="green")
-        self.assertEqual(ContainsTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, ContainsTest("green").as_json())
-
-        js = dict(type="lt", test="5")
-        self.assertEqual(LtTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, LtTest("5").as_json())
-
-        js = dict(type="gt", test="5")
-        self.assertEqual(GtTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, GtTest("5").as_json())
-
-        js = dict(type="gte", test="5")
-        self.assertEqual(GteTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, GteTest("5").as_json())
-
-        js = dict(type="eq", test="5")
-        self.assertEqual(EqTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, EqTest("5").as_json())
-
-        js = dict(type="between", min="5", max="10")
-        self.assertEqual(BetweenTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, BetweenTest("5", "10").as_json())
-
-        js = dict(state="Kano", district="Ajingi", type="ward")
-        self.assertEqual(HasWardTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, HasWardTest("Kano", "Ajingi").as_json())
+        for obj, definition in tests:
+            self.assertEqual(obj.__class__, Test.from_json(self.org, definition).__class__)
+            self.assertEqual(definition, obj.as_json())
 
 
 class ActionTest(TembaTest):

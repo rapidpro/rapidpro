@@ -3,13 +3,11 @@
 # test coverage checks.
 
 import numbers
-import time
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from uuid import uuid4
 
 import regex
-import requests
 
 from django.conf import settings
 from django.db.models import Q, QuerySet
@@ -18,8 +16,6 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactGroup
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Language
-from temba.utils import json, prepped_request_to_str
-from temba.utils.http import http_headers
 from temba.values.constants import Value
 
 from .definition import StartFlowAction, get_node
@@ -765,141 +761,7 @@ def _continue_parent_run(run, trigger_send=True, continue_parent=True):
     return msgs
 
 
-def call_webhook(run, webhook_url, ruleset, msg, action="POST", resthook=None, headers=None):
-    from temba.api.models import WebHookEvent, WebHookResult
-    from temba.flows.models import Flow
-
-    flow = run.flow
-    contact = run.contact
-    org = flow.org
-    channel = msg.channel if msg else None
-    contact_urn = msg.contact_urn if (msg and msg.contact_urn) else contact.get_urn()
-
-    contact_dict = dict(uuid=contact.uuid, name=contact.name)
-    if contact_urn:
-        contact_dict["urn"] = contact_urn.urn
-
-    post_data = {
-        "contact": contact_dict,
-        "flow": dict(name=flow.name, uuid=flow.uuid, revision=flow.revisions.order_by("revision").last().revision),
-        "path": run.path,
-        "results": run.results,
-        "run": dict(uuid=str(run.uuid), created_on=run.created_on.isoformat()),
-    }
-
-    if msg and msg.id > 0:
-        post_data["input"] = dict(
-            urn=msg.contact_urn.urn if msg.contact_urn else None, text=msg.text, attachments=(msg.attachments or [])
-        )
-
-    if channel:
-        post_data["channel"] = dict(name=channel.name, uuid=channel.uuid)
-
-    if not action:
-        action = "POST"
-
-    if resthook:
-        WebHookEvent.objects.create(org=org, data=post_data, action=action, resthook=resthook)
-
-    status_code = -1
-    message = "None"
-    body = None
-    request = ""
-
-    start = time.time()
-
-    # webhook events fire immediately since we need the results back
-    try:
-        # no url, bail!
-        if not webhook_url:
-            raise ValueError("No webhook_url specified, skipping send")
-
-        # only send webhooks when we are configured to, otherwise fail
-        if settings.SEND_WEBHOOKS:
-            requests_headers = http_headers(extra=headers)
-
-            s = requests.Session()
-
-            # some hosts deny generic user agents, use Temba as our user agent
-            if action == "GET":
-                prepped = requests.Request("GET", webhook_url, headers=requests_headers).prepare()
-            else:
-                requests_headers["Content-type"] = "application/json"
-                prepped = requests.Request(
-                    "POST", webhook_url, data=json.dumps(post_data), headers=requests_headers
-                ).prepare()
-
-            request = prepped_request_to_str(prepped)
-            response = s.send(prepped, timeout=10)
-            body = response.text
-            if body:
-                body = body.strip()
-            status_code = response.status_code
-
-        else:
-            print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-            body = "Skipped actual send"
-            status_code = 200
-
-        if ruleset:
-            _update_run_fields(run, {Flow.label_to_slug(ruleset.label): body}, do_save=False)
-        new_extra = {}
-
-        # process the webhook response
-        try:
-            response_json = json.loads(body)
-
-            # only update if we got a valid JSON dictionary or list
-            if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
-
-            new_extra = response_json
-            message = "Webhook called successfully."
-        except ValueError:
-            message = "Response must be a JSON dictionary, ignoring response."
-
-        _update_run_fields(run, new_extra)
-
-        if not (200 <= status_code < 300):
-            message = "Got non 200 response (%d) from webhook." % response.status_code
-            raise ValueError("Got non 200 response (%d) from webhook." % response.status_code)
-
-    except (requests.ReadTimeout, ValueError) as e:
-        message = f"Error calling webhook: {str(e)}"
-
-    except Exception as e:
-        message = "Error calling webhook: %s" % str(e)
-
-    finally:
-        # make sure our message isn't too long
-        if message:
-            message = message[:255]
-
-        if body is None:
-            body = message
-
-        request_time = (time.time() - start) * 1000
-
-        contact = None
-        if run:
-            contact = run.contact
-
-        result = WebHookResult.objects.create(
-            contact=contact,
-            url=webhook_url,
-            status_code=status_code,
-            response=body,
-            request=request,
-            request_time=request_time,
-            org=run.org,
-        )
-
-    return result
-
-
 def _find_matching_rule(ruleset, run, msg):
-    from temba.airtime.models import AirtimeTransfer
-    from temba.api.models import Resthook
     from temba.flows.models import FlowRun, RuleSet
 
     orig_text = None
@@ -909,116 +771,45 @@ def _find_matching_rule(ruleset, run, msg):
     msg.contact = run.contact
     context = flow_context(run.flow, run.contact, msg, run=run)
 
-    if ruleset.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
-        urls = []
-        header = {}
-        action = "POST"
-        resthook = None
+    # if it's a form field, construct an expression accordingly
+    if ruleset.ruleset_type == RuleSet.TYPE_FORM_FIELD:
+        delim = ruleset.config.get("field_delimiter", " ")
+        ruleset.operand = '@(FIELD(%s, %d, "%s"))' % (
+            ruleset.operand[1:],
+            ruleset.config.get("field_index", 0) + 1,
+            delim,
+        )
 
-        # figure out which URLs will be called
-        if ruleset.ruleset_type == RuleSet.TYPE_WEBHOOK:
-            resthook = None
-            urls = [ruleset.config[RuleSet.CONFIG_WEBHOOK]]
-            action = ruleset.config[RuleSet.CONFIG_WEBHOOK_ACTION]
+    # if we have a custom operand, figure that out
+    operand = None
+    if ruleset.operand:
+        (operand, errors) = evaluate(ruleset.operand, context, org=run.flow.org)
+    elif msg:
+        operand = str(msg)
 
-            if RuleSet.CONFIG_WEBHOOK_HEADERS in ruleset.config:
-                headers = ruleset.config[RuleSet.CONFIG_WEBHOOK_HEADERS]
-                for item in headers:
-                    header[item.get("name")] = item.get("value")
+    if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+        # lookup the subflow run
+        subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
+        if subflow_run:
+            if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
+                operand = "completed"
+            elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                operand = "expired"
 
-        elif ruleset.ruleset_type == RuleSet.TYPE_RESTHOOK:
-            # look up the rest hook
-            resthook_slug = ruleset.config[RuleSet.CONFIG_RESTHOOK]
-            resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
-            urls = resthook.get_subscriber_urls()
+    elif ruleset.ruleset_type == RuleSet.TYPE_GROUP:
+        # this won't actually be used by the rules, but will end up in the results
+        operand = run.contact.get_display(for_expressions=True) or ""
 
-            # no urls? use None, as our empty case
-            if not urls:
-                urls = [None]
-
-        # track our last successful and failed webhook calls
-        last_success, last_failure = None, None
-
-        for url in urls:
-            (evaled_url, errors) = evaluate(url, context, org=run.flow.org, url_encode=True)
-            result = call_webhook(run, evaled_url, ruleset, msg, action, resthook=resthook, headers=header)
-
-            # our subscriber is no longer interested, remove this URL as a subscriber
-            if resthook and url and result.status_code == 410:
-                resthook.remove_subscriber(url, run.flow.created_by)
-                result.status_code = 200
-
-            if url is None:
-                continue
-
-            as_json = {"input": f"{action} {evaled_url}", "status_code": result.status_code, "body": result.response}
-
-            if 200 <= result.status_code < 300 or result.status_code == 410:
-                last_success = as_json
-            else:
-                last_failure = as_json
-
-        # if we have a failed call, use that, if not the last call, if no calls then mock a successful one
-        use_call = last_failure or last_success
-        if not use_call:
-            use_call = {"input": "", "status_code": 200, "body": "No subscribers to this event"}
-
-        # find our matching rule, we pass in the status from our calls
-        for rule in ruleset.get_rules():
-            (result, value) = rule.matches(run, msg, context, str(use_call["status_code"]))
-            if result > 0:
-                return rule, str(use_call["status_code"]), use_call["input"]
-
-    else:
-        # if it's a form field, construct an expression accordingly
-        if ruleset.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-            delim = ruleset.config.get("field_delimiter", " ")
-            ruleset.operand = '@(FIELD(%s, %d, "%s"))' % (
-                ruleset.operand[1:],
-                ruleset.config.get("field_index", 0) + 1,
-                delim,
-            )
-
-        # if we have a custom operand, figure that out
-        operand = None
-        if ruleset.operand:
-            (operand, errors) = evaluate(ruleset.operand, context, org=run.flow.org)
-        elif msg:
-            operand = str(msg)
-
-        if ruleset.ruleset_type == RuleSet.TYPE_AIRTIME:
-
-            airtime = AirtimeTransfer.trigger_airtime_event(ruleset.flow.org, ruleset, run.contact, msg)
-
-            # rebuild our context again, the webhook may have populated something
-            context = flow_context(run.flow, run.contact, msg)
-
-            # airtime test evaluate against the status of the airtime
-            operand = airtime.status
-
-        elif ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-            # lookup the subflow run
-            subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
-            if subflow_run:
-                if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
-                    operand = "completed"
-                elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
-                    operand = "expired"
-
-        elif ruleset.ruleset_type == RuleSet.TYPE_GROUP:
-            # this won't actually be used by the rules, but will end up in the results
-            operand = run.contact.get_display(for_expressions=True) or ""
-
-        try:
-            rules = ruleset.get_rules()
-            for rule in rules:
-                (result, value) = rule.matches(run, msg, context, operand)
-                if result:
-                    # treat category as the base category
-                    return rule, value, operand
-        finally:
-            if msg:
-                msg.text = orig_text
+    try:
+        rules = ruleset.get_rules()
+        for rule in rules:
+            (result, value) = rule.matches(run, msg, context, operand)
+            if result:
+                # treat category as the base category
+                return rule, value, operand
+    finally:
+        if msg:
+            msg.text = orig_text
 
     return None, None, None
 

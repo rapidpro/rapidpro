@@ -3,7 +3,6 @@ import os
 import re
 import time
 from datetime import timedelta
-from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
@@ -18,7 +17,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
-from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel
@@ -2425,59 +2423,6 @@ class FlowTest(TembaTest):
             copy_json["nodes"][0]["router"]["cases"][0]["arguments"],
         )
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_optimization_reply_action(self):
-        self.flow.version_number = "10.4"
-        self.flow.save(update_fields=("version_number",))
-
-        json_flow = FlowRevision.migrate_definition(
-            {
-                "base_language": "base",
-                "version": self.flow.version_number,
-                "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                "rule_sets": [],
-                "action_sets": [
-                    {
-                        "y": 0,
-                        "x": 100,
-                        "destination": None,
-                        "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                        "actions": [
-                            {
-                                "uuid": "d5dbbabf-b0f3-4add-9c4b-a114c8c4a1d9",
-                                "type": "api",
-                                "webhook": "http://localhost:49999/coupon",
-                                "webhook_header": [{"name": "Authorization", "value": "Token 12345"}],
-                            },
-                            {
-                                "uuid": "e085c297-6f26-4c2e-b8fb-8b0df8c15144",
-                                "msg": {"base": "text to get @extra.coupon"},
-                                "type": "reply",
-                            },
-                        ],
-                    }
-                ],
-                "metadata": {"notes": []},
-            },
-            self.flow,
-        )
-
-        self.flow.update(json_flow)
-
-        self.mockRequest("POST", "/coupon", '{"coupon": "NEXUS4"}')
-        run, = legacy.flow_start(self.flow, [], [self.contact])
-
-        self.assertTrue(run.path)
-        self.assertTrue(Msg.objects.all())
-        msg = Msg.objects.all()[0]
-        self.assertNotIn("@extra.coupon", msg.text)
-        self.assertEqual(msg.text, "text to get NEXUS4")
-        self.assertEqual(WIRED, msg.status)
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
     def test_parsing(self):
         # our flow should have the appropriate RuleSet and ActionSet objects
         self.assertEqual(4, ActionSet.objects.all().count())
@@ -3732,230 +3677,6 @@ class FlowLabelTest(FlowFileTest):
         self.assertEqual(label_one.name, "Label One")
 
 
-class WebhookTest(TembaTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_decimals(self):
-        flow = self.get_flow("webhook_decimal")
-        contact = self.create_contact("Ben Haggerty", "+250788383383")
-
-        self.mockRequest("GET", "/", '{ "decimal": 0.1 }')
-
-        run1, = legacy.flow_start(flow, [], [contact])
-        run1.refresh_from_db()
-
-        self.assertEqual(run1.fields, {"decimal": Decimal("0.1"), "webhook": '{ "decimal": 0.1 }'})
-        self.assertEqual("Your webhook returned 0.1. Your number is 0.1", Msg.objects.get(contact=contact).text)
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook(self):
-        flow = self.get_flow("webhook")
-        contact = self.create_contact("Ben Haggerty", "+250788383383")
-
-        self.mockRequest("GET", "/check_order.php?phone=%2B250788383383", '{ "text": "Get", "blank": "" }')
-
-        run1, = legacy.flow_start(flow, [], [contact])
-        run1.refresh_from_db()
-
-        self.assertEqual(run1.fields, {"text": "Get", "blank": "", "response_1": '{ "text": "Get", "blank": "" }'})
-        self.assertEqual(
-            run1.results,
-            {
-                "order_status": {
-                    "category": "Other",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Order Status",
-                    "value": "Get ",
-                    "created_on": matchers.ISODate(),
-                    "input": "Get ",
-                },
-                "response_1": {
-                    "category": "Success",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "200",
-                    "created_on": matchers.ISODate(),
-                    "input": "GET http://localhost:49999/check_order.php?phone=%2B250788383383",
-                },
-            },
-        )
-
-        # change our webhook to a POST
-        webhook = RuleSet.objects.get(flow=flow, label="Response 1")
-        config = webhook.config
-        config[RuleSet.CONFIG_WEBHOOK_ACTION] = "POST"
-        webhook.config = config
-        webhook.save()
-
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", '{ "text": "Post", "blank": "" }')
-
-        run2, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run2.refresh_from_db()
-
-        self.assertEqual(
-            run2.results,
-            {
-                "order_status": {
-                    "category": "Other",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Order Status",
-                    "value": "Post ",
-                    "created_on": matchers.ISODate(),
-                    "input": "Post ",
-                },
-                "response_1": {
-                    "category": "Success",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "200",
-                    "created_on": matchers.ISODate(),
-                    "input": "POST http://localhost:49999/check_order.php?phone=%2B250788383383",
-                },
-            },
-        )
-
-        # check parsing of a JSON array response from a webhook
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", '["zero", "one", "two"]')
-
-        run3, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run3.refresh_from_db()
-
-        self.assertEqual(run3.fields, {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'})
-
-        # check that we limit JSON responses to 256 values
-        body = json.dumps(["x"] * 300)
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", body)
-
-        run4, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run4.refresh_from_db()
-        expected_fields = {str(n): "x" for n in range(256)}
-        expected_fields["response_1"] = body[: Value.MAX_VALUE_LEN]
-        self.assertEqual(run4.fields, expected_fields)
-
-        # check we handle a non-dict or list response
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "12345")
-
-        run5, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run5.refresh_from_db()
-        self.assertEqual(run5.fields, {"response_1": "12345"})
-
-        # check we handle a non-JSON response
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "asdfasdfasdf")
-
-        run6, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run6.refresh_from_db()
-
-        self.assertEqual(run6.fields, {"response_1": "asdfasdfasdf"})
-
-        results = run6.results
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results["response_1"]["name"], "Response 1")
-        self.assertEqual(results["response_1"]["value"], "200")
-        self.assertEqual(results["response_1"]["category"], "Success")
-
-        # check a webhook that responds with a 500 error
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "Server Error", status=500)
-
-        run7, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run7.refresh_from_db()
-
-        self.assertEqual(run7.fields, {"response_1": "Server Error"})
-        self.assertEqual(
-            run7.results,
-            {
-                "response_1": {
-                    "category": "Failure",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "500",
-                    "created_on": matchers.ISODate(),
-                    "input": "POST http://localhost:49999/check_order.php?phone=%2B250788383383",
-                }
-            },
-        )
-
-        # check a webhook that responds with a 400 error
-        body = '{ "text": "Valid", "error": "400", "message": "Missing field in request" }'
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", body, status=400)
-
-        run8, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run8.refresh_from_db()
-
-        self.assertEqual(
-            run8.fields, {"text": "Valid", "error": "400", "message": "Missing field in request", "response_1": body}
-        )
-
-        results = run8.results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results["response_1"]["name"], "Response 1")
-        self.assertEqual(results["response_1"]["value"], "400")
-        self.assertEqual(results["response_1"]["category"], "Failure")
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_resthook(self):
-        self.contact = self.create_contact("Macklemore", "+12067799294")
-        webhook_flow = self.get_flow("resthooks")
-
-        # we don't have the resthook registered yet, so this won't trigger any calls
-        legacy.flow_start(webhook_flow, [], [self.contact])
-
-        # should have two messages
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(msgs[0].text, "That was a success.")
-        self.assertEqual(msgs[1].text, "The second succeeded.")
-
-        # but we should have created a webhook event regardless
-        self.assertTrue(WebHookEvent.objects.filter(resthook__slug="new-registration"))
-
-        # ok, let's go add a listener for that event
-        resthook = Resthook.get_or_create(self.org, slug="new-registration", user=self.admin)
-        resthook.subscribers.create(
-            target_url="http://localhost:49999/foo", created_by=self.admin, modified_by=self.admin
-        )
-        resthook.subscribers.create(
-            target_url="http://localhost:49999/bar", created_by=self.admin, modified_by=self.admin
-        )
-
-        # clear out our messages
-        Msg.objects.filter(contact=self.contact).delete()
-
-        self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
-        self.mockRequest("POST", "/bar", '{ "code": "ERYEHYREYRE" }')
-        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
-        self.mockRequest("POST", "/bar", "Failure 2", status=400)
-
-        # start over
-        legacy.flow_start(webhook_flow, [], [self.contact], restart_participants=True)
-
-        msgs = list(self.contact.msgs.order_by("id"))
-
-        # first should be a success because both URLs returned successes
-        self.assertEqual(msgs[0].text, "That was a success.")
-
-        # second, one failed so should be a failure
-        self.assertEqual(msgs[1].text, "The second failed.")
-
-        # if a URL returns 410 we need to remove it
-        self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
-        self.mockRequest("POST", "/bar", "Unsubscribe", status=410)  # considered a success
-        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
-
-        # start over
-        legacy.flow_start(webhook_flow, [], [self.contact], restart_participants=True)
-
-        # we should also have unsubscribed from one of our endpoints
-        self.assertTrue(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/foo"))
-        self.assertFalse(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/bar"))
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-
 class SimulationTest(FlowFileTest):
     def add_message(self, payload, text):
         """
@@ -4374,77 +4095,6 @@ class FlowsTest(FlowFileTest):
 
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_payload(self):
-        flow = self.get_flow("webhook_payload")
-
-        # we call as an action, and then again as a ruleset
-        ctype = "application/json"
-        ruleset_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        action_post = self.mockRequest("POST", "/send_results", '{"received":"action"}', content_type=ctype)
-        action_get = self.mockRequest("GET", "/send_results", '{"received":"action"}', content_type=ctype)
-        ruleset_get = self.mockRequest("GET", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-
-        self.assertEqual("What is your favorite natural disaster?", self.send_message(flow, "39"))
-        self.assertEqual("Hey, so should I send it as a ruleset too?", self.send_message(flow, "tornado"))
-        self.assertEqual("Great work.", self.send_message(flow, "yes"))
-
-        msg = Msg.objects.all().order_by("-id").first()
-        run = FlowRun.objects.all().order_by("id").first()
-
-        # if there is no urn, it still works, but is omitted
-        empty_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        empty = self.create_contact("Empty Contact")
-        legacy.flow_start(flow, [], [empty])
-        self.send("39", empty)
-        self.send("tornado", empty)
-        self.assertIsNone(empty_post.data["contact"].get("urn"))
-
-        # test fallback urn
-        fallback_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        empty_flow = self.get_flow("empty_payload")
-        legacy.flow_start(empty_flow, [], [self.contact], restart_participants=True)
-        self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
-
-        def assert_payload(payload, path_length, result_count, results):
-            self.assertEqual(
-                dict(name="Ben Haggerty", uuid=self.contact.uuid, urn="tel:+12065552020"), payload["contact"]
-            )
-            self.assertEqual(dict(name="Webhook Payload Test", uuid=flow.uuid, revision=1), payload["flow"])
-            self.assertDictContainsSubset(dict(name="Test Channel", uuid=self.channel.uuid), payload["channel"])
-            self.assertEqual(path_length, len(payload["path"]))
-            self.assertEqual(result_count, len(payload["results"]))
-
-            # flowserver's created_on isn't necessarily the same as what we store in the database
-            self.assertEqual({"uuid", "created_on"}, set(payload["run"].keys()))
-            self.assertEqual(str(run.uuid), payload["run"]["uuid"])
-
-            # make sure things don't sneak into our path format unintentionally
-            # first item in the path should have uuid, node, arrived, and exit
-            self.assertEqual(set(payload["path"][0].keys()), {"uuid", "node_uuid", "arrived_on", "exit_uuid"})
-
-            for key, value in results.items():
-                result = payload["results"].get(key)
-                self.assertEqual(value, result.get("value"))
-
-                # make sure nothing sneaks into our result format unintentionally
-                results_keys = set(result.keys())
-                self.assertEqual(results_keys, {"name", "value", "category", "input", "node_uuid", "created_on"})
-
-        # we arrived at our ruleset webhook first
-        assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
-        assert_payload(action_post.data, 8, 4, dict(send_action="yes"))
-
-        # gets shouldn't have payloads
-        self.assertIsNone(action_get.data)
-        self.assertIsNone(ruleset_get.data)
-
-        # make sure triggering without a url fails properly
-        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
-        result = WebHookResult.objects.all().order_by("-id").first()
-        self.assertIn("No webhook_url specified, skipping send", result.response)
 
     def test_validate_legacy_definition(self):
 
@@ -5781,36 +5431,6 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual("Good count", self.send_message(flow, "35", contact=zinedine))
 
-    @uses_legacy_engine
-    def test_non_blocking_rule_first(self):
-
-        flow = self.get_flow("non_blocking_rule_first")
-
-        eminem = self.create_contact("Eminem", "+12065550100")
-        legacy.flow_start(flow, groups=[], contacts=[eminem])
-        msg = Msg.objects.filter(direction="O", contact=eminem).first()
-        self.assertEqual("Hi there Eminem", msg.text)
-
-        # put a webhook on the rule first and make sure it executes
-        ruleset = RuleSet.objects.get(uuid=flow.entry_uuid)
-        ruleset.webhook_url = "http://localhost"
-        ruleset.save()
-
-        tupac = self.create_contact("Tupac", "+12065550101")
-        legacy.flow_start(flow, groups=[], contacts=[tupac])
-        msg = Msg.objects.filter(direction="O", contact=tupac).first()
-        self.assertEqual("Hi there Tupac", msg.text)
-
-    @uses_legacy_engine
-    def test_webhook_rule_first(self):
-        flow = self.get_flow("webhook_rule_first")
-        tupac = self.create_contact("Tupac", "+12065550101")
-        legacy.flow_start(flow, groups=[], contacts=[tupac])
-
-        # a message should have been sent
-        msg = Msg.objects.filter(direction="O", contact=tupac).first()
-        self.assertEqual("Testing this out", msg.text)
-
     def test_group_dependencies(self):
         self.get_flow("dependencies")
         flow = Flow.objects.filter(name="Dependencies").first()
@@ -6873,22 +6493,6 @@ class ChannelSplitTest(FlowFileTest):
         self.assertEqual("206 Channel", msg.text)
 
 
-class WebhookLoopTest(FlowFileTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_loop(self):
-        flow = self.get_flow("webhook_loop")
-
-        self.mockRequest("GET", "/msg", '{ "text": "first message" }')
-        self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
-
-        self.mockRequest("GET", "/msg", '{ "text": "second message" }')
-        self.assertEqual("second message", self.send_message(flow, "second"))
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-
 class GhostActionNodeTest(FlowFileTest):
     @uses_legacy_engine
     def test_ghost_action_node_test(self):
@@ -7012,28 +6616,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Start!", msgs[0].text)
         self.assertEqual("Leaf!", msgs[1].text)
         self.assertEqual("End!", msgs[2].text)
-
-        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
-            "exited_on"
-        )
-        self.assertEqual(3, runs.count())
-        self.assertEqual("Stacker Leaf", runs[0].flow.name)
-        self.assertEqual("Stacker", runs[1].flow.name)
-        self.assertEqual("Stacked", runs[2].flow.name)
-
-    @uses_legacy_engine
-    def test_stacked_webhook_exits(self):
-        self.get_flow("stacked_webhook_exits")
-        flow = Flow.objects.get(name="Stacked")
-
-        legacy.flow_start(flow, [], [self.contact])
-
-        msgs = Msg.objects.filter(contact=self.contact).order_by("sent_on")
-        self.assertEqual(4, msgs.count())
-        self.assertEqual("Start!", msgs[0].text)
-        self.assertEqual("Leaf!", msgs[1].text)
-        self.assertEqual("Middle!", msgs[2].text)
-        self.assertEqual("End!", msgs[3].text)
 
         runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
             "exited_on"

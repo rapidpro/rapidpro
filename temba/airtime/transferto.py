@@ -33,9 +33,6 @@ class TransferToClient:
         for elt in lines:
             if elt and elt.find("=") > 0:
                 key, val = tuple(elt.split("="))
-                if val.find(",") > 0:
-                    val = val.split(",")
-
                 parsed[key] = val
 
         return parsed

@@ -200,9 +200,6 @@ class AirtimeStatusTest(Test):
     def as_json(self):  # pragma: needs cover
         return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
-
 
 class InGroupTest(Test):
     """
@@ -280,9 +277,6 @@ class TimeoutTest(Test):
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
 
 
 class TrueTest(Test):
