@@ -405,27 +405,11 @@ class ActionTest(TembaTest):
 
     def test_set_language_action(self):
         action = SetLanguageAction(str(uuid4()), "kli", "Klingon")
-
-        # check to and from JSON
         action_json = action.as_json()
         action = SetLanguageAction.from_json(self.org, action_json)
 
         self.assertEqual("kli", action.lang)
         self.assertEqual("Klingon", action.name)
-
-        # execute our action and check we are Klingon now, eeektorp shnockahltip.
-        run = FlowRun.create(self.flow, self.contact)
-        self.execute_action(action, run, None)
-        self.assertEqual("kli", Contact.objects.get(pk=self.contact.pk).language)
-
-        # try setting the language to something thats not three characters
-        action_json["lang"] = "base"
-        action_json["name"] = "Default"
-        action = SetLanguageAction.from_json(self.org, action_json)
-        self.execute_action(action, run, None)
-
-        # should clear the contacts language
-        self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
 
     @uses_legacy_engine
     def test_start_flow_action(self):
@@ -548,124 +532,20 @@ class ActionTest(TembaTest):
         self.assertEqual(0, group2.contacts.all().count())
 
     def test_set_channel_action(self):
-        flow = self.flow
-        run = FlowRun.create(flow, self.contact)
+        channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12061111111", "KN", {})
 
-        tel1_channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12061111111", "KN", {})
-        tel2_channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12062222222", "KN", {})
-
-        fb_channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "FB",
-            address="Page Id",
-            config={"page_name": "Page Name", "auth_token": "Page Token"},
-        )
-
-        # create an incoming message on tel1, this should create an affinity to that channel
-        Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")
-        urn = self.contact.urns.all().first()
-        self.assertEqual(urn.channel, tel1_channel)
-
-        action = SetChannelAction(str(uuid4()), tel2_channel)
-        self.execute_action(action, run, None)
-
-        # check the affinity on our urn again, should now be the second channel
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # try to set it to a channel that we don't have a URN for
-        action = SetChannelAction(str(uuid4()), fb_channel)
-        self.execute_action(action, run, None)
-
-        # affinity is unchanged
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # add a FB urn for our contact
-        fb_urn = ContactURN.get_or_create(self.org, self.contact, "facebook:1001")
-
-        # default URN should be FB now, as it has the highest priority
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, fb_urn)
-
-        # but if we set our channel to tel, will override that
-        run.contact.clear_urn_cache()
-        action = SetChannelAction(str(uuid4()), tel1_channel)
-        self.execute_action(action, run, None)
-
-        contact.clear_urn_cache()
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, urn)
-        self.assertEqual(resolved_urn.channel, tel1_channel)
-
-        # test serializing
+        action = SetChannelAction(str(uuid4()), channel)
         action_json = action.as_json()
         action = SetChannelAction.from_json(self.org, action_json)
-        self.assertEqual(tel1_channel, action.channel)
-
-        # action shouldn't blow up without a channel
-        action = SetChannelAction(str(uuid4()), None)
-        self.execute_action(action, run, None)
-
-        # incoming messages will still cause preference to switch
-        Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # make sure that switch will work across schemes as well
-        Msg.create_incoming(fb_channel, str(fb_urn), "Incoming FB message")
-        self.contact.clear_urn_cache()
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, fb_urn)
+        self.assertEqual(channel, action.channel)
 
     def test_add_label_action(self):
-        flow = self.flow
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(flow, self.contact)
-
         label1 = Label.get_or_create(self.org, self.user, "green label")
         action = AddLabelAction(str(uuid4()), [label1, "@step.contact"])
 
         action_json = action.as_json()
         action = AddLabelAction.from_json(self.org, action_json)
-
-        # no message yet; such Add Label action on entry Actionset. No error should be raised
-        self.execute_action(action, run, None)
-
-        self.assertFalse(label1.get_messages())
-        self.assertEqual(label1.get_visible_count(), 0)
-
-        self.execute_action(action, run, msg)
-
-        # only label one was added to the message and no new label created
-        self.assertEqual(set(label1.get_messages()), {msg})
-        self.assertEqual(label1.get_visible_count(), 1)
-        self.assertEqual(Label.label_objects.all().count(), 1)
-
-        # make sure the expression variable label exists too
-        label1 = Label.label_objects.get(pk=label1.pk)
-        label2 = Label.label_objects.create(
-            org=self.org, name=self.contact.name, created_by=self.admin, modified_by=self.admin
-        )
-
-        self.execute_action(action, run, msg)
-
-        # and message should have been labeled with both labels
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label1, label2})
-        self.assertEqual(set(label1.get_messages()), {msg})
-        self.assertEqual(label1.get_visible_count(), 1)
-        self.assertTrue(set(label2.get_messages()), {msg})
-        self.assertEqual(label2.get_visible_count(), 1)
-
-        # passing through twice doesn't change anything
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
-        self.assertEqual(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
-        self.assertEqual(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
+        self.assertEqual([label1, "@step.contact"], action.labels)
 
 
 class SendActionTest(TembaTest):

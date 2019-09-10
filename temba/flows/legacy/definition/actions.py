@@ -265,28 +265,7 @@ class AddLabelAction(Action):
             else:
                 labels.append(action_label)
 
-        return dict(type=self.get_type(), uuid=self.uuid, labels=labels)
-
-    def get_type(self):
-        return AddLabelAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.msgs.models import Label
-
-        for label in self.labels:
-            if not isinstance(label, Label):
-                contact = run.contact
-                (value, errors) = evaluate(label, context, org=run.flow.org)
-
-                if not errors:
-                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                else:  # pragma: needs cover
-                    label = None
-
-            if label and msg and msg.pk:
-                label.toggle_label([msg], True)
-
-        return []
+        return dict(type=self.TYPE, uuid=self.uuid, labels=labels)
 
 
 class SayAction(Action):
@@ -620,20 +599,6 @@ class SetLanguageAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
 
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        old_value = run.contact.language
-
-        if len(self.lang) != 3:
-            new_lang = None
-        else:
-            new_lang = self.lang
-
-        if old_value != new_lang:
-            run.contact.language = new_lang
-            run.contact.save(update_fields=["language"], handle_update=True)
-
-        return []
-
 
 class StartFlowAction(Action):
     """
@@ -840,14 +805,6 @@ class SetChannelAction(Action):
             else None
         )
         return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        # if we found the channel to set
-        if self.channel:
-            run.contact.set_preferred_channel(self.channel)
-            return []
-        else:
-            return []
 
 
 class SendAction(VariableContactAction):

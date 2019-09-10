@@ -20,7 +20,7 @@ from django.utils.encoding import force_text
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
@@ -6658,117 +6658,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker Leaf", runs[0].flow.name)
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
-
-
-class FlowChannelSelectionTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-        self.channel.delete()
-        self.sms_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "JN",
-            None,
-            "+250788123123",
-            schemes=["tel"],
-            uuid="00000000-0000-0000-0000-000000001111",
-            role=Channel.DEFAULT_ROLE,
-        )
-
-    def test_sms_channel_selection(self):
-        contact_urn = self.contact.get_urn(TEL_SCHEME)
-        channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
-        self.assertEqual(channel, self.sms_channel)
-
-
-class TypeTest(TembaTest):
-    @uses_legacy_engine
-    def test_value_types(self):
-
-        contact = self.create_contact("Joe", "+250788373373")
-        flow = self.get_flow("type_flow")
-
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
-
-        self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
-        self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
-        self.assertEqual(Value.TYPE_NUMBER, RuleSet.objects.get(label="Number").value_type)
-        self.assertEqual(Value.TYPE_STATE, RuleSet.objects.get(label="State").value_type)
-        self.assertEqual(Value.TYPE_DISTRICT, RuleSet.objects.get(label="District").value_type)
-        self.assertEqual(Value.TYPE_WARD, RuleSet.objects.get(label="Ward").value_type)
-
-        incoming = self.create_msg(direction=INCOMING, contact=contact, text="types")
-        legacy.flow_start(flow, groups=[], contacts=[contact], start_msg=incoming)
-
-        self.assertTrue(legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date"))
-        )
-
-        results = FlowRun.objects.get().results
-
-        self.assertEqual("Text", results["text"]["name"])
-        self.assertEqual("Some Text", results["text"]["value"])
-        self.assertEqual("Some Text", results["text"]["input"])
-        self.assertEqual("All Responses", results["text"]["category"])
-
-        self.assertEqual("Date", results["date"]["name"])
-        self.assertEqual("not a date", results["date"]["value"])
-        self.assertEqual("not a date", results["date"]["input"])
-        self.assertEqual("Other", results["date"]["category"])
-
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 23/06/1977"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="The number is 10"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(
-                self.create_msg(contact=contact, direction=INCOMING, text="I'm in Eastern Province")
-            )
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo"))
-        )
-
-        results = FlowRun.objects.get().results
-
-        self.assertEqual("Text", results["text"]["name"])
-        self.assertEqual("Some Text", results["text"]["value"])
-        self.assertEqual("Some Text", results["text"]["input"])
-        self.assertEqual("All Responses", results["text"]["category"])
-
-        self.assertEqual("Date", results["date"]["name"])
-        self.assertTrue(results["date"]["value"].startswith("1977-06-23T"))
-        self.assertEqual("Born 23/06/1977", results["date"]["input"])
-        self.assertEqual("is a date", results["date"]["category"])
-
-        self.assertEqual("Number", results["number"]["name"])
-        self.assertEqual("10", results["number"]["value"])
-        self.assertEqual("The number is 10", results["number"]["input"])
-        self.assertEqual("numeric", results["number"]["category"])
-
-        self.assertEqual("State", results["state"]["name"])
-        self.assertEqual("Rwanda > Eastern Province", results["state"]["value"])
-        self.assertEqual("I'm in Eastern Province", results["state"]["input"])
-        self.assertEqual("state", results["state"]["category"])
-        self.assertNotIn("category_localized", results["state"])
-
-        self.assertEqual("District", results["district"]["name"])
-        self.assertEqual("Rwanda > Eastern Province > Gatsibo", results["district"]["value"])
-        self.assertEqual("That's in Gatsibo", results["district"]["input"])
-        self.assertEqual("district", results["district"]["category"])
-        self.assertEqual("le district", results["district"]["category_localized"])
-
-        self.assertEqual("Ward", results["ward"]["name"])
-        self.assertEqual("Rwanda > Eastern Province > Gatsibo > Kageyo", results["ward"]["value"])
-        self.assertEqual("ya ok that's Kageyo", results["ward"]["input"])
-        self.assertEqual("ward", results["ward"]["category"])
 
 
 class AssetServerTest(TembaTest):
