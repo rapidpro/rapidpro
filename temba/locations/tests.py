@@ -7,9 +7,10 @@ import responses
 
 from django.core.management import call_command
 from django.test import TestCase
+from django.test.utils import captured_stdout
 from django.urls import reverse
 
-from temba.tests import CaptureSTDOUT, TembaTest
+from temba.tests import TembaTest
 from temba.utils import json
 
 from .models import AdminBoundary, BoundaryAlias
@@ -373,7 +374,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_wrong_filename(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "data.json")
 
         self.assertEqual(
@@ -384,7 +385,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_filename_with_no_features(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_no_features)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "R188933admin0.json")
 
         self.assertEqual(captured_output.getvalue(), "=== parsing R188933admin0.json\n")
@@ -393,7 +394,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_ok_filename_admin(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "R188933admin0.json")
 
         self.assertEqual(
@@ -405,7 +406,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_ok_filename_admin_level_with_country_prefix(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "R188933admin0.json", "--country=R188933")
 
         self.assertEqual(
@@ -417,7 +418,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_ok_filename_admin_level(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_level_0)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json")
 
         self.assertEqual(
@@ -429,7 +430,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_missing_parent_in_db(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_without_parent)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_1_simplified.json")
 
         self.assertEqual(
@@ -441,7 +442,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_feature_without_geometry(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_feature_no_geometry)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json")
 
         self.assertEqual(captured_output.getvalue(), "=== parsing admin_level_0_simplified.json\n")
@@ -450,7 +451,7 @@ class ImportGeoJSONtest(TestCase):
 
     def test_feature_multipolygon_geometry(self):
         with patch("builtins.open", mock_open(read_data=self.data_geojson_multipolygon)):
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json")
 
         self.assertEqual(
@@ -472,7 +473,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command(
                     "import_geojson",
                     "admin_level_0_simplified.json",
@@ -496,7 +497,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT():
+            with captured_stdout():
                 call_command("import_geojson", "admin_level_0_simplified.json", "admin_level_1_simplified.json")
 
         self.assertEqual(AdminBoundary.objects.count(), 2)
@@ -509,7 +510,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json", "admin_level_1_simplified.json")
 
         self.assertEqual(
@@ -528,7 +529,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT():
+            with captured_stdout():
                 call_command("import_geojson", "admin_level_0_simplified.json", "admin_level_1_simplified.json")
 
         self.assertEqual(AdminBoundary.objects.count(), 2)
@@ -541,7 +542,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json", "admin_level_1_simplified.json")
 
         self.assertEqual(
@@ -562,7 +563,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT():
+            with captured_stdout():
                 call_command("import_geojson", "admin_level_0_simplified.json", "admin_level_1_simplified.json")
 
         self.assertEqual(AdminBoundary.objects.count(), 2)
@@ -575,7 +576,7 @@ class ImportGeoJSONtest(TestCase):
             mock_file.return_value.__exit__ = Mock()
             mock_file.return_value.read.side_effect = lambda: geojson_data.pop(0)
 
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.json")
 
         self.assertEqual(
@@ -593,7 +594,7 @@ class ImportGeoJSONtest(TestCase):
             zipfile_patched().open.return_value.__exit__ = Mock()
             zipfile_patched().open.return_value.read.return_value = self.data_geojson_level_0
 
-            with CaptureSTDOUT() as captured_output:
+            with captured_stdout() as captured_output:
                 call_command("import_geojson", "admin_level_0_simplified.zip")
 
         self.assertEqual(
