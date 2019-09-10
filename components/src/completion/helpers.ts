@@ -123,9 +123,7 @@ export const getVerticalScroll = (ele: Node) => {
     let current = ele;
     let verticalScroll = 0;
     while (current) {
-        // verticalScroll += current.scrollTop;
         current = current.parentNode;
-        console.log('parent', current);
     }
     return verticalScroll;
 };
