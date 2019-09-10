@@ -27,7 +27,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, chunk_list, format_number, get_anonymous_user, json, on_transaction_commit
-from temba.utils.cache import get_cacheable_attr
 from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.languages import _get_language_name_iso6393
@@ -733,15 +732,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
-    @property
-    def cached_user_groups(self):
-        """
-        Define Contact.user_groups to only refer to user groups
-        """
-        return get_cacheable_attr(
-            self, "_user_groups", lambda: self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
-        )
-
     def save(self, *args, handle_update=None, **kwargs):
         super().save(*args, **kwargs)
 
@@ -1152,10 +1142,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             EventFire.update_events_for_contact_fields(contact=self, keys=fields)
 
         if changed_groups:
-            # delete any cached groups
-            if hasattr(self, "_user_groups"):
-                delattr(self, "_user_groups")
-
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact_groups(self, changed_groups)
 
@@ -2033,16 +2019,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for contact in contacts:
             contact.org = org
             setattr(contact, "__cache_initialized", True)
-
-    def first_name(self, org):
-        if not self.name:
-            return self.get_urn_display(org)
-        else:
-            names = self.name.split()
-            if len(names) > 1:
-                return names[0]
-            else:
-                return self.name
 
     def set_first_name(self, first_name):
         if not self.name:
