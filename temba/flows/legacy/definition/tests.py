@@ -3,10 +3,10 @@ from uuid import uuid4
 from django.conf import settings
 
 from temba.channels.models import Channel
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactURN
 from temba.flows.models import Flow, FlowException, FlowRevision, FlowRun
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg
-from temba.tests import ESMockWithScroll, TembaTest, uses_legacy_engine
+from temba.tests import TembaTest, uses_legacy_engine
 
 from ..engine import flow_start
 from ..expressions import flow_context
@@ -437,9 +437,6 @@ class ActionTest(TembaTest):
         self.assertTrue(Msg.objects.filter(contact=self.contact, direction="O", text="You chose Blue"))
 
     def test_group_actions(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
         group = self.create_group("Flow Group", [])
 
         # check converting to and from json
@@ -447,33 +444,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = AddToGroupAction.from_json(self.org, action_json)
 
-        self.execute_action(action, run, msg)
-
-        # user should now be in the group
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-
-        # we should never create a new group in the flow execution
-        self.assertIsNone(ContactGroup.user_groups.filter(name=self.contact.name).first())
-
-        # should match existing group for variables
-        replace_group1 = ContactGroup.create_static(self.org, self.admin, self.contact.name)
-        self.assertEqual(set(replace_group1.contacts.all()), set())
-
-        # passing through twice doesn't change anything
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(self.contact.user_groups.all().count(), 2)
-
-        # having the group name containing a space doesn't change anything
-        self.contact.name += " "
-        self.contact.save(update_fields=("name",), handle_update=False)
-        run.contact = self.contact
-
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        self.assertEqual([group, "@step.contact"], action.groups)
 
         # try when group is inactive
         action = DeleteFromGroupAction(str(uuid4()), [group])
@@ -485,51 +456,7 @@ class ActionTest(TembaTest):
         # reading the action should create a new group
         updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
-        self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
-
-        # try adding a contact to a dynamic group
-        self.create_field("isalive", "Is Alive")
-        with ESMockWithScroll():
-            dynamic_group = self.create_group("Dynamic", query="isalive=YES")
-        action = AddToGroupAction(str(uuid4()), [dynamic_group])
-
-        self.execute_action(action, run, msg)
-
-        # should do nothing
-        self.assertEqual(dynamic_group.contacts.count(), 0)
-
-        group1 = self.create_group("Flow Group 1", [])
-        group2 = self.create_group("Flow Group 2", [])
-
-        test = AddToGroupAction(str(uuid4()), [group1])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        test = AddToGroupAction(str(uuid4()), [group2])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        # user should be in both groups now
-        self.assertTrue(group1.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group1.contacts.all().count())
-        self.assertTrue(group2.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group2.contacts.all().count())
-
-        test = DeleteFromGroupAction(str(uuid4()), [])
-        action_json = test.as_json()
-        test = DeleteFromGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        # user should be gone from both groups now
-        self.assertFalse(group1.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group1.contacts.all().count())
-        self.assertFalse(group2.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group2.contacts.all().count())
+        self.assertNotIn(group, updated_action.groups)
 
     def test_set_channel_action(self):
         channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12061111111", "KN", {})

@@ -99,6 +99,9 @@ class AddToGroupAction(Action):
 
         self.groups = groups
 
+    def get_type(self):
+        return AddToGroupAction.TYPE
+
     @classmethod
     def from_json(cls, org, json_obj):
         return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
@@ -143,34 +146,6 @@ class AddToGroupAction(Action):
 
         return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
 
-    def get_type(self):
-        return AddToGroupAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        contact = run.contact
-        add = AddToGroupAction.TYPE == self.get_type()
-        user = get_flow_user(run.org)
-
-        if contact:
-            for group in self.groups:
-                if not isinstance(group, ContactGroup):
-                    (value, errors) = evaluate(group, context, org=run.flow.org)
-                    group = None
-
-                    if not errors:
-                        group = ContactGroup.get_user_group_by_name(contact.org, value)
-
-                if group:
-                    if group.is_dynamic:
-                        continue
-
-                    group.org = run.org
-                    group.update_contacts(user, [contact], add)
-
-        return []
-
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -182,6 +157,10 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
+
     def as_json(self):
         groups = []
         for g in self.groups:
@@ -191,25 +170,6 @@ class DeleteFromGroupAction(AddToGroupAction):
                 groups.append(g)
 
         return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
-
-    def execute(self, run, context, actionset, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        if len(self.groups) == 0:
-            contact = run.contact
-            user = get_flow_user(run.org)
-            if contact:
-                # remove from all active and inactive user-defined, static groups
-                for group in ContactGroup.user_groups.filter(
-                    org=contact.org, group_type=ContactGroup.TYPE_USER_DEFINED, query__isnull=True
-                ):
-                    group.update_contacts(user, [contact], False)
-            return []
-        return AddToGroupAction.execute(self, run, context, actionset, msg)
 
 
 class AddLabelAction(Action):

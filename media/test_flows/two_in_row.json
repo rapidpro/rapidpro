@@ -15,16 +15,7 @@
                 "eng": "This is the first message."
               }, 
               "type": "reply"
-            }, 
-            {
-              "type": "add_group", 
-              "groups": [
-                {
-                  "name": "bootstrap 3", 
-                  "id": 12644
-                }
-              ]
-            }, 
+            },
             {
               "msg": {
                 "eng": "This is the second message."

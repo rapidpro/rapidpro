@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.utils.encoding import force_text
 
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
@@ -5587,99 +5587,6 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     @uses_legacy_engine
-    def test_group_split(self):
-        flow = self.get_flow("group_split")
-
-        rulesets = RuleSet.objects.filter(flow=flow)
-        group_count = 0
-        for ruleset in rulesets:
-            for rule in ruleset.rules:
-                if rule["test"]["type"] == "in_group":
-                    group = ContactGroup.user_groups.filter(uuid=rule["test"]["test"]["uuid"]).first()
-                    self.assertIsNotNone(group)
-                    group_count += 1
-        self.assertEqual(2, group_count)
-
-        run, = legacy.flow_start(flow, [], [self.contact])
-
-        # not in any group
-        self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
-
-        # add us to Group A
-        self.send("add group a")
-
-        self.assertEqual("Awaiting command.", Msg.objects.filter(direction="O").order_by("-created_on").first().text)
-        groups = ContactGroup.user_groups.filter(contacts__in=[self.contact])
-        self.assertEqual(1, groups.count())
-        self.assertEqual("Group A", groups.first().name)
-
-        # now split us on group membership
-        self.send("split")
-        self.assertEqual("You are in Group A", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Group A",
-                "created_on": matchers.ISODate(),
-                "input": "Ben Haggerty",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "Group A",
-            },
-        )
-
-        # now add us to group b and remove from group a
-        self.send("remove group a")
-        self.send("add group b")
-        self.send("split")
-        self.assertEqual("You are in Group B", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
-
-        # now remove from both groups
-        self.send("remove group b")
-        self.send("split")
-        self.assertEqual(
-            "You aren't in either group.", Msg.objects.filter(direction="O").order_by("-created_on")[1].text
-        )
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Other",
-                "created_on": matchers.ISODate(),
-                "input": "Ben Haggerty",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "Ben Haggerty",
-            },
-        )
-
-        # if contact has null name, value will be empty string
-        nameless = self.create_contact(name=None, number="+12065553030")
-        run, = legacy.flow_start(flow, [], [nameless])
-
-        self.send("split", contact=nameless)
-        self.assertEqual(
-            "You aren't in either group.",
-            Msg.objects.filter(direction="O", contact=nameless).order_by("created_on")[1].text,
-        )
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Other",
-                "created_on": matchers.ISODate(),
-                "input": "(206) 555-3030",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "(206) 555-3030",
-            },
-        )
-
-    @uses_legacy_engine
     def test_media_first_action(self):
         flow = self.get_flow("media_first_action")
 
@@ -6099,31 +6006,6 @@ class FlowsTest(FlowFileTest):
 
         self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
         self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
-
-    @uses_legacy_engine
-    def test_parent_child(self):
-        favorites = self.get_flow("favorites")
-
-        # do a dry run once so that the groups and fields get created
-        group = self.create_group("Campaign", [])
-        field = ContactField.get_or_create(
-            self.org, self.admin, "campaign_date", "Campaign Date", value_type=Value.TYPE_DATETIME
-        )
-
-        # tests that a contact is properly updated when a child flow is called
-        child = self.get_flow("child")
-        parent = self.get_flow("parent", substitutions=dict(CHILD_ID=child.id))
-
-        # create a campaign with a single event
-        campaign = Campaign.create(self.org, self.admin, "Test Campaign", group)
-        CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=field, offset=10, unit="W", flow=favorites
-        )
-
-        self.assertEqual("Added to campaign.", self.send_message(parent, "start", initiate_flow=True))
-
-        # should have one event scheduled for this contact
-        self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
     @uses_legacy_engine
     def test_priority(self):
