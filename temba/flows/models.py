@@ -372,47 +372,55 @@ class Flow(TembaModel):
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = "11.2"
+        flow.version_number = Flow.GOFLOW_VERSION
         flow.save(update_fields=("version_number",))
 
-        entry_uuid = str(uuid4())
+        node_uuid = str(uuid4())
         definition = {
-            "version": flow.version_number,
-            "entry": entry_uuid,
-            "base_language": base_language,
-            "flow_type": Flow.TYPE_MESSAGE,
-            "rule_sets": [],
-            "action_sets": [
+            "uuid": flow.uuid,
+            "name": flow.name,
+            "spec_version": flow.version_number,
+            "language": base_language,
+            "type": "messaging",
+            "localization": {},
+            "nodes": [
                 {
-                    "x": 100,
-                    "y": 0,
-                    "uuid": entry_uuid,
-                    "exit_uuid": str(uuid4()),
+                    "uuid": node_uuid,
                     "actions": [
-                        {"uuid": str(uuid4()), "type": "add_group", "group": {"uuid": group.uuid, "name": group.name}},
                         {
+                            "type": "add_contact_groups",
                             "uuid": str(uuid4()),
-                            "type": "save",
-                            "field": "name",
-                            "label": "Contact Name",
-                            "value": "@(PROPER(REMOVE_FIRST_WORD(step.value)))",
+                            "groups": [{"uuid": group.uuid, "name": group.name}],
+                        },
+                        {
+                            "type": "set_contact_name",
+                            "uuid": str(uuid4()),
+                            "name": "@(title(remove_first_word(input)))",
                         },
                     ],
+                    "exits": [{"uuid": str(uuid4())}],
                 }
             ],
+            "_ui": {
+                "nodes": {node_uuid: {"type": "execute_actions", "position": {"left": 100, "top": 0}}},
+                "stickies": {},
+            },
         }
 
         if response:
-            definition["action_sets"][0]["actions"].append(
-                {"uuid": str(uuid4()), "type": "reply", "msg": {base_language: response}}
-            )
+            definition["nodes"][0]["actions"].append({"type": "send_msg", "uuid": str(uuid4()), "text": response})
 
         if start_flow:
-            definition["action_sets"][0]["actions"].append(
-                {"uuid": str(uuid4()), "type": "flow", "flow": {"uuid": start_flow.uuid, "name": start_flow.name}}
+            definition["nodes"][0]["actions"].append(
+                {
+                    "type": "enter_flow",
+                    "uuid": str(uuid4()),
+                    "flow": {"uuid": start_flow.uuid, "name": start_flow.name},
+                    "terminal": True,
+                }
             )
 
-        flow.update(FlowRevision.migrate_definition(definition, flow))
+        flow.save_revision(user, definition)
         return flow
 
     @classmethod
