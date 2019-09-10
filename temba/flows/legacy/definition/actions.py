@@ -53,6 +53,9 @@ class Action:
                 actions.append(action)
         return actions
 
+    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
+        pass
+
 
 class EmailAction(Action):
     """
@@ -65,12 +68,7 @@ class EmailAction(Action):
     MESSAGE = "msg"
 
     def __init__(self, uuid, emails, subject, message):
-        from temba.flows.models import FlowException
-
         super().__init__(uuid)
-
-        if not emails:
-            raise FlowException("Email actions require at least one recipient")
 
         self.emails = emails
         self.subject = subject
@@ -85,9 +83,6 @@ class EmailAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        pass
 
 
 class AddToGroupAction(Action):
@@ -316,9 +311,6 @@ class SayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
-    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
-        pass
-
 
 class PlayAction(Action):
     """
@@ -339,9 +331,6 @@ class PlayAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
-
-    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
-        pass
 
 
 class ReplyAction(Action):
@@ -607,9 +596,6 @@ class TriggerFlowAction(VariableContactAction):
             groups=group_ids,
             variables=variables,
         )
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        pass
 
 
 class SetLanguageAction(Action):
@@ -908,6 +894,3 @@ class SendAction(VariableContactAction):
             variables=variables,
             media=self.media,
         )
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        pass

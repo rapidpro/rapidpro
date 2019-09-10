@@ -1688,17 +1688,20 @@ class OrgTest(TembaTest):
 
         org.refresh_from_db()
         self.assertFalse(org.is_connected_to_transferto())
+        self.assertIsNone(org.get_transferto_client())
 
         org.connect_transferto("login", "token", self.admin)
-
         org.refresh_from_db()
+
         self.assertTrue(org.is_connected_to_transferto())
+        self.assertIsNotNone(org.get_transferto_client())
         self.assertEqual(org.modified_by, self.admin)
 
         org.remove_transferto_account(self.admin)
-
         org.refresh_from_db()
+
         self.assertFalse(org.is_connected_to_transferto())
+        self.assertIsNone(org.get_transferto_client())
         self.assertEqual(org.modified_by, self.admin)
 
     def test_transferto_account(self):

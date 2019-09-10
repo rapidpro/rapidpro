@@ -367,16 +367,3 @@ def api_token(user):
 
 
 User.api_token = property(api_token)
-
-
-def get_api_user():
-    """
-    Returns a user that can be used to associate events created by the API service
-    """
-    user = User.objects.filter(username="api")
-    if user:
-        return user[0]
-    else:
-        user = User.objects.create_user("api", "code@temba.com")
-        user.groups.add(Group.objects.get(name="Service Users"))
-        return user

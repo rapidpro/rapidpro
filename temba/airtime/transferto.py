@@ -20,7 +20,7 @@ class TransferToClient:
         return self._request(action="check_wallet")
 
     def _request(self, **kwargs):
-        key = str(int(time.time() * 1000))
+        key = self._request_key()
         md5 = hashlib.md5()
         md5.update(force_bytes(self.login + self.token + key))
         md5 = md5.hexdigest()
@@ -39,3 +39,9 @@ class TransferToClient:
                 parsed[key] = val
 
         return parsed
+
+    def _request_key(self):
+        """
+        Every request needs a unique, sequential key value
+        """
+        return str(int(time.time() * 1000))
