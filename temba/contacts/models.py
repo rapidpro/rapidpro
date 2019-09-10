@@ -2052,40 +2052,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
-    def set_preferred_channel(self, channel):
-        """
-        Sets the preferred channel for communicating with this Contact
-        """
-        if channel is None or (Channel.ROLE_SEND not in channel.role and Channel.ROLE_CALL not in channel.role):
-            return
-
-        urns = self.get_urns()
-
-        # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
-        if TEL_SCHEME in channel.schemes:
-            for urn in urns:
-                if urn.scheme in channel.schemes and urn.channel_id != channel.id:
-                    urn.channel = channel
-                    urn.save(update_fields=["channel"])
-
-        # if our scheme isn't the highest priority
-        if urns and urns[0].scheme not in channel.schemes:
-            # update the highest URN of the right scheme to be highest
-            for urn in urns[1:]:
-                if urn.scheme in channel.schemes:
-                    urn.priority = urns[0].priority + 1
-                    urn.save(update_fields=["priority"])
-
-                    # clear our URN cache, order is different now
-                    self.clear_urn_cache()
-                    break
-
-    def get_urns_for_scheme(self, scheme):  # pragma: needs cover
-        """
-        Returns all the URNs for the passed in scheme
-        """
-        return self.urns.filter(scheme=scheme).order_by("-priority", "pk")
-
     def clear_urn_cache(self):
         if hasattr(self, "_urns_cache"):
             delattr(self, "_urns_cache")

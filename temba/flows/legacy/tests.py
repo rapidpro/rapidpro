@@ -25,6 +25,7 @@ from .migrations import (
     migrate_to_version_11_0,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
+    migrate_to_version_11_3,
     migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
@@ -718,6 +719,14 @@ class FlowMigrationTest(FlowFileTest):
             ['@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3\n@(CONCATENATE(step.value, "blerg"))']
             * 3,
         )
+
+    def test_migrate_to_11_3(self):
+        flow_json = self.get_flow_json("migrate_to_11_3")
+
+        migrated = migrate_to_version_11_3(flow_json)
+
+        self.assertTrue(migrated["action_sets"][0]["actions"][0]["legacy_format"])
+        self.assertTrue(migrated["rule_sets"][0]["config"]["legacy_format"])
 
     def test_migrate_to_11_2(self):
         fre_definition = {

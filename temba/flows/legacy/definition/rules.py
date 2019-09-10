@@ -21,8 +21,8 @@ class Rule:
         self.test = test
         self.label = label
 
-    def get_category_name(self, flow_lang, contact_lang=None):
-        if not self.category:  # pragma: needs cover
+    def get_category_name(self, flow_lang, contact_lang=None):  # pragma: no cover
+        if not self.category:
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
@@ -35,12 +35,12 @@ class Rule:
             if not category and flow_lang:
                 category = self.category.get(flow_lang)
 
-            if not category:  # pragma: needs cover
+            if not category:
                 category = list(self.category.values())[0]
 
             return category
 
-        return self.category  # pragma: needs cover
+        return self.category
 
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
@@ -785,7 +785,7 @@ class DateTest(Test):
         else:
             return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: no cover
         return date_message is not None
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover

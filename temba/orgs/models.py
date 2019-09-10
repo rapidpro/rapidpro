@@ -1031,7 +1031,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country_id or not isinstance(location_string, str):  # pragma: no cover
+        if not self.country_id or not isinstance(location_string, str):
             return []
 
         boundary = None

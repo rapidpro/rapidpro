@@ -4410,14 +4410,27 @@ class StripeCreditsTest(TembaTest):
 
 class ParsingTest(TembaTest):
     def test_parse_location_path(self):
+        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
+        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
+        self.org.country = country
 
-        self.country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=self.country)
-        self.org.country = self.country
+        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos"))
+        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos "))
+        self.assertEqual(lagos, self.org.parse_location_path(" Nigeria > Lagos "))
 
-        self.assertEqual(self.org.parse_location_path("Nigeria > Lagos"), lagos)
-        self.assertEqual(self.org.parse_location_path("Nigeria > Lagos "), lagos)
-        self.assertEqual(self.org.parse_location_path(" Nigeria > Lagos "), lagos)
+    def test_parse_location(self):
+        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
+        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
+        self.org.country = None
+
+        # no country, no parsing
+        self.assertEqual([], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
+
+        self.org.country = country
+
+        self.assertEqual([lagos], list(self.org.parse_location("Nigeria > Lagos", AdminBoundary.LEVEL_STATE)))
+        self.assertEqual([lagos], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
+        self.assertEqual([lagos], list(self.org.parse_location("Lagos City", AdminBoundary.LEVEL_STATE)))
 
     def test_parse_number(self):
         self.assertEqual(self.org.parse_number("Not num"), None)
