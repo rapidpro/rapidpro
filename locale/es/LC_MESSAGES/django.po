@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-29 19:11+0000\n"
+"POT-Creation-Date: 2019-09-10 20:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3524,9 +3524,6 @@ msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Manejar Campos de Contactos"
-
-msgid "featured"
-msgstr ""
 
 #, fuzzy
 #| msgid "Update Fields"
@@ -8091,6 +8088,9 @@ msgstr "Manejar Campos de Contactos"
 #| msgid "SMS Type"
 msgid "Types"
 msgstr "Tipo de SMS"
+
+msgid "Featured"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
