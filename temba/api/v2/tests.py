@@ -1140,6 +1140,26 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
+        # a message event with an invalid expression on the message
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "You are @(@bad)",  # will fail migration
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
+
+        # should just leave the bad expression as-is
+        self.assertEqual(event1.message, {"base": "You are @(@bad)"})
+
         response = self.postJSON(
             url,
             None,
