@@ -112,6 +112,24 @@ export const getCompletions = (
     });
 };
 
+export const getOffset = (el: HTMLElement) => {
+    var rect = el.getBoundingClientRect(),
+        scrollLeft = window.pageXOffset || document.documentElement.scrollLeft,
+        scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    return { top: rect.top + scrollTop, left: rect.left + scrollLeft };
+};
+
+export const getVerticalScroll = (ele: Node) => {
+    let current = ele;
+    let verticalScroll = 0;
+    while (current) {
+        // verticalScroll += current.scrollTop;
+        current = current.parentNode;
+        console.log('parent', current);
+    }
+    return verticalScroll;
+};
+
 export const getCompletionName = (option: CompletionOption): string => {
     return (
         option.name || option.signature.substr(0, option.signature.indexOf('('))

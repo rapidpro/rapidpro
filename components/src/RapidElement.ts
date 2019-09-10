@@ -26,7 +26,14 @@ export default class RapidElement extends LitElement {
     super.disconnectedCallback();
   }
 
-  public fireEvent(type: CustomEventType, detail: any = {}): void {
+  public fireEvent(type: string): void {
+    this.dispatchEvent(new Event(type, {
+      bubbles: true,
+      composed: true
+  }))
+  }
+
+  public fireCustomEvent(type: CustomEventType, detail: any = {}): void {
     const event = new CustomEvent(type, {
         detail,
         bubbles: true,

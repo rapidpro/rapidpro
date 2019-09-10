@@ -248,7 +248,6 @@ export default class ExcellentParser {
 
     for (let pos = 0; pos < text.length; pos++) {
       const ch = text[pos];
-
       // in order to determine if the b in a.b terminates an identifier, we have to peek two characters ahead as
       // it could be a.b. (b terminates) or a.b.c (b doesn't terminate)
       const nextCh = pos < text.length - 1 ? text[pos + 1] : 0;

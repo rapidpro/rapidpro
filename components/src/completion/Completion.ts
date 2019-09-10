@@ -2,7 +2,7 @@ import { customElement, TemplateResult, html, css, property } from 'lit-element'
 import RapidElement, { EventHandler } from '../RapidElement';
 import ExcellentParser, { Expression } from './ExcellentParser';
 import TextInput from '../textinput/TextInput';
-import { getCompletions, CompletionSchema, getFunctions, Position, KeyedAssets } from './helpers';
+import { getCompletions, CompletionSchema, getFunctions, Position, KeyedAssets, getVerticalScroll, getOffset } from './helpers';
 import { getUrl, getAssets, Asset } from '../utils';
 import { AxiosResponse } from 'axios';
 import getCaretCoordinates from 'textarea-caret';
@@ -38,12 +38,22 @@ const markedRender = directive((contents: string) => (part: Part) => {
 export default class Completion extends RapidElement {
   static get styles() {
     return css`
+      
+      :host {
+        display: block;
+      }
+
+      .container {
+        position: relative;
+        height: 100%;
+      }
 
       #anchor {
+        /* background: rgba(132, 40, 158, .1); */
         position: absolute;
-        visibility: visible;
+        visibility: hidden;
         width: 250px;
-        border: 0px solid purple;
+        height: 20px;
       }
 
       .fn-marker {
@@ -109,7 +119,10 @@ export default class Completion extends RapidElement {
   anchorElement: HTMLDivElement;
 
   @property({type: Array})
-  options: any[] = []; // [{ name: "boom", detail: "blerp"}];
+  options: any[] = [];
+
+  @property({type: String})
+  name: string = "";
 
   @property({type: String})
   value: string = "";
@@ -126,6 +139,7 @@ export default class Completion extends RapidElement {
   @property({type: Boolean})
   textarea: boolean;
 
+  private hiddenElement: HTMLInputElement;
   private inputElement: HTMLInputElement;
   private query: string;
   
@@ -134,7 +148,6 @@ export default class Completion extends RapidElement {
     this.anchorElement = this.shadowRoot.querySelector("#anchor");
 
     // TODO: fetch these once per page, not once per control
-    
     if (this.completionsEndpoint) {
       getUrl(this.completionsEndpoint).then((response: AxiosResponse) => {
         this.schema = response.data as CompletionSchema;
@@ -152,6 +165,13 @@ export default class Completion extends RapidElement {
         this.keyedAssets = { fields: assets.map((asset: Asset)=> asset.key ) }
       });      
     }
+
+    // create our hidden container so it gets included in our host element's form
+    this.hiddenElement = document.createElement("input");
+    this.hiddenElement.setAttribute("type", "hidden");
+    this.hiddenElement.setAttribute("name", this.getAttribute("name"));
+    this.hiddenElement.setAttribute("value", this.getAttribute("value") || "");
+    this.appendChild(this.hiddenElement);
   }
 
   private handleKeyUp(evt: KeyboardEvent) {
@@ -190,7 +210,7 @@ export default class Completion extends RapidElement {
 
     if (this.schema) {
       const cursor = ele.inputElement.selectionStart;
-      const input = ele.inputElement.value.trim().substring(0, cursor);
+      const input = ele.inputElement.value.substring(0, cursor);
       const expressions = Completion.parser.findExpressions(input);
       const currentExpression = expressions.find((expr: Expression)=>expr.start <= cursor && (expr.end > cursor || expr.end === cursor && !expr.closed));
 
@@ -215,9 +235,10 @@ export default class Completion extends RapidElement {
             }
 
             var caret = getCaretCoordinates(ele.inputElement, currentExpression.start + i);
-            this.anchorPosition = { 
-              left: caret.left + 5, 
-              top: ele.inputElement.offsetTop + caret.top - ele.inputElement.scrollTop  + 20}
+            this.anchorPosition = {
+               left: caret.left + 7 - this.inputElement.scrollLeft,
+               top: caret.top - this.inputElement.scrollTop
+            }
 
             this.query = currentExpression.text.substr(i, currentExpression.text.length - i);
             this.options = [
@@ -238,6 +259,7 @@ export default class Completion extends RapidElement {
   private handleInput(evt: KeyboardEvent) {
     const ele = evt.currentTarget as TextInput;
     this.executeQuery(ele);
+    this.hiddenElement.setAttribute("value", ele.inputElement.value);
   }
 
   private handleOptionCanceled(evt: CustomEvent) {
@@ -260,14 +282,24 @@ export default class Completion extends RapidElement {
 
     if (this.inputElement) {
       let value = this.inputElement.value;
+      const insertionPoint = this.inputElement.selectionStart - this.query.length;
       
       // strip out our query
-      value = value.substr(0, value.lastIndexOf(this.query));
-    
-      // now add on our selection
-      value += insertText;
+      // const insertionPoint = value.lastIndexOf(value.substring(0, this.inputElement.selectionStart));
+      const leftSide = value.substr(0, insertionPoint);
+      const remaining = value.substr(insertionPoint + this.query.length);
+      const caret = leftSide.length + insertText.length;
 
-      this.inputElement.value = value;
+      // set our value and our new caret
+      this.inputElement.value = leftSide + insertText + remaining;
+      this.inputElement.setSelectionRange(caret, caret);
+
+      // now scroll our text box if necessary
+      const position = getCaretCoordinates(this.inputElement, caret);
+      if (position.left > this.inputElement.width) {
+        this.inputElement.scrollLeft = position.left;
+      }
+
     }
 
     this.query = "";
@@ -277,7 +309,6 @@ export default class Completion extends RapidElement {
       this.executeQuery(this.textInputElement);
     }
   }
-
 
   private renderCompletionOption(option: CompletionOption, selected: boolean) {
     if(option.signature) {
@@ -312,27 +343,30 @@ export default class Completion extends RapidElement {
           left:${this.anchorPosition.left}px;
         }
       </style>
-      <div id="anchor"></div>
-      <rp-textinput 
-        placeholder=${this.placeholder}
-        @keyup=${this.handleKeyUp}
-        @click=${this.handleClick}
-        @input=${this.handleInput}
-        .value=${this.value}
-        ?textarea=${this.textarea}
+      <div class="container">
+        <div id="anchor"></div>
+        <rp-textinput 
+          name=${this.name}
+          placeholder=${this.placeholder}
+          @keyup=${this.handleKeyUp}
+          @click=${this.handleClick}
+          @input=${this.handleInput}
+          .value=${this.value || ""}
+          ?textarea=${this.textarea}
+          >
+        </rp-textinput>
+        <rp-options
+          @rp-selection=${this.handleOptionSelection}
+          @rp-canceled=${this.handleOptionCanceled}
+          .anchorTo=${this.anchorElement}
+          .options=${this.options}
+          .renderOption=${this.renderCompletionOption}
+          ?visible=${this.options.length > 0}
         >
-      </rp-textinput>
-      <rp-options
-        @rp-selection=${this.handleOptionSelection}
-        @rp-canceled=${this.handleOptionCanceled}
-        .anchorTo=${this.anchorElement}
-        .options=${this.options}
-        .renderOption=${this.renderCompletionOption}
-        ?visible=${this.options.length > 0}
-      >
-        ${this.currentFunction ? html`<div class="current-fn">${this.renderCompletionOption(this.currentFunction, true)}</div>`: null}
-        <div class="footer">Tab to complete, enter to select</div>
-    </rp-options>
+          ${this.currentFunction ? html`<div class="current-fn">${this.renderCompletionOption(this.currentFunction, true)}</div>`: null}
+          <div class="footer">Tab to complete, enter to select</div>
+        </rp-options>
+      </div>
     `;
   }
 }

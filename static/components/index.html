@@ -68,28 +68,66 @@
       }
     </style>
 
-    <div style="width: 100%">
+<!--alias-editor
+osmid="192787"
+endpoint="http://localhost:8888/adminboundary"
+></alias-editor-->
+
+
+    <div style="width: 30%">
       <rp-completion 
+        placeholder="This is a placeholder"
         completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
         functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
         fieldsEndpoint="http://localhost:8888/api/v2/fields.json">
       </rp-completion>
     </div>
-    <br/>
-    <div style="height: 150px; width: 100%">
+    <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+    <div style="width: 100%">
       <rp-completion 
+        placeholder="This is a placeholder"
         completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
         functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
         fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
-        textarea>
+        textarea
+      >
       </rp-completion>
     </div>
-  
-    <!-- alias-editor
-      osmid="192787"
-      endpoint="http://localhost:8888/adminboundary"
-    ></alias-editor-->
-      
+
+    <rp-button name="Open Dialog" primary onClick="javascript:showDialog();"></rp-button>
+
+    <rp-dialog id="dialog-sample"
+      title="This is a sample dialog" 
+      primaryButtonName="Give Up"
+    >
+      <div style="position:relative">
+        <div style=" padding:20px; max-height: 150px; overflow-y: scroll;">
+          <rp-completion 
+            completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+            functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+            fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
+            textarea>
+          </rp-completion>
+        </div>
+      </div>
+    </rp-dialog>
+
+    <!-- rp-select 
+      placeholder="Search" 
+      endpoint="/adminboundary/boundaries/192787/?q="
+    ></rp-select -->
+
+    <script>
+      function showDialog() {
+        document.querySelector("#dialog-sample").setAttribute("open", true);
+      }
+
+      document.querySelector("#dialog-sample").addEventListener("rp-button-clicked", (evt)=>{        
+        // var button = evt.detail.button;
+        evt.target.removeAttribute("open");
+      });
+    </script>
+
     
     
   <script type="text/javascript" src="rp-components.js"></script></body>

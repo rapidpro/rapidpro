@@ -38,7 +38,7 @@ export default class TextInput extends RapidElement {
         border: 0px solid red;
         flex: 1;
         margin: 0;
-        background: transparent;
+        background: none;
         color: var(--color-text);
         font-size: 13px;
         cursor: pointer;
@@ -48,6 +48,10 @@ export default class TextInput extends RapidElement {
       .textinput:focus {
         outline: none;
         cursor: text;
+      }
+
+      .textinput::placeholder {
+        color: rgba(0,0,0,.15);
       }
 
     `
@@ -61,6 +65,9 @@ export default class TextInput extends RapidElement {
 
   @property({type: String})
   value: string = "";
+
+  @property({type: String})
+  name: string = "";
 
   @property({type: Object})
   inputElement: HTMLInputElement;
@@ -80,13 +87,16 @@ export default class TextInput extends RapidElement {
     <div class="input-container" @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
-          .value=${this.value}
-          placeholder=${this.placeholder}>
+          name=${this.name}
+          placeholder=${this.placeholder}
+          .value=${this.value}>
         </textarea>
       ` : html`
         <input class="textinput" 
-          .value=${this.value}
-          placeholder=${this.placeholder}>
+          name=${this.name}
+          type="text"
+          placeholder=${this.placeholder}
+          .value=${this.value}>
       `}
     </div>
     `;

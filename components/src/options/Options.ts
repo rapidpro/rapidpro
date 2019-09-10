@@ -8,24 +8,23 @@ export default class Options extends RapidElement {
   static get styles() {
     return css`
       .container {
-        position: absolute;
         visibility: hidden;
-        opacity: 0;
+        position: fixed;
         border-radius: var(--curvature);
         border: 1px solid var(--color-borders);
         box-shadow: 0px 0px 3px 1px rgba(0,0,0,.06);
         background: #fff;
+        z-index: 1;
       }
 
       .options {
         border-radius: var(--curvature);
-        overflow-y: scroll;
         background: #fff;
-        max-height: 300px;
+        overflow-y: scroll;
+        max-height: 225px;
       }
 
       .show {
-        opacity: 1;
         visibility: visible;
       }
 
@@ -94,8 +93,9 @@ export default class Options extends RapidElement {
       const focusedEle = this.shadowRoot.querySelector(".focused") as HTMLDivElement;
       if (focusedEle) {
         const scrollBox =  this.shadowRoot.querySelector(".options");
-        const scrollBoxHeight = scrollBox.getBoundingClientRect().height
-        const focusedEleHeight = focusedEle.getBoundingClientRect().height;    
+        const scrollBoxRect = scrollBox.getBoundingClientRect();
+        const scrollBoxHeight = scrollBoxRect.height
+        const focusedEleHeight = focusedEle.getBoundingClientRect().height;
 
         if (focusedEle.offsetTop + focusedEleHeight > scrollBox.scrollTop + scrollBoxHeight - 5) {
           const scrollTo = focusedEle.offsetTop - scrollBoxHeight + focusedEleHeight + 5;
@@ -133,7 +133,7 @@ export default class Options extends RapidElement {
 
   private handleSelection(tabbed: boolean = false) {
     const selected = this.options[this.cursorIndex];
-    this.fireEvent(CustomEventType.Selection, { selected, tabbed });
+    this.fireCustomEvent(CustomEventType.Selection, { selected, tabbed });
   }
 
   private moveCursor(direction: number): void {
@@ -144,7 +144,7 @@ export default class Options extends RapidElement {
   private setCursor(newIndex: number): void {
     if (newIndex !== this.cursorIndex){
       this.cursorIndex = newIndex;
-      this.fireEvent(CustomEventType.CursorChanged, { index: newIndex });
+      this.fireCustomEvent(CustomEventType.CursorChanged, { index: newIndex });
     }
   }
 
@@ -162,20 +162,21 @@ export default class Options extends RapidElement {
       }
 
       if(evt.key === "Escape") {
-        this.fireEvent(CustomEventType.Canceled);
+        this.fireCustomEvent(CustomEventType.Canceled);
       }
     }
   }
 
   private calculatePosition() {
-    const optionsBounds = this.shadowRoot.querySelector('.options').getBoundingClientRect();
+    const optionsBounds = this.shadowRoot.querySelector('.container').getBoundingClientRect();
     if (this.anchorTo) {
-      const anchorBounds = this.anchorTo.getBoundingClientRect();    
+      const anchorBounds = this.anchorTo.getBoundingClientRect();   
       const topTop = anchorBounds.top - optionsBounds.height;
+
       if (topTop > 0 && anchorBounds.bottom + optionsBounds.height > window.innerHeight) {
-        this.top = topTop + window.pageYOffset;
+        this.top = topTop; //  + window.pageYOffset;
       } else {
-        this.top = anchorBounds.bottom + window.pageYOffset;
+        this.top = anchorBounds.bottom; //  + window.pageYOffset;
       }
 
       this.left = anchorBounds.left;

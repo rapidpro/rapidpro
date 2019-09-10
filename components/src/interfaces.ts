@@ -13,5 +13,6 @@ export interface FeatureProperties {
 export enum CustomEventType {
     Canceled = 'rp-canceled',
     CursorChanged = 'rp-cursor-changed',
-    Selection = 'rp-selection'
+    Selection = 'rp-selection',
+    ButtonClicked = 'rp-button-clicked'
 }

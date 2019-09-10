@@ -1,9 +1,11 @@
 import { customElement, property } from 'lit-element/lib/decorators';
 import { LitElement, TemplateResult, html, css } from 'lit-element';
 import Button from '../button/Button';
+import RapidElement from '../RapidElement';
+import { CustomEventType } from '../interfaces';
 
 @customElement("rp-dialog")
-export default class Dialog extends LitElement {
+export default class Dialog extends RapidElement {
 
   static get styles() {
     return css`
@@ -16,7 +18,6 @@ export default class Dialog extends LitElement {
         position: fixed;
         top:0px;
         left:0px;
-        z-index: 2000;
         transition: all ease-in 250ms;
       }
 
@@ -27,8 +28,7 @@ export default class Dialog extends LitElement {
         top: -200px;
         position: relative;
         transition: top ease-in-out 200ms;
-        border-radius: var(--curvature);
-        overflow: hidden;
+        border-radius: var(--curvature); 
         box-shadow: 0px 0px 0px 4px rgba(0,0,0,.04);
       }
 
@@ -101,7 +101,7 @@ export default class Dialog extends LitElement {
   public handleClick(evt: MouseEvent) {
     const button = evt.currentTarget as Button;
     if (!button.isProgress) {
-      this.onButtonClicked(button);
+      this.fireCustomEvent(CustomEventType.ButtonClicked, {button});
     }
   }
 

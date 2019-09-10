@@ -109,6 +109,10 @@
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:'text/coffeescript'}
 
 
+    <script type="module">
+      import '{{STATIC_URL}}components/rp-components.js';
+    </script>
+
     -include "includes/frame_top.html"
 
     -if brand.favico
@@ -133,11 +137,15 @@
           --primary-rgb: 35, 135, 202;
           --secondary-rgb: 0, 77, 129;
 
+          /** --- secondary configuration, only for fine tuning --- */
+
           /* page text, borders, widgets */
           --color-text: #666;
-          --color-borders: #ccc;
-          --color-widget-bg: #f2f6fa;
-          --color-widget-hover: #e8ebef;
+          --color-borders: rgba(0,0,0,.07);
+          --color-widget-bg: rgba(0, 0, 0, 0.04);
+          --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+          --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
+          --color-widget-border: transparent;
 
           /* light colors, panel backgrounds, selection, etc */
           --color-primary-light: #eee;
@@ -169,8 +177,8 @@
           
           --color-label-primary: var(--color-primary-dark);
           --color-label-primary-text: var(--color-text-light);        
-          --color-label-secondary: rgba(0,0,0, .2);
-          --color-label-secondary-text: #fff;
+          --color-label-secondary: rgba(0,0,0,.2);
+          --color-label-secondary-text: rgba(255, 255, 255, .9);    
 
         }
 

@@ -32,6 +32,7 @@
     {% block fields %}
     <fieldset>
     {% for field in fields %}
+    {{field}}
     {% render_field field %}
     {% endfor %}
 

@@ -289,7 +289,8 @@ export default class AliasEditor extends LitElement {
     return this.endpoint + (!this.endpoint.endsWith('/') ? '/' : '');
   }
 
-  private handleDialogClick(button: Button) {
+  private handleDialogClick(evt: CustomEvent) {
+    const button = evt.detail.button;
     if (button.name === "Save") {
       button.setProgress(true);
       const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as HTMLTextAreaElement;
@@ -360,7 +361,7 @@ export default class AliasEditor extends LitElement {
       <rp-dialog id="alias-dialog" 
         title="Aliases for ${editFeatureName}" 
         primaryButtonName="Save"
-        .onButtonClicked=${this.handleDialogClick.bind(this)}>
+        @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">
           <textarea id="${editFeatureId}" .value=${editFeatureAliases}></textarea>
