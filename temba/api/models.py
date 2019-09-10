@@ -100,22 +100,11 @@ class Resthook(SmartModel):
 
         return resthook
 
-    def get_subscriber_urls(self):
-        return [s.target_url for s in self.subscribers.filter(is_active=True).order_by("created_on")]
-
     def add_subscriber(self, url, user):
         subscriber = self.subscribers.create(target_url=url, created_by=user, modified_by=user)
         self.modified_by = user
         self.save(update_fields=["modified_on", "modified_by"])
         return subscriber
-
-    def remove_subscriber(self, url, user):
-        now = timezone.now()
-        self.subscribers.filter(target_url=url, is_active=True).update(
-            is_active=False, modified_on=now, modified_by=user
-        )
-        self.modified_by = user
-        self.save(update_fields=["modified_on", "modified_by"])
 
     def release(self, user):
         # release any active subscribers
