@@ -12,7 +12,7 @@ export default class Options extends RapidElement {
         position: fixed;
         border-radius: var(--curvature);
         border: 0px solid var(--color-borders);
-        box-shadow: 0px 0px 0px 2px rgba(0,0,0,.09);
+        box-shadow: 0px 0px 2px 0px rgb(204, 204, 204);
         background: #fff;
         z-index: 1;
       }

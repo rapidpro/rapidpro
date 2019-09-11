@@ -4,6 +4,7 @@ import { FeatureProperties } from '../interfaces';
 import { getUrl, postUrl } from '../utils';
 import autosize from 'autosize';
 import Button from '../button/Button';
+import TextInput from '../textinput/TextInput';
 
 
 @customElement("alias-editor")
@@ -16,18 +17,8 @@ export default class AliasEditor extends LitElement {
         line-height: normal;
       }
 
-      textarea {
-        border-radius: 5px;
-        border-color: var(--color-borders);
-        padding: 10px;
-        color: var(--color-text);
-        font-size: 14px;
-        resize: none;
-      }
-
-      textarea:focus {
-        box-shadow: none;
-        outline: none;
+      rp-textinput {
+        height: 150px;
       }
 
       #left-column {
@@ -293,8 +284,8 @@ export default class AliasEditor extends LitElement {
     const button = evt.detail.button;
     if (button.name === "Save") {
       button.setProgress(true);
-      const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as HTMLTextAreaElement;
-      const aliases = textarea.value;
+      const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as TextInput;
+      const aliases = textarea.inputElement.value;
       const payload = { "osm_id":  this.editFeature.osm_id, aliases };
       postUrl(this.getEndpoint() + "boundaries/" +  this.editFeature.osm_id + "/", payload).then((response: AxiosResponse) => {
         this.fetchFeature();
@@ -364,7 +355,7 @@ export default class AliasEditor extends LitElement {
         @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">
-          <textarea id="${editFeatureId}" .value=${editFeatureAliases}></textarea>
+          <rp-textinput name="aliases" id=${editFeatureId} .value=${editFeatureAliases} textarea></rp-textinput>
           <div class="help">
             Enter other aliases for ${editFeatureName}, one per line
           </div>
