@@ -355,12 +355,16 @@ class CampaignEventWriteSerializer(WriteSerializer):
     def validate_campaign(self, value):
         if self.instance and value and self.instance.campaign != value:
             raise serializers.ValidationError("Cannot change campaign for existing events")
-
         return value
 
     def validate(self, data):
         message = data.get("message")
         flow = data.get("flow")
+
+        if message and not flow:
+            translations, base_language = message
+            if not translations[base_language]:
+                raise serializers.ValidationError("Message text is required")
 
         if (message and flow) or (not message and not flow):
             raise serializers.ValidationError("Flow UUID or a message text required.")
@@ -441,6 +445,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
                     delivery_hour,
                     base_language,
                 )
+
             self.instance.update_flow_name()
 
         # create our event fires for this event in the background
