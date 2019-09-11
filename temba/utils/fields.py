@@ -11,3 +11,13 @@ class Select2Field(forms.Field):
 
     def to_python(self, value):
         return value
+
+
+class CompletionTextarea(forms.Widget):
+    template_name = "utils/forms/completion_textarea.haml"
+
+    def __init__(self, attrs=None):
+        default_attrs = {"width": "100%", "height": "100%"}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(default_attrs)
