@@ -4610,23 +4610,25 @@ class FlowsTest(FlowFileTest):
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
+            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "editor_version": "0"}
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
 
-        # can't save old version over new
-        definition = flow.revisions.all().order_by("-id").first().definition
+        # can't save older spec version over newer
+        definition = flow.revisions.order_by("id").last().definition
         definition["spec_version"] = Flow.FINAL_LEGACY_VERSION
-        with self.assertRaises(FlowVersionConflictException):
-            flow.save_revision(flow.created_by, definition)
 
-        # can't save old revision over new
+        with self.assertRaises(FlowVersionConflictException):
+            flow.save_revision(self.admin, definition)
+
+        # can't save older revision over newer
         definition["spec_version"] = Flow.GOFLOW_VERSION
         definition["revision"] = 0
+
         with self.assertRaises(FlowUserConflictException):
-            flow.save_revision(flow.created_by, definition)
+            flow.save_revision(self.admin, definition)
 
     @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):

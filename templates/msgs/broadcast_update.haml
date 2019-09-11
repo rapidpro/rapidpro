@@ -10,13 +10,11 @@
     -trans "Write the message that will get sent when the scheduled time arrives"
     %fieldset
       -render_field 'message'
-      #counter
       -render_field 'omnibox'
 
 -block extra-script
   :javascript
     prepareOmnibox();
-    $("#id_message").keyup(messageTextareaLengthCheck);
     $("#id_message").trigger('keyup');
 
 -block extra-style
@@ -38,7 +36,7 @@
     }
 
     #id_message {
-      width:83%;
+      width:90%;
       height:100px;
     }
 

@@ -16,6 +16,7 @@ module.exports = merge(config, {
         libraryTarget: 'umd',
         filename: 'rp-components.js'
     },
+    devtool: 'inline-source-map',
     module: {
         rules: [
             { test: /\.ts$/, loader: 'ts-loader' },

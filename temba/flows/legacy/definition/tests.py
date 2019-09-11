@@ -10,7 +10,6 @@ from temba.flows.models import Flow, FlowException, FlowRevision, FlowRun
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg
 from temba.tests import ESMockWithScroll, TembaTest, uses_legacy_engine
 
-from ..engine import flow_start
 from ..expressions import flow_context
 from .actions import (
     Action,
@@ -23,7 +22,6 @@ from .actions import (
     SendAction,
     SetChannelAction,
     SetLanguageAction,
-    StartFlowAction,
     TriggerFlowAction,
     VariableContactAction,
 )
@@ -610,31 +608,6 @@ class ActionTest(TembaTest):
 
         # should clear the contacts language
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
-
-    @uses_legacy_engine
-    def test_start_flow_action(self):
-        self.flow.name = "Parent"
-        self.flow.save()
-
-        flow_start(self.flow, [], [self.contact])
-
-        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
-
-        run = FlowRun.objects.get()
-
-        new_flow = Flow.create_single_message(
-            self.org, self.user, {"base": "You chose @parent.color.category"}, base_language="base"
-        )
-        action = StartFlowAction(str(uuid4()), new_flow)
-
-        action_json = action.as_json()
-        action = StartFlowAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, sms, started_flows=[])
-
-        # our contact should now be in the flow
-        self.assertTrue(FlowRun.objects.filter(flow=new_flow, contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction="O", text="You chose Blue"))
 
     def test_group_actions(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
