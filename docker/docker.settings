@@ -111,6 +111,7 @@ BRANDING["rapidpro.io"]["domain"] = f"{HOSTNAME}"
 BRANDING["rapidpro.io"]["email"] = os.environ.get("BRANDING_EMAIL", "")
 BRANDING["rapidpro.io"]["support_email"] = os.environ.get("BRANDING_EMAIL_SUPPORT", "")
 BRANDING["rapidpro.io"]["colors"] = dict(primary=os.environ.get("BRANDING_PRIMARY_COLOR", "#569D9B"))
+BRANDING["rapidpro.io"]["favico"] = os.environ.get("BRANDING_FAVICO", "brands/rapidpro/icon.png")
 BRANDING["rapidpro.io"]["allow_signups"] = os.environ.get("BRANDING_ALLOW_SIGNUPS", "true") == "true"
 BRANDING["rapidpro.io"]["welcome_packs"] = [dict(size=500, name="Trial"),
                                             dict(size=2500, name="Bronze"),
