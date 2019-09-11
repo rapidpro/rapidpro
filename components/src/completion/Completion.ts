@@ -76,7 +76,7 @@ export default class Completion extends RapidElement {
 
       .footer {
         padding: 5px 10px;
-        background: var(--color-widget-bg);
+        background: var(--color-primary-light);
         color: rgba(0, 0, 0, .5);
         font-size: 80%;
       }
@@ -236,7 +236,7 @@ export default class Completion extends RapidElement {
 
             var caret = getCaretCoordinates(ele.inputElement, currentExpression.start + i);
             this.anchorPosition = {
-               left: caret.left + 7 - this.inputElement.scrollLeft,
+               left: caret.left - 2 - this.inputElement.scrollLeft,
                top: caret.top - this.inputElement.scrollTop
             }
 

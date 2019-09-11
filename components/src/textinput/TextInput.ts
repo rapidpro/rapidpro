@@ -7,9 +7,9 @@ export default class TextInput extends RapidElement {
     return css`
       
       .input-container {
-        border-radius: 5px;
+        border-radius: var(--curvature);
         overflow: hidden;
-        cursor: pointer;
+        cursor: text;
         background: var(--color-widget-bg);
         border: 1px solid var(--color-widget-border);
         box-shadow: none;
@@ -22,7 +22,7 @@ export default class TextInput extends RapidElement {
       .input-container:focus-within {
         border-color: var(--color-widget-border);
         background: var(--color-widget-bg-focused);
-        box-shadow: var(--color-widget-shadow-focused) 1px 1px 6px 0px inset;
+        box-shadow: var(--color-widget-shadow-focused) 1px 1px 3px 0px inset;
       }
 
       .input-container:hover {
@@ -41,7 +41,7 @@ export default class TextInput extends RapidElement {
         background: none;
         color: var(--color-text);
         font-size: 13px;
-        cursor: pointer;
+        cursor: text;
         resize: none;
       }
 

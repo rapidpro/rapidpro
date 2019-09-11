@@ -11,8 +11,8 @@ export default class Options extends RapidElement {
         visibility: hidden;
         position: fixed;
         border-radius: var(--curvature);
-        border: 1px solid var(--color-borders);
-        box-shadow: 0px 0px 3px 1px rgba(0,0,0,.06);
+        border: 0px solid var(--color-borders);
+        box-shadow: 0px 0px 0px 2px rgba(0,0,0,.09);
         background: #fff;
         z-index: 1;
       }
@@ -22,6 +22,7 @@ export default class Options extends RapidElement {
         background: #fff;
         overflow-y: scroll;
         max-height: 225px;
+        border: none;
       }
 
       .show {
@@ -30,15 +31,15 @@ export default class Options extends RapidElement {
 
       .option {
         font-size: 14px;
-        padding: 10px 20px;
-        border-radius: 5px;
-        margin: 5px;
+        padding: 7px 14px;
+        border-radius: var(--curvature);
+        margin: 3px;
         cursor: pointer;
         color: var(--color-text);
       }
 
       .option.focused {
-        background: rgba(var(--primary-rgb), .8);
+        background: var(--color-selection);
         color: var(--color-text-light);
       }
 

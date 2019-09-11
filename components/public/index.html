@@ -16,7 +16,15 @@
         font-size: 13px;
         font-weight: 200;
         
-        --curvature: 5px;
+        /* 
+          --curvature: 5px; 
+          --color-widget-bg: rgba(0, 0, 0, 0.04);
+          --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+          --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
+          --color-widget-border: transparent;
+        */
+
+        --curvature: 0px;
 
         /* primary colors, should be dark */
         --primary-rgb: 35, 135, 202;
@@ -27,10 +35,10 @@
         /* page text, borders, widgets */
         --color-text: #666;
         --color-borders: rgba(0,0,0,.07);
-        --color-widget-bg: rgba(0, 0, 0, 0.04);
-        --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+        --color-widget-bg: #fff;
+        --color-widget-bg-focused: #fff;
         --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
-        --color-widget-border: transparent;
+        --color-widget-border: #e6e6e6;
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -43,6 +51,8 @@
         /* light text goes over dark, dark over lights */
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
+
+        --color-selection: #3875d7;
 
         /* solid overlays with text */
         --color-overlay-dark: rgba(0,0,0,.2);

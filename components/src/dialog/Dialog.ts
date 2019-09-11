@@ -22,7 +22,6 @@ export default class Dialog extends RapidElement {
       }
 
       .dialog {
-        background: #fff;
         width: 500px;
         margin: 0px auto; 
         top: -200px;
@@ -30,6 +29,11 @@ export default class Dialog extends RapidElement {
         transition: top ease-in-out 200ms;
         border-radius: var(--curvature); 
         box-shadow: 0px 0px 0px 4px rgba(0,0,0,.04);
+        overflow: hidden;
+      }
+
+      .body {
+        background: #fff;
       }
 
       .mask.open {
