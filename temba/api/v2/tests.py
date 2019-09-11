@@ -1160,6 +1160,24 @@ class APITest(TembaTest):
         # should just leave the bad expression as-is
         self.assertEqual(event1.message, {"base": "You are @(@bad)"})
 
+        # a message event with an empty message
+        with self.assertRaises(Exception) as e:
+            response = self.postJSON(
+                url,
+                None,
+                {
+                    "campaign": campaign1.uuid,
+                    "relative_to": "registration",
+                    "offset": 15,
+                    "unit": "weeks",
+                    "delivery_hour": -1,
+                    "message": "",  # will migrate successfully to empty text
+                },
+            )
+
+        # we should have failed validation for sending an empty message
+        self.assertEqual(e.exception.as_json()["endpoint"], "flow/inspect")
+
         response = self.postJSON(
             url,
             None,

@@ -51,6 +51,10 @@ class MailroomClient:
             self.headers["Authorization"] = "Token " + auth_token
 
     def expression_migrate(self, expression):
+
+        if not expression:
+            return ""
+
         try:
             resp = self._request("expression/migrate", {"expression": expression})
             return resp["migrated"]
