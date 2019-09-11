@@ -375,7 +375,15 @@ class BroadcastCRUDL(SmartCRUDL):
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
             broadcast = Broadcast.create(
-                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
+                org,
+                user,
+                text,
+                groups=groups,
+                contacts=contacts,
+                urns=urns,
+                schedule=schedule,
+                status=QUEUED,
+                template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
             )
 
             if not has_schedule:
