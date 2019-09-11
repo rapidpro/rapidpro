@@ -416,7 +416,6 @@ class Flow(TembaModel):
                     "type": "enter_flow",
                     "uuid": str(uuid4()),
                     "flow": {"uuid": start_flow.uuid, "name": start_flow.name},
-                    "terminal": True,
                 }
             )
 
