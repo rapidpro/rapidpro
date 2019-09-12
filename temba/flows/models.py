@@ -1882,7 +1882,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     PATH_NODE_UUID = "node_uuid"
     PATH_ARRIVED_ON = "arrived_on"
     PATH_EXIT_UUID = "exit_uuid"
-    PATH_MAX_STEPS = 100
 
     EVENT_TYPE = "type"
     EVENT_STEP_UUID = "step_uuid"

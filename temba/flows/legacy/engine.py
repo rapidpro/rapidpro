@@ -64,7 +64,7 @@ def flow_start(
     """
 
     from temba.msgs.models import FLOW
-    from temba.flows.models import Flow, FlowRun
+    from temba.flows.models import FlowRun
 
     if not getattr(settings, "USES_LEGACY_ENGINE", False):
         raise ValueError("Use of legacy engine when USES_LEGACY_ENGINE not set")
@@ -114,14 +114,11 @@ def flow_start(
     if not all_contact_ids:
         return []
 
-    if flow.flow_type == Flow.TYPE_VOICE:
-        raise ValueError("IVR flow '%s' no longer supported" % flow.name)
-
     return _flow_start(flow, all_contact_ids, start_msg=start_msg, extra=extra, flow_start=start)
 
 
 def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
-    from temba.msgs.models import FAILED, OUTGOING, Msg
+    from temba.msgs.models import OUTGOING, Msg
     from temba.flows.models import Flow, FlowRun, ActionSet, RuleSet
 
     if parent_run:
@@ -195,53 +192,40 @@ def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, 
         run_msgs = [start_msg] if start_msg else []
         arrived_on = timezone.now()
 
-        try:
-            if entry_actions:
-                run_msgs += _execute_actions(entry_actions, run, start_msg)
+        if entry_actions:
+            run_msgs += _execute_actions(entry_actions, run, start_msg)
 
-                _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
+            _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
-                # and onto the destination
-                if entry_actions.destination:
-                    destination = get_node(
-                        entry_actions.flow, entry_actions.destination, entry_actions.destination_type
-                    )
+            # and onto the destination
+            if entry_actions.destination:
+                destination = get_node(entry_actions.flow, entry_actions.destination, entry_actions.destination_type)
 
-                    _add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
+                _add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
 
-                    msg = Msg(org=flow.org, contact=contact, text="", id=0)
-                    handled, step_msgs = _handle_destination(destination, run, msg)
-                    run_msgs += step_msgs
+                msg = Msg(org=flow.org, contact=contact, text="", id=0)
+                handled, step_msgs = _handle_destination(destination, run, msg)
+                run_msgs += step_msgs
 
-                else:
-                    _set_run_completed(run, exit_uuid=None)
+            else:
+                _set_run_completed(run, exit_uuid=None)
 
-            elif entry_rules:
-                _add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
+        elif entry_rules:
+            _add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
 
-                # if we have a start message, go and handle the rule
-                if start_msg:
-                    find_and_handle(start_msg, triggered_start=True)
+            # if we have a start message, go and handle the rule
+            if start_msg:
+                find_and_handle(start_msg, triggered_start=True)
 
-                # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
-                    # create an empty placeholder message
-                    msg = Msg(org=flow.org, contact=contact, text="", id=0)
-                    handled, step_msgs = _handle_destination(entry_rules, run, msg)
-                    run_msgs += step_msgs
+            # if we didn't get an incoming message, see if we need to evaluate it passively
+            elif not entry_rules.is_pause():
+                # create an empty placeholder message
+                msg = Msg(org=flow.org, contact=contact, text="", id=0)
+                handled, step_msgs = _handle_destination(entry_rules, run, msg)
+                run_msgs += step_msgs
 
-            # set the msgs that were sent by this run so that any caller can deal with them
-            run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
-
-        except Exception:
-            # mark this flow as interrupted
-            _set_run_interrupted(run)
-
-            # mark our messages as failed
-            Msg.objects.filter(id__in=[m.id for m in run_msgs if m.direction == OUTGOING]).update(status=FAILED)
-
-            # remove our msgs from our parent's concerns
-            run.start_msgs = []
+        # set the msgs that were sent by this run so that any caller can deal with them
+        run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
 
     return runs
 
@@ -269,10 +253,6 @@ def _add_step(run, node, msgs=(), exit_uuid=None, arrived_on=None):
         }
     )
 
-    # trim path to ensure it can't grow indefinitely
-    if len(run.path) > FlowRun.PATH_MAX_STEPS:
-        run.path = run.path[len(run.path) - FlowRun.PATH_MAX_STEPS :]
-
     update_fields = ["path", "current_node_uuid"]
 
     if msgs:
@@ -297,7 +277,6 @@ def find_and_handle(msg, triggered_start=False, user_input=True):
                 return True, []
             else:
                 return False, []
-
         last_step = run.path[-1]
         destination = get_node(flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
 
