@@ -4,9 +4,6 @@ from django.conf import settings
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.values.constants import Value
-
-from ..expressions import evaluate
 
 
 class Action:
@@ -678,58 +675,6 @@ class SaveToContactAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        # evaluate our value
-        contact = run.contact
-        user = get_flow_user(run.org)
-        (value, errors) = evaluate(self.value, context, org=run.flow.org)
-
-        value = value.strip()
-
-        if self.field == "name":
-            new_value = value[:128]
-            contact.name = new_value
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field == "first_name":
-            new_value = value[:128]
-            contact.set_first_name(new_value)
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            new_value = value[:128]
-
-            # add in our new urn number
-            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
-
-            # trim off '@' for twitter handles
-            if self.field == "twitter":  # pragma: needs cover
-                if len(new_value) > 0:
-                    if new_value[0] == "@":
-                        new_value = new_value[1:]
-
-            # only valid urns get added, sorry
-            new_urn = None
-            if new_value:
-                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
-                    new_urn = False
-
-            if new_urn:
-                urns = [str(urn) for urn in contact.urns.all()]
-                urns += [new_urn]
-                contact.update_urns(user, urns)
-
-        else:
-            new_value = value[: Value.MAX_VALUE_LEN]
-            contact.set_field(user, self.field, new_value)
-
-        return []
 
 
 class SetChannelAction(Action):

@@ -4492,6 +4492,36 @@ class FlowsTest(FlowFileTest):
         counts = favorites.get_category_counts()
         assertCount(counts, "beer", "Turbo King", 0)
 
+    def test_flow_start_counts(self):
+        # create start for 10 contacts
+        flow = self.get_flow("color")
+        start = FlowStart.objects.create(flow=flow, created_by=self.admin, modified_by=self.admin)
+        for i in range(10):
+            contact = self.create_contact("Bob", twitter=f"bobby{i}")
+            start.contacts.add(contact)
+
+        # create runs for first 5
+        for contact in start.contacts.order_by("id")[:5]:
+            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
+
+        # check our count
+        self.assertEqual(FlowStartCount.get_count(start), 5)
+
+        # create runs for last 5
+        for contact in start.contacts.order_by("id")[5:]:
+            FlowRun.objects.create(org=self.org, flow=flow, contact=contact, start=start)
+
+        # check our count
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
+        # squash them
+        FlowStartCount.squash()
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
+        # recalculate and try again
+        FlowStartCount.populate_for_start(start)
+        self.assertEqual(FlowStartCount.get_count(start), 10)
+
     @uses_legacy_engine
     def test_flow_results(self):
         favorites = self.get_flow("favorites")
@@ -5783,50 +5813,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(0, parent.field_dependencies.all().count())
         self.assertEqual(0, parent.flow_dependencies.all().count())
         self.assertEqual(0, parent.group_dependencies.all().count())
-
-    @uses_legacy_engine
-    def test_start_flow_action(self):
-        self.import_file("flow_starts")
-        parent = Flow.objects.get(name="Parent Flow")
-        child = Flow.objects.get(name="Child Flow")
-
-        contacts = []
-        for i in range(10):
-            contacts.append(self.create_contact("Fred", "+25078812312%d" % i))
-
-        # start the flow for our contacts
-        start = FlowStart.objects.create(flow=parent, created_by=self.admin, modified_by=self.admin)
-        for contact in contacts:
-            start.contacts.add(contact)
-        legacy.flow_start_start(start)
-
-        # all our contacts should have a name of Greg now (set in the child flow)
-        for contact in contacts:
-            self.assertTrue(FlowRun.objects.filter(flow=parent, contact=contact))
-            self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
-            self.assertEqual("Greg", Contact.objects.get(pk=contact.pk).name)
-
-        # 10 child flow runs should be active waiting for input
-        self.assertEqual(FlowRun.objects.filter(flow=child, is_active=True).count(), 10)
-
-        # check our count
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
-        # squash them
-        FlowStartCount.squash()
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
-        # recalculate and try again
-        FlowStartCount.populate_for_start(start)
-        self.assertEqual(FlowStartCount.get_count(start), 10)
-
-        # send some input to complete the child flows
-        for contact in contacts:
-            msg = self.create_msg(contact=contact, direction="I", text="OK", channel=self.channel)
-            msg.handle()
-
-        # all of the runs should now be completed
-        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 20)
 
     @uses_legacy_engine
     def test_cross_language_import(self):
