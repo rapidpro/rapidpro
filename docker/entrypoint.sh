@@ -8,9 +8,6 @@ case $1 in
         python3.6 manage.py migrate --noinput
         /usr/bin/supervisord -n -c docker/supervisor-app.conf
     ;;
-    celery)
-        /usr/bin/supervisord -n -c docker/supervisor-celery.conf
-    ;;
         
 esac
 
