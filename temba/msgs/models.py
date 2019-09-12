@@ -23,7 +23,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
@@ -1131,10 +1131,10 @@ class Msg(models.Model):
         connection=None,
         quick_replies=None,
         uuid=None,
-    ):
+    ):  # pragma: no cover
         from temba.flows.legacy.expressions import evaluate, channel_context
 
-        if not org or not user:  # pragma: no cover
+        if not org or not user:
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
@@ -1203,7 +1203,10 @@ class Msg(models.Model):
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
-            tel = contact.raw_tel()
+            tel = contact.get_urn(TEL_SCHEME)
+            if tel:
+                tel = tel.path
+
             if tel and len(tel) < 6:
                 same_msg_count = Msg.objects.filter(
                     contact_urn=contact_urn,

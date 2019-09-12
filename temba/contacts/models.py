@@ -2020,14 +2020,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             contact.org = org
             setattr(contact, "__cache_initialized", True)
 
-    def set_first_name(self, first_name):
-        if not self.name:
-            self.name = first_name
-        else:
-            names = self.name.split()
-            names = [first_name] + names[1:]
-            self.name = " ".join(names)
-
     def clear_urn_cache(self):
         if hasattr(self, "_urns_cache"):
             delattr(self, "_urns_cache")
@@ -2223,61 +2215,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return ContactURN.ANON_MASK
 
         return urn.get_display(org=org, formatted=formatted, international=international) if urn else ""
-
-    def raw_tel(self):
-        tel = self.get_urn(TEL_SCHEME)
-        if tel:
-            return tel.path
-
-    def send(
-        self,
-        text,
-        user,
-        trigger_send=True,
-        response_to=None,
-        expressions_context=None,
-        connection=None,
-        attachments=None,
-        msg_type=None,
-        sent_on=None,
-        all_urns=False,
-        high_priority=False,
-    ):
-        from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
-
-        status = SENT if sent_on else PENDING
-
-        if all_urns:
-            recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
-        else:
-            recipients = [(self, None)] if status == SENT else [self]
-
-        msgs = []
-        for recipient in recipients:
-            try:
-                msg = Msg.create_outgoing(
-                    self.org,
-                    user,
-                    recipient,
-                    text,
-                    response_to=response_to,
-                    expressions_context=expressions_context,
-                    connection=connection,
-                    attachments=attachments,
-                    msg_type=msg_type or INBOX,
-                    status=status,
-                    sent_on=sent_on,
-                    high_priority=high_priority,
-                )
-                if msg is not None:
-                    msgs.append(msg)
-            except UnreachableException:
-                pass
-
-        if trigger_send:
-            self.org.trigger_send(msgs)
-
-        return msgs
 
     def __str__(self):
         return self.get_display()

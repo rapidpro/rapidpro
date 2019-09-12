@@ -5393,59 +5393,46 @@ class FlowsTest(FlowFileTest):
         new_run = flow.runs.all().order_by("-expires_on").first()
         self.assertTrue(new_run.expires_on > first_expires)
 
-    @uses_legacy_engine
-    def test_flow_expiration_updates(self):
-        flow = self.get_flow("favorites")
-        self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
+    def test_update_expiration(self):
+        flow1 = self.get_flow("favorites")
+        flow2 = Flow.copy(flow1, self.admin)
 
-        # get our current expiration
-        run = flow.runs.get()
-        self.assertEqual(flow.org, run.org)
-
-        starting_expiration = run.expires_on
-        starting_modified = run.modified_on
-
-        time.sleep(1)
-
-        # now fire another messages
-        self.assertEqual(
-            "Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?",
-            self.send_message(flow, "turbo"),
+        parent = FlowRun.objects.create(
+            org=self.org,
+            flow=flow1,
+            contact=self.contact,
+            path=[
+                {
+                    FlowRun.PATH_STEP_UUID: "1b9c7862-55fb-4ad8-9c81-203a12a63a63",
+                    FlowRun.PATH_NODE_UUID: "93a9f3b9-3471-4849-b6af-daec7c431e2a",
+                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                }
+            ],
+        )
+        child = FlowRun.objects.create(
+            org=self.org,
+            flow=flow2,
+            contact=self.contact,
+            path=[
+                {
+                    FlowRun.PATH_STEP_UUID: "263a6e6c-c1d9-4af3-b8cf-b52a3085a625",
+                    FlowRun.PATH_NODE_UUID: "474fd1be-eaec-4ae7-96cd-c771410fac18",
+                    FlowRun.PATH_ARRIVED_ON: datetime.datetime(2019, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                }
+            ],
+            parent=parent,
         )
 
-        # our new expiration should be later
-        run.refresh_from_db()
-        self.assertTrue(run.expires_on > starting_expiration)
-        self.assertTrue(run.modified_on > starting_modified)
+        update_run_expirations_task(flow2.id)
 
-    @uses_legacy_engine
-    def test_flow_expiration(self):
-        flow = self.get_flow("favorites")
+        parent.refresh_from_db()
+        child.refresh_from_db()
 
-        # run our flow like it was 10 mins ago
-        with patch.object(timezone, "now") as mock_now:
-            mock_now.side_effect = lambda: datetime.datetime.now(tz=timezone.utc) - timedelta(minutes=10)
+        # child expiration should be last arrived_on + 12 hours
+        self.assertEqual(datetime.datetime(2019, 1, 1, 12, 0, 0, 0, pytz.UTC), child.expires_on)
 
-            self.assertEqual(
-                "Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED")
-            )
-            self.assertEqual(
-                "Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?",
-                self.send_message(flow, "turbo"),
-            )
-            self.assertEqual(1, flow.runs.count())
-
-        # now let's expire them out of the flow prematurely
-        flow.expires_after_minutes = 5
-        flow.save()
-
-        # this normally gets run on FlowCRUDL.Update
-        update_run_expirations_task(flow.id)
-
-        # check that our run has a new expiration
-        run = flow.runs.all()[0]
-
-        self.assertEqual(run.expires_on, iso8601.parse_date(run.path[-1]["arrived_on"]) + timedelta(minutes=5))
+        # parent expiration should be that + 12 hours
+        self.assertEqual(datetime.datetime(2019, 1, 2, 0, 0, 0, 0, pytz.UTC), parent.expires_on)
 
     def test_parsing(self):
         # test a preprocess url

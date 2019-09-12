@@ -841,7 +841,7 @@ class Flow(TembaModel):
             if not existing_flow:
                 existing_flow = Flow.objects.filter(org=self.org, name=element["name"], is_active=True).first()
                 if existing_flow:
-                    element["uuid"] = existing_flow.uuid
+                    element["uuid"] = existing_flow.uuid  # pragma: needs cover
 
         remap_uuid(flow_json[Flow.METADATA], "uuid")
         remap_uuid(flow_json, "entry")
@@ -2265,18 +2265,8 @@ class RuleSet(models.Model):
 
         return value_type if value_type else Value.TYPE_TEXT
 
-    def is_pause(self):
-        return self.ruleset_type in RuleSet.TYPE_WAIT
-
     def get_rules(self):
         return legacy.Rule.from_json_array(self.flow.org, self.rules)
-
-    def set_rules(self, rules):
-        rules_dict = []
-        for rule in rules:
-            rules_dict.append(rule.as_json())
-
-        self.rules = rules_dict
 
     def as_json(self):
         return dict(

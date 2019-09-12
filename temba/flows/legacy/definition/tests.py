@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from temba.channels.models import Channel
+from temba.flows.models import FlowException
 from temba.msgs.models import Label
 from temba.tests import TembaTest
 from temba.utils import json
@@ -91,6 +92,18 @@ class ActionTest(TembaTest):
         self.assertEqual({"eng": "media.jpg"}, action.media)
         self.assertEqual([{"eng": "Yes"}, {"eng": "No"}], action.quick_replies)
 
+        # msg can't be none
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {"msg": None})
+
+        # msg can't be empty dict
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {"msg": {}})
+
+        # msg value can't be empty
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {"msg": {"eng": ""}})
+
     def test_email(self):
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
         action = self._serialize_deserialize(action)
@@ -107,7 +120,11 @@ class ActionTest(TembaTest):
         self.assertEqual("superhero_name", action.field)
         self.assertEqual("@step", action.value)
 
-        self.assertEqual(SaveToContactAction.get_label(self.org, "foo"), "Foo")
+        self.assertEqual("Contact Name", SaveToContactAction.get_label(self.org, "name"))
+        self.assertEqual("First Name", SaveToContactAction.get_label(self.org, "first_name"))
+        self.assertEqual("Phone Number", SaveToContactAction.get_label(self.org, "tel_e164"))
+        self.assertEqual("Telegram identifier", SaveToContactAction.get_label(self.org, "telegram"))
+        self.assertEqual("Foo", SaveToContactAction.get_label(self.org, "foo"))
 
     def test_language(self):
         action = SetLanguageAction(str(uuid4()), "kli", "Klingon")

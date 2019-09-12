@@ -218,7 +218,7 @@ def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, 
                 find_and_handle(start_msg, triggered_start=True)
 
             # if we didn't get an incoming message, see if we need to evaluate it passively
-            elif not entry_rules.is_pause():
+            elif entry_rules.ruleset_type not in RuleSet.TYPE_WAIT:
                 # create an empty placeholder message
                 msg = Msg(org=flow.org, contact=contact, text="", id=0)
                 handled, step_msgs = _handle_destination(entry_rules, run, msg)
@@ -311,7 +311,7 @@ def _handle_destination(destination, run, msg, user_input=False, triggered_start
             should_pause = False
 
             # check if we need to stop
-            if destination.is_pause():
+            if destination.ruleset_type in RuleSet.TYPE_WAIT:
                 should_pause = True
 
             if user_input or not should_pause:

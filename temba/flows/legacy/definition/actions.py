@@ -576,7 +576,7 @@ class SaveToContactAction(Action):
             label = label[7:]
 
         # create our contact field if necessary
-        if not field:
+        if not field:  # pragma: needs cover
             field = ContactField.make_key(label)
 
         # look up our label
