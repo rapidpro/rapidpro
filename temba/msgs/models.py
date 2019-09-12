@@ -1080,7 +1080,7 @@ class Msg(models.Model):
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
         # set the preferred channel for this contact
-        contact.set_preferred_channel(channel)
+        legacy.set_preferred_channel(contact, channel)
 
         # and update this URN to make sure it is associated with this channel
         if contact_urn:
