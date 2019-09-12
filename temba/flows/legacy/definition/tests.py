@@ -1,16 +1,13 @@
-import copy
 from uuid import uuid4
 
 from django.conf import settings
-from django.test import override_settings
 
 from temba.channels.models import Channel
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactURN
 from temba.flows.models import Flow, FlowException, FlowRevision, FlowRun
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg
-from temba.tests import ESMockWithScroll, TembaTest, uses_legacy_engine
+from temba.tests import TembaTest
 
-from ..engine import flow_start
 from ..expressions import flow_context
 from .actions import (
     Action,
@@ -28,6 +25,7 @@ from .actions import (
     VariableContactAction,
 )
 from .rules import (
+    AirtimeStatusTest,
     AndTest,
     BetweenTest,
     ContainsTest,
@@ -36,60 +34,37 @@ from .rules import (
     GteTest,
     GtTest,
     HasWardTest,
+    LteTest,
     LtTest,
     OrTest,
     Test,
     TrueTest,
+    WebhookStatusTest,
 )
 
 
 class TestsTest(TembaTest):
     def test_factories(self):
-        org = self.org
+        tests = [
+            (AirtimeStatusTest("success"), {"type": "airtime_status", "exit_status": "success"}),
+            (AndTest([TrueTest()]), {"type": "and", "tests": [{"type": "true"}]}),
+            (BetweenTest("5", "10"), {"type": "between", "min": "5", "max": "10"}),
+            (ContainsTest("green"), {"type": "contains", "test": "green"}),
+            (EqTest("5"), {"type": "eq", "test": "5"}),
+            (FalseTest(), {"type": "false"}),
+            (GtTest("5"), {"type": "gt", "test": "5"}),
+            (GteTest("5"), {"type": "gte", "test": "5"}),
+            (LtTest("5"), {"type": "lt", "test": "5"}),
+            (LteTest("5"), {"type": "lte", "test": "5"}),
+            (HasWardTest("Kano", "Ajingi"), {"type": "ward", "state": "Kano", "district": "Ajingi"}),
+            (OrTest([TrueTest()]), {"type": "or", "tests": [{"type": "true"}]}),
+            (TrueTest(), {"type": "true"}),
+            (WebhookStatusTest("success"), {"type": "webhook_status", "status": "success"}),
+        ]
 
-        js = dict(type="true")
-        self.assertEqual(TrueTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, TrueTest().as_json())
-
-        js = dict(type="false")
-        self.assertEqual(FalseTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, FalseTest().as_json())
-
-        js = dict(type="and", tests=[dict(type="true")])
-        self.assertEqual(AndTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, AndTest([TrueTest()]).as_json())
-
-        js = dict(type="or", tests=[dict(type="true")])
-        self.assertEqual(OrTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, OrTest([TrueTest()]).as_json())
-
-        js = dict(type="contains", test="green")
-        self.assertEqual(ContainsTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, ContainsTest("green").as_json())
-
-        js = dict(type="lt", test="5")
-        self.assertEqual(LtTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, LtTest("5").as_json())
-
-        js = dict(type="gt", test="5")
-        self.assertEqual(GtTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, GtTest("5").as_json())
-
-        js = dict(type="gte", test="5")
-        self.assertEqual(GteTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, GteTest("5").as_json())
-
-        js = dict(type="eq", test="5")
-        self.assertEqual(EqTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, EqTest("5").as_json())
-
-        js = dict(type="between", min="5", max="10")
-        self.assertEqual(BetweenTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, BetweenTest("5", "10").as_json())
-
-        js = dict(state="Kano", district="Ajingi", type="ward")
-        self.assertEqual(HasWardTest, Test.from_json(org, js).__class__)
-        self.assertEqual(js, HasWardTest("Kano", "Ajingi").as_json())
+        for obj, definition in tests:
+            self.assertEqual(obj.__class__, Test.from_json(self.org, definition).__class__)
+            self.assertEqual(definition, obj.as_json())
 
 
 class ActionTest(TembaTest):
@@ -252,201 +227,41 @@ class ActionTest(TembaTest):
         self.assertEqual(action.msg, dict(base="Are you fine?"))
         self.assertEqual(action.quick_replies, payload)
 
-    @uses_legacy_engine
-    def test_trigger_flow_action(self):
+    def test_trigger_flow(self):
         flow = self.create_flow()
-        run = FlowRun.create(self.flow, self.contact)
-
-        # add a channel to make sure that country is ambiguous
-        Channel.create(self.org, self.admin, "US", "EX", schemes=["tel"])
-        delattr(self.org, "_country_code")
-        self.org.country = None
-        self.org.save()
-
-        # set a contact field with another phone number
-        self.contact.set_field(self.admin, "other_contact_tel", "+12065551212", "Other Contact Tel")
-
         action = TriggerFlowAction(str(uuid4()), flow, [], [self.contact], ["@contact.other_contact_tel"])
-        self.execute_action(action, run, None)
-
-        # should have created a new contact with the above variable
-        self.assertIsNotNone(Contact.from_urn(self.org, "tel:+12065551212"))
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)
-        self.assertEqual(action.flow.pk, flow.pk)
 
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
-
-        action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [], [])
-        run = FlowRun.create(self.flow, self.contact)
-        msgs = self.execute_action(action, run, None)
-
-        self.assertFalse(msgs)
-
-        self.other_group.update_contacts(self.user, [self.contact2], True)
-
-        action = TriggerFlowAction(str(uuid4()), flow, [self.other_group], [self.contact], [])
-        run = FlowRun.create(self.flow, self.contact)
-        self.execute_action(action, run, None)
-
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
-
-        # delete the group
-        self.other_group.is_active = False
-        self.other_group.save()
-
-        self.assertTrue(action.groups)
-        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
-        # should create new group the next time the flow is read
-        updated_action = TriggerFlowAction.from_json(self.org, action.as_json())
-        self.assertTrue(updated_action.groups)
-        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+        self.assertEqual(flow, action.flow)
+        self.assertEqual([self.contact], action.contacts)
+        self.assertEqual([], action.groups)
+        self.assertEqual(["@contact.other_contact_tel"], action.variables)
 
     def test_send_action(self):
-        # previously @step.contact was the run contact and @contact would become the recipient but that has been
-        # changed so that both are the run contact
-        msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
-
-        self.contact.set_field(self.user, "state", "WA", label="State")
-        self.contact2.set_field(self.user, "state", "GA", label="State")
-        run = FlowRun.create(self.flow, self.contact)
-
-        action = SendAction(str(uuid4()), dict(base=msg_body), [], [self.contact2], [])
-        self.execute_action(action, run, None)
+        action = SendAction(str(uuid4()), dict(base="Hello"), [], [self.contact2], [])
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
-        self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media, dict())
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, dict(base=msg_body))
-        self.assertEqual(broadcast.base_language, "base")
-        self.assertEqual(broadcast.get_messages().count(), 1)
-        msg = broadcast.get_messages().first()
-        self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, "Hi Eric (WA). Eric (WA) is in the flow")
-
-        # empty message should be a no-op
-        action = SendAction(str(uuid4()), dict(base=""), [], [self.contact], [])
-        self.execute_action(action, run, None)
-        self.assertEqual(Broadcast.objects.all().count(), 1)
-
-        # support sending to groups inside SendAction
-        SendAction.from_json(self.org, action.as_json())
-
-        # test send media to someone else
-        run = FlowRun.create(self.flow, self.contact)
-        msg_body = "I am a media message message"
-
-        action = SendAction(
-            str(uuid4()),
-            dict(base=msg_body),
-            [],
-            [self.contact2],
-            [],
-            dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"),
-        )
-        self.execute_action(action, run, None)
-
-        action_json = action.as_json()
-        action = SendAction.from_json(self.org, action_json)
-        self.assertEqual(action.msg["base"], msg_body)
-        self.assertEqual(action.media["base"], f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg")
-
-        self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
-
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.media, dict(base=f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"))
-        self.assertEqual(broadcast.get_messages().count(), 1)
-        msg = broadcast.get_messages().first()
-        self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, msg_body)
-        self.assertEqual(msg.attachments, [f"image/jpeg:{settings.STORAGE_URL}/attachments/picture.jpg"])
-
-        # also send if we have empty message but have an attachment
-        action = SendAction(
-            str(uuid4()), dict(base=""), [], [self.contact], [], dict(base="image/jpeg:attachments/picture.jpg")
-        )
-        self.execute_action(action, run, None)
-
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.text, dict(base=""))
-        self.assertEqual(broadcast.media, dict(base="image/jpeg:attachments/picture.jpg"))
-        self.assertEqual(broadcast.base_language, "base")
+        self.assertEqual("Hello", action.msg["base"])
+        self.assertEqual({}, action.media)
+        self.assertEqual([self.contact2], action.contacts)
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])
         groups = VariableContactAction.parse_groups(self.org, groups)
         self.assertTrue("Missing", groups[0].name)
 
-    @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
         action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
 
         # check to and from JSON
         action_json = action.as_json()
         action = EmailAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-        self.assertOutbox(0, "no-reply@temba.io", "Subject", "Body", ["steve@apple.com"])
-
-        try:
-            EmailAction(str(uuid4()), [], "Subject", "Body")
-            self.fail("Should have thrown due to empty recipient list")
-        except FlowException:
-            pass
-
-        # check expression evaluation in action fields
-        action = EmailAction(
-            str(uuid4()),
-            ["@contact.name", "xyz", "", '@(SUBSTITUTE(LOWER(contact), " ", "") & "@nyaruka.com")'],
-            "@contact.name added in subject",
-            "@contact.name uses phone @contact.tel",
-        )
-
-        action_json = action.as_json()
-        action = EmailAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-        self.assertOutbox(
-            1, "no-reply@temba.io", "Eric added in subject", "Eric uses phone 0788 382 382", ["eric@nyaruka.com"]
-        )
-
-        # check that all white space is replaced with single spaces in the subject
-        test = EmailAction(
-            str(uuid4()), ["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo"
-        )
-        self.execute_action(test, run, msg)
-
-        self.assertOutbox(
-            2, "no-reply@temba.io", "Allo allo message", "Email notification for allo allo", ["steve@apple.com"]
-        )
-
-        # now try with a custom from address
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["flow_email"] = "no-reply@mybrand.com"
-        with self.settings(BRANDING=branding):
-            self.execute_action(action, run, msg)
-            self.assertOutbox(
-                3,
-                "no-reply@mybrand.com",
-                "Eric added in subject",
-                "Eric uses phone 0788 382 382",
-                ["eric@nyaruka.com"],
-            )
-
-        # same thing, but with a custom smtp server
-        self.org.add_smtp_config(
-            "support@example.com", "smtp.example.com", "support@example.com", "secret", "465", self.admin
-        )
-        action = EmailAction(str(uuid4()), ["steve@apple.com"], "Subject", "Body")
-        self.execute_action(action, run, msg)
-        self.assertOutbox(4, "support@example.com", "Subject", "Body", ["steve@apple.com"])
+        self.assertEqual(["steve@apple.com"], action.emails)
+        self.assertEqual("Subject", action.subject)
+        self.assertEqual("Body", action.message)
 
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
@@ -589,57 +404,22 @@ class ActionTest(TembaTest):
 
     def test_set_language_action(self):
         action = SetLanguageAction(str(uuid4()), "kli", "Klingon")
-
-        # check to and from JSON
         action_json = action.as_json()
         action = SetLanguageAction.from_json(self.org, action_json)
 
         self.assertEqual("kli", action.lang)
         self.assertEqual("Klingon", action.name)
 
-        # execute our action and check we are Klingon now, eeektorp shnockahltip.
-        run = FlowRun.create(self.flow, self.contact)
-        self.execute_action(action, run, None)
-        self.assertEqual("kli", Contact.objects.get(pk=self.contact.pk).language)
-
-        # try setting the language to something thats not three characters
-        action_json["lang"] = "base"
-        action_json["name"] = "Default"
-        action = SetLanguageAction.from_json(self.org, action_json)
-        self.execute_action(action, run, None)
-
-        # should clear the contacts language
-        self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
-
-    @uses_legacy_engine
     def test_start_flow_action(self):
-        self.flow.name = "Parent"
-        self.flow.save()
-
-        flow_start(self.flow, [], [self.contact])
-
-        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
-
-        run = FlowRun.objects.get()
-
-        new_flow = Flow.create_single_message(
-            self.org, self.user, {"base": "You chose @parent.color.category"}, base_language="base"
-        )
-        action = StartFlowAction(str(uuid4()), new_flow)
+        flow = self.get_flow("favorites")
+        action = StartFlowAction(str(uuid4()), flow)
 
         action_json = action.as_json()
         action = StartFlowAction.from_json(self.org, action_json)
 
-        self.execute_action(action, run, sms, started_flows=[])
-
-        # our contact should now be in the flow
-        self.assertTrue(FlowRun.objects.filter(flow=new_flow, contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction="O", text="You chose Blue"))
+        self.assertEqual(flow, action.flow)
 
     def test_group_actions(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact)
-
         group = self.create_group("Flow Group", [])
 
         # check converting to and from json
@@ -647,33 +427,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = AddToGroupAction.from_json(self.org, action_json)
 
-        self.execute_action(action, run, msg)
-
-        # user should now be in the group
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-
-        # we should never create a new group in the flow execution
-        self.assertIsNone(ContactGroup.user_groups.filter(name=self.contact.name).first())
-
-        # should match existing group for variables
-        replace_group1 = ContactGroup.create_static(self.org, self.admin, self.contact.name)
-        self.assertEqual(set(replace_group1.contacts.all()), set())
-
-        # passing through twice doesn't change anything
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(self.contact.user_groups.all().count(), 2)
-
-        # having the group name containing a space doesn't change anything
-        self.contact.name += " "
-        self.contact.save(update_fields=("name",), handle_update=False)
-        run.contact = self.contact
-
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        self.assertEqual([group, "@step.contact"], action.groups)
 
         # try when group is inactive
         action = DeleteFromGroupAction(str(uuid4()), [group])
@@ -685,171 +439,23 @@ class ActionTest(TembaTest):
         # reading the action should create a new group
         updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
-        self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
-
-        # try adding a contact to a dynamic group
-        self.create_field("isalive", "Is Alive")
-        with ESMockWithScroll():
-            dynamic_group = self.create_group("Dynamic", query="isalive=YES")
-        action = AddToGroupAction(str(uuid4()), [dynamic_group])
-
-        self.execute_action(action, run, msg)
-
-        # should do nothing
-        self.assertEqual(dynamic_group.contacts.count(), 0)
-
-        group1 = self.create_group("Flow Group 1", [])
-        group2 = self.create_group("Flow Group 2", [])
-
-        test = AddToGroupAction(str(uuid4()), [group1])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        test = AddToGroupAction(str(uuid4()), [group2])
-        action_json = test.as_json()
-        test = AddToGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        # user should be in both groups now
-        self.assertTrue(group1.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group1.contacts.all().count())
-        self.assertTrue(group2.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group2.contacts.all().count())
-
-        test = DeleteFromGroupAction(str(uuid4()), [])
-        action_json = test.as_json()
-        test = DeleteFromGroupAction.from_json(self.org, action_json)
-
-        self.execute_action(test, run, msg)
-
-        # user should be gone from both groups now
-        self.assertFalse(group1.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group1.contacts.all().count())
-        self.assertFalse(group2.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group2.contacts.all().count())
+        self.assertNotIn(group, updated_action.groups)
 
     def test_set_channel_action(self):
-        flow = self.flow
-        run = FlowRun.create(flow, self.contact)
+        channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12061111111", "KN", {})
 
-        tel1_channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12061111111", "KN", {})
-        tel2_channel = Channel.add_config_external_channel(self.org, self.admin, "US", "+12062222222", "KN", {})
-
-        fb_channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "FB",
-            address="Page Id",
-            config={"page_name": "Page Name", "auth_token": "Page Token"},
-        )
-
-        # create an incoming message on tel1, this should create an affinity to that channel
-        Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")
-        urn = self.contact.urns.all().first()
-        self.assertEqual(urn.channel, tel1_channel)
-
-        action = SetChannelAction(str(uuid4()), tel2_channel)
-        self.execute_action(action, run, None)
-
-        # check the affinity on our urn again, should now be the second channel
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # try to set it to a channel that we don't have a URN for
-        action = SetChannelAction(str(uuid4()), fb_channel)
-        self.execute_action(action, run, None)
-
-        # affinity is unchanged
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # add a FB urn for our contact
-        fb_urn = ContactURN.get_or_create(self.org, self.contact, "facebook:1001")
-
-        # default URN should be FB now, as it has the highest priority
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, fb_urn)
-
-        # but if we set our channel to tel, will override that
-        run.contact.clear_urn_cache()
-        action = SetChannelAction(str(uuid4()), tel1_channel)
-        self.execute_action(action, run, None)
-
-        contact.clear_urn_cache()
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, urn)
-        self.assertEqual(resolved_urn.channel, tel1_channel)
-
-        # test serializing
+        action = SetChannelAction(str(uuid4()), channel)
         action_json = action.as_json()
         action = SetChannelAction.from_json(self.org, action_json)
-        self.assertEqual(tel1_channel, action.channel)
-
-        # action shouldn't blow up without a channel
-        action = SetChannelAction(str(uuid4()), None)
-        self.execute_action(action, run, None)
-
-        # incoming messages will still cause preference to switch
-        Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
-        urn.refresh_from_db()
-        self.assertEqual(urn.channel, tel2_channel)
-
-        # make sure that switch will work across schemes as well
-        Msg.create_incoming(fb_channel, str(fb_urn), "Incoming FB message")
-        self.contact.clear_urn_cache()
-        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
-        self.assertEqual(resolved_urn, fb_urn)
+        self.assertEqual(channel, action.channel)
 
     def test_add_label_action(self):
-        flow = self.flow
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(flow, self.contact)
-
         label1 = Label.get_or_create(self.org, self.user, "green label")
         action = AddLabelAction(str(uuid4()), [label1, "@step.contact"])
 
         action_json = action.as_json()
         action = AddLabelAction.from_json(self.org, action_json)
-
-        # no message yet; such Add Label action on entry Actionset. No error should be raised
-        self.execute_action(action, run, None)
-
-        self.assertFalse(label1.get_messages())
-        self.assertEqual(label1.get_visible_count(), 0)
-
-        self.execute_action(action, run, msg)
-
-        # only label one was added to the message and no new label created
-        self.assertEqual(set(label1.get_messages()), {msg})
-        self.assertEqual(label1.get_visible_count(), 1)
-        self.assertEqual(Label.label_objects.all().count(), 1)
-
-        # make sure the expression variable label exists too
-        label1 = Label.label_objects.get(pk=label1.pk)
-        label2 = Label.label_objects.create(
-            org=self.org, name=self.contact.name, created_by=self.admin, modified_by=self.admin
-        )
-
-        self.execute_action(action, run, msg)
-
-        # and message should have been labeled with both labels
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label1, label2})
-        self.assertEqual(set(label1.get_messages()), {msg})
-        self.assertEqual(label1.get_visible_count(), 1)
-        self.assertTrue(set(label2.get_messages()), {msg})
-        self.assertEqual(label2.get_visible_count(), 1)
-
-        # passing through twice doesn't change anything
-        self.execute_action(action, run, msg)
-
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
-        self.assertEqual(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
-        self.assertEqual(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
+        self.assertEqual([label1, "@step.contact"], action.labels)
 
 
 class SendActionTest(TembaTest):

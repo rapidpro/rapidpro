@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.utils import timezone
 
+from temba.api.models import WebHookResult
 from temba.channels.models import Channel
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
@@ -124,6 +125,20 @@ class MockSessionWriter:
         )
         return self
 
+    def call_webhook(self, method, url, payload, status="success", status_code=200, response_body="{}"):
+        path = "/" + url.rsplit("/", 1)[-1]
+
+        self._log_event(
+            "webhook_called",
+            url=url,
+            status=status,
+            status_code=status_code,
+            elapsed_ms=3,
+            request=f"{method} {path} HTTP/1.1\r\n\r\n{payload}",
+            response=f"HTTP/1.1 {status_code} OK\r\n\r\n{response_body}",
+        )
+        return self
+
     def wait(self):
         self.output["wait"] = {"type": "msg"}
         self.output["status"] = "waiting"
@@ -222,21 +237,35 @@ class MockSessionWriter:
 
     def _handle_events(self):
         for event in self.events:
-            if event["type"] == "msg_created":
-                Msg.objects.create(
-                    uuid=event["msg"]["uuid"],
-                    org=self.org,
-                    contact=self.contact,
-                    contact_urn=self.contact.get_urn(),
-                    channel=Channel.objects.get(uuid=event["msg"]["channel"]["uuid"]),
-                    direction="O",
-                    text=event["msg"]["text"],
-                    created_on=event["created_on"],
-                    msg_type="F",
-                    status="S",
-                )
-
+            handle_fn = getattr(self, "_handle_" + event["type"], None)
+            if handle_fn:
+                handle_fn(event)
         self.events = []
+
+    def _handle_msg_created(self, event):
+        Msg.objects.create(
+            uuid=event["msg"]["uuid"],
+            org=self.org,
+            contact=self.contact,
+            contact_urn=self.contact.get_urn(),
+            channel=Channel.objects.get(uuid=event["msg"]["channel"]["uuid"]),
+            direction="O",
+            text=event["msg"]["text"],
+            created_on=event["created_on"],
+            msg_type="F",
+            status="S",
+        )
+
+    def _handle_webhook_called(self, event):
+        WebHookResult.objects.create(
+            org=self.org,
+            contact=self.contact,
+            url=event["url"],
+            status_code=event["status_code"],
+            request=event["request"],
+            response=event["response"],
+            request_time=event["elapsed_ms"],
+        )
 
     def _now(self):
         return timezone.now().isoformat()

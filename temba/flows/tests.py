@@ -3,7 +3,6 @@ import os
 import re
 import time
 from datetime import timedelta
-from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 from uuid import uuid4
 
@@ -18,12 +17,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 
-from temba.airtime.models import AirtimeTransfer
-from temba.api.models import Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
+from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
@@ -2426,59 +2423,6 @@ class FlowTest(TembaTest):
             copy_json["nodes"][0]["router"]["cases"][0]["arguments"],
         )
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_optimization_reply_action(self):
-        self.flow.version_number = "10.4"
-        self.flow.save(update_fields=("version_number",))
-
-        json_flow = FlowRevision.migrate_definition(
-            {
-                "base_language": "base",
-                "version": self.flow.version_number,
-                "entry": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                "rule_sets": [],
-                "action_sets": [
-                    {
-                        "y": 0,
-                        "x": 100,
-                        "destination": None,
-                        "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
-                        "actions": [
-                            {
-                                "uuid": "d5dbbabf-b0f3-4add-9c4b-a114c8c4a1d9",
-                                "type": "api",
-                                "webhook": "http://localhost:49999/coupon",
-                                "webhook_header": [{"name": "Authorization", "value": "Token 12345"}],
-                            },
-                            {
-                                "uuid": "e085c297-6f26-4c2e-b8fb-8b0df8c15144",
-                                "msg": {"base": "text to get @extra.coupon"},
-                                "type": "reply",
-                            },
-                        ],
-                    }
-                ],
-                "metadata": {"notes": []},
-            },
-            self.flow,
-        )
-
-        self.flow.update(json_flow)
-
-        self.mockRequest("POST", "/coupon", '{"coupon": "NEXUS4"}')
-        run, = legacy.flow_start(self.flow, [], [self.contact])
-
-        self.assertTrue(run.path)
-        self.assertTrue(Msg.objects.all())
-        msg = Msg.objects.all()[0]
-        self.assertNotIn("@extra.coupon", msg.text)
-        self.assertEqual(msg.text, "text to get NEXUS4")
-        self.assertEqual(WIRED, msg.status)
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
     def test_parsing(self):
         # our flow should have the appropriate RuleSet and ActionSet objects
         self.assertEqual(4, ActionSet.objects.all().count())
@@ -3736,252 +3680,6 @@ class FlowLabelTest(FlowFileTest):
         self.assertEqual(label_one.name, "Label One")
 
 
-class WebhookTest(TembaTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_subflow_extra(self):
-        # import out flow that triggers another flow
-        contact1 = self.create_contact("Marshawn", "+14255551212")
-        substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions)
-
-        self.mockRequest("GET", "/where", '{ "text": "(I came from a webhook)" }')
-        legacy.flow_start(flow, groups=[], contacts=[contact1], restart_participants=True)
-
-        # first message from our trigger flow action
-        msg = Msg.objects.all().order_by("-created_on")[0]
-        self.assertEqual("Honey, I triggered the flow! (I came from a webhook)", msg.text)
-
-        # second message from our start flow action
-        msg = Msg.objects.all().order_by("-created_on")[1]
-        self.assertEqual("Honey, I triggered the flow! (I came from a webhook)", msg.text)
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_decimals(self):
-        flow = self.get_flow("webhook_decimal")
-        contact = self.create_contact("Ben Haggerty", "+250788383383")
-
-        self.mockRequest("GET", "/", '{ "decimal": 0.1 }')
-
-        run1, = legacy.flow_start(flow, [], [contact])
-        run1.refresh_from_db()
-
-        self.assertEqual(run1.fields, {"decimal": Decimal("0.1"), "webhook": '{ "decimal": 0.1 }'})
-        self.assertEqual("Your webhook returned 0.1. Your number is 0.1", Msg.objects.get(contact=contact).text)
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook(self):
-        flow = self.get_flow("webhook")
-        contact = self.create_contact("Ben Haggerty", "+250788383383")
-
-        self.mockRequest("GET", "/check_order.php?phone=%2B250788383383", '{ "text": "Get", "blank": "" }')
-
-        run1, = legacy.flow_start(flow, [], [contact])
-        run1.refresh_from_db()
-
-        self.assertEqual(run1.fields, {"text": "Get", "blank": "", "response_1": '{ "text": "Get", "blank": "" }'})
-        self.assertEqual(
-            run1.results,
-            {
-                "order_status": {
-                    "category": "Other",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Order Status",
-                    "value": "Get ",
-                    "created_on": matchers.ISODate(),
-                    "input": "Get ",
-                },
-                "response_1": {
-                    "category": "Success",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "200",
-                    "created_on": matchers.ISODate(),
-                    "input": "GET http://localhost:49999/check_order.php?phone=%2B250788383383",
-                },
-            },
-        )
-
-        # change our webhook to a POST
-        webhook = RuleSet.objects.get(flow=flow, label="Response 1")
-        config = webhook.config
-        config[RuleSet.CONFIG_WEBHOOK_ACTION] = "POST"
-        webhook.config = config
-        webhook.save()
-
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", '{ "text": "Post", "blank": "" }')
-
-        run2, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run2.refresh_from_db()
-
-        self.assertEqual(
-            run2.results,
-            {
-                "order_status": {
-                    "category": "Other",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Order Status",
-                    "value": "Post ",
-                    "created_on": matchers.ISODate(),
-                    "input": "Post ",
-                },
-                "response_1": {
-                    "category": "Success",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "200",
-                    "created_on": matchers.ISODate(),
-                    "input": "POST http://localhost:49999/check_order.php?phone=%2B250788383383",
-                },
-            },
-        )
-
-        # check parsing of a JSON array response from a webhook
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", '["zero", "one", "two"]')
-
-        run3, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run3.refresh_from_db()
-
-        self.assertEqual(run3.fields, {"0": "zero", "1": "one", "2": "two", "response_1": '["zero", "one", "two"]'})
-
-        # check that we limit JSON responses to 256 values
-        body = json.dumps(["x"] * 300)
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", body)
-
-        run4, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run4.refresh_from_db()
-        expected_fields = {str(n): "x" for n in range(256)}
-        expected_fields["response_1"] = body[: Value.MAX_VALUE_LEN]
-        self.assertEqual(run4.fields, expected_fields)
-
-        # check we handle a non-dict or list response
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "12345")
-
-        run5, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run5.refresh_from_db()
-        self.assertEqual(run5.fields, {"response_1": "12345"})
-
-        # check we handle a non-JSON response
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "asdfasdfasdf")
-
-        run6, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run6.refresh_from_db()
-
-        self.assertEqual(run6.fields, {"response_1": "asdfasdfasdf"})
-
-        results = run6.results
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results["response_1"]["name"], "Response 1")
-        self.assertEqual(results["response_1"]["value"], "200")
-        self.assertEqual(results["response_1"]["category"], "Success")
-
-        # check a webhook that responds with a 500 error
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", "Server Error", status=500)
-
-        run7, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run7.refresh_from_db()
-
-        self.assertEqual(run7.fields, {"response_1": "Server Error"})
-        self.assertEqual(
-            run7.results,
-            {
-                "response_1": {
-                    "category": "Failure",
-                    "node_uuid": matchers.UUID4String(),
-                    "name": "Response 1",
-                    "value": "500",
-                    "created_on": matchers.ISODate(),
-                    "input": "POST http://localhost:49999/check_order.php?phone=%2B250788383383",
-                }
-            },
-        )
-
-        # check a webhook that responds with a 400 error
-        body = '{ "text": "Valid", "error": "400", "message": "Missing field in request" }'
-        self.mockRequest("POST", "/check_order.php?phone=%2B250788383383", body, status=400)
-
-        run8, = legacy.flow_start(flow, [], [contact], restart_participants=True)
-        run8.refresh_from_db()
-
-        self.assertEqual(
-            run8.fields, {"text": "Valid", "error": "400", "message": "Missing field in request", "response_1": body}
-        )
-
-        results = run8.results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results["response_1"]["name"], "Response 1")
-        self.assertEqual(results["response_1"]["value"], "400")
-        self.assertEqual(results["response_1"]["category"], "Failure")
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_resthook(self):
-        self.contact = self.create_contact("Macklemore", "+12067799294")
-        webhook_flow = self.get_flow("resthooks")
-
-        # we don't have the resthook registered yet, so this won't trigger any calls
-        legacy.flow_start(webhook_flow, [], [self.contact])
-
-        # should have two messages
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(msgs[0].text, "That was a success.")
-        self.assertEqual(msgs[1].text, "The second succeeded.")
-
-        # but we should have created a webhook event regardless
-        self.assertTrue(WebHookEvent.objects.filter(resthook__slug="new-registration"))
-
-        # ok, let's go add a listener for that event
-        resthook = Resthook.get_or_create(self.org, slug="new-registration", user=self.admin)
-        resthook.subscribers.create(
-            target_url="http://localhost:49999/foo", created_by=self.admin, modified_by=self.admin
-        )
-        resthook.subscribers.create(
-            target_url="http://localhost:49999/bar", created_by=self.admin, modified_by=self.admin
-        )
-
-        # clear out our messages
-        Msg.objects.filter(contact=self.contact).delete()
-
-        self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
-        self.mockRequest("POST", "/bar", '{ "code": "ERYEHYREYRE" }')
-        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
-        self.mockRequest("POST", "/bar", "Failure 2", status=400)
-
-        # start over
-        legacy.flow_start(webhook_flow, [], [self.contact], restart_participants=True)
-
-        msgs = list(self.contact.msgs.order_by("id"))
-
-        # first should be a success because both URLs returned successes
-        self.assertEqual(msgs[0].text, "That was a success.")
-
-        # second, one failed so should be a failure
-        self.assertEqual(msgs[1].text, "The second failed.")
-
-        # if a URL returns 410 we need to remove it
-        self.mockRequest("POST", "/foo", '{ "code": "ABABUUDDLRS" }')
-        self.mockRequest("POST", "/bar", "Unsubscribe", status=410)  # considered a success
-        self.mockRequest("POST", "/foo", '{ "code": "XXCXCVXVVXV" }')
-
-        # start over
-        legacy.flow_start(webhook_flow, [], [self.contact], restart_participants=True)
-
-        # we should also have unsubscribed from one of our endpoints
-        self.assertTrue(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/foo"))
-        self.assertFalse(resthook.subscribers.filter(is_active=True, target_url="http://localhost:49999/bar"))
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-
 class SimulationTest(FlowFileTest):
     def add_message(self, payload, text):
         """
@@ -4401,77 +4099,6 @@ class FlowsTest(FlowFileTest):
         run.refresh_from_db()
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_payload(self):
-        flow = self.get_flow("webhook_payload")
-
-        # we call as an action, and then again as a ruleset
-        ctype = "application/json"
-        ruleset_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        action_post = self.mockRequest("POST", "/send_results", '{"received":"action"}', content_type=ctype)
-        action_get = self.mockRequest("GET", "/send_results", '{"received":"action"}', content_type=ctype)
-        ruleset_get = self.mockRequest("GET", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-
-        self.assertEqual("What is your favorite natural disaster?", self.send_message(flow, "39"))
-        self.assertEqual("Hey, so should I send it as a ruleset too?", self.send_message(flow, "tornado"))
-        self.assertEqual("Great work.", self.send_message(flow, "yes"))
-
-        msg = Msg.objects.all().order_by("-id").first()
-        run = FlowRun.objects.all().order_by("id").first()
-
-        # if there is no urn, it still works, but is omitted
-        empty_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        empty = self.create_contact("Empty Contact")
-        legacy.flow_start(flow, [], [empty])
-        self.send("39", empty)
-        self.send("tornado", empty)
-        self.assertIsNone(empty_post.data["contact"].get("urn"))
-
-        # test fallback urn
-        fallback_post = self.mockRequest("POST", "/send_results", '{"received":"ruleset"}', content_type=ctype)
-        empty_flow = self.get_flow("empty_payload")
-        legacy.flow_start(empty_flow, [], [self.contact], restart_participants=True)
-        self.assertEqual("tel:+12065552020", fallback_post.data["contact"]["urn"])
-
-        def assert_payload(payload, path_length, result_count, results):
-            self.assertEqual(
-                dict(name="Ben Haggerty", uuid=self.contact.uuid, urn="tel:+12065552020"), payload["contact"]
-            )
-            self.assertEqual(dict(name="Webhook Payload Test", uuid=flow.uuid, revision=1), payload["flow"])
-            self.assertDictContainsSubset(dict(name="Test Channel", uuid=self.channel.uuid), payload["channel"])
-            self.assertEqual(path_length, len(payload["path"]))
-            self.assertEqual(result_count, len(payload["results"]))
-
-            # flowserver's created_on isn't necessarily the same as what we store in the database
-            self.assertEqual({"uuid", "created_on"}, set(payload["run"].keys()))
-            self.assertEqual(str(run.uuid), payload["run"]["uuid"])
-
-            # make sure things don't sneak into our path format unintentionally
-            # first item in the path should have uuid, node, arrived, and exit
-            self.assertEqual(set(payload["path"][0].keys()), {"uuid", "node_uuid", "arrived_on", "exit_uuid"})
-
-            for key, value in results.items():
-                result = payload["results"].get(key)
-                self.assertEqual(value, result.get("value"))
-
-                # make sure nothing sneaks into our result format unintentionally
-                results_keys = set(result.keys())
-                self.assertEqual(results_keys, {"name", "value", "category", "input", "node_uuid", "created_on"})
-
-        # we arrived at our ruleset webhook first
-        assert_payload(ruleset_post.data, 5, 2, dict(age="39", disaster="tornado"))
-        assert_payload(action_post.data, 8, 4, dict(send_action="yes"))
-
-        # gets shouldn't have payloads
-        self.assertIsNone(action_get.data)
-        self.assertIsNone(ruleset_get.data)
-
-        # make sure triggering without a url fails properly
-        legacy.call_webhook(FlowRun.objects.all().first(), None, "", msg)
-        result = WebHookResult.objects.all().order_by("-id").first()
-        self.assertIn("No webhook_url specified, skipping send", result.response)
-
     def test_validate_legacy_definition(self):
 
         with self.assertRaises(ValueError):
@@ -4613,23 +4240,25 @@ class FlowsTest(FlowFileTest):
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(
-            reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE, editor_version="0")
+            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "editor_version": "0"}
         )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.GOFLOW_VERSION
         )
 
-        # can't save old version over new
-        definition = flow.revisions.all().order_by("-id").first().definition
+        # can't save older spec version over newer
+        definition = flow.revisions.order_by("id").last().definition
         definition["spec_version"] = Flow.FINAL_LEGACY_VERSION
-        with self.assertRaises(FlowVersionConflictException):
-            flow.save_revision(flow.created_by, definition)
 
-        # can't save old revision over new
+        with self.assertRaises(FlowVersionConflictException):
+            flow.save_revision(self.admin, definition)
+
+        # can't save older revision over newer
         definition["spec_version"] = Flow.GOFLOW_VERSION
         definition["revision"] = 0
+
         with self.assertRaises(FlowUserConflictException):
-            flow.save_revision(flow.created_by, definition)
+            flow.save_revision(self.admin, definition)
 
     @skip_if_no_mailroom
     def test_save_contact_does_not_update_field_label(self):
@@ -5807,36 +5436,6 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual("Good count", self.send_message(flow, "35", contact=zinedine))
 
-    @uses_legacy_engine
-    def test_non_blocking_rule_first(self):
-
-        flow = self.get_flow("non_blocking_rule_first")
-
-        eminem = self.create_contact("Eminem", "+12065550100")
-        legacy.flow_start(flow, groups=[], contacts=[eminem])
-        msg = Msg.objects.filter(direction="O", contact=eminem).first()
-        self.assertEqual("Hi there Eminem", msg.text)
-
-        # put a webhook on the rule first and make sure it executes
-        ruleset = RuleSet.objects.get(uuid=flow.entry_uuid)
-        ruleset.webhook_url = "http://localhost"
-        ruleset.save()
-
-        tupac = self.create_contact("Tupac", "+12065550101")
-        legacy.flow_start(flow, groups=[], contacts=[tupac])
-        msg = Msg.objects.filter(direction="O", contact=tupac).first()
-        self.assertEqual("Hi there Tupac", msg.text)
-
-    @uses_legacy_engine
-    def test_webhook_rule_first(self):
-        flow = self.get_flow("webhook_rule_first")
-        tupac = self.create_contact("Tupac", "+12065550101")
-        legacy.flow_start(flow, groups=[], contacts=[tupac])
-
-        # a message should have been sent
-        msg = Msg.objects.filter(direction="O", contact=tupac).first()
-        self.assertEqual("Testing this out", msg.text)
-
     def test_group_dependencies(self):
         self.get_flow("dependencies")
         flow = Flow.objects.filter(name="Dependencies").first()
@@ -5993,99 +5592,6 @@ class FlowsTest(FlowFileTest):
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
 
     @uses_legacy_engine
-    def test_group_split(self):
-        flow = self.get_flow("group_split")
-
-        rulesets = RuleSet.objects.filter(flow=flow)
-        group_count = 0
-        for ruleset in rulesets:
-            for rule in ruleset.rules:
-                if rule["test"]["type"] == "in_group":
-                    group = ContactGroup.user_groups.filter(uuid=rule["test"]["test"]["uuid"]).first()
-                    self.assertIsNotNone(group)
-                    group_count += 1
-        self.assertEqual(2, group_count)
-
-        run, = legacy.flow_start(flow, [], [self.contact])
-
-        # not in any group
-        self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
-
-        # add us to Group A
-        self.send("add group a")
-
-        self.assertEqual("Awaiting command.", Msg.objects.filter(direction="O").order_by("-created_on").first().text)
-        groups = ContactGroup.user_groups.filter(contacts__in=[self.contact])
-        self.assertEqual(1, groups.count())
-        self.assertEqual("Group A", groups.first().name)
-
-        # now split us on group membership
-        self.send("split")
-        self.assertEqual("You are in Group A", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Group A",
-                "created_on": matchers.ISODate(),
-                "input": "Ben Haggerty",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "Group A",
-            },
-        )
-
-        # now add us to group b and remove from group a
-        self.send("remove group a")
-        self.send("add group b")
-        self.send("split")
-        self.assertEqual("You are in Group B", Msg.objects.filter(direction="O").order_by("-created_on")[1].text)
-
-        # now remove from both groups
-        self.send("remove group b")
-        self.send("split")
-        self.assertEqual(
-            "You aren't in either group.", Msg.objects.filter(direction="O").order_by("-created_on")[1].text
-        )
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Other",
-                "created_on": matchers.ISODate(),
-                "input": "Ben Haggerty",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "Ben Haggerty",
-            },
-        )
-
-        # if contact has null name, value will be empty string
-        nameless = self.create_contact(name=None, number="+12065553030")
-        run, = legacy.flow_start(flow, [], [nameless])
-
-        self.send("split", contact=nameless)
-        self.assertEqual(
-            "You aren't in either group.",
-            Msg.objects.filter(direction="O", contact=nameless).order_by("created_on")[1].text,
-        )
-
-        run.refresh_from_db()
-        self.assertEqual(
-            run.results["member"],
-            {
-                "category": "Other",
-                "created_on": matchers.ISODate(),
-                "input": "(206) 555-3030",
-                "name": "Member",
-                "node_uuid": matchers.UUID4String(),
-                "value": "(206) 555-3030",
-            },
-        )
-
-    @uses_legacy_engine
     def test_media_first_action(self):
         flow = self.get_flow("media_first_action")
 
@@ -6099,20 +5605,6 @@ class FlowsTest(FlowFileTest):
             [f"image/jpeg:{settings.STORAGE_URL}/attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"],
         )
 
-    @uses_legacy_engine
-    def test_substitution(self):
-        flow = self.get_flow("substitution")
-        self.contact.name = "Ben Haggerty"
-        self.contact.save(update_fields=("name",), handle_update=False)
-
-        runs = legacy.flow_start(flow, [], [self.contact])
-        self.assertEqual(1, len(runs))
-        self.assertEqual(self.contact.msgs.get().text, "Hi Ben Haggerty, what is your phone number?")
-
-        self.assertEqual("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
-        sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
-        self.assertEqual("Hi from Ben Haggerty! Your phone is (206) 555-2020.", sms.text)
-
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
         group = ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
@@ -6124,26 +5616,6 @@ class FlowsTest(FlowFileTest):
 
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
-
-    @uses_legacy_engine
-    def test_new_contact(self):
-        mother_flow = self.get_flow("mama_mother_registration")
-        registration_flow = self.get_flow("mama_registration", dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
-        self.assertEqual("Enter the expected delivery date.", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEqual(
-            "Great, thanks for registering the new mother", self.send_message(registration_flow, "31.1.2015")
-        )
-
-        mother = Contact.objects.get(org=self.org, name="Judy Pottier")
-        self.assertTrue(
-            mother.get_field_serialized(ContactField.get_by_key(self.org, "edd")).startswith("2015-01-31T")
-        )
-        self.assertEqual(
-            mother.get_field_serialized(ContactField.get_by_key(self.org, "chw_phone")),
-            self.contact.get_urn(TEL_SCHEME).path,
-        )
-        self.assertEqual(mother.get_field_serialized(ContactField.get_by_key(self.org, "chw_name")), self.contact.name)
 
     @uses_legacy_engine
     def test_group_rule_first(self):
@@ -6160,37 +5632,6 @@ class FlowsTest(FlowFileTest):
 
         legacy.flow_start(rule_flow, [], [self.contact], restart_participants=True)
         self.assertLastResponse("You are a father.")
-
-    @uses_legacy_engine
-    def test_mother_registration(self):
-        mother_flow = self.get_flow("new_mother")
-        registration_flow = self.get_flow("mother_registration", dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-        self.assertEqual(mother_flow.runs.count(), 0)
-
-        self.assertEqual("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
-        self.assertEqual("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
-        self.assertEqual(
-            "Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383")
-        )
-
-        # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
-        self.assertEqual(mother_flow.runs.count(), 2)
-
-        edd_field = ContactField.get_by_key(self.org, "expected_delivery_date")
-        chw_field = ContactField.get_by_key(self.org, "chw")
-
-        mother = Contact.from_urn(self.org, "tel:+250788383383")
-        self.assertEqual("Judy Pottier", mother.name)
-        self.assertTrue(mother.get_field_serialized(edd_field).startswith("2014-01-31T"))
-        self.assertEqual("+12065552020", mother.get_field_serialized(chw_field))
-        self.assertTrue(mother.user_groups.filter(name="Expecting Mothers"))
-
-        pain_flow = self.get_flow("pain_flow")
-        self.assertEqual("Your CHW will be in contact soon!", self.send_message(pain_flow, "yes", contact=mother))
-
-        chw = self.contact
-        sms = Msg.objects.filter(contact=chw).order_by("-created_on")[0]
-        self.assertEqual("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
@@ -6572,31 +6013,6 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
 
     @uses_legacy_engine
-    def test_parent_child(self):
-        favorites = self.get_flow("favorites")
-
-        # do a dry run once so that the groups and fields get created
-        group = self.create_group("Campaign", [])
-        field = ContactField.get_or_create(
-            self.org, self.admin, "campaign_date", "Campaign Date", value_type=Value.TYPE_DATETIME
-        )
-
-        # tests that a contact is properly updated when a child flow is called
-        child = self.get_flow("child")
-        parent = self.get_flow("parent", substitutions=dict(CHILD_ID=child.id))
-
-        # create a campaign with a single event
-        campaign = Campaign.create(self.org, self.admin, "Test Campaign", group)
-        CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=field, offset=10, unit="W", flow=favorites
-        )
-
-        self.assertEqual("Added to campaign.", self.send_message(parent, "start", initiate_flow=True))
-
-        # should have one event scheduled for this contact
-        self.assertTrue(EventFire.objects.filter(contact=self.contact))
-
-    @uses_legacy_engine
     def test_priority(self):
         self.get_flow("priorities")
         joe = self.create_contact("joe", "112233")
@@ -6806,27 +6222,6 @@ class FlowsTest(FlowFileTest):
         legacy.flow_start(parent, groups=[], contacts=[self.contact])
 
     @uses_legacy_engine
-    def test_trigger_flow_complete(self):
-        contact2 = self.create_contact(name="Jason Tatum", number="+250788123123")
-
-        self.get_flow("trigger_flow_complete", dict(contact2_uuid=contact2.uuid))
-
-        parent = Flow.objects.get(org=self.org, name="Flow A")
-
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-
-        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=contact2).count())
-
-        run1 = FlowRun.objects.filter(contact=self.contact).first()
-        run2 = FlowRun.objects.filter(contact=contact2).first()
-
-        self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-        self.assertFalse(run1.is_active)
-
-        self.assertEqual(run2.parent.id, run1.id)
-
-    @uses_legacy_engine
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
@@ -6854,249 +6249,6 @@ class FlowsTest(FlowFileTest):
         msgs = list(self.contact.msgs.order_by("id"))
         self.assertEqual(len(msgs), 2)
         self.assertEqual(msgs[1].text, "You are in the enrolled group.")
-
-    @uses_legacy_engine
-    def test_translations(self):
-
-        favorites = self.get_flow("favorites")
-
-        # create a new language on the org
-        self.org.set_languages(self.admin, ["eng"], "eng")
-
-        # everything should work as normal with our flow
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
-        json_dict = favorites.as_json()
-        reply = json_dict["action_sets"][0]["actions"][0]
-
-        # we should be a normal unicode response
-        self.assertIsInstance(reply["msg"], dict)
-        self.assertIsInstance(reply["msg"]["base"], str)
-
-        # now our replies are language dicts
-        json_dict = favorites.as_json()
-        reply = json_dict["action_sets"][1]["actions"][0]
-        self.assertEqual(
-            "Good choice, I like @flow.color.category too! What is your favorite beer?", reply["msg"]["base"]
-        )
-
-        # now interact with the flow and make sure we get an appropriate response
-        self.releaseRuns()
-
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
-        self.assertEqual(
-            "Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED")
-        )
-
-        # now let's add a second language
-        self.org.set_languages(self.admin, ["eng", "tlh"], "eng")
-
-        # update our initial message
-        initial_message = json_dict["action_sets"][0]["actions"][0]
-        initial_message["msg"]["tlh"] = "Kikshtik derklop?"
-        json_dict["action_sets"][0]["actions"][0] = initial_message
-
-        # and the first response
-        reply["msg"]["tlh"] = "Katishklick Shnik @flow.color.category Errrrrrrrklop"
-        json_dict["action_sets"][1]["actions"][0] = reply
-
-        # save the changes
-        favorites.update(json_dict, self.admin)
-
-        # should get org primary language (english) since our contact has no preferred language
-        self.releaseRuns()
-        self.assertEqual("What is your favorite color?", self.send_message(favorites, "favorite", initiate_flow=True))
-        self.assertEqual(
-            "Good choice, I like Red too! What is your favorite beer?", self.send_message(favorites, "RED")
-        )
-
-        # now set our contact's preferred language to klingon
-        self.releaseRuns()
-        self.contact.language = "tlh"
-        self.contact.save(update_fields=("language",), handle_update=False)
-
-        self.assertEqual("Kikshtik derklop?", self.send_message(favorites, "favorite", initiate_flow=True))
-        self.assertEqual("Katishklick Shnik Red Errrrrrrrklop", self.send_message(favorites, "RED"))
-
-        # we support localized rules and categories as well
-        json_dict = favorites.as_json()
-        rule = json_dict["rule_sets"][0]["rules"][0]
-        self.assertTrue(isinstance(rule["test"]["test"], dict))
-        rule["test"]["test"]["tlh"] = "klerk"
-        rule["category"]["tlh"] = "Klerkistikloperopikshtop"
-        json_dict["rule_sets"][0]["rules"][0] = rule
-        favorites.update(json_dict, self.admin)
-
-        self.releaseRuns()
-        self.assertEqual(
-            "Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", self.send_message(favorites, "klerk")
-        )
-
-        # test the send action as well
-        json_dict = favorites.as_json()
-        action = json_dict["action_sets"][1]["actions"][0]
-        action["type"] = "send"
-        action["contacts"] = [dict(uuid=self.contact.uuid)]
-        action["groups"] = []
-        action["variables"] = []
-        json_dict["action_sets"][1]["actions"][0] = action
-        favorites.update(json_dict, self.admin)
-
-        self.releaseRuns()
-        self.send_message(favorites, "klerk", assert_reply=False)
-        sms = Msg.objects.filter(contact=self.contact).order_by("-pk")[0]
-        self.assertEqual("Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", sms.text)
-
-    @uses_legacy_engine
-    def test_airtime_flow(self):
-        flow = self.get_flow("airtime")
-
-        contact_urn = self.contact.get_urn(TEL_SCHEME)
-
-        airtime_event = AirtimeTransfer.objects.create(
-            org=self.org,
-            status=AirtimeTransfer.SUCCESS,
-            amount=10,
-            contact=self.contact,
-            recipient=contact_urn.path,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        with patch("temba.airtime.models.AirtimeTransfer.trigger_airtime_event") as mock_trigger_event:
-            mock_trigger_event.return_value = airtime_event
-
-            runs = legacy.flow_start(flow, [], [self.contact])
-            self.assertEqual(1, len(runs))
-            self.assertEqual(self.contact.msgs.get().text, "Message complete")
-
-            airtime_event.status = AirtimeTransfer.FAILED
-            airtime_event.save()
-
-            mock_trigger_event.return_value = airtime_event
-
-            runs = legacy.flow_start(flow, [], [self.contact], restart_participants=True)
-            self.assertEqual(1, len(runs))
-
-            msgs = list(self.contact.msgs.order_by("id"))
-            self.assertEqual(len(msgs), 2)
-            self.assertEqual(msgs[1].text, "Message failed")
-
-    @patch("temba.airtime.models.AirtimeTransfer.post_transferto_api_response")
-    @uses_legacy_engine
-    def test_airtime_trigger_event(self, mock_post_transferto):
-        mock_post_transferto.side_effect = [
-            MockResponse(200, "error_code=0\r\ncurrency=USD\r\n"),
-            MockResponse(
-                200,
-                "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                "product_list=0.25,0.5,1,1.5\r\n"
-                "local_info_value_list=5,10,20,30\r\n",
-            ),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
-        ]
-
-        self.org.connect_transferto("mylogin", "api_token", self.admin)
-        self.org.refresh_transferto_account_currency()
-
-        flow = self.get_flow("airtime")
-        runs = legacy.flow_start(flow, [], [self.contact])
-        self.assertEqual(1, len(runs))
-        self.assertEqual(self.contact.msgs.get().text, "Message complete")
-
-        self.assertEqual(1, AirtimeTransfer.objects.all().count())
-        airtime = AirtimeTransfer.objects.all().first()
-        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
-        self.assertEqual(airtime.contact, self.contact)
-        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
-        self.assertEqual(mock_post_transferto.call_count, 4)
-        mock_post_transferto.reset_mock()
-
-        mock_post_transferto.side_effect = [
-            MockResponse(
-                200,
-                "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
-                "product_list=0.25,0.5,1,1.5\r\n"
-                "local_info_value_list=5,10,20,30\r\n",
-            ),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
-        ]
-
-        runs = legacy.flow_start(flow, [], [self.contact], restart_participants=True)
-        self.assertEqual(1, len(runs))
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(msgs[1].text, "Message failed")
-
-        self.assertEqual(2, AirtimeTransfer.objects.all().count())
-        airtime = AirtimeTransfer.objects.all().last()
-        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
-        self.assertEqual(
-            airtime.message,
-            "Error transferring airtime: Failed by invalid amount "
-            "configuration or missing amount configuration for Rwanda",
-        )
-
-        self.assertEqual(mock_post_transferto.call_count, 1)
-        mock_post_transferto.reset_mock()
-
-        mock_post_transferto.side_effect = [
-            MockResponse(
-                200,
-                "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                "product_list=0.25,0.5,1,1.5\r\n"
-                "local_info_value_list=5,10,20,30\r\n",
-            ),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
-        ]
-
-        contact2 = self.create_contact(name="Bismack Biyombo", number="+250788123123", twitter="biyombo")
-        self.assertEqual(contact2.get_urn().path, "biyombo")
-
-        runs = legacy.flow_start(flow, [], [contact2], restart_participants=True)
-        self.assertEqual(1, len(runs))
-        self.assertEqual(1, contact2.msgs.all().count())
-        self.assertEqual("Message complete", contact2.msgs.all()[0].text)
-
-        self.assertEqual(3, AirtimeTransfer.objects.all().count())
-        airtime = AirtimeTransfer.objects.all().last()
-        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
-        self.assertEqual(airtime.recipient, "+250788123123")
-        self.assertNotEqual(airtime.recipient, "biyombo")
-        self.assertEqual(mock_post_transferto.call_count, 3)
-        mock_post_transferto.reset_mock()
-
-        self.org.remove_transferto_account(self.admin)
-
-        mock_post_transferto.side_effect = [
-            MockResponse(
-                200,
-                "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                "product_list=0.25,0.5,1,1.5\r\n"
-                "local_info_value_list=5,10,20,30\r\n",
-            ),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
-            MockResponse(200, "error_code=0\r\nerror_txt=\r\n"),
-        ]
-
-        runs = legacy.flow_start(flow, [], [self.contact], restart_participants=True)
-        self.assertEqual(1, len(runs))
-
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(msgs[2].text, "Message failed")
-
-        self.assertEqual(4, AirtimeTransfer.objects.all().count())
-        airtime = AirtimeTransfer.objects.all().last()
-        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
-        self.assertEqual(airtime.contact, self.contact)
-        self.assertEqual(
-            airtime.message, "Error transferring airtime: No transferTo Account connected to " "this organization"
-        )
-
-        # we never call TransferTo API if no accoutnis connected
-        self.assertEqual(mock_post_transferto.call_count, 0)
-        mock_post_transferto.reset_mock()
 
     @patch("temba.flows.models.FlowRun.PATH_MAX_STEPS", 8)
     @uses_legacy_engine
@@ -7228,22 +6380,6 @@ class ChannelSplitTest(FlowFileTest):
         self.assertEqual("206 Channel", msg.text)
 
 
-class WebhookLoopTest(FlowFileTest):
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
-    def test_webhook_loop(self):
-        flow = self.get_flow("webhook_loop")
-
-        self.mockRequest("GET", "/msg", '{ "text": "first message" }')
-        self.assertEqual("first message", self.send_message(flow, "first", initiate_flow=True))
-
-        self.mockRequest("GET", "/msg", '{ "text": "second message" }')
-        self.assertEqual("second message", self.send_message(flow, "second"))
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
-
-
 class GhostActionNodeTest(FlowFileTest):
     @uses_legacy_engine
     def test_ghost_action_node_test(self):
@@ -7340,37 +6476,6 @@ class ExitTest(FlowFileTest):
         self.assertTrue(second_run.is_active)
 
 
-class TriggerFlowTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_trigger_then_loop(self):
-        # start our parent flow
-        flow = self.get_flow("parent_child_loop")
-        legacy.flow_start(flow, [], [self.contact])
-
-        # trigger our second flow to start
-        msg = self.create_msg(contact=self.contact, direction="I", text="add 12067797878")
-        legacy.find_and_handle(msg)
-
-        child_run = FlowRun.objects.get(contact__urns__path="+12067797878")
-        msg = self.create_msg(contact=child_run.contact, direction="I", text="Christine")
-        legacy.find_and_handle(msg)
-        child_run.refresh_from_db()
-        self.assertEqual("C", child_run.exit_type)
-
-        # main contact should still be in the flow
-        run = FlowRun.objects.get(flow=flow, contact=self.contact)
-        self.assertTrue(run.is_active)
-        self.assertIsNone(run.exit_type)
-
-        # and can do it again
-        msg = self.create_msg(contact=self.contact, direction="I", text="add 12067798080")
-        legacy.find_and_handle(msg)
-
-        FlowRun.objects.get(contact__urns__path="+12067798080")
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-
-
 class StackedExitsTest(FlowFileTest):
     def setUp(self):
         super().setUp()
@@ -7399,28 +6504,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Start!", msgs[0].text)
         self.assertEqual("Leaf!", msgs[1].text)
         self.assertEqual("End!", msgs[2].text)
-
-        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
-            "exited_on"
-        )
-        self.assertEqual(3, runs.count())
-        self.assertEqual("Stacker Leaf", runs[0].flow.name)
-        self.assertEqual("Stacker", runs[1].flow.name)
-        self.assertEqual("Stacked", runs[2].flow.name)
-
-    @uses_legacy_engine
-    def test_stacked_webhook_exits(self):
-        self.get_flow("stacked_webhook_exits")
-        flow = Flow.objects.get(name="Stacked")
-
-        legacy.flow_start(flow, [], [self.contact])
-
-        msgs = Msg.objects.filter(contact=self.contact).order_by("sent_on")
-        self.assertEqual(4, msgs.count())
-        self.assertEqual("Start!", msgs[0].text)
-        self.assertEqual("Leaf!", msgs[1].text)
-        self.assertEqual("Middle!", msgs[2].text)
-        self.assertEqual("End!", msgs[3].text)
 
         runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
             "exited_on"
@@ -7463,117 +6546,6 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker Leaf", runs[0].flow.name)
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
-
-
-class FlowChannelSelectionTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-        self.channel.delete()
-        self.sms_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "JN",
-            None,
-            "+250788123123",
-            schemes=["tel"],
-            uuid="00000000-0000-0000-0000-000000001111",
-            role=Channel.DEFAULT_ROLE,
-        )
-
-    def test_sms_channel_selection(self):
-        contact_urn = self.contact.get_urn(TEL_SCHEME)
-        channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
-        self.assertEqual(channel, self.sms_channel)
-
-
-class TypeTest(TembaTest):
-    @uses_legacy_engine
-    def test_value_types(self):
-
-        contact = self.create_contact("Joe", "+250788373373")
-        flow = self.get_flow("type_flow")
-
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
-
-        self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
-        self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
-        self.assertEqual(Value.TYPE_NUMBER, RuleSet.objects.get(label="Number").value_type)
-        self.assertEqual(Value.TYPE_STATE, RuleSet.objects.get(label="State").value_type)
-        self.assertEqual(Value.TYPE_DISTRICT, RuleSet.objects.get(label="District").value_type)
-        self.assertEqual(Value.TYPE_WARD, RuleSet.objects.get(label="Ward").value_type)
-
-        incoming = self.create_msg(direction=INCOMING, contact=contact, text="types")
-        legacy.flow_start(flow, groups=[], contacts=[contact], start_msg=incoming)
-
-        self.assertTrue(legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Some Text")))
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="not a date"))
-        )
-
-        results = FlowRun.objects.get().results
-
-        self.assertEqual("Text", results["text"]["name"])
-        self.assertEqual("Some Text", results["text"]["value"])
-        self.assertEqual("Some Text", results["text"]["input"])
-        self.assertEqual("All Responses", results["text"]["category"])
-
-        self.assertEqual("Date", results["date"]["name"])
-        self.assertEqual("not a date", results["date"]["value"])
-        self.assertEqual("not a date", results["date"]["input"])
-        self.assertEqual("Other", results["date"]["category"])
-
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="Born 23/06/1977"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="The number is 10"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(
-                self.create_msg(contact=contact, direction=INCOMING, text="I'm in Eastern Province")
-            )
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="That's in Gatsibo"))
-        )
-        self.assertTrue(
-            legacy.find_and_handle(self.create_msg(contact=contact, direction=INCOMING, text="ya ok that's Kageyo"))
-        )
-
-        results = FlowRun.objects.get().results
-
-        self.assertEqual("Text", results["text"]["name"])
-        self.assertEqual("Some Text", results["text"]["value"])
-        self.assertEqual("Some Text", results["text"]["input"])
-        self.assertEqual("All Responses", results["text"]["category"])
-
-        self.assertEqual("Date", results["date"]["name"])
-        self.assertTrue(results["date"]["value"].startswith("1977-06-23T"))
-        self.assertEqual("Born 23/06/1977", results["date"]["input"])
-        self.assertEqual("is a date", results["date"]["category"])
-
-        self.assertEqual("Number", results["number"]["name"])
-        self.assertEqual("10", results["number"]["value"])
-        self.assertEqual("The number is 10", results["number"]["input"])
-        self.assertEqual("numeric", results["number"]["category"])
-
-        self.assertEqual("State", results["state"]["name"])
-        self.assertEqual("Rwanda > Eastern Province", results["state"]["value"])
-        self.assertEqual("I'm in Eastern Province", results["state"]["input"])
-        self.assertEqual("state", results["state"]["category"])
-        self.assertNotIn("category_localized", results["state"])
-
-        self.assertEqual("District", results["district"]["name"])
-        self.assertEqual("Rwanda > Eastern Province > Gatsibo", results["district"]["value"])
-        self.assertEqual("That's in Gatsibo", results["district"]["input"])
-        self.assertEqual("district", results["district"]["category"])
-        self.assertEqual("le district", results["district"]["category_localized"])
-
-        self.assertEqual("Ward", results["ward"]["name"])
-        self.assertEqual("Rwanda > Eastern Province > Gatsibo > Kageyo", results["ward"]["value"])
-        self.assertEqual("ya ok that's Kageyo", results["ward"]["input"])
-        self.assertEqual("ward", results["ward"]["category"])
 
 
 class AssetServerTest(TembaTest):
