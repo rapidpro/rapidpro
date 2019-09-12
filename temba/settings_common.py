@@ -175,6 +175,8 @@ TEMPLATES = [
 if TESTING:
     TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
 
+FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
+
 MIDDLEWARE = (
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -212,6 +214,7 @@ INSTALLED_APPS = (
     "django.contrib.gis",
     "django.contrib.sitemaps",
     "django.contrib.postgres",
+    "django.forms",
     # Haml-like templates
     "hamlpy",
     # Redis cache

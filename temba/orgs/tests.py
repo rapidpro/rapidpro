@@ -3535,18 +3535,17 @@ class BulkExportTest(TembaTest):
         campaign = Campaign.objects.all().first()
         event = campaign.events.all().first()
 
-        action_set = event.flow.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        action_msg = actions[0]["msg"]
-
         self.assertEqual(event.message["swa"], "hello")
         self.assertEqual(event.message["eng"], "Hey")
 
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, "swa")
 
-        self.assertEqual(action_msg["swa"], "hello")
-        self.assertEqual(action_msg["eng"], "Hey")
+        flow_def = event.flow.as_json()
+        action = flow_def["nodes"][0]["actions"][0]
+
+        self.assertEqual(action["text"], "hello")
+        self.assertEqual(flow_def["localization"]["eng"][action["uuid"]]["text"], ["Hey"])
 
     def test_reimport(self):
         self.import_file("survey_campaign")
@@ -3819,15 +3818,7 @@ class BulkExportTest(TembaTest):
         message_flow = (
             Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
-        action_set = message_flow.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        self.assertEqual(
-            "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
-            actions[0]["msg"]["base"],
-        )
-        actions[0]["msg"] = "No reminders for you!"
-        action_set.actions = actions
-        action_set.save()
+        message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
         self.import_file("the_clinic")
@@ -3854,11 +3845,10 @@ class BulkExportTest(TembaTest):
             .order_by("id")
             .first()
         )
-        action_set = Flow.objects.get(id=message_flow.id).action_sets.order_by("-y").first()
-        actions = action_set.actions
+
         self.assertEqual(
+            message_flow.as_json()["nodes"][0]["actions"][0]["text"],
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
-            actions[0]["msg"]["base"],
         )
 
         # and we should have the same number of items as after the first import

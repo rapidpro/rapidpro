@@ -6,9 +6,8 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactURN
 from temba.flows.models import Flow, FlowException, FlowRevision, FlowRun
 from temba.msgs.models import INCOMING, Broadcast, Label, Msg
-from temba.tests import TembaTest, uses_legacy_engine
+from temba.tests import TembaTest
 
-from ..engine import flow_start
 from ..expressions import flow_context
 from .actions import (
     Action,
@@ -411,30 +410,14 @@ class ActionTest(TembaTest):
         self.assertEqual("kli", action.lang)
         self.assertEqual("Klingon", action.name)
 
-    @uses_legacy_engine
     def test_start_flow_action(self):
-        self.flow.name = "Parent"
-        self.flow.save()
-
-        flow_start(self.flow, [], [self.contact])
-
-        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
-
-        run = FlowRun.objects.get()
-
-        new_flow = Flow.create_single_message(
-            self.org, self.user, {"base": "You chose @parent.color.category"}, base_language="base"
-        )
-        action = StartFlowAction(str(uuid4()), new_flow)
+        flow = self.get_flow("favorites")
+        action = StartFlowAction(str(uuid4()), flow)
 
         action_json = action.as_json()
         action = StartFlowAction.from_json(self.org, action_json)
 
-        self.execute_action(action, run, sms, started_flows=[])
-
-        # our contact should now be in the flow
-        self.assertTrue(FlowRun.objects.filter(flow=new_flow, contact=self.contact))
-        self.assertTrue(Msg.objects.filter(contact=self.contact, direction="O", text="You chose Blue"))
+        self.assertEqual(flow, action.flow)
 
     def test_group_actions(self):
         group = self.create_group("Flow Group", [])

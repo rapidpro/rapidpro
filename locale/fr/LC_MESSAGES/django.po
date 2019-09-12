@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-29 19:11+0000\n"
+"POT-Creation-Date: 2019-09-12 00:02+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -143,6 +143,9 @@ msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
 msgstr ""
 
 msgid "Default"
@@ -3375,9 +3378,6 @@ msgstr ""
 msgid "Manage Contact Fields"
 msgstr "Gérer les champs de contact"
 
-msgid "featured"
-msgstr ""
-
 #, fuzzy
 #| msgid "Update Fields"
 msgid "Update"
@@ -4277,6 +4277,11 @@ msgstr ""
 
 msgid "Failed"
 msgstr "manqué"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr " Nom du Contact"
 
 msgid "Schedule Message"
 msgstr "Messages planning"
@@ -7900,6 +7905,9 @@ msgstr "Gérer les champs de contact"
 #| msgid "SMS Type"
 msgid "Types"
 msgstr "Type de SMS"
+
+msgid "Featured"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""

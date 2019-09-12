@@ -91,7 +91,13 @@ class Broadcast(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    TEMPLATE_STATE_LEGACY = "legacy"
+    TEMPLATE_STATE_EVALUATED = "evaluated"
+    TEMPLATE_STATE_UNEVALUATED = "unevaluated"
+    TEMPLATE_STATE_CHOICES = (TEMPLATE_STATE_LEGACY, TEMPLATE_STATE_EVALUATED, TEMPLATE_STATE_UNEVALUATED)
+
     METADATA_QUICK_REPLIES = "quick_replies"
+    METADATA_TEMPLATE_STATE = "template_state"
 
     org = models.ForeignKey(
         Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this broadcast is connected to")
@@ -209,6 +215,7 @@ class Broadcast(models.Model):
         media=None,
         send_all=False,
         quick_replies=None,
+        template_state=TEMPLATE_STATE_LEGACY,
         status=INITIALIZING,
         **kwargs,
     ):
@@ -235,7 +242,9 @@ class Broadcast(models.Model):
                         % base_language
                     )
 
-        metadata = dict(quick_replies=quick_replies) if quick_replies else {}
+        metadata = {Broadcast.METADATA_TEMPLATE_STATE: template_state}
+        if quick_replies:
+            metadata[Broadcast.METADATA_QUICK_REPLIES] = quick_replies
 
         broadcast = cls.objects.create(
             org=org,
@@ -382,6 +391,10 @@ class Broadcast(models.Model):
         preferred_languages.append(self.base_language)
 
         return preferred_languages
+
+    def get_template_state(self):
+        metadata = self.metadata or {}
+        return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_LEGACY)
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"
