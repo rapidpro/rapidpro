@@ -23,7 +23,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import INCOMING, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
@@ -774,8 +774,6 @@ class FlowTest(TembaTest):
         # each contact should have received a single message
         contact1_msg = self.contact.msgs.get()
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
-        self.assertEqual(contact1_msg.status, WIRED)
-        self.assertFalse(contact1_msg.high_priority)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -860,7 +858,6 @@ class FlowTest(TembaTest):
             "Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
         )
         self.assertEqual(reply.msg_type, "F")
-        self.assertTrue(reply.high_priority)  # should be high priority as this is a reply
 
         contact1_run.refresh_from_db()
         contact1_run_msgs = contact1_run.get_messages()
@@ -3332,106 +3329,6 @@ class FlowTest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["description"], "Your flow could not be saved. Please refresh your browser.")
 
-    @uses_legacy_engine
-    def test_flow_start_with_start_msg(self):
-        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
-        run, = legacy.flow_start(self.flow, [], [self.contact], start_msg=msg_in)
-
-        msg_in.refresh_from_db()
-        msg_out = Msg.objects.get(direction="O")
-
-        # both msgs should be of type FLOW
-        self.assertEqual(msg_in.msg_type, "F")
-        self.assertEqual(msg_out.msg_type, "F")
-
-        run_msgs = run.get_messages().order_by("created_on")
-        self.assertEqual(list(run_msgs), [msg_in, msg_out])
-
-        self.assertEqual(len(run.path), 2)
-
-    @uses_legacy_engine
-    def test_quick_replies(self):
-        flow = self.get_flow("quick_replies")
-        run, = legacy.flow_start(flow, [], [self.contact4])
-
-        # contact language is Portugese but this isn't an org language so we should use English
-        msg = Msg.objects.filter(direction="O").last()
-        self.assertEqual(msg.metadata, {"quick_replies": ["Yes", "No"]})
-
-        # add Portugese as an org language and try again
-        self.org.set_languages(self.admin, ["eng", "por"], "eng")
-        run, = legacy.flow_start(flow, [], [self.contact4], restart_participants=True)
-
-        msg = Msg.objects.filter(direction="O").last()
-        self.assertEqual(msg.metadata, {"quick_replies": ["Sim", "No"]})
-
-    @uses_legacy_engine
-    def test_multiple(self):
-        run1, = legacy.flow_start(self.flow, [], [self.contact])
-
-        # create a second flow and start our same contact
-        self.flow2 = self.flow.copy(self.flow, self.flow.created_by)
-        run2, = legacy.flow_start(self.flow2, [], [self.contact])
-
-        run1.refresh_from_db()
-        run2.refresh_from_db()
-
-        # only the second run should be active
-        self.assertFalse(run1.is_active)
-        self.assertEqual(len(run1.path), 2)
-
-        self.assertTrue(run2.is_active)
-        self.assertEqual(len(run2.path), 2)
-
-        # send in a message
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange", created_on=timezone.now())
-        self.assertTrue(legacy.find_and_handle(incoming)[0])
-
-        run1.refresh_from_db()
-        run2.refresh_from_db()
-
-        # only the second flow should get it
-        self.assertEqual(len(run1.path), 2)
-        self.assertEqual(len(run2.path), 3)
-
-        # start the flow again for our contact
-        run3, = legacy.flow_start(self.flow, [], [self.contact], restart_participants=True)
-
-        run1.refresh_from_db()
-        run3.refresh_from_db()
-
-        # should have two flow runs for this contact and flow
-        self.assertFalse(run1.is_active)
-        self.assertTrue(run3.is_active)
-
-        self.assertEqual(len(run1.path), 2)
-        self.assertEqual(len(run3.path), 2)
-
-        # send in a message, this should be handled by our first flow, which has a more recent run active
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
-        self.assertTrue(legacy.find_and_handle(incoming)[0])
-
-        run1.refresh_from_db()
-        run3.refresh_from_db()
-
-        self.assertEqual(len(run1.path), 2)
-        self.assertEqual(len(run3.path), 3)
-
-        # if we exclude existing and try starting again, nothing happens
-        legacy.flow_start(self.flow, [], [self.contact], restart_participants=False)
-
-        # no new runs
-        self.assertEqual(self.flow.runs.count(), 2)
-
-        # check our run results
-        results = self.flow.runs.order_by("-id").first().results
-
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results["color"]["name"], "color")
-        self.assertEqual(results["color"]["category"], "Blue")
-        self.assertEqual(results["color"]["value"], "blue")
-        self.assertEqual(results["color"]["input"], incoming.text)
-
 
 class FlowCRUDLTest(TembaTest):
     def test_broadcast(self):
@@ -4051,51 +3948,6 @@ class FlowsTest(FlowFileTest):
             ],
         )
 
-    @uses_legacy_engine
-    def test_terminal_nodes(self):
-        flow = self.get_flow("terminal_nodes")
-        action_set1, action_set2 = flow.action_sets.order_by("y")
-        rule_set1, rule_set2 = flow.rule_sets.order_by("y")
-        ben_rule = rule_set2.rules[0]
-
-        run, = legacy.flow_start(flow, [], [self.contact])
-
-        # answer with A to first ruleset which is Action (A) or Ruleset (R)
-        Msg.create_incoming(self.channel, "tel:+12065552020", "A")
-        run.refresh_from_db()
-
-        self.assertIsNotNone(run.exited_on)
-        self.assertEqual(run.exit_type, "C")
-        self.assertEqual(run.path[2]["exit_uuid"], str(action_set2.exit_uuid))
-
-        run, = legacy.flow_start(flow, [], [self.contact], restart_participants=True)
-
-        # this time choose to end on a non-waiting ruleset
-        Msg.create_incoming(self.channel, "tel:+12065552020", "R")
-        run.refresh_from_db()
-
-        self.assertIsNotNone(run.exited_on)
-        self.assertEqual(run.exit_type, "C")
-        self.assertEqual(run.path[2]["exit_uuid"], str(ben_rule["uuid"]))
-
-    @uses_legacy_engine
-    def test_resuming_run_with_old_uuidless_message(self):
-        favorites = self.get_flow("favorites")
-        run, = legacy.flow_start(favorites, [], [self.contact])
-
-        Msg.create_incoming(self.channel, "tel:+12065552020", "I like red")
-
-        # old messages don't have UUIDs so their events on the run also won't
-        run.refresh_from_db()
-        del run.events[1]["msg"]["uuid"]
-        run.save(update_fields=("events",))
-
-        Msg.create_incoming(self.channel, "tel:+12065552020", "primus")
-        Msg.create_incoming(self.channel, "tel:+12065552020", "Ben")
-
-        run.refresh_from_db()
-        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-
     def test_validate_legacy_definition(self):
 
         with self.assertRaises(ValueError):
@@ -4114,70 +3966,6 @@ class FlowsTest(FlowFileTest):
 
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
-
-    @uses_legacy_engine
-    def test_send_msg_to_urnless(self):
-        flow = self.get_flow("send_msg_to_urnless")
-        legacy.flow_start(flow, [], [self.contact])
-
-        # check we create the contact
-        self.assertIsNotNone(Contact.objects.get(name="Bob"))
-
-        # even tho we can't send them the message until they get some URNs
-        self.assertEqual(Msg.objects.count(), 0)
-
-    @uses_legacy_engine
-    def test_sms_forms(self):
-        flow = self.get_flow("sms_form")
-
-        def assert_response(message, response):
-            self.assertEqual(response, self.send_message(flow, message, restart_participants=True))
-
-        # invalid age
-        assert_response("101 M Seattle", "Sorry, 101 doesn't look like a valid age, please try again.")
-
-        # invalid gender
-        assert_response("36 elephant Seattle", "Sorry, elephant doesn't look like a valid gender. Try again.")
-
-        # invalid location
-        assert_response("36 M Saturn", "I don't know the location Saturn. Please try again.")
-
-        # some missing fields
-        assert_response("36", "Sorry,  doesn't look like a valid gender. Try again.")
-        assert_response("36 M", "I don't know the location . Please try again.")
-        assert_response("36 M pequeño", "I don't know the location pequeño. Please try again.")
-
-        # valid entry
-        assert_response("36 M Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
-
-        # valid entry with extra spaces
-        assert_response("36   M  Seattle", "Thanks for your submission. We have that as:\n\n36 / M / Seattle")
-
-        for delimiter in ["+", "."]:
-            # now let's switch to pluses and make sure they do the right thing
-            for ruleset in flow.rule_sets.filter(ruleset_type="form_field"):
-                config = ruleset.config
-                config["field_delimiter"] = delimiter
-                ruleset.config = config
-                ruleset.save()
-
-            ctx = dict(delim=delimiter)
-
-            assert_response(
-                "101%(delim)sM%(delim)sSeattle" % ctx, "Sorry, 101 doesn't look like a valid age, please try again."
-            )
-            assert_response(
-                "36%(delim)selephant%(delim)sSeattle" % ctx,
-                "Sorry, elephant doesn't look like a valid gender. Try again.",
-            )
-            assert_response("36%(delim)sM%(delim)sSaturn" % ctx, "I don't know the location Saturn. Please try again.")
-            assert_response(
-                "36%(delim)sM%(delim)sSeattle" % ctx,
-                "Thanks for your submission. We have that as:\n\n36 / M / Seattle",
-            )
-            assert_response(
-                "15%(delim)sM%(delim)spequeño" % ctx, "I don't know the location pequeño. Please try again."
-            )
 
     @skip_if_no_mailroom
     def test_create_dependencies(self):
@@ -4703,43 +4491,6 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
 
         self.assertEqual(response.status_code, 404)
-
-    @uses_legacy_engine
-    def test_send_all_replies(self):
-        flow = self.get_flow("send_all")
-
-        contact = self.create_contact("Stephen", "+12078778899", twitter="stephen")
-        legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=True)
-
-        replies = Msg.objects.filter(contact=contact, direction="O")
-        self.assertEqual(replies.count(), 1)
-        self.assertIsNone(replies.filter(contact_urn__path="stephen").first())
-        self.assertIsNotNone(replies.filter(contact_urn__path="+12078778899").first())
-
-        Broadcast.objects.all().delete()
-        Msg.objects.all().delete()
-
-        # create twitter channel
-        Channel.create(self.org, self.user, None, "TT")
-        flow.org.clear_cached_schemes()
-
-        legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=True)
-
-        replies = Msg.objects.filter(contact=contact, direction="O")
-        self.assertEqual(replies.count(), 2)
-        self.assertIsNotNone(replies.filter(contact_urn__path="stephen").first())
-        self.assertIsNotNone(replies.filter(contact_urn__path="+12078778899").first())
-
-        Broadcast.objects.all().delete()
-        Msg.objects.all().delete()
-
-        flow = self.get_flow("two_to_all")
-        legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=True)
-
-        replies = Msg.objects.filter(contact=contact, direction="O")
-        self.assertEqual(replies.count(), 4)
-        self.assertEqual(replies.filter(contact_urn__path="stephen").count(), 2)
-        self.assertEqual(replies.filter(contact_urn__path="+12078778899").count(), 2)
 
     @uses_legacy_engine
     def test_recent_messages(self):
@@ -5538,22 +5289,6 @@ class FlowsTest(FlowFileTest):
 
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
-
-    @uses_legacy_engine
-    def test_group_rule_first(self):
-        rule_flow = self.get_flow("group_rule_first")
-
-        # start our contact down it
-        legacy.flow_start(rule_flow, [], [self.contact], restart_participants=True)
-
-        # contact should get a message that they didn't match either group
-        self.assertLastResponse("You are something else.")
-
-        # add them to the father's group
-        self.create_group("Fathers", [self.contact])
-
-        legacy.flow_start(rule_flow, [], [self.contact], restart_participants=True)
-        self.assertLastResponse("You are a father.")
 
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")

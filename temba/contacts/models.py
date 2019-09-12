@@ -2237,7 +2237,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         response_to=None,
         expressions_context=None,
         connection=None,
-        quick_replies=None,
         attachments=None,
         msg_type=None,
         sent_on=None,
@@ -2267,7 +2266,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     attachments=attachments,
                     msg_type=msg_type or INBOX,
                     status=status,
-                    quick_replies=quick_replies,
                     sent_on=sent_on,
                     high_priority=high_priority,
                 )

@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import SENT, Msg
 from temba.orgs.models import Language
 from temba.values.constants import Value
 
@@ -142,7 +143,7 @@ def flow_start(
 
 
 def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
-    from temba.msgs.models import FAILED, OUTGOING, PENDING, Msg
+    from temba.msgs.models import FAILED, OUTGOING, Msg
     from temba.flows.models import Flow, FlowRun, ActionSet, RuleSet
 
     if parent_run:
@@ -211,8 +212,6 @@ def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, 
         if entry_rules:
             entry_rules.flow = flow
 
-    msgs_to_send = []
-
     for run in runs:
         contact = run.contact
         run_msgs = [start_msg] if start_msg else []
@@ -260,11 +259,6 @@ def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, 
             # set the msgs that were sent by this run so that any caller can deal with them
             run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
 
-            # add these messages as ones that are ready to send
-            for msg in run_msgs:
-                if msg.direction == OUTGOING:
-                    msgs_to_send.append(msg)
-
         except Exception:
             # mark this flow as interrupted
             _set_run_interrupted(run)
@@ -274,15 +268,6 @@ def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, 
 
             # remove our msgs from our parent's concerns
             run.start_msgs = []
-
-    # trigger our messages to be sent
-    if msgs_to_send and not parent_run:
-        # then send them off
-        msgs_to_send.sort(key=lambda message: (message.contact_id, message.created_on))
-        Msg.objects.filter(id__in=[m.id for m in msgs_to_send]).update(status=PENDING)
-
-        # trigger a sync
-        flow.org.trigger_send(msgs_to_send)
 
     return runs
 
@@ -477,7 +462,23 @@ def _execute_actions(actionset, run, msg):
 
     for a, action in enumerate(actions):
         if isinstance(action, ReplyAction):
-            msgs += _execute_reply_action(action, run, context, msg)
+            from temba.flows.models import get_flow_user
+
+            user = get_flow_user(run.org)
+            text = get_localized_text(run.flow, action.msg, run.contact)
+
+            msg = Msg.create_outgoing(
+                run.org,
+                user,
+                run.contact,
+                text,
+                response_to=msg if msg and msg.id else None,
+                expressions_context=context,
+                msg_type=action.MSG_TYPE,
+                status=SENT,
+                sent_on=timezone.now(),
+            )
+            msgs.append(msg)
 
         # if there are more actions, rebuild the parts of the context that may have changed
         if a < len(actions) - 1:
@@ -697,12 +698,7 @@ def _continue_parent_run(run, trigger_send=True, continue_parent=True):
 
     # finally, trigger our parent flow
     (handled, msgs) = find_and_handle(
-        msg,
-        user_input=False,
-        started_flows=[run.flow, run.parent.flow],
-        resume_parent_run=True,
-        trigger_send=trigger_send,
-        continue_parent=continue_parent,
+        msg, user_input=False, resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent
     )
 
     return msgs
@@ -932,74 +928,6 @@ def _get_active_runs_for_contact(contact):
     runs = runs.filter(flow__is_archived=False)
 
     return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
-
-
-def _execute_reply_action(action, run, context, msg):
-    from temba.flows.models import get_flow_user
-
-    def get_translated_quick_replies(metadata, run):
-        """
-        Gets the appropriate metadata translation for the given contact
-        """
-        language_metadata = []
-        for item in metadata:
-            text = get_localized_text(run.flow, text_translations=item, contact=run.contact)
-            language_metadata.append(text)
-
-        return language_metadata
-
-    replies = []
-
-    if action.msg or action.media:
-        user = get_flow_user(run.org)
-
-        text = ""
-        if action.msg:
-            text = get_localized_text(run.flow, action.msg, run.contact)
-
-        quick_replies = []
-        if action.quick_replies:
-            quick_replies = get_translated_quick_replies(action.quick_replies, run)
-
-        attachments = None
-        if action.media:
-            # localize our media attachment
-            media_type, media_url = get_localized_text(run.flow, action.media, run.contact).split(":", 1)
-
-            # if we have a localized media, create the url
-            if media_url and len(media_type.split("/")) > 1:
-                abs_url = f"{settings.STORAGE_URL}/{media_url}"
-                attachments = [f"{media_type}:{abs_url}"]
-            else:
-                attachments = [f"{media_type}:{media_url}"]
-
-        if msg and msg.id:
-            replies = msg.reply(
-                text,
-                user,
-                trigger_send=False,
-                expressions_context=context,
-                connection=run.connection,
-                msg_type=action.MSG_TYPE,
-                quick_replies=quick_replies,
-                attachments=attachments,
-                send_all=action.send_all,
-                sent_on=None,
-            )
-        else:
-            replies = run.contact.send(
-                text,
-                user,
-                trigger_send=False,
-                expressions_context=context,
-                connection=run.connection,
-                msg_type=action.MSG_TYPE,
-                attachments=attachments,
-                quick_replies=quick_replies,
-                sent_on=None,
-                all_urns=action.send_all,
-            )
-    return replies
 
 
 def get_localized_text(flow, text_translations, contact=None):

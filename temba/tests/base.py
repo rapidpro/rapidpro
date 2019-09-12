@@ -8,7 +8,6 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
-from future.moves.html.parser import HTMLParser
 from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
@@ -738,18 +737,6 @@ class FlowFileTest(TembaTest):
             self.assertFalse(replies)
 
         return None
-
-
-class MLStripper(HTMLParser):  # pragma: no cover
-    def __init__(self):
-        self.reset()
-        self.fed = []
-
-    def handle_data(self, d):
-        self.fed.append(d)
-
-    def get_data(self):
-        return "".join(self.fed)
 
 
 class MockResponse(object):

@@ -858,35 +858,6 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(
-        self,
-        text,
-        user,
-        trigger_send=False,
-        expressions_context=None,
-        connection=None,
-        attachments=None,
-        msg_type=None,
-        send_all=False,
-        sent_on=None,
-        quick_replies=None,
-    ):
-
-        return self.contact.send(
-            text,
-            user,
-            trigger_send=trigger_send,
-            expressions_context=expressions_context,
-            response_to=self if self.id else None,
-            connection=connection,
-            attachments=attachments,
-            msg_type=msg_type or self.msg_type,
-            sent_on=sent_on,
-            all_urns=send_all,
-            high_priority=True,
-            quick_replies=quick_replies,
-        )
-
     def update(self, cmd):
         """
         Updates our message according to the provided client command
