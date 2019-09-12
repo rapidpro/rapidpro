@@ -1,5 +1,4 @@
-import { customElement, property } from 'lit-element/lib/decorators';
-import { LitElement, TemplateResult, html, css } from 'lit-element';
+import { LitElement, TemplateResult, html, css, customElement, property } from 'lit-element';
 import { getClasses } from '../utils';
 
 @customElement("rp-button")

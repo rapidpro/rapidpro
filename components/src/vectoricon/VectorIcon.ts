@@ -1,5 +1,4 @@
-import { customElement, property } from 'lit-element/lib/decorators';
-import { LitElement, TemplateResult, html, css } from 'lit-element';
+import { customElement, property, LitElement, TemplateResult, html, css } from 'lit-element';
 
 
 @customElement("rp-icon")

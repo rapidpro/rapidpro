@@ -522,12 +522,12 @@ class TriggerTest(TembaTest):
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
         flow_def = flow.as_json()
 
-        self.assertEqual(len(flow_def["action_sets"]), 1)
-        self.assertEqual(len(flow_def["action_sets"][0]["actions"]), 4)
-        self.assertEqual(flow_def["action_sets"][0]["actions"][0]["type"], "add_group")
-        self.assertEqual(flow_def["action_sets"][0]["actions"][1]["type"], "save")
-        self.assertEqual(flow_def["action_sets"][0]["actions"][2]["type"], "reply")
-        self.assertEqual(flow_def["action_sets"][0]["actions"][3]["type"], "flow")
+        self.assertEqual(len(flow_def["nodes"]), 1)
+        self.assertEqual(len(flow_def["nodes"][0]["actions"]), 4)
+        self.assertEqual(flow_def["nodes"][0]["actions"][0]["type"], "add_contact_groups")
+        self.assertEqual(flow_def["nodes"][0]["actions"][1]["type"], "set_contact_name")
+        self.assertEqual(flow_def["nodes"][0]["actions"][2]["type"], "send_msg")
+        self.assertEqual(flow_def["nodes"][0]["actions"][3]["type"], "enter_flow")
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)
@@ -591,10 +591,10 @@ class TriggerTest(TembaTest):
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
         flow_def = flow.as_json()
 
-        self.assertEqual(len(flow_def["action_sets"]), 1)
-        self.assertEqual(len(flow_def["action_sets"][0]["actions"]), 2)
-        self.assertEqual(flow_def["action_sets"][0]["actions"][0]["type"], "add_group")
-        self.assertEqual(flow_def["action_sets"][0]["actions"][1]["type"], "save")
+        self.assertEqual(len(flow_def["nodes"]), 1)
+        self.assertEqual(len(flow_def["nodes"][0]["actions"]), 2)
+        self.assertEqual(flow_def["nodes"][0]["actions"][0]["type"], "add_contact_groups")
+        self.assertEqual(flow_def["nodes"][0]["actions"][1]["type"], "set_contact_name")
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword="join", flow=flow)

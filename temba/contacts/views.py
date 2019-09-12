@@ -30,7 +30,6 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -1727,10 +1726,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     default_order = ("label",)
 
     success_url = "@contacts.contactfield_list"
-
     link_fields = ()
-
-    add_button = True
     paginate_by = 10000
 
     template_name = "contacts/contactfield_list.haml"
@@ -1782,22 +1778,6 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
         context.update(self._get_static_context_data(**kwargs))
 
         return context
-
-    # smartmin field value getter
-    def get_value_type(self, obj):
-        return obj.get_value_type_display()
-
-    # smartmin field value getter
-    def get_key(self, obj):
-        return f"@contact.{obj.key}"
-
-    # smartmin field value getter
-    def get_show_in_table(self, obj):
-        if obj.show_in_table:
-            featured_label = _("featured")
-            return mark_safe(f'<span class="label label-info">{featured_label}</span>')
-        else:
-            return ""
 
 
 class ContactFieldCRUDL(SmartCRUDL):

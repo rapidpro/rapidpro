@@ -22,6 +22,7 @@ from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json, on_transaction_commit
+from temba.utils.fields import CompletionTextarea
 from temba.utils.views import BaseActionForm
 
 from .models import Trigger
@@ -196,7 +197,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     response = forms.CharField(
-        widget=forms.Textarea(attrs=dict(rows=3)),
+        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
         required=False,
         label=_("Response"),
         help_text=_("The message to send in response after they join the group (optional)"),

@@ -1,16 +1,10 @@
-import './../LeafletMap/LeafletMap';
-import './../Dialog/Dialog';
-import './../Choice/Choice';
-import './../Label/Label';
-import '../VectorIcon/VectorIcon';
-
 import { AxiosResponse } from 'axios';
 import { css, customElement, html, LitElement, property, TemplateResult } from 'lit-element';
-
 import { FeatureProperties } from '../interfaces';
 import { getUrl, postUrl } from '../utils';
-import Button from '../Button/Button';
 import autosize from 'autosize';
+import Button from '../button/Button';
+import TextInput from '../textinput/TextInput';
 
 
 @customElement("alias-editor")
@@ -23,18 +17,8 @@ export default class AliasEditor extends LitElement {
         line-height: normal;
       }
 
-      textarea {
-        border-radius: 5px;
-        border-color: var(--color-borders);
-        padding: 10px;
-        color: var(--color-text);
-        font-size: 14px;
-        resize: none;
-      }
-
-      textarea:focus {
-        box-shadow: none;
-        outline: none;
+      rp-textinput {
+        height: 150px;
       }
 
       #left-column {
@@ -150,7 +134,7 @@ export default class AliasEditor extends LitElement {
    `;
   }
 
-  @property({type: Array})
+  @property({type: Array, attribute: false})
   path: FeatureProperties[] = [];
 
   @property()
@@ -216,8 +200,8 @@ export default class AliasEditor extends LitElement {
   }
 
   private handleSearchSelection(evt: CustomEvent) {
-    const selection = evt.detail as FeatureProperties[];
-    this.showAliasDialog(selection[0]);
+    const selection = evt.detail.selected as FeatureProperties;
+    this.showAliasDialog(selection);
   }
 
   private renderFeature(feature: FeatureProperties, remainingPath: FeatureProperties[]): TemplateResult {
@@ -289,7 +273,6 @@ export default class AliasEditor extends LitElement {
       aliasDialog.removeAttribute("open");
     }
 
-    this.editFeature = null;
     this.requestUpdate();
   }
 
@@ -297,11 +280,12 @@ export default class AliasEditor extends LitElement {
     return this.endpoint + (!this.endpoint.endsWith('/') ? '/' : '');
   }
 
-  private handleDialogClick(button: Button) {
+  private handleDialogClick(evt: CustomEvent) {
+    const button = evt.detail.button;
     if (button.name === "Save") {
       button.setProgress(true);
-      const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as HTMLTextAreaElement;
-      const aliases = textarea.value;
+      const textarea = this.shadowRoot.getElementById(this.editFeature.osm_id) as TextInput;
+      const aliases = textarea.inputElement.value;
       const payload = { "osm_id":  this.editFeature.osm_id, aliases };
       postUrl(this.getEndpoint() + "boundaries/" +  this.editFeature.osm_id + "/", payload).then((response: AxiosResponse) => {
         this.fetchFeature();
@@ -309,7 +293,6 @@ export default class AliasEditor extends LitElement {
     }
 
     if(button.name === "Cancel") {
-      this.editFeature = null;
       this.hideAliasDialog();
     }
   }
@@ -344,14 +327,13 @@ export default class AliasEditor extends LitElement {
     return html`
       <div id="left-column">
         <div class="search">
-          <rp-choice 
+          <rp-select 
             placeholder="Search" 
             endpoint="${this.getEndpoint()}boundaries/${this.path[0].osm_id}/?q="
-            @rp-choice-selected=${this.handleSearchSelection.bind(this)}
             .renderOptionDetail=${this.renderOptionDetail}
-          ></rp-choice>
-        </div>
-
+            @rp-selection=${this.handleSearchSelection.bind(this)}
+          ></rp-select>
+      </div>
         <div class="feature-tree">
           ${this.renderFeature(this.path[0], this.path.slice(1))}
         </div>
@@ -369,11 +351,11 @@ export default class AliasEditor extends LitElement {
 
       <rp-dialog id="alias-dialog" 
         title="Aliases for ${editFeatureName}" 
-        primaryButtonName="Save" 
-        .onButtonClicked=${this.handleDialogClick.bind(this)}>
+        primaryButtonName="Save"
+        @rp-button-clicked=${this.handleDialogClick.bind(this)}>
 
         <div class="selected">
-          <textarea id="${editFeatureId}" .value=${editFeatureAliases}></textarea>
+          <rp-textinput name="aliases" id=${editFeatureId} .value=${editFeatureAliases} textarea></rp-textinput>
           <div class="help">
             Enter other aliases for ${editFeatureName}, one per line
           </div>
