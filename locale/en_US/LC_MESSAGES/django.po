@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-10 20:16+0000\n"
+"POT-Creation-Date: 2019-09-12 00:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2349,9 +2349,6 @@ msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX
 msgstr ""
 
 msgid "Manage Contact Fields"
-msgstr ""
-
-msgid "featured"
 msgstr ""
 
 msgid "Update"
@@ -5898,6 +5895,9 @@ msgid "Contact Fields"
 msgstr ""
 
 msgid "Types"
+msgstr ""
+
+msgid "Featured"
 msgstr ""
 
 #, python-format
