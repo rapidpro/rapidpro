@@ -49,6 +49,10 @@ class MailroomClientTest(TembaTest):
             {"endpoint": "flow/migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
         )
 
+    def test_empty_expression(self):
+        # empty is as empty does
+        self.assertEqual("", get_client().expression_migrate(""))
+
 
 class MailroomQueueTest(TembaTest):
     def setUp(self):

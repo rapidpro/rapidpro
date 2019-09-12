@@ -488,7 +488,10 @@ class MsgTest(TembaTest):
         )
 
         # check metadata was set on the broadcast
-        self.assertEqual(broadcast.metadata, {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}]})
+        self.assertEqual(
+            broadcast.metadata,
+            {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
+        )
 
         broadcast.send()
         msg1, msg2, msg3 = broadcast.msgs.order_by("contact", "id")

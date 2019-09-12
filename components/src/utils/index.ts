@@ -1,6 +1,15 @@
 import axios, { AxiosResponse, CancelToken, AxiosRequestConfig } from 'axios';
 import { html, TemplateResult } from 'lit-html';
 
+export interface Asset {
+    key?: string;
+}
+
+interface AssetPage {
+    assets: Asset[];
+    next: string;
+}
+
 /** Get the value for a named cookie */
 export const getCookie = (name: string): string => {
     for (const cookie of document.cookie.split(';')) {
@@ -36,6 +45,34 @@ export const getClasses = (map: ClassMap): string => {
         result = ' ' + result;
     }
     return result;
+};
+
+export const getAssetPage = (url: string): Promise<AssetPage> => {
+    return new Promise<AssetPage>((resolve, reject) => {
+        getUrl(url)
+            .then((response: AxiosResponse) => {
+                resolve({
+                    assets: response.data.results,
+                    next: response.data.next
+                });
+            })
+            .catch(error => reject(error));
+    });
+};
+
+export const getAssets = async (url: string): Promise<Asset[]> => {
+    if (!url) {
+        return new Promise<Asset[]>((resolve, reject) => resolve([]));
+    }
+
+    let assets: Asset[] = [];
+    let pageUrl = url;
+    while (pageUrl) {
+        const assetPage = await getAssetPage(pageUrl);
+        assets = assets.concat(assetPage.assets);
+        pageUrl = assetPage.next;
+    }
+    return assets;
 };
 
 export const getUrl = (
@@ -75,4 +112,28 @@ export const hexToRgb = (hex: string): { r: number, g: number, b: number } => {
               b: parseInt(result[3], 16)
           }
         : null;
+};
+
+export const getElementOffset = (
+    ele: HTMLElement
+): {
+    top: number,
+    left: number,
+    bottom: number,
+    right: number,
+    width: number,
+    height: number
+} => {
+    const rect = ele.getBoundingClientRect();
+    const scrollLeft =
+        window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    return {
+        top: rect.top + scrollTop,
+        left: rect.left + scrollLeft,
+        bottom: rect.top + rect.height,
+        right: rect.left + rect.width,
+        width: rect.width,
+        height: rect.height
+    };
 };

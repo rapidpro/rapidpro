@@ -16,7 +16,15 @@
         font-size: 13px;
         font-weight: 200;
         
-        --curvature: 5px;
+        /* 
+          --curvature: 5px; 
+          --color-widget-bg: rgba(0, 0, 0, 0.04);
+          --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
+          --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
+          --color-widget-border: transparent;
+        */
+
+        --curvature: 0px;
 
         /* primary colors, should be dark */
         --primary-rgb: 35, 135, 202;
@@ -26,9 +34,11 @@
 
         /* page text, borders, widgets */
         --color-text: #666;
-        --color-borders: #ccc;
-        --color-widget-bg: #f2f6fa;
-        --color-widget-hover: #e8ebef;
+        --color-borders: rgba(0,0,0,.07);
+        --color-widget-bg: #fff;
+        --color-widget-bg-focused: #fff;
+        --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
+        --color-widget-border: rgb(204,204,204);
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -41,6 +51,8 @@
         /* light text goes over dark, dark over lights */
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
+
+        --color-selection: #3875d7;
 
         /* solid overlays with text */
         --color-overlay-dark: rgba(0,0,0,.2);
@@ -66,11 +78,65 @@
       }
     </style>
 
-
     <alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
     ></alias-editor>
+
+    <!-- rp-select 
+      placeholder="Search" 
+      endpoint="/adminboundary/boundaries/192787/?q="
+    ></rp-select -->
+
+    <!--
+    <div style="width: 30%">
+      <rp-completion 
+        placeholder="This is a placeholder"
+        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+        fieldsEndpoint="http://localhost:8888/api/v2/fields.json">
+      </rp-completion>
+    </div>
+    <div style="width: 100%">
+      <rp-completion 
+        placeholder="This is a placeholder"
+        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+        fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
+        textarea
+      >
+      </rp-completion>
+    </div>
+    -->
+
+    <rp-button name="Open Dialog" primary onClick="javascript:showDialog();"></rp-button>
+
+    <rp-dialog id="dialog-sample"
+      title="This is a sample dialog" 
+      primaryButtonName="Give Up"
+    >
+      <div style="position:relative">
+        <div style=" padding:20px; max-height: 150px; overflow-y: scroll;">
+          <rp-completion 
+            completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
+            functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
+            fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
+            textarea>
+          </rp-completion>
+        </div>
+      </div>
+    </rp-dialog>
+
+    <script>
+      function showDialog() {
+        document.querySelector("#dialog-sample").setAttribute("open", true);
+      }
+
+      document.querySelector("#dialog-sample").addEventListener("rp-button-clicked", (evt)=>{        
+        // var button = evt.detail.button;
+        evt.target.removeAttribute("open");
+      });
+    </script>
 
     
     
