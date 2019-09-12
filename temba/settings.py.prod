@@ -38,8 +38,9 @@ brand_info = env.dict("BRANDING_INFO", default={
     "credits": "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.",
 })
 
+DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.io")
 BRANDING = {
-    "rapidpro.io": {
+    DEFAULT_BRAND: {
         "slug": brand_info.get("slug"),
         "name": brand_info.get("name"),
         "org": brand_info.get("org"),
@@ -64,7 +65,6 @@ BRANDING = {
         "credits": _(brand_info.get("credits")),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
 HOSTNAME = DEFAULT_BRAND
 
 # EMAIL
