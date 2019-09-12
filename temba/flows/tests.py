@@ -35,6 +35,7 @@ from temba.tests import (
     skip_if_no_mailroom,
     uses_legacy_engine,
 )
+from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -5062,7 +5063,6 @@ class FlowsTest(FlowFileTest):
         ruleset = RuleSet.objects.get(uuid=start.destination)
         self.assertEqual(Flow.NODE_TYPE_RULESET, ruleset.get_rules()[0].destination_type)
 
-    @uses_legacy_engine
     def test_server_runtime_cycle(self):
         flow = self.get_flow("loop_detection")
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
@@ -5082,46 +5082,6 @@ class FlowsTest(FlowFileTest):
         # our non-blocking rule to an action and back to us again
         with self.assertRaises(FlowException):
             self.update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
-
-        # add our contact to Group A
-        group_a = ContactGroup.user_groups.create(
-            org=self.org, name="Group A", created_by=self.admin, modified_by=self.admin
-        )
-        group_a.contacts.add(self.contact)
-
-        # rule turning back on ourselves
-        self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
-        self.send_message(flow, "1", assert_reply=False, assert_handle=False)
-
-        # should have an interrupted run
-        self.assertEqual(
-            1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
-        )
-
-        flow.release()
-
-        # non-blocking rule to non-blocking rule and back
-        flow = self.get_flow("loop_detection")
-
-        # need to get these again as we just reimported and UUIDs have changed
-        group_ruleset = RuleSet.objects.get(flow=flow, label="Group Split A")
-        name_ruleset = RuleSet.objects.get(flow=flow, label="Name Split")
-        rowan_rule = name_ruleset.get_rules()[0]
-
-        # update our name to rowan so we match the name rule
-        self.contact.name = "Rowan"
-        self.contact.save(update_fields=("name",), handle_update=False)
-
-        # but remove ourselves from the group so we enter the loop
-        group_a.contacts.remove(self.contact)
-
-        self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rule=rowan_rule.uuid)
-        self.send_message(flow, "2", assert_reply=False, assert_handle=False)
-
-        # should have an interrupted run
-        self.assertEqual(
-            2, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
-        )
 
     def test_group_dependencies(self):
         self.get_flow("dependencies")
@@ -5445,63 +5405,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(0, parent.group_dependencies.all().count())
 
     @uses_legacy_engine
-    def test_cross_language_import(self):
-        spanish = Language.create(self.org, self.admin, "Spanish", "spa")
-        Language.create(self.org, self.admin, "English", "eng")
-
-        # import our localized flow into an org with no languages
-        self.import_file("multi_language_flow")
-        flow = Flow.objects.get(name="Multi Language Flow")
-
-        # even tho we don't have a language, our flow has enough info to function
-        self.assertEqual("eng", flow.base_language)
-
-        # now try executing this flow on our org, should use the flow base language
-        self.assertEqual(
-            "Hello friend! What is your favorite color?",
-            self.send_message(flow, "start flow", restart_participants=True, initiate_flow=True),
-        )
-
-        replies = self.send_message(flow, "blue")
-        self.assertEqual("Thank you! I like blue.", replies[0])
-        self.assertEqual("This message was not translated.", replies[1])
-
-        # now add a primary language to our org
-        self.org.primary_language = spanish
-        self.org.save()
-
-        flow = Flow.objects.get(pk=flow.pk)
-
-        # with our org in spanish, we should get the spanish version
-        self.assertEqual(
-            "\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?",
-            self.send_message(flow, "start flow", restart_participants=True, initiate_flow=True),
-        )
-
-        self.org.primary_language = None
-        self.org.save()
-        flow = Flow.objects.get(pk=flow.pk)
-
-        # no longer spanish on our org
-        self.assertEqual(
-            "Hello friend! What is your favorite color?",
-            self.send_message(flow, "start flow", restart_participants=True, initiate_flow=True),
-        )
-
-        # back to spanish
-        self.org.primary_language = spanish
-        self.org.save()
-        flow = Flow.objects.get(pk=flow.pk)
-
-        # but set our contact's language explicitly should keep us at english
-        self.contact.language = "eng"
-        self.contact.save(update_fields=("language",), handle_update=False)
-        self.assertEqual(
-            "Hello friend! What is your favorite color?",
-            self.send_message(flow, "start flow", restart_participants=True, initiate_flow=True),
-        )
-
-    @uses_legacy_engine
     def test_different_expiration(self):
         flow = self.get_flow("favorites")
         self.send_message(flow, "RED", restart_participants=True)
@@ -5555,14 +5458,6 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.modified_on > starting_modified)
 
     @uses_legacy_engine
-    def test_initial_expiration(self):
-        flow = self.get_flow("favorites")
-        legacy.flow_start(flow, groups=[], contacts=[self.contact])
-
-        run = FlowRun.objects.get()
-        self.assertTrue(run.expires_on)
-
-    @uses_legacy_engine
     def test_flow_expiration(self):
         flow = self.get_flow("favorites")
 
@@ -5598,35 +5493,6 @@ class FlowsTest(FlowFileTest):
             "http://preprocessor.com/endpoint.php",
             flow.rule_sets.all().order_by("y")[0].config[RuleSet.CONFIG_WEBHOOK],
         )
-
-    @uses_legacy_engine
-    def test_translations_rule_first(self):
-
-        # import a rule first flow that already has language dicts
-        # this rule first does not depend on @step.value for the first rule, so
-        # it can be evaluated right away
-        flow = self.get_flow("group_membership")
-
-        # create the language for our org
-        language = Language.create(self.org, flow.created_by, "English", "eng")
-        self.org.primary_language = language
-        self.org.save()
-
-        # start our flow without a message (simulating it being fired by a trigger or the simulator)
-        # this will evaluate requires_step() to make sure it handles localized flows
-        runs = legacy.flow_start(flow, [], [self.contact])
-        self.assertEqual(1, len(runs))
-        self.assertEqual(self.contact.msgs.get().text, "You are not in the enrolled group.")
-
-        enrolled_group = ContactGroup.create_static(self.org, self.user, "Enrolled")
-        enrolled_group.update_contacts(self.user, [self.contact], True)
-
-        runs_started = legacy.flow_start(flow, [], [self.contact], restart_participants=True)
-        self.assertEqual(1, len(runs_started))
-
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(msgs[1].text, "You are in the enrolled group.")
 
     @patch("temba.flows.models.FlowRun.PATH_MAX_STEPS", 8)
     @uses_legacy_engine
@@ -5683,97 +5549,12 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(str(run.current_node_uuid), beerRuleSet.uuid)
 
 
-class DuplicateResultTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_duplicate_value_test(self):
-        flow = self.get_flow("favorites")
-        self.assertEqual("I don't know that color. Try again.", self.send_message(flow, "carpet"))
-
-        # get the run for our contact
-        run = FlowRun.objects.get(contact=self.contact, flow=flow)
-
-        # we should have one result for this run, "Other"
-        results = run.results
-
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results["color"]["category"], "Other")
-
-        # retry with "red" as an aswer
-        self.assertEqual("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "red"))
-
-        # we should now still have only one value, but the category should be Red now
-        run.refresh_from_db()
-        results = run.results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results["color"]["category"], "Red")
-
-
-class ChannelSplitTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-
-        # update our channel to have a 206 address
-        self.channel.address = "+12065551212"
-        self.channel.save()
-
-    @uses_legacy_engine
-    def test_initial_channel_split(self):
-        flow = self.get_flow("channel_split")
-
-        # start our contact down the flow
-        legacy.flow_start(flow, [], [self.contact])
-
-        # check the message sent to them
-        msgs = list(self.contact.msgs.order_by("id"))
-        self.assertEqual(len(msgs), 2)
-        self.assertEqual(msgs[0].text, "Your channel is +12065551212")
-        self.assertEqual(msgs[1].text, "206 Channel")
-
-    @uses_legacy_engine
-    def test_no_urn_channel_split(self):
-        flow = self.get_flow("channel_split")
-
-        # ok, remove the URN on our contact
-        self.contact.urns.all().update(contact=None)
-
-        # run the flow again
-        legacy.flow_start(flow, [], [self.contact])
-
-        # shouldn't have any messages sent, as they have no URN
-        self.assertFalse(self.contact.msgs.all())
-
-        # should have completed the flow though
-        run = FlowRun.objects.get(contact=self.contact)
-        self.assertFalse(run.is_active)
-
-    @uses_legacy_engine
-    def test_no_urn_channel_split_first(self):
-        flow = self.get_flow("channel_split_rule_first")
-
-        # start our contact down the flow
-        legacy.flow_start(flow, [], [self.contact])
-
-        # check that the split was successful
-        msg = self.contact.msgs.first()
-        self.assertEqual("206 Channel", msg.text)
-
-
 class FlowSessionCRUDLTest(TembaTest):
-    @uses_legacy_engine
     def test_session_json(self):
         contact = self.create_contact("Bob", number="+1234567890")
-        flow = self.get_flow("color")
-        legacy.flow_start(flow, [], [contact])
+        flow = self.get_flow("color_v13")
 
-        # create a fake session for this run
-        session = FlowSession.objects.create(
-            org=self.org,
-            contact=contact,
-            status=FlowSession.STATUS_WAITING,
-            responded=False,
-            output=dict(),
-            created_on=timezone.now(),
-        )
+        session = MockSessionWriter(contact, flow).wait().save().session
 
         # normal users can't see session json
         url = reverse("flows.flowsession_json", args=[session.id])
@@ -5792,100 +5573,6 @@ class FlowSessionCRUDLTest(TembaTest):
 
         response_json = json.loads(response.content)
         self.assertEqual("Temba", response_json["_metadata"]["org"])
-
-
-class ExitTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_exit_via_start(self):
-        # start contact in one flow
-        first_flow = self.get_flow("substitution")
-        legacy.flow_start(first_flow, [], [self.contact])
-
-        # should have one active flow run
-        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
-
-        # start in second via manual start
-        second_flow = self.get_flow("favorites")
-        legacy.flow_start(second_flow, [], [self.contact])
-
-        second_run = FlowRun.objects.get(is_active=True)
-        first_run.refresh_from_db()
-        self.assertFalse(first_run.is_active)
-        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        self.assertTrue(second_run.is_active)
-
-
-class StackedExitsTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            "KE",
-            "EX",
-            None,
-            "+250788123123",
-            schemes=["tel"],
-            config=dict(send_url="https://google.com"),
-        )
-
-    @uses_legacy_engine
-    def test_stacked_exits(self):
-        self.get_flow("stacked_exits")
-        flow = Flow.objects.get(name="Stacked")
-
-        legacy.flow_start(flow, [], [self.contact])
-
-        msgs = Msg.objects.filter(contact=self.contact).order_by("sent_on")
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("Start!", msgs[0].text)
-        self.assertEqual("Leaf!", msgs[1].text)
-        self.assertEqual("End!", msgs[2].text)
-
-        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
-            "exited_on"
-        )
-        self.assertEqual(3, runs.count())
-        self.assertEqual("Stacker Leaf", runs[0].flow.name)
-        self.assertEqual("Stacker", runs[1].flow.name)
-        self.assertEqual("Stacked", runs[2].flow.name)
-
-    @uses_legacy_engine
-    def test_response_exits(self):
-        self.get_flow("stacked_response_exits")
-        flow = Flow.objects.get(name="Stacked")
-
-        legacy.flow_start(flow, [], [self.contact])
-
-        msgs = Msg.objects.filter(contact=self.contact).order_by("sent_on")
-        self.assertEqual(2, msgs.count())
-        self.assertEqual("Start!", msgs[0].text)
-        self.assertEqual("Send something!", msgs[1].text)
-
-        # nobody completed yet
-        self.assertEqual(
-            0, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count()
-        )
-
-        # ok, send a response, should unwind all our flows
-        self.create_msg(contact=self.contact, direction="I", text="something").handle()
-
-        msgs = Msg.objects.filter(contact=self.contact, direction="O").order_by("sent_on")
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("Start!", msgs[0].text)
-        self.assertEqual("Send something!", msgs[1].text)
-        self.assertEqual("End!", msgs[2].text)
-
-        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by(
-            "exited_on"
-        )
-        self.assertEqual(3, runs.count())
-        self.assertEqual("Stacker Leaf", runs[0].flow.name)
-        self.assertEqual("Stacker", runs[1].flow.name)
-        self.assertEqual("Stacked", runs[2].flow.name)
 
 
 class AssetServerTest(TembaTest):
