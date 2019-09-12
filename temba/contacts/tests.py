@@ -27,7 +27,6 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
-from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -3579,6 +3578,7 @@ class ContactTest(TembaTest):
                 MockSessionWriter(self.joe, flow)
                 .visit(color_prompt)
                 .send_msg("What is your favorite color?", self.channel)
+                .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
                 .visit(color_split)
                 .wait()
                 .save()
@@ -3599,9 +3599,6 @@ class ContactTest(TembaTest):
             log = ChannelLog.objects.create(
                 channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
             )
-
-            # pretend that flow run made a webhook request
-            legacy.call_webhook(FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -3844,13 +3841,12 @@ class ContactTest(TembaTest):
             MockSessionWriter(self.joe, flow)
             .visit(color_prompt)
             .send_msg("What is your favorite color?", self.channel)
+            .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
             .visit(color_split)
             .wait()
             .save()
         ).session.runs.get()
 
-        # pretend that flow run made a webhook request
-        legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}

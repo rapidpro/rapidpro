@@ -29,6 +29,7 @@ omit =
     temba/contacts/management/commands/audit_es_group.py
     temba/flows/legacy/engine.py
     temba/flows/management/commands/run_audit.py
+    temba/msgs/legacy.py
     temba/msgs/management/commands/msg_console.py
     temba/orgs/management/commands/update_analytics_consent.py
     temba/orgs/management/commands/update_analytics_orgs.py

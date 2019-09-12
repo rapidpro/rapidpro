@@ -4,7 +4,6 @@ import phonenumbers
 import regex
 from temba_expressions.utils import tokenize
 
-from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import ContactGroup
 from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime
@@ -13,7 +12,7 @@ from temba.utils.email import is_valid_address
 from ..expressions import evaluate
 
 
-class Rule(object):
+class Rule:
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
@@ -22,8 +21,8 @@ class Rule(object):
         self.test = test
         self.label = label
 
-    def get_category_name(self, flow_lang, contact_lang=None):
-        if not self.category:  # pragma: needs cover
+    def get_category_name(self, flow_lang, contact_lang=None):  # pragma: no cover
+        if not self.category:
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
@@ -36,12 +35,12 @@ class Rule(object):
             if not category and flow_lang:
                 category = self.category.get(flow_lang)
 
-            if not category:  # pragma: needs cover
+            if not category:
                 category = list(self.category.values())[0]
 
             return category
 
-        return self.category  # pragma: needs cover
+        return self.category
 
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
@@ -93,7 +92,7 @@ class Rule(object):
         return rules
 
 
-class Test(object):
+class Test:
     TYPE = "type"
     __test_mapping = None
 
@@ -191,11 +190,6 @@ class AirtimeStatusTest(Test):
     TYPE = "airtime_status"
     EXIT = "exit_status"
 
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-
-    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS, STATUS_FAILED: AirtimeTransfer.FAILED}
-
     def __init__(self, exit_status):
         self.exit_status = exit_status
 
@@ -205,12 +199,6 @@ class AirtimeStatusTest(Test):
 
     def as_json(self):  # pragma: needs cover
         return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        status = text
-        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
-            return 1, status
-        return 0, None
 
 
 class InGroupTest(Test):
@@ -289,9 +277,6 @@ class TimeoutTest(Test):
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
 
 
 class TrueTest(Test):
@@ -800,7 +785,7 @@ class DateTest(Test):
         else:
             return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: no cover
         return date_message is not None
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
