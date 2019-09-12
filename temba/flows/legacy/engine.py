@@ -18,7 +18,7 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Language
 from temba.values.constants import Value
 
-from .definition import StartFlowAction, get_node
+from .definition import ReplyAction, get_node
 from .expressions import contact_context, evaluate, flow_context, run_context
 
 INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
@@ -52,7 +52,6 @@ def flow_start(
     groups,
     contacts,
     restart_participants=False,
-    started_flows=None,
     start_msg=None,
     extra=None,
     start=None,
@@ -83,16 +82,6 @@ def flow_start(
         contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
 
     flow.ensure_current_version()
-
-    if started_flows is None:
-        started_flows = []
-
-    # prevents infinite loops
-    if flow.pk in started_flows:
-        return []
-
-    # add this flow to our list of started flows
-    started_flows.append(flow.pk)
 
     if not flow.entry_uuid:
         return []
@@ -148,17 +137,11 @@ def flow_start(
         raise ValueError("IVR flow '%s' no longer supported" % flow.name)
 
     return _flow_start(
-        flow,
-        all_contact_ids,
-        started_flows=started_flows,
-        start_msg=start_msg,
-        extra=extra,
-        flow_start=start,
-        parent_run=parent_run,
+        flow, all_contact_ids, start_msg=start_msg, extra=extra, flow_start=start, parent_run=parent_run
     )
 
 
-def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None):
+def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
     from temba.msgs.models import FAILED, OUTGOING, PENDING, Msg
     from temba.flows.models import Flow, FlowRun, ActionSet, RuleSet
 
@@ -232,15 +215,12 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
 
     for run in runs:
         contact = run.contact
-
-        # each contact maintains its own list of started flows
-        started_flows_by_contact = list(started_flows)
         run_msgs = [start_msg] if start_msg else []
         arrived_on = timezone.now()
 
         try:
             if entry_actions:
-                run_msgs += _execute_actions(entry_actions, run, start_msg, started_flows_by_contact)
+                run_msgs += _execute_actions(entry_actions, run, start_msg)
 
                 _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
@@ -254,7 +234,7 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
 
                     msg = Msg(org=flow.org, contact=contact, text="", id=0)
                     handled, step_msgs = _handle_destination(
-                        destination, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False
+                        destination, run, msg, trigger_send=False, continue_parent=False
                     )
                     run_msgs += step_msgs
 
@@ -266,14 +246,14 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
 
                 # if we have a start message, go and handle the rule
                 if start_msg:
-                    find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+                    find_and_handle(start_msg, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
                 elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(org=flow.org, contact=contact, text="", id=0)
                     handled, step_msgs = _handle_destination(
-                        entry_rules, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False
+                        entry_rules, run, msg, trigger_send=False, continue_parent=False
                     )
                     run_msgs += step_msgs
 
@@ -345,18 +325,9 @@ def _add_step(run, node, msgs=(), exit_uuid=None, arrived_on=None):
 
 
 def find_and_handle(
-    msg,
-    started_flows=None,
-    triggered_start=False,
-    resume_parent_run=False,
-    user_input=True,
-    trigger_send=True,
-    continue_parent=True,
+    msg, triggered_start=False, resume_parent_run=False, user_input=True, trigger_send=True, continue_parent=True
 ):
     from temba.flows.models import Flow, FlowRun
-
-    if started_flows is None:
-        started_flows = []
 
     for run in _get_active_runs_for_contact(msg.contact):
         flow = run.flow
@@ -382,7 +353,6 @@ def find_and_handle(
             destination,
             run,
             msg,
-            started_flows,
             user_input=user_input,
             triggered_start=triggered_start,
             resume_parent_run=resume_parent_run,
@@ -400,7 +370,6 @@ def _handle_destination(
     destination,
     run,
     msg,
-    started_flows=None,
     user_input=False,
     triggered_start=False,
     trigger_send=True,
@@ -433,7 +402,7 @@ def _handle_destination(
                 should_pause = True
 
             if user_input or not should_pause:
-                result = _handle_ruleset(destination, run, msg, started_flows, resume_parent_run)
+                result = _handle_ruleset(destination, run, msg, resume_parent_run)
                 add_to_path(path, destination.uuid)
 
                 # add any messages generated by this ruleset
@@ -447,7 +416,7 @@ def _handle_destination(
                 path = []
 
         elif isinstance(destination, ActionSet):
-            result = _handle_actionset(destination, run, msg, started_flows)
+            result = _handle_actionset(destination, run, msg)
             add_to_path(path, destination.uuid)
 
             # add any generated messages to be sent at once
@@ -479,14 +448,14 @@ def _handle_destination(
     return handled, msgs
 
 
-def _handle_actionset(actionset, run, msg, started_flows):
+def _handle_actionset(actionset, run, msg):
     # not found, escape out, but we still handled this message, user is now out of the flow
     if not actionset:
         _set_run_completed(run, exit_uuid=None)
         return dict(handled=True, destination=None, destination_type=None)
 
     # actually execute all the actions in our actionset
-    msgs = _execute_actions(actionset, run, msg, started_flows)
+    msgs = _execute_actions(actionset, run, msg)
     _add_messages(run, [m for m in msgs if not getattr(m, "from_other_run", False)])
 
     # and onto the destination
@@ -499,7 +468,7 @@ def _handle_actionset(actionset, run, msg, started_flows):
     return dict(handled=True, destination=destination, msgs=msgs)
 
 
-def _execute_actions(actionset, run, msg, started_flows):
+def _execute_actions(actionset, run, msg):
     actions = actionset.get_actions()
     msgs = []
 
@@ -507,21 +476,8 @@ def _execute_actions(actionset, run, msg, started_flows):
     context = flow_context(run.flow, run.contact, msg, run=run)
 
     for a, action in enumerate(actions):
-        if isinstance(action, StartFlowAction):
-            if action.flow.pk in started_flows:
-                pass
-            else:
-                msgs += action.execute(run, context, actionset.uuid, msg, started_flows)
-
-                # reload our contact and reassign it to our run, it may have been changed deep down in our child flow
-                run.contact = Contact.objects.get(pk=run.contact.pk)
-
-        else:
-            msgs += action.execute(run, context, actionset.uuid, msg)
-
-            # actions modify the run.contact, update the msg contact in case they did so
-            if msg:
-                msg.contact = run.contact
+        if isinstance(action, ReplyAction):
+            msgs += _execute_reply_action(action, run, context, msg)
 
         # if there are more actions, rebuild the parts of the context that may have changed
         if a < len(actions) - 1:
@@ -531,7 +487,7 @@ def _execute_actions(actionset, run, msg, started_flows):
     return msgs
 
 
-def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False):
+def _handle_ruleset(ruleset, run, msg_in, resume_parent_run=False):
     from temba.flows.models import RuleSet, Flow, FlowRun
 
     msgs_out = []
@@ -554,14 +510,7 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
 
             if flow:
                 child_runs = flow_start(
-                    flow,
-                    [],
-                    [run.contact],
-                    started_flows=started_flows,
-                    restart_participants=True,
-                    extra=extra,
-                    parent_run=run,
-                    interrupt=False,
+                    flow, [], [run.contact], restart_participants=True, extra=extra, parent_run=run, interrupt=False
                 )
 
                 child_run = child_runs[0] if child_runs else None
@@ -575,8 +524,6 @@ def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False
                 # it's possible that one of our children interrupted us with a start flow action
                 run.refresh_from_db(fields=("is_active",))
                 if continue_parent and run.is_active:
-                    started_flows.remove(flow.id)
-
                     run.child_context = run_context(child_run, contact_ctx=str(run.contact.uuid))
                     run.save(update_fields=("child_context",))
                 else:
@@ -985,6 +932,74 @@ def _get_active_runs_for_contact(contact):
     runs = runs.filter(flow__is_archived=False)
 
     return runs.select_related("flow", "contact", "flow__org", "connection").order_by("-id")
+
+
+def _execute_reply_action(action, run, context, msg):
+    from temba.flows.models import get_flow_user
+
+    def get_translated_quick_replies(metadata, run):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+        language_metadata = []
+        for item in metadata:
+            text = get_localized_text(run.flow, text_translations=item, contact=run.contact)
+            language_metadata.append(text)
+
+        return language_metadata
+
+    replies = []
+
+    if action.msg or action.media:
+        user = get_flow_user(run.org)
+
+        text = ""
+        if action.msg:
+            text = get_localized_text(run.flow, action.msg, run.contact)
+
+        quick_replies = []
+        if action.quick_replies:
+            quick_replies = get_translated_quick_replies(action.quick_replies, run)
+
+        attachments = None
+        if action.media:
+            # localize our media attachment
+            media_type, media_url = get_localized_text(run.flow, action.media, run.contact).split(":", 1)
+
+            # if we have a localized media, create the url
+            if media_url and len(media_type.split("/")) > 1:
+                abs_url = f"{settings.STORAGE_URL}/{media_url}"
+                attachments = [f"{media_type}:{abs_url}"]
+            else:
+                attachments = [f"{media_type}:{media_url}"]
+
+        if msg and msg.id:
+            replies = msg.reply(
+                text,
+                user,
+                trigger_send=False,
+                expressions_context=context,
+                connection=run.connection,
+                msg_type=action.MSG_TYPE,
+                quick_replies=quick_replies,
+                attachments=attachments,
+                send_all=action.send_all,
+                sent_on=None,
+            )
+        else:
+            replies = run.contact.send(
+                text,
+                user,
+                trigger_send=False,
+                expressions_context=context,
+                connection=run.connection,
+                msg_type=action.MSG_TYPE,
+                attachments=attachments,
+                quick_replies=quick_replies,
+                sent_on=None,
+                all_urns=action.send_all,
+            )
+    return replies
 
 
 def get_localized_text(flow, text_translations, contact=None):

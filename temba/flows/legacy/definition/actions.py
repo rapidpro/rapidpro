@@ -1,7 +1,5 @@
 from uuid import uuid4
 
-from django.conf import settings
-
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 
@@ -49,9 +47,6 @@ class Action:
             if action:
                 actions.append(action)
         return actions
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        pass
 
 
 class EmailAction(Action):
@@ -322,92 +317,8 @@ class ReplyAction(Action):
             send_all=self.send_all,
         )
 
-    @staticmethod
-    def get_translated_quick_replies(metadata, run):  # pragma: no cover
-        """
-        Gets the appropriate metadata translation for the given contact
-        """
-        from ..engine import get_localized_text
 
-        language_metadata = []
-        for item in metadata:
-            text = get_localized_text(run.flow, text_translations=item, contact=run.contact)
-            language_metadata.append(text)
-
-        return language_metadata
-
-    @staticmethod
-    def get_session_responded(run):
-        current_run = run
-        while current_run and current_run.contact_id == run.contact_id:
-            if current_run.responded:
-                return True
-            current_run = current_run.parent
-        return False
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-        from ..engine import get_localized_text
-
-        replies = []
-
-        if self.msg or self.media:
-            user = get_flow_user(run.org)
-
-            text = ""
-            if self.msg:
-                text = get_localized_text(run.flow, self.msg, run.contact)
-
-            quick_replies = []
-            if self.quick_replies:
-                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
-
-            attachments = None
-            if self.media:
-                # localize our media attachment
-                media_type, media_url = get_localized_text(run.flow, self.media, run.contact).split(":", 1)
-
-                # if we have a localized media, create the url
-                if media_url and len(media_type.split("/")) > 1:
-                    abs_url = f"{settings.STORAGE_URL}/{media_url}"
-                    attachments = [f"{media_type}:{abs_url}"]
-                else:
-                    attachments = [f"{media_type}:{media_url}"]
-
-            if msg and msg.id:
-                replies = msg.reply(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    quick_replies=quick_replies,
-                    attachments=attachments,
-                    send_all=self.send_all,
-                    sent_on=None,
-                )
-            else:
-                # if our run has been responded to or any of our parent runs have
-                # been responded to consider us interactive with high priority
-                high_priority = self.get_session_responded(run)
-                replies = run.contact.send(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    attachments=attachments,
-                    quick_replies=quick_replies,
-                    sent_on=None,
-                    all_urns=self.send_all,
-                    high_priority=high_priority,
-                )
-        return replies
-
-
-class VariableContactAction(Action):  # pragma: no cover
+class VariableContactAction(Action):
     """
     Base action that resolves variables into contacts. Used for actions that take
     SendAction, TriggerAction, etc

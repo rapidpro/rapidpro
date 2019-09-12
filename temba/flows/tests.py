@@ -23,7 +23,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import INCOMING, OUTGOING, WIRED, Broadcast, Label, Msg
+from temba.msgs.models import INCOMING, WIRED, Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
@@ -5312,77 +5312,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(Flow.NODE_TYPE_RULESET, ruleset.get_rules()[0].destination_type)
 
     @uses_legacy_engine
-    def test_orphaned_action_to_action(self):
-        """
-        Orphaned at an action, then routed to an action
-        """
-
-        # run a flow that ends on an action
-        flow = self.get_flow("pick_a_number")
-        self.assertEqual("You picked 3!", self.send_message(flow, "3"))
-
-        pick_a_number = ActionSet.objects.get(flow=flow, y=0)
-        you_picked = ActionSet.objects.get(flow=flow, y=228)
-
-        # send a message, no flow should handle us since we are done
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
-        handled = legacy.find_and_handle(incoming)[0]
-        self.assertFalse(handled)
-
-        # now wire up our finished action to the start of our flow
-        flow = self.update_destination(flow, you_picked.uuid, pick_a_number.uuid)
-        self.send_message(flow, "next message please", assert_reply=False, assert_handle=False)
-
-    @uses_legacy_engine
-    def test_orphaned_action_to_input_rule(self):
-        """
-        Orphaned at an action, then routed to a rule that evaluates on input
-        """
-        flow = self.get_flow("pick_a_number")
-
-        self.assertEqual("You picked 6!", self.send_message(flow, "6"))
-
-        you_picked = ActionSet.objects.get(flow=flow, y=228)
-        number = RuleSet.objects.get(flow=flow, label="number")
-
-        flow = self.update_destination(flow, you_picked.uuid, number.uuid)
-        self.send_message(flow, "9", assert_reply=False, assert_handle=False)
-
-    @uses_legacy_engine
-    def test_orphaned_action_to_passive_rule(self):
-        """
-        Orphaned at an action, then routed to a rule that doesn't require input which leads
-        to a rule that evaluates on input
-        """
-        flow = self.get_flow("pick_a_number")
-
-        you_picked = ActionSet.objects.get(flow=flow, y=228)
-        passive_ruleset = RuleSet.objects.get(flow=flow, label="passive")
-        self.assertEqual("You picked 6!", self.send_message(flow, "6"))
-
-        flow = self.update_destination(flow, you_picked.uuid, passive_ruleset.uuid)
-        self.send_message(flow, "9", assert_reply=False, assert_handle=False)
-
-    @uses_legacy_engine
-    def test_deleted_ruleset(self):
-        flow = self.get_flow("favorites")
-        self.send_message(flow, "RED", restart_participants=True)
-
-        # one active run
-        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-        # at this point we are waiting for the response to the second question about beer, let's delete it
-        RuleSet.objects.get(flow=flow, label="Beer").delete()
-
-        # we still have one active run, though we are somewhat in limbo
-        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-        # sending a new message in shouldn't get a reply, and our run should be terminated
-        responses = self.send_message(flow, "abandoned", assert_reply=False, assert_handle=True)
-        self.assertIsNone(responses)
-        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-    @uses_legacy_engine
     def test_server_runtime_cycle(self):
         flow = self.get_flow("loop_detection")
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
@@ -5442,26 +5371,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(
             2, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count()
         )
-
-    @uses_legacy_engine
-    def test_decimal_substitution(self):
-        flow = self.get_flow("pick_a_number")
-        self.assertEqual("You picked 3!", self.send_message(flow, "3"))
-
-    @uses_legacy_engine
-    def test_rules_first(self):
-        flow = self.get_flow("rules_first")
-        self.assertEqual(Flow.NODE_TYPE_RULESET, flow.entry_type)
-        self.assertEqual("You've got to be kitten me", self.send_message(flow, "cats"))
-
-    @uses_legacy_engine
-    def test_numeric_rule_allows_variables(self):
-        flow = self.get_flow("numeric_rule_allows_variables")
-
-        zinedine = self.create_contact("Zinedine", "+12065550100")
-        zinedine.set_field(self.user, "age", "25")
-
-        self.assertEqual("Good count", self.send_message(flow, "35", contact=zinedine))
 
     def test_group_dependencies(self):
         self.get_flow("dependencies")
@@ -5617,20 +5526,6 @@ class FlowsTest(FlowFileTest):
                 ],
             )
             self.assertEqual(len(flow.metadata["waiting_exit_uuids"]), 11)
-
-    @uses_legacy_engine
-    def test_media_first_action(self):
-        flow = self.get_flow("media_first_action")
-
-        runs = legacy.flow_start(flow, [], [self.contact])
-        self.assertEqual(1, len(runs))
-
-        msg = self.contact.msgs.get()
-        self.assertEqual(msg.text, "Hey")
-        self.assertEqual(
-            msg.attachments,
-            [f"image/jpeg:{settings.STORAGE_URL}/attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"],
-        )
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
@@ -5970,241 +5865,6 @@ class FlowsTest(FlowFileTest):
         )
 
     @uses_legacy_engine
-    def test_flow_loops(self):
-        self.get_flow("flow_loop")
-        # this tests two flows that start each other
-        flow1 = Flow.objects.get(name="First Flow")
-        flow2 = Flow.objects.get(name="Second Flow")
-
-        # start the flow, shouldn't get into a loop, but both should get started
-        legacy.flow_start(flow1, [], [self.contact])
-
-        self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
-        self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
-
-    @uses_legacy_engine
-    def test_ruleset_loops(self):
-        self.import_file("ruleset_loop")
-
-        flow1 = Flow.objects.all()[1]
-        flow2 = Flow.objects.all()[0]
-
-        # start the flow, should not get into a loop
-        legacy.flow_start(flow1, [], [self.contact])
-
-        self.assertTrue(FlowRun.objects.get(flow=flow1, contact=self.contact))
-        self.assertTrue(FlowRun.objects.get(flow=flow2, contact=self.contact))
-
-    @uses_legacy_engine
-    def test_priority(self):
-        self.get_flow("priorities")
-        joe = self.create_contact("joe", "112233")
-
-        parent = Flow.objects.get(name="Priority Parent")
-        legacy.flow_start(parent, [], [self.contact, joe])
-
-        self.assertEqual(8, Msg.objects.filter(direction="O").count())
-
-        # all messages so far are low prioirty as well because of no inbound
-        self.assertEqual(8, Msg.objects.filter(direction="O", high_priority=False).count())
-
-        # send a message in to become high priority
-        self.send("make me high priority por favor")
-
-        # each flow sends one message to cleanup
-        self.assertEqual(11, Msg.objects.filter(direction="O").count())
-        self.assertEqual(3, Msg.objects.filter(high_priority=True).count())
-
-        # we've completed three flows, but joe is still at it
-        self.assertEqual(5, FlowRun.objects.all().count())
-        self.assertEqual(
-            3, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count()
-        )
-        self.assertEqual(2, FlowRun.objects.filter(contact=joe, exit_type=None).count())
-
-    @uses_legacy_engine
-    def test_priority_single_contact(self):
-        # try running with a single contact, we dont create broadcasts for a single
-        # contact, but the messages should still be low prioirty
-        self.get_flow("priorities")
-        parent = Flow.objects.get(name="Priority Parent")
-        legacy.flow_start(parent, [], [self.contact], restart_participants=True)
-
-        self.assertEqual(4, Msg.objects.count())
-        self.assertEqual(0, Broadcast.objects.count())
-        self.assertEqual(4, Msg.objects.filter(high_priority=False).count())
-
-    @uses_legacy_engine
-    def test_subflow(self):
-        """
-        Tests that a subflow can be called and the flow is handed back to the parent
-        """
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-        parent_prompt = ActionSet.objects.get(flow=parent, y=0)
-        kind_ruleset = RuleSet.objects.get(flow=parent, label="kind")
-        subflow_ruleset = RuleSet.objects.get(flow=parent, ruleset_type="subflow")
-        subflow_reply = ActionSet.objects.get(flow=parent, y=386, x=341)
-
-        legacy.flow_start(
-            parent,
-            groups=[],
-            contacts=[self.contact, self.create_contact("joe", "+12347778888")],
-            restart_participants=True,
-        )
-
-        msg = Msg.objects.filter(contact=self.contact).first()
-        self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
-        self.assertFalse(msg.high_priority)
-
-        # this should launch the child flow
-        self.send_message(parent, "color", assert_reply=False)
-
-        msg = Msg.objects.filter(contact=self.contact).order_by("-created_on").first()
-        self.assertEqual("What color do you like?", msg.text)
-        self.assertTrue(msg.high_priority)
-
-        # should have a run for each flow
-        parent_run, child_run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("created_on")
-
-        # should have made it to the subflow ruleset on the parent flow
-        parent_path = parent_run.path
-        self.assertEqual(len(parent_path), 3)
-        self.assertEqual(parent_path[0]["node_uuid"], parent_prompt.uuid)
-        self.assertEqual(parent_path[0]["exit_uuid"], parent_prompt.exit_uuid)
-        self.assertEqual(parent_path[1]["node_uuid"], kind_ruleset.uuid)
-        self.assertEqual(parent_path[1]["exit_uuid"], kind_ruleset.get_rules()[0].uuid)
-        self.assertEqual(parent_path[2]["node_uuid"], subflow_ruleset.uuid)
-        self.assertNotIn("exit_uuid", parent_path[2])
-
-        # complete the child flow
-        self.send("Red")
-
-        child_run.refresh_from_db()
-        self.assertFalse(child_run.is_active)
-
-        # now we are back to a single active flow, the parent
-        parent_run.refresh_from_db()
-        self.assertTrue(parent_run.is_active)
-
-        parent_path = parent_run.path
-        self.assertEqual(len(parent_path), 5)
-        self.assertEqual(parent_path[2]["node_uuid"], subflow_ruleset.uuid)
-        self.assertEqual(parent_path[2]["exit_uuid"], subflow_ruleset.get_rules()[0].uuid)
-        self.assertEqual(parent_path[3]["node_uuid"], subflow_reply.uuid)
-        self.assertEqual(parent_path[3]["exit_uuid"], subflow_reply.exit_uuid)
-        self.assertEqual(parent_path[4]["node_uuid"], kind_ruleset.uuid)
-        self.assertNotIn("exit_uuid", parent_path[4])
-
-        # we should have a new outbound message from the the parent flow
-        msg = Msg.objects.filter(contact=self.contact, direction="O").order_by("-created_on").first()
-        self.assertEqual("Complete: You picked Red.", msg.text)
-
-        # should only have one response msg
-        self.assertEqual(
-            1, Msg.objects.filter(text="Complete: You picked Red.", contact=self.contact, direction="O").count()
-        )
-
-    @uses_legacy_engine
-    def test_subflow_interrupted(self):
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-        self.send_message(parent, "color", assert_reply=False)
-
-        # we should now have two active flows
-        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on")
-        self.assertEqual(2, runs.count())
-
-        # now interrupt the child flow
-        run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on").first()
-        legacy.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
-
-        # all flows should have finished
-        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-        # and the parent should not have resumed, so our last message was from our subflow
-        msg = Msg.objects.all().order_by("-created_on").first()
-        self.assertEqual("What color do you like?", msg.text)
-
-    @uses_legacy_engine
-    def test_subflow_expired(self):
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-        self.send_message(parent, "color", assert_reply=False)
-
-        # we should now have two active flows
-        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on")
-        self.assertEqual(2, runs.count())
-
-        # make sure the parent run expires later than the child
-        child_run = runs[0]
-        parent_run = runs[1]
-        self.assertTrue(parent_run.expires_on > child_run.expires_on)
-
-        # now expire out of the child flow
-        run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by("-created_on").first()
-        legacy.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_EXPIRED)
-
-        # all flows should have finished
-        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-        # and should follow the expiration route
-        msg = Msg.objects.all().order_by("-created_on").first()
-        self.assertEqual("You expired out of the subflow", msg.text)
-
-    @uses_legacy_engine
-    def test_subflow_updates(self):
-
-        self.get_flow("subflow")
-        parent = Flow.objects.get(org=self.org, name="Parent Flow")
-
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-        self.send_message(parent, "color", assert_reply=False)
-
-        # we should now have two active flows
-        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
-
-        run = FlowRun.objects.filter(flow=parent).first()
-        starting_expiration = run.expires_on
-        starting_modified = run.modified_on
-
-        time.sleep(1)
-
-        # send a message that will keep us in the child flow
-        self.send("no match")
-
-        # our new expiration should be later
-        run.refresh_from_db()
-        self.assertTrue(run.expires_on > starting_expiration)
-        self.assertTrue(run.modified_on > starting_modified)
-
-    @uses_legacy_engine
-    def test_subflow_no_interaction(self):
-        self.get_flow("subflow_no_pause")
-        parent = Flow.objects.get(org=self.org, name="Flow A")
-        legacy.flow_start(parent, groups=[], contacts=[self.contact], restart_participants=True)
-
-        # check we got our three messages, the third populated by the child, but sent form the parent
-        msgs = Msg.objects.order_by("created_on")
-        self.assertEqual(5, msgs.count())
-        self.assertEqual(msgs[0].text, "Message 1")
-        self.assertEqual(msgs[1].text, "Message 2/4")
-        self.assertEqual(msgs[2].text, "Message 3 (FLOW B)")
-        self.assertEqual(msgs[3].text, "Message 2/4")
-        self.assertEqual(msgs[4].text, "Message 5 (FLOW B)")
-
-    @uses_legacy_engine
-    def test_subflow_with_startflow(self):
-        self.get_flow("subflow_with_startflow")
-
-        parent = Flow.objects.get(name="Subflow 1")
-        legacy.flow_start(parent, groups=[], contacts=[self.contact])
-
-    @uses_legacy_engine
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
@@ -6361,43 +6021,6 @@ class ChannelSplitTest(FlowFileTest):
         # check that the split was successful
         msg = self.contact.msgs.first()
         self.assertEqual("206 Channel", msg.text)
-
-
-class GhostActionNodeTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_ghost_action_node_test(self):
-        # load our flows
-        self.get_flow("parent_child_flow")
-        flow = Flow.objects.get(name="Parent Flow")
-
-        # start the flow
-        legacy.flow_start(flow, [], [self.contact])
-
-        # at this point, our contact has to active flow runs:
-        # one for our parent flow at an action set (the start flow action), one in our child flow at the send message action
-
-        # let's remove the actionset we are stuck at
-        ActionSet.objects.filter(flow=flow).delete()
-
-        # create a new message and get it handled
-        msg = self.create_msg(contact=self.contact, direction="I", text="yes")
-        legacy.find_and_handle(msg)
-
-        # we should have gotten a response from our child flow
-        self.assertEqual(
-            "I like butter too.", Msg.objects.filter(direction=OUTGOING).order_by("-created_on").first().text
-        )
-
-
-class TwoInRowTest(FlowFileTest):
-    @uses_legacy_engine
-    def test_two_in_row(self):
-        flow = self.get_flow("two_in_row")
-        legacy.flow_start(flow, [], [self.contact])
-
-        # assert contact received both messages
-        msgs = self.contact.msgs.all()
-        self.assertEqual(msgs.count(), 2)
 
 
 class FlowSessionCRUDLTest(TembaTest):
