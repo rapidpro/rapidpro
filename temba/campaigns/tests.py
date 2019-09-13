@@ -711,11 +711,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, EventFire.objects.filter(event__is_active=True).count())
 
         # remove one of the farmers from the group
-        response = self.client.post(
-            reverse("contacts.contact_read", args=[self.farmer1.uuid]),
-            dict(contact=self.farmer1.id, group=self.farmers.id),
-        )
-        self.assertEqual(response.status_code, 200)
+        self.farmers.update_contacts(self.admin, [self.farmer1], add=False)
 
         # should only be one event now (on farmer 2)
         fire = EventFire.objects.get()
