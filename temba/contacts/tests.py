@@ -1094,17 +1094,6 @@ class ContactTest(TembaTest):
         self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
         self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
 
-    def test_contact_send_all(self):
-        contact = self.create_contact("Stephen", "+12078778899", twitter="stephen")
-        Channel.create(self.org, self.user, None, "TT")
-
-        msgs = contact.send("Allo", self.admin, all_urns=True)
-        self.assertEqual(len(msgs), 2)
-        out_msgs = Msg.objects.filter(contact=contact, direction="O")
-        self.assertEqual(out_msgs.count(), 2)
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
-
     def test_release(self):
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
@@ -4751,10 +4740,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Marshal Mathers", contact.name)
 
     def test_contact_model(self):
-        contact1 = self.create_contact(name=None, number="123456")
-
-        contact1.set_first_name("Ludacris")
-        self.assertEqual(contact1.name, "Ludacris")
+        contact1 = self.create_contact(name="Ludacris", number="123456")
 
         first_modified_on = contact1.modified_on
         contact1.set_field(self.editor, "occupation", "Musician")

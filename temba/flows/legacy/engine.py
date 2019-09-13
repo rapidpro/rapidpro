@@ -15,10 +15,11 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactGroup
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import SENT, Msg
 from temba.orgs.models import Language
 from temba.values.constants import Value
 
-from .definition import StartFlowAction, get_node
+from .definition import ReplyAction, get_node
 from .expressions import contact_context, evaluate, flow_context, run_context
 
 INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
@@ -52,11 +53,9 @@ def flow_start(
     groups,
     contacts,
     restart_participants=False,
-    started_flows=None,
     start_msg=None,
     extra=None,
     start=None,
-    parent_run=None,
     interrupt=True,
     include_active=True,
 ):
@@ -65,7 +64,7 @@ def flow_start(
     """
 
     from temba.msgs.models import FLOW
-    from temba.flows.models import Flow, FlowRun
+    from temba.flows.models import FlowRun
 
     if not getattr(settings, "USES_LEGACY_ENGINE", False):
         raise ValueError("Use of legacy engine when USES_LEGACY_ENGINE not set")
@@ -83,16 +82,6 @@ def flow_start(
         contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
 
     flow.ensure_current_version()
-
-    if started_flows is None:
-        started_flows = []
-
-    # prevents infinite loops
-    if flow.pk in started_flows:
-        return []
-
-    # add this flow to our list of started flows
-    started_flows.append(flow.pk)
 
     if not flow.entry_uuid:
         return []
@@ -118,48 +107,18 @@ def flow_start(
         already_active = set(FlowRun.objects.filter(is_active=True, org=flow.org).values_list("contact_id", flat=True))
         all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
 
-    # if we have a parent run, find any parents/grandparents that are active, we'll keep these active
-    ancestor_ids = []
-    ancestor = parent_run
-    while ancestor:
-        # we don't consider it an ancestor if it's not current in our start list
-        if ancestor.contact.id not in all_contact_ids:
-            break
-        ancestor_ids.append(ancestor.id)
-        ancestor = ancestor.parent
-
     # for the contacts that will be started, exit any existing flow runs except system flow runs
-    active_runs = (
-        FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids)
-        .exclude(id__in=ancestor_ids)
-        .exclude(flow__is_system=True)
-    )
+    active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids).exclude(flow__is_system=True)
     bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-    # if we are interrupting parent flow runs, mark them as completed
-    if ancestor_ids and interrupt:
-        ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
-        bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
     if not all_contact_ids:
         return []
 
-    if flow.flow_type == Flow.TYPE_VOICE:
-        raise ValueError("IVR flow '%s' no longer supported" % flow.name)
-
-    return _flow_start(
-        flow,
-        all_contact_ids,
-        started_flows=started_flows,
-        start_msg=start_msg,
-        extra=extra,
-        flow_start=start,
-        parent_run=parent_run,
-    )
+    return _flow_start(flow, all_contact_ids, start_msg=start_msg, extra=extra, flow_start=start)
 
 
-def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None, parent_run=None):
-    from temba.msgs.models import FAILED, OUTGOING, PENDING, Msg
+def _flow_start(flow, contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
+    from temba.msgs.models import OUTGOING, Msg
     from temba.flows.models import Flow, FlowRun, ActionSet, RuleSet
 
     if parent_run:
@@ -228,81 +187,45 @@ def _flow_start(flow, contact_ids, started_flows=None, start_msg=None, extra=Non
         if entry_rules:
             entry_rules.flow = flow
 
-    msgs_to_send = []
-
     for run in runs:
         contact = run.contact
-
-        # each contact maintains its own list of started flows
-        started_flows_by_contact = list(started_flows)
         run_msgs = [start_msg] if start_msg else []
         arrived_on = timezone.now()
 
-        try:
-            if entry_actions:
-                run_msgs += _execute_actions(entry_actions, run, start_msg, started_flows_by_contact)
+        if entry_actions:
+            run_msgs += _execute_actions(entry_actions, run, start_msg)
 
-                _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
+            _add_step(run, entry_actions, run_msgs, arrived_on=arrived_on)
 
-                # and onto the destination
-                if entry_actions.destination:
-                    destination = get_node(
-                        entry_actions.flow, entry_actions.destination, entry_actions.destination_type
-                    )
+            # and onto the destination
+            if entry_actions.destination:
+                destination = get_node(entry_actions.flow, entry_actions.destination, entry_actions.destination_type)
 
-                    _add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
+                _add_step(run, destination, exit_uuid=entry_actions.exit_uuid)
 
-                    msg = Msg(org=flow.org, contact=contact, text="", id=0)
-                    handled, step_msgs = _handle_destination(
-                        destination, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False
-                    )
-                    run_msgs += step_msgs
+                msg = Msg(org=flow.org, contact=contact, text="", id=0)
+                handled, step_msgs = _handle_destination(destination, run, msg)
+                run_msgs += step_msgs
 
-                else:
-                    _set_run_completed(run, exit_uuid=None)
+            else:
+                _set_run_completed(run, exit_uuid=None)
 
-            elif entry_rules:
-                _add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
+        elif entry_rules:
+            _add_step(run, entry_rules, run_msgs, arrived_on=arrived_on)
 
-                # if we have a start message, go and handle the rule
-                if start_msg:
-                    find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+            # if we have a start message, go and handle the rule
+            if start_msg:
+                find_and_handle(start_msg, triggered_start=True)
 
-                # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
-                    # create an empty placeholder message
-                    msg = Msg(org=flow.org, contact=contact, text="", id=0)
-                    handled, step_msgs = _handle_destination(
-                        entry_rules, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False
-                    )
-                    run_msgs += step_msgs
+            # if we didn't get an incoming message, see if we need to evaluate it passively
+            elif entry_rules.ruleset_type not in RuleSet.TYPE_WAIT:
+                # create an empty placeholder message
+                msg = Msg(org=flow.org, contact=contact, text="", id=0)
+                handled, step_msgs = _handle_destination(entry_rules, run, msg)
+                run_msgs += step_msgs
 
-            # set the msgs that were sent by this run so that any caller can deal with them
-            run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
-
-            # add these messages as ones that are ready to send
-            for msg in run_msgs:
-                if msg.direction == OUTGOING:
-                    msgs_to_send.append(msg)
-
-        except Exception:
-            # mark this flow as interrupted
-            _set_run_interrupted(run)
-
-            # mark our messages as failed
-            Msg.objects.filter(id__in=[m.id for m in run_msgs if m.direction == OUTGOING]).update(status=FAILED)
-
-            # remove our msgs from our parent's concerns
-            run.start_msgs = []
-
-    # trigger our messages to be sent
-    if msgs_to_send and not parent_run:
-        # then send them off
-        msgs_to_send.sort(key=lambda message: (message.contact_id, message.created_on))
-        Msg.objects.filter(id__in=[m.id for m in msgs_to_send]).update(status=PENDING)
-
-        # trigger a sync
-        flow.org.trigger_send(msgs_to_send)
+        # set the msgs that were sent by this run so that any caller can deal with them
+        run.start_msgs = [m for m in run_msgs if m.direction == OUTGOING]
 
     return runs
 
@@ -330,10 +253,6 @@ def _add_step(run, node, msgs=(), exit_uuid=None, arrived_on=None):
         }
     )
 
-    # trim path to ensure it can't grow indefinitely
-    if len(run.path) > FlowRun.PATH_MAX_STEPS:
-        run.path = run.path[len(run.path) - FlowRun.PATH_MAX_STEPS :]
-
     update_fields = ["path", "current_node_uuid"]
 
     if msgs:
@@ -344,19 +263,8 @@ def _add_step(run, node, msgs=(), exit_uuid=None, arrived_on=None):
     run.save(update_fields=update_fields)
 
 
-def find_and_handle(
-    msg,
-    started_flows=None,
-    triggered_start=False,
-    resume_parent_run=False,
-    user_input=True,
-    trigger_send=True,
-    continue_parent=True,
-):
+def find_and_handle(msg, triggered_start=False, user_input=True):
     from temba.flows.models import Flow, FlowRun
-
-    if started_flows is None:
-        started_flows = []
 
     for run in _get_active_runs_for_contact(msg.contact):
         flow = run.flow
@@ -369,7 +277,6 @@ def find_and_handle(
                 return True, []
             else:
                 return False, []
-
         last_step = run.path[-1]
         destination = get_node(flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
 
@@ -379,15 +286,7 @@ def find_and_handle(
             return True, []
 
         (handled, msgs) = _handle_destination(
-            destination,
-            run,
-            msg,
-            started_flows,
-            user_input=user_input,
-            triggered_start=triggered_start,
-            resume_parent_run=resume_parent_run,
-            trigger_send=trigger_send,
-            continue_parent=continue_parent,
+            destination, run, msg, user_input=user_input, triggered_start=triggered_start
         )
 
         if handled:
@@ -396,25 +295,8 @@ def find_and_handle(
     return False, []
 
 
-def _handle_destination(
-    destination,
-    run,
-    msg,
-    started_flows=None,
-    user_input=False,
-    triggered_start=False,
-    trigger_send=True,
-    resume_parent_run=False,
-    continue_parent=True,
-):
-    from temba.msgs.models import DELIVERED, PENDING, Msg
-    from temba.flows.models import FlowException, ActionSet, RuleSet
-
-    def add_to_path(path, uuid):
-        if uuid in path:
-            path.append(uuid)
-            raise FlowException("Flow cycle detected at runtime: %s" % path)
-        path.append(uuid)
+def _handle_destination(destination, run, msg, user_input=False, triggered_start=False):
+    from temba.flows.models import ActionSet, RuleSet
 
     path = []
     msgs = []
@@ -429,12 +311,12 @@ def _handle_destination(
             should_pause = False
 
             # check if we need to stop
-            if destination.is_pause():
+            if destination.ruleset_type in RuleSet.TYPE_WAIT:
                 should_pause = True
 
             if user_input or not should_pause:
-                result = _handle_ruleset(destination, run, msg, started_flows, resume_parent_run)
-                add_to_path(path, destination.uuid)
+                result = _handle_ruleset(destination, run, msg)
+                path.append(destination.uuid)
 
                 # add any messages generated by this ruleset
                 msgs += result.get("msgs", [])
@@ -447,8 +329,8 @@ def _handle_destination(
                 path = []
 
         elif isinstance(destination, ActionSet):
-            result = _handle_actionset(destination, run, msg, started_flows)
-            add_to_path(path, destination.uuid)
+            result = _handle_actionset(destination, run, msg)
+            path.append(destination.uuid)
 
             # add any generated messages to be sent at once
             msgs += result.get("msgs", [])
@@ -464,29 +346,17 @@ def _handle_destination(
         if result.get("handled", False):
             handled = True
 
-        resume_parent_run = False
-
-    # if we have a parent to continue, do so
-    if getattr(run, "continue_parent", False) and continue_parent:
-        msgs += _continue_parent_run(run, trigger_send=False, continue_parent=True)
-
-    # send any messages generated
-    if msgs and trigger_send:
-        msgs.sort(key=lambda message: message.created_on)
-        Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
-        run.flow.org.trigger_send(msgs)
-
     return handled, msgs
 
 
-def _handle_actionset(actionset, run, msg, started_flows):
+def _handle_actionset(actionset, run, msg):
     # not found, escape out, but we still handled this message, user is now out of the flow
     if not actionset:
         _set_run_completed(run, exit_uuid=None)
         return dict(handled=True, destination=None, destination_type=None)
 
     # actually execute all the actions in our actionset
-    msgs = _execute_actions(actionset, run, msg, started_flows)
+    msgs = _execute_actions(actionset, run, msg)
     _add_messages(run, [m for m in msgs if not getattr(m, "from_other_run", False)])
 
     # and onto the destination
@@ -499,7 +369,7 @@ def _handle_actionset(actionset, run, msg, started_flows):
     return dict(handled=True, destination=destination, msgs=msgs)
 
 
-def _execute_actions(actionset, run, msg, started_flows):
+def _execute_actions(actionset, run, msg):
     actions = actionset.get_actions()
     msgs = []
 
@@ -507,21 +377,24 @@ def _execute_actions(actionset, run, msg, started_flows):
     context = flow_context(run.flow, run.contact, msg, run=run)
 
     for a, action in enumerate(actions):
-        if isinstance(action, StartFlowAction):
-            if action.flow.pk in started_flows:
-                pass
-            else:
-                msgs += action.execute(run, context, actionset.uuid, msg, started_flows)
+        if isinstance(action, ReplyAction):
+            from temba.flows.models import get_flow_user
 
-                # reload our contact and reassign it to our run, it may have been changed deep down in our child flow
-                run.contact = Contact.objects.get(pk=run.contact.pk)
+            user = get_flow_user(run.org)
+            text = get_localized_text(run.flow, action.msg, run.contact)
 
-        else:
-            msgs += action.execute(run, context, actionset.uuid, msg)
-
-            # actions modify the run.contact, update the msg contact in case they did so
-            if msg:
-                msg.contact = run.contact
+            msg = Msg.create_outgoing(
+                run.org,
+                user,
+                run.contact,
+                text,
+                response_to=msg if msg and msg.id else None,
+                expressions_context=context,
+                msg_type=action.MSG_TYPE,
+                status=SENT,
+                sent_on=timezone.now(),
+            )
+            msgs.append(msg)
 
         # if there are more actions, rebuild the parts of the context that may have changed
         if a < len(actions) - 1:
@@ -531,61 +404,10 @@ def _execute_actions(actionset, run, msg, started_flows):
     return msgs
 
 
-def _handle_ruleset(ruleset, run, msg_in, started_flows, resume_parent_run=False):
-    from temba.flows.models import RuleSet, Flow, FlowRun
+def _handle_ruleset(ruleset, run, msg_in):
+    from temba.flows.models import RuleSet
 
     msgs_out = []
-    result_input = str(msg_in)
-
-    if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-        if not resume_parent_run:
-            flow_uuid = ruleset.config.get("flow").get("uuid")
-            flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
-            flow.org = run.org
-            message_context = flow_context(run.flow, run.contact, msg_in, run=run)
-
-            # our extra will be the current flow variables
-            extra = message_context.get("extra", {})
-            extra["flow"] = message_context.get("flow", {})
-
-            if msg_in.id:
-                _add_messages(run, [msg_in])
-                run.update_expiration(timezone.now())
-
-            if flow:
-                child_runs = flow_start(
-                    flow,
-                    [],
-                    [run.contact],
-                    started_flows=started_flows,
-                    restart_participants=True,
-                    extra=extra,
-                    parent_run=run,
-                    interrupt=False,
-                )
-
-                child_run = child_runs[0] if child_runs else None
-
-                if child_run:
-                    msgs_out += child_run.start_msgs
-                    continue_parent = getattr(child_run, "continue_parent", False)
-                else:
-                    continue_parent = False
-
-                # it's possible that one of our children interrupted us with a start flow action
-                run.refresh_from_db(fields=("is_active",))
-                if continue_parent and run.is_active:
-                    started_flows.remove(flow.id)
-
-                    run.child_context = run_context(child_run, contact_ctx=str(run.contact.uuid))
-                    run.save(update_fields=("child_context",))
-                else:
-                    return dict(handled=True, destination=None, destination_type=None, msgs=msgs_out)
-
-        else:
-            child_run = FlowRun.objects.filter(parent=run, contact=run.contact).order_by("created_on").last()
-            run.child_context = run_context(child_run, contact_ctx=str(run.contact.uuid))
-            run.save(update_fields=("child_context",))
 
     # find a matching rule
     result_rule, result_value, result_input = _find_matching_rule(ruleset, run, msg_in)
@@ -695,10 +517,6 @@ def bulk_exit(runs, exit_type):
         is_active=False, exited_on=now, exit_type=exit_type, modified_on=now, child_context=None, parent_context=None
     )
 
-    for run in runs:
-        if run.parent and run.parent.is_active and run.parent.flow.is_active and not run.parent.flow.is_archived:
-            _continue_parent_run(run)
-
     # mark session as completed if this is an interruption
     if exit_type == FlowRun.EXIT_TYPE_INTERRUPTED:
         (
@@ -708,62 +526,7 @@ def bulk_exit(runs, exit_type):
         )
 
 
-def _continue_parent_run(run, trigger_send=True, continue_parent=True):
-    from temba.msgs.models import INCOMING, Msg
-    from temba.flows.models import FlowRun, RuleSet
-
-    if run.responded and not run.parent.responded:
-        run.parent.responded = True
-        run.parent.save(update_fields=["responded"])
-
-    # if our child was interrupted, so shall we be
-    if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == run.parent.contact_id:
-        bulk_exit(FlowRun.objects.filter(id=run.parent_id), FlowRun.EXIT_TYPE_INTERRUPTED)
-        return
-
-    last_step = run.parent.path[-1]
-    ruleset = (
-        RuleSet.objects.filter(
-            uuid=last_step[FlowRun.PATH_NODE_UUID], ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=run.org
-        )
-        .exclude(flow=None)
-        .first()
-    )
-
-    # can't resume from a ruleset that no longer exists
-    if not ruleset:
-        return []
-
-    # use the last incoming message on this run
-    msg = run.get_messages().filter(direction=INCOMING).order_by("-created_on").first()
-
-    # if we are routing back to the parent before a msg was sent, we need a placeholder
-    if not msg:
-        msg = Msg()
-        msg.id = 0
-        msg.text = ""
-        msg.org = run.org
-        msg.contact = run.contact
-
-    run.parent.child_context = run_context(run, contact_ctx=str(run.contact.uuid))
-    run.parent.save(update_fields=("child_context",))
-
-    # finally, trigger our parent flow
-    (handled, msgs) = find_and_handle(
-        msg,
-        user_input=False,
-        started_flows=[run.flow, run.parent.flow],
-        resume_parent_run=True,
-        trigger_send=trigger_send,
-        continue_parent=continue_parent,
-    )
-
-    return msgs
-
-
 def _find_matching_rule(ruleset, run, msg):
-    from temba.flows.models import FlowRun, RuleSet
-
     orig_text = None
     if msg:
         orig_text = msg.text
@@ -771,34 +534,12 @@ def _find_matching_rule(ruleset, run, msg):
     msg.contact = run.contact
     context = flow_context(run.flow, run.contact, msg, run=run)
 
-    # if it's a form field, construct an expression accordingly
-    if ruleset.ruleset_type == RuleSet.TYPE_FORM_FIELD:
-        delim = ruleset.config.get("field_delimiter", " ")
-        ruleset.operand = '@(FIELD(%s, %d, "%s"))' % (
-            ruleset.operand[1:],
-            ruleset.config.get("field_index", 0) + 1,
-            delim,
-        )
-
     # if we have a custom operand, figure that out
     operand = None
     if ruleset.operand:
         (operand, errors) = evaluate(ruleset.operand, context, org=run.flow.org)
     elif msg:
         operand = str(msg)
-
-    if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-        # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).order_by("-created_on").first()
-        if subflow_run:
-            if subflow_run.exit_type == FlowRun.EXIT_TYPE_COMPLETED:
-                operand = "completed"
-            elif subflow_run.exit_type == FlowRun.EXIT_TYPE_EXPIRED:
-                operand = "expired"
-
-    elif ruleset.ruleset_type == RuleSet.TYPE_GROUP:
-        # this won't actually be used by the rules, but will end up in the results
-        operand = run.contact.get_display(for_expressions=True) or ""
 
     try:
         rules = ruleset.get_rules()
@@ -892,11 +633,6 @@ def _set_run_completed(run, *, exit_uuid, completed_on=None):
     run.save(
         update_fields=("path", "exit_type", "exited_on", "modified_on", "is_active", "parent_context", "child_context")
     )
-
-    # if we have a parent to continue
-    if run.parent:
-        # mark it for continuation
-        run.continue_parent = True
 
 
 def _set_run_interrupted(run):

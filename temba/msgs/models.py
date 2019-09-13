@@ -23,7 +23,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
@@ -858,35 +858,6 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(
-        self,
-        text,
-        user,
-        trigger_send=False,
-        expressions_context=None,
-        connection=None,
-        attachments=None,
-        msg_type=None,
-        send_all=False,
-        sent_on=None,
-        quick_replies=None,
-    ):
-
-        return self.contact.send(
-            text,
-            user,
-            trigger_send=trigger_send,
-            expressions_context=expressions_context,
-            response_to=self if self.id else None,
-            connection=connection,
-            attachments=attachments,
-            msg_type=msg_type or self.msg_type,
-            sent_on=sent_on,
-            all_urns=send_all,
-            high_priority=True,
-            quick_replies=quick_replies,
-        )
-
     def update(self, cmd):
         """
         Updates our message according to the provided client command
@@ -1160,10 +1131,10 @@ class Msg(models.Model):
         connection=None,
         quick_replies=None,
         uuid=None,
-    ):
+    ):  # pragma: no cover
         from temba.flows.legacy.expressions import evaluate, channel_context
 
-        if not org or not user:  # pragma: no cover
+        if not org or not user:
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
@@ -1232,7 +1203,10 @@ class Msg(models.Model):
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
-            tel = contact.raw_tel()
+            tel = contact.get_urn(TEL_SCHEME)
+            if tel:
+                tel = tel.path
+
             if tel and len(tel) < 6:
                 same_msg_count = Msg.objects.filter(
                     contact_urn=contact_urn,

@@ -637,20 +637,6 @@ class Org(SmartModel):
         setattr(self, cache_attr, schemes)
         return schemes
 
-    def clear_cached_schemes(self):
-        from temba.channels.models import Channel
-
-        for role in [
-            Channel.ROLE_SEND,
-            Channel.ROLE_RECEIVE,
-            Channel.ROLE_ANSWER,
-            Channel.ROLE_CALL,
-            Channel.ROLE_USSD,
-        ]:
-            cache_attr = "__schemes__%s" % role
-            if hasattr(self, cache_attr):
-                delattr(self, cache_attr)
-
     def normalize_contact_tels(self):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
@@ -2251,7 +2237,7 @@ class Language(SmartModel):
             return default_text
 
         # If we are handed raw text without translations, just return that
-        if not isinstance(text_translations, dict):
+        if not isinstance(text_translations, dict):  # pragma: no cover
             return text_translations
 
         # otherwise, find the first preferred language

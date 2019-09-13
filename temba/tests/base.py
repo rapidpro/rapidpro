@@ -8,7 +8,6 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
-from future.moves.html.parser import HTMLParser
 from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
@@ -24,7 +23,7 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowSession, RuleSet, clear_flow_users
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
@@ -383,37 +382,6 @@ class TembaTestMixin:
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
-        """ Update the destination without doing a cycle check """
-
-        from temba.flows import legacy
-
-        # look up our destination, we need this in order to set the correct destination_type
-        destination_type = Flow.NODE_TYPE_ACTIONSET
-        action_destination = legacy.get_node(flow, destination, destination_type)
-        if not action_destination:
-            destination_type = Flow.NODE_TYPE_RULESET
-            ruleset_destination = legacy.get_node(flow, destination, destination_type)
-            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
-
-        actionset = ActionSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if actionset:
-            actionset.destination = destination
-            actionset.destination_type = destination_type
-            actionset.save()
-
-        ruleset = RuleSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if ruleset:
-            rules = ruleset.get_rules()
-            for r in rules:
-                if r.uuid == rule:
-                    r.destination = destination
-                    r.destination_type = destination_type
-            ruleset.set_rules(rules)
-            ruleset.save()
-        else:
-            self.fail("Couldn't find node with uuid: %s" % node)
-
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
         self.assertEqual(len(mail.outbox), outbox_index + 1)
         email = mail.outbox[outbox_index]
@@ -738,18 +706,6 @@ class FlowFileTest(TembaTest):
             self.assertFalse(replies)
 
         return None
-
-
-class MLStripper(HTMLParser):  # pragma: no cover
-    def __init__(self):
-        self.reset()
-        self.fed = []
-
-    def handle_data(self, d):
-        self.fed.append(d)
-
-    def get_data(self):
-        return "".join(self.fed)
 
 
 class MockResponse(object):
