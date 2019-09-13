@@ -244,14 +244,11 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("schedules.schedule_update"):
-                action = "formax"
-                if len(self.get_object().children.all()) == 0:
-                    action = "fixed"
                 formax.add_section(
                     "schedule",
                     reverse("schedules.schedule_update", args=[self.object.schedule.pk]),
                     icon="icon-calendar",
-                    action=action,
+                    action="formax",
                 )
 
     class Update(OrgObjPermsMixin, SmartUpdateView):
@@ -367,7 +364,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 else:
                     return HttpResponseRedirect(self.get_success_url())
 
-            schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
+            schedule = Schedule.create_blank_schedule(org, user) if has_schedule else None
             broadcast = Broadcast.create(
                 org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
             )

@@ -22,6 +22,7 @@ class Schedule(SmartModel):
     REPEAT_DAILY = "D"
     REPEAT_WEEKLY = "W"
     REPEAT_MONTHLY = "M"
+
     REPEAT_CHOICES = (
         (REPEAT_NEVER, _("Never")),
         (REPEAT_DAILY, _("Daily")),
@@ -29,39 +30,106 @@ class Schedule(SmartModel):
         (REPEAT_MONTHLY, _("Monthly")),
     )
 
-    STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))
+    DAYS_OF_WEEK_DISPLAY = {
+        "M": _("Monday"),
+        "T": _("Tuesday"),
+        "W": _("Wednesday"),
+        "R": _("Thurday"),
+        "F": _("Friday"),
+        "S": _("Saturday"),
+        "U": _("Sunday"),
+    }
 
-    status = models.CharField(default="U", choices=STATUS_CHOICES, max_length=1)
-    repeat_hour_of_day = models.IntegerField(help_text="The hour of the day", null=True)
-    repeat_minute_of_hour = models.IntegerField(help_text="The minute of the hour", null=True)
-    repeat_day_of_month = models.IntegerField(null=True, help_text="The day of the month to repeat on")
-    repeat_period = models.CharField(
-        max_length=1, null=True, help_text="When this schedule repeats", choices=REPEAT_CHOICES
-    )
-    repeat_days = models.IntegerField(default=0, null=True, blank=True, help_text="bit mask of days of the week")
-    last_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule last fired")
-    next_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule fires next")
+    # ordered in the same way as python's weekday function
+    DAYS_OF_WEEK_OFFSET = "MTWRFSU"
+
+    # when this schedule will repeat
+    repeat_period = models.CharField(max_length=1, choices=REPEAT_CHOICES)
+
+    # the hour of the day this schedule will fire (in org timezone)
+    repeat_hour_of_day = models.IntegerField(null=True)
+
+    # the minute of the our this schedule will fire
+    repeat_minute_of_hour = models.IntegerField(null=True)
+
+    # the day of the month this will repeat on (only for monthly repeats, 1-31)
+    repeat_day_of_month = models.IntegerField(null=True)
+
+    # what days of the week this will repeat on (only for weekly repeats) One of MTWRFSU
+    repeat_days_of_week = models.CharField(null=True, max_length=7)
+
+    # when this schedule will next fire
+    next_fire = models.DateTimeField(null=True)
+
+    # when this schedule was last fired
+    last_fire = models.DateTimeField(null=True)
+
+    # the org this schedule belongs to
+    org = models.ForeignKey("orgs.Org", null=True, on_delete=models.PROTECT)
+
+    # deprecated, to be removed
+    repeat_days = models.IntegerField(default=0, null=True)
+
+    # deprecated, to be removed
+    STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))
+    status = models.CharField(default="U", choices=STATUS_CHOICES, max_length=1, null=True)
 
     @classmethod
-    def create_schedule(cls, start_date, repeat_period, user, repeat_days=None, status="S"):
-        return Schedule.objects.create(
+    def create_blank_schedule(cls, org, user):
+        return Schedule.create_schedule(org, user, None, Schedule.REPEAT_NEVER, "")
+
+    @classmethod
+    def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week):
+        schedule = Schedule.objects.create(
+            org=org,
             repeat_period=repeat_period,
-            repeat_days=repeat_days,
             created_by=user,
             modified_by=user,
-            repeat_day_of_month=start_date.day,
-            repeat_hour_of_day=start_date.hour,
-            repeat_minute_of_hour=start_date.minute,
-            next_fire=start_date,
-            status=status,
         )
 
-    def reset(self):
-        self.next_fire = None
-        self.status = "U"
-        self.repeat_period = Schedule.REPEAT_NEVER
-        self.repeat_days = 0
-        self.save()
+        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week)
+        return schedule
+
+    def update_schedule(self, start_time, repeat_period, repeat_days_of_week, now=None):
+        assert self.org is not None
+
+        if not now:
+            now = timezone.now()
+
+        self.repeat_period = repeat_period
+
+        # deprecated
+        self.status = None
+        self.repeat_days = None
+
+        if repeat_period == Schedule.REPEAT_NEVER:
+            self.repeat_minute_of_hour = None
+            self.repeat_hour_of_day = None
+            self.repeat_day_of_month = None
+            self.repeat_days_of_week = None
+
+            self.next_fire = start_time if start_time and start_time > timezone.now() else None
+            self.save()
+
+        else:
+            self.repeat_hour_of_day = start_time.hour
+            self.repeat_minute_of_hour = start_time.minute
+
+            if repeat_period == Schedule.REPEAT_WEEKLY:
+                self.repeat_days_of_week = repeat_days_of_week
+                self.repeat_day_of_month = None
+
+            if repeat_period == Schedule.REPEAT_MONTHLY:
+                self.repeat_days_of_week = None
+                self.repeat_day_of_month = start_time.day
+
+            # for recurring schedules if the start time is in the past, calculate our next fire and set that
+            if start_time < now:
+                self.next_fire = Schedule.get_next_fire(self, start_time, now=now)
+            else:
+                self.next_fire = start_time
+
+            self.save()
 
     def get_broadcast(self):
         if hasattr(self, "broadcast"):
@@ -71,93 +139,59 @@ class Schedule(SmartModel):
         if hasattr(self, "trigger"):
             return self.trigger
 
-    def get_org_timezone(self):
-        org = None
-
-        if self.get_broadcast():  # pragma: needs cover
-            org = self.get_broadcast().org
-
-        if org and org.timezone:  # pragma: needs cover
-            return org.timezone
-        else:
-            return timezone.pytz.utc
-
-    def get_next_fire(self, trigger_date):
+    @classmethod
+    def get_next_fire(cls, schedule, trigger_date, now=None):
         """
-        Get the next point in the future when our schedule should fire again
+        Get the next point in the future when our schedule should fire again. Note this should only be called to find
+        the next scheduled event as it will force the next date to meet the criteria in day_of_month, days_of_week etc..
+
+        The first fire for a schedule can violate these so next_fire should be set directly when it is in the future.
         """
-        hour = self.repeat_hour_of_day if self.repeat_hour_of_day is not None else trigger_date.hour
-        minute = self.repeat_minute_of_hour if self.repeat_minute_of_hour is not None else 0
-
-        trigger_date = trigger_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-
-        if self.repeat_period == Schedule.REPEAT_NEVER:
-            return trigger_date
-
-        if self.repeat_period == Schedule.REPEAT_MONTHLY:
-            (weekday, days) = calendar.monthrange(trigger_date.year, trigger_date.month)
-            day_of_month = min(days, self.repeat_day_of_month)
-            next_date = datetime(
-                trigger_date.year,
-                trigger_date.month,
-                day=day_of_month,
-                hour=hour,
-                minute=minute,
-                second=0,
-                microsecond=0,
-            )
-            next_date = self.get_org_timezone().localize(next_date)
-            if trigger_date.day >= day_of_month:
-                next_date += relativedelta(months=1)
-                (weekday, days) = calendar.monthrange(next_date.year, next_date.month)
-                day_of_month = min(days, self.repeat_day_of_month)
-                next_date = next_date.replace(day=day_of_month)
-
-            return next_date
-
-        if self.repeat_period == Schedule.REPEAT_WEEKLY:
-            # find the next day we are to repeat
-            if self.repeat_days:
-                dow = trigger_date.weekday()
-                for i in range(7):
-                    # add one so we start with tomorrow
-                    day_idx = (dow + i + 1) % 7
-
-                    # 2-128 bitmask for encoding the days of the week
-                    # use base-1 when calculating our powers of 2
-                    bitmask = pow(2, day_idx + 1)
-                    if bitmask & self.repeat_days == bitmask:
-                        return trigger_date + timedelta(days=i + 1)
-
-        if self.repeat_period == Schedule.REPEAT_DAILY:
-            return trigger_date + timedelta(days=1)
-
-    def update_schedule(self, now=None):
-        """
-        Updates our schedule for the next date, returns true if it was expired
-        """
+        if schedule.repeat_period == Schedule.REPEAT_NEVER:
+            return None
 
         if not now:
             now = timezone.now()
 
-        if self.is_expired() and now:
-            self.next_fire = self.get_next_fire(now)
-            self.last_fire = now
-            self.save()
-            return True
+        hour = schedule.repeat_hour_of_day
+        minute = schedule.repeat_minute_of_hour
 
-    def is_expired(self):
-        if self.next_fire:
-            next_fire = self.next_fire
-            return next_fire < timezone.now()
-        else:
-            return False
+        # start from the trigger date
+        next_fire = trigger_date.astimezone(schedule.org.timezone)
+        next_fire = next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-    def has_pending_fire(self):
-        if self.status == "S" and self.next_fire and self.next_fire > timezone.now():
-            return True
+        # if monthly, set to the day of the month scheduled and move forward until we are in the future
+        if schedule.repeat_period == Schedule.REPEAT_MONTHLY:
+            while True:
+                (weekday, days) = calendar.monthrange(next_fire.year, next_fire.month)
+                day_of_month = min(days, schedule.repeat_day_of_month)
+                next_fire = next_fire.replace(day=day_of_month)
+                if next_fire > now:
+                    break
+
+                next_fire += relativedelta(months=1)
+
+            return next_fire
+
+        elif schedule.repeat_period == Schedule.REPEAT_WEEKLY:
+            while next_fire < now and Schedule.DAYS_OF_WEEK_OFFSET[next_fire.weekday()] not in schedule.repeat_days_of_week:
+                next_fire = next_fire + timedelta(days=1)
+
+            return next_fire
+
+        if schedule.repeat_period == Schedule.REPEAT_DAILY:
+            while next_fire < now:
+                next_fire = next_fire + timedelta(days=1)
+
+            return next_fire
 
     def fire(self):
+        now = timezone.now()
+
+        # makes sure we are expired, noop if not
+        if self.next_fire > now:
+            return
+
         broadcast = self.get_broadcast()
         trigger = self.get_trigger()
 
@@ -172,33 +206,17 @@ class Schedule(SmartModel):
         else:
             logger.error("Tried to fire schedule but it wasn't attached to anything", extra={"schedule_id": self.id})
 
-        # if its one time, delete our schedule
-        if self.repeat_period == Schedule.REPEAT_NEVER:
-            self.reset()
+        # save our last fire
+        self.last_fire = now
 
-    def unschedule(self):
-        logger.info(f"Unscheduling {str(self)}")
+        # schedule our next fire
+        self.next_fire = Schedule.get_next_fire(self, self.next_fire, now=now)
 
-        self.status = "U"
-        self.save(update_fields=("status",))
-
-    def explode_bitmask(self):
-        if self.repeat_days:
-            bitmask_number = bin(self.repeat_days)
-            days = []
-            for idx in range(7):
-                power = bin(pow(2, idx + 1))
-                if bin(int(bitmask_number, 2) & int(power, 2)) == power:
-                    days.append(idx)
-            return days
-        return []
+        # save our last fire and new next fire (if any)
+        self.save(update_fields=["next_fire", "last_fire"])
 
     def get_repeat_days_display(self):
-        dow = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        days = self.explode_bitmask()
-        for i in range(len(days)):
-            days[i] = dow[days[i]]
-        return days
+        return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week]
 
     def __str__(self):
         repeat = (

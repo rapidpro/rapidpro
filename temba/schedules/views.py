@@ -15,14 +15,6 @@ from .models import Schedule
 
 
 class BaseScheduleForm(object):
-    def starts_never(self):
-        return self.cleaned_data["start"] == "never"
-
-    def starts_now(self):
-        return self.cleaned_data["start"] == "now"
-
-    def stopped(self):
-        return self.cleaned_data["start"] == "stop"
 
     def is_recurring(self):
         return self.cleaned_data["repeat_period"] != "O"
@@ -30,6 +22,7 @@ class BaseScheduleForm(object):
     def get_start_time(self):
         if self.cleaned_data["start"] == "later":
             start_datetime_value = self.cleaned_data["start_datetime_value"]
+            print("start timestamp: ", start_datetime_value)
 
             if start_datetime_value:
                 return datetime.utcfromtimestamp(start_datetime_value).replace(tzinfo=pytz.utc)
@@ -41,18 +34,9 @@ class BaseScheduleForm(object):
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
-    repeat_days = forms.IntegerField(required=False)
+    repeat_days_of_week = forms.CharField(required=False)
     start = forms.CharField(max_length=16)
     start_datetime_value = forms.IntegerField(required=False)
-
-    def clean(self):
-        data = super().clean()
-
-        # only weekly gets repeat days
-        if data["repeat_period"] != "W":
-            data["repeat_days"] = None
-
-        return data
 
     class Meta:
         model = Schedule
@@ -65,7 +49,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
     class Update(OrgPermsMixin, SmartUpdateView):
         form_class = ScheduleForm
-        fields = ("repeat_period", "repeat_days", "start", "start_datetime_value")
+        fields = ("repeat_period", "repeat_days_of_week", "start", "start_datetime_value")
         field_config = dict(repeat_period=dict(label="Repeat", help=None))
         submit_button_name = "Start"
         success_message = ""
@@ -85,50 +69,24 @@ class ScheduleCRUDL(SmartCRUDL):
             return None
 
         def get_context_data(self, **kwargs):
+            org = self.get_object().org
             context = super().get_context_data(**kwargs)
-            context["days"] = self.get_object().explode_bitmask()
+            context["days"] = self.get_object().repeat_days_of_week
             context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
+            context["user_tz_offset"] = int(timezone.now().astimezone(org.timezone).utcoffset().total_seconds() // 60)
             return context
 
         def save(self, *args, **kwargs):
             form = self.form
+
             schedule = self.object
+            schedule.org = self.derive_org()
 
-            if form.starts_never():
-                schedule.reset()
+            start_time = form.get_start_time()
+            print(start_time)
 
-            elif form.stopped():
-                schedule.reset()
-
-            elif form.starts_now():
-                schedule.next_fire = timezone.now() - timedelta(days=1)
-                schedule.repeat_period = "O"
-                schedule.repeat_days = 0
-                schedule.status = "S"
-                schedule.save()
-
-            else:
-                # Scheduled case
-                schedule.status = "S"
-                schedule.repeat_period = form.cleaned_data["repeat_period"]
-                start_time = form.get_start_time()
-
-                if start_time:
-                    schedule.next_fire = start_time
-
-                # create our recurrence
-                if form.is_recurring():
-                    if "repeat_days" in form.cleaned_data:
-                        days = form.cleaned_data["repeat_days"]
-                    schedule.repeat_days = days
-                    schedule.repeat_hour_of_day = schedule.next_fire.hour
-                    schedule.repeat_minute_of_hour = schedule.next_fire.minute
-                    schedule.repeat_day_of_month = schedule.next_fire.day
-                schedule.save()
-
-            # trigger our schedule if necessary
-            if schedule.is_expired():
-                from .tasks import check_schedule_task
-
-                on_transaction_commit(lambda: check_schedule_task.delay(schedule.id))
+            schedule.update_schedule(
+                start_time,
+                form.cleaned_data.get("repeat_period"),
+                form.cleaned_data.get("repeat_days_of_week")
+            )
