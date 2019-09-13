@@ -125,6 +125,3 @@ after_success:
   - codecov
   - coverage report -i
   - coverage report -i --rcfile .coveragerc_todo
-
-notifications:
-  slack: greatnonprofits:1WMrWSjkASDxZ16KphVlI8Sq
