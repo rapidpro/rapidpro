@@ -25,7 +25,6 @@ RUN python3.6 manage.py collectstatic --noinput
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
 RUN rm -f /etc/nginx/sites-enabled/default
-RUN ln -sf /rapidpro/nginx.conf /etc/nginx/sites-enabled/
 
 RUN rm -f /rapidpro/temba/settings.pyc
 
