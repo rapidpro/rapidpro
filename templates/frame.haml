@@ -107,6 +107,8 @@
       %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:"text/coffeescript"}
+
+    -compress js
       %script{src:"{{STATIC_URL}}components/rp-components.js"}
   
     -include "includes/frame_top.html"
