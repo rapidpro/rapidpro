@@ -774,6 +774,108 @@ table.list-table {
     z-index: 20;
     width: 55px;
 
+    .custom-tooltip {
+      position: absolute;
+      left: -60px;
+      top: 47px;
+      display: block;
+      text-align: center;
+      width: 180px;
+      padding: 20px;
+      box-sizing: border-box;
+      -ms-box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      -o-box-sizing: border-box;
+      background-color: #ffffff;
+      border-radius: 5px;
+      -moz-border-radius: 5px;
+      -webkit-border-radius: 5px;
+      -ms-border-radius: 5px;
+      -o-border-radius: 5px;
+      box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.2);
+      -moz-box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.2);
+      -webkit-box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.2);
+      -ms-box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.2);
+      -o-box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      -webkit-transition: all 0.3s linear 0s;
+      -moz-transition: all 0.3s linear 0s;
+      -ms-transition: all 0.3s linear 0s;
+      -o-transition: all 0.3s linear 0s;
+      transition: all 0.3s linear 0s;
+      z-index: 10;
+      visibility: hidden;
+
+      &.active {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      div.custom-tooltip-arrow {
+        width: 0;
+        height: 0;
+        position: absolute;
+        top: -6px;
+        left: 82px;
+        border-style: inset;
+        border-width: 0 7px 7px 7px;
+        border-color: transparent transparent #ffffff transparent;
+        -webkit-transform:rotate(360deg)
+      }
+
+      span.custom-tooltip-icon {
+        width: 100%;
+        display: block;
+        margin: 0 0 10px 0;
+        text-align: center;
+
+        .around {
+          background-color: rgba(40, 159, 155, 0.15);
+          padding: 12px;
+          border-radius: 50%;
+          display: inline-block;
+
+          i {
+            border: 2px solid rgba(40, 159, 155, 0.15);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            background-color: #FFF;
+            color: #289f9b;
+          }
+
+        }
+
+      }
+
+      span.custom-tooltip-title {
+        width: 100%;
+        display: block;
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        text-align: center;
+        color: #289f9b;
+      }
+
+      div.custom-tooltip-separator {
+        width: 90%;
+        margin: 16px 5%;
+        height: 1px;
+        background-color: rgba(216, 216, 216, 0.5);
+      }
+
+      span.custom-tooltip-description {
+        width: 100%;
+        display: block;
+        font-size: 13px;
+        line-height: 120%;
+        text-align: center;
+        color: #555555;
+      }
+
+    }
+
     &.more {
 
       width: 5px;
@@ -1095,6 +1197,18 @@ table.list-table {
         }
         &:hover:before {
           content: "\e0c8";
+        }
+      }
+
+      &.icon-nav-help-inverted {
+        &:before {
+          content: "\e90e";
+        }
+      }
+
+      &.icon-nav-help {
+        &:before {
+          content: "\e90f";
         }
       }
 
@@ -1442,7 +1556,6 @@ input[type='text'].search-query {
   padding-top: 2;
   font-size: 14px;
   font-weight: 200;
-
 }
 
 // *******************************

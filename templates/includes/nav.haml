@@ -7,30 +7,80 @@
       %a.icon-nav-messages{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
         .title
           -trans "messages"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-messages-inverted
+        %span.custom-tooltip-title
+          -trans "Messages"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Manage your inbox of inbound in outbound message"
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %li.nav-contacts
       %a.icon-nav-contacts{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
         .title
           -trans "contacts"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-contacts-inverted
+        %span.custom-tooltip-title
+          -trans "Contacts"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Create and manage your contacts and groups"
 
   -if org_perms.flows.flow_list and not request.user.is_superuser
     %li.nav-flows
       %a.icon-nav-flows{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
         .title
           -trans "flows"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-flows-inverted
+        %span.custom-tooltip-title
+          -trans "Flows"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Run and keep track of  your messaging flows to 100% completion"
 
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %li.nav-campaigns
       %a.icon-nav-campaigns{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
         .title
           -trans "campaigns"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-campaigns-inverted
+        %span.custom-tooltip-title
+          -trans "Campaigns"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Create campaigns for groups"
 
   -if org_perms.triggers.trigger_list and not request.user.is_superuser
     %li.nav-triggers
       %a.icon-nav-triggers{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
         .title
           -trans "triggers"
+      %div.custom-tooltip
+        %div.custom-tooltip-arrow
+        %span.custom-tooltip-icon
+          %div.around
+            %i.icon-nav-triggers-inverted
+        %span.custom-tooltip-title
+          -trans "Triggers"
+        %div.custom-tooltip-separator
+        %span.custom-tooltip-description
+          -trans "Create triggers throughout messaging flows"
 
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim
@@ -38,6 +88,31 @@
         %a.icon-nav-channels{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
           .title
             -trans "channels"
+        %div.custom-tooltip
+          %div.custom-tooltip-arrow
+          %span.custom-tooltip-icon
+            %div.around
+              %i.icon-nav-channels-inverted
+          %span.custom-tooltip-title
+            -trans "Channels"
+          %div.custom-tooltip-separator
+          %span.custom-tooltip-description
+            -trans "Connect to channels to send messages"
+
+  %li.nav-help
+    %a.icon-nav-help{href:"https://help.communityconnectlabs.com/support/home", class:"{% active request 'help' %}", target:"_blank"}
+      .title
+        -trans "help"
+    %div.custom-tooltip
+      %div.custom-tooltip-arrow
+      %span.custom-tooltip-icon
+        %div.around
+          %i.icon-nav-help-inverted
+      %span.custom-tooltip-title
+        -trans "Help"
+      %div.custom-tooltip-separator
+      %span.custom-tooltip-description
+        -trans "Use our knowledge base to get the most of the Community Connect Labs platform"
 
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
@@ -45,6 +120,16 @@
         %a.icon-nav-groups{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
           .title
             -trans "users"
+        %div.custom-tooltip
+          %div.custom-tooltip-arrow
+          %span.custom-tooltip-icon
+            %div.around
+              %i.icon-nav-channels-inverted
+          %span.custom-tooltip-title
+            -trans "Users"
+          %div.custom-tooltip-separator
+          %span.custom-tooltip-description
+            -trans "Use this tab to manage users"
 
   -if request.user.is_superuser or perms.orgs.org_manage
     -if not user_org
@@ -52,6 +137,16 @@
         %a.icon-nav-orgs{href:"{% url 'orgs.org_manage' %}?search=Nyaruka", class:"{% active request 'org' %}"}
           .title
             -trans "orgs"
+        %div.custom-tooltip
+          %div.custom-tooltip-arrow
+          %span.custom-tooltip-icon
+            %div.around
+              %i.icon-nav-channels-inverted
+          %span.custom-tooltip-title
+            -trans "Orgs"
+          %div.custom-tooltip-separator
+          %span.custom-tooltip-description
+            -trans "Use this tab to manage orgs"
 
   -if request.user.is_superuser or perms.orgs.org_dashboard
     %li.nav-dashboard
@@ -97,4 +192,4 @@
   .nav-alert
     %a{href:'{% url "orgs.org_home" %}'}
       .icon-warning
-      -trans "Your phone is having difficulty relaying messages"            
+      -trans "Your phone is having difficulty relaying messages"
