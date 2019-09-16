@@ -2269,16 +2269,14 @@ class OrgCRUDL(SmartCRUDL):
                     airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
 
                     try:
-                        from temba.airtime.models import AirtimeTransfer
+                        from temba.airtime.transferto import TransferToClient
 
-                        response = AirtimeTransfer.post_transferto_api_response(
-                            account_login, airtime_api_token, action="ping"
-                        )
-                        parsed_response = AirtimeTransfer.parse_transferto_response(force_text(response.content))
+                        client = TransferToClient(account_login, airtime_api_token)
+                        response = client.ping()
 
-                        error_code = int(parsed_response.get("error_code", None))
-                        info_txt = parsed_response.get("info_txt", None)
-                        error_txt = parsed_response.get("error_txt", None)
+                        error_code = int(response.get("error_code", None))
+                        info_txt = response.get("info_txt", None)
+                        error_txt = response.get("error_txt", None)
 
                     except Exception:
                         raise ValidationError(

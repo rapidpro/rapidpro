@@ -26,10 +26,11 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
+from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
-from temba.utils.expressions import get_function_listing
+from temba.utils.fields import CompletionTextarea
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BaseActionForm
 
@@ -201,7 +202,12 @@ class InboxView(OrgPermsMixin, SmartListView):
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(required=True, widget=forms.Textarea, max_length=Broadcast.MAX_TEXT_LEN)
+    message = forms.CharField(
+        required=True,
+        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
+        max_length=Broadcast.MAX_TEXT_LEN,
+    )
+
     omnibox = OmniboxField()
 
     def __init__(self, user, *args, **kwargs):
@@ -366,7 +372,15 @@ class BroadcastCRUDL(SmartCRUDL):
 
             schedule = Schedule.create_blank_schedule(org, user) if has_schedule else None
             broadcast = Broadcast.create(
-                org, user, text, groups=groups, contacts=contacts, urns=urns, schedule=schedule, status=QUEUED
+                org,
+                user,
+                text,
+                groups=groups,
+                contacts=contacts,
+                urns=urns,
+                schedule=schedule,
+                status=QUEUED,
+                template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
             )
 
             if not has_schedule:

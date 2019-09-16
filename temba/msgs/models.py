@@ -7,7 +7,6 @@ from uuid import uuid4
 import iso8601
 import pytz
 import regex
-from temba_expressions.evaluator import DateStyle, EvaluationContext
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -24,13 +23,11 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
-from temba.utils.dates import datetime_to_str, get_datetime_format
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
-from temba.utils.expressions import evaluate_template
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
 
@@ -94,7 +91,13 @@ class Broadcast(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    TEMPLATE_STATE_LEGACY = "legacy"
+    TEMPLATE_STATE_EVALUATED = "evaluated"
+    TEMPLATE_STATE_UNEVALUATED = "unevaluated"
+    TEMPLATE_STATE_CHOICES = (TEMPLATE_STATE_LEGACY, TEMPLATE_STATE_EVALUATED, TEMPLATE_STATE_UNEVALUATED)
+
     METADATA_QUICK_REPLIES = "quick_replies"
+    METADATA_TEMPLATE_STATE = "template_state"
 
     org = models.ForeignKey(
         Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this broadcast is connected to")
@@ -212,6 +215,7 @@ class Broadcast(models.Model):
         media=None,
         send_all=False,
         quick_replies=None,
+        template_state=TEMPLATE_STATE_LEGACY,
         status=INITIALIZING,
         **kwargs,
     ):
@@ -238,7 +242,9 @@ class Broadcast(models.Model):
                         % base_language
                     )
 
-        metadata = dict(quick_replies=quick_replies) if quick_replies else {}
+        metadata = {Broadcast.METADATA_TEMPLATE_STATE: template_state}
+        if quick_replies:
+            metadata[Broadcast.METADATA_QUICK_REPLIES] = quick_replies
 
         broadcast = cls.objects.create(
             org=org,
@@ -385,6 +391,10 @@ class Broadcast(models.Model):
         preferred_languages.append(self.base_language)
 
         return preferred_languages
+
+    def get_template_state(self):
+        metadata = self.metadata or {}
+        return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_LEGACY)
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"
@@ -848,35 +858,6 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(
-        self,
-        text,
-        user,
-        trigger_send=False,
-        expressions_context=None,
-        connection=None,
-        attachments=None,
-        msg_type=None,
-        send_all=False,
-        sent_on=None,
-        quick_replies=None,
-    ):
-
-        return self.contact.send(
-            text,
-            user,
-            trigger_send=trigger_send,
-            expressions_context=expressions_context,
-            response_to=self if self.id else None,
-            connection=connection,
-            attachments=attachments,
-            msg_type=msg_type or self.msg_type,
-            sent_on=sent_on,
-            all_urns=send_all,
-            high_priority=True,
-            quick_replies=quick_replies,
-        )
-
     def update(self, cmd):
         """
         Updates our message according to the provided client command
@@ -919,24 +900,6 @@ class Msg(models.Model):
             legacy.handle_message(self)
         else:  # pragma: no cover
             mailroom.queue_msg_handling(self)
-
-    def build_expressions_context(self):
-        date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        value = str(self)
-        attachments = {str(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
-
-        context = {
-            "__default__": value,
-            "value": value,
-            "text": self.text,
-            "attachments": attachments,
-            "time": datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone),
-        }
-
-        if self.contact_urn:
-            context["urn"] = self.contact_urn.build_expressions_context(self.org)
-
-        return context
 
     def resend(self):
         """
@@ -1088,7 +1051,7 @@ class Msg(models.Model):
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
         # set the preferred channel for this contact
-        contact.set_preferred_channel(channel)
+        legacy.set_preferred_channel(contact, channel)
 
         # and update this URN to make sure it is associated with this channel
         if contact_urn:
@@ -1148,51 +1111,6 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def evaluate_template(cls, text, context, org=None, url_encode=False, partial_vars=False):
-        """
-        Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
-        the passed in context, contact and org. If some variables are not resolved to values, then the variable
-        name will remain (ie, @foo.bar).
-
-        Returns a tuple of the substituted text and whether there were are substitution failures.
-        """
-        # shortcut for cases where there is no way we would substitute anything as there are no variables
-        if not text or text.find("@") < 0:
-            return text, []
-
-        # add 'step.contact' if it isn't populated for backwards compatibility
-        if "step" not in context:
-            context["step"] = dict()
-        if "contact" not in context["step"]:
-            context["step"]["contact"] = context.get("contact")
-
-        if not org:
-            dayfirst = True
-            tz = timezone.get_current_timezone()
-        else:
-            dayfirst = org.get_dayfirst()
-            tz = org.timezone
-
-        (format_date, format_time) = get_datetime_format(dayfirst)
-
-        now = timezone.now().astimezone(tz)
-
-        # add date.* constants to context
-        context["date"] = {
-            "__default__": now.isoformat(),
-            "now": now.isoformat(),
-            "today": datetime_to_str(timezone.now(), format=format_date, tz=tz),
-            "tomorrow": datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
-            "yesterday": datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz),
-        }
-
-        date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
-        context = EvaluationContext(context, tz, date_style)
-
-        # returns tuple of output and errors
-        return evaluate_template(text, context, url_encode, partial_vars)
-
-    @classmethod
     def create_outgoing(
         cls,
         org,
@@ -1213,9 +1131,10 @@ class Msg(models.Model):
         connection=None,
         quick_replies=None,
         uuid=None,
-    ):
+    ):  # pragma: no cover
+        from temba.flows.legacy.expressions import evaluate, channel_context
 
-        if not org or not user:  # pragma: no cover
+        if not org or not user:
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
@@ -1243,16 +1162,16 @@ class Msg(models.Model):
         if expressions_context is not None:
             # make sure 'channel' is populated if we have a channel
             if channel and "channel" not in expressions_context:
-                expressions_context["channel"] = channel.build_expressions_context()
+                expressions_context["channel"] = channel_context(channel)
 
-            (text, errors) = Msg.evaluate_template(text, expressions_context, org=org)
+            (text, errors) = evaluate(text, expressions_context, org=org)
             if text:
                 text = text[: Msg.MAX_TEXT_LEN]
 
             evaluated_attachments = []
             if attachments:
                 for attachment in attachments:
-                    (attachment, errors) = Msg.evaluate_template(attachment, expressions_context, org=org)
+                    (attachment, errors) = evaluate(attachment, expressions_context, org=org)
                     evaluated_attachments.append(attachment)
         else:
             text = text[: Msg.MAX_TEXT_LEN]
@@ -1284,7 +1203,10 @@ class Msg(models.Model):
 
             # be more aggressive about short codes for duplicate messages
             # we don't want machines talking to each other
-            tel = contact.raw_tel()
+            tel = contact.get_urn(TEL_SCHEME)
+            if tel:
+                tel = tel.path
+
             if tel and len(tel) < 6:
                 same_msg_count = Msg.objects.filter(
                     contact_urn=contact_urn,
@@ -1313,7 +1235,7 @@ class Msg(models.Model):
         metadata = {}  # init metadata to the same as the default value of the Msg.metadata field
         if quick_replies:
             for counter, reply in enumerate(quick_replies):
-                (value, errors) = Msg.evaluate_template(text=reply, context=expressions_context, org=org)
+                (value, errors) = evaluate(text=reply, context=expressions_context, org=org)
                 if value:
                     quick_replies[counter] = value
             metadata = dict(quick_replies=quick_replies)

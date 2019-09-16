@@ -33,26 +33,6 @@
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      var completions = {{ completions|to_json }};
-      var function_completions = {{ function_completions|to_json }};
-
-      $('#message-section textarea').each(function() {
-
-        var ele = $(this);
-
-        // give it a place holder
-        ele.attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
-
-        // make it autocomplete
-        new AutoComplete(completions, function_completions).bind(ele);
-
-        // add an sms counter
-        parent = ele.parent().append('<div class="counter">0</div>');
-        counter = parent.find('.counter');
-        initMessageLengthCounter(this, counter);
-
-      });
-
       $("#id_event_type").on('change', function() {
         if ($("#id_event_type").data('select2').val() == 'F') {
           $("#flow-section").show();
@@ -101,11 +81,13 @@
       display:none;
     }
 
+    /*
     .modal-body {
       overflow-x: hidden;
       overflow-y: hidden;
     }
-
+    */
+   
     .smartmin-form textarea {
       margin-top:5px;
       height: 180px;
@@ -115,10 +97,6 @@
     .counter {
       padding-top:10px;
       padding-bottom:5px;
-    }
-
-    #active-modal .fetched-content {
-      // min-height:185px;
     }
 
     #id_offset {
@@ -195,8 +173,17 @@
       font-size:16px;
     }
 
-    #languages {
+    #languages{
       float:right;
+    }
+
+    .language .control-group {
+       width: 100%;
+    }
+
+    rp-completion {
+      height: 125px;
+      margin: 10px 0px 20px 0px;
     }
 
 -block fields

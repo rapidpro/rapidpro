@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-21 21:59+0000\n"
+"POT-Creation-Date: 2019-09-12 01:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,6 +116,9 @@ msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
 msgstr ""
 
 msgid "Default"
@@ -2279,9 +2282,6 @@ msgstr ""
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
 
-msgid "Invalid group or contact id"
-msgstr ""
-
 msgid "Send Message"
 msgstr ""
 
@@ -2346,9 +2346,6 @@ msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX
 msgstr ""
 
 msgid "Manage Contact Fields"
-msgstr ""
-
-msgid "featured"
 msgstr ""
 
 msgid "Update"
@@ -2460,9 +2457,6 @@ msgid "When this ruleset was originally created"
 msgstr ""
 
 msgid "When this ruleset was last modified"
-msgstr ""
-
-msgid "No subscribers to this event"
 msgstr ""
 
 msgid "When this action was originally created"
@@ -2597,6 +2591,9 @@ msgstr ""
 
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgstr ""
+
+msgid "You don't have permission to edit this flow"
 msgstr ""
 
 msgid "Your flow failed validation. Please refresh your browser."
@@ -3125,6 +3122,9 @@ msgid "Schedules"
 msgstr ""
 
 msgid "Failed"
+msgstr ""
+
+msgid "Hi @contact.name!"
 msgstr ""
 
 msgid "Schedule Message"
@@ -5894,6 +5894,9 @@ msgstr ""
 msgid "Types"
 msgstr ""
 
+msgid "Featured"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -6483,29 +6486,17 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
-msgstr ""
-
-msgid "Clear"
-msgstr ""
-
-msgid "(one per alias line)"
-msgstr ""
-
-msgid "Alias names must be unique, try again."
-msgstr ""
-
-msgid "Your changes could not be saved. Please reload the page and try again."
+"        "
 msgstr ""
 
 #, python-format

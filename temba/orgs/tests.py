@@ -36,7 +36,7 @@ from temba.contacts.models import (
     ContactGroup,
     ContactURN,
 )
-from temba.flows.models import ActionSet, AddToGroupAction, Flow, FlowRun
+from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import INCOMING, Label, Msg
@@ -1688,17 +1688,20 @@ class OrgTest(TembaTest):
 
         org.refresh_from_db()
         self.assertFalse(org.is_connected_to_transferto())
+        self.assertIsNone(org.get_transferto_client())
 
         org.connect_transferto("login", "token", self.admin)
-
         org.refresh_from_db()
+
         self.assertTrue(org.is_connected_to_transferto())
+        self.assertIsNotNone(org.get_transferto_client())
         self.assertEqual(org.modified_by, self.admin)
 
         org.remove_transferto_account(self.admin)
-
         org.refresh_from_db()
+
         self.assertFalse(org.is_connected_to_transferto())
+        self.assertIsNone(org.get_transferto_client())
         self.assertEqual(org.modified_by, self.admin)
 
     def test_transferto_account(self):
@@ -1707,10 +1710,8 @@ class OrgTest(TembaTest):
         # connect transferTo
         transferto_account_url = reverse("orgs.org_transfer_to_account")
 
-        with patch(
-            "temba.airtime.models.AirtimeTransfer.post_transferto_api_response"
-        ) as mock_post_transterto_request:
-            mock_post_transterto_request.return_value = MockResponse(200, "Unexpected content")
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, "Unexpected content")
             response = self.client.post(
                 transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
@@ -1718,8 +1719,8 @@ class OrgTest(TembaTest):
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
-            mock_post_transterto_request.return_value = MockResponse(
-                200, "authentication_key=123\r\n" "error_code=400\r\n" "error_txt=Failed Authentication\r\n"
+            mock_post.return_value = MockResponse(
+                200, "authentication_key=123\r\nerror_code=400\r\nerror_txt=Failed Authentication\r\n"
             )
 
             response = self.client.post(
@@ -1727,12 +1728,12 @@ class OrgTest(TembaTest):
             )
 
             self.assertContains(
-                response, "Connecting to your TransferTo account failed " "with error text: Failed Authentication"
+                response, "Connecting to your TransferTo account failed with error text: Failed Authentication"
             )
 
             self.assertFalse(self.org.is_connected_to_transferto())
 
-            mock_post_transterto_request.return_value = MockResponse(
+            mock_post.return_value = MockResponse(
                 200,
                 "info_txt=pong\r\n"
                 "authentication_key=123\r\n"
@@ -1764,14 +1765,14 @@ class OrgTest(TembaTest):
             self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
             self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
 
-            mock_post_transterto_request.side_effect = Exception("foo")
+            mock_post.side_effect = Exception("foo")
             response = self.client.post(
                 transferto_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
             )
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
-        # No account connected, do not show the button to Transfer logs
+        # no account connected, do not show the button to Transfer logs
         response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
         self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
         self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_transfer_to_account"))
@@ -2917,6 +2918,7 @@ class OrgCRUDLTest(TembaTest):
 
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
 
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
 
@@ -2939,6 +2941,9 @@ class OrgCRUDLTest(TembaTest):
 
         self.org.date_format = "M"
         self.org.save()
+
+        self.assertEqual(("%m-%d-%Y", "%m-%d-%Y %H:%M"), self.org.get_datetime_formats())
+
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
 
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
@@ -3405,6 +3410,8 @@ class BulkExportTest(TembaTest):
         self.assertIn("Child Flow", group)
 
     def test_flow_export_dynamic_group(self):
+        from temba.flows.legacy import AddToGroupAction
+
         flow = self.get_flow("favorites")
 
         # get one of our flow actionsets, change it to an AddToGroupAction
@@ -3528,18 +3535,17 @@ class BulkExportTest(TembaTest):
         campaign = Campaign.objects.all().first()
         event = campaign.events.all().first()
 
-        action_set = event.flow.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        action_msg = actions[0]["msg"]
-
         self.assertEqual(event.message["swa"], "hello")
         self.assertEqual(event.message["eng"], "Hey")
 
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, "swa")
 
-        self.assertEqual(action_msg["swa"], "hello")
-        self.assertEqual(action_msg["eng"], "Hey")
+        flow_def = event.flow.as_json()
+        action = flow_def["nodes"][0]["actions"][0]
+
+        self.assertEqual(action["text"], "hello")
+        self.assertEqual(flow_def["localization"]["eng"][action["uuid"]]["text"], ["Hey"])
 
     def test_reimport(self):
         self.import_file("survey_campaign")
@@ -3631,7 +3637,7 @@ class BulkExportTest(TembaTest):
         self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
-        from temba.flows.tests import get_legacy_groups
+        from temba.flows.legacy.tests import get_legacy_groups
 
         definition_groups = get_legacy_groups(flow.as_json())
 
@@ -3812,15 +3818,7 @@ class BulkExportTest(TembaTest):
         message_flow = (
             Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
-        action_set = message_flow.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        self.assertEqual(
-            "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
-            actions[0]["msg"]["base"],
-        )
-        actions[0]["msg"] = "No reminders for you!"
-        action_set.actions = actions
-        action_set.save()
+        message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
         self.import_file("the_clinic")
@@ -3847,11 +3845,10 @@ class BulkExportTest(TembaTest):
             .order_by("id")
             .first()
         )
-        action_set = Flow.objects.get(id=message_flow.id).action_sets.order_by("-y").first()
-        actions = action_set.actions
+
         self.assertEqual(
+            message_flow.as_json()["nodes"][0]["actions"][0]["text"],
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
-            actions[0]["msg"]["base"],
         )
 
         # and we should have the same number of items as after the first import
@@ -4403,14 +4400,27 @@ class StripeCreditsTest(TembaTest):
 
 class ParsingTest(TembaTest):
     def test_parse_location_path(self):
+        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
+        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
+        self.org.country = country
 
-        self.country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=self.country)
-        self.org.country = self.country
+        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos"))
+        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos "))
+        self.assertEqual(lagos, self.org.parse_location_path(" Nigeria > Lagos "))
 
-        self.assertEqual(self.org.parse_location_path("Nigeria > Lagos"), lagos)
-        self.assertEqual(self.org.parse_location_path("Nigeria > Lagos "), lagos)
-        self.assertEqual(self.org.parse_location_path(" Nigeria > Lagos "), lagos)
+    def test_parse_location(self):
+        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
+        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
+        self.org.country = None
+
+        # no country, no parsing
+        self.assertEqual([], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
+
+        self.org.country = country
+
+        self.assertEqual([lagos], list(self.org.parse_location("Nigeria > Lagos", AdminBoundary.LEVEL_STATE)))
+        self.assertEqual([lagos], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
+        self.assertEqual([lagos], list(self.org.parse_location("Lagos City", AdminBoundary.LEVEL_STATE)))
 
     def test_parse_number(self):
         self.assertEqual(self.org.parse_number("Not num"), None)
@@ -4422,7 +4432,7 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number("NaN"), None)
         self.assertEqual(self.org.parse_number("Infinity"), None)
 
-        self.assertRaises(ValueError, self.org.parse_number, 0.001)
+        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
 
     def test_parse_datetime(self):
         self.assertEqual(self.org.parse_datetime("Not num"), None)
@@ -4431,4 +4441,4 @@ class ParsingTest(TembaTest):
             datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
         )
 
-        self.assertRaises(ValueError, self.org.parse_datetime, timezone.now())
+        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())

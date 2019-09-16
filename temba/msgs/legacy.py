@@ -1,3 +1,5 @@
+from temba.channels.models import Channel
+from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Language
 
 
@@ -6,14 +8,15 @@ def handle_message(msg):
     Only used for testing to approximate how mailroom handles a message
     """
 
-    from temba.flows.models import Flow
     from temba.msgs.models import Msg
 
     if msg.contact.is_blocked:
         msg.visibility = Msg.VISIBILITY_ARCHIVED
         msg.save(update_fields=["visibility", "modified_on"])
     else:
-        Flow.find_and_handle(msg)
+        from temba.flows.legacy import find_and_handle
+
+        find_and_handle(msg)
 
     mark_handled(msg)
 
@@ -65,7 +68,9 @@ def send_broadcast(bcast, *, expressions_context=None, response_to=None, msg_typ
         if expressions_context is not None:
             message_context = expressions_context.copy()
             if "contact" not in message_context:
-                message_context["contact"] = contact.build_expressions_context()
+                from temba.flows.legacy.expressions import contact_context
+
+                message_context["contact"] = contact_context(contact)
         else:
             message_context = None
 
@@ -115,3 +120,33 @@ def get_translated_quick_replies(bcast, contact, org=None):
         language_metadata.append(text)
 
     return language_metadata
+
+
+def set_preferred_channel(contact, channel):
+    """
+    Sets the preferred channel for communicating with this Contact
+    """
+
+    if channel is None or (Channel.ROLE_SEND not in channel.role and Channel.ROLE_CALL not in channel.role):
+        return
+
+    urns = contact.get_urns()
+
+    # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
+    if TEL_SCHEME in channel.schemes:
+        for urn in urns:
+            if urn.scheme in channel.schemes and urn.channel_id != channel.id:
+                urn.channel = channel
+                urn.save(update_fields=["channel"])
+
+    # if our scheme isn't the highest priority
+    if urns and urns[0].scheme not in channel.schemes:
+        # update the highest URN of the right scheme to be highest
+        for urn in urns[1:]:
+            if urn.scheme in channel.schemes:
+                urn.priority = urns[0].priority + 1
+                urn.save(update_fields=["priority"])
+
+                # clear our URN cache, order is different now
+                contact.clear_urn_cache()
+                break

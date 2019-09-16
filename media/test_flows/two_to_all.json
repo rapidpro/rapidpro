@@ -19,16 +19,7 @@
               "media": {}, 
               "send_all": true, 
               "type": "reply"
-            }, 
-            {
-              "type": "add_group", 
-              "groups": [
-                {
-                  "name": "Here", 
-                  "uuid": "edead5ec-bfc5-4430-8899-29ba20db51bb"
-                }
-              ]
-            }, 
+            },
             {
               "msg": {
                 "eng": "second message"

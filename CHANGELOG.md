@@ -1,3 +1,29 @@
+v5.1.36
+----------
+ * Temporarily disable compression for components JS
+
+v5.1.33
+----------
+ * Use new expressions for campaign message events, broadcasts and join group triggers
+ * List contact fields with new expression syntax and fix how campaign dependencies are rendered
+
+v5.1.28
+----------
+ * Use mailroom to interrupt runs when archiving or releasing a flow
+ * Re-organize legacy engine code
+ * Initial library of web components
+
+v5.1.27
+----------
+ * Update to floweditor 1.6.13
+ * Allow viewers to do GETs on some API endpoints
+
+v5.1.26
+----------
+ * Fix rendering of campaign and event names in UI
+ * Move remaining channel client functionality into channel type packages
+ * Remove unused asset server stuff
+
 v5.1.25
 ----------
  * Update floweditor to 1.6.12

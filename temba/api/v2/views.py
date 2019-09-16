@@ -526,6 +526,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
+      * **new_expressions** - the whether **text** contains new style expressions (boolean, default: false)
 
     Example:
 
@@ -533,7 +534,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
-            "text": "hello world"
+            "text": "hello @contact.name"
         }
 
     You will receive a response containing the message broadcast created:
@@ -796,6 +797,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
     * **message** - the message to send to the contact (string, required if flow is not specified)
     * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
+    * **new_expressions** - the whether **message** contains new style expressions (boolean, default: false)
 
     Example:
 

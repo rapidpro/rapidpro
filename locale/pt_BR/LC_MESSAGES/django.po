@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-21 21:59+0000\n"
+"POT-Creation-Date: 2019-09-12 01:23+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -145,6 +145,9 @@ msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
 msgstr ""
 
 msgid "Default"
@@ -3180,9 +3183,6 @@ msgstr "\"%s\" seria enviado para %s"
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
 
-msgid "Invalid group or contact id"
-msgstr "Grupo ou id do contato inválido"
-
 msgid "Send Message"
 msgstr "Enviar mensagem"
 
@@ -3258,9 +3258,6 @@ msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Configurar campo de contatos"
-
-msgid "featured"
-msgstr ""
 
 #, fuzzy
 #| msgid "Update Fields"
@@ -3404,10 +3401,6 @@ msgstr "Quando este conjunto de regras foi originalmente criado"
 
 msgid "When this ruleset was last modified"
 msgstr "Quando este conjunto de regras foi modificado pela última vez"
-
-#, fuzzy
-msgid "No subscribers to this event"
-msgstr "O número de telefone para esta chamada"
 
 msgid "When this action was originally created"
 msgstr "Quando essa ação foi originalmente criada"
@@ -3555,6 +3548,11 @@ msgstr ""
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
+
+#, fuzzy
+#| msgid "User does not have permission to create an SMS"
+msgid "You don't have permission to edit this flow"
+msgstr "Usuário não tem permissão para criar um SMS"
 
 msgid "Your flow failed validation. Please refresh your browser."
 msgstr ""
@@ -4163,6 +4161,11 @@ msgstr "Agendar"
 
 msgid "Failed"
 msgstr "Falha"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr "Nome do contato"
 
 msgid "Schedule Message"
 msgstr "Agendar mensagem"
@@ -7593,6 +7596,9 @@ msgstr "Configurar campo de contatos"
 msgid "Types"
 msgstr "Tipo do SMS"
 
+msgid "Featured"
+msgstr ""
+
 #, fuzzy, python-format
 msgid ""
 "\n"
@@ -8320,8 +8326,8 @@ msgstr ""
 #, fuzzy, python-format
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
@@ -8329,24 +8335,10 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
-msgstr ""
-
-#, fuzzy
-msgid "Clear"
-msgstr "aprender"
-
-msgid "(one per alias line)"
-msgstr ""
-
-#, fuzzy
-msgid "Alias names must be unique, try again."
-msgstr "Número de telefone inválido, tente novamente."
-
-msgid "Your changes could not be saved. Please reload the page and try again."
+"        "
 msgstr ""
 
 #, fuzzy, python-format
@@ -10810,6 +10802,21 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid "Invalid group or contact id"
+#~ msgstr "Grupo ou id do contato inválido"
+
+#, fuzzy
+#~ msgid "No subscribers to this event"
+#~ msgstr "O número de telefone para esta chamada"
+
+#, fuzzy
+#~ msgid "Clear"
+#~ msgstr "aprender"
+
+#, fuzzy
+#~ msgid "Alias names must be unique, try again."
+#~ msgstr "Número de telefone inválido, tente novamente."
 
 #, fuzzy
 #~| msgid "Channel Event"

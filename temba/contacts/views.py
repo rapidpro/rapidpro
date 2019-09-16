@@ -26,11 +26,10 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlquote_plus
-from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -65,7 +64,7 @@ from .tasks import export_contacts_task, release_group_task
 logger = logging.getLogger(__name__)
 
 
-class RemoveContactForm(forms.Form):
+class RemoveFromGroupForm(forms.Form):
     contact = forms.ModelChoiceField(Contact.objects.all())
     group = forms.ModelChoiceField(ContactGroup.user_groups.all())
 
@@ -75,23 +74,20 @@ class RemoveContactForm(forms.Form):
 
         super().__init__(*args, **kwargs)
 
-        self.fields["contact"].queryset = Contact.objects.filter(org=org)
+        self.fields["contact"].queryset = org.contacts.filter(is_active=True)
         self.fields["group"].queryset = ContactGroup.user_groups.filter(org=org)
-
-    def clean(self):
-        return self.cleaned_data
 
     def execute(self):
         data = self.cleaned_data
         contact = data["contact"]
         group = data["group"]
 
-        if group.is_dynamic:
-            raise ValueError("Can't manually add/remove contacts for a dynamic group")  # should never happen
+        assert not group.is_dynamic, "can't manually add/remove contacts for a dynamic group"
 
         # remove contact from group
-        group.update_contacts(self.user, [contact], False)
-        return dict(group_id=group.id, contact_id=contact.id)
+        group.update_contacts(self.user, [contact], add=False)
+
+        return {"status": "success"}
 
 
 class ContactGroupForm(forms.ModelForm):
@@ -1086,14 +1082,16 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            form = RemoveContactForm(self.request.POST, org=request.user.get_org(), user=request.user)
-            if form.is_valid():
-                result = form.execute()
-                return HttpResponse(json.dumps(result))
+            action = request.GET.get("action")
 
-            # shouldn't ever happen
-            else:  # pragma: no cover
-                raise forms.ValidationError(_("Invalid group or contact id"))
+            if action == "remove_from_group":
+                form = RemoveFromGroupForm(self.request.POST, org=request.user.get_org(), user=request.user)
+                if form.is_valid():
+                    return JsonResponse(form.execute())
+                else:
+                    return JsonResponse({"status": "failed"})
+
+            return HttpResponse("unknown action", status=400)  # pragma: no cover
 
         def get_gear_links(self):
             links = []
@@ -1728,10 +1726,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
     default_order = ("label",)
 
     success_url = "@contacts.contactfield_list"
-
     link_fields = ()
-
-    add_button = True
     paginate_by = 10000
 
     template_name = "contacts/contactfield_list.haml"
@@ -1783,22 +1778,6 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
         context.update(self._get_static_context_data(**kwargs))
 
         return context
-
-    # smartmin field value getter
-    def get_value_type(self, obj):
-        return obj.get_value_type_display()
-
-    # smartmin field value getter
-    def get_key(self, obj):
-        return f"@contact.{obj.key}"
-
-    # smartmin field value getter
-    def get_show_in_table(self, obj):
-        if obj.show_in_table:
-            featured_label = _("featured")
-            return mark_safe(f'<span class="label label-info">{featured_label}</span>')
-        else:
-            return ""
 
 
 class ContactFieldCRUDL(SmartCRUDL):

@@ -12,6 +12,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
+from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import FlowRun
 from temba.msgs.models import (
     DELIVERED,
@@ -42,9 +43,6 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
-from temba.utils.dates import datetime_to_str
-from temba.utils.expressions import get_function_listing
-from temba.values.constants import Value
 
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_msgcounts
@@ -490,7 +488,10 @@ class MsgTest(TembaTest):
         )
 
         # check metadata was set on the broadcast
-        self.assertEqual(broadcast.metadata, {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}]})
+        self.assertEqual(
+            broadcast.metadata,
+            {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
+        )
 
         broadcast.send()
         msg1, msg2, msg3 = broadcast.msgs.order_by("contact", "id")
@@ -2382,189 +2383,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(40, len(parts[1]))
         self.assertEqual(40, len(parts[2]))
         self.assertEqual(40, len(parts[3]))
-
-    def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, self.admin, "goats", "Goats", False, Value.TYPE_NUMBER)
-        self.joe.set_field(self.user, "goats", "3 ")
-        ContactField.get_or_create(self.org, self.admin, "temp", "Temperature", False, Value.TYPE_NUMBER)
-        self.joe.set_field(self.user, "temp", "37.45")
-        ContactField.get_or_create(self.org, self.admin, "dob", "Date of birth", False, Value.TYPE_DATETIME)
-        self.joe.set_field(self.user, "dob", "28/5/1981")
-
-        def substitute(s, context):
-            context["contact"] = self.joe.build_expressions_context()
-            return Msg.evaluate_template(s, context)
-
-        self.assertEqual(("Hello World", []), substitute("Hello World", dict()))
-        self.assertEqual(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
-        self.assertEqual(("Hello World Joe Blow", []), substitute("Hello World @contact", dict()))
-        self.assertEqual(
-            ("Hello World: Well", []),
-            substitute("Hello World: @flow.water_source", dict(flow=dict(water_source="Well"))),
-        )
-        self.assertEqual(
-            ("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]),
-            substitute("Hello World: @flow.water_source  Boil: @flow.boil", dict(flow=dict(water_source="Well"))),
-        )
-
-        self.assertEqual(("Hello joe", []), substitute("Hello @(LOWER(contact.first_name))", dict()))
-        self.assertEqual(("Hello Joe", []), substitute("Hello @(PROPER(LOWER(contact.first_name)))", dict()))
-        self.assertEqual(("Hello Joe", []), substitute("Hello @(first_word(contact))", dict()))
-        self.assertEqual(("Hello Blow", []), substitute("Hello @(Proper(remove_first_word(contact)))", dict()))
-        self.assertEqual(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
-        self.assertEqual(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
-        self.assertEqual(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
-        self.assertEqual(("Hello 37.45", []), substitute("Hello @(contact.temp)", dict()))
-        self.assertEqual(("Hello 37", []), substitute("Hello @(INT(contact.temp))", dict()))
-        self.assertEqual(("Hello 37.45", []), substitute("Hello @(FIXED(contact.temp))", dict()))
-
-        self.assertEqual(
-            ("Email is: foo@bar.com", []),
-            substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))),
-        )
-        self.assertEqual(
-            ("Email is: foo@@bar.com", []),
-            substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@@bar.com"))),
-        )
-
-        # check date variables
-        text, errors = substitute("Today is @date.today", dict())
-        self.assertEqual(errors, [])
-        self.assertRegex(text, r"Today is \d{2}-\d{2}-\d{4}")
-
-        text, errors = substitute("Today is @date.now", dict())
-        self.assertEqual(errors, [])
-        self.assertRegex(text, r"Today is \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
-
-        text, errors = substitute("Today is @(format_date(date.now))", dict())
-        self.assertEqual(errors, [])
-        self.assertRegex(text, r"Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
-
-        text, errors = substitute("Your DOB is @contact.dob", dict())
-        self.assertEqual(errors, [])
-        # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
-        self.assertRegex(text, r"Your DOB is 1981-05-28T\d{2}:\d{2}:\d{2}\.\d{6}\+\d{2}:\d{2}")
-
-        # unicode tests
-        self.joe.name = "شاملیدل عمومی"
-        self.joe.save(update_fields=("name",), handle_update=False)
-
-        self.assertEqual(("شاملیدل", []), substitute("@(first_word(contact))", dict()))
-        self.assertEqual(("عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
-
-        # credit card
-        self.joe.name = "1234567890123456"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
-
-        # phone number
-        self.joe.name = "123456789012"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
-
-        # triplets
-        self.joe.name = "123456"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
-
-        # soc security
-        self.joe.name = "123456789"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
-
-        # regular number, street address, etc
-        self.joe.name = "12345"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
-
-        # regular number, street address, etc
-        self.joe.name = "123"
-        self.joe.save(update_fields=("name",), handle_update=False)
-        self.assertEqual(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
-
-    def test_expressions_context(self):
-        ContactField.get_or_create(self.org, self.admin, "superhero_name", "Superhero Name")
-
-        self.joe.send("keyword remainder-remainder", self.admin)
-        self.joe.set_field(self.user, "superhero_name", "batman")
-
-        msg = Msg.objects.get()
-        context = msg.build_expressions_context()
-
-        self.assertEqual(context["__default__"], "keyword remainder-remainder")
-        self.assertEqual(context["value"], "keyword remainder-remainder")
-        self.assertEqual(context["text"], "keyword remainder-remainder")
-        self.assertEqual(context["attachments"], {})
-
-        # time should be in org format and timezone
-        self.assertEqual(context["time"], datetime_to_str(msg.created_on, "%d-%m-%Y %H:%M", tz=self.org.timezone))
-
-        # add some attachments to this message
-        msg.attachments = ["image/jpeg:http://e.com/test.jpg", "audio/mp3:http://e.com/test.mp3"]
-        msg.save()
-        context = msg.build_expressions_context()
-
-        self.assertEqual(
-            context["__default__"], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3"
-        )
-        self.assertEqual(context["value"], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
-        self.assertEqual(context["text"], "keyword remainder-remainder")
-        self.assertEqual(context["attachments"], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
-
-        # clear the text of the message
-        msg.text = ""
-        msg.save()
-        context = msg.build_expressions_context()
-
-        self.assertEqual(context["__default__"], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
-        self.assertEqual(context["value"], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
-        self.assertEqual(context["text"], "")
-        self.assertEqual(context["attachments"], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
-        self.assertEqual(context["urn"]["scheme"], "tel")
-        self.assertEqual(context["urn"]["path"], "123")
-
-    def test_variables_substitution(self):
-        ContactField.get_or_create(self.org, self.admin, "sector", "sector")
-        ContactField.get_or_create(self.org, self.admin, "team", "team")
-
-        self.joe.set_field(self.user, "sector", "Kacyiru")
-        self.frank.set_field(self.user, "sector", "Remera")
-        self.kevin.set_field(self.user, "sector", "Kanombe")
-
-        self.joe.set_field(self.user, "team", "Amavubi")
-        self.kevin.set_field(self.user, "team", "Junior")
-
-        broadcast1 = Broadcast.create(
-            self.org,
-            self.user,
-            "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
-            groups=[self.joe_and_frank],
-            contacts=[self.kevin],
-        )
-        broadcast1.send(expressions_context={})
-
-        # no message created for Frank because he misses some fields for variables substitution
-        self.assertEqual(Msg.objects.all().count(), 3)
-
-        self.assertEqual(
-            self.joe.msgs.get(broadcast=broadcast1).text, "Hi Joe Blow, You live in Kacyiru and your team is Amavubi."
-        )
-        self.assertEqual(
-            self.frank.msgs.get(broadcast=broadcast1).text, "Hi Frank Blow, You live in Remera and your team is ."
-        )
-        self.assertEqual(
-            self.kevin.msgs.get(broadcast=broadcast1).text,
-            "Hi Kevin Durant, You live in Kanombe and your team is Junior.",
-        )
-
-        # if we don't provide a context then substitution isn't performed
-        broadcast2 = Broadcast.create(
-            self.org, self.user, "Hi @contact.name on @channel", groups=[self.joe_and_frank], contacts=[self.kevin]
-        )
-        broadcast2.send()
-
-        self.assertEqual(self.joe.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
-        self.assertEqual(self.frank.msgs.get(broadcast=broadcast2).text, "Hi @contact.name on @channel")
 
 
 class BroadcastCRUDLTest(TembaTest):

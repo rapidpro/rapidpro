@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from uuid import uuid4
 
 import pycountry
@@ -40,8 +40,8 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import datetime_to_str, get_datetime_format, str_to_datetime
-from temba.utils.email import send_custom_smtp_email, send_simple_email, send_template_email
+from temba.utils.dates import datetime_to_str, str_to_datetime
+from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import random_string
@@ -637,20 +637,6 @@ class Org(SmartModel):
         setattr(self, cache_attr, schemes)
         return schemes
 
-    def clear_cached_schemes(self):
-        from temba.channels.models import Channel
-
-        for role in [
-            Channel.ROLE_SEND,
-            Channel.ROLE_RECEIVE,
-            Channel.ROLE_ANSWER,
-            Channel.ROLE_CALL,
-            Channel.ROLE_USSD,
-        ]:
-            cache_attr = "__schemes__%s" % role
-            if hasattr(self, cache_attr):
-                delattr(self, cache_attr)
-
     def normalize_contact_tels(self):
         """
         Attempts to normalize any contacts which don't have full e164 phone numbers
@@ -750,25 +736,6 @@ class Org(SmartModel):
             return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
         return False
 
-    def email_action_send(self, recipients, subject, body):
-        if self.has_smtp_config():
-            smtp_server = self.config.get(Org.CONFIG_SMTP_SERVER)
-            parsed_smtp_server = urlparse(smtp_server)
-            smtp_from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0] or ""
-            use_tls = parse_qs(parsed_smtp_server.query).get("tls", ["true"])[0].lower() == "true"
-
-            smtp_host = parsed_smtp_server.hostname
-            smtp_port = parsed_smtp_server.port
-            smtp_username = unquote(parsed_smtp_server.username)
-            smtp_password = unquote(parsed_smtp_server.password)
-
-            send_custom_smtp_email(
-                recipients, subject, body, smtp_from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
-            )
-        else:
-            from_email = self.get_branding().get("flow_email", settings.FLOW_FROM_EMAIL)
-            send_simple_email(recipients, subject, body, from_email=from_email)
-
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
 
@@ -859,16 +826,9 @@ class Org(SmartModel):
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
     def refresh_transferto_account_currency(self):
-        account_login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
-        airtime_api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
-
-        from temba.airtime.models import AirtimeTransfer
-
-        response = AirtimeTransfer.post_transferto_api_response(
-            account_login, airtime_api_token, action="check_wallet"
-        )
-        parsed_response = AirtimeTransfer.parse_transferto_response(response.text)
-        account_currency = parsed_response.get("currency", "")
+        client = self.get_transferto_client()
+        response = client.check_wallet()
+        account_currency = response.get("currency", "")
 
         self.config.update({Org.CONFIG_TRANSFERTO_CURRENCY: account_currency})
         self.save(update_fields=("config", "modified_on"))
@@ -887,6 +847,16 @@ class Org(SmartModel):
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
             return NexmoClient(api_key, api_secret)
+        return None
+
+    def get_transferto_client(self):
+        from temba.airtime.transferto import TransferToClient
+
+        login = self.config.get(Org.CONFIG_TRANSFERTO_LOGIN)
+        api_token = self.config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
+
+        if login and api_token:
+            return TransferToClient(login, api_token)
         return None
 
     def get_chatbase_credentials(self):
@@ -952,27 +922,35 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == Org.DATE_FORMAT_DAY_FIRST
 
-    def format_datetime(self, datetime, show_time=True):
+    def get_datetime_formats(self):
+        if self.date_format == Org.DATE_FORMAT_DAY_FIRST:
+            format_date = "%d-%m-%Y"
+        else:
+            format_date = "%m-%d-%Y"
+
+        format_datetime = format_date + " %H:%M"
+
+        return format_date, format_datetime
+
+    def format_datetime(self, d, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
-        formats = get_datetime_format(self.get_dayfirst())
+        formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, self.timezone)
+        return datetime_to_str(d, format, self.timezone)
 
-    def parse_datetime(self, datetime_string):
-        if not (isinstance(datetime_string, str)):
-            raise ValueError(f"parse_datetime called with param of type: {type(datetime_string)}, expected string")
+    def parse_datetime(self, s):
+        assert isinstance(s, str)
 
-        return str_to_datetime(datetime_string, self.timezone, self.get_dayfirst())
+        return str_to_datetime(s, self.timezone, self.get_dayfirst())
 
-    def parse_number(self, decimal_string):
-        if not (isinstance(decimal_string, str)):
-            raise ValueError(f"parse_number called with param of type: {type(decimal_string)}, expected string")
+    def parse_number(self, s):
+        assert isinstance(s, str)
 
         parsed = None
         try:
-            parsed = Decimal(decimal_string)
+            parsed = Decimal(s)
 
             if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
                 parsed = None
@@ -1987,7 +1965,7 @@ class Org(SmartModel):
 
         # might be a lot of messages, batch this
         for id_batch in chunk_list(msg_ids, 1000):
-            for msg in self.msgs.filter(id__in=msg_ids):
+            for msg in self.msgs.filter(id__in=id_batch):
                 msg.release()
 
         # our system label counts
@@ -1999,21 +1977,6 @@ class Org(SmartModel):
 
         # any airtime transfers associate with us go away
         self.airtime_transfers.all().delete()
-
-        # delete our contacts
-        for contact in self.contacts.all():
-            contact.release(contact.modified_by)
-            contact.delete()
-
-        # delete our contacts
-        for contactfield in self.contactfields(manager="all_fields").all():
-            contactfield.release(contactfield.modified_by)
-            contactfield.delete()
-
-        # and all of the groups
-        for group in self.all_groups.all():
-            group.release()
-            group.delete()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
@@ -2030,6 +1993,21 @@ class Org(SmartModel):
             flow.counts.all().delete()
 
             flow.delete()
+
+        # delete our contacts
+        for contact in self.contacts.all():
+            contact.release(contact.modified_by)
+            contact.delete()
+
+        # delete our contacts
+        for contactfield in self.contactfields(manager="all_fields").all():
+            contactfield.release(contactfield.modified_by)
+            contactfield.delete()
+
+        # and all of the groups
+        for group in self.all_groups.all():
+            group.release()
+            group.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
@@ -2259,7 +2237,7 @@ class Language(SmartModel):
             return default_text
 
         # If we are handed raw text without translations, just return that
-        if not isinstance(text_translations, dict):
+        if not isinstance(text_translations, dict):  # pragma: no cover
             return text_translations
 
         # otherwise, find the first preferred language

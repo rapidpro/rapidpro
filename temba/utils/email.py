@@ -2,7 +2,7 @@ import re
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives, get_connection as get_smtp_connection, send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
 from django.core.validators import EmailValidator
 from django.template import loader
 
@@ -54,6 +54,7 @@ def send_simple_email(recipients, subject, body, from_email=None):
     :param recipients: address or list of addresses to send the mail to
     :param subject: subject of the email
     :param body: body of the email
+    :param from_email: from email address
     """
     if from_email is None:
         from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "website@rapidpro.io")
@@ -61,40 +62,6 @@ def send_simple_email(recipients, subject, body, from_email=None):
     recipient_list = [recipients] if isinstance(recipients, str) else recipients
 
     send_temba_email(subject, body, None, from_email, recipient_list)
-
-
-def send_custom_smtp_email(
-    recipients, subject, body, from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls
-):
-    """
-    Sends a text email to the given recipients using the SMTP configuration
-
-    :param recipients: address or list of addresses to send the mail to
-    :param subject: subject of the email
-    :param body: body of the email
-    :param from_email: the email address we wills end from
-    :param smtp_host: SMTP server
-    :param smtp_port: SMTP port
-    :param smtp_username: SMTP username
-    :param smtp_password: SMTP password
-    :param use_tls: Whether to use TLS
-    """
-    recipient_list = [recipients] if isinstance(recipients, str) else recipients
-
-    if smtp_port is not None:
-        smtp_port = int(smtp_port)
-
-    connection = get_smtp_connection(
-        None,
-        fail_silently=False,
-        host=smtp_host,
-        port=smtp_port,
-        username=smtp_username,
-        password=smtp_password,
-        use_tls=use_tls,
-    )
-
-    send_temba_email(subject, body, None, from_email, recipient_list, connection=connection)
 
 
 def send_template_email(recipients, subject, template, context, branding):

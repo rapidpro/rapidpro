@@ -1,7 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 
 from django.contrib import messages
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -70,22 +70,21 @@ class BoundaryCRUDL(SmartCRUDL):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
 
         def post(self, request, *args, **kwargs):
-            def update_boundary_aliases(boundary):
-                level_boundary = AdminBoundary.objects.filter(osm_id=boundary["osm_id"]).first()
-                if level_boundary:
-                    boundary_aliases = boundary.get("aliases", "")
-                    update_aliases(level_boundary, boundary_aliases)
-
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
                 unique_new_aliases = list(set(new_aliases.split("\n")))
                 for new_alias in unique_new_aliases:
                     if new_alias:
+                        new_alias = new_alias.strip()
+
+                        # aliases are only allowed to exist on one boundary at a time
+                        BoundaryAlias.objects.filter(name=new_alias, org=org).delete()
+
                         BoundaryAlias.objects.create(
                             boundary=boundary,
                             org=org,
-                            name=new_alias.strip(),
+                            name=new_alias,
                             created_by=self.request.user,
                             modified_by=self.request.user,
                         )
@@ -95,80 +94,65 @@ class BoundaryCRUDL(SmartCRUDL):
             org = request.user.get_org()
 
             try:
-                json_list = json.loads(json_string)
+                boundary_update = json.loads(json_string)
             except Exception as e:
                 return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
-            # this can definitely be optimized
-            for state in json_list:
-                state_boundary = AdminBoundary.objects.filter(osm_id=state["osm_id"]).first()
-                state_aliases = state.get("aliases", "")
-                if state_boundary:
-                    update_aliases(state_boundary, state_aliases)
-                    if "children" in state:
-                        for district in state["children"]:
-                            update_boundary_aliases(district)
-                            if "children" in district:
-                                for ward in district["children"]:
-                                    update_boundary_aliases(ward)
+            boundary = AdminBoundary.objects.filter(osm_id=boundary_update["osm_id"]).first()
+            aliases = boundary_update.get("aliases", "")
+            if boundary:
+                update_aliases(boundary, aliases)
 
-            return JsonResponse(json_list, safe=False)
+            return JsonResponse(boundary_update, safe=False)
 
         def get(self, request, *args, **kwargs):
             org = request.user.get_org()
-            tops = list(
-                AdminBoundary.geometries.filter(parent__osm_id=self.get_object().osm_id)
-                .order_by("name")
-                .prefetch_related(Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name")))
-            )
+            boundary = self.get_object()
 
-            tops_children = (
-                AdminBoundary.geometries.filter(Q(parent__osm_id__in=[boundary.osm_id for boundary in tops]))
-                .order_by("parent__osm_id", "name")
-                .prefetch_related(Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name")))
-            )
+            page_size = 25
 
-            boundaries = [top.as_json() for top in tops]
+            # searches just return a list of all matches
+            query = request.GET.get("q", None)
+            if query:
+                page = int(request.GET.get("page", 0))
+                matches = set(
+                    AdminBoundary.objects.filter(
+                        path__startswith=f"{boundary.name} {AdminBoundary.PATH_SEPARATOR}"
+                    ).filter(name__icontains=query)
+                )
+                aliases = BoundaryAlias.objects.filter(name__icontains=query, org=org)
+                for alias in aliases:
+                    matches.add(alias.boundary)
 
-            current_top = None
-            match = ""
-            for child in tops_children:
-                child = child.as_json()
-                # find the appropriate top if necessary
-                if not current_top or current_top["osm_id"] != child["parent_osm_id"]:
-                    for top in boundaries:
-                        if top["osm_id"] == child["parent_osm_id"]:
-                            current_top = top
-                            match = "%s %s" % (current_top["name"], current_top["aliases"])
-                            current_top["match"] = match
+                start = page * page_size
+                end = start + page_size
 
-                children = current_top.get("children", [])
-                child["match"] = "%s %s" % (child["name"], child["aliases"])
+                matches = sorted(matches, key=lambda match: match.name)[start:end]
+                response = [match.as_json() for match in matches]
+                return JsonResponse(response, safe=False)
 
-                child_children = list(
-                    AdminBoundary.geometries.filter(Q(parent__osm_id=child["osm_id"]))
+            # otherwise grab each item in the path
+            path = []
+            while boundary:
+                children = list(
+                    AdminBoundary.objects.filter(parent__osm_id=boundary.osm_id)
                     .order_by("name")
                     .prefetch_related(
                         Prefetch("aliases", queryset=BoundaryAlias.objects.filter(org=org).order_by("name"))
                     )
                 )
-                sub_children = child.get("children", [])
-                for sub_child in child_children:
-                    sub_child = sub_child.as_json()
-                    sub_child["match"] = "%s %s %s %s %s" % (
-                        sub_child["name"],
-                        sub_child["aliases"],
-                        child["name"],
-                        child["aliases"],
-                        match,
-                    )
 
-                    sub_children.append(sub_child)
-                    child["match"] = "%s %s %s" % (child["match"], sub_child["name"], sub_child["aliases"])
+                item = boundary.as_json()
+                children_json = []
+                for child in children:
+                    child_json = child.as_json()
+                    child_json["has_children"] = AdminBoundary.objects.filter(parent__osm_id=child.osm_id).exists()
+                    children_json.append(child_json)
 
-                child["children"] = sub_children
-                children.append(child)
-                current_top["children"] = children
-                current_top["match"] = "%s %s" % (current_top["match"], child["match"])
+                item["children"] = children_json
+                item["has_children"] = len(children_json) > 0
+                path.append(item)
+                boundary = boundary.parent
 
-            return JsonResponse(boundaries, safe=False)
+            path.reverse()
+            return JsonResponse(path, safe=False)
