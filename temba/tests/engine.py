@@ -155,12 +155,9 @@ class MockSessionWriter:
         assert self.output["status"] == "waiting", "can only resume a waiting session"
         assert self.current_run["status"] == "waiting", "can only resume a waiting run"
 
-        msg_def = {
-            "uuid": str(msg.uuid),
-            "urn": msg.contact_urn.urn,
-            "text": msg.text,
-            "channel": self._channel_ref(msg.channel),
-        }
+        msg_def = {"uuid": str(msg.uuid), "text": msg.text, "channel": self._channel_ref(msg.channel)}
+        if msg.contact_urn:
+            msg_def["urn"] = msg.contact_urn.urn
 
         self.output["wait"] = None
         self.output["status"] = "active"
@@ -301,4 +298,5 @@ class MockSessionWriter:
 
         for run in self.output["runs"]:
             run["status"] = status
+            run["exited_on"] = self._now()
             run["modified_on"] = self._now()

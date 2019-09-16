@@ -418,9 +418,9 @@ class TembaTestMixin:
 
             if isinstance(expected, datetime):
                 close_enough = abs(expected - actual) < timedelta(seconds=1)
-                self.assertTrue(close_enough, "Datetime value %s doesn't match %s" % (expected, actual))
+                self.assertTrue(close_enough, f"datetime value {expected} doesn't match {actual} in column {index}")
             else:
-                self.assertEqual(expected, actual)
+                self.assertEqual(expected, actual, f"mismatch in column {index}")
 
     def assertExcelSheet(self, sheet, rows, tz=None):
         """

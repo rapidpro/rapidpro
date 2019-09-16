@@ -972,11 +972,7 @@ class Msg(models.Model):
         return data
 
     def __str__(self):
-        if self.attachments:
-            parts = ([self.text] if self.text else []) + [a.url for a in self.get_attachments()]
-            return "\n".join(parts)
-        else:
-            return self.text
+        return self.text
 
     @classmethod
     def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):

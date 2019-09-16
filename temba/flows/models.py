@@ -2107,8 +2107,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
-    def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
+    def __str__(self):  # pragma: no cover
+        return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
 
 class RuleSet(models.Model):

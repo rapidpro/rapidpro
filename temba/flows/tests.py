@@ -26,6 +26,7 @@ from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
+    AnonymousOrg,
     FlowFileTest,
     MigrationTest,
     MockResponse,
@@ -748,53 +749,63 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
-    @uses_legacy_engine
     def test_anon_export_results(self):
-        self.org.is_anon = True
-        self.org.save()
+        with AnonymousOrg(self.org):
+            flow = self.get_flow("color_v13")
+            flow_nodes = flow.as_json()["nodes"]
+            color_prompt = flow_nodes[0]
+            color_split = flow_nodes[4]
 
-        (run1,) = legacy.flow_start(self.flow, [], [self.contact])
+            msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
 
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        legacy.find_and_handle(msg)
+            run1 = (
+                MockSessionWriter(self.contact, flow)
+                .visit(color_prompt)
+                .send_msg("What is your favorite color?", self.channel)
+                .visit(color_split)
+                .wait()
+                .resume(msg=msg_in)
+                .set_result("Color", "orange", "Orange", "orange")
+                .send_msg("I love orange too!", self.channel)
+                .complete()
+                .save()
+            ).session.runs.get()
 
-        run1.refresh_from_db()
+            workbook = self.export_flow_results(flow)
+            self.assertEqual(1, len(workbook.worksheets))
+            sheet_runs = workbook.worksheets[0]
+            self.assertExcelRow(
+                sheet_runs,
+                0,
+                [
+                    "Contact UUID",
+                    "ID",
+                    "Name",
+                    "Started",
+                    "Modified",
+                    "Exited",
+                    "Color (Category) - Colors",
+                    "Color (Value) - Colors",
+                    "Color (Text) - Colors",
+                ],
+            )
 
-        workbook = self.export_flow_results(self.flow)
-        self.assertEqual(len(workbook.worksheets), 1)
-        sheet_runs = workbook.worksheets[0]
-        self.assertExcelRow(
-            sheet_runs,
-            0,
-            [
-                "Contact UUID",
-                "ID",
-                "Name",
-                "Started",
-                "Modified",
-                "Exited",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
-            ],
-        )
-
-        self.assertExcelRow(
-            sheet_runs,
-            1,
-            [
-                self.contact.uuid,
-                f"{self.contact.id:010d}",
-                "Eric",
-                run1.created_on,
-                run1.modified_on,
-                run1.exited_on,
-                "Orange",
-                "orange",
-                "orange",
-            ],
-            self.org.timezone,
-        )
+            self.assertExcelRow(
+                sheet_runs,
+                1,
+                [
+                    self.contact.uuid,
+                    f"{self.contact.id:010d}",
+                    "Eric",
+                    run1.created_on,
+                    run1.modified_on,
+                    run1.exited_on,
+                    "Orange",
+                    "orange",
+                    "orange",
+                ],
+                self.org.timezone,
+            )
 
     @uses_legacy_engine
     def test_export_results_broadcast_only_flow(self):
@@ -1797,55 +1808,23 @@ class FlowTest(TembaTest):
         self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
         self.assertEqual(len(list(sheet_msgs.columns)), 7)
 
-    @uses_legacy_engine
     def test_export_results_remove_control_characters(self):
-        contact1_run1 = legacy.flow_start(self.flow, [], [self.contact])[0]
-
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="ngert\x07in.")
-        legacy.find_and_handle(contact1_in1)
-
-        contact1_run1.refresh_from_db()
-
-        workbook = self.export_flow_results(self.flow)
-
-        tz = self.org.timezone
-
-        sheet_runs, sheet_msgs = workbook.worksheets
-
-        self.assertExcelRow(
-            sheet_runs,
-            1,
-            [
-                contact1_run1.contact.uuid,
-                "+250788382382",
-                "Eric",
-                contact1_run1.created_on,
-                contact1_run1.modified_on,
-                "",
-                "Other",
-                "ngertin.",
-                "ngertin.",
-            ],
-            tz,
-        )
-
-    def test_run_as_archive_json(self):
         flow = self.get_flow("color_v13")
         flow_nodes = flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
 
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
+        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="ngert\x07in.")
 
-        contact1_run = (
+        run1 = (
             MockSessionWriter(self.contact, flow)
             .visit(color_prompt)
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=contact1_in1)
-            .set_result("Color", "green", "Other", "green")
+            .resume(msg=msg_in)
+            .set_result("Color", "ngert\x07in.", "Other", "ngert\x07in.")
             .visit(color_other)
             .send_msg("That is a funny color. Try again.", self.channel)
             .visit(color_split)
@@ -1853,99 +1832,26 @@ class FlowTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        self.assertEqual(
-            set(contact1_run.as_archive_json().keys()),
-            set(
-                [
-                    "id",
-                    "flow",
-                    "contact",
-                    "responded",
-                    "path",
-                    "values",
-                    "events",
-                    "created_on",
-                    "modified_on",
-                    "exited_on",
-                    "exit_type",
-                    "submitted_by",
-                ]
-            ),
-        )
+        workbook = self.export_flow_results(flow)
+        tz = self.org.timezone
+        sheet_runs, sheet_msgs = workbook.worksheets
 
-        self.assertEqual(contact1_run.as_archive_json()["id"], contact1_run.id)
-        self.assertEqual(contact1_run.as_archive_json()["flow"], {"uuid": str(flow.uuid), "name": "Colors"})
-        self.assertEqual(contact1_run.as_archive_json()["contact"], {"uuid": str(self.contact.uuid), "name": "Eric"})
-        self.assertTrue(contact1_run.as_archive_json()["responded"])
-
-        self.assertEqual(
-            contact1_run.as_archive_json()["path"],
+        self.assertExcelRow(
+            sheet_runs,
+            1,
             [
-                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
-                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
-                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
-                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                run1.contact.uuid,
+                "+250788382382",
+                "Eric",
+                run1.created_on,
+                run1.modified_on,
+                "",
+                "Other",
+                "ngertin.",
+                "ngertin.",
             ],
+            tz,
         )
-
-        self.assertEqual(
-            contact1_run.as_archive_json()["values"],
-            {
-                "color": {
-                    "category": "Other",
-                    "input": "green",
-                    "name": "Color",
-                    "node": matchers.UUID4String(),
-                    "time": matchers.ISODate(),
-                    "value": "green",
-                }
-            },
-        )
-
-        self.assertEqual(
-            contact1_run.as_archive_json()["events"],
-            [
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "What is your favorite color?",
-                        "urn": "tel:+250788382382",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_created",
-                },
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "green",
-                        "urn": "tel:+250788382382",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_received",
-                },
-                {
-                    "created_on": matchers.ISODate(),
-                    "msg": {
-                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
-                        "text": "That is a funny color. Try again.",
-                        "urn": "tel:+250788382382",
-                        "uuid": matchers.UUID4String(),
-                    },
-                    "step_uuid": matchers.UUID4String(),
-                    "type": "msg_created",
-                },
-            ],
-        )
-
-        self.assertEqual(contact1_run.as_archive_json()["created_on"], contact1_run.created_on.isoformat())
-        self.assertEqual(contact1_run.as_archive_json()["modified_on"], contact1_run.modified_on.isoformat())
-        self.assertIsNone(contact1_run.as_archive_json()["exit_type"])
-        self.assertIsNone(contact1_run.as_archive_json()["exited_on"])
-        self.assertIsNone(contact1_run.as_archive_json()["submitted_by"])
 
     @uses_legacy_engine
     def test_export_results_from_archives(self):
@@ -2066,16 +1972,32 @@ class FlowTest(TembaTest):
             tz,
         )
 
-    @uses_legacy_engine
     def test_export_results_with_surveyor_msgs(self):
-        self.flow.flow_type = Flow.TYPE_SURVEY
-        self.flow.save()
-        run = legacy.flow_start(self.flow, [], [self.contact])[0]
+        flow = self.get_flow("color_v13")
+        flow.flow_type = Flow.TYPE_SURVEY
+        flow.save()
+
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
 
         # no urn or channel
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
-        workbook = self.export_flow_results(self.flow)
+        run = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=in1)
+            .set_result("Color", "blue", "Blue", "blue")
+            .send_msg("That is a funny color. Try again.", self.channel)
+            .complete()
+            .save()
+        ).session.runs.get()
+
+        workbook = self.export_flow_results(flow)
         tz = self.org.timezone
 
         sheet_runs, sheet_msgs = workbook.worksheets
@@ -2125,7 +2047,7 @@ class FlowTest(TembaTest):
         run.submitted_by = self.admin
         run.save(update_fields=("submitted_by",))
 
-        workbook = self.export_flow_results(self.flow)
+        workbook = self.export_flow_results(flow)
         tz = self.org.timezone
 
         sheet_runs, sheet_msgs = workbook.worksheets
@@ -4201,7 +4123,48 @@ class FlowCRUDLTest(TembaTest):
         self.assertEqual(24, len(response.context["hod"]))
         self.assertEqual(7, len(response.context["dow"]))
 
-    def test_flow_activity_chart_of_inactive_flow(self):
+    def test_activity(self):
+        flow = self.get_flow("favorites_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[2]
+        beer_prompt = flow_nodes[3]
+        beer_split = flow_nodes[5]
+
+        pete = self.create_contact("Pete", "+12065553027")
+        (
+            MockSessionWriter(pete, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=self.create_msg(contact=pete, direction="I", text="blue"))
+            .set_result("Color", "blue", "Blue", "blue")
+            .visit(beer_prompt, exit_index=2)
+            .send_msg("Good choice, I like Blue too! What is your favorite beer?")
+            .visit(beer_split)
+            .wait()
+            .save()
+        )
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_activity", args=[flow.uuid]))
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "is_starting": False,
+                "nodes": {beer_split["uuid"]: 1},
+                "segments": {
+                    f'{color_prompt["exits"][0]["uuid"]}:{color_split["uuid"]}': 1,
+                    f'{color_split["exits"][2]["uuid"]}:{beer_prompt["uuid"]}': 1,
+                    f'{beer_prompt["exits"][0]["uuid"]}:{beer_split["uuid"]}': 1,
+                },
+            },
+            response.json(),
+        )
+
+    def test_activity_chart_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         # release the flow
         flow.release()
@@ -4209,9 +4172,9 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(404, response.status_code)
 
-    def test_flow_run_table_of_inactive_flow(self):
+    def test_run_table_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         # release the flow
         flow.release()
@@ -4219,9 +4182,9 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(404, response.status_code)
 
-    def test_flow_category_counts_of_inactive_flow(self):
+    def test_category_counts_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         # release the flow
         flow.release()
@@ -4229,7 +4192,7 @@ class FlowCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(404, response.status_code)
 
     def test_completion(self):
         flow = self.get_flow("favorites")
@@ -4281,53 +4244,125 @@ class FlowRunTest(TembaTest):
 
         self.contact = self.create_contact("Ben Haggerty", "+250788123123")
 
-    def test_session_release(self):
-        flow = self.get_flow("color")
+    def test_as_archive_json(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+        color_other = flow_nodes[3]
 
-        # create some runs that have sessions
-        run1 = FlowRun.create(flow, self.contact, session=FlowSession.create(self.contact, None))
-        run2 = FlowRun.create(flow, self.contact, session=FlowSession.create(self.contact, None))
-        run3 = FlowRun.create(flow, self.contact, session=FlowSession.create(self.contact, None))
+        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
 
-        # create an IVR run and session
-        connection = IVRCall.objects.create(
-            channel=self.channel,
-            contact=self.contact,
-            contact_urn=self.contact.urns.get(),
-            direction=IVRCall.OUTGOING,
-            org=self.org,
-            status=IVRCall.PENDING,
+        run = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=msg_in)
+            .set_result("Color", "green", "Other", "green")
+            .visit(color_other)
+            .send_msg("That is a funny color. Try again.", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        run_json = run.as_archive_json()
+
+        self.assertEqual(
+            set(run_json.keys()),
+            set(
+                [
+                    "id",
+                    "flow",
+                    "contact",
+                    "responded",
+                    "path",
+                    "values",
+                    "events",
+                    "created_on",
+                    "modified_on",
+                    "exited_on",
+                    "exit_type",
+                    "submitted_by",
+                ]
+            ),
         )
-        session = FlowSession.create(self.contact, connection)
-        run4 = FlowRun.create(flow, self.contact, connection=connection, session=session)
 
-        self.assertIsNotNone(run1.session)
-        self.assertIsNotNone(run2.session)
-        self.assertIsNotNone(run3.session)
-        self.assertIsNotNone(run4.session)
+        self.assertEqual(run.id, run_json["id"])
+        self.assertEqual({"uuid": str(flow.uuid), "name": "Colors"}, run_json["flow"])
+        self.assertEqual({"uuid": str(self.contact.uuid), "name": "Ben Haggerty"}, run_json["contact"])
+        self.assertTrue(run_json["responded"])
 
-        # end run1 and run4's sessions in the past
-        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
-        run1.session.save(update_fields=("ended_on",))
-        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
-        run4.session.save(update_fields=("ended_on",))
+        self.assertEqual(
+            [
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+                {"node": matchers.UUID4String(), "time": matchers.ISODate()},
+            ],
+            run_json["path"],
+        )
 
-        # end run2's session now
-        run2.session.ended_on = timezone.now()
-        run2.session.save(update_fields=("ended_on",))
+        self.assertEqual(
+            {
+                "color": {
+                    "category": "Other",
+                    "input": "green",
+                    "name": "Color",
+                    "node": matchers.UUID4String(),
+                    "time": matchers.ISODate(),
+                    "value": "green",
+                }
+            },
+            run_json["values"],
+        )
 
-        trim_flow_sessions()
+        self.assertEqual(
+            [
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "What is your favorite color?",
+                        "urn": "tel:+250788123123",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_created",
+                },
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "green",
+                        "urn": "tel:+250788123123",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_received",
+                },
+                {
+                    "created_on": matchers.ISODate(),
+                    "msg": {
+                        "channel": {"name": "Test Channel", "uuid": matchers.UUID4String()},
+                        "text": "That is a funny color. Try again.",
+                        "urn": "tel:+250788123123",
+                        "uuid": matchers.UUID4String(),
+                    },
+                    "step_uuid": matchers.UUID4String(),
+                    "type": "msg_created",
+                },
+            ],
+            run_json["events"],
+        )
 
-        run1, run2, run3, run4 = FlowRun.objects.order_by("id")
-
-        self.assertIsNone(run1.session)
-        self.assertIsNotNone(run2.session)  # ended too recently to be deleted
-        self.assertIsNotNone(run3.session)  # never ended
-        self.assertIsNone(run4.session)
-        self.assertIsNotNone(run4.connection)  # channel session unaffected
-
-        # only sessions for run2 and run3 are left
-        self.assertEqual(FlowSession.objects.count(), 2)
+        self.assertEqual(run.created_on.isoformat(), run_json["created_on"])
+        self.assertEqual(run.modified_on.isoformat(), run_json["modified_on"])
+        self.assertIsNone(run_json["exit_type"])
+        self.assertIsNone(run_json["exited_on"])
+        self.assertIsNone(run_json["submitted_by"])
 
     def _check_deletion(self, delete_reason, expected):
         """
@@ -4401,6 +4436,57 @@ class FlowRunTest(TembaTest):
         self._check_deletion(
             "A", {"red_count": 1, "primus_count": 1, "start_count": 1, "run_count": {"C": 1, "E": 0, "I": 0, "A": 0}}
         )
+
+
+class FlowSessionTest(TembaTest):
+    def test_release(self):
+        contact = self.create_contact("Ben Haggerty", "+250788123123")
+        flow = self.get_flow("color")
+
+        # create some runs that have sessions
+        run1 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
+        run2 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
+        run3 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
+
+        # create an IVR run and session
+        connection = IVRCall.objects.create(
+            channel=self.channel,
+            contact=contact,
+            contact_urn=contact.urns.get(),
+            direction=IVRCall.OUTGOING,
+            org=self.org,
+            status=IVRCall.PENDING,
+        )
+        session = FlowSession.create(contact, connection)
+        run4 = FlowRun.create(flow, contact, connection=connection, session=session)
+
+        self.assertIsNotNone(run1.session)
+        self.assertIsNotNone(run2.session)
+        self.assertIsNotNone(run3.session)
+        self.assertIsNotNone(run4.session)
+
+        # end run1 and run4's sessions in the past
+        run1.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.save(update_fields=("ended_on",))
+        run4.session.ended_on = datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.save(update_fields=("ended_on",))
+
+        # end run2's session now
+        run2.session.ended_on = timezone.now()
+        run2.session.save(update_fields=("ended_on",))
+
+        trim_flow_sessions()
+
+        run1, run2, run3, run4 = FlowRun.objects.order_by("id")
+
+        self.assertIsNone(run1.session)
+        self.assertIsNotNone(run2.session)  # ended too recently to be deleted
+        self.assertIsNotNone(run3.session)  # never ended
+        self.assertIsNone(run4.session)
+        self.assertIsNotNone(run4.connection)  # channel session unaffected
+
+        # only sessions for run2 and run3 are left
+        self.assertEqual(FlowSession.objects.count(), 2)
 
 
 class FlowLabelTest(FlowFileTest):
