@@ -28,7 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, skip_if_no_mailroom
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -611,7 +611,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json()["results"], [])
 
-    @skip_if_no_mailroom
     @override_settings(TESTING=False)
     @patch("temba.mailroom.queue_broadcast")
     def test_broadcasts(self, mock_queue_broadcast):
@@ -967,7 +966,6 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 404)
 
-    @skip_if_no_mailroom
     def test_campaign_events(self):
         url = reverse("api.v2.campaign_events")
 

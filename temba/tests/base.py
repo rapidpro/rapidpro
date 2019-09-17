@@ -1,7 +1,6 @@
 import inspect
 import shutil
 from datetime import datetime, timedelta
-from unittest import skipIf
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -60,13 +59,6 @@ class TembaTestRunner(DiscoverRunner):
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
-
-
-def skip_if_no_mailroom(test):
-    """
-    Skip a test if mailroom isn't configured
-    """
-    return skipIf(not settings.MAILROOM_URL, "this test can't be run without a mailroom instance")(test)
 
 
 class ESMockWithScroll:
