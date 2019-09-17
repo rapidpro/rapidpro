@@ -25,7 +25,7 @@ from temba.mailroom import FlowValidationException
 from temba.msgs.models import INCOMING, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, FlowFileTest, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -87,7 +87,7 @@ class FlowTest(TembaTest):
         flow3 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language="base")
         self.assertEqual(flow3.name, "Sheep Poll 3")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
 
     @patch("temba.mailroom.queue_interrupt")
@@ -1668,7 +1668,7 @@ class FlowTest(TembaTest):
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
 
         # create a flow for another org and a flow label
         flow2 = Flow.create(self.org2, self.admin2, "Flow2")
@@ -1826,27 +1826,22 @@ class FlowTest(TembaTest):
         label = Label.all_objects.get(name="Foo zap")
         self.assertTrue(flow.revisions.filter(definition__contains=str(label.uuid)).last())
 
-    def test_destination_type(self):
-        flow = self.get_flow("pick_a_number")
-
-        # our start points to a ruleset
-        start = ActionSet.objects.get(flow=flow, y=0)
-
-        # assert our destination
-        self.assertEqual(Flow.NODE_TYPE_RULESET, start.destination_type)
-
-        # and that ruleset points to an actionset
-        ruleset = RuleSet.objects.get(uuid=start.destination)
-        rule = ruleset.get_rules()[0]
-        self.assertEqual(Flow.NODE_TYPE_ACTIONSET, rule.destination_type)
-
-        # point our rule to a ruleset
-        passive = RuleSet.objects.get(flow=flow, label="passive")
-        self.update_destination(flow, rule.uuid, passive.uuid)
-        ruleset = RuleSet.objects.get(uuid=start.destination)
-        self.assertEqual(Flow.NODE_TYPE_RULESET, ruleset.get_rules()[0].destination_type)
-
     def test_server_runtime_cycle(self):
+        def update_destination(flow, source, destination):
+            flow_json = flow.as_json()
+
+            for actionset in flow_json.get("action_sets"):
+                if actionset.get("uuid") == source:
+                    actionset["destination"] = destination
+
+            for ruleset in flow_json.get("rule_sets"):
+                for rule in ruleset.get("rules"):
+                    if rule.get("uuid") == source:
+                        rule["destination"] = destination
+
+            flow.update(flow_json)
+            return Flow.objects.get(id=flow.id)
+
         flow = self.get_flow("loop_detection")
         first_actionset = ActionSet.objects.get(flow=flow, y=0)
         group_ruleset = RuleSet.objects.get(flow=flow, label="Group Split A")
@@ -1856,15 +1851,15 @@ class FlowTest(TembaTest):
 
         # rule turning back on ourselves
         with self.assertRaises(FlowException):
-            self.update_destination(flow, group_one_rule.uuid, group_ruleset.uuid)
+            update_destination(flow, group_one_rule.uuid, group_ruleset.uuid)
 
         # non-blocking rule to non-blocking rule and back
         with self.assertRaises(FlowException):
-            self.update_destination(flow, rowan_rule.uuid, group_ruleset.uuid)
+            update_destination(flow, rowan_rule.uuid, group_ruleset.uuid)
 
         # our non-blocking rule to an action and back to us again
         with self.assertRaises(FlowException):
-            self.update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
+            update_destination(flow, group_one_rule.uuid, first_actionset.uuid)
 
     def test_group_dependencies(self):
         self.get_flow("dependencies")
@@ -2266,7 +2261,7 @@ class FlowCRUDLTest(TembaTest):
         contact = self.create_contact("Eric", "+250788382382")
         flow = self.get_flow("color")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
 
         # create a flow for another org
         other_flow = Flow.create(self.org2, self.admin2, "Flow2", base_language="base")
@@ -5353,7 +5348,7 @@ class ExportFlowResultsTest(TembaTest):
         self.assertEqual(len(list(workbook.worksheets[0].columns)), 9)
 
 
-class FlowLabelTest(FlowFileTest):
+class FlowLabelTest(TembaTest):
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
         response = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
@@ -5473,7 +5468,7 @@ class FlowLabelTest(FlowFileTest):
         self.assertEqual(label_one.name, "Label One")
 
 
-class SimulationTest(FlowFileTest):
+class SimulationTest(TembaTest):
     def add_message(self, payload, text):
         """
         Add a message to the payload for the flow server using the default contact

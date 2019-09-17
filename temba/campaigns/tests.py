@@ -57,7 +57,7 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(campaign3.name, "Reminders 3")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
 
     def test_get_sorted_events(self):

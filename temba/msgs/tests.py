@@ -2726,7 +2726,7 @@ class LabelCRUDLTest(TembaTest):
         Label.get_or_create(self.org, self.user, "Junk", folder=folder)
         Label.get_or_create(self.org, self.user, "Important")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         Label.get_or_create(self.org2, self.admin2, "Other Org")
 
         # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
@@ -2749,7 +2749,7 @@ class LabelCRUDLTest(TembaTest):
 class ConsoleTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
 
         # create a new console
         self.console = MessageConsole(self.org, "tel:+250788123123")

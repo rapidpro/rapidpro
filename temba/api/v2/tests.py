@@ -51,7 +51,7 @@ class APITest(TembaTest):
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
         self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
@@ -553,6 +553,8 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
     def test_boundaries(self):
+        self.setUpLocations()
+
         url = reverse("api.v2.boundaries")
 
         self.assertEndpointAccess(url)

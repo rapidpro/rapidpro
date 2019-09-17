@@ -797,9 +797,9 @@ AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 # -----------------------------------------------------------------------------------
-# Our test runner includes a mocked HTTP server and the ability to exclude apps
+# Our test runner includes the ability to exclude apps
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = "temba.tests.TembaTestRunner"
+TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
 
 # -----------------------------------------------------------------------------------
