@@ -968,7 +968,7 @@ class Msg(models.Model):
 
         return data
 
-    def __str__(self):
+    def __str__(self):  # pragma: needs cover
         return self.text
 
     @classmethod
@@ -1023,7 +1023,7 @@ class Msg(models.Model):
         topup=None,
         external_id=None,
         connection=None,
-    ):
+    ):  # pragma: no cover
 
         if not org and channel:
             org = channel.org
@@ -1056,12 +1056,12 @@ class Msg(models.Model):
 
         # don't create duplicate messages
         existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
-        if existing:  # pragma: no cover
+        if existing:
             return existing
 
         # costs 1 credit to receive a message
         topup_id = None
-        if topup:  # pragma: needs cover
+        if topup:
             topup_id = topup.pk
         else:
             (topup_id, amount) = org.decrement_credit()

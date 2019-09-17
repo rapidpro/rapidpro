@@ -271,7 +271,7 @@ class APITest(TembaTest):
             serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
         )  # base lang not provided
 
-    @override_settings(FLOWRUN_FIELDS_SIZE=4)
+    @override_settings(FLOW_START_PARAMS_SIZE=4)
     def test_normalize_extra(self):
         self.assertEqual(OrderedDict(), normalize_extra({}))
         self.assertEqual(
@@ -2091,9 +2091,9 @@ class APITest(TembaTest):
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
-        FlowRun.create(flow, contact1)
-        FlowRun.create(flow, contact2)
-        FlowRun.create(flow, contact3)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact1)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact2)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact3)
 
         self.create_msg(direction="I", contact=contact1, text="Hello")
         self.create_msg(direction="I", contact=contact2, text="Hello")
@@ -2419,7 +2419,7 @@ class APITest(TembaTest):
         color.labels.add(reporting)
 
         # make it look like joe completed a the color flow
-        run = FlowRun.create(color, contact=self.joe)
+        run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
         run.exited_on = timezone.now()
         run.is_active = False
@@ -3363,7 +3363,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         flow = self.get_flow("color")
-        run = FlowRun.create(flow, self.frank)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.frank)
         run.results = {
             "manual": {
                 "created_on": "2019-06-28T06:37:02.628152471Z",

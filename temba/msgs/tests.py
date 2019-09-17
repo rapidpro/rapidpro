@@ -2285,7 +2285,7 @@ class BroadcastTest(TembaTest):
         # give Joe a flow run that has stopped on a node
         node_uuid = "19bd2f45-f0bc-435c-bb52-c2dc566093d4"
         flow = self.get_flow("favorites")
-        run = FlowRun.create(flow, self.joe)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.joe)
         run.current_node_uuid = node_uuid
         run.save(update_fields=("current_node_uuid",))
 

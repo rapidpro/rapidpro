@@ -1978,19 +1978,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for broadcast in self.addressed_broadcasts.all():
                 broadcast.contacts.remove(self)
 
-    def cached_send_channel(self, contact_urn):
-        cache = getattr(self, "_send_channels", {})
-        channel = cache.get(contact_urn.id)
-        if not channel:
-            channel = self.org.get_send_channel(contact_urn=contact_urn)
-            cache[contact_urn.id] = channel
-            self._send_channels = cache
-
-        return channel
-
     def initialize_cache(self):
         if getattr(self, "__cache_initialized", False):
-            return
+            return  # pragma: needs cover
 
         Contact.bulk_cache_initialize(self.org, [self])
 

@@ -4617,9 +4617,15 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        run1 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
-        run2 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
-        run3 = FlowRun.create(flow, contact, session=FlowSession.create(contact, None))
+        run1 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
+        )
+        run2 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
+        )
+        run3 = FlowRun.objects.create(
+            org=self.org, flow=flow, contact=contact, session=FlowSession.create(contact, None)
+        )
 
         # create an IVR run and session
         connection = IVRCall.objects.create(
@@ -4631,7 +4637,7 @@ class FlowSessionTest(TembaTest):
             status=IVRCall.PENDING,
         )
         session = FlowSession.create(contact, connection)
-        run4 = FlowRun.create(flow, contact, connection=connection, session=session)
+        run4 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=connection, session=session)
 
         self.assertIsNotNone(run1.session)
         self.assertIsNotNone(run2.session)

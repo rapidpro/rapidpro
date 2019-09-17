@@ -1965,48 +1965,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     parent_context = JSONField(null=True)
     child_context = JSONField(null=True)
 
-    @classmethod
-    def create(
-        cls,
-        flow,
-        contact,
-        start=None,
-        session=None,
-        connection=None,
-        fields=None,
-        created_on=None,
-        db_insert=True,
-        submitted_by=None,
-        parent=None,
-        parent_context=None,
-        responded=False,
-    ):
-
-        args = dict(
-            org_id=flow.org_id,
-            flow=flow,
-            contact=contact,
-            start=start,
-            session=session,
-            connection=connection,
-            fields=fields,
-            submitted_by=submitted_by,
-            parent=parent,
-            parent_context=parent_context,
-            responded=responded,
-        )
-
-        if created_on:
-            args["created_on"] = created_on
-
-        if db_insert:
-            run = FlowRun.objects.create(**args)
-        else:
-            run = FlowRun(**args)
-
-        run.contact = contact
-        return run
-
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run

@@ -214,13 +214,13 @@ class OrgDeleteTest(TembaTest):
         # bring in some flows
         favorites = self.get_flow("favorites")
         parent_contact = self.create_contact("Parent Contact", "+2345123")
-        FlowRun.create(favorites, parent_contact)
+        FlowRun.objects.create(org=self.org, flow=favorites, contact=parent_contact)
 
         # and our child org too
         self.org = self.child_org
         color = self.get_flow("color")
         child_contact = self.create_contact("Child Contact", "+3456123")
-        FlowRun.create(color, child_contact)
+        FlowRun.objects.create(org=self.org, flow=color, contact=child_contact)
 
         # triggers for our flows
         parent_trigger = Trigger.create(
