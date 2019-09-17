@@ -100,7 +100,6 @@ class UserTest(TembaTest):
             org = Org.objects.create(
                 name=f"Org {i}",
                 timezone=pytz.timezone("Africa/Kigali"),
-                country=self.country,
                 brand=settings.DEFAULT_BRAND,
                 created_by=self.user,
                 modified_by=self.user,
@@ -124,7 +123,6 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand="some-other-brand.com",
             created_by=self.admin,
             modified_by=self.admin,
@@ -177,6 +175,8 @@ class UserTest(TembaTest):
 class OrgDeleteTest(TembaTest):
     def setUp(self):
         super().setUp()
+
+        self.setUpLocations()
 
         # create a second org
         self.child_org = Org.objects.create(
@@ -470,6 +470,8 @@ class OrgTest(TembaTest):
         self.assertEqual("nice-temba", org.slug)
 
     def test_country(self):
+        self.setUpLocations()
+
         country_url = reverse("orgs.org_country")
 
         # can't see this page if not logged in
@@ -651,6 +653,8 @@ class OrgTest(TembaTest):
         mock_async_start.assert_called_once()
 
     def test_org_administration(self):
+        self.setUpLocations()
+
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
         login_url = reverse("users.user_login")
@@ -756,7 +760,6 @@ class OrgTest(TembaTest):
         Org.objects.create(
             name="Another Org",
             timezone="Africa/Kigali",
-            country=self.country,
             brand="rapidpro.io",
             created_by=self.user,
             modified_by=self.user,
