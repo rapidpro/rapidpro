@@ -2155,7 +2155,7 @@ class FlowTest(TembaTest):
         color_split = flow_nodes[4]
 
         # no urn or channel
-        in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
+        in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact, status="H")
 
         run = (
             MockSessionWriter(self.contact, flow)

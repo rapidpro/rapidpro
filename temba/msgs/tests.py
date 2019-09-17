@@ -388,49 +388,6 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.sent_on, t)
         self.assertGreater(msg.created_on, msg.sent_on)
 
-    def test_create_incoming(self):
-        Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
-        Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
-        msg = Msg.create_incoming(self.channel, "tel:250788382382", "Yes, 3.")
-
-        self.assertEqual(msg.text, "Yes, 3.")
-        self.assertEqual(str(msg), "Yes, 3.")
-
-        # Can't send incoming messages
-        with self.assertRaises(Exception):
-            msg.send()
-
-        # can't create outgoing messages against an unassigned channel
-        unassigned_channel = Channel.create(
-            None, self.admin, None, "A", None, secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "456"}
-        )
-
-        with self.assertRaises(Exception):
-            Msg.create_incoming(unassigned_channel, "tel:250788382382", "No dice")
-
-        # test blocked contacts are skipped from inbox and are not handled by flows
-        contact = self.create_contact("Blocked contact", "250728739305")
-        contact.is_blocked = True
-        contact.save(update_fields=("is_blocked",), handle_update=False)
-        ignored_msg = Msg.create_incoming(self.channel, str(contact.get_urn()), "My msg should be archived")
-        ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
-        self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
-        self.assertEqual(ignored_msg.status, HANDLED)
-
-        # hit the inbox page, that should reset our unread count
-        self.login(self.admin)
-        self.client.get(reverse("msgs.msg_inbox"))
-
-        # test that invalid chars are stripped from message text
-        msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
-        self.assertEqual(msg5.text, "Don't be null!")
-
-        # test create_incoming with a sent_on value
-        t = datetime(2018, 5, 17, 17, 29, 30, 0, pytz.UTC)
-        msg = Msg.create_incoming(self.channel, "tel:250788382382", "It's going well", sent_on=t)
-        self.assertEqual(msg.sent_on, t)
-        self.assertGreater(msg.created_on, msg.sent_on)
-
     def test_empty(self):
         broadcast = Broadcast.create(
             self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", contacts=[]
@@ -2819,55 +2776,6 @@ class ConsoleTest(TembaTest):
 
         msg.status = HANDLED
         msg.save(update_fields=("status",))
-
-    @patch("temba.msgs.models.Msg.handle", autospec=True)
-    def test_msg_console(self, mock_handle):
-        mock_handle.side_effect = self.mock_handle_msg
-
-        # make sure our org is properly set
-        self.assertEqual(self.console.org, self.org)
-
-        # try changing it with something empty
-        self.console.do_org("")
-        self.assertEchoed("Select org", clear=False)
-        self.assertEchoed("Temba")
-
-        # shouldn't have changed current org
-        self.assertEqual(self.console.org, self.org)
-
-        # try changing entirely
-        self.console.do_org("%d" % self.org2.id)
-        self.assertEchoed("You are now sending messages for Trileet Inc.")
-        self.assertEqual(self.console.org, self.org2)
-        self.assertEqual(self.console.contact.org, self.org2)
-
-        # back to temba
-        self.console.do_org("%d" % self.org.id)
-        self.assertEqual(self.console.org, self.org)
-        self.assertEqual(self.console.contact.org, self.org)
-
-        # contact help
-        self.console.do_contact("")
-        self.assertEchoed("Set contact by")
-
-        # switch our contact
-        self.console.do_contact("0788123123")
-        self.assertEchoed("You are now sending as John")
-        self.assertEqual(self.console.contact, self.john)
-
-        # send a message
-        self.console.default("Hello World")
-        self.assertEchoed("Hello World")
-
-        # make sure the message was created for our contact and handled
-        msg_in = Msg.objects.get(direction="I")
-        self.assertEqual(msg_in.text, "Hello World")
-        self.assertEqual(msg_in.contact, self.john)
-        self.assertEqual(msg_in.status, HANDLED)
-
-        msg_out = Msg.objects.get(direction="O")
-        self.assertEqual(msg_out.text, "Good point")
-        self.assertEqual(msg_out.contact, self.john)
 
 
 class BroadcastLanguageTest(TembaTest):

@@ -896,10 +896,7 @@ class Msg(models.Model):
         Queues this message to be handled
         """
 
-        if settings.TESTING:
-            legacy.handle_message(self)
-        else:  # pragma: no cover
-            mailroom.queue_msg_handling(self)
+        mailroom.queue_msg_handling(self)
 
     def resend(self):
         """
@@ -1020,9 +1017,9 @@ class Msg(models.Model):
         sent_on=None,
         org=None,
         contact=None,
-        status=PENDING,
+        status=HANDLED,
         attachments=None,
-        msg_type=None,
+        msg_type=INBOX,
         topup=None,
         external_id=None,
         connection=None,
@@ -1097,12 +1094,6 @@ class Msg(models.Model):
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
             contact.unstop(user)
-
-        if channel:
-            analytics.gauge("temba.msg_incoming_%s" % channel.channel_type.lower())
-
-        if status == PENDING and msg_type != IVR:
-            msg.handle()
 
         return msg
 
