@@ -17,7 +17,6 @@ from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test.runner import DiscoverRunner
-from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
@@ -68,13 +67,6 @@ def skip_if_no_mailroom(test):
     Skip a test if mailroom isn't configured
     """
     return skipIf(not settings.MAILROOM_URL, "this test can't be run without a mailroom instance")(test)
-
-
-def uses_legacy_engine(test):
-    """
-    Allow use of legacy engine with this test
-    """
-    return override_settings(USES_LEGACY_ENGINE=True)(test)
 
 
 class ESMockWithScroll:

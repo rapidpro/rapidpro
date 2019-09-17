@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import regex
 
-from django.conf import settings
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
@@ -65,9 +64,6 @@ def flow_start(
 
     from temba.msgs.models import FLOW
     from temba.flows.models import FlowRun
-
-    if not getattr(settings, "USES_LEGACY_ENGINE", False):
-        raise ValueError("Use of legacy engine when USES_LEGACY_ENGINE not set")
 
     # build up querysets of our groups for memory efficiency
     if isinstance(groups, QuerySet):

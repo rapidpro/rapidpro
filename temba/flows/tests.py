@@ -33,7 +33,6 @@ from temba.tests import (
     TembaTest,
     matchers,
     skip_if_no_mailroom,
-    uses_legacy_engine,
 )
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
@@ -807,22 +806,33 @@ class FlowTest(TembaTest):
                 self.org.timezone,
             )
 
-    @uses_legacy_engine
     def test_export_results_broadcast_only_flow(self):
-        self.login(self.admin)
+        flow = self.get_flow("send_only_v13")
+        send_node = flow.as_json()["nodes"][0]
 
-        flow = self.get_flow("two_in_row")
-        contact1_run1, contact2_run1, contact3_run1 = legacy.flow_start(
-            flow, [], [self.contact, self.contact2, self.contact3]
-        )
-        contact1_run2, contact2_run2 = legacy.flow_start(
-            flow, [], [self.contact, self.contact2], restart_participants=True
-        )
+        for contact in [self.contact, self.contact2, self.contact3]:
+            (
+                MockSessionWriter(contact, flow)
+                .visit(send_node)
+                .send_msg("This is the first message.", self.channel)
+                .send_msg("This is the second message.", self.channel)
+                .complete()
+                .save()
+            ).session.runs.get()
 
-        for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
-            run.refresh_from_db()
+        for contact in [self.contact, self.contact2]:
+            (
+                MockSessionWriter(contact, flow)
+                .visit(send_node)
+                .send_msg("This is the first message.", self.channel)
+                .send_msg("This is the second message.", self.channel)
+                .complete()
+                .save()
+            ).session.runs.get()
 
-        with self.assertNumQueries(41):
+        contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
+
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -1084,39 +1094,99 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Started", "Modified", "Exited"])
 
-    @uses_legacy_engine
     def test_export_results_with_replaced_rulesets(self):
-        self.login(self.admin)
+        favorites = self.get_flow("favorites_v13")
+        flow_json = favorites.as_json()
+        flow_nodes = flow_json["nodes"]
+        color_prompt = flow_nodes[0]
+        color_other = flow_nodes[1]
+        color_split = flow_nodes[2]
+        beer_prompt = flow_nodes[3]
+        beer_split = flow_nodes[5]
+
+        contact3_run1 = (
+            MockSessionWriter(self.contact3, favorites)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
+        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="red")
+        contact1_run1 = (
+            MockSessionWriter(self.contact, favorites)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in1)
+            .set_result("Color", "light beige", "Other", "light beige")
+            .visit(color_other)
+            .send_msg("I don't know that color. Try again.", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+            .resume(msg=contact1_in2)
+            .set_result("Color", "red", "Red", "red")
+            .visit(beer_prompt)
+            .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
+            .visit(beer_split)
+            .complete()
+            .save()
+        ).session.runs.get()
+
         devs = self.create_group("Devs", [self.contact])
 
-        favorites = self.get_flow("favorites")
-
-        contact1_run1, contact3_run1 = legacy.flow_start(favorites, [], [self.contact, self.contact3])
-
-        # simulate two runs each for two contacts...
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
-        legacy.find_and_handle(contact1_in1)
-
-        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="red")
-        legacy.find_and_handle(contact1_in2)
-
         # now remap the uuid for our color
-        flow_json = favorites.as_json()
-        color_ruleset = flow_json["rule_sets"][0]
-        flow_json = json.loads(json.dumps(flow_json).replace(color_ruleset["uuid"], str(uuid4())))
-        favorites.update(flow_json)
-
-        contact2_run1 = legacy.flow_start(favorites, [], [self.contact2])[0]
+        flow_json = json.loads(json.dumps(flow_json).replace(color_split["uuid"], str(uuid4())))
+        favorites.save_revision(self.admin, flow_json)
+        flow_nodes = flow_json["nodes"]
+        color_prompt = flow_nodes[0]
+        color_other = flow_nodes[1]
+        color_split = flow_nodes[2]
 
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
-        legacy.find_and_handle(contact2_in1)
+        contact2_run1 = (
+            MockSessionWriter(self.contact2, favorites)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact2_in1)
+            .set_result("Color", "green", "Green", "green")
+            .visit(beer_prompt)
+            .send_msg("Good choice, I like Green too! What is your favorite beer?", self.channel)
+            .visit(beer_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
-        contact1_run2, contact2_run2 = legacy.flow_start(
-            favorites, [], [self.contact, self.contact2], restart_participants=True
-        )
+        contact2_run2 = (
+            MockSessionWriter(self.contact2, favorites)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
-        legacy.find_and_handle(contact1_in3)
+        contact1_run2 = (
+            MockSessionWriter(self.contact, favorites)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in3)
+            .set_result("Color", "blue", "Blue", " blue ")
+            .visit(beer_prompt)
+            .send_msg("Good choice, I like Blue too! What is your favorite beer?", self.channel)
+            .visit(beer_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
@@ -1128,8 +1198,8 @@ class FlowTest(TembaTest):
         sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 16)
+        self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
+        self.assertEqual(16, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -1364,40 +1434,97 @@ class FlowTest(TembaTest):
             tz,
         )
 
-    @uses_legacy_engine
     def test_export_results(self):
-        # setup flow and start both contacts
-        self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+        color_other = flow_nodes[3]
+        orange_reply = flow_nodes[1]
 
+        self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
         devs = self.create_group("Devs", [self.contact])
 
         # contact name with an illegal character
         self.contact3.name = "Nor\02bert"
         self.contact3.save(update_fields=("name",), handle_update=False)
 
-        contact1_run1, contact2_run1, contact3_run1 = legacy.flow_start(
-            self.flow, [], [self.contact, self.contact2, self.contact3]
-        )
+        contact3_run1 = (
+            MockSessionWriter(self.contact3, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
-        # simulate two runs each for two contacts...
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
-        legacy.find_and_handle(contact1_in1)
-
         contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        legacy.find_and_handle(contact1_in2)
+        contact1_run1 = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in1)
+            .set_result("Color", "light beige", "Other", "light beige")
+            .visit(color_other)
+            .send_msg("That is a funny color. Try again.", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in2)
+            .set_result("Color", "orange", "Orange", "orange")
+            .visit(orange_reply)
+            .send_msg(
+                "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
+                self.channel,
+            )
+            .complete()
+            .save()
+        ).session.runs.get()
 
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
-        legacy.find_and_handle(contact2_in1)
+        contact2_run1 = (
+            MockSessionWriter(self.contact2, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact2_in1)
+            .set_result("Color", "green", "Other", "green")
+            .visit(color_other)
+            .send_msg("That is a funny color. Try again.", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
-        contact1_run2, contact2_run2 = legacy.flow_start(
-            self.flow, [], [self.contact, self.contact2], restart_participants=True
-        )
+        contact2_run2 = (
+            MockSessionWriter(self.contact2, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
-        legacy.find_and_handle(contact1_in3)
+        contact1_run2 = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in3)
+            .set_result("Color", "blue", "Blue", " blue ")
+            .visit(orange_reply)
+            .send_msg("Blue is sad. :(", self.channel)
+            .complete()
+            .save()
+        ).session.runs.get()
 
         # check can't export anonymously
-        exported = self.client.get(reverse("flows.flow_export_results") + "?ids=%d" % self.flow.pk)
+        exported = self.client.get(reverse("flows.flow_export_results") + "?ids=%d" % flow.id)
         self.assertEqual(302, exported.status_code)
 
         self.login(self.admin)
@@ -1407,7 +1534,7 @@ class FlowTest(TembaTest):
             org=self.org, created_by=self.admin, modified_by=self.admin
         )
         response = self.client.post(
-            reverse("flows.flow_export_results"), dict(flows=[self.flow.pk], group_memberships=[devs.pk]), follow=True
+            reverse("flows.flow_export_results"), {"flows": [flow.id], "group_memberships": [devs.id]}, follow=True
         )
         self.assertContains(response, "already an export in progress")
 
@@ -1425,7 +1552,7 @@ class FlowTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with self.assertNumQueries(42):
-                    workbook = self.export_flow_results(self.flow, group_memberships=[devs])
+                    workbook = self.export_flow_results(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
                 self.assertTrue("fetching runs from archives to export" in captured_logger.output[0])
@@ -1437,8 +1564,8 @@ class FlowTest(TembaTest):
         sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 10)
+        self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -1451,9 +1578,9 @@ class FlowTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
+                "Color (Category) - Colors",
+                "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -1548,8 +1675,8 @@ class FlowTest(TembaTest):
         )
 
         # check messages sheet...
-        self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
+        self.assertEqual(7, len(list(sheet_msgs.columns)))
 
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
 
@@ -1637,8 +1764,7 @@ class FlowTest(TembaTest):
                 "Eric",
                 contact1_out3.created_on,
                 "OUT",
-                "I love orange too! You said: orange which is category: Orange You are: "
-                "0788 382 382 SMS: orange Flow: color: orange",
+                "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",
                 "Test Channel",
             ],
             tz,
@@ -1647,14 +1773,14 @@ class FlowTest(TembaTest):
         # test without msgs or unresponded
         with self.assertNumQueries(41):
             workbook = self.export_flow_results(
-                self.flow, include_msgs=False, responded_only=True, group_memberships=(devs,)
+                flow, include_msgs=False, responded_only=True, group_memberships=(devs,)
             )
 
         tz = self.org.timezone
         sheet_runs = workbook.worksheets[0]
 
-        self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 10)
+        self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
+        self.assertEqual(10, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -1667,9 +1793,9 @@ class FlowTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
+                "Color (Category) - Colors",
+                "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -1715,7 +1841,7 @@ class FlowTest(TembaTest):
 
         with self.assertNumQueries(43):
             workbook = self.export_flow_results(
-                self.flow,
+                flow,
                 include_msgs=False,
                 responded_only=True,
                 contact_fields=[age],
@@ -1730,8 +1856,8 @@ class FlowTest(TembaTest):
         sheet_runs, = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 13)
+        self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
+        self.assertEqual(13, len(list(sheet_runs.columns)))
 
         self.assertExcelRow(
             sheet_runs,
@@ -1747,9 +1873,9 @@ class FlowTest(TembaTest):
                 "Started",
                 "Modified",
                 "Exited",
-                "color (Category) - Color Flow",
-                "color (Value) - Color Flow",
-                "color (Text) - Color Flow",
+                "Color (Category) - Colors",
+                "Color (Value) - Colors",
+                "Color (Text) - Colors",
             ],
         )
 
@@ -1776,7 +1902,7 @@ class FlowTest(TembaTest):
 
         # test that we don't exceed the limit on rows per sheet
         with patch("temba.flows.models.ExportFlowResultsTask.MAX_EXCEL_ROWS", 4):
-            workbook = self.export_flow_results(self.flow)
+            workbook = self.export_flow_results(flow)
             expected_sheets = [
                 ("Runs", 4),
                 ("Runs (2)", 3),
@@ -1791,22 +1917,22 @@ class FlowTest(TembaTest):
                 self.assertEqual((sheet.title, len(list(sheet.rows))), expected_sheets[s])
 
         # test we can export archived flows
-        self.flow.is_archived = True
-        self.flow.save()
+        flow.is_archived = True
+        flow.save()
 
-        workbook = self.export_flow_results(self.flow)
+        workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
 
         sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 9)
+        self.assertEqual(6, len(list(sheet_runs.rows)))  # header + 5 runs
+        self.assertEqual(9, len(list(sheet_runs.columns)))
 
         # check messages sheet...
-        self.assertEqual(len(list(sheet_msgs.rows)), 14)  # header + 13 messages
-        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+        self.assertEqual(14, len(list(sheet_msgs.rows)))  # header + 13 messages
+        self.assertEqual(7, len(list(sheet_msgs.columns)))
 
     def test_export_results_remove_control_characters(self):
         flow = self.get_flow("color_v13")
@@ -1853,19 +1979,66 @@ class FlowTest(TembaTest):
             tz,
         )
 
-    @uses_legacy_engine
     def test_export_results_from_archives(self):
-        contact1_run, contact2_run = legacy.flow_start(self.flow, [], [self.contact, self.contact2])
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+        color_other = flow_nodes[3]
+        blue_reply = flow_nodes[2]
+
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
-        legacy.find_and_handle(contact1_in1)
+        contact1_run = (
+            MockSessionWriter(self.contact, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact1_in1)
+            .set_result("Color", "green", "Other", "green")
+            .visit(color_other)
+            .send_msg("That is a funny color. Try again.", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="blue")
-        legacy.find_and_handle(contact2_in1)
+        contact2_run = (
+            MockSessionWriter(self.contact2, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .resume(msg=contact2_in1)
+            .set_result("Color", "blue", "Blue", "blue")
+            .visit(blue_reply)
+            .send_msg("Blue is sad :(.", self.channel)
+            .complete()
+            .save()
+        ).session.runs.get()
 
         # and a run for a different flow
-        flow2 = self.get_flow("favorites")
-        contact2_other_flow, = legacy.flow_start(flow2, [], [self.contact2])
+        flow2 = self.get_flow("favorites_v13")
+        flow2_nodes = flow2.as_json()["nodes"]
 
-        contact3_run, = legacy.flow_start(self.flow, [], [self.contact3])
+        contact2_other_flow = (
+            MockSessionWriter(self.contact2, flow2)
+            .visit(flow2_nodes[0])
+            .send_msg("Color???", self.channel)
+            .visit(flow2_nodes[2])
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        contact3_run = (
+            MockSessionWriter(self.contact3, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
 
         # we now have 4 runs in this order of modified_on
         contact1_run.refresh_from_db()
@@ -1915,13 +2088,13 @@ class FlowTest(TembaTest):
         mock_s3.put_jsonl("test-bucket", "archive2.jsonl.gz", [contact2_run.as_archive_json()])
 
         with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
-            workbook = self.export_flow_results(self.flow)
+            workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
         sheet_runs, sheet_msgs = workbook.worksheets
 
         # check runs sheet...
-        self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
+        self.assertEqual(4, len(list(sheet_runs.rows)))  # header + 3 runs
 
         self.assertExcelRow(
             sheet_runs,
