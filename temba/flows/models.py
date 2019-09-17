@@ -1960,11 +1960,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
 
-    # TODO remove when legacy engine is gone
-    fields = JSONAsTextField(blank=True, null=True, default=dict)
-    parent_context = JSONField(null=True)
-    child_context = JSONField(null=True)
-
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run
