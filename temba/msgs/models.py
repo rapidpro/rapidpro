@@ -896,10 +896,7 @@ class Msg(models.Model):
         Queues this message to be handled
         """
 
-        if settings.TESTING:
-            legacy.handle_message(self)
-        else:  # pragma: no cover
-            mailroom.queue_msg_handling(self)
+        mailroom.queue_msg_handling(self)
 
     def resend(self):
         """
@@ -971,12 +968,8 @@ class Msg(models.Model):
 
         return data
 
-    def __str__(self):
-        if self.attachments:
-            parts = ([self.text] if self.text else []) + [a.url for a in self.get_attachments()]
-            return "\n".join(parts)
-        else:
-            return self.text
+    def __str__(self):  # pragma: needs cover
+        return self.text
 
     @classmethod
     def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):
@@ -1024,13 +1017,13 @@ class Msg(models.Model):
         sent_on=None,
         org=None,
         contact=None,
-        status=PENDING,
+        status=HANDLED,
         attachments=None,
-        msg_type=None,
+        msg_type=INBOX,
         topup=None,
         external_id=None,
         connection=None,
-    ):
+    ):  # pragma: no cover
 
         if not org and channel:
             org = channel.org
@@ -1063,12 +1056,12 @@ class Msg(models.Model):
 
         # don't create duplicate messages
         existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
-        if existing:  # pragma: no cover
+        if existing:
             return existing
 
         # costs 1 credit to receive a message
         topup_id = None
-        if topup:  # pragma: needs cover
+        if topup:
             topup_id = topup.pk
         else:
             (topup_id, amount) = org.decrement_credit()
@@ -1101,12 +1094,6 @@ class Msg(models.Model):
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
             contact.unstop(user)
-
-        if channel:
-            analytics.gauge("temba.msg_incoming_%s" % channel.channel_type.lower())
-
-        if status == PENDING and msg_type != IVR:
-            msg.handle()
 
         return msg
 

@@ -761,7 +761,7 @@ class ContactGroupCRUDLTest(TembaTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="tel = 1234")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.release(ContactGroup.user_groups.all())
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
@@ -1598,6 +1598,8 @@ class ContactTest(TembaTest):
         )
 
     def test_contact_search_evaluation(self):
+        self.setUpLocations()
+
         ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
         ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
         ContactField.get_or_create(self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME)
@@ -3695,7 +3697,7 @@ class ContactTest(TembaTest):
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
-            self.create_secondary_org()
+            self.setUpSecondaryOrg()
             hans = self.create_contact("Hans", twitter="hans", org=self.org2)
             response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
             self.assertLoginRedirect(response)
@@ -4118,7 +4120,7 @@ class ContactTest(TembaTest):
             )
 
         # can't view contact in another org
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         hans = self.create_contact("Hans", twitter="hans", org=self.org2)
         response = self.client.get(reverse("contacts.contact_read", args=[hans.uuid]))
         self.assertLoginRedirect(response)
@@ -4186,6 +4188,8 @@ class ContactTest(TembaTest):
         self.assertFormError(response, "form", "name", "Name is used by another group")
 
     def test_update_and_list(self):
+        self.setUpLocations()
+
         list_url = reverse("contacts.contact_list")
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -6138,6 +6142,8 @@ class ContactTest(TembaTest):
         self.assertEqual(c5.name, "Goran Dragic")
 
     def test_field_json(self):
+        self.setUpLocations()
+
         # simple text field
         self.joe.set_field(self.user, "dog", "Chef", label="Dog")
         self.joe.refresh_from_db()
@@ -6306,6 +6312,8 @@ class ContactTest(TembaTest):
         self.assertIsNone(self.joe.get_field_json(birth_date).get("datetime"))
 
     def test_field_values(self):
+        self.setUpLocations()
+
         registration_field = ContactField.get_or_create(
             self.org, self.admin, "registration_date", "Registration Date", None, Value.TYPE_DATETIME
         )
@@ -6371,6 +6379,8 @@ class ContactTest(TembaTest):
         self.assertRaises(ValueError, joe.get_field_display, field_iban)
 
     def test_set_location_fields(self):
+        self.setUpLocations()
+
         district_field = ContactField.get_or_create(
             self.org, self.admin, "district", "District", None, Value.TYPE_DISTRICT
         )
@@ -6406,6 +6416,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Rwanda > Kigali City > Remera", joe.get_field_serialized(district_field))
 
     def test_set_location_ward_fields(self):
+        self.setUpLocations()
 
         state = AdminBoundary.create(osm_id="3710302", name="Kano", level=1, parent=self.country)
         district = AdminBoundary.create(osm_id="3710307", name="Bichi", level=2, parent=state)

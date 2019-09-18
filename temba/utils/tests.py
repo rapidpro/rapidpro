@@ -924,7 +924,7 @@ class ModelsTest(TembaTest):
     def test_require_update_fields(self):
         contact = self.create_contact("Bob", twitter="bobby")
         flow = self.get_flow("color")
-        run = FlowRun.create(flow, contact)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
         # we can save if we specify update_fields
         run.modified_on = timezone.now()
