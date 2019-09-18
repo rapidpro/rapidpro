@@ -3013,7 +3013,7 @@ class SystemLabelTest(TembaTest):
             self.user,
             "Broadcast 3",
             contacts=[contact1],
-            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY)
+            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual(

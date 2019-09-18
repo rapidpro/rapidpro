@@ -662,9 +662,12 @@ class TriggerCRUDL(SmartCRUDL):
             start_time = form.get_start_time(org.timezone)
 
             schedule = Schedule.create_schedule(
-                org, self.request.user,
-                start_time, form.cleaned_data.get("repeat_period"),
-                repeat_days_of_week=form.cleaned_data.get('repeat_days_of_week'))
+                org,
+                self.request.user,
+                start_time,
+                form.cleaned_data.get("repeat_period"),
+                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+            )
 
             recipients = self.form.cleaned_data["omnibox"]
 

@@ -2,8 +2,10 @@
 
 from django.db import migrations
 
+
 def noop(apps, schema_editor):
     pass
+
 
 def populate_org(apps, schema_editor):
     Schedule = apps.get_model("schedules", "Schedule")
@@ -23,14 +25,13 @@ def populate_org(apps, schema_editor):
     if updated > 0:
         print(f"populated {updated} schedules with org")
 
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('triggers', '0016_auto_20190816_1517'),
-        ('msgs', '0134_remove_broadcast_purged'),
-        ('schedules', '0010_populate_days_of_week'),
+        ("triggers", "0016_auto_20190816_1517"),
+        ("msgs", "0134_remove_broadcast_purged"),
+        ("schedules", "0010_populate_days_of_week"),
     ]
 
-    operations = [
-        migrations.RunPython(populate_org, noop)
-    ]
+    operations = [migrations.RunPython(populate_org, noop)]

@@ -53,7 +53,7 @@ class ScheduleTest(TembaTest):
         )
 
     def test_next_fire(self):
-        default_tz = pytz.timezone('Africa/Kigali')
+        default_tz = pytz.timezone("Africa/Kigali")
 
         tcs = [
             dict(
@@ -64,7 +64,6 @@ class ScheduleTest(TembaTest):
                 first=None,
                 next=[],
             ),
-
             dict(
                 label="one time in the future (fire once)",
                 trigger_date=datetime(2013, 1, 2, hour=10),
@@ -73,25 +72,20 @@ class ScheduleTest(TembaTest):
                 first=datetime(2013, 1, 2, hour=10),
                 next=[],
             ),
-
             dict(
                 label="daily repeating starting in the past",
                 trigger_date=datetime(2013, 1, 2, hour=10),
                 now=datetime(2013, 1, 3, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
                 first=datetime(2013, 1, 3, hour=10),
-                next=[
-                    datetime(2013, 1, 4, hour=10),
-                    datetime(2013, 1, 5, hour=10),
-                ],
+                next=[datetime(2013, 1, 4, hour=10), datetime(2013, 1, 5, hour=10)],
             ),
-
             dict(
                 label="monthly across start of DST",
                 trigger_date=datetime(2019, 2, 10, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_MONTHLY,
-                tz=pytz.timezone('America/Los_Angeles'),
+                tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 2, 10, hour=10),
                 next=[
                     datetime(2019, 3, 10, hour=10),
@@ -105,63 +99,44 @@ class ScheduleTest(TembaTest):
                     datetime(2019, 11, 10, hour=10),
                 ],
             ),
-
             dict(
                 label="weekly across start of DST",
                 trigger_date=datetime(2019, 3, 2, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone('America/Los_Angeles'),
+                tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 2, hour=10),
-                next=[
-                    datetime(2019, 3, 9, hour=10),
-                    datetime(2019, 3, 16, hour=10),
-                ],
+                next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
             ),
-
             dict(
                 label="weekly across end of DST",
                 trigger_date=datetime(2019, 11, 2, hour=10),
                 now=datetime(2019, 11, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone('America/Los_Angeles'),
+                tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
-                next=[
-                    datetime(2019, 11, 9, hour=10),
-                    datetime(2019, 11, 16, hour=10),
-                ],
+                next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
             ),
-
             dict(
                 label="daily across start of DST",
                 trigger_date=datetime(2019, 3, 8, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone('America/Los_Angeles'),
+                tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 8, hour=10),
-                next=[
-                    datetime(2019, 3, 9, hour=10),
-                    datetime(2019, 3, 10, hour=10),
-                    datetime(2019, 3, 11, hour=10),
-                ],
+                next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
             ),
-
             dict(
                 label="daily across end of DST",
                 trigger_date=datetime(2019, 11, 2, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone('America/Los_Angeles'),
+                tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
-                next=[
-                    datetime(2019, 11, 3, hour=10),
-                    datetime(2019, 11, 4, hour=10),
-                    datetime(2019, 11, 5, hour=10),
-                ],
+                next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
             ),
-
             dict(
                 label="weekly repeating starting on non weekly day of the week",
                 trigger_date=datetime(2013, 1, 2, hour=10),
@@ -176,7 +151,6 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 1, 12, hour=10),
                 ],
             ),
-
             dict(
                 label="weekly repeat starting in the past",
                 trigger_date=datetime(2013, 1, 2, hour=10),
@@ -184,13 +158,8 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="RS",
                 first=datetime(2013, 1, 3, hour=10),
-                next=[
-                    datetime(2013, 1, 5, hour=10),
-                    datetime(2013, 1, 10, hour=10),
-                    datetime(2013, 1, 12, hour=10),
-                ],
+                next=[datetime(2013, 1, 5, hour=10), datetime(2013, 1, 10, hour=10), datetime(2013, 1, 12, hour=10)],
             ),
-
             dict(
                 label="monthly repeat starting in the past",
                 trigger_date=datetime(2013, 1, 2, hour=10, minute=35),
@@ -203,7 +172,6 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 5, 2, hour=10, minute=35),
                 ],
             ),
-
             dict(
                 label="monthly on 31st",
                 trigger_date=datetime(2013, 1, 31, hour=10, minute=35),
@@ -219,27 +187,29 @@ class ScheduleTest(TembaTest):
         ]
 
         for tc in tcs:
-            tz = tc.get('tz', default_tz)
+            tz = tc.get("tz", default_tz)
             self.org.timezone = tz
 
-            label = tc['label']
-            trigger_date = tz.localize(tc['trigger_date'])
-            now = tz.localize(tc['now'])
+            label = tc["label"]
+            trigger_date = tz.localize(tc["trigger_date"])
+            now = tz.localize(tc["now"])
 
             sched = Schedule.create_schedule(
-                self.org, self.admin,
-                trigger_date, tc['repeat_period'],
-                repeat_days_of_week=tc.get('repeat_days_of_week'),
+                self.org,
+                self.admin,
+                trigger_date,
+                tc["repeat_period"],
+                repeat_days_of_week=tc.get("repeat_days_of_week"),
                 now=now,
             )
 
-            first = tc.get('first')
+            first = tc.get("first")
             first = tz.localize(first) if first else None
 
-            self.assertEqual(tc['repeat_period'], sched.repeat_period, label)
-            self.assertEqual(tc.get('repeat_days_of_week'), sched.repeat_days_of_week, label)
+            self.assertEqual(tc["repeat_period"], sched.repeat_period, label)
+            self.assertEqual(tc.get("repeat_days_of_week"), sched.repeat_days_of_week, label)
 
-            if tc['repeat_period'] != Schedule.REPEAT_NEVER:
+            if tc["repeat_period"] != Schedule.REPEAT_NEVER:
                 self.assertEqual(trigger_date.hour, sched.repeat_hour_of_day, label)
                 self.assertEqual(trigger_date.minute, sched.repeat_minute_of_hour, label)
             else:
@@ -249,7 +219,7 @@ class ScheduleTest(TembaTest):
             self.assertEqual(first, sched.next_fire, label)
 
             next_fire = sched.next_fire
-            for next in tc['next']:
+            for next in tc["next"]:
                 next_fire = Schedule.get_next_fire(sched, next_fire, now=next_fire)
                 expected_next = tz.localize(next)
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
@@ -300,7 +270,12 @@ class ScheduleTest(TembaTest):
         start_stamp = time.mktime(start.timetuple())
 
         # update the schedule
-        post_data = dict(repeat_period=Schedule.REPEAT_WEEKLY, repeat_days_of_week="W", start="later", start_datetime_value=start_stamp)
+        post_data = dict(
+            repeat_period=Schedule.REPEAT_WEEKLY,
+            repeat_days_of_week="W",
+            start="later",
+            start_datetime_value=start_stamp,
+        )
         response = self.client.post(reverse("schedules.schedule_update", args=[broadcast.schedule.pk]), post_data)
 
         # assert out next fire was updated properly
@@ -428,6 +403,7 @@ class ScheduleTest(TembaTest):
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
 
+
 class PopulateDaysAndOrgMigrationTest(MigrationTest):
     app = "schedules"
     migrate_from = "0009_auto_20190822_1823"
@@ -455,7 +431,9 @@ class PopulateDaysAndOrgMigrationTest(MigrationTest):
         trigger.save(update_fields=["schedule"])
 
         # create a weekly schedule
-        self.weekly_schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_WEEKLY, repeat_days_of_week="MTR")
+        self.weekly_schedule = Schedule.create_schedule(
+            self.org, self.admin, timezone.now(), Schedule.REPEAT_WEEKLY, repeat_days_of_week="MTR"
+        )
         self.weekly_schedule.repeat_days = 22
         self.weekly_schedule.repeat_days_of_week = None
         self.weekly_schedule.save(update_fields=["repeat_days", "repeat_days_of_week"])

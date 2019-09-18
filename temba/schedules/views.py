@@ -30,6 +30,7 @@ class BaseScheduleForm(object):
 
         return None
 
+
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
     start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
@@ -85,7 +86,5 @@ class ScheduleCRUDL(SmartCRUDL):
             print(start_time)
 
             schedule.update_schedule(
-                start_time,
-                form.cleaned_data.get("repeat_period"),
-                form.cleaned_data.get("repeat_days_of_week")
+                start_time, form.cleaned_data.get("repeat_period"), form.cleaned_data.get("repeat_days_of_week")
             )

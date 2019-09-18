@@ -29,7 +29,7 @@ def check_schedule_task(sched_id=None):
             if not r.get(key):
                 with r.lock(key, timeout=1800):
                     # refetch our schedule as it may have been updated
-                    sched = Schedule.objects.filter(is_active=True, id=sched.id,  next_fire__lt=timezone.now()).first()
+                    sched = Schedule.objects.filter(is_active=True, id=sched.id, next_fire__lt=timezone.now()).first()
                     sched.fire()
 
         except Exception:  # pragma: no cover

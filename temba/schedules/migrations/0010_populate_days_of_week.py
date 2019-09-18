@@ -2,8 +2,10 @@
 
 from django.db import migrations
 
+
 def noop(apps, schema_editor):
     pass
+
 
 def populate_days_of_week(apps, schema_editor):
     Schedule = apps.get_model("schedules", "Schedule")
@@ -24,17 +26,14 @@ def populate_days_of_week(apps, schema_editor):
             s.repeat_days_of_week = repeat_days_of_week
             s.save(update_fields=["repeat_days_of_week"])
 
-            updated+=1
+            updated += 1
 
     if updated > 0:
         print(f"updated {updated} weekly schedules")
 
+
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('schedules', '0009_auto_20190822_1823'),
-    ]
+    dependencies = [("schedules", "0009_auto_20190822_1823")]
 
-    operations = [
-        migrations.RunPython(populate_days_of_week, noop)
-    ]
+    operations = [migrations.RunPython(populate_days_of_week, noop)]
