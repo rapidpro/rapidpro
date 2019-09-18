@@ -6,7 +6,7 @@ from django.urls import reverse
 from temba.contacts.models import ContactGroup
 from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, get_flow_user
 from temba.msgs.models import Label
-from temba.tests import FlowFileTest, TembaTest, matchers
+from temba.tests import TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
@@ -143,7 +143,7 @@ class ExpressionsTest(TembaTest):
         self.assertEqual(migrate_v7_template("Reply 1=Yes, 2=No"), "Reply 1=Yes, 2=No")
 
 
-class FlowMigrationTest(FlowFileTest):
+class FlowMigrationTest(TembaTest):
     def test_is_before_version(self):
 
         # works with numbers
@@ -492,7 +492,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_11_12_other_org_new_flow(self):
         # change ownership of the channel it's referencing
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.channel.org = self.org2
         self.channel.save(update_fields=("org",))
 
@@ -512,7 +512,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow.revisions.order_by("revision").last().spec_version, "11.11")
 
         # change ownership of the channel it's referencing
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.channel.org = self.org2
         self.channel.save(update_fields=("org",))
 
@@ -1047,6 +1047,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertNotIn("webhook_action", ruleset)
 
     def test_migrate_to_9(self):
+        contact = self.create_contact("Ben Haggerty", number="+12065552020")
 
         # our group and flow to move to uuids
         group = self.create_group("Phans", [])
@@ -1056,7 +1057,7 @@ class FlowMigrationTest(FlowFileTest):
 
         substitutions = dict(
             group_id=group.pk,
-            contact_id=self.contact.pk,
+            contact_id=contact.pk,
             start_flow_id=start_flow.pk,
             previous_flow_id=previous_flow.pk,
             label_id=label.pk,

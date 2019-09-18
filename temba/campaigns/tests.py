@@ -57,7 +57,7 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(campaign3.name, "Reminders 3")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
 
     def test_get_sorted_events(self):
@@ -1574,7 +1574,6 @@ class CampaignTest(TembaTest):
         new_org = Org.objects.create(
             name="Temba New",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
             modified_by=self.user,
@@ -1638,7 +1637,6 @@ class CampaignTest(TembaTest):
         new_org = Org.objects.create(
             name="Temba New",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
             modified_by=self.user,
