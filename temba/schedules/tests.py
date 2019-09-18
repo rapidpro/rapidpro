@@ -414,7 +414,6 @@ class ScheduleTest(TembaTest):
         # 11pm in NY should be 4am UTC the next day
         self.assertEqual("2050-01-04 04:00:00+00:00", str(sched.next_fire))
 
-        # a time in the past
         start_date = datetime(2050, 1, 3, 23, 45, 0, 0)
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
