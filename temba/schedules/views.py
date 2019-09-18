@@ -15,24 +15,23 @@ from .models import Schedule
 
 
 class BaseScheduleForm(object):
-
     def is_recurring(self):
-        return self.cleaned_data["repeat_period"] != "O"
+        return self.cleaned_data["repeat_period"] != Schedule.REPEAT_NEVER
 
-    def get_start_time(self):
+    def get_start_time(self, tz):
         if self.cleaned_data["start"] == "later":
             start_datetime_value = self.cleaned_data["start_datetime_value"]
-            print("start timestamp: ", start_datetime_value)
 
             if start_datetime_value:
-                return datetime.utcfromtimestamp(start_datetime_value).replace(tzinfo=pytz.utc)
+                start_datetime = tz.normalize(datetime.utcfromtimestamp(start_datetime_value).astimezone(tz))
+                return start_datetime
             else:
                 return None
 
-        return timezone.now() - timedelta(days=1)  # pragma: needs cover
-
+        return None
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
+    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
     repeat_days_of_week = forms.CharField(required=False)
     start = forms.CharField(max_length=16)
@@ -82,7 +81,7 @@ class ScheduleCRUDL(SmartCRUDL):
             schedule = self.object
             schedule.org = self.derive_org()
 
-            start_time = form.get_start_time()
+            start_time = form.get_start_time(schedule.org.timezone)
             print(start_time)
 
             schedule.update_schedule(

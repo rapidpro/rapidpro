@@ -72,7 +72,7 @@
         #sun.btn{value:"U", class:'{% if "U" in days %}active{% endif %}'}
           -trans "Sun"
 
-      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden'}
+      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{days}}'}
 
 -load humanize
 

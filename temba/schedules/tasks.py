@@ -14,7 +14,7 @@ def check_schedule_task(sched_id=None):
     """
     logger = check_schedule_task.get_logger()
 
-    schedules = Schedule.objects.filter(status="S", is_active=True, next_fire__lt=timezone.now())
+    schedules = Schedule.objects.filter(is_active=True, next_fire__lt=timezone.now())
 
     if sched_id:
         schedules = schedules.filter(id=sched_id)

@@ -281,7 +281,7 @@ class Broadcast(models.Model):
             mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
-        return self.schedule and self.schedule.has_pending_fire()
+        return self.schedule and self.schedule.next_fire is not None
 
     def fire(self):
         """

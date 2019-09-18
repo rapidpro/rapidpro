@@ -34,7 +34,7 @@ class Schedule(SmartModel):
         "M": _("Monday"),
         "T": _("Tuesday"),
         "W": _("Wednesday"),
-        "R": _("Thurday"),
+        "R": _("Thursday"),
         "F": _("Friday"),
         "S": _("Saturday"),
         "U": _("Sunday"),
@@ -76,18 +76,12 @@ class Schedule(SmartModel):
 
     @classmethod
     def create_blank_schedule(cls, org, user):
-        return Schedule.create_schedule(org, user, None, Schedule.REPEAT_NEVER, "")
+        return Schedule.create_schedule(org, user, None, Schedule.REPEAT_NEVER)
 
     @classmethod
-    def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week):
-        schedule = Schedule.objects.create(
-            org=org,
-            repeat_period=repeat_period,
-            created_by=user,
-            modified_by=user,
-        )
-
-        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week)
+    def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
+        schedule = Schedule(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
+        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
     def update_schedule(self, start_time, repeat_period, repeat_days_of_week, now=None):
@@ -95,6 +89,12 @@ class Schedule(SmartModel):
 
         if not now:
             now = timezone.now()
+
+        tz = self.org.timezone
+
+        # no start time means we aren't repeating anymore
+        if not start_time:
+            repeat_period = Schedule.REPEAT_NEVER
 
         self.repeat_period = repeat_period
 
@@ -108,10 +108,14 @@ class Schedule(SmartModel):
             self.repeat_day_of_month = None
             self.repeat_days_of_week = None
 
-            self.next_fire = start_time if start_time and start_time > timezone.now() else None
+            self.next_fire = start_time if start_time and start_time > now else None
             self.save()
 
         else:
+            # our start time needs to be in the org timezone so that we always fire at the
+            # appropriate hour regardless of timezone / dst changes
+            start_time = start_time.astimezone(tz)
+
             self.repeat_hour_of_day = start_time.hour
             self.repeat_minute_of_hour = start_time.minute
 
@@ -119,7 +123,7 @@ class Schedule(SmartModel):
                 self.repeat_days_of_week = repeat_days_of_week
                 self.repeat_day_of_month = None
 
-            if repeat_period == Schedule.REPEAT_MONTHLY:
+            elif repeat_period == Schedule.REPEAT_MONTHLY:
                 self.repeat_days_of_week = None
                 self.repeat_day_of_month = start_time.day
 
@@ -140,7 +144,7 @@ class Schedule(SmartModel):
             return self.trigger
 
     @classmethod
-    def get_next_fire(cls, schedule, trigger_date, now=None):
+    def get_next_fire(cls, schedule, trigger_date, now):
         """
         Get the next point in the future when our schedule should fire again. Note this should only be called to find
         the next scheduled event as it will force the next date to meet the criteria in day_of_month, days_of_week etc..
@@ -150,38 +154,39 @@ class Schedule(SmartModel):
         if schedule.repeat_period == Schedule.REPEAT_NEVER:
             return None
 
-        if not now:
-            now = timezone.now()
+        tz = schedule.org.timezone
 
         hour = schedule.repeat_hour_of_day
         minute = schedule.repeat_minute_of_hour
 
         # start from the trigger date
-        next_fire = trigger_date.astimezone(schedule.org.timezone)
-        next_fire = next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        next_fire = trigger_date.astimezone(tz)
+        next_fire = tz.normalize(next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0))
 
         # if monthly, set to the day of the month scheduled and move forward until we are in the future
         if schedule.repeat_period == Schedule.REPEAT_MONTHLY:
             while True:
                 (weekday, days) = calendar.monthrange(next_fire.year, next_fire.month)
                 day_of_month = min(days, schedule.repeat_day_of_month)
-                next_fire = next_fire.replace(day=day_of_month)
+                next_fire = tz.normalize(next_fire.replace(day=day_of_month, hour=hour, minute=minute))
                 if next_fire > now:
                     break
 
-                next_fire += relativedelta(months=1)
+                next_fire = tz.normalize(next_fire + relativedelta(months=1))
 
             return next_fire
 
         elif schedule.repeat_period == Schedule.REPEAT_WEEKLY:
-            while next_fire < now and Schedule.DAYS_OF_WEEK_OFFSET[next_fire.weekday()] not in schedule.repeat_days_of_week:
-                next_fire = next_fire + timedelta(days=1)
+            assert schedule.repeat_days_of_week != "" and schedule.repeat_days_of_week is not None
+
+            while next_fire <= now or Schedule.DAYS_OF_WEEK_OFFSET[next_fire.weekday()] not in schedule.repeat_days_of_week:
+                next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
             return next_fire
 
         if schedule.repeat_period == Schedule.REPEAT_DAILY:
-            while next_fire < now:
-                next_fire = next_fire + timedelta(days=1)
+            while next_fire <= now:
+                next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
             return next_fire
 
@@ -212,7 +217,7 @@ class Schedule(SmartModel):
         # schedule our next fire
         self.next_fire = Schedule.get_next_fire(self, self.next_fire, now=now)
 
-        # save our last fire and new next fire (if any)
+        # save our last fire and next fire (if any)
         self.save(update_fields=["next_fire", "last_fire"])
 
     def get_repeat_days_display(self):
@@ -220,6 +225,6 @@ class Schedule(SmartModel):
 
     def __str__(self):
         repeat = (
-            f"{self.repeat_period} {self.repeat_day_of_month} {self.repeat_hour_of_day}:{self.repeat_minute_of_hour}"
+            f"{self.repeat_period} {self.repeat_day_of_month} {self.repeat_days_of_week} {self.repeat_hour_of_day}:{self.repeat_minute_of_hour}"
         )
         return f"schedule[id={self.id} repeat={repeat} next={str(self.next_fire)}]"

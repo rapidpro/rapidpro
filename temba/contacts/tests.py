@@ -3937,7 +3937,7 @@ class ContactTest(TembaTest):
         self.assertFalse(self.joe.get_scheduled_messages())
 
         schedule_time = timezone.now() + timedelta(days=2)
-        broadcast.schedule = Schedule.create_schedule(schedule_time, "O", self.admin)
+        broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save()
 
         self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
@@ -4054,7 +4054,7 @@ class ContactTest(TembaTest):
         # add a scheduled broadcast
         broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.joe])
         schedule_time = now + timedelta(days=5)
-        broadcast.schedule = Schedule.create_schedule(schedule_time, "O", self.admin)
+        broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save()
 
         response = self.fetch_protected(read_url, self.admin)
