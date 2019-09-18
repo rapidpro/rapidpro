@@ -1973,6 +1973,8 @@ class Org(SmartModel):
 
         for channel in self.channels.all():
             channel.release()
+
+            channel.counts.all().delete()
             channel.delete()
 
         # any airtime transfers associate with us go away

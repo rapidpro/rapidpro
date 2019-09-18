@@ -2535,7 +2535,7 @@ class AnonOrgTest(TembaTest):
             self.assertContains(response, "No matching contacts.")
 
         # create an outgoing message, check number doesn't appear in outbox
-        msg1 = self.create_outgoing_msg(contact, "hello")
+        msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
 
         response = self.client.get(reverse("msgs.msg_outbox"))
 
