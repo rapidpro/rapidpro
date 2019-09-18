@@ -158,6 +158,8 @@ class TembaTestMixin:
             created_on,
             None,
             external_id,
+            None,
+            None,
             surveyor,
         )
 
@@ -171,6 +173,8 @@ class TembaTestMixin:
         status=SENT,
         created_on=None,
         sent_on=None,
+        high_priority=False,
+        response_to=None,
         surveyor=False,
     ):
         if status == SENT and not sent_on:
@@ -188,6 +192,8 @@ class TembaTestMixin:
             created_on,
             sent_on,
             None,
+            high_priority,
+            response_to,
             surveyor,
         )
 
@@ -204,6 +210,8 @@ class TembaTestMixin:
         created_on,
         sent_on,
         external_id,
+        high_priority,
+        response_to,
         surveyor,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
@@ -231,6 +239,8 @@ class TembaTestMixin:
             attachments=attachments,
             visibility=visibility,
             external_id=external_id,
+            high_priority=high_priority,
+            response_to=response_to,
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
         )

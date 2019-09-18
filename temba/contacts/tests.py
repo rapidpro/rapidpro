@@ -6415,15 +6415,6 @@ class ContactTest(TembaTest):
         # it'll come back as the highest priority
         self.assertEqual("bob@marley.com", urns[0].path)
 
-        # but not the highest 'sendable' urn
-        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
-        self.assertEqual(urn.path, "789")
-
-        # swap our phone numbers
-        bob.update_urns(self.user, ["mailto:bob@marley.com", "tel:456", "tel:789"])
-        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
-        self.assertEqual(urn.path, "456")
-
     def test_update_handling(self):
         bob = self.create_contact("Bob", "111222")
         bob.name = "Bob Marley"

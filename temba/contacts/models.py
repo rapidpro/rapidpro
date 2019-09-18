@@ -2347,14 +2347,6 @@ class ContactURN(models.Model):
             self.auth = auth
             self.save(update_fields=["auth"])
 
-    def update_affinity(self, channel):
-        """
-        Checks and optionally updates the affinity for this contact URN
-        """
-        if channel and self.channel != channel:
-            self.channel = channel
-            self.save(update_fields=["channel"])
-
     def ensure_number_normalization(self, country_code):
         """
         Tries to normalize our phone number from a possible 10 digit (0788 383 383) to a 12 digit number

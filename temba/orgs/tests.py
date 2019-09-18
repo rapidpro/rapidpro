@@ -2320,7 +2320,7 @@ class OrgTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "145"},
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
-        msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
+        msg = self.create_outgoing_msg(contact, "How is it going?")
 
         # there is no topup on suborg, and this msg won't be credited
         self.assertFalse(msg.topup)

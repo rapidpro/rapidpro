@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-12 01:23+0000\n"
+"POT-Creation-Date: 2019-09-18 20:05+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4109,9 +4109,6 @@ msgstr "O atual estado dessa mensagem"
 #| msgid "The message that is being delivered"
 msgid "Why the message is being deleted"
 msgstr "A mensagem que está sendo entregue"
-
-msgid "Can't create an incoming message without an org"
-msgstr "Não é permitido criar uma mensagem recebida sem uma organização"
 
 #, fuzzy
 #| msgid "Whether this flow is archived"
@@ -10802,6 +10799,9 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid "Can't create an incoming message without an org"
+#~ msgstr "Não é permitido criar uma mensagem recebida sem uma organização"
 
 #~ msgid "Invalid group or contact id"
 #~ msgstr "Grupo ou id do contato inválido"

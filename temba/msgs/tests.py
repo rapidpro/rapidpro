@@ -36,7 +36,6 @@ from temba.msgs.models import (
     Msg,
     SystemLabel,
     SystemLabelCount,
-    UnreachableException,
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
@@ -157,9 +156,9 @@ class MsgTest(TembaTest):
         self.assertEqual(0, ChannelLog.objects.filter(channel=self.channel).count())
 
     def test_get_sync_commands(self):
-        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
-        msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
-        msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
+        msg1 = self.create_outgoing_msg(self.joe, "Hello, we heard from you.")
+        msg2 = self.create_outgoing_msg(self.frank, "Hello, we heard from you.")
+        msg3 = self.create_outgoing_msg(self.kevin, "Hello, we heard from you.")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
@@ -178,7 +177,7 @@ class MsgTest(TembaTest):
             ],
         )
 
-        msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
+        msg4 = self.create_outgoing_msg(self.kevin, "Hello, there")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
@@ -194,7 +193,7 @@ class MsgTest(TembaTest):
             ],
         )
 
-        msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+        msg5 = self.create_outgoing_msg(self.frank, "Hello, we heard from you.")
 
         commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
@@ -231,12 +230,12 @@ class MsgTest(TembaTest):
         self.assertIsNotNone(label)
 
         # can't archive outgoing messages
-        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
+        msg2 = self.create_outgoing_msg(self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
 
     def assertReleaseCount(self, direction, status, visibility, msg_type, label):
         if direction == OUTGOING:
-            msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+            msg = self.create_outgoing_msg(self.joe, "Whattup Joe")
         else:
             msg = self.create_incoming_msg(self.joe, "Hey hey")
 
@@ -311,77 +310,6 @@ class MsgTest(TembaTest):
         response = self.client.get(outbox_url)
         # the Twitter URN scheme is included
         self.assertEqual(response.context["completions"], json.dumps(completions))
-
-    def test_create_outgoing(self):
-        tel_urn = "tel:250788382382"
-        tel_contact, tel_urn_obj = Contact.get_or_create(self.org, tel_urn, user=self.user)
-        twitter_urn = "twitter:joe"
-        twitter_contact, twitter_urn_obj = Contact.get_or_create(self.org, twitter_urn, user=self.user)
-
-        # check creating by URN string
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Extra spaces to remove    ")
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-        self.assertEqual(msg.text, "Extra spaces to remove")  # check message text is stripped
-
-        # check creating by URN string and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn, "Hello 1", channel=self.channel)
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-
-        # try creating by URN string and specific channel with different scheme
-        with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_urn, "Hello 1", channel=self.channel)
-
-        # check creating by URN object
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1")
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-
-        # check creating by URN object and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_urn_obj, "Hello 1", channel=self.channel)
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-
-        # try creating by URN object and specific channel with different scheme
-        with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_urn_obj, "Hello 1", channel=self.channel)
-
-        # check creating by contact
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-
-        # check creating by contact and specific channel
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1", channel=self.channel)
-        self.assertEqual(msg.contact, tel_contact)
-        self.assertEqual(msg.contact_urn, tel_urn_obj)
-
-        # try creating by contact and specific channel with different scheme
-        with self.assertRaises(UnreachableException):
-            Msg.create_outgoing(self.org, self.admin, twitter_contact, "Hello 1", channel=self.channel)
-
-        # can't create outgoing messages without org or user
-        with self.assertRaises(ValueError):
-            Msg.create_outgoing(None, self.admin, "tel:250783835665", "Hello World")
-        with self.assertRaises(ValueError):
-            Msg.create_outgoing(self.org, None, "tel:250783835665", "Hello World")
-
-        # case where the channel number is amongst contact broadcasted to
-        # cannot sent more than 10 same message in period of 5 minutes
-
-        for number in range(0, 10):
-            Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, "Infinite Loop")
-
-        # now that we have 10 same messages then,
-        must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, "Infinite Loop")
-        self.assertIsNone(must_return_none)
-
-        # test create_outgoing with sent_on in the past
-        t = datetime(2018, 5, 17, 17, 29, 30, 0, pytz.UTC)
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello at time", channel=self.channel, sent_on=t)
-        self.assertEqual(msg.sent_on, t)
-        self.assertGreater(msg.created_on, msg.sent_on)
 
     def test_empty(self):
         broadcast = Broadcast.create(
@@ -717,9 +645,7 @@ class MsgTest(TembaTest):
     def test_failed(self):
         failed_url = reverse("msgs.msg_failed")
 
-        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        msg1.status = "F"
-        msg1.save()
+        msg1 = self.create_outgoing_msg(self.joe, "message number 1", status="F")
 
         # create a log for it
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
@@ -737,9 +663,7 @@ class MsgTest(TembaTest):
         msg2 = broadcast.get_messages()[0]
 
         # message without a broadcast
-        msg3 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 3")
-        msg3.status = "F"
-        msg3.save()
+        self.create_outgoing_msg(self.joe, "messsage number 3", status="F")
 
         # visit fail page  as a user not in the organization
         self.login(self.non_org_user)
@@ -2928,7 +2852,7 @@ class TagsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "123")
+        self.joe = self.create_contact("Joe Blow", number="+250788382382")
 
     def render_template(self, string, context=None):
         from django.template import Context, Template
@@ -2941,7 +2865,7 @@ class TagsTest(TembaTest):
         self.assertTrue(text.find(clazz) >= 0)
 
     def test_as_icon(self):
-        msg = Msg.create_outgoing(self.org, self.admin, "tel:250788382382", "How is it going?")
+        msg = self.create_outgoing_msg(self.joe, "How is it going?", status=QUEUED)
         now = timezone.now()
         two_hours_ago = now - timedelta(hours=2)
 

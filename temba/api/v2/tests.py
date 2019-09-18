@@ -3475,7 +3475,7 @@ class APITest(TembaTest):
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg3})
 
         # try to act on an outgoing message
-        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
+        msg4 = self.create_outgoing_msg(self.joe, "Hi Joe")
         response = self.postJSON(url, None, {"messages": [msg1.id, msg4.id], "action": "archive"})
         self.assertResponseError(response, "messages", "Not an incoming message: %d" % msg4.id)
 
