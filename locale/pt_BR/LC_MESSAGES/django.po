@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-12 01:23+0000\n"
+"POT-Creation-Date: 2019-09-18 19:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10575,6 +10575,27 @@ msgstr ""
 msgid "More Videos"
 msgstr "Mais vídeos"
 
+msgid "Mon"
+msgstr "Segunda-feira"
+
+msgid "Tue"
+msgstr "Terça-feira"
+
+msgid "Wed"
+msgstr "Quarta-feira"
+
+msgid "Thu"
+msgstr "Quinta-feira"
+
+msgid "Fri"
+msgstr "Sexta-feira"
+
+msgid "Sat"
+msgstr "Sábado"
+
+msgid "Sun"
+msgstr "Domingo"
+
 #, fuzzy
 #| msgid "Delete"
 msgid "Delete "
@@ -10718,27 +10739,6 @@ msgstr "Criar uma palavra-chave SMS que permite às pessoas se juntarem a um gru
 
 msgid "Select a date"
 msgstr "Selecionar uma data"
-
-msgid "Mon"
-msgstr "Segunda-feira"
-
-msgid "Tue"
-msgstr "Terça-feira"
-
-msgid "Wed"
-msgstr "Quarta-feira"
-
-msgid "Thu"
-msgstr "Quinta-feira"
-
-msgid "Fri"
-msgstr "Sexta-feira"
-
-msgid "Sat"
-msgstr "Sábado"
-
-msgid "Sun"
-msgstr "Domingo"
 
 msgid "Start a flow in the future or on a schedule."
 msgstr "Iniciar um fluxo futuramente ou segundo agendamento."

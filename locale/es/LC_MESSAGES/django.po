@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-12 01:23+0000\n"
+"POT-Creation-Date: 2019-09-18 19:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11212,6 +11212,27 @@ msgstr ""
 msgid "More Videos"
 msgstr "Más videos"
 
+msgid "Mon"
+msgstr "Lunes"
+
+msgid "Tue"
+msgstr "Martes"
+
+msgid "Wed"
+msgstr "Miércoles"
+
+msgid "Thu"
+msgstr "Jueves"
+
+msgid "Fri"
+msgstr "Viernes"
+
+msgid "Sat"
+msgstr "Sábado"
+
+msgid "Sun"
+msgstr "Domingo"
+
 #, fuzzy
 #| msgid "Delete"
 msgid "Delete "
@@ -11360,27 +11381,6 @@ msgstr "Crear una palabra clave de mensaje de texto para que las personas puedan
 
 msgid "Select a date"
 msgstr "Elegir una fecha"
-
-msgid "Mon"
-msgstr "Lunes"
-
-msgid "Tue"
-msgstr "Martes"
-
-msgid "Wed"
-msgstr "Miércoles"
-
-msgid "Thu"
-msgstr "Jueves"
-
-msgid "Fri"
-msgstr "Viernes"
-
-msgid "Sat"
-msgstr "Sábado"
-
-msgid "Sun"
-msgstr "Domingo"
 
 msgid "Start a flow in the future or on a schedule."
 msgstr "Empezar un flujo en el futuro o en un horario."
