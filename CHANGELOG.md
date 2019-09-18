@@ -1,3 +1,12 @@
+v5.1.36
+----------
+ * Temporarily disable compression for components JS
+
+v5.1.33
+----------
+ * Use new expressions for campaign message events, broadcasts and join group triggers
+ * List contact fields with new expression syntax and fix how campaign dependencies are rendered
+
 v5.1.28
 ----------
  * Use mailroom to interrupt runs when archiving or releasing a flow

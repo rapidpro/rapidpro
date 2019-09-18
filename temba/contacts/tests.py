@@ -27,7 +27,6 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import contact_es_search, evaluate_query, is_phonenumber
 from temba.contacts.views import ContactListView
-from temba.flows import legacy
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -1094,17 +1093,6 @@ class ContactTest(TembaTest):
 
         self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
         self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
-
-    def test_contact_send_all(self):
-        contact = self.create_contact("Stephen", "+12078778899", twitter="stephen")
-        Channel.create(self.org, self.user, None, "TT")
-
-        msgs = contact.send("Allo", self.admin, all_urns=True)
-        self.assertEqual(len(msgs), 2)
-        out_msgs = Msg.objects.filter(contact=contact, direction="O")
-        self.assertEqual(out_msgs.count(), 2)
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="stephen").first())
-        self.assertIsNotNone(out_msgs.filter(contact_urn__path="+12078778899").first())
 
     def test_release(self):
         # create a contact with a message
@@ -3579,6 +3567,7 @@ class ContactTest(TembaTest):
                 MockSessionWriter(self.joe, flow)
                 .visit(color_prompt)
                 .send_msg("What is your favorite color?", self.channel)
+                .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
                 .visit(color_split)
                 .wait()
                 .save()
@@ -3599,9 +3588,6 @@ class ContactTest(TembaTest):
             log = ChannelLog.objects.create(
                 channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
             )
-
-            # pretend that flow run made a webhook request
-            legacy.call_webhook(FlowRun.objects.get(contact=self.joe), "https://example.com", "1234", msg=None)
 
             # create an event from the past
             scheduled = timezone.now() - timedelta(days=5)
@@ -3844,13 +3830,12 @@ class ContactTest(TembaTest):
             MockSessionWriter(self.joe, flow)
             .visit(color_prompt)
             .send_msg("What is your favorite color?", self.channel)
+            .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
             .visit(color_split)
             .wait()
             .save()
         ).session.runs.get()
 
-        # pretend that flow run made a webhook request
-        legacy.call_webhook(FlowRun.objects.get(), "https://example.com", "1234", msg=None)
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}
@@ -4017,6 +4002,9 @@ class ContactTest(TembaTest):
         self.joe.set_field(self.user, "planting_date", (now + timedelta(days=1)).isoformat())
         EventFire.update_campaign_events(self.campaign)
 
+        with ESMockWithScroll():
+            planters = self.create_group("Planters", query='planting_date != ""')
+
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
 
@@ -4096,24 +4084,38 @@ class ContactTest(TembaTest):
         # create kLab group, and add joe to the group
         klab = self.create_group("kLab", [self.joe])
 
-        # post to read url, joe's contact and kLab group
-        post_data = dict(contact=self.joe.id, group=klab.id)
-        response = self.client.post(read_url, post_data, follow=True)
+        # post with remove_from_group action to read url, with joe's contact and kLab group
+        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
 
         # this manager cannot operate on this organization
-        self.assertEqual(len(self.joe.user_groups.all()), 2)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(3, self.joe.user_groups.count())
         self.client.logout()
 
         # login as a manager of kLab
         self.login(self.admin)
 
         # remove this contact form kLab group
-        response = self.client.post(read_url, post_data, follow=True)
-        self.assertEqual(1, self.joe.user_groups.count())
+        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
 
-        # try removing it again, should fail
-        response = self.client.post(read_url, post_data, follow=True)
         self.assertEqual(200, response.status_code)
+        self.assertEqual(2, self.joe.user_groups.count())
+
+        # try removing it again, should noop
+        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, self.joe.user_groups.count())
+
+        # try removing from non-existent group
+        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": 2341533})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, self.joe.user_groups.count())
+
+        # try removing from dynamic group (shouldnt happen, UI doesnt allow this)
+        with self.assertRaises(AssertionError):
+            response = self.client.post(
+                read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id}
+            )
 
         # can't view contact in another org
         self.create_secondary_org()
@@ -4738,10 +4740,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Marshal Mathers", contact.name)
 
     def test_contact_model(self):
-        contact1 = self.create_contact(name=None, number="123456")
-
-        contact1.set_first_name("Ludacris")
-        self.assertEqual(contact1.name, "Ludacris")
+        contact1 = self.create_contact(name="Ludacris", number="123456")
 
         first_modified_on = contact1.modified_on
         contact1.set_field(self.editor, "occupation", "Musician")
@@ -6574,14 +6573,6 @@ class ContactTest(TembaTest):
             self.assertEqual([self.frank, self.joe], list(men_group.contacts.order_by("name")))
             self.assertEqual([self.mary], list(women_group.contacts.order_by("name")))
             self.assertEqual([self.joe], list(joes_group.contacts.order_by("name")))
-
-            # try removing frank from dynamic group (shouldnt happen, ui doesnt allow this)
-            with self.assertRaises(ValueError):
-                self.login(self.admin)
-                self.client.post(
-                    reverse("contacts.contact_read", args=[self.frank.uuid]),
-                    dict(contact=self.frank.pk, group=men_group.pk),
-                )
 
             # check event fire initialized correctly
             joe_fires = EventFire.objects.filter(event=joes_event)

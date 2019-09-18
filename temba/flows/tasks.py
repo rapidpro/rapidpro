@@ -9,7 +9,6 @@ from django.utils.timesince import timesince
 
 from celery.task import task
 
-from temba.orgs.models import Org
 from temba.utils.celery import nonoverlapping_task
 
 from .models import (
@@ -26,13 +25,6 @@ from .models import (
 
 FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
-
-
-@task(track_started=True, name="send_email_action_task")
-def send_email_action_task(org_id, recipients, subject, message):
-    org = Org.objects.filter(pk=org_id, is_active=True).first()
-    if org:
-        org.email_action_send(recipients, subject, message)
 
 
 @task(track_started=True, name="update_run_expirations_task")

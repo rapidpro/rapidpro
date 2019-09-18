@@ -1,19 +1,15 @@
 from decimal import Decimal
 
-import phonenumbers
 import regex
 from temba_expressions.utils import tokenize
 
-from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import ContactGroup
-from temba.locations.models import AdminBoundary
 from temba.utils.dates import str_to_datetime
-from temba.utils.email import is_valid_address
 
 from ..expressions import evaluate
 
 
-class Rule(object):
+class Rule:
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
@@ -22,8 +18,8 @@ class Rule(object):
         self.test = test
         self.label = label
 
-    def get_category_name(self, flow_lang, contact_lang=None):
-        if not self.category:  # pragma: needs cover
+    def get_category_name(self, flow_lang, contact_lang=None):  # pragma: no cover
+        if not self.category:
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
@@ -36,12 +32,12 @@ class Rule(object):
             if not category and flow_lang:
                 category = self.category.get(flow_lang)
 
-            if not category:  # pragma: needs cover
+            if not category:
                 category = list(self.category.values())[0]
 
             return category
 
-        return self.category  # pragma: needs cover
+        return self.category
 
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
@@ -93,7 +89,7 @@ class Rule(object):
         return rules
 
 
-class Test(object):
+class Test:
     TYPE = "type"
     __test_mapping = None
 
@@ -146,9 +142,6 @@ class Test(object):
 
         return tests
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
-
 
 class WebhookStatusTest(Test):
     """
@@ -171,17 +164,6 @@ class WebhookStatusTest(Test):
     def as_json(self):  # pragma: needs cover
         return dict(type=WebhookStatusTest.TYPE, status=self.status)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        # we treat any 20* return code as successful
-        success = 200 <= int(text) < 300
-
-        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
-            return 1, text
-        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
-            return 1, text
-        else:
-            return 0, None
-
 
 class AirtimeStatusTest(Test):
     """
@@ -190,11 +172,6 @@ class AirtimeStatusTest(Test):
 
     TYPE = "airtime_status"
     EXIT = "exit_status"
-
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-
-    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS, STATUS_FAILED: AirtimeTransfer.FAILED}
 
     def __init__(self, exit_status):
         self.exit_status = exit_status
@@ -205,12 +182,6 @@ class AirtimeStatusTest(Test):
 
     def as_json(self):  # pragma: needs cover
         return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        status = text
-        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
-            return 1, status
-        return 0, None
 
 
 class InGroupTest(Test):
@@ -239,11 +210,6 @@ class InGroupTest(Test):
         )
         return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        if run.contact.user_groups.filter(id=self.group.id).first():
-            return 1, self.group.name
-        return 0, None
-
 
 class SubflowTest(Test):
     """
@@ -266,11 +232,6 @@ class SubflowTest(Test):
     def as_json(self):  # pragma: needs cover
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        if self.exit_type == text:
-            return 1, self.exit_type
-        return 0, None
-
 
 class TimeoutTest(Test):
     """
@@ -289,9 +250,6 @@ class TimeoutTest(Test):
 
     def as_json(self):  # pragma: no cover
         return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
 
 
 class TrueTest(Test):
@@ -498,16 +456,6 @@ class HasEmailTest(Test):  # pragma: no cover
     def as_json(self):
         return dict(type=self.TYPE)
 
-    def evaluate(self, run, sms, context, text):
-        # split on whitespace
-        words = text.split()
-        for word in words:
-            word = word.strip(",.;:|()[]\"'<>?&*/\\")
-            if is_valid_address(word):
-                return 1, word
-
-        return 0, None
-
 
 class ContainsAnyTest(ContainsTest):
     """
@@ -682,19 +630,6 @@ class HasStateTest(Test):
     def as_json(self):
         return dict(type=self.TYPE)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        org = run.flow.org
-
-        # if they removed their country since adding the rule
-        if not org.country:
-            return 0, None
-
-        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
-        if state:
-            return 1, state[0]
-
-        return 0, None
-
 
 class HasDistrictTest(Test):
     TYPE = "district"
@@ -709,28 +644,6 @@ class HasDistrictTest(Test):
 
     def as_json(self):
         return dict(type=self.TYPE, test=self.state)
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        # if they removed their country since adding the rule
-        org = run.flow.org
-        if not org.country:
-            return 0, None
-
-        # evaluate our district in case it has a replacement variable
-        state, errors = evaluate(self.state, context, org=run.flow.org)
-
-        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
-        if parent:
-            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
-            if district:
-                return 1, district[0]
-        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
-
-        # parse location when state contraint is not provided or available
-        if (errors or not state) and len(district) == 1:
-            return 1, district[0]
-
-        return 0, None
 
 
 class HasWardTest(Test):
@@ -748,32 +661,6 @@ class HasWardTest(Test):
 
     def as_json(self):
         return dict(type=self.TYPE, state=self.state, district=self.district)
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        # if they removed their country since adding the rule
-        org = run.flow.org
-        if not org.country:  # pragma: needs cover
-            return 0, None
-        district = None
-
-        # evaluate our district in case it has a replacement variable
-        district_name, missing_district = evaluate(self.district, context, org=run.flow.org)
-        state_name, missing_state = evaluate(self.state, context, org=run.flow.org)
-        if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
-            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
-            if state:
-                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
-                if district:
-                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
-                    if ward:
-                        return 1, ward[0]
-
-        # parse location when district contraint is not provided or available
-        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
-        if len(ward) == 1 and district is None:
-            return 1, ward[0]
-
-        return 0, None
 
 
 class DateTest(Test):
@@ -800,7 +687,7 @@ class DateTest(Test):
         else:
             return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: no cover
         return date_message is not None
 
     def evaluate(self, run, sms, context, text):  # pragma: no cover
@@ -1023,28 +910,8 @@ class PhoneTest(Test):
     def as_json(self):  # pragma: needs cover
         return dict(type=self.TYPE)
 
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        org = run.flow.org
 
-        # try to find a phone number in the text we have been sent
-        country_code = org.get_country_code()
-        if not country_code:  # pragma: needs cover
-            country_code = "US"
-
-        number = None
-        matches = phonenumbers.PhoneNumberMatcher(text, country_code)
-
-        # try it as an international number if we failed
-        if not matches.has_next():  # pragma: needs cover
-            matches = phonenumbers.PhoneNumberMatcher("+" + text, country_code)
-
-        for match in matches:
-            number = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
-
-        return number, number
-
-
-class RegexTest(Test):  # pragma: no cover
+class RegexTest(Test):
     """
     Test for whether a response matches a regular expression
     """
@@ -1061,33 +928,3 @@ class RegexTest(Test):  # pragma: no cover
 
     def as_json(self):
         return dict(type=self.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        from ..engine import get_localized_text, _update_run_fields
-
-        try:
-            test = get_localized_text(run.flow, self.test, run.contact)
-
-            # check whether we match
-            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
-            match = rexp.search(text)
-
-            # if so, $0 will be what we return
-            if match:
-                return_match = match.group(0)
-
-                # build up a dictionary that contains indexed group matches
-                group_dict = {}
-                for idx in range(rexp.groups + 1):
-                    group_dict[str(idx)] = match.group(idx)
-
-                # set it on run@extra
-                _update_run_fields(run, group_dict)
-
-                # return all matched values
-                return True, return_match
-
-        except Exception:
-            pass
-
-        return False, None

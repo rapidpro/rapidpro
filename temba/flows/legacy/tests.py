@@ -1,18 +1,16 @@
 from unittest.mock import patch
 from uuid import uuid4
 
-from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import ContactGroup
 from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, get_flow_user
-from temba.msgs.models import Label, Msg
-from temba.tests import FlowFileTest, MockResponse, TembaTest, matchers, uses_legacy_engine
+from temba.msgs.models import Label
+from temba.tests import FlowFileTest, TembaTest, matchers
 from temba.utils import json
 from temba.values.constants import Value
 
 from .definition import InGroupTest
-from .engine import flow_start
 from .expressions import _build_function_signature, get_function_listing, migrate_v7_template
 from .migrations import (
     map_actions,
@@ -27,6 +25,7 @@ from .migrations import (
     migrate_to_version_11_0,
     migrate_to_version_11_1,
     migrate_to_version_11_2,
+    migrate_to_version_11_3,
     migrate_to_version_11_5,
     migrate_to_version_11_6,
     migrate_to_version_11_7,
@@ -627,8 +626,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(len(set(migrated_uuids)), 9)
         self.assertEqual(len(set(migrated_uuids).difference(original_uuids)), 2)
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
     def test_migrate_to_11_7(self):
         original = self.get_flow_json("migrate_to_11_7")
 
@@ -639,50 +636,6 @@ class FlowMigrationTest(FlowFileTest):
 
         self.assertEqual(len(migrated["action_sets"]), 3)
         self.assertEqual(len(migrated["rule_sets"]), 6)
-
-        # run the flow to make sure the nodes are connected correctly
-        flow = self.get_flow("migrate_to_11_7")
-        with patch("requests.Session.send") as mock_request:
-            mock_request.return_value = MockResponse(200, "success")
-
-            run, = flow_start(flow, [], [self.contact])
-            Msg.create_incoming(self.channel, self.contact.get_urn().urn, "Ok")
-
-        self.assertEqual(flow.action_sets.count(), 3)
-
-        # check webhook calls made in correct order
-        self.assertEqual(len(mock_request.mock_calls), 5)
-        self.assertEqual(mock_request.mock_calls[0][1][0].url, "http://example.com/hook1")
-        self.assertEqual(mock_request.mock_calls[0][1][0].headers, {"Header1": "Value1", "User-agent": "RapidPro"})
-        self.assertEqual(mock_request.mock_calls[1][1][0].url, "http://example.com/hook2")
-        self.assertEqual(mock_request.mock_calls[2][1][0].url, "http://example.com/hook3")
-        self.assertEqual(mock_request.mock_calls[3][1][0].url, "http://example.com/hook4")
-        self.assertEqual(mock_request.mock_calls[4][1][0].url, "http://example.com/hook5")
-
-        # all migrated actions create a unique result value
-        run.refresh_from_db()
-        self.assertEqual(
-            set(run.results.keys()),
-            {
-                "response_1",
-                "migrated_webhook_1",
-                "migrated_webhook_2",
-                "migrated_webhook_3",
-                "migrated_webhook_4",
-                "migrated_webhook_5",
-            },
-        )
-        self.assertEqual(
-            run.results["migrated_webhook_5"],
-            {
-                "category": "Success",
-                "created_on": matchers.ISODate(),
-                "input": "GET http://example.com/hook5",
-                "name": "Migrated Webhook 5",
-                "node_uuid": matchers.UUID4String(),
-                "value": "200",
-            },
-        )
 
     def test_migrate_to_11_6(self):
 
@@ -766,6 +719,14 @@ class FlowMigrationTest(FlowFileTest):
             ['@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3\n@(CONCATENATE(step.value, "blerg"))']
             * 3,
         )
+
+    def test_migrate_to_11_3(self):
+        flow_json = self.get_flow_json("migrate_to_11_3")
+
+        migrated = migrate_to_version_11_3(flow_json)
+
+        self.assertTrue(migrated["action_sets"][0]["actions"][0]["legacy_format"])
+        self.assertTrue(migrated["rule_sets"][0]["config"]["legacy_format"])
 
     def test_migrate_to_11_2(self):
         fre_definition = {
@@ -1072,8 +1033,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(exported, flow.as_json())
         self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow("dual_webhook")
@@ -1086,33 +1045,6 @@ class FlowMigrationTest(FlowFileTest):
         for ruleset in flow_def["rule_sets"]:
             self.assertNotIn("webhook", ruleset)
             self.assertNotIn("webhook_action", ruleset)
-
-        self.mockRequest("POST", "/code", '{"code": "ABABUUDDLRS"}', content_type="application/json")
-
-        run, = flow_start(webhook_flow, [], [self.contact])
-
-        # assert the code we received was right
-        msg = Msg.objects.filter(direction="O", contact=self.contact).order_by("id").last()
-        self.assertEqual(msg.text, "Great, your code is ABABUUDDLRS. Enter your name")
-
-        self.mockRequest("GET", "/success", "Success")
-
-        self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
-
-        # startover have our first webhook fail, check that routing still works with failure
-        flow_def["rule_sets"][0]["config"]["webhook"] = "http://localhost:49999/error"
-        webhook_flow.update(flow_def)
-
-        self.mockRequest("POST", "/error", "BOOM", status=400)
-
-        flow_start(webhook_flow, [], [self.contact], restart_participants=True)
-
-        # assert the code we received was right
-        msg = Msg.objects.filter(direction="O", contact=self.contact).order_by("id").last()
-        self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
 
     def test_migrate_to_9(self):
 
@@ -1329,8 +1261,6 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual("All Responses", rules[0]["category"]["eng"])
         self.assertEqual("Otro", rules[0]["category"]["spa"])
 
-    @override_settings(SEND_WEBHOOKS=True)
-    @uses_legacy_engine
     def test_migrate_to_5(self):
         flow = self.get_flow("favorites_v4")
 
@@ -1371,28 +1301,6 @@ class FlowMigrationTest(FlowFileTest):
         # set our expression to operate on the last inbound message
         expression.operand = "@step.value"
         expression.save()
-
-        # now try executing our migrated flow
-        first_response = ActionSet.objects.get(flow=flow, x=131)
-        actions = first_response.actions
-        actions[0]["msg"][
-            flow.base_language
-        ] = "I like @flow.color.category too! What is your favorite beer? @flow.color_webhook"
-        first_response.actions = actions
-        first_response.save()
-
-        self.mockRequest("POST", "/status", '{ "status": "valid" }')
-
-        reply = self.send_message(flow, "red")
-        self.assertEqual("I like Red too! What is your favorite beer? 200", reply)
-
-        reply = self.send_message(flow, "Turbo King")
-        self.assertEqual(
-            "Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", reply
-        )
-
-        # check all our mocked requests were made
-        self.assertAllRequestsMade()
 
     def test_migrate_revisions(self):
         flow = self.get_flow("favorites_v4")

@@ -125,14 +125,17 @@ def contact_context(contact):  # pragma: no cover
     """
     contact.initialize_cache()
 
+    names = contact.name.split()
+    first_name = names[0] if len(names) > 1 else contact.name
+
     org = contact.org
     context = {
         "__default__": contact.get_display(for_expressions=True),
         Contact.NAME: contact.name or "",
-        Contact.FIRST_NAME: contact.first_name(org),
+        Contact.FIRST_NAME: first_name,
         Contact.LANGUAGE: contact.language,
         "tel_e164": contact.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
-        "groups": ",".join([_.name for _ in contact.cached_user_groups]),
+        "groups": ",".join([_.name for _ in contact.user_groups]),
         "uuid": contact.uuid,
         "created_on": contact.created_on.isoformat(),
     }

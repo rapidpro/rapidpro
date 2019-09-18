@@ -1,8 +1,6 @@
 import inspect
 import shutil
-import sys
 from datetime import datetime, timedelta
-from io import StringIO
 from unittest import skipIf
 from unittest.mock import patch
 from uuid import uuid4
@@ -10,7 +8,6 @@ from uuid import uuid4
 import pytz
 import redis
 import regex
-from future.moves.html.parser import HTMLParser
 from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
@@ -26,7 +23,7 @@ from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowSession, RuleSet, clear_flow_users
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import INCOMING, Msg
@@ -34,21 +31,16 @@ from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
 
-from .http import MockServer
-
-mock_server = MockServer()
-
 
 class TembaTestRunner(DiscoverRunner):
     """
-    Adds the ability to exclude tests in given packages to the default test runner, and starts the mock server instance
+    Adds the ability to exclude tests in given packages to the default test runner
     """
 
     def __init__(self, *args, **kwargs):
         settings.TESTING = True
 
         super().__init__(*args, **kwargs)
-        mock_server.start()
 
     def build_suite(self, *args, **kwargs):
         suite = super().build_suite(*args, **kwargs)
@@ -390,40 +382,6 @@ class TembaTestMixin:
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
-        """ Update the destination without doing a cycle check """
-
-        from temba.flows import legacy
-
-        # look up our destination, we need this in order to set the correct destination_type
-        destination_type = Flow.NODE_TYPE_ACTIONSET
-        action_destination = legacy.get_node(flow, destination, destination_type)
-        if not action_destination:
-            destination_type = Flow.NODE_TYPE_RULESET
-            ruleset_destination = legacy.get_node(flow, destination, destination_type)
-            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
-
-        actionset = ActionSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if actionset:
-            actionset.destination = destination
-            actionset.destination_type = destination_type
-            actionset.save()
-
-        ruleset = RuleSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if ruleset:
-            rules = ruleset.get_rules()
-            for r in rules:
-                if r.uuid == rule:
-                    r.destination = destination
-                    r.destination_type = destination_type
-            ruleset.set_rules(rules)
-            ruleset.save()
-        else:
-            self.fail("Couldn't find node with uuid: %s" % node)
-
-    def mockRequest(self, method, path_pattern, content, content_type="text/plain", status=200):
-        return self.mock_server.mock_request(method, path_pattern, content, content_type, status)
-
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
         self.assertEqual(len(mail.outbox), outbox_index + 1)
         email = mail.outbox[outbox_index]
@@ -431,29 +389,6 @@ class TembaTestMixin:
         self.assertEqual(email.subject, subject)
         self.assertEqual(email.body, body)
         self.assertEqual(email.recipients(), recipients)
-
-    def assertMockedRequest(self, mock_request, data=None, **headers):
-        if not mock_request.requested:
-            self.fail("expected %s %s to have been requested" % (mock_request.method, mock_request.path))
-
-        if data is not None:
-            self.assertEqual(mock_request.data, data)
-
-        # check any provided header values
-        for key, val in headers.items():
-            self.assertEqual(mock_request.headers.get(key.replace("_", "-")), val)
-
-    def assertAllRequestsMade(self):
-        if self.mock_server.mocked_requests:
-            self.fail(
-                "test has %d unused mock requests: %s"
-                % (len(mock_server.mocked_requests), mock_server.mocked_requests)
-            )
-        if self.mock_server.unexpected_requests:
-            self.fail(
-                "test made %d expected requests: %s"
-                % (len(mock_server.unexpected_requests), mock_server.unexpected_requests)
-            )
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """
@@ -524,7 +459,6 @@ class TembaTestMixin:
 class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
         self.maxDiff = 4096
-        self.mock_server = mock_server
 
         # if we are super verbose, turn on debug for sql queries
         if self.get_verbosity() > 2:
@@ -632,9 +566,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         from temba.flows.models import clear_flow_users
 
         clear_flow_users()
-
-        # clear any unused mock requests
-        self.mock_server.mocked_requests = []
 
     def release(self, objs, delete=False, user=None):
         for obj in objs:
@@ -777,18 +708,6 @@ class FlowFileTest(TembaTest):
         return None
 
 
-class MLStripper(HTMLParser):  # pragma: no cover
-    def __init__(self):
-        self.reset()
-        self.fed = []
-
-    def handle_data(self, d):
-        self.fed.append(d)
-
-    def get_data(self):
-        return "".join(self.fed)
-
-
 class MockResponse(object):
     def __init__(self, status_code, text, method="GET", url="http://foo.com/", headers=None):
         self.text = force_text(text)
@@ -865,21 +784,3 @@ class MigrationTest(TembaTest):
 
     def setUpBeforeMigration(self, apps):
         pass
-
-
-class CaptureSTDOUT(object):
-    """
-    Redirects STDOUT output to a StringIO which can be inspected later
-    """
-
-    def __init__(self,):
-        self.new_stdout = StringIO()
-
-        self.old_stdout = sys.stdout
-        sys.stdout = self.new_stdout
-
-    def __enter__(self):
-        return self.new_stdout
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout = self.old_stdout

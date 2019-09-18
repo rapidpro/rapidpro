@@ -1,19 +1,10 @@
 from uuid import uuid4
 
-import regex
-
-from django.conf import settings
-
 from temba.channels.models import Channel
-from temba.contacts.models import NEW_CONTACT_VARIABLE, URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.utils import on_transaction_commit
-from temba.utils.email import is_valid_address
-from temba.values.constants import Value
-
-from ..expressions import evaluate
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 
 
-class Action(object):
+class Action:
     """
     Base class for actions that can be added to an action set and executed during a flow run
     """
@@ -69,12 +60,7 @@ class EmailAction(Action):
     MESSAGE = "msg"
 
     def __init__(self, uuid, emails, subject, message):
-        from temba.flows.models import FlowException
-
         super().__init__(uuid)
-
-        if not emails:
-            raise FlowException("Email actions require at least one recipient")
 
         self.emails = emails
         self.subject = subject
@@ -90,38 +76,6 @@ class EmailAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
 
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.tasks import send_email_action_task
-
-        # build our message from our flow variables
-        (message, errors) = evaluate(self.message, context, org=run.flow.org)
-        (subject, errors) = evaluate(self.subject, context, org=run.flow.org)
-
-        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-        subject = regex.sub(r"\s+", " ", subject, regex.V0)
-
-        valid_addresses = []
-        invalid_addresses = []
-        for email in self.emails:
-            if email.startswith("@"):
-                # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = evaluate(email, context, org=run.flow.org)
-            else:
-                address = email
-
-            address = address.strip()
-
-            if is_valid_address(address):
-                valid_addresses.append(address)
-            else:
-                invalid_addresses.append(address)
-
-        if valid_addresses:
-            on_transaction_commit(
-                lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
-            )
-        return []
-
 
 class AddToGroupAction(Action):
     """
@@ -136,6 +90,9 @@ class AddToGroupAction(Action):
         super().__init__(uuid)
 
         self.groups = groups
+
+    def get_type(self):
+        return AddToGroupAction.TYPE
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -181,34 +138,6 @@ class AddToGroupAction(Action):
 
         return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
 
-    def get_type(self):
-        return AddToGroupAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        contact = run.contact
-        add = AddToGroupAction.TYPE == self.get_type()
-        user = get_flow_user(run.org)
-
-        if contact:
-            for group in self.groups:
-                if not isinstance(group, ContactGroup):
-                    (value, errors) = evaluate(group, context, org=run.flow.org)
-                    group = None
-
-                    if not errors:
-                        group = ContactGroup.get_user_group_by_name(contact.org, value)
-
-                if group:
-                    if group.is_dynamic:
-                        continue
-
-                    group.org = run.org
-                    group.update_contacts(user, [contact], add)
-
-        return []
-
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -220,6 +149,10 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
+
     def as_json(self):
         groups = []
         for g in self.groups:
@@ -229,25 +162,6 @@ class DeleteFromGroupAction(AddToGroupAction):
                 groups.append(g)
 
         return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
-
-    def execute(self, run, context, actionset, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        if len(self.groups) == 0:
-            contact = run.contact
-            user = get_flow_user(run.org)
-            if contact:
-                # remove from all active and inactive user-defined, static groups
-                for group in ContactGroup.user_groups.filter(
-                    org=contact.org, group_type=ContactGroup.TYPE_USER_DEFINED, query__isnull=True
-                ):
-                    group.update_contacts(user, [contact], False)
-            return []
-        return AddToGroupAction.execute(self, run, context, actionset, msg)
 
 
 class AddLabelAction(Action):
@@ -303,28 +217,7 @@ class AddLabelAction(Action):
             else:
                 labels.append(action_label)
 
-        return dict(type=self.get_type(), uuid=self.uuid, labels=labels)
-
-    def get_type(self):
-        return AddLabelAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.msgs.models import Label
-
-        for label in self.labels:
-            if not isinstance(label, Label):
-                contact = run.contact
-                (value, errors) = evaluate(label, context, org=run.flow.org)
-
-                if not errors:
-                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                else:  # pragma: needs cover
-                    label = None
-
-            if label and msg and msg.pk:
-                label.toggle_label([msg], True)
-
-        return []
+        return dict(type=self.TYPE, uuid=self.uuid, labels=labels)
 
 
 class SayAction(Action):
@@ -349,9 +242,6 @@ class SayAction(Action):
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
 
-    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
-        pass
-
 
 class PlayAction(Action):
     """
@@ -372,9 +262,6 @@ class PlayAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
-
-    def execute(self, run, context, actionset_uuid, event):  # pragma: no cover
-        pass
 
 
 class ReplyAction(Action):
@@ -430,92 +317,8 @@ class ReplyAction(Action):
             send_all=self.send_all,
         )
 
-    @staticmethod
-    def get_translated_quick_replies(metadata, run):  # pragma: no cover
-        """
-        Gets the appropriate metadata translation for the given contact
-        """
-        from ..engine import get_localized_text
 
-        language_metadata = []
-        for item in metadata:
-            text = get_localized_text(run.flow, text_translations=item, contact=run.contact)
-            language_metadata.append(text)
-
-        return language_metadata
-
-    @staticmethod
-    def get_session_responded(run):
-        current_run = run
-        while current_run and current_run.contact_id == run.contact_id:
-            if current_run.responded:
-                return True
-            current_run = current_run.parent
-        return False
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-        from ..engine import get_localized_text
-
-        replies = []
-
-        if self.msg or self.media:
-            user = get_flow_user(run.org)
-
-            text = ""
-            if self.msg:
-                text = get_localized_text(run.flow, self.msg, run.contact)
-
-            quick_replies = []
-            if self.quick_replies:
-                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
-
-            attachments = None
-            if self.media:
-                # localize our media attachment
-                media_type, media_url = get_localized_text(run.flow, self.media, run.contact).split(":", 1)
-
-                # if we have a localized media, create the url
-                if media_url and len(media_type.split("/")) > 1:
-                    abs_url = f"{settings.STORAGE_URL}/{media_url}"
-                    attachments = [f"{media_type}:{abs_url}"]
-                else:
-                    attachments = [f"{media_type}:{media_url}"]
-
-            if msg and msg.id:
-                replies = msg.reply(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    quick_replies=quick_replies,
-                    attachments=attachments,
-                    send_all=self.send_all,
-                    sent_on=None,
-                )
-            else:
-                # if our run has been responded to or any of our parent runs have
-                # been responded to consider us interactive with high priority
-                high_priority = self.get_session_responded(run)
-                replies = run.contact.send(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    attachments=attachments,
-                    quick_replies=quick_replies,
-                    sent_on=None,
-                    all_urns=self.send_all,
-                    high_priority=high_priority,
-                )
-        return replies
-
-
-class VariableContactAction(Action):  # pragma: no cover
+class VariableContactAction(Action):
     """
     Base action that resolves variables into contacts. Used for actions that take
     SendAction, TriggerAction, etc
@@ -596,44 +399,6 @@ class VariableContactAction(Action):  # pragma: no cover
             variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
         return variables
 
-    def build_groups_and_contacts(self, run, msg):
-        from temba.flows.models import get_flow_user
-        from ..expressions import flow_context
-
-        expressions_context = flow_context(run.flow, run.contact, msg, run=run)
-        contacts = list(self.contacts)
-        groups = list(self.groups)
-
-        # see if we've got groups or contacts
-        for variable in self.variables:
-            # this is a marker for a new contact
-            if variable == NEW_CONTACT_VARIABLE:
-                contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
-
-            # other type of variable, perform our substitution
-            else:
-                (variable, errors) = evaluate(variable, expressions_context, org=run.flow.org)
-
-                # Check for possible contact uuid and use its contact
-                contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
-                if contact_variable_by_uuid:
-                    contacts.append(contact_variable_by_uuid)
-                    continue
-
-                variable_group = ContactGroup.get_user_group_by_name(run.flow.org, name=variable)
-                if variable_group:  # pragma: needs cover
-                    groups.append(variable_group)
-                else:
-                    country = run.flow.org.get_country_code()
-                    (number, valid) = URN.normalize_number(variable, country)
-                    if number and valid:
-                        contact, contact_urn = Contact.get_or_create(
-                            run.org, URN.from_tel(number), user=get_flow_user(run.org)
-                        )
-                        contacts.append(contact)
-
-        return groups, contacts
-
 
 class TriggerFlowAction(VariableContactAction):
     """
@@ -679,33 +444,6 @@ class TriggerFlowAction(VariableContactAction):
             variables=variables,
         )
 
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from ..engine import flow_start
-
-        if self.flow:
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-            # start our contacts down the flow
-            # our extra will be our flow variables in our message context
-            extra = context.get("extra", dict())
-            child_runs = flow_start(
-                self.flow,
-                groups,
-                contacts,
-                restart_participants=True,
-                started_flows=[run.flow.pk],
-                extra=extra,
-                parent_run=run,
-            )
-
-            # build up all the msgs that where sent by our flow
-            msgs = []
-            for run in child_runs:
-                msgs += run.start_msgs
-
-            return msgs
-        else:  # pragma: no cover
-            return []
-
 
 class SetLanguageAction(Action):
     """
@@ -728,20 +466,6 @@ class SetLanguageAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        old_value = run.contact.language
-
-        if len(self.lang) != 3:
-            new_lang = None
-        else:
-            new_lang = self.lang
-
-        if old_value != new_lang:
-            run.contact.language = new_lang
-            run.contact.save(update_fields=["language"], handle_update=True)
-
-        return []
 
 
 class StartFlowAction(Action):
@@ -848,11 +572,11 @@ class SaveToContactAction(Action):
         field = json_obj.get(cls.FIELD)
         value = json_obj.get(cls.VALUE)
 
-        if label and label.startswith("[_NEW_]"):
+        if label and label.startswith("[_NEW_]"):  # pragma: no cover
             label = label[7:]
 
         # create our contact field if necessary
-        if not field:
+        if not field:  # pragma: needs cover
             field = ContactField.make_key(label)
 
         # look up our label
@@ -862,58 +586,6 @@ class SaveToContactAction(Action):
 
     def as_json(self):
         return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.flows.models import get_flow_user
-
-        # evaluate our value
-        contact = run.contact
-        user = get_flow_user(run.org)
-        (value, errors) = evaluate(self.value, context, org=run.flow.org)
-
-        value = value.strip()
-
-        if self.field == "name":
-            new_value = value[:128]
-            contact.name = new_value
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field == "first_name":
-            new_value = value[:128]
-            contact.set_first_name(new_value)
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            new_value = value[:128]
-
-            # add in our new urn number
-            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
-
-            # trim off '@' for twitter handles
-            if self.field == "twitter":  # pragma: needs cover
-                if len(new_value) > 0:
-                    if new_value[0] == "@":
-                        new_value = new_value[1:]
-
-            # only valid urns get added, sorry
-            new_urn = None
-            if new_value:
-                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
-                    new_urn = False
-
-            if new_urn:
-                urns = [str(urn) for urn in contact.urns.all()]
-                urns += [new_urn]
-                contact.update_urns(user, urns)
-
-        else:
-            new_value = value[: Value.MAX_VALUE_LEN]
-            contact.set_field(user, self.field, new_value)
-
-        return []
 
 
 class SetChannelAction(Action):
@@ -949,14 +621,6 @@ class SetChannelAction(Action):
             else None
         )
         return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        # if we found the channel to set
-        if self.channel:
-            run.contact.set_preferred_channel(self.channel)
-            return []
-        else:
-            return []
 
 
 class SendAction(VariableContactAction):
@@ -1003,27 +667,3 @@ class SendAction(VariableContactAction):
             variables=variables,
             media=self.media,
         )
-
-    def execute(self, run, context, actionset_uuid, msg):  # pragma: no cover
-        from temba.msgs.models import Broadcast
-
-        if self.msg or self.media:
-            flow = run.flow
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
-            # no-op if neither text nor media are defined in the flow base language
-            if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
-                return list()
-
-            broadcast = Broadcast.create(
-                flow.org,
-                flow.modified_by,
-                self.msg,
-                groups=groups,
-                contacts=contacts,
-                media=self.media,
-                base_language=flow.base_language,
-            )
-            broadcast.send(expressions_context=context)
-
-        return []
