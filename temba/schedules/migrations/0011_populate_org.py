@@ -21,7 +21,7 @@ def populate_org(apps, schema_editor):
         updated += 1
 
     if updated > 0:
-        print(f"populated {updated} weekly schedules")
+        print(f"populated {updated} schedules with org")
 
 class Migration(migrations.Migration):
 
