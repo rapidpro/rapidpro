@@ -63,7 +63,7 @@ class MsgTest(TembaTest):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_msg_as_archive_json(self):
-        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
+        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem")
         self.assertEqual(
             msg1.as_archive_json(),
             {
@@ -79,7 +79,7 @@ class MsgTest(TembaTest):
                 "attachments": [],
                 "labels": [],
                 "created_on": msg1.created_on.isoformat(),
-                "sent_on": msg1.sent_on.isoformat(),
+                "sent_on": None,
             },
         )
 
@@ -103,17 +103,12 @@ class MsgTest(TembaTest):
                 "attachments": [],
                 "labels": [{"uuid": str(label.uuid), "name": "la\x02bel1"}],
                 "created_on": msg1.created_on.isoformat(),
-                "sent_on": msg1.sent_on.isoformat(),
+                "sent_on": None,
             },
         )
 
-        msg2 = self.create_msg(
-            contact=self.joe,
-            text="Media message",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
+        msg2 = self.create_incoming_msg(
+            self.joe, "Media message", attachments=["audio:http://rapidpro.io/audio/sound.mp3"]
         )
 
         self.assertEqual(
@@ -138,8 +133,8 @@ class MsgTest(TembaTest):
     def test_deletes(self):
 
         # create some incoming messages
-        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "i'm having a problem")
-        msg2 = Msg.create_incoming(self.channel, self.frank.get_urn().urn, "ignore joe, he's a liar")
+        msg1 = self.create_incoming_msg(self.joe, "i'm having a problem")
+        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
 
         # create a channel log for msg2
         ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
@@ -213,7 +208,7 @@ class MsgTest(TembaTest):
         )
 
     def test_archive_and_release(self):
-        msg1 = Msg.create_incoming(self.channel, "tel:123", "Incoming")
+        msg1 = self.create_incoming_msg(self.joe, "Incoming")
         label = Label.get_or_create(self.org, self.admin, "Spam")
         label.toggle_label([msg1], add=True)
 
@@ -243,7 +238,7 @@ class MsgTest(TembaTest):
         if direction == OUTGOING:
             msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
         else:
-            msg = Msg.create_incoming(self.channel, "tel:+250788123123", "Hey hey")
+            msg = self.create_incoming_msg(self.joe, "Hey hey")
 
         Msg.objects.filter(id=msg.id).update(
             status=status, direction=direction, visibility=visibility, msg_type=msg_type
@@ -537,18 +532,12 @@ class MsgTest(TembaTest):
     def test_inbox(self):
         inbox_url = reverse("msgs.msg_inbox")
 
-        joe_tel = str(self.joe.get_urn(TEL_SCHEME))
-        msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
-        msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
-        msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
-        Msg.create_incoming(self.channel, joe_tel, "message number 4")
-        msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
-        msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
-
-        # msg6 is still pending
-        msg6.status = PENDING
-        msg6.msg_type = None
-        msg6.save()
+        msg1 = self.create_incoming_msg(self.joe, "message number 1")
+        msg2 = self.create_incoming_msg(self.joe, "message number 2")
+        msg3 = self.create_incoming_msg(self.joe, "message number 3")
+        self.create_incoming_msg(self.joe, "message number 4")
+        msg5 = self.create_incoming_msg(self.joe, "message number 5")
+        self.create_incoming_msg(self.joe, "message number 6", status=PENDING)
 
         # visit inbox page  as a user not in the organization
         self.login(self.non_org_user)
@@ -708,9 +697,9 @@ class MsgTest(TembaTest):
     def test_flows(self):
         url = reverse("msgs.msg_flow")
 
-        msg1 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 1", msg_type="F")
-        msg2 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 2", msg_type="F")
-        msg3 = Msg.create_incoming(self.channel, str(self.joe.get_urn()), "test 3", msg_type="F")
+        msg1 = self.create_incoming_msg(self.joe, "test 1", msg_type="F")
+        msg2 = self.create_incoming_msg(self.joe, "test 2", msg_type="F")
+        msg3 = self.create_incoming_msg(self.joe, "test 3", msg_type="F")
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -800,82 +789,37 @@ class MsgTest(TembaTest):
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
 
-        msg1 = self.create_msg(
-            contact=self.joe,
-            text="hello 1",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC),
+        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_incoming_msg(
+            self.frank, "hello 2", msg_type="F", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC)
         )
-        msg2 = self.create_msg(
-            contact=self.frank,
-            text="hello 2",
-            direction="I",
-            status=HANDLED,
-            msg_type="F",
-            created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC),
-        )
-        msg3 = self.create_msg(
-            contact=self.joe,
-            text="hello 3",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC),
-        )
+        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
 
         # inbound message that looks like a surveyor message
-        msg4 = self.create_msg(
-            contact=self.joe,
-            contact_urn=None,
-            text="hello 4",
-            direction="I",
-            status=HANDLED,
-            channel=None,
-            msg_type="I",
-            created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC),
+        msg4 = self.create_incoming_msg(
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC)
         )
 
         # inbound message with media attached, such as an ivr recording
-        msg5 = self.create_msg(
-            contact=self.joe,
-            text="Media message",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
+        msg5 = self.create_incoming_msg(
+            self.joe,
+            "Media message",
             attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
             created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC),
         )
 
         # create some outbound messages with different statuses
-        msg6 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 6",
-            direction="O",
-            status=SENT,
-            created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC),
+        msg6 = self.create_outgoing_msg(
+            self.joe, "Hey out 6", status=SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
         )
-        msg7 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 7",
-            direction="O",
-            status=DELIVERED,
-            created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC),
+        msg7 = self.create_outgoing_msg(
+            self.joe, "Hey out 7", status=DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
         )
-        msg8 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 8",
-            direction="O",
-            status=ERRORED,
-            created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC),
+        msg8 = self.create_outgoing_msg(
+            self.joe, "Hey out 8", status=ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
         )
-        msg9 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 9",
-            direction="O",
-            status=FAILED,
-            created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC),
+        msg9 = self.create_outgoing_msg(
+            self.joe, "Hey out 9", status=FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
@@ -1332,82 +1276,35 @@ class MsgTest(TembaTest):
         self.joe.name = "Jo\02e Blow"
         self.joe.save(update_fields=("name",), handle_update=False)
 
-        msg1 = self.create_msg(
-            contact=self.joe,
-            text="hello 1",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC),
-        )
-        msg2 = self.create_msg(
-            contact=self.joe,
-            text="hello 2",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC),
-        )
-        msg3 = self.create_msg(
-            contact=self.joe,
-            text="hello 3",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
-            created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC),
-        )
+        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
+        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
 
         # inbound message that looks like a surveyor message
-        msg4 = self.create_msg(
-            contact=self.joe,
-            contact_urn=None,
-            text="hello 4",
-            direction="I",
-            status=HANDLED,
-            channel=None,
-            msg_type="I",
-            created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC),
+        msg4 = self.create_incoming_msg(
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC)
         )
 
         # inbound message with media attached, such as an ivr recording
-        msg5 = self.create_msg(
-            contact=self.joe,
-            text="Media message",
-            direction="I",
-            status=HANDLED,
-            msg_type="I",
+        msg5 = self.create_incoming_msg(
+            self.joe,
+            "Media message",
             attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
             created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC),
         )
 
         # create some outbound messages with different statuses
-        msg6 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 6",
-            direction="O",
-            status=SENT,
-            created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC),
+        msg6 = self.create_outgoing_msg(
+            self.joe, "Hey out 6", status=SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
         )
-        msg7 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 7",
-            direction="O",
-            status=DELIVERED,
-            created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC),
+        msg7 = self.create_outgoing_msg(
+            self.joe, "Hey out 7", status=DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
         )
-        msg8 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 8",
-            direction="O",
-            status=ERRORED,
-            created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC),
+        msg8 = self.create_outgoing_msg(
+            self.joe, "Hey out 8", status=ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
         )
-        msg9 = self.create_msg(
-            contact=self.joe,
-            text="Hey out 9",
-            direction="O",
-            status=FAILED,
-            created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC),
+        msg9 = self.create_outgoing_msg(
+            self.joe, "Hey out 9", status=FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
@@ -1914,16 +1811,12 @@ class MsgCRUDLTest(TembaTest):
         label3 = Label.get_or_create(self.org, self.user, "label3")
 
         # create some messages
-        msg1 = self.create_msg(direction="I", msg_type="I", contact=self.joe, text="test1")
-        msg2 = self.create_msg(direction="I", msg_type="I", contact=self.frank, text="test2")
-        msg3 = self.create_msg(direction="I", msg_type="I", contact=self.billy, text="test3")
-        msg4 = self.create_msg(
-            direction="I", msg_type="I", contact=self.joe, text="test4", visibility=Msg.VISIBILITY_ARCHIVED
-        )
-        msg5 = self.create_msg(
-            direction="I", msg_type="I", contact=self.joe, text="test5", visibility=Msg.VISIBILITY_DELETED
-        )
-        msg6 = self.create_msg(direction="I", msg_type="F", contact=self.joe, text="flow test")
+        msg1 = self.create_incoming_msg(self.joe, "test1")
+        msg2 = self.create_incoming_msg(self.frank, "test2")
+        msg3 = self.create_incoming_msg(self.billy, "test3")
+        msg4 = self.create_incoming_msg(self.joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
+        msg5 = self.create_incoming_msg(self.joe, "test5", visibility=Msg.VISIBILITY_DELETED)
+        msg6 = self.create_incoming_msg(self.joe, "flow test", msg_type="F")
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)
@@ -1996,8 +1889,8 @@ class BroadcastTest(TembaTest):
         label = Label.get_or_create(self.org, self.user, "Labeled")
 
         # create some incoming messages
-        msg_in1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "Hello")
-        Msg.create_incoming(self.channel, self.frank.get_urn().urn, "Bonjour")
+        msg_in1 = self.create_incoming_msg(self.joe, "Hello")
+        self.create_incoming_msg(self.frank, "Bonjour")
 
         # create a broadcast which is a response to an incoming message
         broadcast1 = Broadcast.create(self.org, self.user, "Noted", contacts=[self.joe])
@@ -2010,9 +1903,9 @@ class BroadcastTest(TembaTest):
         broadcast2.send()
 
         # give joe some flow messages
-        self.create_msg(contact=self.joe, text="what's your fav color?", msg_type="F", direction="O")
-        msg_in3 = self.create_msg(contact=self.joe, text="red!", msg_type="F", direction="I")
-        self.create_msg(contact=self.joe, text="red is cool", msg_type="F", direction="O")
+        self.create_outgoing_msg(self.joe, "what's your fav color?", msg_type="F")
+        msg_in3 = self.create_incoming_msg(self.joe, "red!", msg_type="F")
+        self.create_outgoing_msg(self.joe, "red is cool", msg_type="F")
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
         Msg.objects.filter(direction="O").update(status="S")
@@ -2308,7 +2201,7 @@ class BroadcastTest(TembaTest):
     def test_message_parts(self):
         contact = self.create_contact("Matt", "+12067778811")
 
-        sms = self.create_msg(contact=contact, text="Text", direction=OUTGOING)
+        sms = self.create_outgoing_msg(contact, "Text")
 
         self.assertEqual(["Text"], Msg.get_text_parts(sms.text))
         sms.text = ""
@@ -2478,9 +2371,9 @@ class LabelTest(TembaTest):
 
     def test_toggle_label(self):
         label = Label.get_or_create(self.org, self.user, "Spam")
-        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction="I")
-        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction="I")
-        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction="I")
+        msg1 = self.create_incoming_msg(self.joe, "Message 1")
+        msg2 = self.create_incoming_msg(self.joe, "Message 2")
+        msg3 = self.create_incoming_msg(self.joe, "Message 3")
 
         self.assertEqual(label.get_visible_count(), 0)
 
@@ -2532,7 +2425,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
         # can't label outgoing messages
-        msg5 = self.create_msg(text="Message", contact=self.joe, direction="O")
+        msg5 = self.create_outgoing_msg(self.joe, "Message")
         self.assertRaises(ValueError, label.toggle_label, [msg5], add=True)
 
         # can't get a count of a folder
@@ -2570,9 +2463,9 @@ class LabelTest(TembaTest):
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
         label3 = Label.get_or_create(self.org, self.user, "Other")
 
-        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction="I")
-        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction="I")
-        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction="I")
+        msg1 = self.create_incoming_msg(self.joe, "Message 1")
+        msg2 = self.create_incoming_msg(self.joe, "Message 2")
+        msg3 = self.create_incoming_msg(self.joe, "Message 3")
 
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg2, msg3], add=True)
@@ -2608,9 +2501,9 @@ class LabelTest(TembaTest):
         label2 = Label.get_or_create(self.org, self.user, "Social", folder1)
         label3 = Label.get_or_create(self.org, self.user, "Other")
 
-        msg1 = self.create_msg(text="Message 1", contact=self.joe, direction="I")
-        msg2 = self.create_msg(text="Message 2", contact=self.joe, direction="I")
-        msg3 = self.create_msg(text="Message 3", contact=self.joe, direction="I")
+        msg1 = self.create_incoming_msg(self.joe, "Message 1")
+        msg2 = self.create_incoming_msg(self.joe, "Message 2")
+        msg3 = self.create_incoming_msg(self.joe, "Message 3")
 
         label1.toggle_label([msg1, msg2], add=True)
         label2.toggle_label([msg1], add=True)
@@ -2768,15 +2661,6 @@ class ConsoleTest(TembaTest):
         if clear:
             self.console.clear_echoed()
 
-    def mock_handle_msg(self, msg):
-        """
-        Mocks message handling so that the incoming message is marked as handled and we send a reply
-        """
-        self.create_msg(contact=msg.contact, direction="O", text="Good point", response_to=msg)
-
-        msg.status = HANDLED
-        msg.save(update_fields=("status",))
-
 
 class BroadcastLanguageTest(TembaTest):
     def setUp(self):
@@ -2883,10 +2767,10 @@ class SystemLabelTest(TembaTest):
 
         contact1 = self.create_contact("Bob", number="0783835001")
         contact2 = self.create_contact("Jim", number="0783835002")
-        msg1 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 1")
-        Msg.create_incoming(self.channel, "tel:0783835001", text="Message 2")
-        msg3 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 3")
-        msg4 = Msg.create_incoming(self.channel, "tel:0783835001", text="Message 4")
+        msg1 = self.create_incoming_msg(contact1, "Message 1")
+        self.create_incoming_msg(contact1, "Message 2")
+        msg3 = self.create_incoming_msg(contact1, "Message 3")
+        msg4 = self.create_incoming_msg(contact1, "Message 4")
         call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", contacts=[contact1, contact2], status=QUEUED)
         Broadcast.create(

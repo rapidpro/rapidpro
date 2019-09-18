@@ -3,9 +3,10 @@ import cmd
 from colorama import Fore, Style, init as colorama_init
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from temba.contacts.models import URN, Contact
-from temba.msgs.models import OUTGOING, Msg
+from temba.msgs.models import INCOMING, OUTGOING, PENDING, Msg
 from temba.orgs.models import Org
 
 DEFAULT_ORG = "1"
@@ -108,15 +109,22 @@ class MessageConsole(cmd.Cmd):  # pragma: needs cover
         Sends a message as the current contact's highest priority URN
         """
         urn = self.contact.get_urn()
-
-        incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path), line, org=self.org)
+        incoming = Msg.objects.create(
+            org=self.org,
+            direction=INCOMING,
+            contact=self.contact,
+            contact_urn=urn,
+            text=line,
+            status=PENDING,
+            created_on=timezone.now(),
+        )
 
         self.echo(
             (Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (str(urn), incoming.text)
         )
 
         # look up any message responses
-        outgoing = Msg.objects.filter(org=self.org, pk__gt=incoming.pk, direction=OUTGOING).order_by("sent_on")
+        outgoing = Msg.objects.filter(org=self.org, pk__gt=incoming.id, direction=OUTGOING).order_by("sent_on")
         for response in outgoing:
             self.echo(
                 (Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE)

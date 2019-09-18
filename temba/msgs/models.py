@@ -26,7 +26,7 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
+from temba.utils import analytics, chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
@@ -1004,96 +1004,6 @@ class Msg(models.Model):
 
         # pass off handling of the message after we commit
         on_transaction_commit(lambda: msg.handle())
-
-        return msg
-
-    @classmethod
-    def create_incoming(
-        cls,
-        channel,
-        urn,
-        text,
-        user=None,
-        sent_on=None,
-        org=None,
-        contact=None,
-        status=HANDLED,
-        attachments=None,
-        msg_type=INBOX,
-        topup=None,
-        external_id=None,
-        connection=None,
-    ):  # pragma: no cover
-
-        if not org and channel:
-            org = channel.org
-
-        if not org:
-            raise Exception(_("Can't create an incoming message without an org"))
-
-        if not user:
-            user = get_anonymous_user()
-
-        if not sent_on:
-            sent_on = timezone.now()  # no sent_on date?  set it to now
-
-        contact_urn = None
-        if not contact:
-            contact, contact_urn = Contact.get_or_create(org, urn, channel, user=user)
-        elif urn:
-            contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
-
-        # set the preferred channel for this contact
-        legacy.set_preferred_channel(contact, channel)
-
-        # and update this URN to make sure it is associated with this channel
-        if contact_urn:
-            contact_urn.update_affinity(channel)
-
-        # we limit our text message length and remove any invalid chars
-        if text:
-            text = clean_string(text[: cls.MAX_TEXT_LEN])
-
-        # don't create duplicate messages
-        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
-        if existing:
-            return existing
-
-        # costs 1 credit to receive a message
-        topup_id = None
-        if topup:
-            topup_id = topup.pk
-        else:
-            (topup_id, amount) = org.decrement_credit()
-
-        now = timezone.now()
-
-        msg_args = dict(
-            contact=contact,
-            contact_urn=contact_urn,
-            org=org,
-            channel=channel,
-            text=text,
-            sent_on=sent_on,
-            created_on=now,
-            modified_on=now,
-            queued_on=now,
-            direction=INCOMING,
-            msg_type=msg_type,
-            attachments=attachments,
-            status=status,
-            external_id=external_id,
-            connection=connection,
-        )
-
-        if topup_id is not None:
-            msg_args["topup_id"] = topup_id
-
-        msg = Msg.objects.create(**msg_args)
-
-        # if this contact is currently stopped, unstop them
-        if contact.is_stopped:
-            contact.unstop(user)
 
         return msg
 

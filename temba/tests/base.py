@@ -21,7 +21,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
@@ -128,19 +128,116 @@ class TembaTestMixin:
             org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
         )
 
-    def create_msg(self, **kwargs):
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "channel" not in kwargs:
-            kwargs["channel"] = self.channel
-        if "contact_urn" not in kwargs:
-            kwargs["contact_urn"] = kwargs["contact"].get_urn()
-        if "created_on" not in kwargs:
-            kwargs["created_on"] = timezone.now()
+    def create_incoming_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=None,
+        attachments=(),
+        status=HANDLED,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        created_on=None,
+        external_id=None,
+        surveyor=False,
+    ):
+        assert not msg_type or status != PENDING, "pending messages don't have a msg type"
 
-        (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
+        if status == HANDLED and not msg_type:
+            msg_type = INBOX
 
-        return Msg.objects.create(**kwargs)
+        return self._create_msg(
+            contact,
+            text,
+            INCOMING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            visibility,
+            created_on,
+            None,
+            external_id,
+            surveyor,
+        )
+
+    def create_outgoing_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=INBOX,
+        attachments=(),
+        status=SENT,
+        created_on=None,
+        sent_on=None,
+        surveyor=False,
+    ):
+        if status == SENT and not sent_on:
+            sent_on = timezone.now()
+
+        return self._create_msg(
+            contact,
+            text,
+            OUTGOING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            Msg.VISIBILITY_VISIBLE,
+            created_on,
+            sent_on,
+            None,
+            surveyor,
+        )
+
+    def _create_msg(
+        self,
+        contact,
+        text,
+        direction,
+        channel,
+        msg_type,
+        attachments,
+        status,
+        visibility,
+        created_on,
+        sent_on,
+        external_id,
+        surveyor,
+    ):
+        assert not (surveyor and channel), "surveyor messages don't have channels"
+        assert not channel or channel.org == contact.org, "channel belong to different org than contact"
+
+        if surveyor:
+            contact_urn = None
+            channel = None
+            topup_id = None
+        else:
+            contact_urn = contact.get_urn()
+            channel = channel or self.channel
+            (topup_id, amount) = contact.org.decrement_credit()
+
+        return Msg.objects.create(
+            org=contact.org,
+            direction=direction,
+            contact=contact,
+            contact_urn=contact_urn,
+            text=text,
+            channel=channel,
+            topup_id=topup_id,
+            status=status,
+            msg_type=msg_type,
+            attachments=attachments,
+            visibility=visibility,
+            external_id=external_id,
+            created_on=created_on or timezone.now(),
+            sent_on=sent_on,
+        )
+
+    def create_inbound_msgs(self, recipient, count):
+        for m in range(count):
+            self.create_incoming_msg(recipient, f"Test {m}")
 
     def create_flow(self, definition=None, **kwargs):
         if "org" not in kwargs:
@@ -268,10 +365,6 @@ class TembaTestMixin:
 
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_msg(contact=recipient, direction="I", text="Test %d" % m)
 
     def explain(self, query):
         cursor = connection.cursor()
