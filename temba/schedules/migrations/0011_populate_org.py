@@ -2,6 +2,9 @@
 
 from django.db import migrations
 
+def noop(apps, schema_editor):
+    pass
+
 def populate_org(apps, schema_editor):
     Schedule = apps.get_model("schedules", "Schedule")
     Trigger = apps.get_model("triggers", "Trigger")
@@ -29,5 +32,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(populate_org)
+        migrations.RunPython(populate_org, noop)
     ]

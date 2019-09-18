@@ -2,6 +2,9 @@
 
 from django.db import migrations
 
+def noop(apps, schema_editor):
+    pass
+
 def populate_days_of_week(apps, schema_editor):
     Schedule = apps.get_model("schedules", "Schedule")
     WEEKDAYS = "MTWRFSU"
@@ -11,7 +14,7 @@ def populate_days_of_week(apps, schema_editor):
         if s.repeat_days:
             repeat_days_of_week = ""
 
-            bitmask_number = bin(self.repeat_days)
+            bitmask_number = bin(s.repeat_days)
             days = []
             for idx in range(7):
                 power = bin(pow(2, idx + 1))
@@ -33,5 +36,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(populate_days_of_week)
+        migrations.RunPython(populate_days_of_week, noop)
     ]

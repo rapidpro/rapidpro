@@ -9,6 +9,8 @@ from django.utils import timezone
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
 from temba.utils import json
+from temba.tests import MigrationTest
+from temba.triggers.models import Trigger
 
 from .models import Schedule
 
@@ -426,3 +428,46 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
+
+class PopulateDaysAndOrgMigrationTest(MigrationTest):
+    app = "schedules"
+    migrate_from = "0009_auto_20190822_1823"
+    migrate_to = "0011_populate_org"
+
+    def setUpBeforeMigration(self, apps):
+        # create a schedule with no org but a broadcast
+        self.bcast_schedule = Schedule.create_blank_schedule(self.org, self.admin)
+        self.bcast_schedule.org = None
+        self.bcast_schedule.save(update_fields=["org"])
+
+        group = self.create_group("Test")
+        bcast = Broadcast.create(self.org, self.admin, "hello world", groups=[group])
+        bcast.schedule = self.bcast_schedule
+        bcast.save(update_fields=["schedule"])
+
+        # create a schedule with a trigger
+        self.trigger_schedule = Schedule.create_blank_schedule(self.org, self.admin)
+        self.trigger_schedule.org = None
+        self.trigger_schedule.save(update_fields=["org"])
+
+        flow = self.get_flow("favorites_v13")
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow)
+        trigger.schedule = self.trigger_schedule
+        trigger.save(update_fields=["schedule"])
+
+        # create a weekly schedule
+        self.weekly_schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_WEEKLY, repeat_days_of_week="MTR")
+        self.weekly_schedule.repeat_days = 22
+        self.weekly_schedule.repeat_days_of_week = None
+        self.weekly_schedule.save(update_fields=["repeat_days", "repeat_days_of_week"])
+
+    def test_org_populated(self):
+        self.bcast_schedule.refresh_from_db()
+        self.assertEqual(self.org.id, self.bcast_schedule.org_id)
+
+        self.trigger_schedule.refresh_from_db()
+        self.assertEqual(self.org.id, self.trigger_schedule.org_id)
+
+    def test_days_of_week_populated(self):
+        self.weekly_schedule.refresh_from_db()
+        self.assertEqual("MTR", self.weekly_schedule.repeat_days_of_week)
