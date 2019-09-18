@@ -1960,53 +1960,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
 
-    # TODO remove when legacy engine is gone
-    fields = JSONAsTextField(blank=True, null=True, default=dict)
-    parent_context = JSONField(null=True)
-    child_context = JSONField(null=True)
-
-    @classmethod
-    def create(
-        cls,
-        flow,
-        contact,
-        start=None,
-        session=None,
-        connection=None,
-        fields=None,
-        created_on=None,
-        db_insert=True,
-        submitted_by=None,
-        parent=None,
-        parent_context=None,
-        responded=False,
-    ):
-
-        args = dict(
-            org_id=flow.org_id,
-            flow=flow,
-            contact=contact,
-            start=start,
-            session=session,
-            connection=connection,
-            fields=fields,
-            submitted_by=submitted_by,
-            parent=parent,
-            parent_context=parent_context,
-            responded=responded,
-        )
-
-        if created_on:
-            args["created_on"] = created_on
-
-        if db_insert:
-            run = FlowRun.objects.create(**args)
-        else:
-            run = FlowRun(**args)
-
-        run.contact = contact
-        return run
-
     def get_events_of_type(self, event_types):
         """
         Gets all the events of the given type associated with this run
@@ -2107,8 +2060,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
-    def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
+    def __str__(self):  # pragma: no cover
+        return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
 
 class RuleSet(models.Model):

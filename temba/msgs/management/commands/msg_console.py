@@ -12,7 +12,7 @@ DEFAULT_ORG = "1"
 DEFAULT_URN = "tel:+250788123123"
 
 
-def get_org(id_or_name):
+def get_org(id_or_name):  # pragma: needs cover
     """
     Gets an org by its id or name. If more than one org has the name, first org is returned
     """
@@ -29,7 +29,7 @@ def get_org(id_or_name):
         return org
 
 
-class MessageConsole(cmd.Cmd):
+class MessageConsole(cmd.Cmd):  # pragma: needs cover
     """
     Useful REPL'like utility to simulate sending messages into RapidPro. Mostly useful for testing things
     with real contacts across multiple flows and contacts where the simulator isn't enough.

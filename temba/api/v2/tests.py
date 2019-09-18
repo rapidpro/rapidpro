@@ -28,7 +28,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, skip_if_no_mailroom
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -51,7 +51,7 @@ class APITest(TembaTest):
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
         self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
@@ -271,7 +271,7 @@ class APITest(TembaTest):
             serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
         )  # base lang not provided
 
-    @override_settings(FLOWRUN_FIELDS_SIZE=4)
+    @override_settings(FLOW_START_PARAMS_SIZE=4)
     def test_normalize_extra(self):
         self.assertEqual(OrderedDict(), normalize_extra({}))
         self.assertEqual(
@@ -553,6 +553,8 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
     def test_boundaries(self):
+        self.setUpLocations()
+
         url = reverse("api.v2.boundaries")
 
         self.assertEndpointAccess(url)
@@ -611,7 +613,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json()["results"], [])
 
-    @skip_if_no_mailroom
     @override_settings(TESTING=False)
     @patch("temba.mailroom.queue_broadcast")
     def test_broadcasts(self, mock_queue_broadcast):
@@ -967,7 +968,6 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 404)
 
-    @skip_if_no_mailroom
     def test_campaign_events(self):
         url = reverse("api.v2.campaign_events")
 
@@ -2091,9 +2091,9 @@ class APITest(TembaTest):
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
-        FlowRun.create(flow, contact1)
-        FlowRun.create(flow, contact2)
-        FlowRun.create(flow, contact3)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact1)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact2)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact3)
 
         self.create_msg(direction="I", contact=contact1, text="Hello")
         self.create_msg(direction="I", contact=contact2, text="Hello")
@@ -2419,7 +2419,7 @@ class APITest(TembaTest):
         color.labels.add(reporting)
 
         # make it look like joe completed a the color flow
-        run = FlowRun.create(color, contact=self.joe)
+        run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
         run.exited_on = timezone.now()
         run.is_active = False
@@ -3363,7 +3363,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         flow = self.get_flow("color")
-        run = FlowRun.create(flow, self.frank)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.frank)
         run.results = {
             "manual": {
                 "created_on": "2019-06-28T06:37:02.628152471Z",
