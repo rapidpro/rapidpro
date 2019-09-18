@@ -13,7 +13,6 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import FlowRun
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -311,33 +310,6 @@ class MsgTest(TembaTest):
         # the Twitter URN scheme is included
         self.assertEqual(response.context["completions"], json.dumps(completions))
 
-    def test_empty(self):
-        broadcast = Broadcast.create(
-            self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", contacts=[]
-        )
-        broadcast.send()
-
-        # should have no messages but marked as sent
-        self.assertEqual(0, broadcast.recipient_count)
-        self.assertEqual(0, broadcast.get_message_count())
-        self.assertEqual(SENT, broadcast.status)
-
-    def test_send_all(self):
-        contact = self.create_contact("Stephen", "+12078778899")
-        ContactURN.get_or_create(self.org, contact, "tel:+12078778800")
-        broadcast = Broadcast.create(
-            self.org,
-            self.admin,
-            "If a broadcast is sent and nobody receives it, does it still send?",
-            contacts=[contact],
-            send_all=True,
-        )
-        broadcast.send()
-
-        self.assertEqual(2, broadcast.msgs.all().count())
-        self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path="+12078778899").count())
-        self.assertEqual(1, broadcast.msgs.all().filter(contact_urn__path="+12078778800").count())
-
     def test_broadcast_metadata(self):
         Channel.create(self.org, self.admin, None, channel_type="TT")
         contact1 = self.create_contact("Stephen", "+12078778899", language="fra")
@@ -373,22 +345,13 @@ class MsgTest(TembaTest):
             {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
         )
 
-        broadcast.send()
-        msg1, msg2, msg3 = broadcast.msgs.order_by("contact", "id")
-
-        # message quick_replies are translated according to contact language
-        self.assertEqual(msg1.metadata, {"quick_replies": ["Oui", "No"]})
-        self.assertEqual(msg2.metadata, {"quick_replies": ["Yes", "No"]})
-        self.assertEqual(msg3.metadata, {"quick_replies": ["Yes", "No"]})
-
     def test_outbox(self):
         self.login(self.admin)
 
         contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
-        broadcast1 = Broadcast.create(self.channel.org, self.admin, "How is it going?", contacts=[contact])
+        broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact])
 
-        # now send the broadcast so we have messages, but put them back into pending state
-        broadcast1.send()
+        # put messages back into pending state
         Msg.objects.filter(broadcast=broadcast1).update(status=PENDING)
 
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
@@ -399,16 +362,10 @@ class MsgTest(TembaTest):
         self.assertContains(response, "Outbox (1)")
         self.assertEqual(set(response.context_data["object_list"]), {msg1})
 
-        broadcast2 = Broadcast.create(
-            self.channel.org,
-            self.admin,
-            "kLab is an awesome place",
-            contacts=[self.kevin],
-            groups=[self.joe_and_frank],
+        broadcast2 = self.create_broadcast(
+            self.admin, "kLab is an awesome place", contacts=[self.kevin], groups=[self.joe_and_frank]
         )
 
-        # now send the broadcast so we have messages
-        broadcast2.send()
         Msg.objects.filter(broadcast=broadcast2).update(status=PENDING)
         msg4, msg3, msg2 = tuple(Msg.objects.filter(broadcast=broadcast2).order_by("-created_on", "-id"))
 
@@ -651,14 +608,7 @@ class MsgTest(TembaTest):
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         # create broadcast and fail the only message
-        broadcast = Broadcast.create(
-            self.org,
-            self.admin,
-            "message number 2",
-            contacts=[self.joe],
-            quick_replies=[{"base": "Yes"}, {"base": "No"}],
-        )
-        broadcast.send()
+        broadcast = self.create_broadcast(self.admin, "message number 2", contacts=[self.joe])
         broadcast.get_messages().update(status="F")
         msg2 = broadcast.get_messages()[0]
 
@@ -700,7 +650,6 @@ class MsgTest(TembaTest):
         self.assertEqual(resent_msg.text, msg2.text)
         self.assertEqual(resent_msg.contact, msg2.contact)
         self.assertEqual(resent_msg.status, WIRED)
-        self.assertEqual(resent_msg.metadata, {"quick_replies": ["Yes", "No"]})
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
@@ -1817,14 +1766,12 @@ class BroadcastTest(TembaTest):
         self.create_incoming_msg(self.frank, "Bonjour")
 
         # create a broadcast which is a response to an incoming message
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", contacts=[self.joe])
-        broadcast1.send(response_to=msg_in1)
+        self.create_broadcast(self.user, "Noted", contacts=[self.joe], response_to=msg_in1)
 
         # create a broadcast which is to several contacts
-        broadcast2 = Broadcast.create(
-            self.org, self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
+        broadcast2 = self.create_broadcast(
+            self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
         )
-        broadcast2.send()
 
         # give joe some flow messages
         self.create_outgoing_msg(self.joe, "what's your fav color?", msg_type="F")
@@ -1987,10 +1934,10 @@ class BroadcastTest(TembaTest):
         )
         self.assertEqual("I", broadcast.status)
 
-        broadcast.send()
-        self.assertEqual("S", broadcast.status)
-        self.assertEqual(4, broadcast.recipient_count)
-        self.assertEqual(broadcast.get_message_count(), 4)
+        with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
+            broadcast.send()
+
+            mock_queue_broadcast.assert_called_once_with(broadcast)
 
         broadcast.release()
 
@@ -2000,127 +1947,6 @@ class BroadcastTest(TembaTest):
 
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")
-
-    def test_send(self):
-        # remove all channels first
-        for channel in Channel.objects.all():
-            channel.release()
-
-        send_url = reverse("msgs.broadcast_send")
-        self.login(self.admin)
-
-        # try with no channel
-        post_data = dict(text="some text", omnibox="c-%s" % self.joe.uuid)
-        response = self.client.post(send_url, post_data, follow=True)
-        self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
-
-        # test when we have many channels
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
-        )
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
-        )
-        Channel.create(self.org, self.user, None, "TT")
-
-        response = self.client.get(send_url)
-        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
-
-        post_data = dict(
-            text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid)
-        )
-        self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "message #1"})
-        self.assertEqual(broadcast.get_default_text(), "message #1")
-        self.assertEqual(broadcast.groups.count(), 1)
-        self.assertEqual(broadcast.contacts.count(), 2)
-        self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
-        self.assertIsNotNone(Msg.objects.filter(contact=self.frank, text="message #1"))
-        self.assertIsNotNone(Msg.objects.filter(contact=self.lucy, text="message #1"))
-
-        # test with one channel now
-        for channel in Channel.objects.all():
-            channel.release()
-
-        Channel.create(
-            self.org,
-            self.user,
-            None,
-            "A",
-            None,
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        response = self.client.get(send_url)
-        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
-
-        post_data = dict(text="message #2", omnibox="g-%s,c-%s" % (self.joe_and_frank.uuid, self.kevin.uuid))
-        self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.text, {"base": "message #2"})
-        self.assertEqual(broadcast.groups.count(), 1)
-        self.assertEqual(broadcast.contacts.count(), 1)
-
-        # directly on user page
-        post_data = dict(text="contact send", from_contact=True, omnibox="c-%s" % self.kevin.uuid)
-        response = self.client.post(send_url, post_data)
-        self.assertRedirect(response, reverse("contacts.contact_read", args=[self.kevin.uuid]))
-        self.assertEqual(Broadcast.objects.all().count(), 3)
-
-        # test sending to an arbitrary user
-        post_data = dict(text="message content", omnibox="n-2065551212")
-        self.client.post(send_url, post_data, follow=True)
-        self.assertEqual(Broadcast.objects.all().count(), 4)
-        self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
-
-        # test missing senders
-        post_data = dict(text="message content")
-        response = self.client.post(send_url, post_data, follow=True)
-        self.assertContains(response, "At least one recipient is required")
-
-        # Test AJAX sender
-        post_data = dict(text="message content", omnibox="")
-        response = self.client.post(send_url + "?_format=json", post_data, follow=True)
-        self.assertContains(response, "At least one recipient is required", status_code=400)
-        self.assertEqual("application/json", response._headers.get("content-type")[1])
-
-        post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")
-        response = self.client.post(send_url, post_data, follow=True)
-        self.assertContains(response, "success")
-
-        # send using our omnibox
-        post_data = dict(
-            text="this is a test message",
-            omnibox="c-%s,g-%s,n-911" % (self.kevin.pk, self.joe_and_frank.pk),
-            _format="json",
-        )
-        response = self.client.post(send_url, post_data, follow=True)
-        self.assertContains(response, "success")
-
-        # give Joe a flow run that has stopped on a node
-        node_uuid = "19bd2f45-f0bc-435c-bb52-c2dc566093d4"
-        flow = self.get_flow("favorites")
-        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.joe)
-        run.current_node_uuid = node_uuid
-        run.save(update_fields=("current_node_uuid",))
-
-        # no error if we are sending to a flow node
-        post_data = dict(text="message content", omnibox="", step_node=node_uuid)
-        response = self.client.post(send_url + "?_format=json", post_data, follow=True)
-        self.assertContains(response, "success")
-
-        response = self.client.post(send_url, post_data)
-        self.assertRedirect(response, reverse("msgs.msg_inbox"))
-
-        response = self.client.post(send_url + "?_format=json", post_data, follow=True)
-        self.assertContains(response, "success")
-        broadcast = Broadcast.objects.order_by("-id").first()
-        self.assertEqual(broadcast.text, {"base": "message content"})
-        self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual(broadcast.contacts.count(), 1)
-        self.assertTrue(self.joe in broadcast.contacts.all())
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", "+12067778811")
@@ -2586,73 +2412,6 @@ class ConsoleTest(TembaTest):
             self.console.clear_echoed()
 
 
-class BroadcastLanguageTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.francois = self.create_contact("Francois", "+12065551213", language="fra")
-        self.greg = self.create_contact("Greg", "+12065551212")
-        self.wilbert = self.create_contact("Wilbert", "+12065551214", language="fra")
-
-    def test_multiple_language_broadcast(self):
-        # set up our org to have a few different languages
-        eng = Language.create(self.org, self.admin, "English", "eng")
-        Language.create(self.org, self.admin, "French", "fra")
-        self.org.primary_language = eng
-        self.org.save()
-
-        eng_msg = "This is my message"
-        fra_msg = "Ceci est mon message"
-
-        # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(
-            self.org,
-            self.admin,
-            dict(eng=eng_msg, fra=fra_msg),
-            contacts=[self.francois, self.greg, self.wilbert],
-            base_language="eng",
-        )
-
-        bcast.send()
-
-        # assert the right language was used for each contact
-        self.assertEqual(fra_msg, Msg.objects.get(contact=self.francois).text)
-        self.assertEqual(eng_msg, Msg.objects.get(contact=self.greg).text)
-        self.assertEqual(fra_msg, Msg.objects.get(contact=self.wilbert).text)
-
-        eng_msg = "Please see attachment"
-        fra_msg = "SVP regardez l'attachement."
-
-        eng_attachment = f"image/jpeg:{settings.STORAGE_URL}/attachments/eng_picture.jpg"
-        fra_attachment = f"image/jpeg:{settings.STORAGE_URL}/attachments/fre_picture.jpg"
-
-        # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(
-            self.org,
-            self.admin,
-            dict(eng=eng_msg, fra=fra_msg),
-            contacts=[self.francois, self.greg, self.wilbert],
-            base_language="eng",
-            media=dict(eng=eng_attachment, fra=fra_attachment),
-        )
-
-        bcast.send()
-
-        francois_media = Msg.objects.filter(contact=self.francois).order_by("-created_on").first()
-        greg_media = Msg.objects.filter(contact=self.greg).order_by("-created_on").first()
-        wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by("-created_on").first()
-
-        # assert the right language was used for each contact on both text and media
-        self.assertEqual(francois_media.text, fra_msg)
-        self.assertEqual(francois_media.attachments, [fra_attachment])
-
-        self.assertEqual(greg_media.text, eng_msg)
-        self.assertEqual(greg_media.attachments, [eng_attachment])
-
-        self.assertEqual(wilbert_media.text, fra_msg)
-        self.assertEqual(wilbert_media.attachments, [fra_attachment])
-
-
 class SystemLabelTest(TembaTest):
     def test_get_archive_attributes(self):
         self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(""))
@@ -2696,7 +2455,7 @@ class SystemLabelTest(TembaTest):
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
         call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
-        bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", contacts=[contact1, contact2], status=QUEUED)
+        Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=QUEUED)
         Broadcast.create(
             self.org,
             self.user,
@@ -2720,8 +2479,10 @@ class SystemLabelTest(TembaTest):
         )
 
         msg3.archive()
-        bcast1.send()
+
+        bcast1 = self.create_broadcast(self.user, "Broadcast 1", contacts=[contact1, contact2])
         Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
+
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
         Broadcast.create(
@@ -2738,7 +2499,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 3,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
-                SystemLabel.TYPE_OUTBOX: 2,
+                SystemLabel.TYPE_OUTBOX: 3,
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -2761,7 +2522,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
-                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
                 SystemLabel.TYPE_SENT: 1,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -2781,7 +2542,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
                 SystemLabel.TYPE_SENT: 1,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -2791,7 +2552,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 37)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 32)
 
         # squash our counts
         squash_msgcounts()
@@ -2802,7 +2563,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
                 SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -2822,7 +2583,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_OUTBOX: 1,
                 SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,

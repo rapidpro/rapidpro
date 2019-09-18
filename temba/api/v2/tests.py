@@ -3017,9 +3017,8 @@ class APITest(TembaTest):
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # filter by broadcast
-        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
-        broadcast.send()
-        response = self.fetchJSON(url, "broadcast=%s" % broadcast.pk)
+        broadcast = self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
+        response = self.fetchJSON(url, "broadcast=%s" % broadcast.id)
 
         expected = {m.pk for m in broadcast.msgs.all()}
         results = {m["id"] for m in response.json()["results"]}

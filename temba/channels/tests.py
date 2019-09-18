@@ -82,8 +82,7 @@ class ChannelTest(TembaTest):
 
         group.contacts.add(*contacts)
 
-        broadcast = Broadcast.create(org, user, message, groups=[group])
-        broadcast.send()
+        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="W")
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
         if len(numbers) == 1:

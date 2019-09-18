@@ -263,22 +263,11 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, high_priority=False):
+    def send(self):
         """
-        Sends this broadcast, taking care of creating multiple jobs to send it if necessary
+        Queues this broadcast for sending by mailroom
         """
-        if settings.TESTING:
-            from temba.msgs.legacy import send_broadcast
-
-            send_broadcast(
-                self,
-                expressions_context=expressions_context,
-                response_to=response_to,
-                msg_type=msg_type,
-                high_priority=high_priority,
-            )
-        else:  # pragma: no cover
-            mailroom.queue_broadcast(self)
+        mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
@@ -300,7 +289,7 @@ class Broadcast(models.Model):
             parent=self,
         )
 
-        broadcast.send(expressions_context={})
+        broadcast.send()
         return broadcast
 
     def get_messages(self):

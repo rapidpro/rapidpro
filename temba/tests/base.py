@@ -21,7 +21,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
@@ -154,13 +154,10 @@ class TembaTestMixin:
             msg_type,
             attachments,
             status,
-            visibility,
             created_on,
-            None,
-            external_id,
-            None,
-            None,
-            surveyor,
+            visibility=visibility,
+            external_id=external_id,
+            surveyor=surveyor,
         )
 
     def create_outgoing_msg(
@@ -188,13 +185,11 @@ class TembaTestMixin:
             msg_type,
             attachments,
             status,
-            Msg.VISIBILITY_VISIBLE,
             created_on,
             sent_on,
-            None,
-            high_priority,
-            response_to,
-            surveyor,
+            high_priority=high_priority,
+            response_to=response_to,
+            surveyor=surveyor,
         )
 
     def _create_msg(
@@ -206,28 +201,37 @@ class TembaTestMixin:
         msg_type,
         attachments,
         status,
-        visibility,
         created_on,
-        sent_on,
-        external_id,
-        high_priority,
-        response_to,
-        surveyor,
+        sent_on=None,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        external_id=None,
+        high_priority=False,
+        response_to=None,
+        surveyor=False,
+        broadcast=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
+
+        org = contact.org
 
         if surveyor:
             contact_urn = None
             channel = None
             topup_id = None
         else:
+            # a simplified version of how channels are chosen
             contact_urn = contact.get_urn()
-            channel = channel or self.channel
-            (topup_id, amount) = contact.org.decrement_credit()
+            if not channel:
+                if contact_urn and contact_urn.channel:
+                    channel = contact_urn.channel
+                else:
+                    channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
+
+            (topup_id, amount) = org.decrement_credit()
 
         return Msg.objects.create(
-            org=contact.org,
+            org=org,
             direction=direction,
             contact=contact,
             contact_urn=contact_urn,
@@ -243,7 +247,32 @@ class TembaTestMixin:
             response_to=response_to,
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
+            broadcast=broadcast,
         )
+
+    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
+        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT)
+
+        contacts = set(bcast.contacts.all())
+        for group in bcast.groups.all():
+            contacts.update(group.contacts.all())
+
+        for contact in contacts:
+            self._create_msg(
+                contact,
+                text,
+                OUTGOING,
+                channel=None,
+                msg_type=INBOX,
+                attachments=(),
+                status=msg_status,
+                created_on=timezone.now(),
+                sent_on=timezone.now(),
+                response_to=response_to,
+                broadcast=bcast,
+            )
+
+        return bcast
 
     def create_inbound_msgs(self, recipient, count):
         for m in range(count):

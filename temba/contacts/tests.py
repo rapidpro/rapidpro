@@ -1114,8 +1114,7 @@ class ContactTest(TembaTest):
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",), handle_update=False)
 
-        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", contacts=[contact])
-        broadcast.send()
+        self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
 
         flow_nodes = msg_flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
