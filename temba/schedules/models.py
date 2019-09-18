@@ -114,7 +114,7 @@ class Schedule(SmartModel):
         else:
             # our start time needs to be in the org timezone so that we always fire at the
             # appropriate hour regardless of timezone / dst changes
-            start_time = start_time.astimezone(tz)
+            start_time = tz.normalize(start_time.astimezone(tz))
 
             self.repeat_hour_of_day = start_time.hour
             self.repeat_minute_of_hour = start_time.minute
