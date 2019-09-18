@@ -3959,7 +3959,8 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe.get_scheduled_messages().count(), 1)
         self.assertTrue(broadcast in self.joe.get_scheduled_messages())
 
-        broadcast.schedule.reset()
+        broadcast.schedule.next_fire = None
+        broadcast.schedule.save(update_fields=["next_fire"])
         self.assertFalse(self.joe.get_scheduled_messages())
 
     def test_contact_update_urns_field(self):
