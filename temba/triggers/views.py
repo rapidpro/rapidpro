@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import regex
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
@@ -21,7 +19,7 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import analytics, json
 from temba.utils.fields import CompletionTextarea
 from temba.utils.views import BaseActionForm
 

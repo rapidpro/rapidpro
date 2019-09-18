@@ -1,6 +1,6 @@
 import calendar
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
 from smartmin.models import SmartModel

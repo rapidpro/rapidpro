@@ -17,7 +17,6 @@ def populate_days_of_week(apps, schema_editor):
             repeat_days_of_week = ""
 
             bitmask_number = bin(s.repeat_days)
-            days = []
             for idx in range(7):
                 power = bin(pow(2, idx + 1))
                 if bin(int(bitmask_number, 2) & int(power, 2)) == power:

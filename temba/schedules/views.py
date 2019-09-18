@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pytz
 from smartmin.views import SmartCRUDL, SmartUpdateView
 
 from django import forms
@@ -9,7 +8,6 @@ from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 
 from temba.orgs.views import OrgPermsMixin
-from temba.utils import on_transaction_commit
 
 from .models import Schedule
 
