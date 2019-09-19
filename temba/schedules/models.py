@@ -65,7 +65,7 @@ class Schedule(SmartModel):
     last_fire = models.DateTimeField(null=True)
 
     # the org this schedule belongs to
-    org = models.ForeignKey("orgs.Org", null=True, on_delete=models.PROTECT)
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="schedules")
 
     # deprecated, to be removed
     repeat_days = models.IntegerField(default=0, null=True)

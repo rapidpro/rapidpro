@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-18 19:24+0000\n"
+"POT-Creation-Date: 2019-09-19 14:47+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -11026,6 +11026,16 @@ msgstr ""
 msgid "More Videos"
 msgstr "Plus de vidéos"
 
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Leave unscheduled"
+msgstr "Créer un planning"
+
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Cancel schedule"
+msgstr "Créer un planning"
+
 msgid "Mon"
 msgstr "Lun"
 
@@ -11046,6 +11056,36 @@ msgstr "Sam"
 
 msgid "Sun"
 msgstr "Dim"
+
+#, fuzzy
+#| msgid "When this message was sent to the endpoint"
+msgid "The next message will be sent "
+msgstr "Lorsque ce message a été envoyé à l'ordinateur d'extrémité"
+
+msgid "It will repeat every"
+msgstr "Il répétera chaque"
+
+msgid "at around the same time."
+msgstr "à peu prés au même moment."
+
+msgid "on the"
+msgstr ""
+
+#, fuzzy
+#| msgid "It will repeat every"
+msgid "It will repeat"
+msgstr "Il répétera chaque"
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+#, fuzzy
+#| msgid "not scheduled"
+msgid "Not scheduled"
+msgstr "pas prévu"
 
 #, fuzzy
 #| msgid "Delete"
@@ -11213,12 +11253,6 @@ msgid ""
 msgstr ""
 "\n"
 "Le prochain message sera envoyé <span class='attn next-fire'/>."
-
-msgid "It will repeat every"
-msgstr "Il répétera chaque"
-
-msgid "at around the same time."
-msgstr "à peu prés au même moment."
 
 msgid "month"
 msgstr "Mois"

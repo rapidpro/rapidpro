@@ -81,8 +81,6 @@ class ScheduleCRUDL(SmartCRUDL):
             schedule.org = self.derive_org()
 
             start_time = form.get_start_time(schedule.org.timezone)
-            print(start_time)
-
             schedule.update_schedule(
                 start_time, form.cleaned_data.get("repeat_period"), form.cleaned_data.get("repeat_days_of_week")
             )

@@ -43,9 +43,13 @@
   #schedule-options
     -if object.get_broadcast
       -if not object.next_fire
-        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked> Leave unscheduled<br/>
+        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked>
+        -trans "Leave unscheduled"
+        <br/>
       -else
-        <input id='stop-option' name='start' type='radio' value='stop'> Cancel schedule<br/>
+        <input id='stop-option' name='start' type='radio' value='stop'>
+        -trans "Cancel schedule"
+        <br/>
 
     <input id='later-option' name='start' type='radio' value='later' {% if object.next_fire %} checked {%endif%}>
     %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
@@ -80,32 +84,38 @@
   -if object.next_fire
     -spaceless
       -if object.get_broadcast
-        The next message will be sent <span class='attn next-fire'></span>.
+        -trans "The next message will be sent "
+        <span class='attn next-fire'></span>.
 
     -if not object.repeat_period == 'O'
       -if object.repeat_period == 'W'
-        It will repeat every
+        -trans "It will repeat every"
         -with object.get_repeat_days_display|length as day_count
           -for day in object.get_repeat_days_display
             {% if forloop.last and day_count > 1 %} and {%endif%}
             %span.attn
               {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
 
-        at around the same time.
+        -trans "at around the same time."
       -elif object.repeat_period == 'M'
-        It will repeat every
+        -trans "It will repeat every"
         %span.attn
           month
-        on the {{ object.repeat_day_of_month|ordinal }}.
+        -trans "on the"
+        {{ object.repeat_day_of_month|ordinal }}.
 
       -else
-        It will repeat
-        <span class='attn'>{{object.get_repeat_period_display|lower}}</span> at around the same time.
+        -trans "It will repeat"
+        <span class='attn'>{{object.get_repeat_period_display|lower}}</span>
+        -trans "at around the same time."
     -else
-      It will <span class='attn'>not repeat</span>.
+      -trans "It will "
+      <span class='attn'>
+      -trans "not repeat"
+      </span>.
 
   -else
-    Not scheduled
+    -trans "Not scheduled"
 
 -block form-buttons
   #form-buttons

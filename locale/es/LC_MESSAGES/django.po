@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-18 19:24+0000\n"
+"POT-Creation-Date: 2019-09-19 14:47+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11212,6 +11212,16 @@ msgstr ""
 msgid "More Videos"
 msgstr "Más videos"
 
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Leave unscheduled"
+msgstr "Crear cronograma"
+
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Cancel schedule"
+msgstr "Crear cronograma"
+
 msgid "Mon"
 msgstr "Lunes"
 
@@ -11232,6 +11242,36 @@ msgstr "Sábado"
 
 msgid "Sun"
 msgstr "Domingo"
+
+#, fuzzy
+#| msgid "When this message was sent to the endpoint"
+msgid "The next message will be sent "
+msgstr "Cuando este mensaje se envió al endpoint"
+
+msgid "It will repeat every"
+msgstr "Será repetido cada"
+
+msgid "at around the same time."
+msgstr "aproximadamente a la misma hora."
+
+msgid "on the"
+msgstr ""
+
+#, fuzzy
+#| msgid "It will repeat every"
+msgid "It will repeat"
+msgstr "Será repetido cada"
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+#, fuzzy
+#| msgid "not scheduled"
+msgid "Not scheduled"
+msgstr "programado"
 
 #, fuzzy
 #| msgid "Delete"
@@ -11397,12 +11437,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "It will repeat every"
-msgstr "Será repetido cada"
-
-msgid "at around the same time."
-msgstr "aproximadamente a la misma hora."
 
 msgid "month"
 msgstr "mes"
