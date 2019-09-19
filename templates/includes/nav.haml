@@ -16,7 +16,7 @@
           -trans "Messages"
         %div.custom-tooltip-separator
         %span.custom-tooltip-description
-          -trans "Manage your inbox of inbound in outbound message"
+          -trans "Manage your inbox of inbound and outbound messages."
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %li.nav-contacts
@@ -32,7 +32,7 @@
           -trans "Contacts"
         %div.custom-tooltip-separator
         %span.custom-tooltip-description
-          -trans "Create and manage your contacts and groups"
+          -trans "Create and manage your contacts and groups."
 
   -if org_perms.flows.flow_list and not request.user.is_superuser
     %li.nav-flows
@@ -48,7 +48,7 @@
           -trans "Flows"
         %div.custom-tooltip-separator
         %span.custom-tooltip-description
-          -trans "Run and keep track of  your messaging flows to 100% completion"
+          -trans "Create and launch flows. Also check the results and progress of your flows."
 
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %li.nav-campaigns
@@ -64,7 +64,7 @@
           -trans "Campaigns"
         %div.custom-tooltip-separator
         %span.custom-tooltip-description
-          -trans "Create campaigns for groups"
+          -trans "Create a series of flows that automatically launch."
 
   -if org_perms.triggers.trigger_list and not request.user.is_superuser
     %li.nav-triggers
@@ -80,7 +80,7 @@
           -trans "Triggers"
         %div.custom-tooltip-separator
         %span.custom-tooltip-description
-          -trans "Create triggers throughout messaging flows"
+          -trans "Create triggers throughout messaging flows."
 
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim
@@ -97,7 +97,7 @@
             -trans "Channels"
           %div.custom-tooltip-separator
           %span.custom-tooltip-description
-            -trans "Connect to channels to send messages"
+            -trans "Connect to channels to send messages."
 
   %li.nav-help
     %a.icon-nav-help{href:"https://help.communityconnectlabs.com/support/home", class:"{% active request 'help' %}", target:"_blank"}
@@ -112,7 +112,7 @@
         -trans "Help"
       %div.custom-tooltip-separator
       %span.custom-tooltip-description
-        -trans "Use our knowledge base to get the most of the Community Connect Labs platform"
+        -trans "Stuck? Check our knowledge base or submit a help ticket for assistance."
 
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
