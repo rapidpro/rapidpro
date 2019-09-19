@@ -2160,6 +2160,7 @@ class OrgCRUDL(SmartCRUDL):
         collection_type = GIFTCARDS
         fields_payload = DEFAULT_FIELDS_PAYLOAD_GIFTCARDS
         indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
+        submit_button_name = _("Save")
 
         def get_form(self):
             form = super().get_form()
@@ -2172,6 +2173,7 @@ class OrgCRUDL(SmartCRUDL):
             context["view_title"] = "Gift Card"
             context["remove_div_title"] = "giftcard"
             context["view_url"] = reverse("orgs.org_giftcards")
+            context["icon_slug"] = "icon-credit-2"
             return context
 
         @staticmethod
@@ -2244,7 +2246,6 @@ class OrgCRUDL(SmartCRUDL):
                             self.object.remove_collection_from_org(
                                 user=self.request.user, index=index, collection_type=self.collection_type
                             )
-
             return super().pre_save(obj)
 
     class Lookups(Giftcards):
@@ -2268,6 +2269,7 @@ class OrgCRUDL(SmartCRUDL):
         collection_type = LOOKUPS
         fields_payload = DEFAULT_FIELDS_PAYLOAD_LOOKUPS
         indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
+        submit_button_name = _("Save")
 
         def get_form(self):
             form = super(OrgCRUDL.Lookups, self).get_form()
@@ -2280,6 +2282,7 @@ class OrgCRUDL(SmartCRUDL):
             context["view_title"] = "Lookup"
             context["remove_div_title"] = "lookup"
             context["view_url"] = reverse("orgs.org_lookups")
+            context["icon_slug"] = "icon-filter"
             return context
 
     class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
