@@ -613,6 +613,7 @@ class OrgCRUDL(SmartCRUDL):
         "transfer_to_account",
         "smtp_server",
         "giftcards",
+        "lookups",
     )
 
     model = Org
@@ -2155,6 +2156,7 @@ class OrgCRUDL(SmartCRUDL):
     class Giftcards(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         form_class = GiftcardsForm
         success_message = ""
+        success_url = "@orgs.org_giftcards"
         collection_type = GIFTCARDS
         fields_payload = DEFAULT_FIELDS_PAYLOAD_GIFTCARDS
         indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
@@ -2244,6 +2246,41 @@ class OrgCRUDL(SmartCRUDL):
                             )
 
             return super().pre_save(obj)
+
+    class Lookups(Giftcards):
+        class LookupsForm(GiftcardsForm):
+            def clean_collection(self):
+                new_collection = self.data.get("collection")
+
+                if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Lookups.collection_type):
+                    raise ValidationError("This collection name has already been used")
+
+                return new_collection[:30] if new_collection else None
+
+            class Meta:
+                model = Org
+                fields = ("id", "collection", "remove", "index")
+
+        form_class = LookupsForm
+        success_message = ""
+        success_url = "@orgs.org_lookups"
+        default_template = "orgs/org_giftcards.html"
+        collection_type = LOOKUPS
+        fields_payload = DEFAULT_FIELDS_PAYLOAD_LOOKUPS
+        indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
+
+        def get_form(self):
+            form = super(OrgCRUDL.Lookups, self).get_form()
+            self.current_collections = form.add_collection_fields(collection_type=self.collection_type)
+            return form
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Lookups, self).get_context_data(**kwargs)
+            context["current_collections"] = self.current_collections
+            context["view_title"] = "Lookup"
+            context["remove_div_title"] = "lookup"
+            context["view_url"] = reverse("orgs.org_lookups")
+            return context
 
     class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class TokenForm(forms.ModelForm):

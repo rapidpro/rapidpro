@@ -362,6 +362,46 @@ class Org(SmartModel):
     def get_brand_domain(self):
         return self.get_branding()["domain"]
 
+    def get_collections(self, collection_type=GIFTCARDS):
+        """
+        Returns the collections (gift cards or lookup) configured on this Org
+        """
+        if self.config:
+            return self.config.get(collection_type, [])
+        return []
+
+    def remove_collection_from_org(self, user, index, collection_type=GIFTCARDS):
+        """
+        Remove collections (giftcards or lookup) configured on this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+
+        if collections:
+            collections.pop(index)
+
+        config = self.config
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
+    def add_collection_to_org(self, user, name, collection_type=GIFTCARDS):
+        """
+        Add a collection (giftcards or lookup) to this Org
+        """
+        collections = self.get_collections(collection_type=collection_type)
+        config = self.config
+
+        if collections:
+            collections.append(name)
+        else:
+            collections = [name]
+
+        config[collection_type] = collections
+        self.config = config
+        self.modified_by = user
+        self.save(update_fields=["config"])
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock
