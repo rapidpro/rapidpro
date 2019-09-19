@@ -1097,7 +1097,7 @@ class ContactTest(TembaTest):
     def test_release(self):
         # create a contact with a message
         old_contact = self.create_contact("Jose", "+12065552000")
-        self.create_msg(contact=old_contact, direction="I", text="hola mundo")
+        self.create_incoming_msg(old_contact, "hola mundo")
         urn = old_contact.get_urn()
 
         ivr_flow = self.get_flow("ivr")
@@ -1114,8 +1114,7 @@ class ContactTest(TembaTest):
         contact.fields = {"gender": "Male", "age": 40}
         contact.save(update_fields=("fields",), handle_update=False)
 
-        broadcast = Broadcast.create(self.org, self.admin, "Test Broadcast", contacts=[contact])
-        broadcast.send()
+        self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
 
         flow_nodes = msg_flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
@@ -1131,12 +1130,12 @@ class ContactTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=contact, direction="I", text="red"))
+            .resume(msg=self.create_incoming_msg(contact, "red"))
             .visit(beer_prompt)
             .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
             .visit(beer_split)
             .wait()
-            .resume(msg=self.create_msg(contact=contact, direction="I", text="primus"))
+            .resume(msg=self.create_incoming_msg(contact, "primus"))
             .visit(name_prompt)
             .send_msg("Lastly, what is your name?", self.channel)
             .visit(name_split)
@@ -1211,11 +1210,9 @@ class ContactTest(TembaTest):
         self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
 
     def test_fail_and_block_and_release(self):
-        msg1 = self.create_msg(text="Test 1", direction="I", contact=self.joe, msg_type="I", status="H")
-        msg2 = self.create_msg(text="Test 2", direction="I", contact=self.joe, msg_type="F", status="H")
-        msg3 = self.create_msg(
-            text="Test 3", direction="I", contact=self.joe, msg_type="I", status="H", visibility="A"
-        )
+        msg1 = self.create_incoming_msg(self.joe, "Test 1", msg_type="I")
+        msg2 = self.create_incoming_msg(self.joe, "Test 2", msg_type="F")
+        msg3 = self.create_incoming_msg(self.joe, "Test 3", msg_type="I", visibility="A")
         label = Label.get_or_create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         static_group = self.create_group("Just Joe", [self.joe])
@@ -3411,7 +3408,7 @@ class ContactTest(TembaTest):
         )
 
         # lookup by message ids
-        msg = self.create_msg(direction="I", contact=self.joe, text="some message")
+        msg = self.create_incoming_msg(self.joe, "some message")
         self.assertEqual(
             omnibox_request("m=%d" % msg.pk), [dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80")]
         )
@@ -3530,10 +3527,9 @@ class ContactTest(TembaTest):
             self.create_campaign()
 
             # add a message with some attachments
-            self.create_msg(
-                direction="I",
-                contact=self.joe,
-                text="Message caption",
+            self.create_incoming_msg(
+                self.joe,
+                "Message caption",
                 created_on=timezone.now(),
                 attachments=[
                     "audio/mp3:http://blah/file.mp3",
@@ -3544,20 +3540,14 @@ class ContactTest(TembaTest):
 
             # create some messages
             for i in range(97):
-                self.create_msg(
-                    direction="I",
-                    contact=self.joe,
-                    text="Inbound message %d" % i,
-                    created_on=timezone.now() - timedelta(days=(100 - i)),
+                self.create_incoming_msg(
+                    self.joe, "Inbound message %d" % i, created_on=timezone.now() - timedelta(days=(100 - i))
                 )
 
             # because messages are stored with timestamps from external systems, possible to have initial message
             # which is little bit older than the contact itself
-            self.create_msg(
-                direction="I",
-                contact=self.joe,
-                text="Very old inbound message",
-                created_on=self.joe.created_on - timedelta(seconds=10),
+            self.create_incoming_msg(
+                self.joe, "Very old inbound message", created_on=self.joe.created_on - timedelta(seconds=10)
             )
 
             flow = self.get_flow("color_v13")
@@ -3679,7 +3669,7 @@ class ContactTest(TembaTest):
             self.assertEqual(activity[5]["obj"].text, "What is your favorite color?")
 
             # if a new message comes in
-            self.create_msg(direction="I", contact=self.joe, text="Newer message")
+            self.create_incoming_msg(self.joe, "Newer message")
             response = self.fetch_protected(url, self.admin)
 
             # now we'll see the message that just came in first, followed by the call event
@@ -3821,7 +3811,7 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         contact = self.create_contact("Joe Blow", "tel:+1234")
-        msg = Msg.create_incoming(self.channel, "tel:+1234", "Inbound message")
+        msg = self.create_incoming_msg(contact, "Inbound message")
 
         flow = self.get_flow("color_v13")
         nodes = flow.as_json()["nodes"]
@@ -3980,9 +3970,7 @@ class ContactTest(TembaTest):
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
 
         for i in range(5):
-            self.create_msg(
-                direction="I", contact=self.joe, text="some msg no %d 2 send in sms language if u wish" % i
-            )
+            self.create_incoming_msg(self.joe, f"some msg no {i} 2 send in sms language if u wish")
             i += 1
 
         self.create_campaign()
@@ -4220,11 +4208,7 @@ class ContactTest(TembaTest):
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
 
         # viewer cannot remove Joe from the group
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["label"] = self.just_joe.id
-        post_data["objects"] = self.joe.id
-        post_data["add"] = False
+        post_data = {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}
 
         # no change
         self.client.post(list_url, post_data, follow=True)
@@ -4282,25 +4266,19 @@ class ContactTest(TembaTest):
         self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["label"] = self.just_joe.id
-        post_data["objects"] = self.joe.id
-        post_data["add"] = False
+        self.client.post(
+            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
+        )
 
         # check the Joe is only removed from just_joe only and is still in joe_and_frank
-        self.client.post(list_url, post_data, follow=True)
         self.assertEqual(len(self.just_joe.contacts.all()), 0)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
 
-        # Now add back Joe to the group
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["label"] = self.just_joe.id
-        post_data["objects"] = self.joe.id
-        post_data["add"] = True
+        # now add back Joe to the group
+        self.client.post(
+            list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
+        )
 
-        self.client.post(list_url, post_data, follow=True)
         self.assertEqual(len(self.just_joe.contacts.all()), 1)
         self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
@@ -4311,25 +4289,16 @@ class ContactTest(TembaTest):
         # now test when the action with some data missing
         self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["objects"] = self.joe.id
-        post_data["add"] = True
-        self.client.post(joe_and_frank_filter_url, post_data)
+        self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": True})
+
         self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        post_data = dict()
-        post_data["action"] = "unlabel"
-        post_data["objects"] = self.joe.id
-        post_data["add"] = True
-        self.client.post(joe_and_frank_filter_url, post_data)
+        self.client.post(joe_and_frank_filter_url, {"action": "unlabel", "objects": self.joe.id, "add": True})
+
         self.assertEqual(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        # Now block Joe
-        post_data = dict()
-        post_data["action"] = "block"
-        post_data["objects"] = self.joe.id
-        self.client.post(list_url, post_data, follow=True)
+        # now block Joe
+        self.client.post(list_url, {"action": "block", "objects": self.joe.id}, follow=True)
 
         self.joe = Contact.objects.filter(pk=self.joe.pk)[0]
         self.assertEqual(self.joe.is_blocked, True)
@@ -4349,24 +4318,8 @@ class ContactTest(TembaTest):
         self.assertEqual(1, len(response.context["object_list"]))
         self.assertEqual(1, response.context["object_list"].count())  # from ContactGroupCount
 
-        # receiving an incoming message removes us from stopped
-        Msg.create_incoming(self.channel, str(self.frank.get_urn("tel")), "Incoming message")
-
-        response = self.client.get(stopped_url)
-        self.assertEqual(0, len(response.context["object_list"]))
-        self.assertEqual(0, response.context["object_list"].count())  # from ContactGroupCount
-
-        self.frank.refresh_from_db()
-        self.assertFalse(self.frank.is_stopped)
-
-        # mark frank stopped again
-        self.frank.stop(self.user)
-
         # have the user unstop them
-        post_data = dict()
-        post_data["action"] = "unstop"
-        post_data["objects"] = self.frank.id
-        self.client.post(stopped_url, post_data, follow=True)
+        self.client.post(stopped_url, {"action": "unstop", "objects": self.frank.id}, follow=True)
 
         response = self.client.get(stopped_url)
         self.assertEqual(0, len(response.context["object_list"]))
@@ -6460,15 +6413,6 @@ class ContactTest(TembaTest):
 
         # it'll come back as the highest priority
         self.assertEqual("bob@marley.com", urns[0].path)
-
-        # but not the highest 'sendable' urn
-        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
-        self.assertEqual(urn.path, "789")
-
-        # swap our phone numbers
-        bob.update_urns(self.user, ["mailto:bob@marley.com", "tel:456", "tel:789"])
-        contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
-        self.assertEqual(urn.path, "456")
 
     def test_update_handling(self):
         bob = self.create_contact("Bob", "111222")

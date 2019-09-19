@@ -61,21 +61,21 @@ class RecalcNodeCountsTest(TembaTest):
         check_node_count_rebuild(flow, 3)
 
         (
-            session1.resume(self.create_msg(text="Blue", contact=contact1, direction="I"))
+            session1.resume(self.create_incoming_msg(contact1, "Blue"))
             .visit(beer_prompt)
             .visit(beer_split)
             .wait()
             .save()
         )
         (
-            session2.resume(self.create_msg(text="Beige", contact=contact2, direction="I"))
+            session2.resume(self.create_incoming_msg(contact2, "Beige"))
             .visit(color_other)
             .visit(color_split)
             .wait()
             .save()
         )
         (
-            session3.resume(self.create_msg(text="Amber", contact=contact3, direction="I"))
+            session3.resume(self.create_incoming_msg(contact3, "Amber"))
             .visit(color_other)
             .visit(color_split)
             .wait()
@@ -85,21 +85,21 @@ class RecalcNodeCountsTest(TembaTest):
         check_node_count_rebuild(flow, 3)
 
         (
-            session1.resume(self.create_msg(text="Primus", contact=contact1, direction="I"))
+            session1.resume(self.create_incoming_msg(contact1, "Primus"))
             .visit(name_prompt)
             .visit(name_split)
             .wait()
             .save()
         )
         (
-            session2.resume(self.create_msg(text="Orange", contact=contact2, direction="I"))
+            session2.resume(self.create_incoming_msg(contact2, "Orange"))
             .visit(color_other)
             .visit(color_split)
             .wait()
             .save()
         )
         (
-            session3.resume(self.create_msg(text="Amber", contact=contact3, direction="I"))
+            session3.resume(self.create_incoming_msg(contact3, "Amber"))
             .visit(color_other)
             .visit(color_split)
             .wait()
@@ -109,11 +109,6 @@ class RecalcNodeCountsTest(TembaTest):
         check_node_count_rebuild(flow, 3)
 
         # contact1 replies with name to complete the flow
-        (
-            session1.resume(self.create_msg(text="Bob", contact=contact1, direction="I"))
-            .visit(name_reply)
-            .complete()
-            .save()
-        )
+        (session1.resume(self.create_incoming_msg(contact1, "Bob")).visit(name_reply).complete().save())
 
         check_node_count_rebuild(flow, 2)

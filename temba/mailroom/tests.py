@@ -147,8 +147,7 @@ class MailroomQueueTest(TembaTest):
             base_language="eng",
         )
 
-        with override_settings(TESTING=False):
-            bcast.send()
+        bcast.send()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
