@@ -1,5 +1,5 @@
 import { customElement, property, LitElement, TemplateResult, html, css } from 'lit-element';
-
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 @customElement("rp-icon")
 export default class VectorIcon extends LitElement {
@@ -28,19 +28,15 @@ export default class VectorIcon extends LitElement {
   hoverColor: string = "#666";
 
   public render(): TemplateResult {
-    return html`
-    <style>
-      svg:hover {
-        fill:${this.hoverColor};
-      }
 
-      svg {
-        fill:${this.color};
-        width:${this.size}px;
-        height:${this.size}px;
-      }
-    </style>
-    <svg class="icon icon-${this.name}">
+    const svgStyle = {
+      fill: `${this.color}`,
+      width: `${this.size}px`,
+      height:`${this.size}px`,
+    }
+
+    return html`
+    <svg class="icon icon-${this.name}" style=${styleMap(svgStyle)}>
       <use href="${this.prefix}icon-${this.name}"></use>
     </svg>
     `;

@@ -1,11 +1,6 @@
 <!doctype html>
 <html>
-  <head>
-    <script>
-      
-    </script>
-
-  </head>
+  <head></head>
   <body>
     <link rel="stylesheet" href="/sitestatic/fonts/temba/style.css">
     <style>
@@ -78,25 +73,27 @@
       }
     </style>
 
-    <alias-editor
+    <!-- alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
-    ></alias-editor>
+    ></alias-editor-->
 
     <!-- rp-select 
       placeholder="Search" 
       endpoint="/adminboundary/boundaries/192787/?q="
     ></rp-select -->
 
-    <!--
-    <div style="width: 30%">
+    <div style="width:60%">
       <rp-completion 
+        style="height:250px"
         placeholder="This is a placeholder"
         completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
         functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
-        fieldsEndpoint="http://localhost:8888/api/v2/fields.json">
+        fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
+        textarea>
       </rp-completion>
     </div>
+    <!--
     <div style="width: 100%">
       <rp-completion 
         placeholder="This is a placeholder"
@@ -116,7 +113,7 @@
       primaryButtonName="Give Up"
     >
       <div style="position:relative">
-        <div style=" padding:20px; max-height: 150px; overflow-y: scroll;">
+        <div style="padding:20px; max-height: 150px; overflow-y: scroll;">
           <rp-completion 
             completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
             functionsEndpoint="http://localhost:8888/mr/docs/functions.json"

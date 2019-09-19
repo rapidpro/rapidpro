@@ -108,8 +108,10 @@
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:"text/coffeescript"}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:"text/coffeescript"}
 
-    %script{src:"{{STATIC_URL}}components/rp-components.js"}
-  
+    
+    %script{src:"https://unpkg.com/@webcomponents/webcomponentsjs@2.2.10/bundles/webcomponents-sd-ce.js"}
+    %script{src:"{{ STATIC_URL }}components/rp-components.js"}
+
     -include "includes/frame_top.html"
 
     -if brand.favico
