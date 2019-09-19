@@ -17,7 +17,7 @@ class DashboardTest(TembaTest):
     def create_activity(self):
 
         # and some message and call activity
-        joe = self.create_contact("Joe", twitter="joe")
+        joe = self.create_contact("Joe", number="+593979099111")
         self.create_outgoing_msg(joe, "Tea of coffee?")
         self.create_incoming_msg(joe, "Coffee")
         self.create_outgoing_msg(joe, "OK")

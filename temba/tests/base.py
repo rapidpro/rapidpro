@@ -160,6 +160,10 @@ class TembaTestMixin:
             surveyor=surveyor,
         )
 
+    def create_incoming_msgs(self, contact, count):
+        for m in range(count):
+            self.create_incoming_msg(contact, f"Test {m}")
+
     def create_outgoing_msg(
         self,
         contact,
@@ -273,10 +277,6 @@ class TembaTestMixin:
             )
 
         return bcast
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_incoming_msg(recipient, f"Test {m}")
 
     def create_flow(self, definition=None, **kwargs):
         if "org" not in kwargs:

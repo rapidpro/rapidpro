@@ -1334,7 +1334,7 @@ class OrgTest(TembaTest):
         welcome_topup = TopUp.objects.get()
 
         # send some messages with a valid topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
         self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
         self.assertEqual(990, self.org.get_credits_remaining())
 
@@ -1345,7 +1345,7 @@ class OrgTest(TembaTest):
 
         # we should have no credits remaining since we expired
         self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_inbound_msgs(contact, 5)
+        self.create_incoming_msgs(contact, 5)
 
         # those messages are waiting to send
         self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
@@ -1365,7 +1365,7 @@ class OrgTest(TembaTest):
         TopUp.create(self.admin, price=0, credits=1000)
 
         # send some messages with a valid topup
-        self.create_inbound_msgs(contact, 2200)
+        self.create_incoming_msgs(contact, 2200)
 
         self.assertEqual(300, self.org.get_low_credits_threshold())
 
@@ -1376,7 +1376,7 @@ class OrgTest(TembaTest):
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         welcome_topup = TopUp.objects.get()
 
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         with self.assertNumQueries(3):
             self.assertEqual(150, self.org.get_low_credits_threshold())
@@ -1414,7 +1414,7 @@ class OrgTest(TembaTest):
         self.assertEqual(5, self.org.get_credits_remaining())
 
         # create 10 more messages, only 5 of which will get a topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         welcome_topup.refresh_from_db()
         self.assertEqual(15, welcome_topup.msgs.count())
@@ -1430,7 +1430,7 @@ class OrgTest(TembaTest):
             self.assertEqual(-5, self.org.get_credits_remaining())
 
         # again create 10 more messages, none of which will get a topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         with self.assertNumQueries(0):
             self.assertEqual(15, self.org.get_credits_total())
