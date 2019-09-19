@@ -220,7 +220,7 @@ class ScheduleTest(TembaTest):
 
             next_fire = sched.next_fire
             for next in tc["next"]:
-                next_fire = Schedule.get_next_fire(sched, next_fire, now=next_fire)
+                next_fire = Schedule.get_next_fire(sched, next_fire)
                 expected_next = tz.localize(next)
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 

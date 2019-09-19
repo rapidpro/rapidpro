@@ -129,7 +129,7 @@ class Schedule(SmartModel):
 
             # for recurring schedules if the start time is in the past, calculate our next fire and set that
             if start_time < now:
-                self.next_fire = Schedule.get_next_fire(self, start_time, now=now)
+                self.next_fire = Schedule.get_next_fire(self, now)
             else:
                 self.next_fire = start_time
 
@@ -144,12 +144,10 @@ class Schedule(SmartModel):
             return self.trigger
 
     @classmethod
-    def get_next_fire(cls, schedule, trigger_date, now):
+    def get_next_fire(cls, schedule, now):
         """
         Get the next point in the future when our schedule should fire again. Note this should only be called to find
         the next scheduled event as it will force the next date to meet the criteria in day_of_month, days_of_week etc..
-
-        The first fire for a schedule can violate these so next_fire should be set directly when it is in the future.
         """
         if schedule.repeat_period == Schedule.REPEAT_NEVER:
             return None
@@ -160,7 +158,7 @@ class Schedule(SmartModel):
         minute = schedule.repeat_minute_of_hour
 
         # start from the trigger date
-        next_fire = trigger_date.astimezone(tz)
+        next_fire = now.astimezone(tz)
         next_fire = tz.normalize(next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0))
 
         # if monthly, set to the day of the month scheduled and move forward until we are in the future
@@ -218,7 +216,7 @@ class Schedule(SmartModel):
         self.last_fire = now
 
         # schedule our next fire
-        self.next_fire = Schedule.get_next_fire(self, self.next_fire, now=now)
+        self.next_fire = Schedule.get_next_fire(self, now)
 
         # save our last fire and next fire (if any)
         self.save(update_fields=["next_fire", "last_fire"])
