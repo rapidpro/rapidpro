@@ -101,6 +101,40 @@ CHATBASE_TYPE_USER = "user"
 CHATBASE_FEEDBACK = "CHATBASE_FEEDBACK"
 CHATBASE_VERSION = "CHATBASE_VERSION"
 
+GIFTCARDS = 'GIFTCARDS'
+LOOKUPS = 'LOOKUPS'
+
+DEFAULT_FIELDS_PAYLOAD_GIFTCARDS = {
+    "active": {
+        "type": "Boolean"
+    },
+    "egiftnumber": {
+        "type": "String"
+    },
+    "url": {
+        "type": "String"
+    },
+    "short_url": {
+        "type": "String"
+    },
+    "challengecode": {
+        "type": "String"
+    },
+    "identifier": {
+        "type": "String"
+    }
+}
+
+DEFAULT_FIELDS_PAYLOAD_LOOKUPS = {}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS = {
+    "IndexIdentifier": {
+        "identifier": 1
+    }
+}
+
+DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS = {}
+
 ORG_STATUS = "STATUS"
 SUSPENDED = "suspended"
 RESTORED = "restored"

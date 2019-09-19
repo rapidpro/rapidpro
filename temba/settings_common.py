@@ -358,6 +358,7 @@ PERMISSIONS = {
         "edit",
         "edit_sub_org",
         "export",
+        "giftcards",
         "grant",
         "home",
         "import",
@@ -560,6 +561,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_edit",
         "orgs.org_edit_sub_org",
         "orgs.org_export",
+        "orgs.org_giftcards",
         "orgs.org_home",
         "orgs.org_import",
         "orgs.org_languages",
@@ -1109,3 +1111,9 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # Maximum active ContactFields users can have in an Org
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+
+# Parse configuration
+PARSE_SERVER_NAME = ""
+PARSE_URL = ""
+PARSE_APP_ID = ""
+PARSE_MASTER_KEY = ""

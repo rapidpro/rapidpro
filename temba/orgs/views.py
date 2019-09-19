@@ -73,6 +73,12 @@ from .models import (
     TRANSFERTO_ACCOUNT_LOGIN,
     TRANSFERTO_AIRTIME_API_TOKEN,
     WHITELISTED,
+    GIFTCARDS,
+    LOOKUPS,
+    DEFAULT_FIELDS_PAYLOAD_GIFTCARDS,
+    DEFAULT_FIELDS_PAYLOAD_LOOKUPS,
+    DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS,
+    DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS,
     Invitation,
     Org,
     OrgCache,
@@ -342,6 +348,35 @@ class OrgGrantForm(forms.ModelForm):
         fields = "__all__"
 
 
+class GiftcardsForm(forms.ModelForm):
+    collection = forms.CharField(required=False, label=_("New Collection"),
+                                 max_length=30,
+                                 help_text="Enter a name for your collection. ex: my gifts, new lookup table")
+    remove = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
+    index = forms.CharField(widget=forms.HiddenInput, max_length=10, required=False)
+
+    def add_collection_fields(self, collection_type):
+        collections = []
+
+        for collection in self.instance.get_collections(collection_type=collection_type):
+            collections.append(dict(collection=collection))
+
+        self.fields = OrderedDict(self.fields.items())
+        return collections
+
+    def clean_collection(self):
+        new_collection = self.data.get('collection')
+
+        if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Giftcards.collection_type):
+            raise ValidationError("This collection name has already been used")
+
+        return new_collection[:30] if new_collection else None
+
+    class Meta:
+        model = Org
+        fields = ('id', 'collection', 'remove', 'index')
+
+
 class UserCRUDL(SmartCRUDL):
     model = User
     actions = ("list", "edit", "delete")
@@ -574,6 +609,7 @@ class OrgCRUDL(SmartCRUDL):
         "transfer_credits",
         "transfer_to_account",
         "smtp_server",
+        "giftcards",
     )
 
     model = Org
@@ -2110,6 +2146,93 @@ class OrgCRUDL(SmartCRUDL):
             for resthook in self.current_resthooks:
                 if self.form.data.get(resthook["field"]):
                     resthook["resthook"].release(self.request.user)
+
+            return super().pre_save(obj)
+
+    class Giftcards(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        form_class = GiftcardsForm
+        success_message = ""
+        collection_type = GIFTCARDS
+        fields_payload = DEFAULT_FIELDS_PAYLOAD_GIFTCARDS
+        indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
+
+        def get_form(self):
+            form = super().get_form()
+            self.current_collections = form.add_collection_fields(collection_type=self.collection_type)
+            return form
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Giftcards, self).get_context_data(**kwargs)
+            context["current_collections"] = self.current_collections
+            context["view_title"] = "Gift Card"
+            context["remove_div_title"] = "giftcard"
+            context["view_url"] = reverse("orgs.org_giftcards")
+            return context
+
+        @staticmethod
+        def get_collection_full_name(org_slug, org_id, name, collection_type=str(GIFTCARDS).lower()):
+            from django.template.defaultfilters import slugify
+
+            slug_new_collection = slugify(name)
+            collection_full_name = f"{settings.PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{slug_new_collection}"
+            collection_full_name = collection_full_name.replace("-", "")
+
+            return collection_full_name
+
+        def pre_save(self, obj):
+            new_collection = self.form.data.get("collection")
+            headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                "Content-Type": "application/json"
+            }
+
+            if new_collection:
+                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(org_slug=self.object.slug,
+                                                                                   org_id=self.object.id,
+                                                                                   name=new_collection,
+                                                                                   collection_type=str(
+                                                                                       self.collection_type).lower())
+                url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
+                data = {
+                    "className": collection_full_name,
+                    "fields": self.fields_payload,
+                    "indexes": self.indexes_payload
+                }
+                response = requests.post(url, data=json.dumps(data), headers=headers)
+                if response.status_code == 200:
+                    self.object.add_collection_to_org(user=self.request.user, name=new_collection,
+                                                      collection_type=self.collection_type)
+
+            remove = self.form.data.get("remove", "false") == "true"
+            index = self.form.data.get("index", None)
+
+            if remove and index:
+                index = int(index)
+                collections = self.object.get_collections(collection_type=self.collection_type)
+
+                try:
+                    collection = collections[index]
+                except Exception:
+                    messages.error(self.request, _("Collection not found"))
+                    collection = None
+
+                if collection:
+                    collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(org_slug=self.object.slug,
+                                                                                       org_id=self.object.id,
+                                                                                       name=collection,
+                                                                                       collection_type=str(
+                                                                                           self.collection_type).lower())
+                    url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
+                    purge_url = f"{settings.PARSE_URL}/purge/{collection_full_name}"
+
+                    response_purge = requests.delete(purge_url, headers=headers)
+                    if response_purge.status_code in [200, 404]:
+                        response = requests.delete(url, headers=headers)
+
+                        if response.status_code == 200:
+                            self.object.remove_collection_from_org(user=self.request.user, index=index,
+                                                                   collection_type=self.collection_type)
 
             return super().pre_save(obj)
 
