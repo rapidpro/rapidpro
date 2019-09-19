@@ -1,14 +1,10 @@
-import inspect
 import shutil
 from datetime import datetime, timedelta
-from unittest import skipIf
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytz
 import redis
 import regex
-from future.moves.html.parser import HTMLParser
 from requests.structures import CaseInsensitiveDict
 from smartmin.tests import SmartminTest
 
@@ -17,123 +13,22 @@ from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test.runner import DiscoverRunner
-from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowRevision, FlowRun, FlowSession, RuleSet, clear_flow_users
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import INCOMING, Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
 
 
-class TembaTestRunner(DiscoverRunner):
-    """
-    Adds the ability to exclude tests in given packages to the default test runner
-    """
-
-    def __init__(self, *args, **kwargs):
-        settings.TESTING = True
-
-        super().__init__(*args, **kwargs)
-
-    def build_suite(self, *args, **kwargs):
-        suite = super().build_suite(*args, **kwargs)
-        excluded = getattr(settings, "TEST_EXCLUDE", [])
-        if not getattr(settings, "RUN_ALL_TESTS", False):
-            tests = []
-            for case in suite:
-                pkg = case.__class__.__module__.split(".")[0]
-                if pkg not in excluded:
-                    tests.append(case)
-            suite._tests = tests
-        return suite
-
-    def run_suite(self, suite, **kwargs):
-
-        return super().run_suite(suite, **kwargs)
-
-
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
-
-
-def skip_if_no_mailroom(test):
-    """
-    Skip a test if mailroom isn't configured
-    """
-    return skipIf(not settings.MAILROOM_URL, "this test can't be run without a mailroom instance")(test)
-
-
-def uses_legacy_engine(test):
-    """
-    Allow use of legacy engine with this test
-    """
-    return override_settings(USES_LEGACY_ENGINE=True)(test)
-
-
-class ESMockWithScroll:
-    def __init__(self, data=None):
-        self.mock_es = patch("temba.utils.es.ES")
-
-        self.data = data if data is not None else []
-
-    def __enter__(self):
-        patched_object = self.mock_es.start()
-
-        patched_object.search.return_value = {
-            "_shards": {"failed": 0, "successful": 10, "total": 10},
-            "timed_out": False,
-            "took": 1,
-            "_scroll_id": "1",
-            "hits": {"hits": self.data},
-        }
-        patched_object.scroll.return_value = {
-            "_shards": {"failed": 0, "successful": 10, "total": 10},
-            "timed_out": False,
-            "took": 1,
-            "_scroll_id": "1",
-            "hits": {"hits": []},
-        }
-
-        return patched_object()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.mock_es.stop()
-
-
-class ESMockWithScrollMultiple(ESMockWithScroll):
-    def __enter__(self):
-        patched_object = self.mock_es.start()
-
-        patched_object.search.side_effect = [
-            {
-                "_shards": {"failed": 0, "successful": 10, "total": 10},
-                "timed_out": False,
-                "took": 1,
-                "_scroll_id": "1",
-                "hits": {"hits": return_value},
-            }
-            for return_value in self.data
-        ]
-        patched_object.scroll.side_effect = [
-            {
-                "_shards": {"failed": 0, "successful": 10, "total": 10},
-                "timed_out": False,
-                "took": 1,
-                "_scroll_id": "1",
-                "hits": {"hits": []},
-            }
-            for _ in range(len(self.data))
-        ]
-
-        return patched_object()
 
 
 class TembaTestMixin:
@@ -172,35 +67,6 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def update_action_field(self, flow, action_uuid, key, value):
-        action_json = self.get_action_json(flow, action_uuid)
-        action_json[key] = value
-        self.update_action_json(flow, action_json)
-
-    def update_action_json(self, flow, action_json):
-        """
-        Given an action json_dict, replaces the existing action by uuid
-        """
-        flowdef = flow.as_json()
-        for i, actionset in enumerate(flowdef["action_sets"]):
-            for j, prev_action in enumerate(actionset["actions"]):
-                if action_json["uuid"] == prev_action["uuid"]:
-                    flowdef["action_sets"][i]["actions"][j] = action_json
-                    flow.update(flowdef, self.admin)
-                    return
-        self.fail("Couldn't find action with uuid %s" % action_json["uuid"])
-
-    def get_action_json(self, flow, uuid):
-        """
-        Gets the action json dict from the given flow
-        """
-        flowdef = flow.as_json()
-        for actionset in flowdef["action_sets"]:
-            for action in actionset["actions"]:
-                if action["uuid"] == uuid:
-                    return action
-        self.fail("Couldn't find action with uuid %s" % uuid)
-
     def get_flow(self, filename, substitutions=None):
         now = timezone.now()
 
@@ -217,20 +83,6 @@ class TembaTestMixin:
     def get_flow_json(self, filename, substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
-
-    def create_secondary_org(self, topup_size=None):
-        self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(
-            name="Trileet Inc.",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro.io",
-            created_by=self.admin2,
-            modified_by=self.admin2,
-        )
-        self.org2.administrators.add(self.admin2)
-        self.admin2.set_org(self.org)
-
-        self.org2.initialize(topup_size=topup_size)
 
     def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, **kwargs):
         """
@@ -276,19 +128,155 @@ class TembaTestMixin:
             org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
         )
 
-    def create_msg(self, **kwargs):
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "channel" not in kwargs:
-            kwargs["channel"] = self.channel
-        if "contact_urn" not in kwargs:
-            kwargs["contact_urn"] = kwargs["contact"].get_urn()
-        if "created_on" not in kwargs:
-            kwargs["created_on"] = timezone.now()
+    def create_incoming_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=None,
+        attachments=(),
+        status=HANDLED,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        created_on=None,
+        external_id=None,
+        surveyor=False,
+    ):
+        assert not msg_type or status != PENDING, "pending messages don't have a msg type"
 
-        (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
+        if status == HANDLED and not msg_type:
+            msg_type = INBOX
 
-        return Msg.objects.create(**kwargs)
+        return self._create_msg(
+            contact,
+            text,
+            INCOMING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            created_on,
+            visibility=visibility,
+            external_id=external_id,
+            surveyor=surveyor,
+        )
+
+    def create_incoming_msgs(self, contact, count):
+        for m in range(count):
+            self.create_incoming_msg(contact, f"Test {m}")
+
+    def create_outgoing_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=INBOX,
+        attachments=(),
+        status=SENT,
+        created_on=None,
+        sent_on=None,
+        high_priority=False,
+        response_to=None,
+        surveyor=False,
+    ):
+        if status == SENT and not sent_on:
+            sent_on = timezone.now()
+
+        return self._create_msg(
+            contact,
+            text,
+            OUTGOING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            created_on,
+            sent_on,
+            high_priority=high_priority,
+            response_to=response_to,
+            surveyor=surveyor,
+        )
+
+    def _create_msg(
+        self,
+        contact,
+        text,
+        direction,
+        channel,
+        msg_type,
+        attachments,
+        status,
+        created_on,
+        sent_on=None,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        external_id=None,
+        high_priority=False,
+        response_to=None,
+        surveyor=False,
+        broadcast=None,
+    ):
+        assert not (surveyor and channel), "surveyor messages don't have channels"
+        assert not channel or channel.org == contact.org, "channel belong to different org than contact"
+
+        org = contact.org
+
+        if surveyor:
+            contact_urn = None
+            channel = None
+            topup_id = None
+        else:
+            # a simplified version of how channels are chosen
+            contact_urn = contact.get_urn()
+            if not channel:
+                if contact_urn and contact_urn.channel:
+                    channel = contact_urn.channel
+                else:
+                    channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
+
+            (topup_id, amount) = org.decrement_credit()
+
+        return Msg.objects.create(
+            org=org,
+            direction=direction,
+            contact=contact,
+            contact_urn=contact_urn,
+            text=text,
+            channel=channel,
+            topup_id=topup_id,
+            status=status,
+            msg_type=msg_type,
+            attachments=attachments,
+            visibility=visibility,
+            external_id=external_id,
+            high_priority=high_priority,
+            response_to=response_to,
+            created_on=created_on or timezone.now(),
+            sent_on=sent_on,
+            broadcast=broadcast,
+        )
+
+    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
+        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT)
+
+        contacts = set(bcast.contacts.all())
+        for group in bcast.groups.all():
+            contacts.update(group.contacts.all())
+
+        for contact in contacts:
+            self._create_msg(
+                contact,
+                text,
+                OUTGOING,
+                channel=None,
+                msg_type=INBOX,
+                attachments=(),
+                status=msg_status,
+                created_on=timezone.now(),
+                sent_on=timezone.now(),
+                response_to=response_to,
+                broadcast=bcast,
+            )
+
+        return bcast
 
     def create_flow(self, definition=None, **kwargs):
         if "org" not in kwargs:
@@ -343,7 +331,7 @@ class TembaTestMixin:
             duration=15,
         )
         session = FlowSession.objects.create(uuid=uuid4(), org=contact.org, contact=contact, connection=call)
-        FlowRun.create(flow, contact, connection=call, session=session)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=call, session=session)
         Msg.objects.create(
             org=self.org,
             channel=self.channel,
@@ -367,52 +355,6 @@ class TembaTestMixin:
             description="Looks good",
         )
         return call
-
-    def update_destination(self, flow, source, destination):
-        flow_json = flow.as_json()
-
-        for actionset in flow_json.get("action_sets"):
-            if actionset.get("uuid") == source:
-                actionset["destination"] = destination
-
-        for ruleset in flow_json.get("rule_sets"):
-            for rule in ruleset.get("rules"):
-                if rule.get("uuid") == source:
-                    rule["destination"] = destination
-
-        flow.update(flow_json)
-        return Flow.objects.get(pk=flow.pk)
-
-    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
-        """ Update the destination without doing a cycle check """
-
-        from temba.flows import legacy
-
-        # look up our destination, we need this in order to set the correct destination_type
-        destination_type = Flow.NODE_TYPE_ACTIONSET
-        action_destination = legacy.get_node(flow, destination, destination_type)
-        if not action_destination:
-            destination_type = Flow.NODE_TYPE_RULESET
-            ruleset_destination = legacy.get_node(flow, destination, destination_type)
-            self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
-
-        actionset = ActionSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if actionset:
-            actionset.destination = destination
-            actionset.destination_type = destination_type
-            actionset.save()
-
-        ruleset = RuleSet.objects.filter(flow=flow, uuid=node).select_related("flow", "flow__org").first()
-        if ruleset:
-            rules = ruleset.get_rules()
-            for r in rules:
-                if r.uuid == rule:
-                    r.destination = destination
-                    r.destination_type = destination_type
-            ruleset.set_rules(rules)
-            ruleset.save()
-        else:
-            self.fail("Couldn't find node with uuid: %s" % node)
 
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
         self.assertEqual(len(mail.outbox), outbox_index + 1)
@@ -450,9 +392,9 @@ class TembaTestMixin:
 
             if isinstance(expected, datetime):
                 close_enough = abs(expected - actual) < timedelta(seconds=1)
-                self.assertTrue(close_enough, "Datetime value %s doesn't match %s" % (expected, actual))
+                self.assertTrue(close_enough, f"datetime value {expected} doesn't match {actual} in column {index}")
             else:
-                self.assertEqual(expected, actual)
+                self.assertEqual(expected, actual, f"mismatch in column {index}")
 
     def assertExcelSheet(self, sheet, rows, tz=None):
         """
@@ -462,17 +404,6 @@ class TembaTestMixin:
 
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_msg(contact=recipient, direction="I", text="Test %d" % m)
-
-    def get_verbosity(self):
-        for s in reversed(inspect.stack()):
-            options = s[0].f_locals.get("options")
-            if isinstance(options, dict):
-                return int(options["verbosity"])
-        return 1
 
     def explain(self, query):
         cursor = connection.cursor()
@@ -490,12 +421,6 @@ class TembaTestMixin:
 
 class TembaTest(TembaTestMixin, SmartminTest):
     def setUp(self):
-        self.maxDiff = 4096
-
-        # if we are super verbose, turn on debug for sql queries
-        if self.get_verbosity() > 2:
-            settings.DEBUG = True
-
         # make sure we start off without any service users
         Group.objects.get(name="Service Users").user_set.clear()
 
@@ -513,29 +438,13 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.surveyor = self.create_user("Surveyor")
         self.customer_support = self.create_user("support", ("Customer Support",))
 
-        # setup admin boundaries for Rwanda
-        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
-        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
-
-        self.country.update_path()
-
         self.org = Org.objects.create(
             name="Temba",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
             modified_by=self.user,
         )
-
         self.org.initialize(topup_size=1000)
 
         # add users to the org
@@ -552,9 +461,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.org.surveyors.add(self.surveyor)
 
         self.superuser.set_org(self.org)
-
-        # welcome topup with 1000 credits
-        self.welcome_topup = self.org.topups.all()[0]
 
         # a single Android channel
         self.channel = Channel.create(
@@ -573,30 +479,44 @@ class TembaTest(TembaTestMixin, SmartminTest):
         from temba import utils
 
         utils._anon_user = None
+
         clear_flow_users()
 
+    def setUpLocations(self):
+        """
+        Installs some basic test location data for Rwanda
+        """
+        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
+        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
+        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
+        self.district1 = AdminBoundary.create(osm_id="R1711131", name="Gatsibo", level=2, parent=self.state2)
+        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
+        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
+        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
+
+        self.country.update_path()
+
+        self.org.country = self.country
+        self.org.save(update_fields=("country",))
+
+    def setUpSecondaryOrg(self, topup_size=None):
+        self.admin2 = self.create_user("Administrator2")
+        self.org2 = Org.objects.create(
+            name="Trileet Inc.",
+            timezone=pytz.timezone("Africa/Kigali"),
+            brand="rapidpro.io",
+            created_by=self.admin2,
+            modified_by=self.admin2,
+        )
+        self.org2.administrators.add(self.admin2)
+        self.admin2.set_org(self.org)
+
+        self.org2.initialize(topup_size=topup_size)
+
     def tearDown(self):
-        if self.get_verbosity() > 2:
-            details = []
-            for query in connection.queries:
-                query = query["sql"]
-                if "SAVEPOINT" not in query:
-                    indexes = self.explain(query)
-                    details.append(dict(query=query, indexes=indexes))
-
-            for stat in details:
-                print("")
-                print(stat["query"])
-                for table, index in stat["indexes"]:
-                    print("  Index Used: %s.%s" % (table, index))
-
-                if not len(stat["indexes"]):
-                    print("  No Index Used")
-
-            settings.DEBUG = False
-
-        from temba.flows.models import clear_flow_users
-
         clear_flow_users()
 
     def release(self, objs, delete=False, user=None):
@@ -638,118 +558,6 @@ class TembaTest(TembaTestMixin, SmartminTest):
         self.assertTrue(message, field in body)
         self.assertTrue(message, isinstance(body[field], (list, tuple)))
         self.assertIn(message, body[field])
-
-
-class FlowFileTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-        self.contact = self.create_contact("Ben Haggerty", number="+12065552020")
-
-    def assertInUserGroups(self, contact, group_names, only=False):
-
-        truth = [g.name for g in contact.user_groups.all()]
-        for name in group_names:
-            self.assertIn(name, truth)
-
-        if only:
-            self.assertEqual(
-                len(group_names),
-                len(truth),
-                "Contact not found in expected group. expected: %s, was: %s" % (group_names, truth),
-            )
-            other_groups = contact.user_groups.exclude(name__in=group_names)
-            if other_groups:
-                self.fail("Contact found in unexpected group: %s" % other_groups)
-
-    def assertLastResponse(self, message):
-        response = Msg.objects.filter(contact=self.contact).order_by("-created_on", "-pk").first()
-
-        self.assertTrue("Missing response from contact.", response)
-        self.assertEqual(message, response.text)
-
-    def send(self, message, contact=None, start_flow=None):
-        from temba.flows import legacy
-
-        if not contact:
-            contact = self.contact
-        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
-
-        if start_flow:
-            start_flow.start(groups=[], contacts=[contact], start_msg=incoming)
-        else:
-            legacy.find_and_handle(incoming)
-
-        return Msg.objects.filter(response_to=incoming).order_by("id").first()
-
-    def send_message(
-        self,
-        flow,
-        message,
-        restart_participants=False,
-        contact=None,
-        initiate_flow=False,
-        assert_reply=True,
-        assert_handle=True,
-    ):
-        """
-        Starts the flow, sends the message, returns the reply
-        """
-
-        from temba.flows import legacy
-
-        if not contact:
-            contact = self.contact
-
-        incoming = self.create_msg(direction=INCOMING, contact=contact, contact_urn=contact.get_urn(), text=message)
-
-        # start the flow
-        if initiate_flow:
-            legacy.flow_start(
-                flow, groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming
-            )
-        else:
-            legacy.flow_start(flow, groups=[], contacts=[contact], restart_participants=restart_participants)
-            (handled, msgs) = legacy.find_and_handle(incoming)
-
-            from temba.msgs import legacy
-
-            legacy.mark_handled(incoming)
-
-            if assert_handle:
-                self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
-            else:
-                self.assertFalse(handled, "'%s' handled message, was supposed to ignore" % flow.name)
-
-        # our message should have gotten a reply
-        if assert_reply:
-            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-            self.assertGreaterEqual(len(replies), 1)
-
-            if len(replies) == 1:
-                self.assertEqual(contact, replies.first().contact)
-                return replies.first().text
-
-            # if it's more than one, send back a list of replies
-            return [reply.text for reply in replies]
-
-        else:
-            # assert we got no reply
-            replies = Msg.objects.filter(response_to=incoming).order_by("pk")
-            self.assertFalse(replies)
-
-        return None
-
-
-class MLStripper(HTMLParser):  # pragma: no cover
-    def __init__(self):
-        self.reset()
-        self.fed = []
-
-    def handle_data(self, d):
-        self.fed.append(d)
-
-    def get_data(self):
-        return "".join(self.fed)
 
 
 class MockResponse(object):

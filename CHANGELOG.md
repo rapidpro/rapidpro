@@ -1,3 +1,7 @@
+v5.1.36
+----------
+ * Temporarily disable compression for components JS
+
 v5.1.33
 ----------
  * Use new expressions for campaign message events, broadcasts and join group triggers

@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("flows", "0215_auto_20190822_2037")]
+    dependencies = [("flows", "0216_auto_20190917_2113")]
 
     operations = [
         # make FlowSession.uuid non-NULL and unique

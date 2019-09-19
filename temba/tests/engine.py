@@ -79,13 +79,17 @@ class MockSessionWriter:
         self.current_node = None
         self.events = []
 
-    def visit(self, node):
+    def visit(self, node, exit_index=None):
         if self.current_node:
             from_exit = None
-            for e in self.current_node["exits"]:
-                if e.get("destination_uuid") == node["uuid"]:
-                    from_exit = e
-                    break
+            if exit_index:
+                from_exit = self.current_node["exits"][exit_index]
+            else:
+                # use first exit that points to this destination
+                for e in self.current_node["exits"]:
+                    if e.get("destination_uuid") == node["uuid"]:
+                        from_exit = e
+                        break
 
             assert from_exit, f"previous node {self.current_node['uuid']} has no exit to new node {node['uuid']}"
 
@@ -113,14 +117,14 @@ class MockSessionWriter:
         )
         return self
 
-    def send_msg(self, text, channel):
+    def send_msg(self, text, channel=None):
         self._log_event(
             "msg_created",
             msg={
                 "uuid": str(uuid4()),
                 "urn": self.contact.get_urn().urn,
                 "text": text,
-                "channel": {"uuid": str(channel.uuid), "name": channel.name},
+                "channel": self._channel_ref(channel),
             },
         )
         return self
@@ -151,11 +155,15 @@ class MockSessionWriter:
         assert self.output["status"] == "waiting", "can only resume a waiting session"
         assert self.current_run["status"] == "waiting", "can only resume a waiting run"
 
+        msg_def = {"uuid": str(msg.uuid), "text": msg.text, "channel": self._channel_ref(msg.channel)}
+        if msg.contact_urn:
+            msg_def["urn"] = msg.contact_urn.urn
+
         self.output["wait"] = None
         self.output["status"] = "active"
         self.current_run["status"] = "active"
         self.current_run["modified_on"] = self._now()
-        self._log_event("msg_received", msg={"urn": msg.contact_urn.urn, "text": msg.text})
+        self._log_event("msg_received", msg=msg_def)
         return self
 
     def complete(self):
@@ -243,12 +251,14 @@ class MockSessionWriter:
         self.events = []
 
     def _handle_msg_created(self, event):
+        channel_ref = event["msg"].get("channel")
+
         Msg.objects.create(
             uuid=event["msg"]["uuid"],
             org=self.org,
             contact=self.contact,
             contact_urn=self.contact.get_urn(),
-            channel=Channel.objects.get(uuid=event["msg"]["channel"]["uuid"]),
+            channel=Channel.objects.get(uuid=channel_ref["uuid"]) if channel_ref else None,
             direction="O",
             text=event["msg"]["text"],
             created_on=event["created_on"],
@@ -267,11 +277,18 @@ class MockSessionWriter:
             request_time=event["elapsed_ms"],
         )
 
-    def _now(self):
+    @staticmethod
+    def _now():
         return timezone.now().isoformat()
 
+    @staticmethod
+    def _channel_ref(channel):
+        return {"uuid": str(channel.uuid), "name": channel.name} if channel else None
+
     def _log_event(self, _type, **kwargs):
-        event = {"type": _type, "created_on": self._now(), **kwargs}
+        path = self.current_run["path"]
+        step_uuid = path[-1]["uuid"] if path else None
+        event = {"type": _type, "created_on": self._now(), "step_uuid": step_uuid, **kwargs}
 
         self.current_run["events"].append(event)
         self.events.append(event)
@@ -281,4 +298,5 @@ class MockSessionWriter:
 
         for run in self.output["runs"]:
             run["status"] = status
+            run["exited_on"] = self._now()
             run["modified_on"] = self._now()

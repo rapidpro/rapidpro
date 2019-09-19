@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-12 00:02+0000\n"
+"POT-Creation-Date: 2019-09-18 20:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2282,9 +2282,6 @@ msgstr ""
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
 
-msgid "Invalid group or contact id"
-msgstr ""
-
 msgid "Send Message"
 msgstr ""
 
@@ -3082,9 +3079,6 @@ msgid "The metadata for this msg"
 msgstr ""
 
 msgid "Why the message is being deleted"
-msgstr ""
-
-msgid "Can't create an incoming message without an org"
 msgstr ""
 
 msgid "Whether this count is for archived messages"

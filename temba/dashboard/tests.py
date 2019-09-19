@@ -17,12 +17,12 @@ class DashboardTest(TembaTest):
     def create_activity(self):
 
         # and some message and call activity
-        joe = self.create_contact("Joe", twitter="joe")
-        self.create_msg(contact=joe, direction="O", text="Tea of coffee?", channel=self.channel)
-        self.create_msg(contact=joe, direction="I", text="Coffee", channel=self.channel)
-        self.create_msg(contact=joe, direction="O", text="OK", channel=self.channel)
-        self.create_msg(contact=joe, direction="O", text="Wanna hang?", channel=self.channel, msg_type="V")
-        self.create_msg(contact=joe, direction="I", text="Sure", channel=self.channel, msg_type="V")
+        joe = self.create_contact("Joe", number="+593979099111")
+        self.create_outgoing_msg(joe, "Tea of coffee?")
+        self.create_incoming_msg(joe, "Coffee")
+        self.create_outgoing_msg(joe, "OK")
+        self.create_outgoing_msg(joe, "Wanna hang?", msg_type="V")
+        self.create_incoming_msg(joe, "Sure", msg_type="V")
 
     def test_dashboard_home(self):
         dashboard_url = reverse("dashboard.dashboard_home")
@@ -81,8 +81,8 @@ class DashboardTest(TembaTest):
         types = ["T", "TT", "FB", "NX", "AT", "KN", "CK"]
         michael = self.create_contact("Michael", twitter="mjackson")
         for t in types:
-            channel = Channel.create(self.org, self.user, None, t, name="Test Channel %s" % t, address="%s:1234" % t)
-            self.create_msg(contact=michael, direction="O", text="Message on %s" % t, channel=channel)
+            channel = Channel.create(self.org, self.user, None, t, name=f"Test Channel {t}", address=f"{t}:1234")
+            self.create_outgoing_msg(michael, f"Message on {t}", channel=channel)
         response = self.client.get(url)
 
         # org message activity

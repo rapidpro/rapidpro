@@ -1978,22 +1978,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for broadcast in self.addressed_broadcasts.all():
                 broadcast.contacts.remove(self)
 
-    def cached_send_channel(self, contact_urn):
-        cache = getattr(self, "_send_channels", {})
-        channel = cache.get(contact_urn.id)
-        if not channel:
-            channel = self.org.get_send_channel(contact_urn=contact_urn)
-            cache[contact_urn.id] = channel
-            self._send_channels = cache
-
-        return channel
-
-    def initialize_cache(self):
-        if getattr(self, "__cache_initialized", False):
-            return
-
-        Contact.bulk_cache_initialize(self.org, [self])
-
     @classmethod
     def bulk_cache_initialize(cls, org, contacts):
         """
@@ -2019,18 +2003,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for contact in contacts:
             contact.org = org
             setattr(contact, "__cache_initialized", True)
-
-    def set_first_name(self, first_name):
-        if not self.name:
-            self.name = first_name
-        else:
-            names = self.name.split()
-            names = [first_name] + names[1:]
-            self.name = " ".join(names)
-
-    def clear_urn_cache(self):
-        if hasattr(self, "_urns_cache"):
-            delattr(self, "_urns_cache")
 
     def get_urns(self):
         """
@@ -2125,9 +2097,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # update modified on any other modified contacts
         if modified_contacts:
             Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
-
-        # clear URN cache
-        self.clear_urn_cache()
 
     def update_static_groups(self, user, groups):
         """
@@ -2224,63 +2193,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return urn.get_display(org=org, formatted=formatted, international=international) if urn else ""
 
-    def raw_tel(self):
-        tel = self.get_urn(TEL_SCHEME)
-        if tel:
-            return tel.path
-
-    def send(
-        self,
-        text,
-        user,
-        trigger_send=True,
-        response_to=None,
-        expressions_context=None,
-        connection=None,
-        quick_replies=None,
-        attachments=None,
-        msg_type=None,
-        sent_on=None,
-        all_urns=False,
-        high_priority=False,
-    ):
-        from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
-
-        status = SENT if sent_on else PENDING
-
-        if all_urns:
-            recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
-        else:
-            recipients = [(self, None)] if status == SENT else [self]
-
-        msgs = []
-        for recipient in recipients:
-            try:
-                msg = Msg.create_outgoing(
-                    self.org,
-                    user,
-                    recipient,
-                    text,
-                    response_to=response_to,
-                    expressions_context=expressions_context,
-                    connection=connection,
-                    attachments=attachments,
-                    msg_type=msg_type or INBOX,
-                    status=status,
-                    quick_replies=quick_replies,
-                    sent_on=sent_on,
-                    high_priority=high_priority,
-                )
-                if msg is not None:
-                    msgs.append(msg)
-            except UnreachableException:
-                pass
-
-        if trigger_send:
-            self.org.trigger_send(msgs)
-
-        return msgs
-
     def __str__(self):
         return self.get_display()
 
@@ -2362,8 +2274,6 @@ class ContactURN(models.Model):
             try:
                 with transaction.atomic():
                     urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-                if contact:
-                    contact.clear_urn_cache()
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
@@ -2421,14 +2331,6 @@ class ContactURN(models.Model):
         if auth and auth != self.auth:
             self.auth = auth
             self.save(update_fields=["auth"])
-
-    def update_affinity(self, channel):
-        """
-        Checks and optionally updates the affinity for this contact URN
-        """
-        if channel and self.channel != channel:
-            self.channel = channel
-            self.save(update_fields=["channel"])
 
     def ensure_number_normalization(self, country_code):
         """

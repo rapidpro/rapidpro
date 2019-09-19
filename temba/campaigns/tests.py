@@ -57,7 +57,7 @@ class CampaignTest(TembaTest):
         )
         self.assertEqual(campaign3.name, "Reminders 3")
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
 
     def test_get_sorted_events(self):
@@ -711,11 +711,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(2, EventFire.objects.filter(event__is_active=True).count())
 
         # remove one of the farmers from the group
-        response = self.client.post(
-            reverse("contacts.contact_read", args=[self.farmer1.uuid]),
-            dict(contact=self.farmer1.id, group=self.farmers.id),
-        )
-        self.assertEqual(response.status_code, 200)
+        self.farmers.update_contacts(self.admin, [self.farmer1], add=False)
 
         # should only be one event now (on farmer 2)
         fire = EventFire.objects.get()
@@ -1578,7 +1574,6 @@ class CampaignTest(TembaTest):
         new_org = Org.objects.create(
             name="Temba New",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
             modified_by=self.user,
@@ -1642,7 +1637,6 @@ class CampaignTest(TembaTest):
         new_org = Org.objects.create(
             name="Temba New",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand=settings.DEFAULT_BRAND,
             created_by=self.user,
             modified_by=self.user,

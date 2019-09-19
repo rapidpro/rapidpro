@@ -1272,12 +1272,12 @@ def migrate_to_version_5(json_flow, flow=None):
                 # if there's no reference to step, figure out our type
                 ruleset["ruleset_type"] = RuleSet.TYPE_EXPRESSION
                 # special case contact and flow fields
-                if " " not in operand and "|" not in operand:
+                if " " not in operand and "|" not in operand:  # pragma: needs cover
                     if operand == "@contact.groups":
                         ruleset["ruleset_type"] = RuleSet.TYPE_EXPRESSION
                     elif operand.find("@contact.") == 0:
                         ruleset["ruleset_type"] = RuleSet.TYPE_CONTACT_FIELD
-                    elif operand.find("@flow.") == 0:  # pragma: needs cover
+                    elif operand.find("@flow.") == 0:
                         ruleset["ruleset_type"] = RuleSet.TYPE_FLOW_FIELD
 
                 # we used to stop at webhooks, now we need a new node

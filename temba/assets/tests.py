@@ -73,7 +73,7 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # add our admin to another org
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.org2.administrators.add(self.admin)
 
         self.admin.set_org(self.org2)

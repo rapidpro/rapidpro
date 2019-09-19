@@ -841,7 +841,7 @@ class Flow(TembaModel):
             if not existing_flow:
                 existing_flow = Flow.objects.filter(org=self.org, name=element["name"], is_active=True).first()
                 if existing_flow:
-                    element["uuid"] = existing_flow.uuid
+                    element["uuid"] = existing_flow.uuid  # pragma: needs cover
 
         remap_uuid(flow_json[Flow.METADATA], "uuid")
         remap_uuid(flow_json, "entry")
@@ -1878,7 +1878,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     PATH_NODE_UUID = "node_uuid"
     PATH_ARRIVED_ON = "arrived_on"
     PATH_EXIT_UUID = "exit_uuid"
-    PATH_MAX_STEPS = 100
 
     EVENT_TYPE = "type"
     EVENT_STEP_UUID = "step_uuid"
@@ -1956,54 +1955,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # TODO to be replaced by new status field
     is_active = models.BooleanField(default=True)
     exit_type = models.CharField(null=True, max_length=1, choices=EXIT_TYPE_CHOICES)
-
-    # TODO remove when legacy engine is gone
-    fields = JSONAsTextField(blank=True, null=True, default=dict)
-    parent_context = JSONField(null=True)
-    child_context = JSONField(null=True)
-
-    @classmethod
-    def create(
-        cls,
-        flow,
-        contact,
-        start=None,
-        session=None,
-        connection=None,
-        fields=None,
-        created_on=None,
-        db_insert=True,
-        submitted_by=None,
-        parent=None,
-        parent_context=None,
-        responded=False,
-    ):
-
-        args = dict(
-            org_id=flow.org_id,
-            flow=flow,
-            contact=contact,
-            start=start,
-            session=session,
-            connection=connection,
-            fields=fields,
-            submitted_by=submitted_by,
-            parent=parent,
-            parent_context=parent_context,
-            responded=responded,
-            status=FlowRun.STATUS_ACTIVE,
-        )
-
-        if created_on:
-            args["created_on"] = created_on
-
-        if db_insert:
-            run = FlowRun.objects.create(**args)
-        else:
-            run = FlowRun(**args)
-
-        run.contact = contact
-        return run
 
     def get_events_of_type(self, event_types):
         """
@@ -2105,8 +2056,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
-    def __str__(self):
-        return "FlowRun: %s Flow: %s\n%s" % (self.uuid, self.flow.uuid, json.dumps(self.results, indent=2))
+    def __str__(self):  # pragma: no cover
+        return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
 
 class RuleSet(models.Model):
@@ -2263,18 +2214,8 @@ class RuleSet(models.Model):
 
         return value_type if value_type else Value.TYPE_TEXT
 
-    def is_pause(self):
-        return self.ruleset_type in RuleSet.TYPE_WAIT
-
     def get_rules(self):
         return legacy.Rule.from_json_array(self.flow.org, self.rules)
-
-    def set_rules(self, rules):
-        rules_dict = []
-        for rule in rules:
-            rules_dict.append(rule.as_json())
-
-        self.rules = rules_dict
 
     def as_json(self):
         return dict(

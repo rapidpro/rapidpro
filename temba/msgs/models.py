@@ -26,12 +26,10 @@ from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.orgs.models import Language, Org, TopUp
 from temba.schedules.models import Schedule
-from temba.utils import analytics, chunk_list, extract_constants, get_anonymous_user, on_transaction_commit
+from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
 from temba.utils.text import clean_string
-
-from . import legacy
 
 logger = logging.getLogger(__name__)
 
@@ -265,20 +263,11 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(self, *, expressions_context=None, response_to=None, msg_type=INBOX, high_priority=False):
+    def send(self):
         """
-        Sends this broadcast, taking care of creating multiple jobs to send it if necessary
+        Queues this broadcast for sending by mailroom
         """
-        if settings.TESTING:
-            legacy.send_broadcast(
-                self,
-                expressions_context=expressions_context,
-                response_to=response_to,
-                msg_type=msg_type,
-                high_priority=high_priority,
-            )
-        else:  # pragma: no cover
-            mailroom.queue_broadcast(self)
+        mailroom.queue_broadcast(self)
 
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
@@ -300,7 +289,7 @@ class Broadcast(models.Model):
             parent=self,
         )
 
-        broadcast.send(expressions_context={})
+        broadcast.send()
         return broadcast
 
     def get_messages(self):
@@ -858,35 +847,6 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(
-        self,
-        text,
-        user,
-        trigger_send=False,
-        expressions_context=None,
-        connection=None,
-        attachments=None,
-        msg_type=None,
-        send_all=False,
-        sent_on=None,
-        quick_replies=None,
-    ):
-
-        return self.contact.send(
-            text,
-            user,
-            trigger_send=trigger_send,
-            expressions_context=expressions_context,
-            response_to=self if self.id else None,
-            connection=connection,
-            attachments=attachments,
-            msg_type=msg_type or self.msg_type,
-            sent_on=sent_on,
-            all_urns=send_all,
-            high_priority=True,
-            quick_replies=quick_replies,
-        )
-
     def update(self, cmd):
         """
         Updates our message according to the provided client command
@@ -925,10 +885,7 @@ class Msg(models.Model):
         Queues this message to be handled
         """
 
-        if settings.TESTING:
-            legacy.handle_message(self)
-        else:  # pragma: no cover
-            mailroom.queue_msg_handling(self)
+        mailroom.queue_msg_handling(self)
 
     def resend(self):
         """
@@ -1000,12 +957,8 @@ class Msg(models.Model):
 
         return data
 
-    def __str__(self):
-        if self.attachments:
-            parts = ([self.text] if self.text else []) + [a.url for a in self.get_attachments()]
-            return "\n".join(parts)
-        else:
-            return self.text
+    def __str__(self):  # pragma: needs cover
+        return self.text
 
     @classmethod
     def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):
@@ -1042,284 +995,6 @@ class Msg(models.Model):
         on_transaction_commit(lambda: msg.handle())
 
         return msg
-
-    @classmethod
-    def create_incoming(
-        cls,
-        channel,
-        urn,
-        text,
-        user=None,
-        sent_on=None,
-        org=None,
-        contact=None,
-        status=PENDING,
-        attachments=None,
-        msg_type=None,
-        topup=None,
-        external_id=None,
-        connection=None,
-    ):
-
-        if not org and channel:
-            org = channel.org
-
-        if not org:
-            raise Exception(_("Can't create an incoming message without an org"))
-
-        if not user:
-            user = get_anonymous_user()
-
-        if not sent_on:
-            sent_on = timezone.now()  # no sent_on date?  set it to now
-
-        contact_urn = None
-        if not contact:
-            contact, contact_urn = Contact.get_or_create(org, urn, channel, user=user)
-        elif urn:
-            contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
-
-        # set the preferred channel for this contact
-        legacy.set_preferred_channel(contact, channel)
-
-        # and update this URN to make sure it is associated with this channel
-        if contact_urn:
-            contact_urn.update_affinity(channel)
-
-        # we limit our text message length and remove any invalid chars
-        if text:
-            text = clean_string(text[: cls.MAX_TEXT_LEN])
-
-        # don't create duplicate messages
-        existing = Msg.objects.filter(text=text, sent_on=sent_on, contact=contact, direction="I").first()
-        if existing:  # pragma: no cover
-            return existing
-
-        # costs 1 credit to receive a message
-        topup_id = None
-        if topup:  # pragma: needs cover
-            topup_id = topup.pk
-        else:
-            (topup_id, amount) = org.decrement_credit()
-
-        now = timezone.now()
-
-        msg_args = dict(
-            contact=contact,
-            contact_urn=contact_urn,
-            org=org,
-            channel=channel,
-            text=text,
-            sent_on=sent_on,
-            created_on=now,
-            modified_on=now,
-            queued_on=now,
-            direction=INCOMING,
-            msg_type=msg_type,
-            attachments=attachments,
-            status=status,
-            external_id=external_id,
-            connection=connection,
-        )
-
-        if topup_id is not None:
-            msg_args["topup_id"] = topup_id
-
-        msg = Msg.objects.create(**msg_args)
-
-        # if this contact is currently stopped, unstop them
-        if contact.is_stopped:
-            contact.unstop(user)
-
-        if channel:
-            analytics.gauge("temba.msg_incoming_%s" % channel.channel_type.lower())
-
-        if status == PENDING and msg_type != IVR:
-            msg.handle()
-
-        return msg
-
-    @classmethod
-    def create_outgoing(
-        cls,
-        org,
-        user,
-        recipient,
-        text,
-        broadcast=None,
-        channel=None,
-        high_priority=False,
-        sent_on=None,
-        response_to=None,
-        expressions_context=None,
-        status=PENDING,
-        insert_object=True,
-        attachments=None,
-        topup_id=None,
-        msg_type=INBOX,
-        connection=None,
-        quick_replies=None,
-        uuid=None,
-    ):
-        from temba.flows.legacy.expressions import evaluate, channel_context
-
-        if not org or not user:  # pragma: no cover
-            raise ValueError("Trying to create outgoing message with no org or user")
-
-        # for IVR messages we need a channel that can call
-        if msg_type == IVR:
-            role = Channel.ROLE_CALL
-        else:
-            role = Channel.ROLE_SEND
-
-        # if message will be sent, resolve the recipient to a contact and URN
-        contact, contact_urn = cls.resolve_recipient(org, user, recipient, channel, role=role)
-
-        if not contact_urn:
-            raise UnreachableException("No suitable URN found for contact")
-
-        if not channel:
-            if msg_type == IVR:
-                channel = org.get_call_channel()
-            else:
-                channel = org.get_send_channel(contact_urn=contact_urn)
-
-            if not channel:  # pragma: needs cover
-                raise UnreachableException("No suitable channel available for this org")
-
-        # evaluate expressions in the text and attachments if a context was provided
-        if expressions_context is not None:
-            # make sure 'channel' is populated if we have a channel
-            if channel and "channel" not in expressions_context:
-                expressions_context["channel"] = channel_context(channel)
-
-            (text, errors) = evaluate(text, expressions_context, org=org)
-            if text:
-                text = text[: Msg.MAX_TEXT_LEN]
-
-            evaluated_attachments = []
-            if attachments:
-                for attachment in attachments:
-                    (attachment, errors) = evaluate(attachment, expressions_context, org=org)
-                    evaluated_attachments.append(attachment)
-        else:
-            text = text[: Msg.MAX_TEXT_LEN]
-            evaluated_attachments = attachments
-
-        # prefer none to empty lists in the database
-        if evaluated_attachments is not None and len(evaluated_attachments) == 0:
-            evaluated_attachments = None
-
-        # if we are doing a single message, check whether this might be a loop of some kind
-        if insert_object and status != SENT and getattr(settings, "DEDUPE_OUTGOING", True):
-            # prevent the loop of message while the sending phone is the channel
-            # get all messages with same text going to same number
-            same_msgs = Msg.objects.filter(
-                contact_urn=contact_urn,
-                channel=channel,
-                attachments=evaluated_attachments,
-                text=text,
-                direction=OUTGOING,
-                created_on__gte=timezone.now() - timedelta(minutes=10),
-            )
-
-            # we aren't considered with robo detection on calls
-            same_msg_count = same_msgs.exclude(msg_type=IVR).count()
-
-            if same_msg_count >= 10:
-                analytics.gauge("temba.msg_loop_caught")
-                return None
-
-            # be more aggressive about short codes for duplicate messages
-            # we don't want machines talking to each other
-            tel = contact.raw_tel()
-            if tel and len(tel) < 6:
-                same_msg_count = Msg.objects.filter(
-                    contact_urn=contact_urn,
-                    channel=channel,
-                    text=text,
-                    direction=OUTGOING,
-                    created_on__gte=timezone.now() - timedelta(hours=24),
-                ).count()
-                if same_msg_count >= 10:  # pragma: needs cover
-                    analytics.gauge("temba.msg_shortcode_loop_caught")
-                    return None
-
-        # costs 1 credit to send a message
-        if not topup_id:
-            (topup_id, _) = org.decrement_credit()
-
-        if response_to:
-            msg_type = response_to.msg_type
-
-        text = text.strip()
-
-        # track this if we have a channel
-        if channel:
-            analytics.gauge("temba.msg_outgoing_%s" % channel.channel_type.lower())
-
-        metadata = {}  # init metadata to the same as the default value of the Msg.metadata field
-        if quick_replies:
-            for counter, reply in enumerate(quick_replies):
-                (value, errors) = evaluate(text=reply, context=expressions_context, org=org)
-                if value:
-                    quick_replies[counter] = value
-            metadata = dict(quick_replies=quick_replies)
-
-        msg_args = dict(
-            uuid=uuid or uuid4(),
-            contact=contact,
-            contact_urn=contact_urn,
-            org=org,
-            channel=channel,
-            text=text,
-            created_on=timezone.now(),
-            modified_on=timezone.now(),
-            direction=OUTGOING,
-            status=status,
-            broadcast=broadcast,
-            response_to=response_to,
-            msg_type=msg_type,
-            high_priority=high_priority,
-            attachments=evaluated_attachments,
-            metadata=metadata,
-            connection=connection,
-        )
-
-        if sent_on:
-            msg_args["sent_on"] = sent_on
-
-        if topup_id is not None:
-            msg_args["topup_id"] = topup_id
-
-        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
-
-    @staticmethod
-    def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
-        """
-        Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
-        contact URN to use for an outgoing message.
-        """
-        contact = None
-        contact_urn = None
-
-        resolved_schemes = set(channel.schemes) if channel else org.get_schemes(role)
-
-        if isinstance(recipient, Contact):
-            contact = recipient
-            contact_urn = contact.get_urn(schemes=resolved_schemes)  # use highest priority URN we can send to
-        elif isinstance(recipient, ContactURN):
-            if recipient.scheme in resolved_schemes:
-                contact = recipient.contact
-                contact_urn = recipient
-        elif isinstance(recipient, str):
-            scheme, path, query, display = URN.to_parts(recipient)
-            if scheme in resolved_schemes:
-                contact, contact_urn = Contact.get_or_create(org, recipient, user=user)
-        else:  # pragma: no cover
-            raise ValueError("Message recipient must be a Contact, ContactURN or URN string")
-
-        return contact, contact_urn
 
     def archive(self):
         """
