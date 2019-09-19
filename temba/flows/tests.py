@@ -20,7 +20,6 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
-from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
@@ -3746,24 +3745,16 @@ class FlowSessionTest(TembaTest):
         flow = self.get_flow("color")
 
         # create some runs that have sessions
-        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
-        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
-        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.contact.org, contact=self.contact)
+        session1 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session2 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+        session3 = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
         run1 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session1)
         run2 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session2)
         run3 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, session=session3)
 
-        # create an IVR run and session
-        connection = IVRCall.objects.create(
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.get(),
-            direction=IVRCall.OUTGOING,
-            org=self.org,
-            status=IVRCall.PENDING,
-        )
-        session = FlowSession.create(contact, connection)
-        run4 = FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=connection, session=session)
+        # create an IVR call with session
+        call = self.create_incoming_call(flow, contact)
+        run4 = call.runs.get()
 
         self.assertIsNotNone(run1.session)
         self.assertIsNotNone(run2.session)
