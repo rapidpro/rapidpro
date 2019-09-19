@@ -349,9 +349,12 @@ class OrgGrantForm(forms.ModelForm):
 
 
 class GiftcardsForm(forms.ModelForm):
-    collection = forms.CharField(required=False, label=_("New Collection"),
-                                 max_length=30,
-                                 help_text="Enter a name for your collection. ex: my gifts, new lookup table")
+    collection = forms.CharField(
+        required=False,
+        label=_("New Collection"),
+        max_length=30,
+        help_text="Enter a name for your collection. ex: my gifts, new lookup table",
+    )
     remove = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
     index = forms.CharField(widget=forms.HiddenInput, max_length=10, required=False)
 
@@ -365,7 +368,7 @@ class GiftcardsForm(forms.ModelForm):
         return collections
 
     def clean_collection(self):
-        new_collection = self.data.get('collection')
+        new_collection = self.data.get("collection")
 
         if new_collection in self.instance.get_collections(collection_type=OrgCRUDL.Giftcards.collection_type):
             raise ValidationError("This collection name has already been used")
@@ -374,7 +377,7 @@ class GiftcardsForm(forms.ModelForm):
 
     class Meta:
         model = Org
-        fields = ('id', 'collection', 'remove', 'index')
+        fields = ("id", "collection", "remove", "index")
 
 
 class UserCRUDL(SmartCRUDL):
@@ -2174,7 +2177,9 @@ class OrgCRUDL(SmartCRUDL):
             from django.template.defaultfilters import slugify
 
             slug_new_collection = slugify(name)
-            collection_full_name = f"{settings.PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{slug_new_collection}"
+            collection_full_name = (
+                f"{settings.PARSE_SERVER_NAME}_{org_slug}_{org_id}_{collection_type}_{slug_new_collection}"
+            )
             collection_full_name = collection_full_name.replace("-", "")
 
             return collection_full_name
@@ -2184,25 +2189,27 @@ class OrgCRUDL(SmartCRUDL):
             headers = {
                 "X-Parse-Application-Id": settings.PARSE_APP_ID,
                 "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             if new_collection:
-                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(org_slug=self.object.slug,
-                                                                                   org_id=self.object.id,
-                                                                                   name=new_collection,
-                                                                                   collection_type=str(
-                                                                                       self.collection_type).lower())
+                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                    org_slug=self.object.slug,
+                    org_id=self.object.id,
+                    name=new_collection,
+                    collection_type=str(self.collection_type).lower(),
+                )
                 url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
                 data = {
                     "className": collection_full_name,
                     "fields": self.fields_payload,
-                    "indexes": self.indexes_payload
+                    "indexes": self.indexes_payload,
                 }
                 response = requests.post(url, data=json.dumps(data), headers=headers)
                 if response.status_code == 200:
-                    self.object.add_collection_to_org(user=self.request.user, name=new_collection,
-                                                      collection_type=self.collection_type)
+                    self.object.add_collection_to_org(
+                        user=self.request.user, name=new_collection, collection_type=self.collection_type
+                    )
 
             remove = self.form.data.get("remove", "false") == "true"
             index = self.form.data.get("index", None)
@@ -2218,11 +2225,12 @@ class OrgCRUDL(SmartCRUDL):
                     collection = None
 
                 if collection:
-                    collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(org_slug=self.object.slug,
-                                                                                       org_id=self.object.id,
-                                                                                       name=collection,
-                                                                                       collection_type=str(
-                                                                                           self.collection_type).lower())
+                    collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                        org_slug=self.object.slug,
+                        org_id=self.object.id,
+                        name=collection,
+                        collection_type=str(self.collection_type).lower(),
+                    )
                     url = f"{settings.PARSE_URL}/schemas/{collection_full_name}"
                     purge_url = f"{settings.PARSE_URL}/purge/{collection_full_name}"
 
@@ -2231,8 +2239,9 @@ class OrgCRUDL(SmartCRUDL):
                         response = requests.delete(url, headers=headers)
 
                         if response.status_code == 200:
-                            self.object.remove_collection_from_org(user=self.request.user, index=index,
-                                                                   collection_type=self.collection_type)
+                            self.object.remove_collection_from_org(
+                                user=self.request.user, index=index, collection_type=self.collection_type
+                            )
 
             return super().pre_save(obj)
 
