@@ -39,6 +39,7 @@ from temba.msgs.models import (
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
+from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 
@@ -1923,30 +1924,191 @@ class BroadcastTest(TembaTest):
             }
         )
 
-    def test_broadcast_model(self):
-        broadcast = Broadcast.create(
+    def test_model(self):
+        broadcast1 = Broadcast.create(
             self.org,
             self.user,
-            "Like a tweet",
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
             schedule=Schedule.create_schedule(timezone.now(), "M", self.admin),
         )
-        self.assertEqual("I", broadcast.status)
+        self.assertEqual("I", broadcast1.status)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            broadcast.send()
+            broadcast1.send()
 
-            mock_queue_broadcast.assert_called_once_with(broadcast)
+            mock_queue_broadcast.assert_called_once_with(broadcast1)
 
-        broadcast.release()
+        # test resolving the broadcast text in different languages (used to render scheduled ones)
+        self.assertEqual("Hello everyone", broadcast1.get_translated_text(self.joe))  # uses broadcast base language
 
-        self.assertEqual(Msg.objects.count(), 0)
-        self.assertEqual(Broadcast.objects.count(), 0)
-        self.assertEqual(Schedule.objects.count(), 0)
+        self.org.set_languages(self.admin, ["eng", "spa", "fra"], "spa")
+
+        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
+
+        self.joe.language = "fra"
+        self.joe.save(update_fields=("language",), handle_update=False)
+
+        self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
+
+        self.org.set_languages(self.admin, ["eng", "spa"], "spa")
+
+        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # but only if it's allowed
+
+        # create a broadcast that looks like it has been sent
+        broadcast2 = self.create_broadcast(self.admin, "Hi everyone", contacts=[self.kevin, self.lucy])
+
+        self.assertEqual(2, broadcast2.msgs.count())
+
+        broadcast1.release()
+        broadcast2.release()
+
+        self.assertEqual(0, Msg.objects.count())
+        self.assertEqual(0, Broadcast.objects.count())
+        self.assertEqual(0, Schedule.objects.count())
 
         with self.assertRaises(ValueError):
             Broadcast.create(self.org, self.user, "no recipients")
+
+    @patch("temba.mailroom.queue_broadcast")
+    def test_send(self, mock_queue_broadcast):
+        # remove all channels first
+        for channel in Channel.objects.all():
+            channel.release()
+
+        send_url = reverse("msgs.broadcast_send")
+        self.login(self.admin)
+
+        # try with no channel
+        response = self.client.post(send_url, {"text": "some text", "omnibox": f"c-{self.joe.uuid}"}, follow=True)
+
+        self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
+
+        # test when we have many channels
+        Channel.create(
+            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
+        )
+        Channel.create(
+            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
+        )
+        Channel.create(self.org, self.user, None, "TT")
+
+        response = self.client.get(send_url)
+
+        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
+
+        self.client.post(
+            send_url,
+            {"text": "message #1", "omnibox": f"g-{self.joe_and_frank.uuid},c-{self.joe.uuid},c-{self.lucy.uuid}"},
+            follow=True,
+        )
+
+        broadcast = Broadcast.objects.get()
+        self.assertEqual({"base": "message #1"}, broadcast.text)
+        self.assertEqual("message #1", broadcast.get_default_text())
+        self.assertEqual(1, broadcast.groups.count())
+        self.assertEqual(2, broadcast.contacts.count())
+
+        mock_queue_broadcast.assert_called_once_with(broadcast)
+
+        # test with one channel now
+        for channel in Channel.objects.all():
+            channel.release()
+
+        Channel.create(
+            self.org,
+            self.user,
+            None,
+            "A",
+            None,
+            secret=Channel.generate_secret(),
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        response = self.client.get(send_url)
+        self.assertEqual(["omnibox", "text", "schedule", "step_node"], response.context["fields"])
+
+        self.client.post(
+            send_url,
+            {"text": "message #2", "omnibox": f"g-{self.joe_and_frank.uuid},c-{self.kevin.uuid}"},
+            follow=True,
+        )
+
+        broadcast = Broadcast.objects.order_by("id").last()
+        self.assertEqual({"base": "message #2"}, broadcast.text)
+        self.assertEqual(1, broadcast.groups.count())
+        self.assertEqual(1, broadcast.contacts.count())
+
+        # directly on user page
+        response = self.client.post(
+            send_url, {"text": "contact send", "from_contact": True, "omnibox": f"c-{self.kevin.uuid}"}
+        )
+
+        self.assertRedirect(response, reverse("contacts.contact_read", args=[self.kevin.uuid]))
+        self.assertEqual(3, Broadcast.objects.all().count())
+
+        # test sending to an arbitrary user
+        self.client.post(send_url, {"text": "message content", "omnibox": "n-2065551212"}, follow=True)
+
+        self.assertEqual(4, Broadcast.objects.all().count())
+        self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
+
+        # test missing senders
+        response = self.client.post(send_url, {"text": "message content"}, follow=True)
+
+        self.assertContains(response, "At least one recipient is required")
+
+        # test AJAX sender
+        response = self.client.post(
+            send_url + "?_format=json", {"text": "message content", "omnibox": ""}, follow=True
+        )
+
+        self.assertContains(response, "At least one recipient is required", status_code=400)
+        self.assertEqual("application/json", response._headers.get("content-type")[1])
+
+        response = self.client.post(
+            send_url,
+            {"text": "this is a test message", "omnibox": f"c-{self.kevin.uuid}", "_format": "json"},
+            follow=True,
+        )
+
+        self.assertContains(response, "success")
+
+        # give Joe a flow run that has stopped on a node
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_prompt = flow_nodes[0]
+        color_split = flow_nodes[4]
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        # no error if we are sending to a flow node
+        payload = {"text": "message content", "omnibox": "", "step_node": color_split["uuid"]}
+        response = self.client.post(send_url + "?_format=json", payload, follow=True)
+
+        self.assertContains(response, "success")
+
+        response = self.client.post(send_url, payload)
+
+        self.assertRedirect(response, reverse("msgs.msg_inbox"))
+
+        response = self.client.post(send_url + "?_format=json", payload, follow=True)
+
+        self.assertContains(response, "success")
+
+        broadcast = Broadcast.objects.order_by("id").last()
+        self.assertEqual(broadcast.text, {"base": "message content"})
+        self.assertEqual(broadcast.groups.count(), 0)
+        self.assertEqual(broadcast.contacts.count(), 1)
+        self.assertIn(self.joe, broadcast.contacts.all())
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", "+12067778811")

@@ -1978,12 +1978,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for broadcast in self.addressed_broadcasts.all():
                 broadcast.contacts.remove(self)
 
-    def initialize_cache(self):
-        if getattr(self, "__cache_initialized", False):
-            return  # pragma: needs cover
-
-        Contact.bulk_cache_initialize(self.org, [self])
-
     @classmethod
     def bulk_cache_initialize(cls, org, contacts):
         """

@@ -529,7 +529,7 @@ class Org(SmartModel):
             scheme = contact_urn.scheme
 
             # if URN has a previously used channel that is still active, use that
-            if contact_urn.channel and contact_urn.channel.is_active:
+            if contact_urn.channel and contact_urn.channel.is_active:  # pragma: no cover
                 previous_sender = contact_urn.channel.get_delegate(role)
                 if previous_sender:
                     return previous_sender
@@ -591,35 +591,27 @@ class Org(SmartModel):
         # get any send channel without any country or URN hints
         return self.get_channel(scheme, country_code, role)
 
-    def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
+    def get_send_channel(self, scheme=None, contact_urn=None):
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(
-            Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code
-        )
+        return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn)
 
-    def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
+    def get_receive_channel(self, scheme=None):
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(
-            Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code
-        )
+        return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme)
 
-    def get_call_channel(self, contact_urn=None, country_code=None):
+    def get_call_channel(self):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(
-            Channel.ROLE_CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code
-        )
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME)
 
-    def get_answer_channel(self, contact_urn=None, country_code=None):
+    def get_answer_channel(self):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(
-            Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code
-        )
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME)
 
     def get_schemes(self, role):
         """
