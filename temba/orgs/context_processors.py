@@ -45,7 +45,12 @@ class GroupPermWrapper(object):
 def user_orgs_for_brand(request):
     if hasattr(request, "user"):
         if not request.user.is_anonymous:
-            user_orgs = request.user.get_user_orgs(request.branding.get("brand")).filter(is_active=True)
+            user_orgs = request.user.get_user_orgs(request.branding.get("brand"))
+            # The following commented List comprehension doesn't return queryset.
+            # [org for org in user_orgs if not org.is_suspended()]
+            # Here we filter from ids from list comprehension to return queryset
+            not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended()]
+            user_orgs = user_orgs.filter(id__in=not_suspended_orgs_ids)
             return dict(user_orgs=user_orgs)
     return {}
 
