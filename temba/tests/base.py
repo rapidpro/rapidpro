@@ -21,7 +21,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
@@ -128,19 +128,155 @@ class TembaTestMixin:
             org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
         )
 
-    def create_msg(self, **kwargs):
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "channel" not in kwargs:
-            kwargs["channel"] = self.channel
-        if "contact_urn" not in kwargs:
-            kwargs["contact_urn"] = kwargs["contact"].get_urn()
-        if "created_on" not in kwargs:
-            kwargs["created_on"] = timezone.now()
+    def create_incoming_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=None,
+        attachments=(),
+        status=HANDLED,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        created_on=None,
+        external_id=None,
+        surveyor=False,
+    ):
+        assert not msg_type or status != PENDING, "pending messages don't have a msg type"
 
-        (kwargs["topup_id"], amount) = kwargs["org"].decrement_credit()
+        if status == HANDLED and not msg_type:
+            msg_type = INBOX
 
-        return Msg.objects.create(**kwargs)
+        return self._create_msg(
+            contact,
+            text,
+            INCOMING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            created_on,
+            visibility=visibility,
+            external_id=external_id,
+            surveyor=surveyor,
+        )
+
+    def create_incoming_msgs(self, contact, count):
+        for m in range(count):
+            self.create_incoming_msg(contact, f"Test {m}")
+
+    def create_outgoing_msg(
+        self,
+        contact,
+        text,
+        channel=None,
+        msg_type=INBOX,
+        attachments=(),
+        status=SENT,
+        created_on=None,
+        sent_on=None,
+        high_priority=False,
+        response_to=None,
+        surveyor=False,
+    ):
+        if status == SENT and not sent_on:
+            sent_on = timezone.now()
+
+        return self._create_msg(
+            contact,
+            text,
+            OUTGOING,
+            channel,
+            msg_type,
+            attachments,
+            status,
+            created_on,
+            sent_on,
+            high_priority=high_priority,
+            response_to=response_to,
+            surveyor=surveyor,
+        )
+
+    def _create_msg(
+        self,
+        contact,
+        text,
+        direction,
+        channel,
+        msg_type,
+        attachments,
+        status,
+        created_on,
+        sent_on=None,
+        visibility=Msg.VISIBILITY_VISIBLE,
+        external_id=None,
+        high_priority=False,
+        response_to=None,
+        surveyor=False,
+        broadcast=None,
+    ):
+        assert not (surveyor and channel), "surveyor messages don't have channels"
+        assert not channel or channel.org == contact.org, "channel belong to different org than contact"
+
+        org = contact.org
+
+        if surveyor:
+            contact_urn = None
+            channel = None
+            topup_id = None
+        else:
+            # a simplified version of how channels are chosen
+            contact_urn = contact.get_urn()
+            if not channel:
+                if contact_urn and contact_urn.channel:
+                    channel = contact_urn.channel
+                else:
+                    channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
+
+            (topup_id, amount) = org.decrement_credit()
+
+        return Msg.objects.create(
+            org=org,
+            direction=direction,
+            contact=contact,
+            contact_urn=contact_urn,
+            text=text,
+            channel=channel,
+            topup_id=topup_id,
+            status=status,
+            msg_type=msg_type,
+            attachments=attachments,
+            visibility=visibility,
+            external_id=external_id,
+            high_priority=high_priority,
+            response_to=response_to,
+            created_on=created_on or timezone.now(),
+            sent_on=sent_on,
+            broadcast=broadcast,
+        )
+
+    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
+        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT)
+
+        contacts = set(bcast.contacts.all())
+        for group in bcast.groups.all():
+            contacts.update(group.contacts.all())
+
+        for contact in contacts:
+            self._create_msg(
+                contact,
+                text,
+                OUTGOING,
+                channel=None,
+                msg_type=INBOX,
+                attachments=(),
+                status=msg_status,
+                created_on=timezone.now(),
+                sent_on=timezone.now(),
+                response_to=response_to,
+                broadcast=bcast,
+            )
+
+        return bcast
 
     def create_flow(self, definition=None, **kwargs):
         if "org" not in kwargs:
@@ -268,10 +404,6 @@ class TembaTestMixin:
 
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
-
-    def create_inbound_msgs(self, recipient, count):
-        for m in range(count):
-            self.create_msg(contact=recipient, direction="I", text="Test %d" % m)
 
     def explain(self, query):
         cursor = connection.cursor()

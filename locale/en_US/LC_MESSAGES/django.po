@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-19 14:47+0000\n"
+"POT-Creation-Date: 2019-09-19 18:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3079,9 +3079,6 @@ msgid "The metadata for this msg"
 msgstr ""
 
 msgid "Why the message is being deleted"
-msgstr ""
-
-msgid "Can't create an incoming message without an org"
 msgstr ""
 
 msgid "Whether this count is for archived messages"

@@ -440,7 +440,6 @@ PERMISSIONS = {
         "label",
         "outbox",
         "sent",
-        "test",
         "update",
     ),
     "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),

@@ -243,7 +243,7 @@ class BroadcastWriteSerializer(WriteSerializer):
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send(expressions_context={}))
+        on_transaction_commit(lambda: broadcast.send())
 
         return broadcast
 
