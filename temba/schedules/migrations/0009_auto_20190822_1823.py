@@ -39,6 +39,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="schedule",
             name="org",
-            field=models.ForeignKey(null=True, on_delete=models.deletion.PROTECT, to="orgs.Org"),
+            field=models.ForeignKey(
+                null=True, related_name="schedules", on_delete=models.deletion.PROTECT, to="orgs.Org"
+            ),
         ),
     ]
