@@ -25,7 +25,7 @@ from django.views.decorators.csrf import csrf_exempt
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import TEL_SCHEME, URN, ContactGroup, ContactURN
+from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -510,7 +510,7 @@ class ExportForm(Form):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "test", "export")
+    actions = ("inbox", "flow", "archived", "outbox", "sent", "failed", "filter", "export")
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
 
@@ -608,37 +608,6 @@ class MsgCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
             kwargs["label"] = self.derive_label()[1]
-            return kwargs
-
-    class Test(SmartFormView):
-        form_class = TestMessageForm
-        fields = ("channel", "urn", "text")
-        title = "Test Message Delivery"
-        permissions = "msgs.msg_test"
-
-        def form_valid(self, *args, **kwargs):  # pragma: no cover
-            data = self.form.cleaned_data
-            handled = Msg.create_incoming(
-                data["channel"], URN.from_tel(data["urn"]), data["text"], user=self.request.user
-            )
-
-            kwargs = self.get_form_kwargs()
-            kwargs["initial"] = data
-            next_form = TestMessageForm(**kwargs)
-
-            context = self.get_context_data()
-            context["handled"] = handled
-            context["form"] = next_form
-            context["responses"] = handled.responses.all()
-
-            # passing a minimal base template and a simple Context (instead of RequestContext) helps us
-            # minimize number of other queries, allowing us to more easily measure queries per request
-            context["base_template"] = "msgs/msg_test_frame.html"
-            return self.render_to_response(context)
-
-        def get_form_kwargs(self, *args, **kwargs):  # pragma: needs cover
-            kwargs = super().get_form_kwargs(*args, **kwargs)
-            kwargs["org"] = self.request.user.get_org()
             return kwargs
 
     class Inbox(MsgActionMixin, InboxView):

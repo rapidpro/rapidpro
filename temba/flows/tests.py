@@ -22,7 +22,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import WHATSAPP_SCHEME, Contact, ContactField, ContactGroup
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.msgs.models import INCOMING, Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
@@ -706,7 +706,7 @@ class FlowTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=self.contact, direction="I", text="chartreuse"))
+            .resume(msg=self.create_incoming_msg(self.contact, "chartreuse"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -735,7 +735,7 @@ class FlowTest(TembaTest):
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
         (
-            session1.resume(msg=self.create_msg(contact=self.contact, direction="I", text="mauve"))
+            session1.resume(msg=self.create_incoming_msg(self.contact, "mauve"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -758,7 +758,7 @@ class FlowTest(TembaTest):
         # this time a color we know takes us elsewhere, activity will move
         # to another node, but still just one entry
         (
-            session1.resume(msg=self.create_msg(contact=self.contact, direction="I", text="blue"))
+            session1.resume(msg=self.create_incoming_msg(self.contact, "blue"))
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -814,7 +814,7 @@ class FlowTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=ryan, direction="I", text="burnt sienna"))
+            .resume(msg=self.create_incoming_msg(ryan, "burnt sienna"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -842,7 +842,7 @@ class FlowTest(TembaTest):
 
         # now let's have them land in the same place
         (
-            session2.resume(msg=self.create_msg(contact=ryan, direction="I", text="blue"))
+            session2.resume(msg=self.create_incoming_msg(ryan, "blue"))
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
@@ -856,12 +856,12 @@ class FlowTest(TembaTest):
 
         # now move our first contact forward to the end
         (
-            session1.resume(msg=self.create_msg(contact=self.contact, direction="I", text="Turbo King"))
+            session1.resume(msg=self.create_incoming_msg(self.contact, "Turbo King"))
             .visit(name_prompt, exit_index=2)
             .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
             .visit(name_split)
             .wait()
-            .resume(msg=self.create_msg(contact=self.contact, direction="I", text="Ben Haggerty"))
+            .resume(msg=self.create_incoming_msg(self.contact, "Ben Haggerty"))
             .visit(end_prompt)
             .complete()
             .save()
@@ -944,12 +944,12 @@ class FlowTest(TembaTest):
 
         # advance ryan to the end to make sure our percentage accounts for one less contact
         (
-            session2.resume(msg=self.create_msg(contact=ryan, direction="I", text="Turbo King"))
+            session2.resume(msg=self.create_incoming_msg(ryan, "Turbo King"))
             .visit(name_prompt, exit_index=2)
             .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
             .visit(name_split)
             .wait()
-            .resume(msg=self.create_msg(contact=ryan, direction="I", text="Ryan Lewis"))
+            .resume(msg=self.create_incoming_msg(ryan, "Ryan Lewis"))
             .visit(end_prompt)
             .complete()
             .save()
@@ -1015,7 +1015,7 @@ class FlowTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=tupac, direction="I", text="azul"))
+            .resume(msg=self.create_incoming_msg(tupac, "azul"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -1080,7 +1080,7 @@ class FlowTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=jimmy, direction="I", text="cyan"))
+            .resume(msg=self.create_incoming_msg(jimmy, "cyan"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -1162,19 +1162,19 @@ class FlowTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .visit(color_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="blue"))
+                .resume(msg=self.create_incoming_msg(contact, "blue"))
                 .set_result("Color", "blue", "Blue", "blue")
                 .visit(beer_prompt)
                 .send_msg("Good choice, I like Blue too! What is your favorite beer?", self.channel)
                 .visit(beer_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="primus"))
+                .resume(msg=self.create_incoming_msg(contact, "primus"))
                 .set_result("Beer", "primus", "Primus", "primus")
                 .visit(name_prompt)
                 .send_msg("Lastly, what is your name?", self.channel)
                 .visit(name_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="russell"))
+                .resume(msg=self.create_incoming_msg(contact, "russell"))
                 .set_result("Name", "russell", "All Responses", "russell")
                 .complete()
                 .save()
@@ -1188,19 +1188,19 @@ class FlowTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .visit(color_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="red"))
+                .resume(msg=self.create_incoming_msg(contact, "red"))
                 .set_result("Color", "red", "Red", "red")
                 .visit(beer_prompt)
                 .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
                 .visit(beer_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="primus"))
+                .resume(msg=self.create_incoming_msg(contact, "primus"))
                 .set_result("Beer", "primus", "Primus", "primus")
                 .visit(name_prompt)
                 .send_msg("Lastly, what is your name?", self.channel)
                 .visit(name_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="earl"))
+                .resume(msg=self.create_incoming_msg(contact, "earl"))
                 .set_result("Name", "earl", "All Responses", "earl")
                 .complete()
                 .save()
@@ -1215,26 +1215,26 @@ class FlowTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .visit(color_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="orange"))
+                .resume(msg=self.create_incoming_msg(contact, "orange"))
                 .set_result("Color", "orange", "Other", "orange")
                 .visit(color_other)
                 .send_msg("I don't know that one, try again please.", self.channel)
                 .visit(color_split)
                 .wait()
                 .save()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="green"))
+                .resume(msg=self.create_incoming_msg(contact, "green"))
                 .set_result("Color", "green", "Green", "green")
                 .visit(beer_prompt)
                 .send_msg("Good choice, I like Green too! What is your favorite beer?", self.channel)
                 .visit(beer_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="skol"))
+                .resume(msg=self.create_incoming_msg(contact, "skol"))
                 .set_result("Beer", "skol", "Skol", "skol")
                 .visit(name_prompt)
                 .send_msg("Lastly, what is your name?", self.channel)
                 .visit(name_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="bobby"))
+                .resume(msg=self.create_incoming_msg(contact, "bobby"))
                 .set_result("Name", "bobby", "All Responses", "bobby")
                 .complete()
                 .save()
@@ -1272,13 +1272,13 @@ class FlowTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .visit(color_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="red"))
+                .resume(msg=self.create_incoming_msg(contact, "red"))
                 .set_result("Color", "red", "Red", "red")
                 .visit(beer_prompt)
                 .send_msg("Good choice, I like Red too! What is your favorite beer?", self.channel)
                 .visit(beer_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=contact, direction="I", text="turbo"))
+                .resume(msg=self.create_incoming_msg(contact, "turbo"))
                 .set_result("Beer", "turbo", "Turbo King", "turbo")
                 .visit(name_prompt)
                 .wait()
@@ -1326,7 +1326,7 @@ class FlowTest(TembaTest):
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
 
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
+        msg = self.create_incoming_msg(self.contact, "blue")
         run = (
             MockSessionWriter(self.contact, flow)
             .visit(color_prompt)
@@ -1400,7 +1400,7 @@ class FlowTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .visit(color_split)
                 .wait()
-                .resume(msg=self.create_msg(direction=INCOMING, contact=contact, text=str(m + 1)))
+                .resume(msg=self.create_incoming_msg(contact, text=str(m + 1)))
                 .visit(color_other)
                 .visit(color_split)
                 .wait()
@@ -1431,13 +1431,7 @@ class FlowTest(TembaTest):
         self.assertEqual(["12", "11", "10", "9", "8"], [r["text"] for r in other_recent])
 
         # send another message and prune again
-        (
-            session.resume(msg=self.create_msg(direction=INCOMING, contact=bob, text="13"))
-            .visit(color_other)
-            .visit(color_split)
-            .wait()
-            .save()
-        )
+        (session.resume(msg=self.create_incoming_msg(bob, "13")).visit(color_other).visit(color_split).wait().save())
         squash_flowruncounts()
 
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
@@ -2075,7 +2069,7 @@ class FlowTest(TembaTest):
             .visit(color_prompt)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(direction="I", contact=self.contact, text="RED"))
+            .resume(msg=self.create_incoming_msg(self.contact, "RED"))
             .visit(beer_prompt)
             .visit(beer_split)
             .wait()
@@ -2089,11 +2083,11 @@ class FlowTest(TembaTest):
             .visit(color_prompt)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(direction="I", contact=joe, text="green"))
+            .resume(msg=self.create_incoming_msg(joe, "green"))
             .visit(beer_prompt)
             .visit(beer_split)
             .wait()
-            .resume(msg=self.create_msg(direction="I", contact=joe, text="primus"))
+            .resume(msg=self.create_incoming_msg(joe, "primus"))
             .complete()
             .save()
         )
@@ -3010,7 +3004,7 @@ class FlowCRUDLTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=contact, direction="I", text="chartreuse"))
+            .resume(msg=self.create_incoming_msg(contact, "chartreuse"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -3034,7 +3028,7 @@ class FlowCRUDLTest(TembaTest):
         assert_recent(response, [])
 
         (
-            session.resume(msg=self.create_msg(contact=contact, direction="I", text="mauve"))
+            session.resume(msg=self.create_incoming_msg(contact, "mauve"))
             .visit(color_other)
             .send_msg("I don't know that color. Try again.")
             .visit(color_split)
@@ -3052,7 +3046,7 @@ class FlowCRUDLTest(TembaTest):
         assert_recent(response, [])
 
         (
-            session.resume(msg=self.create_msg(contact=contact, direction="I", text="blue"))
+            session.resume(msg=self.create_incoming_msg(contact, "blue"))
             .visit(beer_prompt, exit_index=2)
             .send_msg("I like Blue. What beer do you like?")
             .visit(beer_split)
@@ -3087,7 +3081,7 @@ class FlowCRUDLTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=pete, direction="I", text="blue"))
+            .resume(msg=self.create_incoming_msg(pete, "blue"))
             .set_result("Color", "blue", "Blue", "blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
@@ -3103,13 +3097,13 @@ class FlowCRUDLTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=jimmy, direction="I", text="red"))
+            .resume(msg=self.create_incoming_msg(jimmy, "red"))
             .set_result("Color", "red", "Red", "red")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Red too! What is your favorite beer?")
             .visit(beer_split)
             .wait()
-            .resume(msg=self.create_msg(contact=jimmy, direction="I", text="turbo"))
+            .resume(msg=self.create_incoming_msg(jimmy, "turbo"))
             .set_result("Beer", "turbo", "Turbo King", "turbo")
             .visit(name_prompt, exit_index=2)
             .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
@@ -3172,13 +3166,13 @@ class FlowCRUDLTest(TembaTest):
 
             # now complete the flow for Pete
             (
-                pete_session.resume(msg=self.create_msg(contact=pete, direction="I", text="primus"))
+                pete_session.resume(msg=self.create_incoming_msg(pete, "primus"))
                 .set_result("Beer", "primus", "Primus", "primus")
                 .visit(name_prompt)
                 .send_msg("Mmmmm... delicious Primus. Lastly, what is your name?")
                 .visit(name_split)
                 .wait()
-                .resume(msg=self.create_msg(contact=pete, direction="I", text="Pete"))
+                .resume(msg=self.create_incoming_msg(pete, "Pete"))
                 .visit(end_prompt)
                 .complete()
                 .save()
@@ -3282,7 +3276,7 @@ class FlowCRUDLTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=pete, direction="I", text="blue"))
+            .resume(msg=self.create_incoming_msg(pete, "blue"))
             .set_result("Color", "blue", "Blue", "blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
@@ -3559,7 +3553,7 @@ class FlowRunTest(TembaTest):
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
 
-        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
+        msg_in = self.create_incoming_msg(self.contact, "green")
 
         run = (
             MockSessionWriter(self.contact, flow)
@@ -3694,19 +3688,19 @@ class FlowRunTest(TembaTest):
             .send_msg("What is your favorite color?", self.channel)
             .visit(color_split)
             .wait()
-            .resume(msg=self.create_msg(contact=self.contact, direction="I", text="blue"))
+            .resume(msg=self.create_incoming_msg(self.contact, "blue"))
             .set_result("Color", "blue", "Blue", "blue")
             .visit(beer_prompt, exit_index=2)
             .send_msg("Good choice, I like Blue too! What is your favorite beer?")
             .visit(beer_split)
             .wait()
-            .resume(msg=self.create_msg(contact=self.contact, direction="I", text="primus"))
+            .resume(msg=self.create_incoming_msg(self.contact, "primus"))
             .set_result("Beer", "primus", "Primus", "primus")
             .visit(name_prompt, exit_index=2)
             .send_msg("Mmmmm... delicious Turbo King. Lastly, what is your name?")
             .visit(name_split)
             .wait()
-            .resume(msg=self.create_msg(contact=self.contact, direction="I", text="Ryan Lewis"))
+            .resume(msg=self.create_incoming_msg(self.contact, "Ryan Lewis"))
             .visit(end_prompt)
             .complete()
             .save()
@@ -3864,8 +3858,8 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
-        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        contact1_in1 = self.create_incoming_msg(self.contact, "light beige")
+        contact1_in2 = self.create_incoming_msg(self.contact, "orange")
         contact1_run1 = (
             MockSessionWriter(self.contact, flow)
             .visit(color_prompt)
@@ -3889,7 +3883,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
+        contact2_in1 = self.create_incoming_msg(self.contact2, "green")
         contact2_run1 = (
             MockSessionWriter(self.contact2, flow)
             .visit(color_prompt)
@@ -3914,7 +3908,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
+        contact1_in3 = self.create_incoming_msg(self.contact, " blue ")
         contact1_run2 = (
             MockSessionWriter(self.contact, flow)
             .visit(color_prompt)
@@ -4345,7 +4339,7 @@ class ExportFlowResultsTest(TembaTest):
             color_prompt = flow_nodes[0]
             color_split = flow_nodes[4]
 
-            msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+            msg_in = self.create_incoming_msg(self.contact, "orange")
 
             run1 = (
                 MockSessionWriter(self.contact, flow)
@@ -4703,8 +4697,8 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
-        contact1_in2 = self.create_msg(direction=INCOMING, contact=self.contact, text="red")
+        contact1_in1 = self.create_incoming_msg(self.contact, "light beige")
+        contact1_in2 = self.create_incoming_msg(self.contact, "red")
         contact1_run1 = (
             MockSessionWriter(self.contact, favorites)
             .visit(color_prompt)
@@ -4737,7 +4731,7 @@ class ExportFlowResultsTest(TembaTest):
         color_other = flow_nodes[1]
         color_split = flow_nodes[2]
 
-        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
+        contact2_in1 = self.create_incoming_msg(self.contact2, "green")
         contact2_run1 = (
             MockSessionWriter(self.contact2, favorites)
             .visit(color_prompt)
@@ -4762,7 +4756,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
+        contact1_in3 = self.create_incoming_msg(self.contact, " blue ")
         contact1_run2 = (
             MockSessionWriter(self.contact, favorites)
             .visit(color_prompt)
@@ -5031,7 +5025,7 @@ class ExportFlowResultsTest(TembaTest):
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
 
-        msg_in = self.create_msg(direction=INCOMING, contact=self.contact, text="ngert\x07in.")
+        msg_in = self.create_incoming_msg(self.contact, "ngert\x07in.")
 
         run1 = (
             MockSessionWriter(self.contact, flow)
@@ -5077,7 +5071,7 @@ class ExportFlowResultsTest(TembaTest):
         color_other = flow_nodes[3]
         blue_reply = flow_nodes[2]
 
-        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="green")
+        contact1_in1 = self.create_incoming_msg(self.contact, "green")
         contact1_run = (
             MockSessionWriter(self.contact, flow)
             .visit(color_prompt)
@@ -5093,7 +5087,7 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="blue")
+        contact2_in1 = self.create_incoming_msg(self.contact2, "blue")
         contact2_run = (
             MockSessionWriter(self.contact2, flow)
             .visit(color_prompt)
@@ -5245,7 +5239,7 @@ class ExportFlowResultsTest(TembaTest):
         color_split = flow_nodes[4]
 
         # no urn or channel
-        in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact, status="H")
+        in1 = self.create_incoming_msg(self.contact, "blue", surveyor=True)
 
         run = (
             MockSessionWriter(self.contact, flow)

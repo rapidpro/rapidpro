@@ -1152,12 +1152,6 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         with self.assertRaises(CommandError):
             call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
 
-        # but simulate can
-        with patch("temba.flows.models.FlowStart.async_start") as mock_async_start:
-            call_command("test_db", "simulate", num_runs=2)
-
-            self.assertGreaterEqual(mock_async_start.call_count, 2)  # num_runs is only the minimum
-
 
 class JsonModelTestDefaultNull(models.Model):
     field = JSONAsTextField(default=dict, null=True)
