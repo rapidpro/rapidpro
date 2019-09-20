@@ -406,7 +406,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.schedule.repeat_period, "D")
         self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertFalse(set(trigger.contacts.all()), {shinoda})
+        self.assertEqual(set(trigger.contacts.all()), {shinoda})
 
         # move it to the past
         schedule = trigger.schedule
