@@ -8,16 +8,13 @@ from .models import Schedule
 
 
 @task(track_started=True, name="check_schedule_task")
-def check_schedule_task(sched_id=None):
+def check_schedule_task():
     """
     See if any schedules are expired and fire appropriately
     """
     logger = check_schedule_task.get_logger()
 
     schedules = Schedule.objects.filter(is_active=True, next_fire__lt=timezone.now())
-
-    if sched_id:
-        schedules = schedules.filter(id=sched_id)
 
     r = get_redis_connection()
 
