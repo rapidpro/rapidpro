@@ -195,7 +195,7 @@ class Schedule(SmartModel):
         now = timezone.now()
 
         # makes sure we are expired, noop if not
-        if self.next_fire > now: # pragma: no cover
+        if self.next_fire > now:  # pragma: no cover
             return
 
         broadcast = self.get_broadcast()
@@ -209,7 +209,7 @@ class Schedule(SmartModel):
         elif trigger:
             trigger.fire_from_schedule()
 
-        else: # pragma: no cover
+        else:  # pragma: no cover
             logger.error("Tried to fire schedule but it wasn't attached to anything", extra={"schedule_id": self.id})
 
         # save our last fire
