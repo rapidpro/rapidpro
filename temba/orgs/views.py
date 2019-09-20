@@ -1,6 +1,6 @@
 import itertools
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 from email.utils import parseaddr
@@ -614,6 +614,7 @@ class OrgCRUDL(SmartCRUDL):
         "smtp_server",
         "giftcards",
         "lookups",
+        "parse_data_view",
     )
 
     model = Org
@@ -2299,6 +2300,77 @@ class OrgCRUDL(SmartCRUDL):
             context["remove_div_title"] = "lookup"
             context["view_url"] = reverse("orgs.org_lookups")
             context["icon_slug"] = "icon-filter"
+            return context
+
+    class ParseDataView(InferOrgMixin, OrgPermsMixin, SmartListView):
+        paginate_by = 0
+
+        def derive_fields(self):
+            db = self.request.GET.get("db")
+            type = self.request.GET.get("type")
+
+            collection_type = str(GIFTCARDS).lower() if type == "giftcard" else str(LOOKUPS).lower()
+
+            org = self.request.user.get_org()
+            collection = OrgCRUDL.Giftcards.get_collection_full_name(
+                org_slug=org.slug, org_id=org.id, name=db, collection_type=collection_type
+            )
+
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                "Content-Type": "application/json",
+            }
+
+            parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
+
+            response = requests.get(parse_url, headers=parse_headers)
+
+            fields = []
+            if response.status_code == 200 and "fields" in response.json():
+                fields = response.json().get("fields")
+                fields = [item for item in fields.keys() if item not in ["ACL", "createdAt"]]
+
+            return tuple(fields)
+
+        def derive_queryset(self, **kwargs):
+            db = self.request.GET.get("db")
+            type = self.request.GET.get("type")
+
+            collection_type = str(GIFTCARDS).lower() if type == "giftcard" else str(LOOKUPS).lower()
+
+            org = self.request.user.get_org()
+            collection = OrgCRUDL.Giftcards.get_collection_full_name(
+                org_slug=org.slug, org_id=org.id, name=db, collection_type=collection_type
+            )
+
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-REST-API-Key": settings.PARSE_REST_KEY,
+                "Content-Type": "application/json",
+            }
+
+            parse_url = f"{settings.PARSE_URL}/classes/{collection}"
+            response = requests.get(parse_url, headers=parse_headers)
+
+            results = []
+            if response.status_code == 200 and "results" in response.json():
+                results_resp = response.json().get("results")
+                for result in results_resp:
+                    result_obj = namedtuple("ParseResult", result.keys())(*result.values())
+                    results.append(result_obj)
+
+            return tuple(results)
+
+        def derive_title(self):
+            return self.request.GET.get("db")
+
+        def lookup_obj_attribute(self, obj, field):
+            return getattr(obj, field, None) if hasattr(obj, field) else None
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["searches"] = []
             return context
 
     class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):

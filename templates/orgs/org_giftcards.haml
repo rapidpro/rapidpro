@@ -32,7 +32,7 @@
             %tr
               %td= item.collection
               %td.giftcard-check.permission
-                %a{'href': '', 'target': '_blank'}
+                %a{'href': '{% url "orgs.org_parse_data_view" %}?db={{ item.collection }}&type={{ remove_div_title }}', 'target': '_blank'}
                   -trans "Preview"
                 |
                 %a{'href': ''}
