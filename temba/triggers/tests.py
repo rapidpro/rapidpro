@@ -388,12 +388,12 @@ class TriggerTest(TembaTest):
 
         self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
 
-        # provide flow this time and drop contact
+        # provide flow this time, update contact
         self.client.post(
             update_url,
             {
                 "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid}",
+                "omnibox": f"g-{linkin_park.uuid},c-{shinoda.uuid}",
                 "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(now_stamp),
@@ -406,7 +406,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.schedule.repeat_period, "D")
         self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertFalse(trigger.contacts.all())
+        self.assertFalse(set(trigger.contacts.all()), {shinoda})
 
         # move it to the past
         schedule = trigger.schedule
