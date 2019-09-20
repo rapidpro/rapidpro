@@ -22,7 +22,7 @@
     %table#table-giftcards.table.table-condensed
       %thead
         %tr
-          %th {{ view_title }} Collections
+          %th Collections
           %th.permission Action
           %th.permission Remove
 
@@ -34,6 +34,9 @@
               %td.giftcard-check.permission
                 %a{'href': '', 'target': '_blank'}
                   -trans "Preview"
+                |
+                %a{'href': ''}
+                  -trans "Import Data"
               %td.giftcard-check.permission
                 %a{'href': 'javascript:confirmRemoveCollection("remove-{{ remove_div_title }}", "{{ forloop.counter0 }}")'}
                   .glyph.icon-remove-2
@@ -50,24 +53,6 @@
       %hr
   .field.formax-vertical
     {% render_field 'collection' %}
-
--block summary
-  -with current_collections as collections
-    -trans "You have"
-    %span.attn
-      -if collections|length == 0
-        -trans "no"
-        {{ view_title|lower }}
-        -trans "collections"
-      -elif collections|length == 1
-        -trans "one"
-        {{ view_title|lower }}
-        -trans "collection"
-      -else
-        {{ collections|length }}
-        {{ view_title|lower }}
-        -trans "collections"
-    -trans "configured."
 
 -block extra-script
   {{block.super}}
@@ -86,4 +71,7 @@
     }
     td.giftcard-check.checked .glyph.level-checkbox:before {
       content: "\e05a";
+    }
+    th.permission, td.permission {
+      text-align: center;
     }

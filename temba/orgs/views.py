@@ -2162,6 +2162,14 @@ class OrgCRUDL(SmartCRUDL):
         indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
         submit_button_name = _("Save")
 
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_lookups"):
+                links.append(dict(title=_("Lookups"), href=reverse("orgs.org_lookups")))
+
+            return links
+
         def get_form(self):
             form = super().get_form()
             self.current_collections = form.add_collection_fields(collection_type=self.collection_type)
@@ -2270,6 +2278,14 @@ class OrgCRUDL(SmartCRUDL):
         fields_payload = DEFAULT_FIELDS_PAYLOAD_LOOKUPS
         indexes_payload = DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
         submit_button_name = _("Save")
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_giftcards"):
+                links.append(dict(title=_("Gift Cards"), href=reverse("orgs.org_giftcards")))
+
+            return links
 
         def get_form(self):
             form = super(OrgCRUDL.Lookups, self).get_form()
