@@ -13,9 +13,6 @@ from .models import Schedule
 
 
 class BaseScheduleForm(object):
-    def is_recurring(self):
-        return self.cleaned_data["repeat_period"] != Schedule.REPEAT_NEVER
-
     def get_start_time(self, tz):
         if self.cleaned_data["start"] == "later":
             start_datetime_value = self.cleaned_data["start_datetime_value"]
@@ -23,8 +20,6 @@ class BaseScheduleForm(object):
             if start_datetime_value:
                 start_datetime = tz.normalize(datetime.utcfromtimestamp(start_datetime_value).astimezone(tz))
                 return start_datetime
-            else:
-                return None
 
         return None
 
