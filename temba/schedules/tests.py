@@ -13,6 +13,7 @@ from temba.tests import MigrationTest
 from temba.triggers.models import Trigger
 
 from .models import Schedule
+from .tasks import check_schedule_task
 
 MONDAY = 0  # 2
 TUESDAY = 1  # 4
@@ -62,7 +63,7 @@ class ScheduleTest(TembaTest):
                 now=datetime(2013, 1, 3, hour=9),
                 repeat_period=Schedule.REPEAT_NEVER,
                 first=None,
-                next=[],
+                next=[None],
             ),
             dict(
                 label="one time in the future (fire once)",
@@ -221,7 +222,7 @@ class ScheduleTest(TembaTest):
             next_fire = sched.next_fire
             for next in tc["next"]:
                 next_fire = Schedule.get_next_fire(sched, next_fire)
-                expected_next = tz.localize(next)
+                expected_next = tz.localize(next) if next else None
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
     def test_schedule_ui(self):
@@ -285,6 +286,20 @@ class ScheduleTest(TembaTest):
         self.assertEqual(10, schedule.repeat_hour_of_day)
         self.assertEqual(15, schedule.repeat_minute_of_hour)
         self.assertEqual(start, schedule.next_fire)
+
+        # manually set our fire in the past
+        schedule.next_fire = timezone.now() - timedelta(days=1)
+        schedule.save(update_fields=["next_fire"])
+
+        # run our task to fire schedules
+        check_schedule_task()
+
+        # should have a new broadcasts now
+        self.assertEqual(1, Broadcast.objects.filter(id__gt=bcast.id).count())
+
+        # we should have a new fire in the future
+        schedule.refresh_from_db()
+        self.assertTrue(schedule.next_fire > timezone.now())
 
     def test_update(self):
         sched = create_schedule(self.org, self.admin, Schedule.REPEAT_WEEKLY, "RS")

@@ -8,9 +8,10 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
+from temba.schedules.tasks import check_schedule_task
 from temba.tests import MockResponse, TembaTest
 
 from .models import Trigger
@@ -393,7 +394,7 @@ class TriggerTest(TembaTest):
             {
                 "flow": flow.id,
                 "omnibox": f"g-{linkin_park.uuid}",
-                "repeat_period": "O",
+                "repeat_period": "D",
                 "start": "later",
                 "start_datetime_value": str(now_stamp),
             },
@@ -402,10 +403,25 @@ class TriggerTest(TembaTest):
         trigger.refresh_from_db()
 
         self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.repeat_period, "O")
-        self.assertFalse(trigger.schedule.next_fire)
+        self.assertEqual(trigger.schedule.repeat_period, "D")
+        self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
         self.assertFalse(trigger.contacts.all())
+
+        # move it to the past
+        schedule = trigger.schedule
+        schedule.next_fire = timezone.now() - timedelta(days=1)
+        schedule.save(update_fields=["next_fire"])
+
+        # get it fired
+        check_schedule_task()
+
+        # should have created a flow start
+        self.assertIsNotNone(FlowStart.objects.get())
+
+        # schedule should be in the future now
+        schedule.refresh_from_db()
+        self.assertTrue(schedule.next_fire > timezone.now())
 
     def test_join_group_trigger(self):
         self.login(self.admin)
