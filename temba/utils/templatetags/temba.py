@@ -253,11 +253,14 @@ def format_datetime(time, tz):
 
 @register.simple_tag(takes_context=True)
 def temba_get_value(context, obj, field):
-    view = context['view']
-    org = context['user_org']
+    view = context["view"]
+    org = context["user_org"]
     value = view.lookup_field_value(context, obj, field)
-    print(type(value))
-    if type(value) == datetime:
+
+    try:
+        value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
         return format_datetime(value, org.timezone)
+    except Exception:
+        pass
 
     return value
