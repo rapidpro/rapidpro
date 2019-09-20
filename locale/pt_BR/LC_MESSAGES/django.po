@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-18 20:05+0000\n"
+"POT-Creation-Date: 2019-09-19 18:17+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10573,6 +10573,69 @@ msgid "More Videos"
 msgstr "Mais vídeos"
 
 #, fuzzy
+#| msgid "Create Schedule"
+msgid "Leave unscheduled"
+msgstr "Criar agendamento"
+
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Cancel schedule"
+msgstr "Criar agendamento"
+
+msgid "Mon"
+msgstr "Segunda-feira"
+
+msgid "Tue"
+msgstr "Terça-feira"
+
+msgid "Wed"
+msgstr "Quarta-feira"
+
+msgid "Thu"
+msgstr "Quinta-feira"
+
+msgid "Fri"
+msgstr "Sexta-feira"
+
+msgid "Sat"
+msgstr "Sábado"
+
+msgid "Sun"
+msgstr "Domingo"
+
+#, fuzzy
+#| msgid "When this message was sent to the endpoint"
+msgid "The next message will be sent "
+msgstr "Quando essa mensagem foi enviada para o terminal"
+
+msgid "It will repeat every"
+msgstr "Se repetirá a cada"
+
+msgid "at around the same time."
+msgstr "em torno da mesma hora"
+
+#, fuzzy
+#| msgid "joins the"
+msgid "on the"
+msgstr "Junte-se a"
+
+#, fuzzy
+#| msgid "It will repeat every"
+msgid "It will repeat"
+msgstr "Se repetirá a cada"
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+#, fuzzy
+#| msgid "not scheduled"
+msgid "Not scheduled"
+msgstr "Não agendado"
+
+#, fuzzy
 #| msgid "Delete"
 msgid "Delete "
 msgstr "Deletar"
@@ -10716,27 +10779,6 @@ msgstr "Criar uma palavra-chave SMS que permite às pessoas se juntarem a um gru
 msgid "Select a date"
 msgstr "Selecionar uma data"
 
-msgid "Mon"
-msgstr "Segunda-feira"
-
-msgid "Tue"
-msgstr "Terça-feira"
-
-msgid "Wed"
-msgstr "Quarta-feira"
-
-msgid "Thu"
-msgstr "Quinta-feira"
-
-msgid "Fri"
-msgstr "Sexta-feira"
-
-msgid "Sat"
-msgstr "Sábado"
-
-msgid "Sun"
-msgstr "Domingo"
-
 msgid "Start a flow in the future or on a schedule."
 msgstr "Iniciar um fluxo futuramente ou segundo agendamento."
 
@@ -10754,12 +10796,6 @@ msgid ""
 msgstr ""
 "\n"
 "A próxima mensagem será enviada <span class='attn next-fire'/>."
-
-msgid "It will repeat every"
-msgstr "Se repetirá a cada"
-
-msgid "at around the same time."
-msgstr "em torno da mesma hora"
 
 msgid "month"
 msgstr "mês"
@@ -14031,9 +14067,6 @@ msgstr "Remover telefone"
 
 #~ msgid "The TextIt Team"
 #~ msgstr "A Equipe Textit"
-
-#~ msgid "joins the"
-#~ msgstr "Junte-se a"
 
 #~ msgid "group"
 #~ msgstr "grupo"

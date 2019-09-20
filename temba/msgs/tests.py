@@ -378,7 +378,7 @@ class MsgTest(TembaTest):
             self.channel.org, self.admin, "Scheduled broadcast", contacts=[self.kevin], status=QUEUED
         )
 
-        broadcast4.schedule = Schedule.create_schedule(timezone.now(), "D", self.admin)
+        broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=["schedule"])
 
         with self.assertNumQueries(39):
@@ -1932,7 +1932,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
-            schedule=Schedule.create_schedule(timezone.now(), "M", self.admin),
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         self.assertEqual("I", broadcast1.status)
 
@@ -2623,7 +2623,7 @@ class SystemLabelTest(TembaTest):
             self.user,
             "Broadcast 2",
             contacts=[contact1, contact2],
-            schedule=Schedule.create_schedule(timezone.now(), "D", self.user),
+            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual(
@@ -2652,7 +2652,7 @@ class SystemLabelTest(TembaTest):
             self.user,
             "Broadcast 3",
             contacts=[contact1],
-            schedule=Schedule.create_schedule(timezone.now(), "W", self.user),
+            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual(

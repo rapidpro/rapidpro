@@ -57,10 +57,10 @@ $("#modal, #id-schedule, #id-trigger-schedule").on('change', "select[name=repeat
             // account for Sunday being 0 in JS but 7 in python
             var day = getStartTime().day();
             if(day == 0) {
-		day = 7;
+                day = 7;
             }
             $('.btn-group > .btn:nth-child(' + day + ')').each(function(){
-		$(this).addClass("active");
+                $(this).addClass("active");
             });
         }
 
@@ -79,7 +79,7 @@ function scheduleSelection(event) {
     // prevent default bootstrap behavior
     event.stopPropagation();
 
-    // togger our active class
+    // toggle our active class
     if( $(this).attr('data-toggle') != 'button' ) {
         $(this).toggleClass('active');
     }
@@ -115,10 +115,10 @@ function resetStartDatetime() {
 
 
 function updateDailySelection() {
-    var selected = 0;
+    var selected = "";
     $('.btn-group > .btn').each(function() {
         if ($(this).hasClass('active')) {
-            selected += parseInt($(this).attr("value"));
+            selected += $(this).attr("value");
         }
     });
     $("#repeat-days-value").val(selected);
@@ -142,10 +142,6 @@ $(document).ready(function() {
             }
             datetime.focus();
             datetime.attr('disabled', true);
-
-        } else if (id == 'now-option') {
-            actionButton.val('Start').addClass('btn-success').removeClass('btn-primary btn-danger');
-            recurrence.slideUp();
         } else if (id == 'stop-option' && !$(this).hasClass('unchanged')) {
             actionButton.val('Cancel Schedule').addClass('btn-danger').removeClass('btn-primary btn-success');
             recurrence.slideUp();
