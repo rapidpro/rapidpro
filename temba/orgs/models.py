@@ -2311,9 +2311,10 @@ def get_user_orgs(user, brand=None):
         return Org.objects.all()
 
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+    not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended()]
 
     if brand:
-        user_orgs = user_orgs.filter(brand=brand)
+        user_orgs = user_orgs.filter(brand=brand, id__in=not_suspended_orgs_ids)
 
     return user_orgs.filter(is_active=True).distinct().order_by("name")
 

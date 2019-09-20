@@ -1139,7 +1139,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
-            queryset = queryset.filter(is_active=True)
+            queryset = queryset.fall()
 
             brand = self.request.branding.get("brand")
             if brand:
@@ -1152,7 +1152,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["searches"] = ["Nyaruka"]
+            context["searches"] = []
             return context
 
         def lookup_field_link(self, context, field, obj):
