@@ -1,4 +1,4 @@
-response = self.fetch_protected(url, self.admin)import copy
+import copy
 import subprocess
 import time
 import uuid
