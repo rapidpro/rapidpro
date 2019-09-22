@@ -583,7 +583,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(timezone.now(), "D", self.admin)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertContains(response, "Outbox (5)")
@@ -720,7 +720,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(56):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 1)
@@ -3320,7 +3320,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 27)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 37)
 
         # squash our counts
         squash_msgcounts()
