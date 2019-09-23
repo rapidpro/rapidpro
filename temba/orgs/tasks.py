@@ -48,7 +48,20 @@ def squash_topupcredits():
 
 
 @task(track_started=True, name="import_data_to_parse")
-def import_data_to_parse(branding, user_email, iterator, parse_url, parse_headers, collection, collection_type, collection_real_name, filename, needed_create_header, tz, dayfirst):  # pragma: needs cover
+def import_data_to_parse(
+    branding,
+    user_email,
+    iterator,
+    parse_url,
+    parse_headers,
+    collection,
+    collection_type,
+    collection_real_name,
+    filename,
+    needed_create_header,
+    tz,
+    dayfirst,
+):  # pragma: needs cover
     start = time.time()
     load_len = len(iterator) - 1
 
@@ -73,26 +86,23 @@ def import_data_to_parse(branding, user_email, iterator, parse_url, parse_header
         if i == 0:
             counter = 0
             for item in row:
-                if str(item).startswith('numeric_'):
-                    field_type = 'Number'
-                    item = item.replace('numeric_', '')
-                elif str(item).startswith('date_'):
-                    field_type = 'Date'
-                    item = item.replace('date_', '')
+                if str(item).startswith("numeric_"):
+                    field_type = "Number"
+                    item = item.replace("numeric_", "")
+                elif str(item).startswith("date_"):
+                    field_type = "Date"
+                    item = item.replace("date_", "")
                 else:
-                    field_type = 'String'
+                    field_type = "String"
 
-                new_key = str(slugify(item)).replace('-', '_')
+                new_key = str(slugify(item)).replace("-", "_")
                 new_fields[new_key] = dict(type=field_type)
 
                 fields_map[counter] = dict(name=new_key, type=field_type)
                 counter += 1
 
             if needed_create_header:
-                add_new_fields = {
-                    "className": collection,
-                    "fields": new_fields
-                }
+                add_new_fields = {"className": collection, "fields": new_fields}
                 requests.put(parse_url, data=json.dumps(add_new_fields), headers=parse_headers)
         else:
             payload = dict()
@@ -100,19 +110,20 @@ def import_data_to_parse(branding, user_email, iterator, parse_url, parse_header
                 try:
                     field_value = row[item]
 
-                    if fields_map[item].get('type') == 'Number':
+                    if fields_map[item].get("type") == "Number":
                         field_value = float(field_value)
-                    elif fields_map[item].get('type') == 'Date':
-                        field_value = field_value.replace('-', '/')
+                    elif fields_map[item].get("type") == "Date":
+                        field_value = field_value.replace("-", "/")
                         try:
-                            field_value = str_to_datetime(date_str=field_value, tz=tz, dayfirst=dayfirst,
-                                                          fill_time=False)
+                            field_value = str_to_datetime(
+                                date_str=field_value, tz=tz, dayfirst=dayfirst, fill_time=False
+                            )
                         except Exception:
                             field_value = None
                     else:
                         field_value = str(field_value).strip()
 
-                    payload[fields_map[item].get('name')] = field_value
+                    payload[fields_map[item].get("name")] = field_value
                 except Exception:
                     if str(i) not in failures:
                         failures.append(str(i))
@@ -133,7 +144,7 @@ def import_data_to_parse(branding, user_email, iterator, parse_url, parse_header
                     if "success" in item:
                         success += 1
                     else:
-                        failures.append(item.get('error'))
+                        failures.append(item.get("error"))
             batch_package = []
             batch_counter = 0
 
@@ -149,7 +160,7 @@ def import_data_to_parse(branding, user_email, iterator, parse_url, parse_header
                 if "success" in item:
                     success += 1
                 else:
-                    failures.append(item.get('error'))
+                    failures.append(item.get("error"))
 
     print("-- Importation task ran in %0.2f seconds" % (time.time() - start))
 
@@ -158,7 +169,14 @@ def import_data_to_parse(branding, user_email, iterator, parse_url, parse_header
 
     failures = ", ".join(failures) if failures else None
 
-    context = dict(now=timezone.now(), subject=subject, success=success, failures=failures,
-                   collection_real_name=collection_real_name, collection_type=collection_type, filename=filename)
+    context = dict(
+        now=timezone.now(),
+        subject=subject,
+        success=success,
+        failures=failures,
+        collection_real_name=collection_real_name,
+        collection_type=collection_type,
+        filename=filename,
+    )
 
     send_template_email(user_email, subject, template, context, branding)

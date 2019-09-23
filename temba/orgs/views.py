@@ -2377,7 +2377,6 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class ImportParseData(InferOrgMixin, OrgPermsMixin, SmartFormView):
-
         class ImportParseDataForm(Form):
             collection_type = forms.HiddenInput()
             collection = forms.HiddenInput()
@@ -2388,9 +2387,11 @@ class OrgCRUDL(SmartCRUDL):
                 max_file_size = 157286400
 
                 if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", self.cleaned_data["import_file"].name, regex.V0):
-                    raise forms.ValidationError("Please make sure the file name only contains "
-                                                "alphanumeric characters [0-9a-zA-Z] and "
-                                                "special characters in -, _, ., (, )")
+                    raise forms.ValidationError(
+                        "Please make sure the file name only contains "
+                        "alphanumeric characters [0-9a-zA-Z] and "
+                        "special characters in -, _, ., (, )"
+                    )
 
                 collection_type = self.cleaned_data.get("collection_type")
 
@@ -2398,14 +2399,18 @@ class OrgCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("The file must be a CSV or XLS."))
 
                 if self.cleaned_data["import_file"].size > max_file_size:
-                    raise forms.ValidationError(_(
-                        "Your file exceeds the 150MB file limit. Please submit a support request if you need to "
-                        "upload a file 150MB or larger."))
+                    raise forms.ValidationError(
+                        _(
+                            "Your file exceeds the 150MB file limit. Please submit a support request if you need to "
+                            "upload a file 150MB or larger."
+                        )
+                    )
 
                 try:
                     needed_check = True if collection_type == "giftcard" else False
-                    Org.get_parse_import_file_headers(ContentFile(self.cleaned_data["import_file"].read()),
-                                                      needed_check=needed_check)
+                    Org.get_parse_import_file_headers(
+                        ContentFile(self.cleaned_data["import_file"].read()), needed_check=needed_check
+                    )
                 except Exception as e:
                     raise forms.ValidationError(str(e))
 
@@ -2440,21 +2445,21 @@ class OrgCRUDL(SmartCRUDL):
             user = self.get_user()
 
             try:
-                import_file = form.cleaned_data['import_file']
-                collection_type = form.cleaned_data['collection_type']
-                collection = form.cleaned_data['collection']
+                import_file = form.cleaned_data["import_file"]
+                collection_type = form.cleaned_data["collection_type"]
+                collection = form.cleaned_data["collection"]
 
-                if import_file.name.endswith('.csv'):
-                    file_type = 'csv'
-                elif import_file.name.endswith(('.xls', '.xlsx')):
-                    file_type = 'xls'
+                if import_file.name.endswith(".csv"):
+                    file_type = "csv"
+                elif import_file.name.endswith((".xls", ".xlsx")):
+                    file_type = "xls"
                 else:
                     raise Exception
 
                 parse_headers = {
-                    'X-Parse-Application-Id': settings.PARSE_APP_ID,
-                    'X-Parse-Master-Key': settings.PARSE_MASTER_KEY,
-                    'Content-Type': 'application/json'
+                    "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                    "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                    "Content-Type": "application/json",
                 }
 
                 needed_create_header = False
@@ -2472,16 +2477,13 @@ class OrgCRUDL(SmartCRUDL):
                         fields = response.json().get("fields")
 
                         for key in fields.keys():
-                            if key in ['objectId', 'updatedAt', 'createdAt', 'ACL']:
+                            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
                                 del fields[key]
                             else:
-                                del fields[key]['type']
-                                fields[key]['__op'] = 'Delete'
+                                del fields[key]["type"]
+                                fields[key]["__op"] = "Delete"
 
-                        remove_fields = {
-                            "className": collection,
-                            "fields": fields
-                        }
+                        remove_fields = {"className": collection, "fields": fields}
 
                         purge_url = f"{settings.PARSE_URL}/purge/{collection}"
                         response_purge = requests.delete(purge_url, headers=parse_headers)
@@ -2490,7 +2492,9 @@ class OrgCRUDL(SmartCRUDL):
                             requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
 
                     for item in config.get(LOOKUPS, []):
-                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(org.slug, org.id, item, LOOKUPS.lower())
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                            org.slug, org.id, item, LOOKUPS.lower()
+                        )
                         if full_name == collection:
                             collection_real_name = item
                             break
@@ -2500,14 +2504,15 @@ class OrgCRUDL(SmartCRUDL):
                     requests.delete(purge_url, headers=parse_headers)
 
                     for item in config.get(GIFTCARDS, []):
-                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(org.slug, org.id, item,
-                                                                                GIFTCARDS.lower())
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                            org.slug, org.id, item, GIFTCARDS.lower()
+                        )
                         if full_name == collection:
                             collection_real_name = item
                             break
 
-                if file_type == 'csv':
-                    spamreader = csv.reader(import_file, delimiter=str(','))
+                if file_type == "csv":
+                    spamreader = csv.reader(import_file, delimiter=str(","))
                 else:
                     data = get_data(import_file)
                     spamreader = None
@@ -2517,17 +2522,28 @@ class OrgCRUDL(SmartCRUDL):
                             break
 
                 if spamreader:
-                    import_data_to_parse.delay(org.get_branding(), user.email, list(spamreader), parse_url,
-                                               parse_headers, collection, collection_type.title(), collection_real_name,
-                                               import_file.name, needed_create_header, org.timezone.zone,
-                                               org.get_dayfirst())
+                    import_data_to_parse.delay(
+                        org.get_branding(),
+                        user.email,
+                        list(spamreader),
+                        parse_url,
+                        parse_headers,
+                        collection,
+                        collection_type.title(),
+                        collection_real_name,
+                        import_file.name,
+                        needed_create_header,
+                        org.timezone.zone,
+                        org.get_dayfirst(),
+                    )
 
             except Exception as e:
                 # this is an unexpected error, report it to sentry
                 logger = logging.getLogger(__name__)
                 logger.error(f"Exception on app import: {e.args}", exc_info=True)
                 form._errors["import_file"] = form.error_class(
-                    [_("Sorry, your file is invalid. In addition, the file must be a CSV or XLS")])
+                    [_("Sorry, your file is invalid. In addition, the file must be a CSV or XLS")]
+                )
                 return self.form_invalid(form)
 
             return super().form_valid(form)  # pragma: needs cover
