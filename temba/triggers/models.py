@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow
 from temba.orgs.models import Org
 
 

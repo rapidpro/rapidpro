@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import MockResponse, TembaTest
