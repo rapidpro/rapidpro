@@ -30,7 +30,6 @@
     "ts-loader": "6.0.1",
     "typescript": "3.4.5",
     "webpack": "4.32.0",
-    "webpack-bundle-tracker": "0.4.2-beta",
     "webpack-cli": "3.3.2",
     "webpack-dev-server": "3.4.1",
     "webpack-merge": "4.2.1"
