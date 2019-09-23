@@ -402,6 +402,51 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=["config"])
 
+    @classmethod
+    def get_parse_import_file_headers(cls, csv_file, needed_check=True):
+        csv_file.open()
+
+        # this file isn't good enough, lets write it to local disk
+        from django.conf import settings
+        from uuid import uuid4
+
+        # make sure our tmp directory is present (throws if already present)
+        try:
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
+        except Exception:
+            pass
+
+        # write our file out
+        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s' % str(uuid4()))
+
+        out_file = open(tmp_file, 'w')
+        out_file.write(csv_file.read())
+        out_file.close()
+
+        try:
+            headers = SmartModel.get_import_file_headers(open(tmp_file))
+        finally:
+            os.remove(tmp_file)
+
+        if needed_check:
+            Org.validate_parse_import_header(headers)
+
+        return [header.strip() for header in headers]
+
+    @classmethod
+    def validate_parse_import_header(cls, headers):
+        PARSE_GIFTCARDS_IMPORT_HEADERS = ['egiftnumber', 'url', 'challengecode']
+
+        not_found_headers = [h for h in PARSE_GIFTCARDS_IMPORT_HEADERS if h not in headers]
+        string_possible_headers = '", "'.join([h for h in PARSE_GIFTCARDS_IMPORT_HEADERS])
+
+        if ('Identifier' in headers or 'identifier' in headers) or ('Active' in headers or 'active' in headers):
+            raise Exception(_('Please remove the "identifier" and/or "active" column from your file.'))
+
+        if not_found_headers:
+            raise Exception(_('The file you provided is missing a required header. All these fields: "%s" '
+                              'should be included.' % string_possible_headers))
+
     def lock_on(self, lock, qualifier=None):
         """
         Creates the requested type of org-level lock

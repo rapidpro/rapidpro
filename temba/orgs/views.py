@@ -1,5 +1,7 @@
 import itertools
 import logging
+import regex
+
 from collections import OrderedDict, namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -28,6 +30,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
+from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -2372,6 +2375,162 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["searches"] = []
             return context
+
+    class ImportParseData(InferOrgMixin, OrgPermsMixin, SmartFormView):
+
+        class ImportParseDataForm(Form):
+            collection_type = forms.HiddenInput()
+            collection = forms.HiddenInput()
+            import_file = forms.FileField(help_text=_("The import file"))
+
+            def clean_import_file(self):
+                # Max file size something around 150MB
+                max_file_size = 157286400
+
+                if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", self.cleaned_data["import_file"].name, regex.V0):
+                    raise forms.ValidationError("Please make sure the file name only contains "
+                                                "alphanumeric characters [0-9a-zA-Z] and "
+                                                "special characters in -, _, ., (, )")
+
+                collection_type = self.cleaned_data.get("collection_type")
+
+                if not self.cleaned_data["import_file"].name.endswith((".csv", ".xls", ".xlsx")):
+                    raise forms.ValidationError(_("The file must be a CSV or XLS."))
+
+                if self.cleaned_data["import_file"].size > max_file_size:
+                    raise forms.ValidationError(_(
+                        "Your file exceeds the 150MB file limit. Please submit a support request if you need to "
+                        "upload a file 150MB or larger."))
+
+                try:
+                    needed_check = True if collection_type == "giftcard" else False
+                    Org.get_parse_import_file_headers(ContentFile(self.cleaned_data["import_file"].read()),
+                                                      needed_check=needed_check)
+                except Exception as e:
+                    raise forms.ValidationError(str(e))
+
+                return self.cleaned_data["import_file"]
+
+        form_class = ImportParseDataForm
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.ImportParseData, self).get_context_data(**kwargs)
+            org = self.request.user.get_org()
+            context["dayfirst"] = org.get_dayfirst()
+            return context
+
+        def get_success_url(self):  # pragma: needs cover
+            return reverse("orgs.org_import_parse_data")
+
+        def derive_success_message(self):
+            user = self.get_user()
+            return _(f"We are preparing your import. We will e-mail you at {user.email} when it is ready.")
+
+        def get_form_kwargs(self):
+            kwargs = super(OrgCRUDL.ImportParseData, self).get_form_kwargs()
+            kwargs["org"] = self.request.user.get_org()
+            return kwargs
+
+        def form_valid(self, form):
+            import csv
+            from pyexcel_xls import get_data
+            from .tasks import import_data_to_parse
+
+            org = self.request.user.get_org()
+            user = self.get_user()
+
+            try:
+                import_file = form.cleaned_data['import_file']
+                collection_type = form.cleaned_data['collection_type']
+                collection = form.cleaned_data['collection']
+
+                if import_file.name.endswith('.csv'):
+                    file_type = 'csv'
+                elif import_file.name.endswith(('.xls', '.xlsx')):
+                    file_type = 'xls'
+                else:
+                    raise Exception
+
+                parse_headers = {
+                    'X-Parse-Application-Id': settings.PARSE_APP_ID,
+                    'X-Parse-Master-Key': settings.PARSE_MASTER_KEY,
+                    'Content-Type': 'application/json'
+                }
+
+                needed_create_header = False
+
+                parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
+
+                config = self.org.config_json()
+                collection_real_name = None
+
+                if collection_type == "lookup":
+                    needed_create_header = True
+
+                    response = requests.get(parse_url, headers=parse_headers)
+                    if response.status_code == 200 and "fields" in response.json():
+                        fields = response.json().get("fields")
+
+                        for key in fields.keys():
+                            if key in ['objectId', 'updatedAt', 'createdAt', 'ACL']:
+                                del fields[key]
+                            else:
+                                del fields[key]['type']
+                                fields[key]['__op'] = 'Delete'
+
+                        remove_fields = {
+                            "className": collection,
+                            "fields": fields
+                        }
+
+                        purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+                        response_purge = requests.delete(purge_url, headers=parse_headers)
+
+                        if response_purge.status_code in [200, 404]:
+                            requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+
+                    for item in config.get(LOOKUPS, []):
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(org.slug, org.id, item, LOOKUPS.lower())
+                        if full_name == collection:
+                            collection_real_name = item
+                            break
+
+                else:
+                    purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+                    requests.delete(purge_url, headers=parse_headers)
+
+                    for item in config.get(GIFTCARDS, []):
+                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(org.slug, org.id, item,
+                                                                                GIFTCARDS.lower())
+                        if full_name == collection:
+                            collection_real_name = item
+                            break
+
+                if file_type == 'csv':
+                    spamreader = csv.reader(import_file, delimiter=str(','))
+                else:
+                    data = get_data(import_file)
+                    spamreader = None
+                    if data:
+                        for item in data:
+                            spamreader = data[item]
+                            break
+
+                if spamreader:
+                    import_data_to_parse.delay(org.get_branding(), user.email, list(spamreader), parse_url,
+                                               parse_headers, collection, collection_type.title(), collection_real_name,
+                                               import_file.name, needed_create_header, org.timezone.zone,
+                                               org.get_dayfirst())
+
+            except Exception as e:
+                # this is an unexpected error, report it to sentry
+                logger = logging.getLogger(__name__)
+                logger.error(f"Exception on app import: {e.args}", exc_info=True)
+                form._errors["import_file"] = form.error_class(
+                    [_("Sorry, your file is invalid. In addition, the file must be a CSV or XLS")])
+                return self.form_invalid(form)
+
+            return super().form_valid(form)  # pragma: needs cover
 
     class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class TokenForm(forms.ModelForm):
