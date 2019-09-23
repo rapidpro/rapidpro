@@ -462,47 +462,50 @@ class MsgTest(TembaTest):
 
         # test removing a label
         self.do_msg_action(inbox_url, [msg2], "label", label1, label_add=False)
-        self.assertEqual(set(label1.msgs.all()), {msg1})
+        self.assertEqual({msg1}, set(label1.msgs.all()))
 
         # label more messages
         self.do_msg_action(inbox_url, [msg1, msg2, msg3], "label", label3)
-        self.assertEqual(set(label1.msgs.all()), {msg1})
-        self.assertEqual(set(label3.msgs.all()), {msg1, msg2, msg3})
+        self.assertEqual({msg1}, set(label1.msgs.all()))
+        self.assertEqual({msg1, msg2, msg3}, set(label3.msgs.all()))
 
         # update our label name
-        response = self.client.get(reverse("msgs.label_update", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.label_update", args=[label1.id]))
+
         self.assertEqual(200, response.status_code)
         self.assertIn("folder", response.context["form"].fields)
 
-        post_data = dict(name="Foo")
-        response = self.client.post(reverse("msgs.label_update", args=[label1.pk]), post_data)
+        response = self.client.post(reverse("msgs.label_update", args=[label1.id]), {"name": "Foo"})
+        label1.refresh_from_db()
+
         self.assertEqual(302, response.status_code)
-        label1 = Label.label_objects.get(pk=label1.pk)
         self.assertEqual("Foo", label1.name)
 
         # test deleting the label
-        response = self.client.get(reverse("msgs.label_delete", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.id]))
         self.assertEqual(200, response.status_code)
 
-        response = self.client.post(reverse("msgs.label_delete", args=[label1.pk]))
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
+        label1.refresh_from_db()
+
         self.assertEqual(302, response.status_code)
-        self.assertFalse(Label.label_objects.filter(pk=label1.id))
+        self.assertFalse(label1.is_active)
 
         # shouldn't have a remove on the update page
 
         # test archiving a msg
-        self.assertEqual(set(msg1.labels.all()), {label3})
-        post_data = dict(action="archive", objects=msg1.pk)
+        self.assertEqual({label3}, set(msg1.labels.all()))
 
-        response = self.client.post(inbox_url, post_data, follow=True)
+        response = self.client.post(inbox_url, {"action": "archive", "objects": msg1.id}, follow=True)
+
         self.assertEqual(response.status_code, 200)
 
         # now one msg is archived
-        self.assertEqual(list(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), [msg1])
+        self.assertEqual({msg1}, set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)))
 
         # archiving doesn't remove labels
-        msg1 = Msg.objects.get(pk=msg1.pk)
-        self.assertEqual(set(msg1.labels.all()), {label3})
+        msg1.refresh_from_db()
+        self.assertEqual({label3}, set(msg1.labels.all()))
 
         # visit the the archived messages page
         archive_url = reverse("msgs.msg_archived")

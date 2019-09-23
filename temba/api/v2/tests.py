@@ -2770,12 +2770,12 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        important = Label.get_or_create(self.org, self.admin, "Important")
-        feedback = Label.get_or_create(self.org, self.admin, "Feedback")
+        important = self.create_label("Important")
+        feedback = self.create_label("Feedback")
 
         # a deleted label
-        deleted = Label.get_or_create(self.org, self.admin, "Deleted")
-        deleted.release()
+        deleted = self.create_label("Deleted")
+        deleted.release(self.admin)
 
         # create label for other org
         spam = Label.get_or_create(self.org2, self.admin2, "Spam")
@@ -2926,7 +2926,7 @@ class APITest(TembaTest):
         self.create_incoming_msg(self.hans, "Guten tag!", channel=None)
 
         # label some of the messages, this will change our modified on as well for our `incoming` view
-        label = Label.get_or_create(self.org, self.admin, "Spam")
+        label = self.create_label("Spam")
 
         # we do this in two calls so that we can predict ordering later
         label.toggle_label([frank_msg3], add=True)
