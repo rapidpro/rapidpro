@@ -101,7 +101,7 @@
               {% temba_get_value obj field %}
       -empty
         %tr.empty_list
-          -for field in fields
-            %td
+          %td{colspan: "{{ fields|length }}"}
+            -trans "No data"
 
       -block extra-rows
