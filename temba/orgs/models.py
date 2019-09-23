@@ -364,7 +364,7 @@ class Org(SmartModel):
 
     def get_collections(self, collection_type=GIFTCARDS):
         """
-        Returns the collections (gift cards or lookup) configured on this Org
+        Returns the collections (gift card or lookup) set up on this Org
         """
         if self.config:
             return self.config.get(collection_type, [])
@@ -372,7 +372,7 @@ class Org(SmartModel):
 
     def remove_collection_from_org(self, user, index, collection_type=GIFTCARDS):
         """
-        Remove collections (giftcards or lookup) configured on this Org
+        Remove collections (gift card or lookup) added on this Org
         """
         collections = self.get_collections(collection_type=collection_type)
 
@@ -387,7 +387,7 @@ class Org(SmartModel):
 
     def add_collection_to_org(self, user, name, collection_type=GIFTCARDS):
         """
-        Add a collection (giftcards or lookup) to this Org
+        Add a collection (gift card or lookup) to this Org
         """
         collections = self.get_collections(collection_type=collection_type)
         config = self.config
