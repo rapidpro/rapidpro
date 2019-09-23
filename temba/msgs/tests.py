@@ -43,7 +43,6 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 
-from .management.commands.msg_console import MessageConsole
 from .tasks import squash_msgcounts
 from .templatetags.sms import as_icon
 
@@ -2549,29 +2548,6 @@ class LabelCRUDLTest(TembaTest):
         self.assertEqual(results[0]["text"], "Important")
         self.assertEqual(results[1]["text"], "Junk")
         self.assertEqual(results[2]["text"], "Spam")
-
-
-class ConsoleTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-        self.setUpSecondaryOrg()
-
-        # create a new console
-        self.console = MessageConsole(self.org, "tel:+250788123123")
-
-        # and a test contact
-        self.john = self.create_contact("John Doe", "0788123123", force_urn_update=True)
-
-    def assertEchoed(self, needle, clear=True):
-        found = False
-        for line in self.console.echoed:
-            if line.find(needle) >= 0:
-                found = True
-
-        self.assertTrue(found, "Did not find '%s' in '%s'" % (needle, ", ".join(self.console.echoed)))
-
-        if clear:
-            self.console.clear_echoed()
 
 
 class SystemLabelTest(TembaTest):
