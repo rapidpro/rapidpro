@@ -7,6 +7,16 @@ function CreateIncludesPlugin(options) {
     templates = options.templates;
 }
 
+function getScript(filename, nomodule) {
+    return (
+        '<script src="{{STATIC_URL}}components/' +
+        filename +
+        '"' +
+        (nomodule ? ' nomodule="">' : '>') +
+        '</script>\n'
+    );
+}
+
 CreateIncludesPlugin.prototype.apply = function(compiler) {
     let loaderFile = '';
     const bodyScripts = [];
@@ -40,7 +50,9 @@ CreateIncludesPlugin.prototype.apply = function(compiler) {
                 if (filename.startsWith('rp-components')) {
                     fs.writeFileSync(
                         path.resolve(templates, 'components-head.html'),
-                        `<link rel="preload" href="{{STATIC_URL}}components/${filename}" as="script"></link>`
+                        '<link rel="preload" href="{{STATIC_URL}}components/' +
+                            filename +
+                            '" as="script"></link>'
                     );
                 }
 
@@ -58,7 +70,9 @@ CreateIncludesPlugin.prototype.apply = function(compiler) {
             // ones the current browser might need
             fs.writeFileSync(
                 path.resolve(templates, 'components-body.html'),
-                `<script src="{{STATIC_URL}}components/${bodyScripts[0]}" nomodule=""></script>\n<script src="{{STATIC_URL}}components/${bodyScripts[1]}" nomodule=""></script>\n<script src="{{STATIC_URL}}components/${loaderFile}"></script>`
+                getScript(bodyScripts[0], true) +
+                    getScript(bodyScripts[1], true) +
+                    getScript(loaderFile, false)
             );
             callback();
         }.bind(this)
