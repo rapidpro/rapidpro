@@ -39,7 +39,7 @@ from temba.contacts.models import (
 from temba.flows.models import ActionSet, Flow, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import INCOMING, Label, Msg
+from temba.msgs.models import Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
 from temba.tests.s3 import MockS3Client
@@ -100,7 +100,6 @@ class UserTest(TembaTest):
             org = Org.objects.create(
                 name=f"Org {i}",
                 timezone=pytz.timezone("Africa/Kigali"),
-                country=self.country,
                 brand=settings.DEFAULT_BRAND,
                 created_by=self.user,
                 modified_by=self.user,
@@ -124,7 +123,6 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
             brand="some-other-brand.com",
             created_by=self.admin,
             modified_by=self.admin,
@@ -178,6 +176,8 @@ class OrgDeleteTest(TembaTest):
     def setUp(self):
         super().setUp()
 
+        self.setUpLocations()
+
         # create a second org
         self.child_org = Org.objects.create(
             name="Child Org",
@@ -214,13 +214,13 @@ class OrgDeleteTest(TembaTest):
         # bring in some flows
         favorites = self.get_flow("favorites")
         parent_contact = self.create_contact("Parent Contact", "+2345123")
-        FlowRun.create(favorites, parent_contact)
+        FlowRun.objects.create(org=self.org, flow=favorites, contact=parent_contact)
 
         # and our child org too
         self.org = self.child_org
         color = self.get_flow("color")
         child_contact = self.create_contact("Child Contact", "+3456123")
-        FlowRun.create(color, child_contact)
+        FlowRun.objects.create(org=self.org, flow=color, contact=child_contact)
 
         # triggers for our flows
         parent_trigger = Trigger.create(
@@ -244,8 +244,8 @@ class OrgDeleteTest(TembaTest):
         child_trigger.groups.add(self.child_org.all_groups.all().first())
 
         # use a credit on each
-        self.create_msg(org=self.parent_org, channel=self.channel, contact=parent_contact, text="Hola hija!")
-        self.create_msg(org=self.child_org, channel=self.child_channel, contact=child_contact, text="Hola mama!")
+        self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
+        self.create_outgoing_msg(child_contact, "Hola mama!", channel=self.child_channel)
 
         # create some archives
         self.mock_s3 = MockS3Client()
@@ -470,6 +470,8 @@ class OrgTest(TembaTest):
         self.assertEqual("nice-temba", org.slug)
 
     def test_country(self):
+        self.setUpLocations()
+
         country_url = reverse("orgs.org_country")
 
         # can't see this page if not logged in
@@ -513,7 +515,7 @@ class OrgTest(TembaTest):
     def test_plans(self):
         self.contact = self.create_contact("Joe", "+250788123123")
 
-        self.create_msg(direction=INCOMING, contact=self.contact, text="Orange")
+        self.create_incoming_msg(self.contact, "Orange")
 
         # check start and end date for this plan
         self.assertEqual(timezone.now().date(), self.org.current_plan_start())
@@ -651,6 +653,8 @@ class OrgTest(TembaTest):
         mock_async_start.assert_called_once()
 
     def test_org_administration(self):
+        self.setUpLocations()
+
         manage_url = reverse("orgs.org_manage")
         update_url = reverse("orgs.org_update", args=[self.org.pk])
         login_url = reverse("users.user_login")
@@ -756,7 +760,6 @@ class OrgTest(TembaTest):
         Org.objects.create(
             name="Another Org",
             timezone="Africa/Kigali",
-            country=self.country,
             brand="rapidpro.io",
             created_by=self.user,
             modified_by=self.user,
@@ -1228,7 +1231,7 @@ class OrgTest(TembaTest):
         choose_url = reverse("orgs.org_choose")
 
         # have a second org
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.login(self.admin)
 
         response = self.client.get(reverse("orgs.org_home"))
@@ -1331,7 +1334,7 @@ class OrgTest(TembaTest):
         welcome_topup = TopUp.objects.get()
 
         # send some messages with a valid topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
         self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
         self.assertEqual(990, self.org.get_credits_remaining())
 
@@ -1342,7 +1345,7 @@ class OrgTest(TembaTest):
 
         # we should have no credits remaining since we expired
         self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_inbound_msgs(contact, 5)
+        self.create_incoming_msgs(contact, 5)
 
         # those messages are waiting to send
         self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
@@ -1362,7 +1365,7 @@ class OrgTest(TembaTest):
         TopUp.create(self.admin, price=0, credits=1000)
 
         # send some messages with a valid topup
-        self.create_inbound_msgs(contact, 2200)
+        self.create_incoming_msgs(contact, 2200)
 
         self.assertEqual(300, self.org.get_low_credits_threshold())
 
@@ -1373,7 +1376,7 @@ class OrgTest(TembaTest):
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         welcome_topup = TopUp.objects.get()
 
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         with self.assertNumQueries(3):
             self.assertEqual(150, self.org.get_low_credits_threshold())
@@ -1411,7 +1414,7 @@ class OrgTest(TembaTest):
         self.assertEqual(5, self.org.get_credits_remaining())
 
         # create 10 more messages, only 5 of which will get a topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         welcome_topup.refresh_from_db()
         self.assertEqual(15, welcome_topup.msgs.count())
@@ -1427,7 +1430,7 @@ class OrgTest(TembaTest):
             self.assertEqual(-5, self.org.get_credits_remaining())
 
         # again create 10 more messages, none of which will get a topup
-        self.create_inbound_msgs(contact, 10)
+        self.create_incoming_msgs(contact, 10)
 
         with self.assertNumQueries(0):
             self.assertEqual(15, self.org.get_credits_total())
@@ -1472,7 +1475,7 @@ class OrgTest(TembaTest):
         self.assertEqual(30, self.org.get_credits_used())
 
         # and new messages use the mega topup
-        msg = self.create_msg(contact=contact, direction="I", text="Test")
+        msg = self.create_incoming_msg(contact, "Test")
         self.assertEqual(msg.topup, mega_topup)
         self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
@@ -1483,7 +1486,7 @@ class OrgTest(TembaTest):
         self.org.clear_credit_cache()
 
         # new incoming messages should not be assigned a topup
-        msg = self.create_msg(contact=contact, direction="I", text="Test")
+        msg = self.create_incoming_msg(contact, "Test")
         self.assertIsNone(msg.topup)
 
         # check our totals
@@ -2317,7 +2320,7 @@ class OrgTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "145"},
         )
         contact = self.create_contact("Joe", "+250788383444", org=sub_org)
-        msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
+        msg = self.create_outgoing_msg(contact, "How is it going?")
 
         # there is no topup on suborg, and this msg won't be credited
         self.assertFalse(msg.topup)
@@ -2532,7 +2535,7 @@ class AnonOrgTest(TembaTest):
             self.assertContains(response, "No matching contacts.")
 
         # create an outgoing message, check number doesn't appear in outbox
-        msg1 = self.create_msg(contact=contact, text="hello", direction="O")
+        msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
 
         response = self.client.get(reverse("msgs.msg_outbox"))
 
@@ -2541,7 +2544,7 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
         # create an incoming message, check number doesn't appear in inbox
-        msg2 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="I", status="H")
+        msg2 = self.create_incoming_msg(contact, "ok")
 
         response = self.client.get(reverse("msgs.msg_inbox"))
 
@@ -2550,7 +2553,7 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
         # create an incoming flow message, check number doesn't appear in inbox
-        msg3 = self.create_msg(contact=contact, text="ok", direction="I", msg_type="F", status="H")
+        msg3 = self.create_incoming_msg(contact, "ok", msg_type="F")
 
         response = self.client.get(reverse("msgs.msg_flow"))
 
@@ -2920,7 +2923,8 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
 
-        Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
+        contact = self.create_contact("Bob", number="+250788382382")
+        self.create_incoming_msg(contact, "My name is Frank")
 
         self.login(self.admin)
         response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
@@ -4092,7 +4096,7 @@ class CreditAlertTest(TembaTest):
 
     def test_check_org_credits(self):
         self.joe = self.create_contact("Joe Blow", "123")
-        self.create_msg(contact=self.joe)
+        self.create_outgoing_msg(self.joe, "Hello")
         with self.settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True):
             with patch("temba.orgs.models.Org.get_credits_remaining") as mock_get_credits_remaining:
                 mock_get_credits_remaining.return_value = -1

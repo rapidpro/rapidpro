@@ -440,7 +440,6 @@ PERMISSIONS = {
         "label",
         "outbox",
         "sent",
-        "test",
         "update",
     ),
     "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),
@@ -797,9 +796,9 @@ AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 # -----------------------------------------------------------------------------------
-# Our test runner includes a mocked HTTP server and the ability to exclude apps
+# Our test runner includes the ability to exclude apps
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = "temba.tests.TembaTestRunner"
+TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
 
 # -----------------------------------------------------------------------------------
@@ -958,18 +957,8 @@ SEND_MESSAGES = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause external APIs to be called in test environment
-SEND_WEBHOOKS = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause data to be sent to Chatbase in test environment
-SEND_CHATBASE = False
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1058,7 +1047,7 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
 VALUE_FIELD_SIZE = 640
-FLOWRUN_FIELDS_SIZE = 256
+FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours
@@ -1085,11 +1074,6 @@ FLOW_SESSION_TRIM_DAYS = 7
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# Chatbase integration
-# -----------------------------------------------------------------------------------
-CHATBASE_API_URL = "https://chatbase.com/api/message"
 
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
