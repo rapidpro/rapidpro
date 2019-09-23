@@ -866,6 +866,6 @@ class LabelCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             label = self.get_object()
-            label.release()
+            label.release(self.request.user)
 
             return HttpResponseRedirect(self.get_redirect_url())

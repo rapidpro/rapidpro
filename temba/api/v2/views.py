@@ -2160,6 +2160,9 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         for label in object_list:
             label.count = label_counts[label]
 
+    def perform_destroy(self, instance):
+        instance.release(self.request.user)
+
     @classmethod
     def get_read_explorer(cls):
         return {

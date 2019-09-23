@@ -2765,7 +2765,6 @@ class APITest(TembaTest):
             },
         )
 
-    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
         url = reverse("api.v2.labels")
 
@@ -2773,6 +2772,12 @@ class APITest(TembaTest):
 
         important = Label.get_or_create(self.org, self.admin, "Important")
         feedback = Label.get_or_create(self.org, self.admin, "Feedback")
+
+        # a deleted label
+        deleted = Label.get_or_create(self.org, self.admin, "Deleted")
+        deleted.release()
+
+        # create label for other org
         spam = Label.get_or_create(self.org2, self.admin2, "Spam")
 
         msg = self.create_incoming_msg(self.frank, "Hello")
@@ -2851,23 +2856,24 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, "uuid=%s" % interesting.uuid)
         self.assertEqual(response.status_code, 204)
 
-        self.assertFalse(Label.label_objects.filter(uuid=interesting.uuid).exists())  # label deletes are for real
+        interesting.refresh_from_db()
+
+        self.assertFalse(interesting.is_active)
 
         # try to delete a label in another org
         response = self.deleteJSON(url, "uuid=%s" % spam.uuid)
         self.assert404(response)
 
-        starting = Label.all_objects.all().count()
-        for i in range(Label.MAX_ORG_LABELS - starting + 1):
-            Label.get_or_create(self.org, self.user, "label%d" % i)
-
-        response = self.postJSON(url, None, {"name": "Interesting"})
-        self.assertResponseError(
-            response,
-            "non_field_errors",
-            "This org has 10 labels and the limit is 10. "
-            "You must delete existing ones before you can create new ones.",
-        )
+        # try creating a new label after reaching the limit on labels
+        current_count = Label.all_objects.filter(org=self.org, is_active=True).count()
+        with patch.object(Label, "MAX_ORG_LABELS", current_count):
+            response = self.postJSON(url, None, {"name": "Interesting"})
+            self.assertResponseError(
+                response,
+                "non_field_errors",
+                "This org has 3 labels and the limit is 3. "
+                "You must delete existing ones before you can create new ones.",
+            )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(
