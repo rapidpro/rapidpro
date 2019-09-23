@@ -13,7 +13,6 @@ from temba.tests import MigrationTest
 from temba.triggers.models import Trigger
 
 from .models import Schedule
-from .tasks import check_schedule_task
 
 MONDAY = 0  # 2
 TUESDAY = 1  # 4
@@ -290,16 +289,6 @@ class ScheduleTest(TembaTest):
         # manually set our fire in the past
         schedule.next_fire = timezone.now() - timedelta(days=1)
         schedule.save(update_fields=["next_fire"])
-
-        # run our task to fire schedules
-        check_schedule_task()
-
-        # should have a new broadcasts now
-        self.assertEqual(1, Broadcast.objects.filter(id__gt=bcast.id).count())
-
-        # we should have a new fire in the future
-        schedule.refresh_from_db()
-        self.assertTrue(schedule.next_fire > timezone.now())
 
     def test_update(self):
         sched = create_schedule(self.org, self.admin, Schedule.REPEAT_WEEKLY, "RS")

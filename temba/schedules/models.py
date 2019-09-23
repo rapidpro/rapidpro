@@ -191,36 +191,6 @@ class Schedule(SmartModel):
 
             return next_fire
 
-    def fire(self):
-        now = timezone.now()
-
-        # makes sure we are expired, noop if not
-        if self.next_fire > now:  # pragma: no cover
-            return
-
-        broadcast = self.get_broadcast()
-        trigger = self.get_trigger()
-
-        logger.info(f"Firing {str(self)}")
-
-        if broadcast:
-            broadcast.fire()
-
-        elif trigger:
-            trigger.fire_from_schedule()
-
-        else:  # pragma: no cover
-            logger.error("Tried to fire schedule but it wasn't attached to anything", extra={"schedule_id": self.id})
-
-        # save our last fire
-        self.last_fire = now
-
-        # schedule our next fire
-        self.next_fire = Schedule.get_next_fire(self, now)
-
-        # save our last fire and next fire (if any)
-        self.save(update_fields=["next_fire", "last_fire"])
-
     def get_repeat_days_display(self):
         return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week]
 

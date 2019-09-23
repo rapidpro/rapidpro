@@ -269,25 +269,6 @@ class Trigger(SmartModel):
                 for group in groups:
                     trigger.groups.add(group)
 
-    def fire_from_schedule(self):
-        """
-        Fires this trigger in response to a schedule. Schedule triggers are the only types not fired from Mailroom.
-        """
-
-        # do nothing if this trigger is no longer active
-        if self.is_archived or not self.is_active:
-            return
-
-        groups = list(self.groups.all())
-        contacts = list(self.contacts.all())
-
-        # do nothing if there are no groups or contacts
-        if not groups and not contacts:
-            return
-
-        start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
-        start.async_start()
-
     @classmethod
     def apply_action_archive(cls, user, triggers):
         for trigger in triggers:
