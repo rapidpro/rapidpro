@@ -1,0 +1,26 @@
+{% extends "email_base.html" %}
+
+{% load tz %}
+{% load i18n %}
+{% block body %}
+
+<p>
+  {% blocktrans with success=success collection_real_name=collection_real_name collection_type=collection_type filename=filename %}
+    Database type: {{collection_type}} <br/>
+    Database name: {{collection_real_name}} <br/>
+    File name: {{filename}} <br/>
+    Rows imported: {{success}} <br/>
+  {% endblocktrans %}
+  {% if failures %}
+    {% blocktrans with failures=failures %}
+      Failures at lines: {{failures}}
+    {% endblocktrans %}
+  {% endif %}
+  {% blocktrans %}
+    <br/>
+    Best,<br/>
+    The CommunityConnectLabs Team
+  {% endblocktrans %}
+</p>
+
+{% endblock body %}

@@ -1,0 +1,17 @@
+{% load i18n %}
+
+{% blocktrans with success=success collection_real_name=collection_real_name collection_type=collection_type filename=filename %}
+Database type: {{collection_type}}
+Database name: {{collection_real_name}}
+File name: {{filename}}
+Rows imported: {{success}}
+{% endblocktrans %}
+{% if failures %}
+{% blocktrans with failures=failures %}
+Failures at lines: {{failures}}
+{% endblocktrans %}
+{% endif %}
+{% blocktrans %}
+Best,
+The CommunityConnectLabs Team
+{% endblocktrans %}
