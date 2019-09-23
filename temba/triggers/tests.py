@@ -8,9 +8,10 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
+from temba.schedules.tasks import check_schedule_task
 from temba.tests import MockResponse, TembaTest
 
 from .models import Trigger
@@ -344,60 +345,13 @@ class TriggerTest(TembaTest):
             {
                 "flow": flow.id,
                 "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
-                "start": "never",
-                "repeat_period": "O",
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime_value": str(tommorrow_stamp),
             },
         )
 
         self.assertEqual(Trigger.objects.count(), 1)
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.status, "U")
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
-
-        self.client.post(
-            reverse("triggers.trigger_schedule"),
-            {
-                "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
-                "start": "stop",
-                "repeat_period": "O",
-            },
-        )
-
-        self.assertEqual(Trigger.objects.all().count(), 2)
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.status, "U")
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
-
-        self.client.post(
-            reverse("triggers.trigger_schedule"),
-            {
-                "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
-                "repeat_period": "O",
-                "start": "now",
-                "start_datetime_value": str(now_stamp),
-            },
-        )
-
-        self.assertEqual(3, Trigger.objects.all().count())
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertTrue(trigger.schedule)
-        self.assertFalse(trigger.schedule.next_fire)
-        self.assertEqual(trigger.schedule.repeat_period, "O")
-        self.assertEqual(trigger.schedule.repeat_days, 0)
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
 
         self.client.post(
             reverse("triggers.trigger_schedule"),
@@ -410,7 +364,7 @@ class TriggerTest(TembaTest):
             },
         )
 
-        self.assertEqual(4, Trigger.objects.all().count())
+        self.assertEqual(2, Trigger.objects.all().count())
 
         trigger = Trigger.objects.order_by("id").last()
 
@@ -427,75 +381,22 @@ class TriggerTest(TembaTest):
             {
                 "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
                 "repeat_period": "O",
-                "start": "now",
+                "start": "later",
                 "start_datetime_value": str(now_stamp),
             },
         )
 
         self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
 
-        # provide flow this time and drop contact
+        # provide flow this time, update contact
         self.client.post(
             update_url,
             {
                 "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid}",
-                "repeat_period": "O",
-                "start": "now",
-                "start_datetime_value": str(now_stamp),
-            },
-        )
-
-        trigger.refresh_from_db()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.repeat_period, "O")
-        self.assertFalse(trigger.schedule.next_fire)
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertFalse(trigger.contacts.all())
-
-        self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
-                "start": "never",
-                "repeat_period": "O",
-            },
-        )
-
-        trigger.refresh_from_db()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.status, "U")
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
-
-        self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
-                "start": "stop",
-                "repeat_period": "O",
-            },
-        )
-
-        trigger.refresh_from_db()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.status, "U")
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
-
-        self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": f"g-{linkin_park.uuid},c-{stromae.uuid}",
+                "omnibox": f"g-{linkin_park.uuid},c-{shinoda.uuid}",
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": "%d" % tommorrow_stamp,
+                "start_datetime_value": str(now_stamp),
             },
         )
 
@@ -503,8 +404,24 @@ class TriggerTest(TembaTest):
 
         self.assertTrue(trigger.schedule)
         self.assertEqual(trigger.schedule.repeat_period, "D")
+        self.assertTrue(trigger.schedule.next_fire)
         self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
+        self.assertEqual(set(trigger.contacts.all()), {shinoda})
+
+        # move it to the past
+        schedule = trigger.schedule
+        schedule.next_fire = timezone.now() - timedelta(days=1)
+        schedule.save(update_fields=["next_fire"])
+
+        # get it fired
+        check_schedule_task()
+
+        # should have created a flow start
+        self.assertIsNotNone(FlowStart.objects.get())
+
+        # schedule should be in the future now
+        schedule.refresh_from_db()
+        self.assertTrue(schedule.next_fire > timezone.now())
 
     def test_join_group_trigger(self):
         self.login(self.admin)
@@ -975,7 +892,7 @@ class TriggerTest(TembaTest):
             trigger_type=Trigger.TYPE_SCHEDULE,
             created_by=self.admin,
             modified_by=self.admin,
-            schedule=Schedule.create_schedule(timezone.now(), "M", self.admin),
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         trigger.groups.add(group)
 

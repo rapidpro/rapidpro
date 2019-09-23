@@ -63,7 +63,7 @@ def _normalize_extra(extra, count):
         for (k, v) in extra.items():
             (normalized[normalize_key(k)], count) = _normalize_extra(v, count)
 
-            if count >= settings.FLOWRUN_FIELDS_SIZE:
+            if count >= settings.FLOW_START_PARAMS_SIZE:
                 break
 
         return normalized, count
@@ -74,7 +74,7 @@ def _normalize_extra(extra, count):
         for (i, v) in enumerate(extra):
             (normalized[str(i)], count) = _normalize_extra(v, count)
 
-            if count >= settings.FLOWRUN_FIELDS_SIZE:
+            if count >= settings.FLOW_START_PARAMS_SIZE:
                 break
 
         return normalized, count
@@ -243,7 +243,7 @@ class BroadcastWriteSerializer(WriteSerializer):
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send(expressions_context={}))
+        on_transaction_commit(lambda: broadcast.send())
 
         return broadcast
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-12 01:23+0000\n"
+"POT-Creation-Date: 2019-09-19 18:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3079,9 +3079,6 @@ msgid "The metadata for this msg"
 msgstr ""
 
 msgid "Why the message is being deleted"
-msgstr ""
-
-msgid "Can't create an incoming message without an org"
 msgstr ""
 
 msgid "Whether this count is for archived messages"
@@ -8378,6 +8375,57 @@ msgstr ""
 msgid "More Videos"
 msgstr ""
 
+msgid "Leave unscheduled"
+msgstr ""
+
+msgid "Cancel schedule"
+msgstr ""
+
+msgid "Mon"
+msgstr ""
+
+msgid "Tue"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Thu"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+msgid "Sat"
+msgstr ""
+
+msgid "Sun"
+msgstr ""
+
+msgid "The next message will be sent "
+msgstr ""
+
+msgid "It will repeat every"
+msgstr ""
+
+msgid "at around the same time."
+msgstr ""
+
+msgid "on the"
+msgstr ""
+
+msgid "It will repeat"
+msgstr ""
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+msgid "Not scheduled"
+msgstr ""
+
 msgid "Delete "
 msgstr ""
 
@@ -8503,27 +8551,6 @@ msgstr ""
 msgid "Select a date"
 msgstr ""
 
-msgid "Mon"
-msgstr ""
-
-msgid "Tue"
-msgstr ""
-
-msgid "Wed"
-msgstr ""
-
-msgid "Thu"
-msgstr ""
-
-msgid "Fri"
-msgstr ""
-
-msgid "Sat"
-msgstr ""
-
-msgid "Sun"
-msgstr ""
-
 msgid "Start a flow in the future or on a schedule."
 msgstr ""
 
@@ -8538,12 +8565,6 @@ msgid ""
 "          The next message will be sent <span class='attn next-fire'/>.\n"
 "\n"
 "        "
-msgstr ""
-
-msgid "It will repeat every"
-msgstr ""
-
-msgid "at around the same time."
 msgstr ""
 
 msgid "month"

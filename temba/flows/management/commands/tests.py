@@ -1,13 +1,13 @@
 from django.core.management import call_command
 
 from temba.flows.models import FlowNodeCount
-from temba.tests import FlowFileTest, TembaTest
+from temba.tests import TembaTest
 from temba.tests.engine import MockSessionWriter
 
 from .run_audit import has_none_string_in
 
 
-class MigrateFlowsTest(FlowFileTest):
+class MigrateFlowsTest(TembaTest):
     def test_migrate_flows(self):
         call_command("migrate_flows")
 
@@ -26,14 +26,12 @@ class RunAuditTest(TembaTest):
         self.assertFalse(has_none_string_in({"foo": {"bar": ["abc"]}}))
 
 
-class RecalcNodeCountsTest(FlowFileTest):
-    def setUp(self):
-        super().setUp()
-
-        self.contact2 = self.create_contact("Joe", number="+12065550002")
-        self.contact3 = self.create_contact("Frank", number="+12065550003")
-
+class RecalcNodeCountsTest(TembaTest):
     def test_recalc_node_counts(self):
+        contact1 = self.create_contact("Ben Haggerty", number="+12065552020")
+        contact2 = self.create_contact("Joe", number="+12065550002")
+        contact3 = self.create_contact("Frank", number="+12065550003")
+
         def check_node_count_rebuild(flow, assert_count):
             node_counts = FlowNodeCount.get_totals(flow)
 
@@ -55,29 +53,29 @@ class RecalcNodeCountsTest(FlowFileTest):
         name_split = nodes[7]
         name_reply = nodes[8]
 
-        session1 = MockSessionWriter(self.contact, flow).visit(color_prompt).visit(color_split).wait().save()
-        session2 = MockSessionWriter(self.contact2, flow).visit(color_prompt).visit(color_split).wait().save()
-        session3 = MockSessionWriter(self.contact3, flow).visit(color_prompt).visit(color_split).wait().save()
+        session1 = MockSessionWriter(contact1, flow).visit(color_prompt).visit(color_split).wait().save()
+        session2 = MockSessionWriter(contact2, flow).visit(color_prompt).visit(color_split).wait().save()
+        session3 = MockSessionWriter(contact3, flow).visit(color_prompt).visit(color_split).wait().save()
 
         # recalculate node counts and check they are the same
         check_node_count_rebuild(flow, 3)
 
         (
-            session1.resume(self.create_msg(text="Blue", contact=self.contact, direction="I"))
+            session1.resume(self.create_incoming_msg(contact1, "Blue"))
             .visit(beer_prompt)
             .visit(beer_split)
             .wait()
             .save()
         )
         (
-            session2.resume(self.create_msg(text="Beige", contact=self.contact2, direction="I"))
+            session2.resume(self.create_incoming_msg(contact2, "Beige"))
             .visit(color_other)
             .visit(color_split)
             .wait()
             .save()
         )
         (
-            session3.resume(self.create_msg(text="Amber", contact=self.contact3, direction="I"))
+            session3.resume(self.create_incoming_msg(contact3, "Amber"))
             .visit(color_other)
             .visit(color_split)
             .wait()
@@ -87,21 +85,21 @@ class RecalcNodeCountsTest(FlowFileTest):
         check_node_count_rebuild(flow, 3)
 
         (
-            session1.resume(self.create_msg(text="Primus", contact=self.contact, direction="I"))
+            session1.resume(self.create_incoming_msg(contact1, "Primus"))
             .visit(name_prompt)
             .visit(name_split)
             .wait()
             .save()
         )
         (
-            session2.resume(self.create_msg(text="Orange", contact=self.contact2, direction="I"))
+            session2.resume(self.create_incoming_msg(contact2, "Orange"))
             .visit(color_other)
             .visit(color_split)
             .wait()
             .save()
         )
         (
-            session3.resume(self.create_msg(text="Amber", contact=self.contact3, direction="I"))
+            session3.resume(self.create_incoming_msg(contact3, "Amber"))
             .visit(color_other)
             .visit(color_split)
             .wait()
@@ -111,11 +109,6 @@ class RecalcNodeCountsTest(FlowFileTest):
         check_node_count_rebuild(flow, 3)
 
         # contact1 replies with name to complete the flow
-        (
-            session1.resume(self.create_msg(text="Bob", contact=self.contact, direction="I"))
-            .visit(name_reply)
-            .complete()
-            .save()
-        )
+        (session1.resume(self.create_incoming_msg(contact1, "Bob")).visit(name_reply).complete().save())
 
         check_node_count_rebuild(flow, 2)

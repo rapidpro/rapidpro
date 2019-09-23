@@ -1978,22 +1978,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for broadcast in self.addressed_broadcasts.all():
                 broadcast.contacts.remove(self)
 
-    def cached_send_channel(self, contact_urn):
-        cache = getattr(self, "_send_channels", {})
-        channel = cache.get(contact_urn.id)
-        if not channel:
-            channel = self.org.get_send_channel(contact_urn=contact_urn)
-            cache[contact_urn.id] = channel
-            self._send_channels = cache
-
-        return channel
-
-    def initialize_cache(self):
-        if getattr(self, "__cache_initialized", False):
-            return
-
-        Contact.bulk_cache_initialize(self.org, [self])
-
     @classmethod
     def bulk_cache_initialize(cls, org, contacts):
         """
@@ -2019,10 +2003,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for contact in contacts:
             contact.org = org
             setattr(contact, "__cache_initialized", True)
-
-    def clear_urn_cache(self):
-        if hasattr(self, "_urns_cache"):
-            delattr(self, "_urns_cache")
 
     def get_urns(self):
         """
@@ -2117,9 +2097,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # update modified on any other modified contacts
         if modified_contacts:
             Contact.objects.filter(id__in=modified_contacts).update(modified_on=timezone.now())
-
-        # clear URN cache
-        self.clear_urn_cache()
 
     def update_static_groups(self, user, groups):
         """
@@ -2297,8 +2274,6 @@ class ContactURN(models.Model):
             try:
                 with transaction.atomic():
                     urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
-                if contact:
-                    contact.clear_urn_cache()
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
@@ -2356,14 +2331,6 @@ class ContactURN(models.Model):
         if auth and auth != self.auth:
             self.auth = auth
             self.save(update_fields=["auth"])
-
-    def update_affinity(self, channel):
-        """
-        Checks and optionally updates the affinity for this contact URN
-        """
-        if channel and self.channel != channel:
-            self.channel = channel
-            self.save(update_fields=["channel"])
 
     def ensure_number_normalization(self, country_code):
         """

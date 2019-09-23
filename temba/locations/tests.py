@@ -18,6 +18,8 @@ from .models import AdminBoundary, BoundaryAlias
 
 class LocationTest(TembaTest):
     def test_boundaries(self):
+        self.setUpLocations()
+
         self.login(self.admin)
 
         # clear our country on our org
@@ -117,7 +119,7 @@ class LocationTest(TembaTest):
 
         self.assertEqual(200, response.status_code)
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         BoundaryAlias.objects.create(
             boundary=self.state1, org=self.org2, name="KGL", created_by=self.admin2, modified_by=self.admin2
         )

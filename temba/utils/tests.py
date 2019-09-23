@@ -924,7 +924,7 @@ class ModelsTest(TembaTest):
     def test_require_update_fields(self):
         contact = self.create_contact("Bob", twitter="bobby")
         flow = self.get_flow("color")
-        run = FlowRun.create(flow, contact)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
         # we can save if we specify update_fields
         run.modified_on = timezone.now()
@@ -1151,12 +1151,6 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
             call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
-
-        # but simulate can
-        with patch("temba.flows.models.FlowStart.async_start") as mock_async_start:
-            call_command("test_db", "simulate", num_runs=2)
-
-            self.assertGreaterEqual(mock_async_start.call_count, 2)  # num_runs is only the minimum
 
 
 class JsonModelTestDefaultNull(models.Model):
