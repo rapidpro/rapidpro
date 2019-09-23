@@ -1,3 +1,80 @@
+v5.1.37
+----------
+ * Cleanup Schedule class
+ * Drop unused columns on FlowRun
+ * Remove legacy engine code
+ * Remove legacy braodcast and message sending code
+
+v5.1.36
+----------
+ * Temporarily disable compression for components JS
+
+v5.1.33
+----------
+ * Use new expressions for campaign message events, broadcasts and join group triggers
+ * List contact fields with new expression syntax and fix how campaign dependencies are rendered
+
+v5.1.28
+----------
+ * Use mailroom to interrupt runs when archiving or releasing a flow
+ * Re-organize legacy engine code
+ * Initial library of web components
+
+v5.1.27
+----------
+ * Update to floweditor 1.6.13
+ * Allow viewers to do GETs on some API endpoints
+
+v5.1.26
+----------
+ * Fix rendering of campaign and event names in UI
+ * Move remaining channel client functionality into channel type packages
+ * Remove unused asset server stuff
+
+v5.1.25
+----------
+ * Update floweditor to 1.6.12
+ * Allow viewing of channel logs in anonymous orgs with URN values redacted
+
+v5.1.24
+----------
+ * Cleanup campaighn models fields
+
+v5.1.23
+----------
+ * Really fix copying of flows with nameless has_group tests and add a test this time
+
+v5.1.22
+----------
+ * Remove trigger firing functionality (except schedule triggers) and drop unused fields on trigger
+
+v5.1.21
+----------
+ * Migration to backfill FlowRun.status
+
+v5.1.20
+----------
+ * Limit group fetching to active groups
+ * Get rid of caching on org object as that's no longer used needed
+ * Fix importing/copying flows when flow has group dependency with no name
+
+v5.1.19
+----------
+ * Migration to add FlowRun.status
+
+v5.1.18
+----------
+ * Cleanup fields on FlowRun (single migration with no real SQL changes which can be faked)
+
+v5.1.17
+----------
+ * Remove all IVR flow running functionality which is now handled by mailroom
+
+v5.1.15
+----------
+ * Update to flow editor v1.6.11
+ * Releasing Nexmo channel shouldn't blow up if application can't be deleted on Nexmo side
+
 v5.1.14
 ----------
  * Fix Nexmo IVR to work with mailroom

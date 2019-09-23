@@ -50,11 +50,9 @@
         -if request.GET.connections
           %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
             %td.clickable
-              -if not user_org.is_anon or perms.contacts.contact_break_anon
+              -if obj.contact_urn
                 %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
                   {{obj.contact_urn.get_display}}
-              -else
-                {{obj.contact_urn.get_display}}
 
             %td.clickable
               %a{ href:'{% url "channels.channellog_connection" obj.pk %}' }><
@@ -88,11 +86,7 @@
             %td
               -trans "Channel interaction"
             %td.clickable
-              -if not user_org.is_anon or perms.contacts.contact_break_anon
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-              -else
-                {{obj.description}}
-
+              %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
             %td
               Request time:
               %span
@@ -108,11 +102,7 @@
                 %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
                   {{obj.msg.contact_urn.get_display}}
             %td.clickable
-              -if not user_org.is_anon or perms.contacts.contact_break_anon
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-              -else
-                {{obj.description}}
-
+              %a{ href:'{% url "channels.channellog_read" obj.id %}' }= obj.description
             %td
               Request time:
               %span

@@ -14,7 +14,7 @@ class APITokenTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
 
         self.admins_group = Group.objects.get(name="Administrators")
         self.editors_group = Group.objects.get(name="Editors")

@@ -22,10 +22,18 @@ class Campaign(TembaModel):
     EXPORT_GROUP = "group"
     EXPORT_EVENTS = "events"
 
-    name = models.CharField(max_length=MAX_NAME_LEN, help_text="The name of this campaign")
-    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, help_text="The group this campaign operates on")
-    is_archived = models.BooleanField(default=False, help_text="Whether this campaign is archived or not")
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, help_text="The organization this campaign exists for")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+
+    name = models.CharField(max_length=MAX_NAME_LEN, help_text=_("The name of this campaign"))
+
+    group = models.ForeignKey(
+        ContactGroup,
+        on_delete=models.PROTECT,
+        help_text=_("The group this campaign operates on"),
+        related_name="campaigns",
+    )
+
+    is_archived = models.BooleanField(default=False)
 
     @classmethod
     def create(cls, org, user, name, group):
@@ -79,7 +87,7 @@ class Campaign(TembaModel):
 
             # fall back to lookups by name
             if not group:
-                group = ContactGroup.get_user_group(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
+                group = ContactGroup.get_user_group_by_name(org, campaign_def[Campaign.EXPORT_GROUP]["name"])
 
             if not campaign:
                 campaign = Campaign.objects.filter(org=org, name=name).first()
@@ -242,7 +250,7 @@ class Campaign(TembaModel):
         return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
 
     def __str__(self):
-        return self.name
+        return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
 
 
 class CampaignEvent(TembaModel):
@@ -254,7 +262,7 @@ class CampaignEvent(TembaModel):
     TYPE_MESSAGE = "M"
 
     # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_FLOW, _("Flow Event"), "flow"), (TYPE_MESSAGE, _("Message Event"), "message"))
+    TYPE_CONFIG = ((TYPE_FLOW, "Flow Event", "flow"), (TYPE_MESSAGE, "Message Event", "message"))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
@@ -276,40 +284,32 @@ class CampaignEvent(TembaModel):
     MODE_SKIP = "S"
     MODE_PASSIVE = "P"
 
-    START_MODES_CHOICES = ((MODE_INTERRUPT, _("Interrupt")), (MODE_SKIP, _("Skip")), (MODE_PASSIVE, _("Passive")))
+    START_MODES_CHOICES = ((MODE_INTERRUPT, "Interrupt"), (MODE_SKIP, "Skip"), (MODE_PASSIVE, "Passive"))
 
-    campaign = models.ForeignKey(
-        Campaign, on_delete=models.PROTECT, related_name="events", help_text="The campaign this event is part of"
-    )
-    offset = models.IntegerField(
-        default=0, help_text="The offset in days from our date (positive is after, negative is before)"
-    )
-    unit = models.CharField(
-        max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS, help_text="The unit for the offset for this event"
-    )
-    relative_to = models.ForeignKey(
-        ContactField,
-        on_delete=models.PROTECT,
-        related_name="campaigns",
-        help_text="The field our offset is relative to",
-    )
+    campaign = models.ForeignKey(Campaign, on_delete=models.PROTECT, related_name="events")
 
-    flow = models.ForeignKey(
-        Flow, on_delete=models.PROTECT, related_name="events", help_text="The flow that will be triggered"
-    )
+    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW)
 
-    start_mode = models.CharField(
-        max_length=1, choices=START_MODES_CHOICES, default=MODE_INTERRUPT, help_text="The start mode of this event"
-    )
+    # the contact specific date value this is event is based on
+    relative_to = models.ForeignKey(ContactField, on_delete=models.PROTECT, related_name="campaign_events")
 
-    event_type = models.CharField(
-        max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW, help_text="The type of this event"
-    )
+    # offset from that date value (positive is after, negative is before)
+    offset = models.IntegerField(default=0)
+
+    # the unit for the offset, e.g. days, weeks
+    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS)
+
+    # the flow that will be triggered by this event
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="campaign_events")
+
+    # what should happen to other runs when this event is triggered
+    start_mode = models.CharField(max_length=1, choices=START_MODES_CHOICES, default=MODE_INTERRUPT)
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
     message = TranslatableField(max_length=Msg.MAX_TEXT_LEN, null=True)
 
-    delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
+    # can also specify the hour during the day that the even should be triggered
+    delivery_hour = models.IntegerField(default=-1)
 
     @classmethod
     def create_message_event(
@@ -411,7 +411,7 @@ class CampaignEvent(TembaModel):
         if self.event_type != self.TYPE_MESSAGE:
             return
 
-        self.flow.name = "Single Message (%d)" % self.pk
+        self.flow.name = "Single Message (%d)" % self.id
         self.flow.save(update_fields=["name"])
 
     def single_unit_display(self):
@@ -543,39 +543,30 @@ class CampaignEvent(TembaModel):
         return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
 
     def __str__(self):
-        return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
+        return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
 
 
 class EventFire(Model):
-    FIRED = "F"
-    SKIPPED = "S"
+    """
+    A scheduled firing of a campaign event for a particular contact
+    """
 
-    FIRED_RESULTS_CHOICES = ((FIRED, _("Fired")), (SKIPPED, _("Skipped")))
+    RESULT_FIRED = "F"
+    RESULT_SKIPPED = "S"
+    RESULTS = ((RESULT_FIRED, "Fired"), (RESULT_SKIPPED, "Skipped"))
 
-    event = models.ForeignKey(
-        "campaigns.CampaignEvent",
-        on_delete=models.PROTECT,
-        related_name="event_fires",
-        help_text=_("The event that will be fired"),
-    )
-    contact = models.ForeignKey(
-        Contact,
-        on_delete=models.PROTECT,
-        related_name="fire_events",
-        help_text=_("The contact that is scheduled to have an event run"),
-    )
-    scheduled = models.DateTimeField(help_text=_("When this event is scheduled to run"))
-    fired = models.DateTimeField(
-        null=True, blank=True, help_text=_("When this event actually fired, null if not yet fired")
-    )
+    event = models.ForeignKey(CampaignEvent, on_delete=models.PROTECT, related_name="fires")
 
-    fired_result = models.CharField(
-        max_length=1,
-        choices=FIRED_RESULTS_CHOICES,
-        null=True,
-        blank=True,
-        help_text=_("Whether the event is fired or skipped, null if not yet fired"),
-    )
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="campaign_fires")
+
+    # when the event should be fired for this contact
+    scheduled = models.DateTimeField()
+
+    # when the event was fired fir this contact or null if we haven't been fired
+    fired = models.DateTimeField(null=True)
+
+    # result of this event fire or null if we haven't been fired
+    fired_result = models.CharField(max_length=1, null=True, choices=RESULTS)
 
     def is_firing_soon(self):
         return self.scheduled < timezone.now()
@@ -701,7 +692,7 @@ class EventFire(Model):
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     def __str__(self):
-        return "%s - %s" % (self.event, self.contact)
+        return f"EventFire[event={self.event.uuid}, contact={self.contact.uuid}, scheduled={self.scheduled}]"
 
     class Meta:
         ordering = ("scheduled",)

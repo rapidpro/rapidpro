@@ -5,7 +5,7 @@ import nexmo
 from django.urls import reverse
 
 
-class Client:
+class NexmoClient:
     """
     Wrapper for the actual Nexmo client that adds some functionality and retries
     """
@@ -82,7 +82,11 @@ class Client:
         return app_id, app_private_key
 
     def delete_application(self, app_id):
-        self._with_retry("delete_application", application_id=app_id)
+        try:
+            self._with_retry("delete_application", application_id=app_id)
+        except nexmo.ClientError:
+            # possible application no longer exists
+            pass
 
     def _with_retry(self, action, **kwargs):
         """
@@ -96,7 +100,7 @@ class Client:
         except nexmo.ClientError as e:
             message = str(e)
             if message.startswith("420") or message.startswith("429"):
-                time.sleep(Client.RATE_LIMIT_PAUSE)
+                time.sleep(NexmoClient.RATE_LIMIT_PAUSE)
                 return func(**kwargs)
             else:  # pragma: no cover
                 raise e

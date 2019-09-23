@@ -177,7 +177,7 @@ def history_class(item):
         if item["type"] == "call" and obj.status == IVRCall.FAILED:
             classes.append("warning")
 
-        if item["type"] == "event-fire" and obj.fired_result == EventFire.SKIPPED:
+        if item["type"] == "event-fire" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
     return " ".join(classes)
 

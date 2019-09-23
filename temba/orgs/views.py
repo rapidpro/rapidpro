@@ -56,28 +56,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import NonAtomicMixin
 
-from .models import (
-    ACCOUNT_SID,
-    ACCOUNT_TOKEN,
-    CHATBASE_AGENT_NAME,
-    CHATBASE_API_KEY,
-    CHATBASE_VERSION,
-    MONTHFIRST,
-    NEXMO_KEY,
-    NEXMO_SECRET,
-    RESTORED,
-    SMTP_SERVER,
-    SUSPENDED,
-    TRANSFERTO_ACCOUNT_LOGIN,
-    TRANSFERTO_AIRTIME_API_TOKEN,
-    WHITELISTED,
-    Invitation,
-    Org,
-    OrgCache,
-    TopUp,
-    UserSettings,
-    get_stripe_credentials,
-)
+from .models import Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -783,7 +762,7 @@ class OrgCRUDL(SmartCRUDL):
                     if not api_secret:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
-                    from temba.channels.types.nexmo.client import Client as NexmoClient
+                    from temba.channels.types.nexmo.client import NexmoClient
 
                     if not NexmoClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
@@ -802,8 +781,8 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["api_key"] = config.get(NEXMO_KEY, "")
-            initial["api_secret"] = config.get(NEXMO_SECRET, "")
+            initial["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "")
+            initial["api_secret"] = config.get(Org.CONFIG_NEXMO_SECRET, "")
             initial["disconnect"] = "false"
             return initial
 
@@ -829,7 +808,7 @@ class OrgCRUDL(SmartCRUDL):
             client = org.get_nexmo_client()
             if client:
                 config = org.config
-                context["api_key"] = config.get(NEXMO_KEY, "--")
+                context["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "--")
 
             return context
 
@@ -844,7 +823,7 @@ class OrgCRUDL(SmartCRUDL):
                 api_key = self.cleaned_data.get("api_key")
                 api_secret = self.cleaned_data.get("api_secret")
 
-                from temba.channels.types.nexmo.client import Client as NexmoClient
+                from temba.channels.types.nexmo.client import NexmoClient
 
                 if not NexmoClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
@@ -982,8 +961,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.get_object()
-            config = org.config
-            smtp_server = config.get(SMTP_SERVER, None)
+            smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
             parsed_smtp_server = urlparse(smtp_server)
             smtp_username = ""
             if parsed_smtp_server.username:
@@ -1024,8 +1002,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             if org.has_smtp_config():
-                config = org.config
-                smtp_server = config.get(SMTP_SERVER, None)
+                smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
                 parsed_smtp_server = urlparse(smtp_server)
 
                 from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
@@ -1187,11 +1164,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if "status" in request.POST:
-                if request.POST.get("status", None) == SUSPENDED:
+                if request.POST.get("status", None) == Org.STATUS_SUSPENDED:
                     self.get_object().set_suspended()
-                elif request.POST.get("status", None) == WHITELISTED:
+                elif request.POST.get("status", None) == Org.STATUS_WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.POST.get("status", None) == RESTORED:
+                elif request.POST.get("status", None) == Org.STATUS_RESTORED:
                     self.get_object().set_restored()
                 elif request.POST.get("status", None) == "delete":
                     self.get_object().release()
@@ -1944,7 +1921,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.brand = self.request.branding.get("host", settings.DEFAULT_BRAND)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
-                obj.date_format = MONTHFIRST
+                obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
             return obj
 
@@ -2125,9 +2102,9 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["agent_name"] = config.get(CHATBASE_AGENT_NAME, "")
-            initial["api_key"] = config.get(CHATBASE_API_KEY, "")
-            initial["version"] = config.get(CHATBASE_VERSION, "")
+            initial["agent_name"] = config.get(Org.CONFIG_CHATBASE_AGENT_NAME, "")
+            initial["api_key"] = config.get(Org.CONFIG_CHATBASE_API_KEY, "")
+            initial["version"] = config.get(Org.CONFIG_CHATBASE_VERSION, "")
             initial["disconnect"] = "false"
             return initial
 
@@ -2136,7 +2113,7 @@ class OrgCRUDL(SmartCRUDL):
             (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
             if chatbase_api_key:
                 config = self.object.config
-                agent_name = config.get(CHATBASE_AGENT_NAME, None)
+                agent_name = config.get(Org.CONFIG_CHATBASE_AGENT_NAME)
                 context["chatbase_agent_name"] = agent_name
 
             return context
@@ -2292,16 +2269,14 @@ class OrgCRUDL(SmartCRUDL):
                     airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
 
                     try:
-                        from temba.airtime.models import AirtimeTransfer
+                        from temba.airtime.transferto import TransferToClient
 
-                        response = AirtimeTransfer.post_transferto_api_response(
-                            account_login, airtime_api_token, action="ping"
-                        )
-                        parsed_response = AirtimeTransfer.parse_transferto_response(force_text(response.content))
+                        client = TransferToClient(account_login, airtime_api_token)
+                        response = client.ping()
 
-                        error_code = int(parsed_response.get("error_code", None))
-                        info_txt = parsed_response.get("info_txt", None)
-                        error_txt = parsed_response.get("error_txt", None)
+                        error_code = int(response.get("error_code", None))
+                        info_txt = response.get("info_txt", None)
+                        error_txt = response.get("error_txt", None)
 
                     except Exception:
                         raise ValidationError(
@@ -2327,7 +2302,7 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             if self.object.is_connected_to_transferto():
                 config = self.object.config
-                account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+                account_login = config.get(Org.CONFIG_TRANSFERTO_LOGIN)
                 context["transferto_account_login"] = account_login
 
             return context
@@ -2335,8 +2310,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_login"] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
-            initial["airtime_api_token"] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+            initial["account_login"] = config.get(Org.CONFIG_TRANSFERTO_LOGIN)
+            initial["airtime_api_token"] = config.get(Org.CONFIG_TRANSFERTO_API_TOKEN)
             initial["disconnect"] = "false"
             return initial
 
@@ -2408,8 +2383,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_sid"] = config[ACCOUNT_SID]
-            initial["account_token"] = config[ACCOUNT_TOKEN]
+            initial["account_sid"] = config[Org.CONFIG_TWILIO_SID]
+            initial["account_token"] = config[Org.CONFIG_TWILIO_TOKEN]
             initial["disconnect"] = "false"
             return initial
 

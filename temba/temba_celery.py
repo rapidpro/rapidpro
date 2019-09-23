@@ -18,7 +18,7 @@ app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 app.autodiscover_tasks(
     (
         "temba.channels.types.jiochat",
-        "temba.channels.types.twitter_activity",
+        "temba.channels.types.twitter",
         "temba.channels.types.wechat",
         "temba.channels.types.whatsapp",
     )

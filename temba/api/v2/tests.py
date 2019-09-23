@@ -1,5 +1,7 @@
 import base64
+from collections import OrderedDict
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus
 
@@ -12,7 +14,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from django.db.models import Q
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -22,18 +23,19 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import ActionSet, Flow, FlowLabel, FlowRun, FlowStart, RuleSet
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.templates.models import TemplateTranslation
-from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers, uses_legacy_engine
+from temba.tests import AnonymousOrg, ESMockWithScroll, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.values.constants import Value
 
 from . import fields
-from .serializers import format_datetime
+from .serializers import format_datetime, normalize_extra
 
 NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
 
@@ -49,7 +51,7 @@ class APITest(TembaTest):
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
-        self.create_secondary_org()
+        self.setUpSecondaryOrg()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
 
         self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
@@ -107,14 +109,18 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
-        # same for plain user
+        # viewers can do gets on some endpoints
         self.login(self.user)
         response = self.fetchHTML(url, query)
-        self.assertEqual(response.status_code, 403)
+        self.assertIn(response.status_code, [200, 403])
 
-        # 403 for JSON request too
+        # same with JSON
         response = self.fetchJSON(url, query)
-        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+        self.assertIn(response.status_code, [200, 403])
+
+        # but viewers should always get a forbidden when posting
+        response = self.postJSON(url, query, {})
+        self.assertEqual(response.status_code, 403)
 
         # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
@@ -264,6 +270,23 @@ class APITest(TembaTest):
         self.assertRaises(
             serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
         )  # base lang not provided
+
+    @override_settings(FLOW_START_PARAMS_SIZE=4)
+    def test_normalize_extra(self):
+        self.assertEqual(OrderedDict(), normalize_extra({}))
+        self.assertEqual(
+            OrderedDict([("0", "a"), ("1", True), ("2", Decimal("1.0")), ("3", "")]),
+            normalize_extra(["a", True, Decimal("1.0"), None]),
+        )
+        self.assertEqual(OrderedDict([("_3__x", "z")]), normalize_extra({"%3 !x": "z"}))
+        self.assertEqual(
+            OrderedDict([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]), normalize_extra(["a", "b", "c", "d", "e"])
+        )
+        self.assertEqual(
+            OrderedDict([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
+            normalize_extra({"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}),
+        )
+        self.assertEqual(OrderedDict([("a", "x" * 640)]), normalize_extra({"a": "x" * 641}))
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -530,6 +553,8 @@ class APITest(TembaTest):
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
     def test_boundaries(self):
+        self.setUpLocations()
+
         url = reverse("api.v2.boundaries")
 
         self.assertEndpointAccess(url)
@@ -588,7 +613,9 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json()["results"], [])
 
-    def test_broadcasts(self):
+    @override_settings(TESTING=False)
+    @patch("temba.mailroom.queue_broadcast")
+    def test_broadcasts(self, mock_queue_broadcast):
         url = reverse("api.v2.broadcasts")
 
         self.assertEndpointAccess(url)
@@ -618,9 +645,8 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
         self.assertEqual(
-            resp_json["results"][0],
             {
-                "id": bcast4.pk,
+                "id": bcast4.id,
                 "urns": ["twitter:franky"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
@@ -628,6 +654,7 @@ class APITest(TembaTest):
                 "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
+            resp_json["results"][0],
         )
 
         # filter by id
@@ -644,8 +671,8 @@ class APITest(TembaTest):
 
         with AnonymousOrg(self.org):
             # URNs shouldn't be included
-            response = self.fetchJSON(url, "id=%d" % bcast1.pk)
-            self.assertEqual(response.json()["results"][0]["urns"], None)
+            response = self.fetchJSON(url, "id=%d" % bcast1.id)
+            self.assertIsNone(response.json()["results"][0]["urns"])
 
         # try to create new broadcast with no data at all
         response = self.postJSON(url, None, {})
@@ -660,7 +687,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "text": "Hi @contact",
+                "text": "Hi @contact.tel",  # will be migrated
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -668,24 +695,37 @@ class APITest(TembaTest):
             },
         )
 
-        broadcast = Broadcast.objects.get(pk=response.json()["id"])
-        self.assertEqual(broadcast.text, {"base": "Hi @contact"})
-        self.assertEqual(set(broadcast.urns.values_list("identity", flat=True)), {"twitter:franky"})
-        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
-        self.assertEqual(set(broadcast.groups.all()), {reporters})
-        self.assertEqual(broadcast.channel, self.channel)
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
+        self.assertEqual({"twitter:franky"}, set(broadcast.urns.values_list("identity", flat=True)))
+        self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
+        self.assertEqual({reporters}, set(broadcast.groups.all()))
+        self.assertEqual(self.channel, broadcast.channel)
 
-        # broadcast results in only one message because only Joe has a tel URN that can be sent with the channel
-        self.assertEqual({m.text for m in broadcast.msgs.all()}, {"Hi Joe Blow"})
+        mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # create new broadcast with translations
         response = self.postJSON(
             url, None, {"text": {"base": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
         )
 
-        broadcast = Broadcast.objects.get(pk=response.json()["id"])
-        self.assertEqual(broadcast.text, {"base": "Hello", "fra": "Bonjour"})
-        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
+        self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
+
+        # create new broadcast with explicitly old expressions
+        response = self.postJSON(
+            url, None, {"text": "You are @contact.age", "contacts": [self.joe.uuid], "new_expressions": False}
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
+
+        # create new broadcast with explicitly new expressions
+        response = self.postJSON(
+            url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid], "new_expressions": True}
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
         # try sending as a suspended org
         self.org.set_suspended()
@@ -1086,7 +1126,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "Nice job",
+                "message": "You are @contact.age",  # will be migrated
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1097,8 +1137,45 @@ class APITest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "W")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice job"})
+        self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
+
+        # a message event with an invalid expression on the message
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "You are @(@bad)",  # will fail migration
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
+
+        # should just leave the bad expression as-is
+        self.assertEqual(event1.message, {"base": "You are @(@bad)"})
+
+        # a message event with an empty message
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "campaign": campaign1.uuid,
+                "relative_to": "registration",
+                "offset": 15,
+                "unit": "weeks",
+                "delivery_hour": -1,
+                "message": "",  # will migrate successfully to empty text
+            },
+        )
+
+        # we should have failed validation for sending an empty message
+        self.assertResponseError(response, "non_field_errors", "Message text is required")
 
         response = self.postJSON(
             url,
@@ -1109,7 +1186,8 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "days",
                 "delivery_hour": -1,
-                "message": "Nice unit of work",
+                "message": "Nice unit of work @fields.code",
+                "new_expressions": True,
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1120,7 +1198,7 @@ class APITest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "D")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice unit of work"})
+        self.assertEqual(event1.message, {"base": "Nice unit of work @fields.code"})
         self.assertIsNotNone(event1.flow)
 
         # create a flow event
@@ -1181,14 +1259,14 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK", "fra": "D'accord"},
+                "message": {"base": "OK @contact.tel", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord"})
+        self.assertEqual(event2.message, {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(
@@ -2013,14 +2091,14 @@ class APITest(TembaTest):
 
         # create some "active" runs for some of the contacts
         flow = self.get_flow("favorites_v13")
-        FlowRun.create(flow, contact1)
-        FlowRun.create(flow, contact2)
-        FlowRun.create(flow, contact3)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact1)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact2)
+        FlowRun.objects.create(org=self.org, flow=flow, contact=contact3)
 
-        self.create_msg(direction="I", contact=contact1, text="Hello")
-        self.create_msg(direction="I", contact=contact2, text="Hello")
-        self.create_msg(direction="I", contact=contact3, text="Hello")
-        self.create_msg(direction="I", contact=contact4, text="Hello")
+        self.create_incoming_msg(contact1, "Hello")
+        self.create_incoming_msg(contact2, "Hello")
+        self.create_incoming_msg(contact3, "Hello")
+        self.create_incoming_msg(contact4, "Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(
@@ -2112,16 +2190,11 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
-        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
-        self.assertEqual(response.status_code, 204)
+        with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
+            response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"})
+            self.assertEqual(response.status_code, 204)
 
-        # check that their flow runs were interrupted
-        interrupted = FlowRun.objects.filter(contact__in=[contact1, contact2])
-        self.assertFalse(interrupted.filter(Q(is_active=True) | Q(exited_on=None)).exists())
-        self.assertFalse(interrupted.exclude(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).exists())
-
-        # check other contact's runs weren't
-        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True, exited_on=None).exists())
+            mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive"})
@@ -2346,7 +2419,7 @@ class APITest(TembaTest):
         color.labels.add(reporting)
 
         # make it look like joe completed a the color flow
-        run = FlowRun.create(color, contact=self.joe)
+        run = FlowRun.objects.create(org=self.org, flow=color, contact=self.joe)
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
         run.exited_on = timezone.now()
         run.is_active = False
@@ -2652,9 +2725,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {
-                "detail": "This group is used by active triggers. In order to delete it, first archive triggers: block_group"
-            },
+            {"detail": f"Group is being used by the following triggers which must be archived first: {trigger.id}"},
         )
 
     def test_api_groups_cant_delete_with_flow_dependency(self):
@@ -2663,6 +2734,7 @@ class APITest(TembaTest):
 
         self.get_flow("dependencies")
 
+        flow = Flow.objects.get(name="Dependencies")
         cats = ContactGroup.user_groups.filter(name="Cat Facts").first()
 
         response = self.deleteJSON(url, "uuid=%s" % cats.uuid)
@@ -2670,7 +2742,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
-            {"detail": "This group is used by active flows. In order to delete it, first archive flows: Dependencies"},
+            {"detail": f"Group is being used by the following flows which must be archived first: {flow.uuid}"},
         )
 
     def test_api_groups_cant_delete_with_campaign_dependency(self):
@@ -2679,16 +2751,17 @@ class APITest(TembaTest):
 
         customers = self.create_group("Customers", [self.frank])
 
-        post_data = dict(name="Don't forget to ...", group=customers.pk)
-        self.client.post(reverse("campaigns.campaign_create"), post_data)
+        self.client.post(reverse("campaigns.campaign_create"), {"name": "Don't forget to ...", "group": customers.id})
 
-        response = self.deleteJSON(url, "uuid=%s" % customers.uuid)
+        campaign = Campaign.objects.get()
+
+        response = self.deleteJSON(url, f"uuid={customers.uuid}")
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {
-                "detail": "This group is used by active campaigns. In order to delete it, first archive campaigns: Don't forget to ..."
+                "detail": f"Group is being used by the following campaigns which must be archived first: {campaign.uuid}"
             },
         )
 
@@ -2702,7 +2775,7 @@ class APITest(TembaTest):
         feedback = Label.get_or_create(self.org, self.admin, "Feedback")
         spam = Label.get_or_create(self.org2, self.admin2, "Spam")
 
-        msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
+        msg = self.create_incoming_msg(self.frank, "Hello")
         important.toggle_label([msg], add=True)
 
         # no filtering
@@ -2827,41 +2900,24 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url, "folder=inbox")
 
         # create some messages
-        joe_msg1 = self.create_msg(direction="I", msg_type="F", text="Howdy", contact=self.joe)
-        frank_msg1 = self.create_msg(
-            direction="I", msg_type="I", text="Bonjour", contact=self.frank, channel=self.twitter
+        joe_msg1 = self.create_incoming_msg(self.joe, "Howdy", msg_type="F")
+        frank_msg1 = self.create_incoming_msg(self.frank, "Bonjour", msg_type="I", channel=self.twitter)
+        joe_msg2 = self.create_outgoing_msg(self.joe, "How are you?", status="Q")
+        frank_msg2 = self.create_outgoing_msg(self.frank, "Ça va?", status="D")
+        joe_msg3 = self.create_incoming_msg(
+            self.joe, "Good", msg_type="F", attachments=["image/jpeg:https://example.com/test.jpg"]
         )
-        joe_msg2 = self.create_msg(direction="O", msg_type="I", text="How are you?", contact=self.joe, status="Q")
-        frank_msg2 = self.create_msg(direction="O", msg_type="I", text="Ça va?", contact=self.frank, status="D")
-        joe_msg3 = self.create_msg(
-            direction="I",
-            msg_type="F",
-            text="Good",
-            contact=self.joe,
-            attachments=["image/jpeg:https://example.com/test.jpg"],
-        )
-        frank_msg3 = self.create_msg(
-            direction="I", msg_type="I", text="Bien", contact=self.frank, channel=self.twitter, visibility="A"
-        )
-        frank_msg4 = self.create_msg(direction="O", msg_type="I", text="Ça va?", contact=self.frank, status="F")
+        frank_msg3 = self.create_incoming_msg(self.frank, "Bien", channel=self.twitter, visibility="A")
+        frank_msg4 = self.create_outgoing_msg(self.frank, "Ça va?", status="F")
 
         # add a surveyor message (no URN etc)
-        joe_msg4 = self.create_msg(
-            direction="O",
-            msg_type="F",
-            text="Surveys!",
-            contact=self.joe,
-            contact_urn=None,
-            status="S",
-            channel=None,
-            sent_on=timezone.now(),
-        )
+        joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", msg_type="F", surveyor=True)
 
         # add a deleted message
-        deleted_msg = self.create_msg(direction="I", msg_type="I", text="!@$!%", contact=self.frank, visibility="D")
+        deleted_msg = self.create_incoming_msg(self.frank, "!@$!%", visibility="D")
 
         # add message in other org
-        self.create_msg(direction="I", msg_type="I", text="Guten tag!", contact=self.hans, org=self.org2)
+        self.create_incoming_msg(self.hans, "Guten tag!", channel=None)
 
         # label some of the messages, this will change our modified on as well for our `incoming` view
         label = Label.get_or_create(self.org, self.admin, "Spam")
@@ -2889,7 +2945,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [frank_msg1])
         self.assertMsgEqual(
-            resp_json["results"][0], frank_msg1, msg_type="inbox", msg_status="queued", msg_visibility="visible"
+            resp_json["results"][0], frank_msg1, msg_type="inbox", msg_status="handled", msg_visibility="visible"
         )
 
         # filter by incoming, should get deleted messages too
@@ -2901,7 +2957,7 @@ class APITest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [joe_msg3, frank_msg1, frank_msg3, deleted_msg, joe_msg1])
         self.assertMsgEqual(
-            resp_json["results"][0], joe_msg3, msg_type="flow", msg_status="queued", msg_visibility="visible"
+            resp_json["results"][0], joe_msg3, msg_type="flow", msg_status="handled", msg_visibility="visible"
         )
 
         # filter by folder (flow)
@@ -2961,9 +3017,8 @@ class APITest(TembaTest):
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # filter by broadcast
-        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
-        broadcast.send()
-        response = self.fetchJSON(url, "broadcast=%s" % broadcast.pk)
+        broadcast = self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
+        response = self.fetchJSON(url, "broadcast=%s" % broadcast.id)
 
         expected = {m.pk for m in broadcast.msgs.all()}
         results = {m["id"] for m in response.json()["results"]}
@@ -3077,39 +3132,58 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
-    @uses_legacy_engine
     def test_runs(self):
         url = reverse("api.v2.runs")
 
         self.assertEndpointAccess(url)
 
-        # allow Frank to run the flow in French
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
-        self.frank.language = "fra"
-        self.frank.save(update_fields=("language",), handle_update=False)
-
-        flow1 = self.get_flow("color")
+        flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        color_prompt = ActionSet.objects.get(flow=flow1, x=1, y=1)
-        color_ruleset = RuleSet.objects.get(flow=flow1, label="color")
-        blue_reply = ActionSet.objects.get(flow=flow1, x=3, y=3)
+        flow1_nodes = flow1.as_json()["nodes"]
+        color_prompt = flow1_nodes[0]
+        color_split = flow1_nodes[4]
+        blue_reply = flow1_nodes[2]
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
+        joe_msg = self.create_incoming_msg(self.joe, "it is blue")
+        frank_msg = self.create_incoming_msg(self.frank, "Indigo")
 
-        start1.async_start()
-        joe_run1 = start1.runs.get()
-        frank_run1, = flow1.start([], [self.frank])
-        self.create_msg(direction="I", contact=self.joe, text="it is blue").handle()
-        self.create_msg(direction="I", contact=self.frank, text="Indigo").handle()
+        joe_run1 = (
+            MockSessionWriter(self.joe, flow1, start=start1)
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=joe_msg)
+            .set_result("Color", "blue", "Blue", "it is blue")
+            .visit(blue_reply)
+            .complete()
+            .save()
+        ).session.runs.get()
 
-        joe_run2, = flow1.start([], [self.joe], restart_participants=True)
-        frank_run2, = flow1.start([], [self.frank], restart_participants=True)
-        joe_run3, = flow2.start([], [self.joe], restart_participants=True)
+        frank_run1 = (
+            MockSessionWriter(self.frank, flow1)
+            .visit(color_prompt)
+            .visit(color_split)
+            .wait()
+            .resume(msg=frank_msg)
+            .set_result("Color", "Indigo", "Other", "Indigo")
+            .wait()
+            .save()
+        ).session.runs.get()
+
+        joe_run2 = (
+            MockSessionWriter(self.joe, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
+        frank_run2 = (
+            MockSessionWriter(self.frank, flow1).visit(color_prompt).visit(color_split).wait().save()
+        ).session.runs.get()
+
+        joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
         flow3 = self.create_flow(org=self.org2, user=self.admin2)
-        flow3.start([], [self.hans])
+        MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted
         joe_run1.refresh_from_db()
@@ -3121,27 +3195,26 @@ class APITest(TembaTest):
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["next"], None)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(None, response.json()["next"])
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
         resp_json = response.json()
         self.assertEqual(
-            resp_json["results"][2],
             {
                 "id": frank_run2.pk,
                 "uuid": str(frank_run2.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Color Flow"},
+                "flow": {"uuid": flow1.uuid, "name": "Colors"},
                 "contact": {"uuid": self.frank.uuid, "name": self.frank.name},
                 "start": None,
                 "responded": False,
                 "path": [
                     {
-                        "node": color_prompt.uuid,
+                        "node": color_prompt["uuid"],
                         "time": format_datetime(iso8601.parse_date(frank_run2.path[0]["arrived_on"])),
                     },
                     {
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(frank_run2.path[1]["arrived_on"])),
                     },
                 ],
@@ -3151,27 +3224,27 @@ class APITest(TembaTest):
                 "exited_on": None,
                 "exit_type": None,
             },
+            resp_json["results"][2],
         )
         self.assertEqual(
-            resp_json["results"][4],
             {
                 "id": joe_run1.pk,
                 "uuid": str(joe_run1.uuid),
-                "flow": {"uuid": flow1.uuid, "name": "Color Flow"},
+                "flow": {"uuid": flow1.uuid, "name": "Colors"},
                 "contact": {"uuid": self.joe.uuid, "name": self.joe.name},
                 "start": {"uuid": str(joe_run1.start.uuid)},
                 "responded": True,
                 "path": [
                     {
-                        "node": color_prompt.uuid,
+                        "node": color_prompt["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[0]["arrived_on"])),
                     },
                     {
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[1]["arrived_on"])),
                     },
                     {
-                        "node": blue_reply.uuid,
+                        "node": blue_reply["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.path[2]["arrived_on"])),
                     },
                 ],
@@ -3179,9 +3252,9 @@ class APITest(TembaTest):
                     "color": {
                         "value": "blue",
                         "category": "Blue",
-                        "node": color_ruleset.uuid,
+                        "node": color_split["uuid"],
                         "time": format_datetime(iso8601.parse_date(joe_run1.results["color"]["created_on"])),
-                        "name": "color",
+                        "name": "Color",
                         "input": "it is blue",
                     }
                 },
@@ -3190,6 +3263,7 @@ class APITest(TembaTest):
                 "exited_on": format_datetime(joe_run1.exited_on),
                 "exit_type": "completed",
             },
+            resp_json["results"][4],
         )
 
         # filter by id
@@ -3271,7 +3345,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         flow = self.get_flow("color")
-        run = FlowRun.create(flow, self.frank)
+        run = FlowRun.objects.create(org=self.org, flow=flow, contact=self.frank)
         run.results = {
             "manual": {
                 "created_on": "2019-06-28T06:37:02.628152471Z",
@@ -3304,9 +3378,9 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url, fetch_returns=405)
 
         # create some messages to act on
-        msg1 = Msg.create_incoming(self.channel, "tel:+250788123123", "Msg #1")
-        msg2 = Msg.create_incoming(self.channel, "tel:+250788123123", "Msg #2")
-        msg3 = Msg.create_incoming(self.channel, "tel:+250788123123", "Msg #3")
+        msg1 = self.create_incoming_msg(self.joe, "Msg #1")
+        msg2 = self.create_incoming_msg(self.joe, "Msg #2")
+        msg3 = self.create_incoming_msg(self.joe, "Msg #3")
         label = Label.get_or_create(self.org, self.admin, "Test")
 
         # add label by name to messages 1 and 2
@@ -3400,7 +3474,7 @@ class APITest(TembaTest):
         self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg3})
 
         # try to act on an outgoing message
-        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
+        msg4 = self.create_outgoing_msg(self.joe, "Hi Joe")
         response = self.postJSON(url, None, {"messages": [msg1.id, msg4.id], "action": "archive"})
         self.assertResponseError(response, "messages", "Not an incoming message: %d" % msg4.id)
 

@@ -18,7 +18,7 @@
   .title-text
     %h2
       %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
-        {{object.campaign}}
+        {{object.campaign.name}}
         -if object.campaign.is_archived
           -trans "(Archived)"
     %h4

@@ -143,8 +143,6 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
-      new AutoComplete({{ completions|to_json }}, {{ function_completions|to_json }}).bind($('#id_response'));
-
       $('#id_flow').select2({
         minimumResultsForSearch: -1
       });

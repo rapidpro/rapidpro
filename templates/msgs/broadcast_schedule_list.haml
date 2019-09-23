@@ -25,7 +25,7 @@
           %td.value-text.field_text
             {{ object.get_default_text }}
           %td.value-next
-            -if object.schedule.status == 'S'
+            -if object.schedule.next_fire
               .glyph.icon-clock
               {{object.schedule.next_fire|timeuntil}}
 

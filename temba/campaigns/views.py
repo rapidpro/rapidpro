@@ -12,6 +12,7 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.fields import CompletionTextarea
 from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
 
@@ -61,7 +62,7 @@ class UpdateCampaignForm(forms.ModelForm):
 
     class Meta:
         model = Campaign
-        fields = "__all__"
+        fields = ("name", "group")
 
 
 class CampaignCRUDL(SmartCRUDL):
@@ -181,7 +182,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Campaign
-                fields = "__all__"
+                fields = ("name", "group")
 
         fields = ("name", "group")
         form_class = CampaignForm
@@ -352,7 +353,7 @@ class CampaignEventForm(forms.ModelForm):
                 obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
             else:
                 # set our single message on our flow
-                obj.flow.update_single_message_flow(translations, base_language)
+                obj.flow.update_single_message_flow(self.user, translations, base_language)
 
             obj.message = translations
             obj.full_clean()
@@ -408,7 +409,19 @@ class CampaignEventForm(forms.ModelForm):
                 # otherwise, its just a normal language
                 initial = message.get(language.iso_code, "")
 
-            field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
+            field = forms.CharField(
+                widget=CompletionTextarea(
+                    attrs={
+                        "placeholder": _(
+                            "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
+                        )
+                    }
+                ),
+                required=False,
+                label=language.name,
+                initial=initial,
+            )
+
             self.fields[language.iso_code] = field
             field.language = dict(name=language.name, iso_code=language.iso_code)
 
@@ -458,7 +471,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            event_fires = self.get_object().event_fires.all()
+            event_fires = self.get_object().fires.all()
 
             fired_event_fires = event_fires.exclude(fired=None).order_by("-fired", "pk")
             scheduled_event_fires = event_fires.filter(fired=None).order_by("scheduled", "pk")

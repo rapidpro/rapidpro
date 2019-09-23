@@ -175,6 +175,8 @@ TEMPLATES = [
 if TESTING:
     TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
 
+FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
+
 MIDDLEWARE = (
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -212,6 +214,7 @@ INSTALLED_APPS = (
     "django.contrib.gis",
     "django.contrib.sitemaps",
     "django.contrib.postgres",
+    "django.forms",
     # Haml-like templates
     "hamlpy",
     # Redis cache
@@ -437,7 +440,6 @@ PERMISSIONS = {
         "label",
         "outbox",
         "sent",
-        "test",
         "update",
     ),
     "msgs.broadcast": ("api", "detail", "schedule", "schedule_list", "schedule_read", "send"),
@@ -729,6 +731,8 @@ GROUP_PERMISSIONS = {
         "contacts.contact_list",
         "contacts.contact_read",
         "contacts.contact_stopped",
+        "contacts.contactfield_api",
+        "contacts.contactgroup_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
         "locations.adminboundary_alias",
@@ -753,6 +757,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_filter",
         "flows.flow_list",
         "flows.flow_editor",
+        "flows.flow_editor_next",
         "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
@@ -761,6 +766,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_simulate",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
+        "msgs.label_api",
         "msgs.msg_archived",
         "msgs.msg_export",
         "msgs.msg_failed",
@@ -790,9 +796,9 @@ AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 # -----------------------------------------------------------------------------------
-# Our test runner includes a mocked HTTP server and the ability to exclude apps
+# Our test runner includes the ability to exclude apps
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = "temba.tests.TembaTestRunner"
+TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
 TEST_EXCLUDE = ("smartmin",)
 
 # -----------------------------------------------------------------------------------
@@ -951,28 +957,8 @@ SEND_MESSAGES = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause external APIs to be called in test environment
-SEND_WEBHOOKS = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause airtime transfers in test environment
-SEND_AIRTIME = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause data to be sent to Chatbase in test environment
-SEND_CHATBASE = False
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause calls in test environments
-SEND_CALLS = False
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1018,7 +1004,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.telegram.TelegramType",
     "temba.channels.types.twiml_api.TwimlAPIType",
     "temba.channels.types.twitter.TwitterType",
-    "temba.channels.types.twitter_activity.TwitterActivityType",
+    "temba.channels.types.twitter_legacy.TwitterLegacyType",
     "temba.channels.types.verboice.VerboiceType",
     "temba.channels.types.viber_public.ViberPublicType",
     "temba.channels.types.wavy.WavyType",
@@ -1062,7 +1048,7 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
 VALUE_FIELD_SIZE = 640
-FLOWRUN_FIELDS_SIZE = 256
+FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours
@@ -1089,11 +1075,6 @@ FLOW_SESSION_TRIM_DAYS = 7
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# Chatbase integration
-# -----------------------------------------------------------------------------------
-CHATBASE_API_URL = "https://chatbase.com/api/message"
 
 # To allow manage fields to support up to 1000 fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000

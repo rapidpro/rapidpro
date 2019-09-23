@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 19:39+0000\n"
+"POT-Creation-Date: 2019-09-19 18:17+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -77,13 +77,14 @@ msgid "You do not have permission to access this file"
 msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
-#| msgid "Channel Event"
-msgid "Flow Event"
-msgstr "Evento del transmisor"
+#| msgid "The name of this contact"
+msgid "The name of this campaign"
+msgstr "El nombre de este contacto"
 
 #, fuzzy
-msgid "Message Event"
-msgstr "Reintentar el conteo de mensajes"
+#| msgid "The org this call is connected to"
+msgid "The group this campaign operates on"
+msgstr "La organización a la que esta llamada está conectada"
 
 msgid "Minutes"
 msgstr ""
@@ -98,44 +99,6 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
-
-msgid "Interrupt"
-msgstr ""
-
-msgid "Skip"
-msgstr ""
-
-msgid "Passive"
-msgstr ""
-
-#, fuzzy
-#| msgid "Wired"
-msgid "Fired"
-msgstr "Wired"
-
-msgid "Skipped"
-msgstr ""
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "The event that will be fired"
-msgstr "El mensaje que se está entregando"
-
-#, fuzzy
-#| msgid "a unique code associated with this invitation"
-msgid "The contact that is scheduled to have an event run"
-msgstr "un código único asociado con esta invitación"
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "When this event is scheduled to run"
-msgstr "Cuando se creó este mensaje"
-
-msgid "When this event actually fired, null if not yet fired"
-msgstr ""
-
-msgid "Whether the event is fired or skipped, null if not yet fired"
-msgstr ""
 
 msgid "Export"
 msgstr "Exportar"
@@ -175,6 +138,9 @@ msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
 msgstr ""
 
 msgid "Default"
@@ -1836,10 +1802,10 @@ msgstr "URL de Webhook"
 msgid "Token"
 msgstr "Token API"
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -3224,7 +3190,7 @@ msgstr "ID externo"
 
 #, fuzzy
 #| msgid "External ID"
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr "ID externo"
 
 #, fuzzy
@@ -3542,9 +3508,6 @@ msgstr "\"%s\" será enviado a %s"
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
 
-msgid "Invalid group or contact id"
-msgstr "ID del grupo o contacto inválido "
-
 msgid "Send Message"
 msgstr "Enviar mensaje"
 
@@ -3620,9 +3583,6 @@ msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Manejar Campos de Contactos"
-
-msgid "featured"
-msgstr ""
 
 #, fuzzy
 #| msgid "Update Fields"
@@ -3732,83 +3692,6 @@ msgstr "Archivado"
 msgid "User delete"
 msgstr "Rol del usuario"
 
-#, fuzzy
-#| msgid "The call that handled this flow run, only for voice flows"
-msgid "The session that handled this flow run, only for voice flows"
-msgstr "La llamada que manejó esta corrida de flujos, solo para los flujos de voz"
-
-msgid "Whether this flow run is currently active"
-msgstr "Si la corrida de este flujo está activa actualmente"
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr "Una representación de JSON de cualquiera de los valores del flujo del cliente que el usuario haya guardado"
-
-msgid "When this flow run was created"
-msgstr "Cuándo se creó esta corrida de flujos"
-
-#, fuzzy
-#| msgid "When this flow run was created"
-msgid "When this flow run was last updated"
-msgstr "Cuándo se creó esta corrida de flujos"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "When the contact exited this flow run"
-msgstr "%s ha salido de este flujo"
-
-#, fuzzy
-#| msgid "%s has exited this flow"
-msgid "Why the contact exited this flow run"
-msgstr "%s ha salido de este flujo"
-
-msgid "When this flow run will expire"
-msgstr "Cuándo vencerá esta corrida de flujos"
-
-#, fuzzy
-#| msgid "When this flow run will expire"
-msgid "When this flow will next time out (if any)"
-msgstr "Cuándo vencerá esta corrida de flujos"
-
-msgid "The FlowStart objects that started this run"
-msgstr "Los objetos de FlowStart que empezaron esta corrida"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "The parent run that triggered us"
-msgstr "El tipo de este activador"
-
-#, fuzzy
-#| msgid "The type of this trigger"
-msgid "Context of the parent run that triggered us"
-msgstr "El tipo de este activador"
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "Query Fields"
-msgid "Fields"
-msgstr "Campos de la solicitud"
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-#, fuzzy
-#| msgid "When the user left this step in the flow"
-msgid "The current node location of this run in the flow"
-msgstr "Cuando el usuario salió de este paso en el flujo"
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "Why the run is being deleted"
-msgstr "El mensaje que se está entregando"
-
 msgid "The label for this field"
 msgstr "La etiqueta para este campo"
 
@@ -3839,10 +3722,6 @@ msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
 
 msgid "When this ruleset was last modified"
 msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
-
-#, fuzzy
-msgid "No subscribers to this event"
-msgstr "El número de teléfono para esta llamada"
 
 msgid "When this action was originally created"
 msgstr "Cuándo fue la primera vez que se creó esta acción"
@@ -3916,13 +3795,6 @@ msgstr "El nombre de la etiqueta de este flujo"
 
 msgid "Parent"
 msgstr "Matriz"
-
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-#, fuzzy
-msgid "Played contact recording"
-msgstr "Escuchó mensaje grabado para \"%s\""
 
 msgid "After 5 minutes"
 msgstr "Después de 5 minutos"
@@ -4001,6 +3873,11 @@ msgstr ""
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 msgstr ""
+
+#, fuzzy
+#| msgid "User does not have permission to create an SMS"
+msgid "You don't have permission to edit this flow"
+msgstr "El usuario no tiene permiso para crear un SMS"
 
 #, fuzzy
 #| msgid "Your changes could not be saved. Please reload the page and try again."
@@ -4282,16 +4159,6 @@ msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
-
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
-msgstr ""
 
 #, fuzzy
 #| msgid "After 5 minutes"
@@ -4576,9 +4443,6 @@ msgstr "El estátus actual para este mensaje"
 msgid "Why the message is being deleted"
 msgstr "El mensaje que se está entregando"
 
-msgid "Can't create an incoming message without an org"
-msgstr "No puede crear un mensaje entrante sin una organización"
-
 #, fuzzy
 #| msgid "Whether this flow is archived"
 msgid "Whether this count is for archived messages"
@@ -4624,6 +4488,11 @@ msgstr "Programaciones"
 
 msgid "Failed"
 msgstr "Error"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Hi @contact.name!"
+msgstr "Nombre del contacto"
 
 msgid "Schedule Message"
 msgstr "Programar mensaje"
@@ -5508,9 +5377,6 @@ msgstr "Último mensaje de texto visualizado"
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr "La organización a la que pertenece este activador"
-
 msgid "Keyword"
 msgstr "Palabra clave"
 
@@ -5533,24 +5399,6 @@ msgstr "Flujo"
 msgid "Which flow will be started"
 msgstr "Qué flujo se iniciará"
 
-msgid "Last Triggered"
-msgstr "Último activado"
-
-msgid "The last time this trigger was fired"
-msgstr "La última vez que se disparó este activador"
-
-msgid "Trigger Count"
-msgstr "Conteo del activador"
-
-msgid "How many times this trigger has fired"
-msgstr "Cuántas veces se ha disparado este activador"
-
-msgid "Is Archived"
-msgstr "está achivada"
-
-msgid "Whether this trigger is archived"
-msgstr "Si este activador está archivado"
-
 msgid "The groups to broadcast the flow to"
 msgstr "Los grupos para comunicar el flujo a"
 
@@ -5559,12 +5407,6 @@ msgstr "Contactos individuales para comunicar el flujo a"
 
 msgid "Our recurring schedule"
 msgstr "Nuestro programa periódico"
-
-msgid "Trigger Type"
-msgstr "Tipo de activador"
-
-msgid "The type of this trigger"
-msgstr "El tipo de este activador"
 
 #, fuzzy
 #| msgid "Trigger Type"
@@ -8308,6 +8150,9 @@ msgstr "Manejar Campos de Contactos"
 msgid "Types"
 msgstr "Tipo de SMS"
 
+msgid "Featured"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -9052,38 +8897,41 @@ msgstr[1] "Le quedan %(credits)s, obtengan más créditos para evitar la interru
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Su teléfono no puede enviar mensajes"
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+#| "            regions, aliases.\n"
+#| "\n"
+#| "          "
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
+"        "
 msgstr ""
 "\n"
 "            Muchas veces algunas regiones se conocen por más de un nombre. En %(brand)s, a estos nombres alternativos para\n"
 "            las regiones, los llamamos apelativos.\n"
 "\n"
 "          "
-
-msgid "Clear"
-msgstr "Limpiar"
-
-msgid "(one per alias line)"
-msgstr "(uno por línea de apelativo)"
-
-msgid "Alias names must be unique, try again."
-msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
-
-msgid "Your changes could not be saved. Please reload the page and try again."
-msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 #, fuzzy, python-format
 msgid ""
@@ -11421,6 +11269,67 @@ msgid "More Videos"
 msgstr "Más videos"
 
 #, fuzzy
+#| msgid "Create Schedule"
+msgid "Leave unscheduled"
+msgstr "Crear cronograma"
+
+#, fuzzy
+#| msgid "Create Schedule"
+msgid "Cancel schedule"
+msgstr "Crear cronograma"
+
+msgid "Mon"
+msgstr "Lunes"
+
+msgid "Tue"
+msgstr "Martes"
+
+msgid "Wed"
+msgstr "Miércoles"
+
+msgid "Thu"
+msgstr "Jueves"
+
+msgid "Fri"
+msgstr "Viernes"
+
+msgid "Sat"
+msgstr "Sábado"
+
+msgid "Sun"
+msgstr "Domingo"
+
+#, fuzzy
+#| msgid "When this message was sent to the endpoint"
+msgid "The next message will be sent "
+msgstr "Cuando este mensaje se envió al endpoint"
+
+msgid "It will repeat every"
+msgstr "Será repetido cada"
+
+msgid "at around the same time."
+msgstr "aproximadamente a la misma hora."
+
+msgid "on the"
+msgstr ""
+
+#, fuzzy
+#| msgid "It will repeat every"
+msgid "It will repeat"
+msgstr "Será repetido cada"
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+#, fuzzy
+#| msgid "not scheduled"
+msgid "Not scheduled"
+msgstr "programado"
+
+#, fuzzy
 #| msgid "Delete"
 msgid "Delete "
 msgstr "Borrar"
@@ -11569,27 +11478,6 @@ msgstr "Crear una palabra clave de mensaje de texto para que las personas puedan
 msgid "Select a date"
 msgstr "Elegir una fecha"
 
-msgid "Mon"
-msgstr "Lunes"
-
-msgid "Tue"
-msgstr "Martes"
-
-msgid "Wed"
-msgstr "Miércoles"
-
-msgid "Thu"
-msgstr "Jueves"
-
-msgid "Fri"
-msgstr "Viernes"
-
-msgid "Sat"
-msgstr "Sábado"
-
-msgid "Sun"
-msgstr "Domingo"
-
 msgid "Start a flow in the future or on a schedule."
 msgstr "Empezar un flujo en el futuro o en un horario."
 
@@ -11605,12 +11493,6 @@ msgid ""
 "\n"
 "        "
 msgstr ""
-
-msgid "It will repeat every"
-msgstr "Será repetido cada"
-
-msgid "at around the same time."
-msgstr "aproximadamente a la misma hora."
 
 msgid "month"
 msgstr "mes"
@@ -11652,6 +11534,153 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#~ msgid "Can't create an incoming message without an org"
+#~ msgstr "No puede crear un mensaje entrante sin una organización"
+
+#~ msgid "Invalid group or contact id"
+#~ msgstr "ID del grupo o contacto inválido "
+
+#, fuzzy
+#~ msgid "No subscribers to this event"
+#~ msgstr "El número de teléfono para esta llamada"
+
+#~ msgid "Clear"
+#~ msgstr "Limpiar"
+
+#~ msgid "(one per alias line)"
+#~ msgstr "(uno por línea de apelativo)"
+
+#~ msgid "Alias names must be unique, try again."
+#~ msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
+
+#~ msgid "Your changes could not be saved. Please reload the page and try again."
+#~ msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
+
+#, fuzzy
+#~| msgid "Channel Event"
+#~ msgid "Flow Event"
+#~ msgstr "Evento del transmisor"
+
+#, fuzzy
+#~ msgid "Message Event"
+#~ msgstr "Reintentar el conteo de mensajes"
+
+#, fuzzy
+#~| msgid "Wired"
+#~ msgid "Fired"
+#~ msgstr "Wired"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "The event that will be fired"
+#~ msgstr "El mensaje que se está entregando"
+
+#, fuzzy
+#~| msgid "a unique code associated with this invitation"
+#~ msgid "The contact that is scheduled to have an event run"
+#~ msgstr "un código único asociado con esta invitación"
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "When this event is scheduled to run"
+#~ msgstr "Cuando se creó este mensaje"
+
+#~ msgid "The organization this trigger belongs to"
+#~ msgstr "La organización a la que pertenece este activador"
+
+#~ msgid "Last Triggered"
+#~ msgstr "Último activado"
+
+#~ msgid "The last time this trigger was fired"
+#~ msgstr "La última vez que se disparó este activador"
+
+#~ msgid "Trigger Count"
+#~ msgstr "Conteo del activador"
+
+#~ msgid "How many times this trigger has fired"
+#~ msgstr "Cuántas veces se ha disparado este activador"
+
+#~ msgid "Is Archived"
+#~ msgstr "está achivada"
+
+#~ msgid "Whether this trigger is archived"
+#~ msgstr "Si este activador está archivado"
+
+#~ msgid "Trigger Type"
+#~ msgstr "Tipo de activador"
+
+#~ msgid "The type of this trigger"
+#~ msgstr "El tipo de este activador"
+
+#, fuzzy
+#~ msgid "Played contact recording"
+#~ msgstr "Escuchó mensaje grabado para \"%s\""
+
+#, fuzzy
+#~| msgid "The call that handled this flow run, only for voice flows"
+#~ msgid "The session that handled this flow run, only for voice flows"
+#~ msgstr "La llamada que manejó esta corrida de flujos, solo para los flujos de voz"
+
+#~ msgid "Whether this flow run is currently active"
+#~ msgstr "Si la corrida de este flujo está activa actualmente"
+
+#~ msgid "A JSON representation of any custom flow values the user has saved away"
+#~ msgstr "Una representación de JSON de cualquiera de los valores del flujo del cliente que el usuario haya guardado"
+
+#~ msgid "When this flow run was created"
+#~ msgstr "Cuándo se creó esta corrida de flujos"
+
+#, fuzzy
+#~| msgid "When this flow run was created"
+#~ msgid "When this flow run was last updated"
+#~ msgstr "Cuándo se creó esta corrida de flujos"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "When the contact exited this flow run"
+#~ msgstr "%s ha salido de este flujo"
+
+#, fuzzy
+#~| msgid "%s has exited this flow"
+#~ msgid "Why the contact exited this flow run"
+#~ msgstr "%s ha salido de este flujo"
+
+#~ msgid "When this flow run will expire"
+#~ msgstr "Cuándo vencerá esta corrida de flujos"
+
+#, fuzzy
+#~| msgid "When this flow run will expire"
+#~ msgid "When this flow will next time out (if any)"
+#~ msgstr "Cuándo vencerá esta corrida de flujos"
+
+#~ msgid "The FlowStart objects that started this run"
+#~ msgstr "Los objetos de FlowStart que empezaron esta corrida"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "The parent run that triggered us"
+#~ msgstr "El tipo de este activador"
+
+#, fuzzy
+#~| msgid "The type of this trigger"
+#~ msgid "Context of the parent run that triggered us"
+#~ msgstr "El tipo de este activador"
+
+#, fuzzy
+#~| msgid "Query Fields"
+#~ msgid "Fields"
+#~ msgstr "Campos de la solicitud"
+
+#, fuzzy
+#~| msgid "When the user left this step in the flow"
+#~ msgid "The current node location of this run in the flow"
+#~ msgstr "Cuando el usuario salió de este paso en el flujo"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "Why the run is being deleted"
+#~ msgstr "El mensaje que se está entregando"
 
 #, fuzzy
 #~| msgid ""
@@ -13725,9 +13754,6 @@ msgstr "Borrar teléfono"
 #, fuzzy
 #~ msgid "When this message was delivered to the final recipient (for incoming messages, when the message was handled)"
 #~ msgstr "Cuando este mensaje se entregó al destinatario final"
-
-#~ msgid "The org this call is connected to"
-#~ msgstr "La organización a la que esta llamada está conectada"
 
 #~ msgid "The duration of this call in seconds, if appropriate"
 #~ msgstr "La duración de esta llamada en segundos, según convenga"

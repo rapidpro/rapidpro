@@ -1,7 +1,14 @@
+import numbers
+from collections import OrderedDict
+
 import iso8601
 import pytz
+import regex
 from rest_framework import serializers
 
+from django.conf import settings
+
+from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
@@ -17,12 +24,66 @@ from temba.values.constants import Value
 from . import fields
 from .validators import UniqueForOrgValidator
 
+INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
+
 
 def format_datetime(value):
     """
     Datetime fields are formatted with microsecond accuracy for v2
     """
     return json.encode_datetime(value, micros=True) if value else None
+
+
+def migrate_translations(translations):
+    return {lang: mailroom.get_client().expression_migrate(s) for lang, s in translations.items()}
+
+
+def normalize_extra(extra):
+    """
+    Normalizes a dict of extra passed to the flow start endpoint. We need to do this for backwards compatibility with
+    old engine.
+    """
+
+    return _normalize_extra(extra, -1)[0]
+
+
+def _normalize_extra(extra, count):
+    def normalize_key(key):
+        return INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
+
+    if isinstance(extra, str):
+        return extra[: Value.MAX_VALUE_LEN], count + 1
+
+    elif isinstance(extra, numbers.Number) or isinstance(extra, bool):
+        return extra, count + 1
+
+    elif isinstance(extra, dict):
+        count += 1
+        normalized = OrderedDict()
+        for (k, v) in extra.items():
+            (normalized[normalize_key(k)], count) = _normalize_extra(v, count)
+
+            if count >= settings.FLOW_START_PARAMS_SIZE:
+                break
+
+        return normalized, count
+
+    elif isinstance(extra, list):
+        count += 1
+        normalized = OrderedDict()
+        for (i, v) in enumerate(extra):
+            (normalized[str(i)], count) = _normalize_extra(v, count)
+
+            if count >= settings.FLOW_START_PARAMS_SIZE:
+                break
+
+        return normalized, count
+
+    elif extra is None:
+        return "", count + 1
+
+    else:  # pragma: no cover
+        raise ValueError("Unsupported type %s in extra" % str(type(extra)))
 
 
 class ReadSerializer(serializers.ModelSerializer):
@@ -145,6 +206,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     channel = fields.ChannelField(required=False)
+    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -164,6 +226,9 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         text, base_language = self.validated_data["text"]
 
+        if not self.validated_data["new_expressions"]:
+            text = migrate_translations(text)
+
         # create the broadcast
         broadcast = Broadcast.create(
             self.context["org"],
@@ -174,10 +239,11 @@ class BroadcastWriteSerializer(WriteSerializer):
             contacts=self.validated_data.get("contacts", []),
             urns=contact_urns,
             channel=self.validated_data.get("channel"),
+            template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send(expressions_context={}))
+        on_transaction_commit(lambda: broadcast.send())
 
         return broadcast
 
@@ -281,6 +347,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     relative_to = fields.ContactFieldField(required=True)
     message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
+    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate_unit(self, value):
         return self.UNITS[value]
@@ -288,12 +355,16 @@ class CampaignEventWriteSerializer(WriteSerializer):
     def validate_campaign(self, value):
         if self.instance and value and self.instance.campaign != value:
             raise serializers.ValidationError("Cannot change campaign for existing events")
-
         return value
 
     def validate(self, data):
         message = data.get("message")
         flow = data.get("flow")
+
+        if message and not flow:
+            translations, base_language = message
+            if not translations[base_language]:
+                raise serializers.ValidationError("Message text is required")
 
         if (message and flow) or (not message and not flow):
             raise serializers.ValidationError("Flow UUID or a message text required.")
@@ -326,6 +397,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
             # we are being set to a message
             else:
                 translations, base_language = message
+
+                if not self.validated_data["new_expressions"]:
+                    translations = migrate_translations(translations)
+
                 self.instance.message = translations
 
                 # if we aren't currently a message event, we need to create our hidden message flow
@@ -338,7 +413,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 # otherwise, we can just update that flow
                 else:
                     # set our single message on our flow
-                    self.instance.flow.update_single_message_flow(translations, base_language)
+                    self.instance.flow.update_single_message_flow(self.context["user"], translations, base_language)
 
             # update our other attributes
             self.instance.offset = offset
@@ -355,6 +430,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 )
             else:
                 translations, base_language = message
+
+                if not self.validated_data["new_expressions"]:
+                    translations = migrate_translations(translations)
+
                 self.instance = CampaignEvent.create_message_event(
                     self.context["org"],
                     self.context["user"],
@@ -366,6 +445,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
                     delivery_hour,
                     base_language,
                 )
+
             self.instance.update_flow_name()
 
         # create our event fires for this event in the background
@@ -719,7 +799,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.REMOVE:
             group.update_contacts(user, contacts, add=False)
         elif action == self.INTERRUPT:
-            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
+            mailroom.queue_interrupt(self.context["org"], contacts=contacts)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:
@@ -889,10 +969,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Must be a valid JSON object")
 
-        if not value:  # pragma: needs cover
-            return None
-        else:
-            return FlowRun.normalize_fields(value)[0]
+        return normalize_extra(value)
 
     def validate(self, data):
         # need at least one of urns, groups or contacts

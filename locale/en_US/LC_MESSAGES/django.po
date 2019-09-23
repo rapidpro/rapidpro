@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 19:39+0000\n"
+"POT-Creation-Date: 2019-09-19 18:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -68,10 +68,10 @@ msgstr ""
 msgid "You do not have permission to access this file"
 msgstr ""
 
-msgid "Flow Event"
+msgid "The name of this campaign"
 msgstr ""
 
-msgid "Message Event"
+msgid "The group this campaign operates on"
 msgstr ""
 
 msgid "Minutes"
@@ -84,36 +84,6 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
-msgstr ""
-
-msgid "Interrupt"
-msgstr ""
-
-msgid "Skip"
-msgstr ""
-
-msgid "Passive"
-msgstr ""
-
-msgid "Fired"
-msgstr ""
-
-msgid "Skipped"
-msgstr ""
-
-msgid "The event that will be fired"
-msgstr ""
-
-msgid "The contact that is scheduled to have an event run"
-msgstr ""
-
-msgid "When this event is scheduled to run"
-msgstr ""
-
-msgid "When this event actually fired, null if not yet fired"
-msgstr ""
-
-msgid "Whether the event is fired or skipped, null if not yet fired"
 msgstr ""
 
 msgid "Export"
@@ -146,6 +116,9 @@ msgstr ""
 
 #, python-format
 msgid "Translation for '%(language)s' exceeds the %(limit)d character limit."
+msgstr ""
+
+msgid "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
 msgstr ""
 
 msgid "Default"
@@ -1197,10 +1170,10 @@ msgstr ""
 msgid "Token"
 msgstr ""
 
-msgid "The Jiochat App ID"
+msgid "The JioChat App ID"
 msgstr ""
 
-msgid "The Jiochat App secret"
+msgid "The JioChat App secret"
 msgstr ""
 
 msgid "Connect your <a href=\"https://junebug.praekelt.org/\" target=\"_blank\">Junebug</a> instance that you have already set up and configured."
@@ -2062,7 +2035,7 @@ msgstr ""
 msgid "External identifier"
 msgstr ""
 
-msgid "Jiochat identifier"
+msgid "JioChat identifier"
 msgstr ""
 
 msgid "WeChat identifier"
@@ -2348,9 +2321,6 @@ msgstr ""
 msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 msgstr ""
 
-msgid "Invalid group or contact id"
-msgstr ""
-
 msgid "Send Message"
 msgstr ""
 
@@ -2415,9 +2385,6 @@ msgid "Cannot create a new Contact Field, maximum allowed per org: {settings.MAX
 msgstr ""
 
 msgid "Manage Contact Fields"
-msgstr ""
-
-msgid "featured"
 msgstr ""
 
 msgid "Update"
@@ -2504,63 +2471,6 @@ msgstr ""
 msgid "User delete"
 msgstr ""
 
-msgid "The session that handled this flow run, only for voice flows"
-msgstr ""
-
-msgid "Whether this flow run is currently active"
-msgstr ""
-
-msgid "A JSON representation of any custom flow values the user has saved away"
-msgstr ""
-
-msgid "When this flow run was created"
-msgstr ""
-
-msgid "When this flow run was last updated"
-msgstr ""
-
-msgid "When the contact exited this flow run"
-msgstr ""
-
-msgid "Why the contact exited this flow run"
-msgstr ""
-
-msgid "When this flow run will expire"
-msgstr ""
-
-msgid "When this flow will next time out (if any)"
-msgstr ""
-
-msgid "The FlowStart objects that started this run"
-msgstr ""
-
-msgid "The parent run that triggered us"
-msgstr ""
-
-msgid "Context of the parent run that triggered us"
-msgstr ""
-
-msgid "Context of the last child subflow triggered by us"
-msgstr ""
-
-msgid "The results collected during this flow run in JSON format"
-msgstr ""
-
-msgid "The path taken during this flow run in JSON format"
-msgstr ""
-
-msgid "Fields"
-msgstr ""
-
-msgid "The events recorded on this run in JSON format"
-msgstr ""
-
-msgid "The current node location of this run in the flow"
-msgstr ""
-
-msgid "Why the run is being deleted"
-msgstr ""
-
 msgid "The label for this field"
 msgstr ""
 
@@ -2586,9 +2496,6 @@ msgid "When this ruleset was originally created"
 msgstr ""
 
 msgid "When this ruleset was last modified"
-msgstr ""
-
-msgid "No subscribers to this event"
 msgstr ""
 
 msgid "When this action was originally created"
@@ -2652,12 +2559,6 @@ msgid "The name of this flow label"
 msgstr ""
 
 msgid "Parent"
-msgstr ""
-
-msgid "Sorry, an invalid flow has been detected. Good bye."
-msgstr ""
-
-msgid "Played contact recording"
 msgstr ""
 
 msgid "After 5 minutes"
@@ -2729,6 +2630,9 @@ msgstr ""
 
 #, python-format
 msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
+msgstr ""
+
+msgid "You don't have permission to edit this flow"
 msgstr ""
 
 msgid "Your flow failed validation. Please refresh your browser."
@@ -2976,16 +2880,6 @@ msgstr ""
 msgid "Name already used"
 msgstr ""
 
-#, python-format
-msgid "Nexmo call failed, with error %s"
-msgstr ""
-
-msgid "Could not authenticate with your Twilio account. Check your token and try again."
-msgstr ""
-
-msgid "Verboice connection failed."
-msgstr ""
-
 msgid "After 1 minute"
 msgstr ""
 
@@ -3226,9 +3120,6 @@ msgstr ""
 msgid "Why the message is being deleted"
 msgstr ""
 
-msgid "Can't create an incoming message without an org"
-msgstr ""
-
 msgid "Whether this count is for archived messages"
 msgstr ""
 
@@ -3267,6 +3158,9 @@ msgid "Schedules"
 msgstr ""
 
 msgid "Failed"
+msgstr ""
+
+msgid "Hi @contact.name!"
 msgstr ""
 
 msgid "Schedule Message"
@@ -4041,9 +3935,6 @@ msgstr ""
 msgid "Message contains only the keyword"
 msgstr ""
 
-msgid "The organization this trigger belongs to"
-msgstr ""
-
 msgid "Keyword"
 msgstr ""
 
@@ -4062,24 +3953,6 @@ msgstr ""
 msgid "Which flow will be started"
 msgstr ""
 
-msgid "Last Triggered"
-msgstr ""
-
-msgid "The last time this trigger was fired"
-msgstr ""
-
-msgid "Trigger Count"
-msgstr ""
-
-msgid "How many times this trigger has fired"
-msgstr ""
-
-msgid "Is Archived"
-msgstr ""
-
-msgid "Whether this trigger is archived"
-msgstr ""
-
 msgid "The groups to broadcast the flow to"
 msgstr ""
 
@@ -4087,12 +3960,6 @@ msgid "Individual contacts to broadcast the flow to"
 msgstr ""
 
 msgid "Our recurring schedule"
-msgstr ""
-
-msgid "Trigger Type"
-msgstr ""
-
-msgid "The type of this trigger"
 msgstr ""
 
 msgid "Trigger When"
@@ -6063,6 +5930,9 @@ msgstr ""
 msgid "Types"
 msgstr ""
 
+msgid "Featured"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
@@ -6652,29 +6522,17 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"            Aliases for %(name)s\n"
-"          "
+"          Aliases for %(name)s\n"
+"        "
 msgstr ""
 
 #, python-format
 msgid ""
 "\n"
-"            Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
-"            regions, aliases.\n"
+"          Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for\n"
+"          regions, aliases.\n"
 "\n"
-"          "
-msgstr ""
-
-msgid "Clear"
-msgstr ""
-
-msgid "(one per alias line)"
-msgstr ""
-
-msgid "Alias names must be unique, try again."
-msgstr ""
-
-msgid "Your changes could not be saved. Please reload the page and try again."
+"        "
 msgstr ""
 
 #, python-format
@@ -8556,6 +8414,57 @@ msgstr ""
 msgid "More Videos"
 msgstr ""
 
+msgid "Leave unscheduled"
+msgstr ""
+
+msgid "Cancel schedule"
+msgstr ""
+
+msgid "Mon"
+msgstr ""
+
+msgid "Tue"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Thu"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+msgid "Sat"
+msgstr ""
+
+msgid "Sun"
+msgstr ""
+
+msgid "The next message will be sent "
+msgstr ""
+
+msgid "It will repeat every"
+msgstr ""
+
+msgid "at around the same time."
+msgstr ""
+
+msgid "on the"
+msgstr ""
+
+msgid "It will repeat"
+msgstr ""
+
+msgid "It will "
+msgstr ""
+
+msgid "not repeat"
+msgstr ""
+
+msgid "Not scheduled"
+msgstr ""
+
 msgid "Delete "
 msgstr ""
 
@@ -8681,27 +8590,6 @@ msgstr ""
 msgid "Select a date"
 msgstr ""
 
-msgid "Mon"
-msgstr ""
-
-msgid "Tue"
-msgstr ""
-
-msgid "Wed"
-msgstr ""
-
-msgid "Thu"
-msgstr ""
-
-msgid "Fri"
-msgstr ""
-
-msgid "Sat"
-msgstr ""
-
-msgid "Sun"
-msgstr ""
-
 msgid "Start a flow in the future or on a schedule."
 msgstr ""
 
@@ -8716,12 +8604,6 @@ msgid ""
 "          The next message will be sent <span class='attn next-fire'/>.\n"
 "\n"
 "        "
-msgstr ""
-
-msgid "It will repeat every"
-msgstr ""
-
-msgid "at around the same time."
 msgstr ""
 
 msgid "month"
