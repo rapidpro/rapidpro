@@ -40,20 +40,6 @@
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
       conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
 
-    // ==== ANGULAR ====
-    :javascript
-
-      // this has to be loaded before angular
-      conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload-shim.js', null);
-
-      // our angular scripts
-      conditionalLoad('bower/angular/angular.js', null);
-      conditionalLoad('bower/angular-animate/angular-animate.js', null);
-
-      // this must be loaded after angular
-      conditionalLoad('lib/angular-file-upload-1.6.12/angular-file-upload.js', null)
-
-
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
