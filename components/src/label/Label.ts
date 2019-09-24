@@ -1,6 +1,6 @@
 import { LitElement, TemplateResult, html, css, customElement, property } from 'lit-element';
 import { getClasses } from '../utils';
-
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 @customElement("rp-label")
 export default class Label extends LitElement {
@@ -82,16 +82,13 @@ export default class Label extends LitElement {
   textColor: string;
 
   public render(): TemplateResult {
-    return html`
-      ${this.backgroundColor && this.textColor ? html`
-        <style>
-          .label {
-            background: ${this.backgroundColor};
-            color: ${this.textColor};
-          }
-        </style>
-      `: null}
 
+    const labelStyle = this.backgroundColor && this.textColor ? {
+      background: `${this.backgroundColor}`,
+      color: `${this.textColor}`
+    } : {};
+
+    return html`
       <div class="label ${getClasses({ 
         "clickable": this.clickable,
         "primary": this.primary,
@@ -99,6 +96,7 @@ export default class Label extends LitElement {
         "light": this.light,
         "dark": this.dark
         })}"
+        style=${styleMap(labelStyle)}
        >
         <div class="mask">
           <slot></slot>

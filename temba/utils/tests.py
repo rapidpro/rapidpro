@@ -1121,7 +1121,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         self.create_anonymous_user()
 
         with ESMockWithScroll():
-            call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by("id"))
 
@@ -1150,7 +1150,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command("test_db", "generate", num_orgs=3, num_contacts=30, seed=1234)
+            call_command("test_db", num_orgs=3, num_contacts=30, seed=1234)
 
 
 class JsonModelTestDefaultNull(models.Model):

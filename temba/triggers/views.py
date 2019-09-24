@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import regex
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
@@ -21,7 +19,7 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import analytics, json
 from temba.utils.fields import CompletionTextarea
 from temba.utils.views import BaseActionForm
 
@@ -221,8 +219,8 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat")
-    repeat_days = forms.IntegerField(required=False)
-    start = forms.CharField(max_length=16)
+    repeat_days_of_week = forms.CharField(required=False)
+    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
     start_datetime_value = forms.IntegerField(required=False)
     flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
     omnibox = OmniboxField(
@@ -238,17 +236,9 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 
         self.fields["flow"].queryset = flows
 
-    def clean(self):
-        data = super().clean()
-
-        # only weekly gets repeat days
-        if data["repeat_period"] != "W":
-            data["repeat_days"] = None
-        return data
-
     class Meta:
         model = Trigger
-        fields = ("flow", "omnibox", "repeat_period", "repeat_days", "start", "start_datetime_value")
+        fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start", "start_datetime_value")
 
 
 class InboundCallTriggerForm(GroupBasedTriggerForm):
@@ -436,7 +426,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             if self.get_object().schedule:
-                context["days"] = self.get_object().schedule.explode_bitmask()
+                context["days"] = self.get_object().schedule.repeat_days_of_week
             context["user_tz"] = get_current_timezone_name()
             context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
@@ -471,40 +461,14 @@ class TriggerCRUDL(SmartCRUDL):
             if trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = trigger.schedule
 
-                if form.starts_never():
-                    schedule.reset()
-
-                elif form.stopped():
-                    schedule.reset()
-
-                elif form.starts_now():
-                    schedule.next_fire = timezone.now() - timedelta(days=1)
-                    schedule.repeat_period = "O"
-                    schedule.repeat_days = 0
-                    schedule.status = "S"
-                    schedule.save()
-
-                else:
-                    # Scheduled case
-                    schedule.status = "S"
-                    schedule.repeat_period = form.cleaned_data["repeat_period"]
-                    start_time = form.get_start_time()
-                    if start_time:
-                        schedule.next_fire = start_time
-
-                    # create our recurrence
-                    if form.is_recurring():
-                        days = None
-                        if "repeat_days" in form.cleaned_data:
-                            days = form.cleaned_data["repeat_days"]
-                        schedule.repeat_days = days
-                        schedule.repeat_hour_of_day = schedule.next_fire.hour
-                        schedule.repeat_minute_of_hour = schedule.next_fire.minute
-                        schedule.repeat_day_of_month = schedule.next_fire.day
-                    schedule.save()
+                # update our schedule
+                schedule.update_schedule(
+                    form.get_start_time(schedule.org.timezone),
+                    form.cleaned_data.get("repeat_period"),
+                    form.cleaned_data.get("repeat_days_of_week"),
+                )
 
                 recipients = self.form.cleaned_data["omnibox"]
-
                 trigger.groups.clear()
                 trigger.contacts.clear()
 
@@ -513,12 +477,6 @@ class TriggerCRUDL(SmartCRUDL):
 
                 for contact in recipients["contacts"]:
                     trigger.contacts.add(contact)
-
-                # fire our trigger schedule if necessary
-                if trigger.schedule.is_expired():
-                    from temba.schedules.tasks import check_schedule_task
-
-                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.id))
 
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
@@ -698,39 +656,16 @@ class TriggerCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             analytics.track(self.request.user.username, "temba.trigger_created_schedule")
-            schedule = Schedule.objects.create(created_by=self.request.user, modified_by=self.request.user)
+            org = self.request.user.get_org()
+            start_time = form.get_start_time(org.timezone)
 
-            if form.starts_never():
-                schedule.reset()
-
-            elif form.stopped():
-                schedule.reset()
-
-            elif form.starts_now():
-                schedule.next_fire = timezone.now() - timedelta(days=1)
-                schedule.repeat_period = "O"
-                schedule.repeat_days = 0
-                schedule.status = "S"
-                schedule.save()
-
-            else:
-                # Scheduled case
-                schedule.status = "S"
-                schedule.repeat_period = form.cleaned_data["repeat_period"]
-                start_time = form.get_start_time()
-                if start_time:
-                    schedule.next_fire = start_time
-
-                # create our recurrence
-                if form.is_recurring():
-                    days = None
-                    if "repeat_days" in form.cleaned_data:
-                        days = form.cleaned_data["repeat_days"]
-                    schedule.repeat_days = days
-                    schedule.repeat_hour_of_day = schedule.next_fire.hour
-                    schedule.repeat_minute_of_hour = schedule.repeat_minute_of_hour
-                    schedule.repeat_day_of_month = schedule.next_fire.day
-                schedule.save()
+            schedule = Schedule.create_schedule(
+                org,
+                self.request.user,
+                start_time,
+                form.cleaned_data.get("repeat_period"),
+                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+            )
 
             recipients = self.form.cleaned_data["omnibox"]
 
@@ -754,16 +689,6 @@ class TriggerCRUDL(SmartCRUDL):
             response = self.render_to_response(self.get_context_data(form=form))
             response["REDIRECT"] = self.get_success_url()
             return response
-
-        def post_save(self, obj):
-
-            # fire our trigger schedule if necessary
-            if obj.schedule.is_expired():
-                from temba.schedules.tasks import check_schedule_task
-
-                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.id))
-
-            return obj
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

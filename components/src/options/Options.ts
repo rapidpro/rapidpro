@@ -1,13 +1,14 @@
 import { customElement, TemplateResult, html, property, css } from 'lit-element';
 import { CustomEventType } from '../interfaces';
 import RapidElement, { EventHandler } from '../RapidElement';
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 @customElement("rp-options")
 export default class Options extends RapidElement {
 
   static get styles() {
     return css`
-      .container {
+      .options-container {
         visibility: hidden;
         position: fixed;
         border-radius: var(--curvature);
@@ -169,7 +170,7 @@ export default class Options extends RapidElement {
   }
 
   private calculatePosition() {
-    const optionsBounds = this.shadowRoot.querySelector('.container').getBoundingClientRect();
+    const optionsBounds = this.shadowRoot.querySelector('.options-container').getBoundingClientRect();
     if (this.anchorTo) {
       const anchorBounds = this.anchorTo.getBoundingClientRect();   
       const topTop = anchorBounds.top - optionsBounds.height;
@@ -194,20 +195,20 @@ export default class Options extends RapidElement {
 
   public render(): TemplateResult {
     const renderOption = (this.renderOption || this.renderOptionDefault).bind(this);
-    return html`
-      <style>
-        .container {
-          top: ${this.top}px;
-          left: ${this.left}px;
-          width: ${this.width}px;
-        }
 
-        .options {
-          width: ${this.width}px;
-        }
-      </style>
-      <div class="container ${this.visible ? "show": ""}">
-        <div class="options">
+    const containerStyle = {
+      top: `${this.top}px`,
+      left: `${this.left}px`,
+      width: `${this.width}px`
+    }
+
+    const optionsStyle = {
+      width: `${this.width}px`
+    }
+
+    return html`
+      <div class="options-container ${this.visible ? "show": ""}" style=${styleMap(containerStyle)}>
+        <div class="options" style=${styleMap(optionsStyle)}>
           ${this.options.map((option: any, index: number)=>html`
             <div 
               @mouseover=${(evt: MouseEvent)=>{

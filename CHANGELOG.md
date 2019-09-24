@@ -1,3 +1,14 @@
+v5.1.40
+----------
+ * Fix issues with web components in Microsoft Edge
+
+v5.1.37
+----------
+ * Cleanup Schedule class
+ * Drop unused columns on FlowRun
+ * Remove legacy engine code
+ * Remove legacy braodcast and message sending code
+
 v5.1.36
 ----------
  * Temporarily disable compression for components JS
