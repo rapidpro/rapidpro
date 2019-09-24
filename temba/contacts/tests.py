@@ -3643,7 +3643,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(68):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3843,7 +3843,7 @@ class ContactTest(TembaTest):
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}
-        self.assertEqual(history_class(item), "non-msg")
+        self.assertEqual(history_class(item), "non-msg warning")
 
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")
