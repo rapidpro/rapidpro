@@ -21,7 +21,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
@@ -112,8 +112,7 @@ class TembaTestMixin:
         return Contact.get_or_create_by_urns(**kwargs)
 
     def create_group(self, name, contacts=(), query=None):
-        if contacts and query:
-            raise ValueError("Can't provide contact list for a dynamic group")
+        assert not (contacts and query), "can't provide contact list for a dynamic group"
 
         if query:
             return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
@@ -122,6 +121,9 @@ class TembaTestMixin:
             if contacts:
                 group.contacts.add(*contacts)
             return group
+
+    def create_label(self, name, org=None):
+        return Label.get_or_create(org or self.org, self.user, name)
 
     def create_field(self, key, label, value_type=Value.TYPE_TEXT):
         return ContactField.user_fields.create(
