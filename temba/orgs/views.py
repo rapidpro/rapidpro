@@ -36,7 +36,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
@@ -618,6 +618,7 @@ class OrgCRUDL(SmartCRUDL):
         "giftcards",
         "lookups",
         "parse_data_view",
+        "parse_data_import",
     )
 
     model = Org
@@ -2376,11 +2377,16 @@ class OrgCRUDL(SmartCRUDL):
             context["searches"] = []
             return context
 
-    class ImportParseData(InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class ImportParseDataForm(Form):
+    class ParseDataImport(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class ParseDataImportForm(Form):
             collection_type = forms.HiddenInput()
             collection = forms.HiddenInput()
             import_file = forms.FileField(help_text=_("The import file"))
+
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs["org"]
+                del kwargs["org"]
+                super().__init__(*args, **kwargs)
 
             def clean_import_file(self):
                 # Max file size something around 150MB
@@ -2416,23 +2422,39 @@ class OrgCRUDL(SmartCRUDL):
 
                 return self.cleaned_data["import_file"]
 
-        form_class = ImportParseDataForm
+        form_class = ParseDataImportForm
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.ImportParseData, self).get_context_data(**kwargs)
+            context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
+
+            collection = self.request.GET.get('db')
+            collection_type = self.request.GET.get('type')
+
+            search_in = GIFTCARDS if collection_type == 'giftcard' else LOOKUPS
+
+            # Checking if org has the collection added
+            org_collections = org.get_collections(collection_type=search_in)
+            if collection not in org_collections:
+                raise Http404
+
+            context["collection"] = collection
+            context["collection_type"] = collection_type
+            context["collection_title"] = collection.capitalize()
+            context["collection_type_title"] = 'Gift card' if collection_type == 'giftcard' else 'Lookup'
             context["dayfirst"] = org.get_dayfirst()
+
             return context
 
         def get_success_url(self):  # pragma: needs cover
-            return reverse("orgs.org_import_parse_data")
+            return reverse("orgs.org_parse_data_import")
 
         def derive_success_message(self):
             user = self.get_user()
             return _(f"We are preparing your import. We will e-mail you at {user.email} when it is ready.")
 
         def get_form_kwargs(self):
-            kwargs = super(OrgCRUDL.ImportParseData, self).get_form_kwargs()
+            kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.user.get_org()
             return kwargs
 

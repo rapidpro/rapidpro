@@ -23,7 +23,8 @@
       %thead
         %tr
           %th Collections
-          %th.permission Action
+          %th.permission
+          %th.permission
           %th.permission Remove
 
       %tbody
@@ -31,12 +32,14 @@
           -for item in current_collections
             %tr
               %td= item.collection
-              %td.giftcard-check.permission
-                %a{'href': '{% url "orgs.org_parse_data_view" %}?db={{ item.collection }}&type={{ remove_div_title }}', 'target': '_blank'}
-                  -trans "Preview"
-                |
-                %a{'href': ''}
-                  -trans "Import Data"
+              %td.giftcard-check.permission.action
+                -if org_perms.orgs.org_parse_data_view
+                  %a{'href': '{% url "orgs.org_parse_data_view" %}?db={{ item.collection }}&type={{ remove_div_title }}', 'target': '_blank'}
+                    -trans "Preview"
+              %td.giftcard-check.permission.action
+                -if org_perms.orgs.org_parse_data_import
+                  %a{'href': '{% url "orgs.org_parse_data_import" %}?db={{ item.collection }}&type={{ remove_div_title }}'}
+                    -trans "Import Data"
               %td.giftcard-check.permission
                 %a{'href': 'javascript:confirmRemoveCollection("remove-{{ remove_div_title }}", "{{ forloop.counter0 }}")'}
                   .glyph.icon-remove-2
@@ -74,4 +77,7 @@
     }
     th.permission, td.permission {
       text-align: center;
+    }
+    td.action {
+      width: 100px;
     }
