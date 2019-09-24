@@ -2428,10 +2428,10 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
 
-            collection = self.request.GET.get('db')
-            collection_type = self.request.GET.get('type')
+            collection = self.request.GET.get("db")
+            collection_type = self.request.GET.get("type")
 
-            search_in = GIFTCARDS if collection_type == 'giftcard' else LOOKUPS
+            search_in = GIFTCARDS if collection_type == "giftcard" else LOOKUPS
 
             # Checking if org has the collection added
             org_collections = org.get_collections(collection_type=search_in)
@@ -2441,7 +2441,7 @@ class OrgCRUDL(SmartCRUDL):
             context["collection"] = collection
             context["collection_type"] = collection_type
             context["collection_title"] = collection.capitalize()
-            context["collection_type_title"] = 'Gift card' if collection_type == 'giftcard' else 'Lookup'
+            context["collection_type_title"] = "Gift card" if collection_type == "giftcard" else "Lookup"
             context["dayfirst"] = org.get_dayfirst()
 
             return context
