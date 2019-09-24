@@ -3843,7 +3843,7 @@ class ContactTest(TembaTest):
         result = WebHookResult.objects.get()
 
         item = {"type": "webhook-result", "obj": result}
-        self.assertEqual(history_class(item), "non-msg warning")
+        self.assertEqual(history_class(item), "non-msg")
 
         result.status_code = 404
         self.assertEqual(history_class(item), "non-msg warning")

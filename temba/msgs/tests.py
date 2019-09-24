@@ -3320,7 +3320,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 27)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 37)
 
         # squash our counts
         squash_msgcounts()
