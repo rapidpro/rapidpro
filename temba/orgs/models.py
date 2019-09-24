@@ -1953,6 +1953,12 @@ class Org(SmartModel):
         """
         Do the dirty work of deleting this org
         """
+        from temba.msgs.models import Label
+
+        for label in Label.all_objects.filter(org=self):
+            label.release(self.modified_by)
+            label.delete()
+
         msg_ids = self.msgs.all().values_list("id", flat=True)
 
         # might be a lot of messages, batch this

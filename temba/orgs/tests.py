@@ -178,7 +178,7 @@ class OrgDeleteTest(TembaTest):
 
         self.setUpLocations()
 
-        # create a second org
+        # create a second child org
         self.child_org = Org.objects.create(
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -210,6 +210,10 @@ class OrgDeleteTest(TembaTest):
 
         # now allocate some credits to our child org
         self.org.allocate_credits(self.admin, self.child_org, 300)
+
+        # add some labels
+        self.create_label("Parent Spam", org=self.parent_org)
+        self.create_label("Child Spam", org=self.child_org)
 
         # bring in some flows
         favorites = self.get_flow("favorites")
@@ -313,6 +317,9 @@ class OrgDeleteTest(TembaTest):
 
                 # as are our webhook events
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
+
+                # and labels
+                self.assertFalse(Label.all_objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()

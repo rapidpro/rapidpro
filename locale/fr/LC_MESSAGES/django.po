@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-19 18:17+0000\n"
+"POT-Creation-Date: 2019-09-23 20:01+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -4241,11 +4241,6 @@ msgstr "Le nom de ce label"
 #| msgid "Elderly"
 msgid "Folder"
 msgstr "assez âgé"
-
-#, fuzzy
-#| msgid "Label Type"
-msgid "Label type"
-msgstr "Type de label"
 
 msgid "The date for the oldest message to export"
 msgstr ""
@@ -11289,6 +11284,11 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
+
+#, fuzzy
+#~| msgid "Label Type"
+#~ msgid "Label type"
+#~ msgstr "Type de label"
 
 #~ msgid "Can't create an incoming message without an org"
 #~ msgstr "Vous ne pouvez pas créer un message entrant sans une organisation"
