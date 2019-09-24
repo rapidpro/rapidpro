@@ -2314,7 +2314,7 @@ def get_user_orgs(user, brand=None):
     not_suspended_orgs_ids = [org.id for org in user_orgs if not org.is_suspended()]
 
     user_orgs = user_orgs.filter(id__in=not_suspended_orgs_ids)
-    
+
     if brand:
         user_orgs = user_orgs.filter(brand=brand)
 
