@@ -1,3 +1,7 @@
+v5.1.40
+----------
+ * Fix issues with web components in Microsoft Edge
+
 v5.1.37
 ----------
  * Cleanup Schedule class
