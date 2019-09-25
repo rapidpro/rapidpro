@@ -7,19 +7,29 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('msgs', '0135_auto_20190923_1636'),
-    ]
+    dependencies = [("msgs", "0135_auto_20190923_1636")]
 
     operations = [
         migrations.AlterField(
-            model_name='broadcast',
-            name='created_by',
-            field=models.ForeignKey(help_text='The user which originally created this item', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='msgs_broadcast_creations', to=settings.AUTH_USER_MODEL),
+            model_name="broadcast",
+            name="created_by",
+            field=models.ForeignKey(
+                help_text="The user which originally created this item",
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="msgs_broadcast_creations",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterField(
-            model_name='broadcast',
-            name='modified_by',
-            field=models.ForeignKey(help_text='The user which last modified this item', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='msgs_broadcast_modifications', to=settings.AUTH_USER_MODEL),
+            model_name="broadcast",
+            name="modified_by",
+            field=models.ForeignKey(
+                help_text="The user which last modified this item",
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="msgs_broadcast_modifications",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]
