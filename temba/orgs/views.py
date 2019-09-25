@@ -2379,8 +2379,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class ParseDataImport(InferOrgMixin, OrgPermsMixin, SmartFormView):
         class ParseDataImportForm(Form):
-            collection_type = forms.HiddenInput()
-            collection = forms.HiddenInput()
+            collection_type = forms.CharField()
+            collection = forms.CharField()
             import_file = forms.FileField(help_text=_("The import file"))
 
             def __init__(self, *args, **kwargs):
@@ -2417,12 +2417,35 @@ class OrgCRUDL(SmartCRUDL):
                     Org.get_parse_import_file_headers(
                         ContentFile(self.cleaned_data["import_file"].read()), needed_check=needed_check
                     )
+                    self.cleaned_data["import_file"].seek(0)
                 except Exception as e:
                     raise forms.ValidationError(str(e))
 
                 return self.cleaned_data["import_file"]
 
+            def clean_collection_type(self):
+                collection_type = self.cleaned_data.get('collection_type')
+                if collection_type not in ['lookup', 'giftcard']:
+                    raise forms.ValidationError(_("The collection type is not valid."))
+                return collection_type
+
+            def clean_collection(self):
+                collection = self.cleaned_data.get('collection')
+                collection_type = self.cleaned_data.get('collection_type')
+
+                if not collection:
+                    raise forms.ValidationError(_("You should inform the collection name."))
+
+                collection_full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                    org_slug=self.org.slug,
+                    org_id=self.org.id,
+                    name=collection,
+                    collection_type=f"{str(collection_type).lower()}s",
+                )
+                return collection_full_name
+
         form_class = ParseDataImportForm
+        fields = ('import_file', 'collection_type', 'collection')
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2447,7 +2470,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get_success_url(self):  # pragma: needs cover
-            return reverse("orgs.org_parse_data_import")
+            return reverse(f"orgs.org_{self.request.GET.get('type')}s")
 
         def derive_success_message(self):
             user = self.get_user()
@@ -2460,6 +2483,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             import csv
+            from pandas import read_csv
             from pyexcel_xls import get_data
             from .tasks import import_data_to_parse
 
@@ -2488,7 +2512,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
 
-                config = self.org.config_json()
+                config = self.org.config
                 collection_real_name = None
 
                 if collection_type == "lookup":
@@ -2498,7 +2522,7 @@ class OrgCRUDL(SmartCRUDL):
                     if response.status_code == 200 and "fields" in response.json():
                         fields = response.json().get("fields")
 
-                        for key in fields.keys():
+                        for key in list(fields.keys()):
                             if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
                                 del fields[key]
                             else:
@@ -2534,20 +2558,28 @@ class OrgCRUDL(SmartCRUDL):
                             break
 
                 if file_type == "csv":
-                    spamreader = csv.reader(import_file, delimiter=str(","))
+                    spamreader = read_csv(import_file, delimiter=",", index_col=False)
+                    headers = spamreader.columns.tolist()
+                    csv_data = spamreader.get_values().tolist()
+                    csv_data.insert(0, headers)
+                    spamreader = csv_data
+                    has_data = True
                 else:
                     data = get_data(import_file)
-                    spamreader = None
+                    spamreader = []
+                    has_data = False
                     if data:
                         for item in data:
                             spamreader = data[item]
+                            has_data = True
                             break
+                    spamreader = list(spamreader)
 
-                if spamreader:
+                if has_data:
                     import_data_to_parse.delay(
                         org.get_branding(),
                         user.email,
-                        list(spamreader),
+                        spamreader,
                         parse_url,
                         parse_headers,
                         collection,

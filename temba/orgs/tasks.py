@@ -1,16 +1,17 @@
 import time
 import requests
-import json
 import pytz
 
 from django.conf import settings
 from django.template.defaultfilters import slugify
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 
 from celery.task import task
 from parse_rest.connection import register
 from parse_rest.datatypes import Object
 
+from temba.utils import json
 from temba.utils.dates import str_to_datetime
 from temba.utils.celery import nonoverlapping_task
 from temba.utils.email import send_template_email
@@ -106,7 +107,7 @@ def import_data_to_parse(
                 requests.put(parse_url, data=json.dumps(add_new_fields), headers=parse_headers)
         else:
             payload = dict()
-            for item in fields_map.keys():
+            for item in list(fields_map.keys()):
                 try:
                     field_value = row[item]
 

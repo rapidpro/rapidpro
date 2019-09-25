@@ -22,7 +22,7 @@
             -trans "If you have a CSV or XLS file with Gift Cards or a Lookup, select it below to import it into your account."
 
           - block import-status
-            %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'orgs.org_parse_data_import' %}", enctype:"multipart/form-data"}
+            %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'orgs.org_parse_data_import' %}?db={{ collection }}&type={{ collection_type }}", enctype:"multipart/form-data"}
 
               -csrf_token
               -if form.non_field_errors
@@ -30,10 +30,10 @@
                   {{ form.non_field_errors }}
 
               -block fields
-                #db-type
-                  %input{type:"hidden", name:"collection_type", value:"{{ collection_type }}"}
-                #db
-                  %input{type:"hidden", name:"collection", value:"{{ collection }}"}
+                #db-type.hide
+                  %input{type:"text", name:"collection_type", value:"{{ collection_type }}"}
+                #db.hide
+                  %input{type:"text", name:"collection", value:"{{ collection }}"}
                 #file-upload
                   %input{type:"file", name:"import_file", id:"import_file", onchange:'updateParseImportFile()'}
                 #real_button
