@@ -2333,7 +2333,7 @@ class OrgCRUDL(SmartCRUDL):
             fields = []
             if response.status_code == 200 and "fields" in response.json():
                 fields = response.json().get("fields")
-                fields = [item for item in fields.keys() if item not in ["ACL", "createdAt"]]
+                fields = [item for item in sorted(fields.keys()) if item not in ["ACL", "createdAt", "order"]]
 
             return tuple(fields)
 
@@ -2354,7 +2354,7 @@ class OrgCRUDL(SmartCRUDL):
                 "Content-Type": "application/json",
             }
 
-            parse_url = f"{settings.PARSE_URL}/classes/{collection}"
+            parse_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
             response = requests.get(parse_url, headers=parse_headers)
 
             results = []
@@ -2482,7 +2482,6 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            import csv
             from pandas import read_csv
             from pyexcel_xls import get_data
             from .tasks import import_data_to_parse
@@ -2560,22 +2559,19 @@ class OrgCRUDL(SmartCRUDL):
                 if file_type == "csv":
                     spamreader = read_csv(import_file, delimiter=",", index_col=False)
                     headers = spamreader.columns.tolist()
-                    csv_data = spamreader.get_values().tolist()
-                    csv_data.insert(0, headers)
-                    spamreader = csv_data
-                    has_data = True
+                    spamreader = spamreader.get_values().tolist()
+                    spamreader.insert(0, headers)
                 else:
                     data = get_data(import_file)
                     spamreader = []
-                    has_data = False
                     if data:
                         for item in data:
                             spamreader = data[item]
-                            has_data = True
                             break
-                    spamreader = list(spamreader)
 
-                if has_data:
+                spamreader = list(spamreader)
+
+                if spamreader:
                     import_data_to_parse.delay(
                         org.get_branding(),
                         user.email,

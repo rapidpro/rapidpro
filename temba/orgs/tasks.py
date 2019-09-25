@@ -79,9 +79,10 @@ def import_data_to_parse(
     failures = []
     success = 0
 
-    batch_size = 1000
+    batch_size = 500
     batch_package = []
     batch_counter = 0
+    order = 1
 
     for i, row in enumerate(iterator):
         if i == 0:
@@ -129,10 +130,12 @@ def import_data_to_parse(
                     if str(i) not in failures:
                         failures.append(str(i))
 
+            payload['order'] = order
             real_collection = Object.factory(collection)
             new_item = real_collection(**payload)
             batch_package.append(new_item)
             batch_counter += 1
+            order += 1
 
         if batch_counter >= batch_size:
             methods = list([m.save for m in batch_package])
