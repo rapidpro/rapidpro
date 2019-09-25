@@ -130,7 +130,7 @@ def import_data_to_parse(
                     if str(i) not in failures:
                         failures.append(str(i))
 
-            payload['order'] = order
+            payload["order"] = order
             real_collection = Object.factory(collection)
             new_item = real_collection(**payload)
             batch_package.append(new_item)

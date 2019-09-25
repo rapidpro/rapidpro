@@ -258,8 +258,8 @@ def temba_get_value(context, obj, field):
     value = view.lookup_field_value(context, obj, field)
 
     try:
-        if value.__class__.__name__ == 'dict' and value.get('__type') == 'Date':
-            value = value.get('iso')
+        if value.__class__.__name__ == "dict" and value.get("__type") == "Date":
+            value = value.get("iso")
 
         value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
         return format_datetime(value, org.timezone)
