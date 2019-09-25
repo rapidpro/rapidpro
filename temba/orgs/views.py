@@ -2579,7 +2579,7 @@ class OrgCRUDL(SmartCRUDL):
                         parse_url,
                         parse_headers,
                         collection,
-                        collection_type.title(),
+                        collection_type,
                         collection_real_name,
                         import_file.name,
                         needed_create_header,

@@ -126,6 +126,19 @@ def import_data_to_parse(
                         field_value = str(field_value).strip()
 
                     payload[fields_map[item].get("name")] = field_value
+
+                    if collection_type == 'giftcard' and fields_map[item].get("name") == 'url':
+                        fdl_url = f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks" \
+                            f"?key={settings.FDL_API_KEY}"
+                        headers = {'Content-Type': 'application/json'}
+
+                        data = json.dumps({'longDynamicLink': f'{settings.FDL_URL}/?link={field_value}',
+                                           'suffix': {'option': 'SHORT'}})
+
+                        fdl_response = requests.post(fdl_url, data=data, headers=headers, timeout=10)
+                        if fdl_response.status_code == 200 and 'shortLink' in fdl_response.json():
+                            payload['short_url'] = fdl_response.json().get('shortLink')
+
                 except Exception:
                     if str(i) not in failures:
                         failures.append(str(i))
@@ -168,7 +181,7 @@ def import_data_to_parse(
 
     print("-- Importation task ran in %0.2f seconds" % (time.time() - start))
 
-    subject = _(f"Your {collection_type} Upload to Community Connect is Complete")
+    subject = _(f"Your {collection_type.title()} Upload to Community Connect is Complete")
     template = "orgs/email/importation_email"
 
     failures = ", ".join(failures) if failures else None
@@ -179,7 +192,7 @@ def import_data_to_parse(
         success=success,
         failures=failures,
         collection_real_name=collection_real_name,
-        collection_type=collection_type,
+        collection_type=collection_type.title(),
         filename=filename,
     )
 

@@ -1127,3 +1127,7 @@ PARSE_SERVER_NAME = ""
 PARSE_URL = ""
 PARSE_APP_ID = ""
 PARSE_MASTER_KEY = ""
+
+# Firebase Dynamic Links configuration
+FDL_API_KEY = ""
+FDL_URL = ""
