@@ -127,17 +127,22 @@ def import_data_to_parse(
 
                     payload[fields_map[item].get("name")] = field_value
 
-                    if collection_type == 'giftcard' and fields_map[item].get("name") == 'url':
-                        fdl_url = f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks" \
-                            f"?key={settings.FDL_API_KEY}"
-                        headers = {'Content-Type': 'application/json'}
+                    if collection_type == "giftcard" and fields_map[item].get("name") == "url":
+                        fdl_url = (
+                            f"https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key={settings.FDL_API_KEY}"
+                        )
+                        headers = {"Content-Type": "application/json"}
 
-                        data = json.dumps({'longDynamicLink': f'{settings.FDL_URL}/?link={field_value}',
-                                           'suffix': {'option': 'SHORT'}})
+                        data = json.dumps(
+                            {
+                                "longDynamicLink": f"{settings.FDL_URL}/?link={field_value}",
+                                "suffix": {"option": "SHORT"},
+                            }
+                        )
 
                         fdl_response = requests.post(fdl_url, data=data, headers=headers, timeout=10)
-                        if fdl_response.status_code == 200 and 'shortLink' in fdl_response.json():
-                            payload['short_url'] = fdl_response.json().get('shortLink')
+                        if fdl_response.status_code == 200 and "shortLink" in fdl_response.json():
+                            payload["short_url"] = fdl_response.json().get("shortLink")
 
                 except Exception:
                     if str(i) not in failures:
