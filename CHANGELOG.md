@@ -1,3 +1,9 @@
+v5.1.41
+----------
+ * Update docs on flow start extra to be accessible via @trigger
+ * Change input selector to work cross-browser on send modal
+ * Don't inner scroll for modax fetches
+
 v5.1.40
 ----------
  * Fix issues with web components in Microsoft Edge
