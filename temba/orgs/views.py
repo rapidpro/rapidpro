@@ -2424,14 +2424,14 @@ class OrgCRUDL(SmartCRUDL):
                 return self.cleaned_data["import_file"]
 
             def clean_collection_type(self):
-                collection_type = self.cleaned_data.get('collection_type')
-                if collection_type not in ['lookup', 'giftcard']:
+                collection_type = self.cleaned_data.get("collection_type")
+                if collection_type not in ["lookup", "giftcard"]:
                     raise forms.ValidationError(_("The collection type is not valid."))
                 return collection_type
 
             def clean_collection(self):
-                collection = self.cleaned_data.get('collection')
-                collection_type = self.cleaned_data.get('collection_type')
+                collection = self.cleaned_data.get("collection")
+                collection_type = self.cleaned_data.get("collection_type")
 
                 if not collection:
                     raise forms.ValidationError(_("You should inform the collection name."))
@@ -2445,7 +2445,7 @@ class OrgCRUDL(SmartCRUDL):
                 return collection_full_name
 
         form_class = ParseDataImportForm
-        fields = ('import_file', 'collection_type', 'collection')
+        fields = ("import_file", "collection_type", "collection")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
