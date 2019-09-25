@@ -2482,8 +2482,7 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            from pandas import read_csv
-            from pyexcel_xls import get_data
+            from pandas import read_csv, read_excel
             from .tasks import import_data_to_parse
 
             org = self.request.user.get_org()
@@ -2558,24 +2557,18 @@ class OrgCRUDL(SmartCRUDL):
 
                 if file_type == "csv":
                     spamreader = read_csv(import_file, delimiter=",", index_col=False)
-                    headers = spamreader.columns.tolist()
-                    spamreader = spamreader.get_values().tolist()
-                    spamreader.insert(0, headers)
                 else:
-                    data = get_data(import_file)
-                    spamreader = []
-                    if data:
-                        for item in data:
-                            spamreader = data[item]
-                            break
+                    spamreader = read_excel(import_file, index_col=False)
 
-                spamreader = list(spamreader)
+                headers = spamreader.columns.tolist()
+                spamreader = spamreader.get_values().tolist()
+                spamreader.insert(0, headers)
 
                 if spamreader:
                     import_data_to_parse.delay(
                         org.get_branding(),
                         user.email,
-                        spamreader,
+                        list(spamreader),
                         parse_url,
                         parse_headers,
                         collection,
