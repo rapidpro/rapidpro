@@ -810,3 +810,9 @@
 .icon-nav-docs-inverted:before {
   content: "\f15c";
 }
+.icon-nav-help-inverted:before {
+  content: "\e90e";
+}
+.icon-nav-help:before {
+  content: "\e90f";
+}
