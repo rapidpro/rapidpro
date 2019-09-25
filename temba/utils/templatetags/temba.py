@@ -266,4 +266,4 @@ def temba_get_value(context, obj, field):
     except Exception:
         pass
 
-    return value
+    return value or '-'

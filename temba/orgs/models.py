@@ -393,7 +393,7 @@ class Org(SmartModel):
         config = self.config
 
         if collections:
-            collections.append(name)
+            collections.insert(0, name)
         else:
             collections = [name]
 
