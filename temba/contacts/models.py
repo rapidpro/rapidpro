@@ -803,55 +803,69 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
-        from temba.api.models import WebHookResult
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg
 
-        msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = (
-            msgs.exclude(visibility=Msg.VISIBILITY_DELETED)
+            self.msgs.filter(created_on__gte=after, created_on__lt=before)
+            .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel")
             .prefetch_related("channel_logs")[:MAX_HISTORY]
         )
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__is_system=True)
-        started_runs = started_runs.order_by("-created_on").select_related("flow")[:MAX_HISTORY]
-
-        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__is_system=True)
-        exited_runs = exited_runs.exclude(exit_type=None).order_by("-created_on").select_related("flow")[:MAX_HISTORY]
-
-        channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
-        channel_events = channel_events.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
-
-        event_fires = self.campaign_fires.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.order_by("-fired").select_related("event__campaign")[:MAX_HISTORY]
-
-        webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
-        webhook_results = webhook_results.order_by("-created_on")[:MAX_HISTORY]
-
-        # and the contact's failed IVR calls
-        calls = IVRCall.objects.filter(
-            contact=self,
-            created_on__gte=after,
-            created_on__lt=before,
-            status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED],
+        started_runs = (
+            self.runs.filter(created_on__gte=after, created_on__lt=before)
+            .exclude(flow__is_system=True)
+            .order_by("-created_on")
+            .select_related("flow")[:MAX_HISTORY]
         )
-        calls = calls.order_by("-created_on").select_related("channel")[:MAX_HISTORY]
+
+        exited_runs = (
+            self.runs.filter(exited_on__gte=after, exited_on__lt=before)
+            .exclude(flow__is_system=True)
+            .exclude(exit_type=None)
+            .order_by("-created_on")
+            .select_related("flow")[:MAX_HISTORY]
+        )
+
+        channel_events = (
+            self.channel_events.filter(created_on__gte=after, created_on__lt=before)
+            .order_by("-created_on")
+            .select_related("channel")[:MAX_HISTORY]
+        )
+
+        campaign_fires = (
+            self.campaign_fires.filter(fired__gte=after, fired__lt=before)
+            .exclude(fired=None)
+            .order_by("-fired")
+            .select_related("event__campaign")[:MAX_HISTORY]
+        )
+
+        webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
+            "-created_on"
+        )[:MAX_HISTORY]
+
+        calls = (
+            IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
+            .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
+            .order_by("-created_on")
+            .select_related("channel")[:MAX_HISTORY]
+        )
 
         # wrap items, chain and sort by time
-        activity = chain(
+        events = chain(
             [{"type": "msg", "time": m.created_on, "obj": m} for m in msgs],
             [{"type": "run-start", "time": r.created_on, "obj": r} for r in started_runs],
             [{"type": "run-exit", "time": r.exited_on, "obj": r} for r in exited_runs],
             [{"type": "channel-event", "time": e.created_on, "obj": e} for e in channel_events],
-            [{"type": "event-fire", "time": f.fired, "obj": f} for f in event_fires],
+            [{"type": "event-fire", "time": f.fired, "obj": f} for f in campaign_fires],
             [{"type": "webhook-result", "time": r.created_on, "obj": r} for r in webhook_results],
             [{"type": "call", "time": c.created_on, "obj": c} for c in calls],
         )
 
-        return sorted(activity, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
 
     def get_field_json(self, field):
         """
