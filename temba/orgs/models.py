@@ -1973,12 +1973,6 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        for channel in self.channels.all():
-            channel.release()
-
-            channel.counts.all().delete()
-            channel.delete()
-
         # any airtime transfers associate with us go away
         self.airtime_transfers.all().delete()
 

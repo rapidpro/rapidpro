@@ -1953,7 +1953,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for msg in urn.msgs.all():
                     msg.release()
 
-                # same thing goes for sessions
+                # same thing goes for connections
                 for conn in urn.connections.all():
                     conn.release()
 
@@ -1970,7 +1970,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for session in self.sessions.all():
                 session.release()
 
-            for conn in self.connections.all():
+            for conn in self.connections.all():  # pragma: needs cover
                 conn.release()
 
             # and any event fire history
