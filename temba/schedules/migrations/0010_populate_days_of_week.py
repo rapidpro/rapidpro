@@ -2,6 +2,7 @@
 
 from django.db import migrations
 from datetime import datetime
+import pytz
 
 
 def noop(apps, schema_editor):
@@ -39,13 +40,12 @@ def populate_days_of_week(apps, schema_editor):
 
     # repeat_hour_of_day was previously in UTC time, change that to org timezone
     updated = 0
-    now = datetime.utcnow()
+    now = datetime.utcnow().replace(minute=0, second=0, microsecond=0, tzinfo=pytz.utc)
     for s in Schedule.objects.exclude(repeat_period="O"):
-        # number of hours offset from UTC
-        offset = s.org.timezone.utcoffset(now).seconds // 3600
-
-        # update our repeat_hour_of_day appropriately
-        s.repeat_hour_of_day = s.repeat_hour_of_day + offset
+        tz = s.org.timezone
+        hour_time = now.replace(hour=s.repeat_hour_of_day)
+        local_now = tz.normalize(hour_time.astimezone(tz))
+        s.repeat_hour_of_day = local_now.hour
         s.save(update_fields=["repeat_hour_of_day"])
 
         updated += 1
