@@ -14,7 +14,7 @@
     -spaceless
 
       -if object.schedule
-        -trans "The flow will be next started on"
+        -trans "The next time the flow will be started is"
         <span class='attn next-fire'>{% pretty_datetime object.schedule.next_fire %}</span>.
 
     -if not object.schedule.repeat_period == 'O'

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-26 17:45+0000\n"
+"POT-Creation-Date: 2019-09-26 19:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11424,7 +11424,7 @@ msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr "Obtener todos los activadores activados. Cambiar el flujo que obtiene todos los mensajes."
 
 #, fuzzy
-msgid "The flow will be next started on"
+msgid "The next time the flow will be started is"
 msgstr "Qué flujo se iniciará"
 
 msgid "month"
@@ -11467,6 +11467,10 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~ msgid "The flow will be next started on"
+#~ msgstr "Qué flujo se iniciará"
 
 #, fuzzy
 #~| msgid "Label Type"
