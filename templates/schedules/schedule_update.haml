@@ -25,10 +25,6 @@
         {% else %}
           initializeDatetimePicker(minDate);
         {% endif %}
-
-        {% if object.next_fire %}
-        setNextFireText({{ object.next_fire|date:"U" }})
-        {% endif %}
     });
     
 
@@ -84,8 +80,8 @@
   -if object.next_fire
     -spaceless
       -if object.get_broadcast
-        -trans "The next message will be sent "
-        <span class='attn next-fire'></span>.
+        -trans "The next message will be sent on"
+        <span class='attn next-fire'>{% pretty_datetime object.next_fire %}</span>.
 
     -if not object.repeat_period == 'O'
       -if object.repeat_period == 'W'

@@ -14,8 +14,8 @@
     -spaceless
 
       -if object.schedule
-        -blocktrans
-          The next message will be sent <span class='attn next-fire'/>.
+        -trans "The flow will be next started on"
+        <span class='attn next-fire'>{% pretty_datetime object.schedule.next_fire %}</span>.
 
     -if not object.schedule.repeat_period == 'O'
       -if object.schedule.repeat_period == 'W' and object.schedule.repeat_days
@@ -165,9 +165,6 @@
         initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
       {% else %}
         initializeDatetimePicker(minDate);
-      {% endif %}
-      {% if object.schedule.next_fire %}
-      setNextFireText({{ object.schedule.next_fire|date:"U" }})
       {% endif %}
     });
 
