@@ -262,31 +262,33 @@ class FlowCRUDL(SmartCRUDL):
 
     class LookupsApi(OrgPermsMixin, SmartListView):
         def get(self, request, *args, **kwargs):
-            db = self.request.GET.get('db', None)
+            db = self.request.GET.get("db", None)
             collections = []
 
             if db:
                 headers = {
-                    'X-Parse-Application-Id': settings.PARSE_APP_ID,
-                    'X-Parse-Master-Key': settings.PARSE_MASTER_KEY,
-                    'Content-Type': 'application/json'
+                    "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                    "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+                    "Content-Type": "application/json",
                 }
-                url = f'{settings.PARSE_URL}/schemas/{db}'
+                url = f"{settings.PARSE_URL}/schemas/{db}"
                 response = requests.get(url, headers=headers)
                 response_json = response.json()
-                if response.status_code == 200 and 'fields' in response_json:
-                    fields = response_json['fields']
+                if response.status_code == 200 and "fields" in response_json:
+                    fields = response_json["fields"]
                     for key in sorted(fields.keys()):
-                        default_fields = ['ACL', 'createdAt', 'updatedAt', 'order']
+                        default_fields = ["ACL", "createdAt", "updatedAt", "order"]
                         if key not in default_fields:
-                            field_type = fields[key]['type'] if 'type' in fields[key] else None
+                            field_type = fields[key]["type"] if "type" in fields[key] else None
                             collections.append(dict(id=key, text=key, type=field_type))
             else:
                 org = self.request.user.get_org()
                 for collection in org.get_collections(collection_type=LOOKUPS):
                     slug_collection = slugify(collection)
-                    collection_full_name = f'{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(LOOKUPS).lower()}_{slug_collection}'
-                    collection_full_name = collection_full_name.replace('-', '')
+                    collection_full_name = (
+                        f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(LOOKUPS).lower()}_{slug_collection}"
+                    )
+                    collection_full_name = collection_full_name.replace("-", "")
                     collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
 
