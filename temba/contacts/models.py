@@ -799,9 +799,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_activity(self, after, before):
+    def get_history(self, after, before):
         """
-        Gets this contact's activity of messages, calls, runs etc in the given time window
+        Gets this contact's history of messages, calls, runs etc in the given time window
         """
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, INCOMING, OUTGOING
@@ -856,19 +856,39 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:MAX_HISTORY]
         )
 
+        session_events = self.get_session_events(after, before, {"run_result_changed"})
+
         # wrap items, chain and sort by time
         events = chain(
-            [{"type": "msg_created", "time": m.created_on, "obj": m} for m in msgs_out],
-            [{"type": "msg_received", "time": m.created_on, "obj": m} for m in msgs_in],
-            [{"type": "flow_entered", "time": r.created_on, "obj": r} for r in started_runs],
-            [{"type": "flow_exited", "time": r.exited_on, "obj": r} for r in exited_runs],
-            [{"type": "channel_event", "time": e.created_on, "obj": e} for e in channel_events],
-            [{"type": "campaign_event", "time": f.fired, "obj": f} for f in campaign_events],
-            [{"type": "webhook_called", "time": r.created_on, "obj": r} for r in webhook_results],
-            [{"type": "call_started", "time": c.created_on, "obj": c} for c in calls],
+            [{"type": "msg_created", "created_on": m.created_on, "obj": m} for m in msgs_out],
+            [{"type": "msg_received", "created_on": m.created_on, "obj": m} for m in msgs_in],
+            [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
+            [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
+            [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
+            [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
+            [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
+            [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
+            session_events,
         )
 
-        return sorted(events, key=lambda i: i["time"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:MAX_HISTORY]
+
+    def get_session_events(self, after, before, types):
+        """
+        Extracts events from this contacts sessions that overlap with the given time window
+        """
+        sessions = self.flowsession_set.filter(
+            Q(created_on__gte=after, created_on__lt=before) | Q(ended_on__gte=after, ended_on__lt=before)
+        )
+        events = []
+        for session in sessions:
+            for run in session.output.get("runs", []):
+                for event in run.get("events", []):
+                    event["created_on"] = iso8601.parse_date(event["created_on"])
+                    if event["type"] in types and after <= event["created_on"] < before:
+                        events.append(event)
+
+        return events
 
     def get_field_json(self, field):
         """

@@ -1,6 +1,6 @@
 -load contacts humanize smartmin temba i18n sms
 
--for item in activity
+-for item in history
   %tr(class="{{item|history_class}}")
     %td.icon
       %span.det(title='{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}')
@@ -67,7 +67,7 @@
               %a(href='{% url "flows.flow_editor" run.flow.uuid %}')
                 {{run.flow.name}}
 
-      -elif item.type == 'campaign_event'
+      -elif item.type == 'campaign_fired'
         -with item.obj as eventfire
           %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}')><
             {{ eventfire.event.campaign.name }}
@@ -80,6 +80,10 @@
           %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
             {{ eventfire.event|event_time }}
 
+      -elif item.type == 'run_result_changed'
+        -blocktrans with result_name=item.name category=item.category
+          Run result <i>{{ result_name }}</i> updated to <i>{{ category }}</i>
+
       -elif item.type == 'webhook_called'
         -with item.obj as result
           -if result.is_success
@@ -91,9 +95,9 @@
     %td.created_on
       %span.time
         %span.short
-          {% short_datetime item.time %}
+          {% short_datetime item.created_on %}
         %span.long.hide
-          {% pretty_datetime item.time %}
+          {% pretty_datetime item.created_on %}
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
