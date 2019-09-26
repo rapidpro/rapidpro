@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-26 20:57+0000\n"
+"POT-Creation-Date: 2019-09-26 21:16+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10610,7 +10610,7 @@ msgstr "Domingo"
 
 #, fuzzy
 #| msgid "When this message was sent to the endpoint"
-msgid "The next message will be sent "
+msgid "The next message will be sent on"
 msgstr "Quando essa mensagem foi enviada para o terminal"
 
 msgid "It will repeat every"
@@ -10793,14 +10793,9 @@ msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia a
 msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
 
-msgid ""
-"\n"
-"          The next message will be sent <span class='attn next-fire'/>.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"A próxima mensagem será enviada <span class='attn next-fire'/>."
+#, fuzzy
+msgid "The next time the flow will be started is"
+msgstr "Qual fluxo será iniciado"
 
 msgid "month"
 msgstr "mês"
@@ -10840,6 +10835,15 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The next message will be sent <span class='attn next-fire'/>.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "A próxima mensagem será enviada <span class='attn next-fire'/>."
 
 #, fuzzy
 #~| msgid "Label Type"
