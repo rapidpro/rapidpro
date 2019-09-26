@@ -3040,7 +3040,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
-     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
+     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger in your flow)
 
     Example:
 

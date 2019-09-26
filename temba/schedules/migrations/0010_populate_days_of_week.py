@@ -30,6 +30,12 @@ def populate_days_of_week(apps, schema_editor):
     if updated > 0:
         print(f"updated {updated} weekly schedules")
 
+    updated = (
+        Schedule.objects.exclude(repeat_period="O").filter(repeat_minute_of_hour=None).update(repeat_minute_of_hour=0)
+    )
+    if updated > 0:
+        print(f"updated {updated} schedules with missing minute of hour")
+
 
 class Migration(migrations.Migration):
 
