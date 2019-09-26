@@ -43,6 +43,49 @@
       #split-on
         -trans "If the message response..."
 
+    .lookup{ng-if:'formData.rulesetConfig.type == "lookup"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Make some queries for lookup...
+
+        %select{ng-model:"formData.lookup_db", search:"true", init-text:"[[ruleset.config.lookup_db]]", name:"lookup_db",
+              data-placeholder:"Select your lookup database", required:"", ng-options:"option.text for option in lookupDbs track by option.id",
+              type:"hidden", ng-change:'updateLookupFields()', select2:""}
+
+      .split-margin{ng-show:"formData.isLookupQueriesVisible", style:"margin: 20px 0 0 0"}
+        %p{class:"description"}
+          -blocktrans
+            Lookup Parameters
+
+        .lookup-queries
+          .modal-lookup-query-rules
+            .modal-lookup-query.modal-lookup-query-field
+              .message
+                -trans "Field"
+            .modal-lookup-query.modal-lookup-query-rule
+              .message
+                -trans "Rule"
+            .modal-lookup-query.modal-lookup-query-value
+              .message
+                -trans "Value"
+          .modal-lookup-query-rules{ng-repeat:"query in formData.lookup_queries"}
+            .modal-lookup-query.modal-lookup-query-field
+              %select{ng-model:"lookup_queries_field[$index]", required:"required", name:"query-field", ng-options:"field.text for field in parseFields track by field.id", style:"height:34px", ng-init:"updateOperator(lookup_queries_field[$index], $index)", ng-change:"updateOperator(lookup_queries_field[$index], $index, true)"}
+            .modal-lookup-query.modal-lookup-query-rule
+              %select{ng-model:"lookup_queries_rule[$index]", required:"required", name:"query-rule", ng-options:"operator.verbose_name for operator in operatorLookupConfigs[$index] track by operator.type", style:"height:34px"}
+            .modal-lookup-query.modal-lookup-query-value
+              %input{type:"text", name:"query-value", required:"required", ng-model:"lookup_queries_value[$index]", auto-complete}
+            .modal-lookup-query.modal-lookup-query-remove
+              .icon.icon-close{ng-click:"removeLookupQuery($index)"}
+          %a.add-query{href:"javascript:;",ng-click:"addNewLookupQuery()"}
+            .icon.icon-plus-circle2
+        .help-text
+          -blocktrans
+            The Parse API responds with JSON, each property will be added
+            to the flow like @extra.result would be
+            added for all future steps.
+
     .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
       .split-margin
         %p{class:"description"}

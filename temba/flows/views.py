@@ -27,6 +27,7 @@ from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.encoding import force_text
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -43,7 +44,7 @@ from temba.flows.server.serialize import serialize_environment, serialize_langua
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import Org, LOOKUPS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -254,9 +255,40 @@ class FlowCRUDL(SmartCRUDL):
         "recent_messages",
         "assets",
         "upload_media_action",
+        "lookups_api",
     )
 
     model = Flow
+
+    class LookupsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            db = self.request.GET.get('db', None)
+            collections = []
+
+            if db:
+                headers = {
+                    'X-Parse-Application-Id': settings.PARSE_APP_ID,
+                    'X-Parse-Master-Key': settings.PARSE_MASTER_KEY,
+                    'Content-Type': 'application/json'
+                }
+                url = f'{settings.PARSE_URL}/schemas/{db}'
+                response = requests.get(url, headers=headers)
+                response_json = response.json()
+                if response.status_code == 200 and 'fields' in response_json:
+                    fields = response_json['fields']
+                    for key in sorted(fields.keys()):
+                        default_fields = ['ACL', 'createdAt', 'updatedAt', 'order']
+                        if key not in default_fields:
+                            field_type = fields[key]['type'] if 'type' in fields[key] else None
+                            collections.append(dict(id=key, text=key, type=field_type))
+            else:
+                org = self.request.user.get_org()
+                for collection in org.get_collections(collection_type=LOOKUPS):
+                    slug_collection = slugify(collection)
+                    collection_full_name = f'{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(LOOKUPS).lower()}_{slug_collection}'
+                    collection_full_name = collection_full_name.replace('-', '')
+                    collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
 
     class AllowOnlyActiveFlowMixin(object):
         def get_queryset(self):

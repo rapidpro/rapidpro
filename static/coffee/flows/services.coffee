@@ -470,6 +470,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           { name: 'Failure', test: { type: 'airtime_status', exit_status: 'failed'}},
         ]},
 
+        { type: 'lookup', name:'Lookup', verbose_name: 'Lookup', split:'lookup response', filter:[MESSAGE], rules:[
+          { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
+          { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
+        ]},
+
         # all flows
         { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: ALL, rules: [
           { name: 'Completed', test: { type: 'subflow', exit_type: 'completed' }},
@@ -491,7 +496,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @exclusiveRules = {
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
-        'webhook_status': ['webhook', 'resthook'],
+        'webhook_status': ['webhook', 'resthook', 'lookup'],
         'airtime_status': ['airtime'],
         'in_group': ['group']
       }
@@ -532,6 +537,25 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, filter: NONE }
         { type: 'interrupted_status', name:'Interrupted', verbose_name:'interrupted status', operands:0, filter: NONE }
       ]
+
+      @lookup_date_operators = [
+        { type: 'date_equal', verbose_name:'has a date equal to' }
+      ]
+
+      @lookup_number_operators = [
+        { type: 'equals', verbose_name:'equals' }
+        { type: 'lt', verbose_name:'has a number less than' }
+        { type: 'gt', verbose_name:'has a number more than' }
+      ]
+
+      @lookup_string_operators = [
+        { type: 'equals', verbose_name:'equals' }
+        { type: 'contains', verbose_name:'contains' }
+        { type: 'regex', verbose_name:'matches regex' }
+      ]
+
+      $http.get('/flow/lookups_api/').success (data) ->
+        Flow.lookup_dbs = data.results
 
       @opNames =
         'lt': '< '
@@ -790,6 +814,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # translates a string into a slug
     slugify: (label) ->
       return label.toString().toLowerCase().replace(/([^a-z0-9]+)/g, '_')
+
+    # Get the Parse Fields from DB passed
+    getParseFields: (db) ->
+      return $http.get('/flow/lookups_api/?db=' + db).success (data) ->
 
     # Get an array of current flow fields as:
     # [ { id: 'label_name', name: 'Label Name' } ]

@@ -428,6 +428,7 @@ PERMISSIONS = {
         "simulate",
         "upload_action_recording",
         "upload_media_action",
+        "lookups_api",
     ),
     "flows.flowsession": ("json",),
     "msgs.msg": (
