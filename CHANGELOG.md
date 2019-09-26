@@ -1,3 +1,9 @@
+v5.1.43
+----------
+ * Fix styling on create flow dialog
+ * Make user fields nullable on broadcasts
+ * Populate repeat_minute_of_hour in data migration
+
 v5.1.42
 ----------
  * Update trigger update views to take into account new schedule fields
