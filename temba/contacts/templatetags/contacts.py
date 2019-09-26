@@ -121,7 +121,7 @@ def urn_icon(urn):
 def activity_icon(item):
     obj = item["obj"]
 
-    if item["type"] == "msg":
+    if item["type"] == "msg_created" or item["type"] == "msg_received":
         if obj.broadcast and obj.broadcast.recipient_count > 1:
             icon = "Failed" if obj.status in ("E", "F") else "Broadcast"
         elif obj.msg_type == "V":
@@ -135,16 +135,16 @@ def activity_icon(item):
                 icon = "Delivered"
             else:
                 icon = "Outgoing"
-    elif item["type"] == "run-start":
+    elif item["type"] == "flow_entered":
         icon = "FlowRun"
-    elif item["type"] == "run-exit":
+    elif item["type"] == "flow_exited":
         if obj.exit_type == "C":
             icon = "Completed"
         elif obj.exit_type == "I":
             icon = "Interrupted"
         else:
             icon = "Expired"
-    elif item["type"] == "channel-event":
+    elif item["type"] == "channel_event":
         if obj.event_type == "mo_miss":
             icon = "MissedIncoming"
         elif obj.event_type == "mt_miss":
@@ -162,20 +162,20 @@ def history_class(item):
     obj = item["obj"]
     classes = []
 
-    if item["type"] in ("msg", "broadcast"):
+    if item["type"] in ("msg_created", "msg_received"):
         classes.append("msg")
         if obj.status in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
 
-        if item["type"] == "webhook-result" and not obj.is_success:
+        if item["type"] == "webhook_called" and not obj.is_success:
             classes.append("warning")
 
-        if item["type"] == "call" and obj.status == IVRCall.FAILED:
+        if item["type"] == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")
 
-        if item["type"] == "event-fire" and obj.fired_result == EventFire.RESULT_SKIPPED:
+        if item["type"] == "campaign_event" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
     return " ".join(classes)
 

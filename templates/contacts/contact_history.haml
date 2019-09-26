@@ -1,13 +1,13 @@
 -load contacts humanize smartmin temba i18n sms
 
 -for item in activity
-  %tr{class:"{{item|history_class}}"}
+  %tr(class="{{item|history_class}}")
     %td.icon
-      %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
-        {{item|activity_icon}}
+      %span.det(title='{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}')
+        {{ item|activity_icon }}
 
     %td.details.wrapped
-      -if item.type == 'msg'
+      -if item.type == 'msg_created' or item.type == 'msg_received'
         -with item.obj as msg
           .activity-message
             -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
@@ -17,13 +17,13 @@
 
             .activity-body
               -if item.obj.text
-                .text{ style:"{% if msg.attachments %}margin-bottom:10px{% endif %}" }
+                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
                   {{item.obj.text}}
 
               -for attachment in msg.attachments
                 {% attachment_button attachment %}
 
-      -elif item.type == 'channel-event'
+      -elif item.type == 'channel_event'
         -with item.obj as event
           -if event.event_type == 'mt_miss'
             -trans "Missed outgoing call"
@@ -48,45 +48,45 @@
           -else
             -trans "Unknown/Unsupported"
 
-      -elif item.type == 'call'
+      -elif item.type == 'call_started'
         -with item.obj as call
           -if call.status == 'D'
             -trans "Call Started"
           -else
             {{call.get_status_display}}
 
-      -elif item.type == 'run-start' or item.type == 'run-exit'
+      -elif item.type == 'flow_entered' or item.type == 'flow_exited'
         -with item.obj as run
           .activity-run
             .activity-body
               .summary
-              -if item.type == 'run-exit'
+              -if item.type == 'flow_exited'
                 {{ run.get_exit_type_display }}
               -else
                 Started
-              %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
+              %a(href='{% url "flows.flow_editor" run.flow.uuid %}')
                 {{run.flow.name}}
 
-      -elif item.type == 'event-fire'
+      -elif item.type == 'campaign_event'
         -with item.obj as eventfire
-          %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
-            {{eventfire.event.campaign.name}}
+          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}')><
+            {{ eventfire.event.campaign.name }}
 
           -if eventfire.fired_result == 'S'
             &nbsp;skipped
           -else
             &nbsp;triggered
 
-          %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
-            {{eventfire.event|event_time}}
+          %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
+            {{ eventfire.event|event_time }}
 
-      -elif item.type == 'webhook-result'
+      -elif item.type == 'webhook_called'
         -with item.obj as result
           -if result.is_success
             -trans "Successfully called"
           -else
             -trans "Failed to call"
-          {{result.url|truncatechars:100}}
+          {{ result.url|truncatechars:100 }}
 
     %td.created_on
       %span.time
@@ -97,17 +97,17 @@
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
-          -if item.type == 'msg' or item.type == 'call'
+          -if item.type == 'msg_created' or item.type == 'msg_received' or item.type == 'call_started'
             {% channel_log_link item.obj %}
 
           -if perms.flows.flowsession_json
-            -if item.type == 'run-start' or item.type == 'run-exit'
+            -if item.type == 'flow_entered' or item.type == 'flow_exited'
               -if item.obj.session_id
-                %a{href:"{% url 'flows.flowsession_json' item.obj.session_id %}"}
+                %a(href="{% url 'flows.flowsession_json' item.obj.session_id %}")
                   .icon-docs-2
 
-          -if item.type == 'webhook-result'
-            %a{href:"{%url 'api.webhookresult_read' item.obj.id %}"}
+          -if item.type == 'webhook_called'
+            %a(href="{%url 'api.webhookresult_read' item.obj.id %}")
               .icon-docs-2
 
 -if has_older and not recent_only
@@ -121,8 +121,7 @@
     %tr.archive-note
       %td(colspan=3)><
         -blocktrans with start=start_date
-          Any messages prior to {{start}} can be found in your
+          Any messages prior to {{ start }} can be found in your
         %a(href="{% url 'archives.archive_message'%}")><
           -trans "archive"
         \.
-

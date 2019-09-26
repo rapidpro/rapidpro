@@ -3721,10 +3721,10 @@ class ContactTest(TembaTest):
 
             self.assertIsInstance(activity[0]["obj"], Msg)
             self.assertEqual(activity[0]["obj"].direction, "O")
-            self.assertEqual(activity[1]["type"], "run-start")
+            self.assertEqual(activity[1]["type"], "flow_entered")
             self.assertIsInstance(activity[1]["obj"], FlowRun)
             self.assertEqual(activity[1]["obj"].exit_type, None)
-            self.assertEqual(activity[2]["type"], "run-exit")
+            self.assertEqual(activity[2]["type"], "flow_exited")
             self.assertIsInstance(activity[2]["obj"], FlowRun)
             self.assertEqual(activity[2]["obj"].exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
             self.assertIsInstance(activity[3]["obj"], Msg)
