@@ -80,6 +80,8 @@ export default class Completion extends RapidElement {
         background: var(--color-primary-light);
         color: rgba(0, 0, 0, .5);
         font-size: 80%;
+        border-bottom-left-radius: var(--curvature);
+        border-bottom-right-radius: var(--curvature);
       }
 
       code {

@@ -8,8 +8,8 @@ export default class TextInput extends RapidElement {
     return css`
       
       .input-container {
-        border-radius: var(--curvature);
-        overflow: hidden;
+        border-radius: var(--curvature-widget);
+        /* overflow: hidden;*/
         cursor: text;
         background: var(--color-widget-bg);
         border: 1px solid var(--color-widget-border);
@@ -17,15 +17,16 @@ export default class TextInput extends RapidElement {
         transition: all ease-in-out 200ms;
         display: flex;
         flex-direction: row;
+        flex-wrap: wrap;
         align-items: stretch;
       }
 
       .input-container:focus-within {
-        border-color: var(--color-widget-border);
+        border-color: var(--color-focus);
         background: var(--color-widget-bg-focused);
         
         /* box-shadow: var(--color-widget-shadow-focused) 1px 1px 3px 0px inset; */
-        box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px;
+        /* box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px; */
       }
 
       .input-container:hover {
@@ -38,7 +39,7 @@ export default class TextInput extends RapidElement {
 
       .textinput {
         padding: 8px;
-        border: 0px solid red;
+        border: none;
         flex: 1;
         margin: 0;
         background: none;
@@ -89,6 +90,7 @@ export default class TextInput extends RapidElement {
 
     return html`
     <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
+      <slot></slot>
       ${this.textarea ? html`
         <textarea class="textinput" 
           name=${this.name}

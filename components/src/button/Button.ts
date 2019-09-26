@@ -13,6 +13,7 @@ export default class Button extends LitElement {
         display: inline-block;
         border-radius: var(--curvature);
         outline: none;
+        transition: all ease-in 150ms;
       }
 
       .button:focus {
@@ -22,19 +23,19 @@ export default class Button extends LitElement {
 
       .button:focus .mask{
         background: rgb(0,0,0,.1);
-        box-shadow: 0 0 0px 2px var(--color-button-primary);
+        box-shadow: 0 0 0px 1px var(--color-focus);
       }
 
       .button.secondary:focus .mask{
-        border: 1px solid var(--color-button-secondary);
         background: transparent;
-        box-shadow: 0 0 0px 2px var(--color-button-secondary);
+        box-shadow: 0 0 0px 1px var(--color-focus);
       }
 
       .mask {
-        padding: 5px 10px;
+        padding: 8px 16px;
         border-radius: var(--curvature);
         border: 1px solid transparent;
+        transition: all ease-in 150ms;
       }
 
       .primary {
@@ -44,7 +45,7 @@ export default class Button extends LitElement {
 
       .secondary {
         background: transparent;
-        color: var(--color-button-secondary);
+        color: var(--color-text);
       }
 
       .secondary:hover .mask{
@@ -56,11 +57,12 @@ export default class Button extends LitElement {
       }
 
       .button.progress:focus .mask {
-        box-shadow: 0 0 0px 2px var(--color-button-secondary);
+        box-shadow: 0 0 0px 1px var(--color-button-secondary);
+        background: rgba(0,0,0,.1);
       }
 
       .mask:hover {
-        background: rgb(0,0,0,.1);
+        background: rgba(0,0,0,.1);
       }
 
       .secondary .mask:hover {

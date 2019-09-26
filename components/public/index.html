@@ -7,33 +7,36 @@
 
   </head>
   <body>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500" rel="stylesheet">
     <link rel="stylesheet" href="/sitestatic/fonts/temba/style.css">
     <style>
       
       html {
 
-        font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
+        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
         font-size: 13px;
         font-weight: 200;
         
         /* 
-          --curvature: 5px; 
           --color-widget-bg: rgba(0, 0, 0, 0.04);
           --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
           --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
           --color-widget-border: transparent;
         */
 
-        --curvature: 0px;
+        --curvature: 4px;
+        --curvature-widget: 0px;
 
         /* primary colors, should be dark */
-        --primary-rgb: 35, 135, 202;
+        /* --primary-rgb: 35, 135, 202; */
+        --primary-rgb: 52, 152, 219;
         --secondary-rgb: 0, 77, 129;
 
         /** --- secondary configuration, only for fine tuning --- */
 
         /* page text, borders, widgets */
         --color-text: #666;
+        --color-focus: #bbb;
         --color-borders: rgba(0,0,0,.07);
         --color-widget-bg: #fff;
         --color-widget-bg-focused: #fff;
@@ -52,7 +55,8 @@
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
 
-        --color-selection: #3875d7;
+        /* --color-selection: #3875d7; */
+        --color-selection: rgb(var(--primary-rgb));
 
         /* solid overlays with text */
         --color-overlay-dark: rgba(0,0,0,.2);
@@ -82,58 +86,29 @@
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
     ></alias-editor>
+   
+    <rp-button name="Start Flow" primary onClick="javascript:showDialog();"></rp-button>
 
-    <!-- rp-select 
-      placeholder="Search" 
-      endpoint="/adminboundary/boundaries/192787/?q="
-    ></rp-select -->
-
-    <!--
-    <div style="width: 30%">
-      <rp-completion 
-        placeholder="This is a placeholder"
-        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
-        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
-        fieldsEndpoint="http://localhost:8888/api/v2/fields.json">
-      </rp-completion>
-    </div>
-    <div style="width: 100%">
-      <rp-completion 
-        placeholder="This is a placeholder"
-        completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
-        functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
-        fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
-        textarea
-      >
-      </rp-completion>
-    </div>
-    -->
-
-    <rp-button name="Open Dialog" primary onClick="javascript:showDialog();"></rp-button>
-
-    <rp-dialog id="dialog-sample"
-      title="This is a sample dialog" 
-      primaryButtonName="Give Up"
+    <rp-dialog 
+      size="medium"
+      id="start-flow"
+      title="Start Flow"
     >
-      <div style="position:relative">
-        <div style="padding:20px; max-height: 150px; overflow-y: scroll;">
-          <rp-completion 
-            completionsEndpoint="http://localhost:8888/mr/docs/completion.json"
-            functionsEndpoint="http://localhost:8888/mr/docs/functions.json"
-            fieldsEndpoint="http://localhost:8888/api/v2/fields.json"
-            textarea>
-          </rp-completion>
+      <div style="position:relative">    
+        <div style="padding:20px; overflow-y: scroll;">
+          <rp-omnibox 
+            endpoint="http://localhost:8888/contact/omnibox/?types=cg&v=2&search="
+          ></rp-select>
         </div>
       </div>
     </rp-dialog>
 
     <script>
       function showDialog() {
-        document.querySelector("#dialog-sample").setAttribute("open", true);
+        document.querySelector("#start-flow").setAttribute("open", true);
       }
 
-      document.querySelector("#dialog-sample").addEventListener("rp-button-clicked", (evt)=>{        
-        // var button = evt.detail.button;
+      document.querySelector("#start-flow").addEventListener("rp-button-clicked", (evt)=>{
         evt.target.removeAttribute("open");
       });
     </script>

@@ -1,5 +1,8 @@
 // Our top-level components we can use
 import './aliaseditor/AliasEditor';
+import './leafletmap/LeafletMap';
+import './vectoricon/VectorIcon';
+import './omnibox/Omnibox';
 import './button/Button';
 import './dialog/Dialog';
 import './textinput/TextInput';

@@ -11,15 +11,15 @@ export default class Options extends RapidElement {
       .options-container {
         visibility: hidden;
         position: fixed;
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
         border: 0px solid var(--color-borders);
-        box-shadow: 0px 0px 2px 0px rgb(204, 204, 204);
+        box-shadow: 0px 0px 2px 0px rgb(170, 170, 170);
         background: #fff;
         z-index: 1;
       }
 
       .options {
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
         background: #fff;
         overflow-y: scroll;
         max-height: 225px;
@@ -33,7 +33,7 @@ export default class Options extends RapidElement {
       .option {
         font-size: 14px;
         padding: 7px 14px;
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
         margin: 3px;
         cursor: pointer;
         color: var(--color-text);
@@ -52,7 +52,7 @@ export default class Options extends RapidElement {
       code {
         background: rgba(0,0,0,.15);
         padding: 1px 5px;
-        border-radius: var(--curvature);
+        border-radius: var(--curvature-widget);
       }
     `
   }
@@ -161,6 +161,7 @@ export default class Options extends RapidElement {
       } else if (evt.key === "Enter" || evt.key === "Tab") {
         this.handleSelection(evt.key === "Tab");
         evt.preventDefault();
+        evt.stopPropagation();
       }
 
       if(evt.key === "Escape") {
@@ -216,7 +217,10 @@ export default class Options extends RapidElement {
                     this.setCursor(index);
                   }
               }}
-              @click=${()=>{this.handleSelection();}}
+              @click=${(evt: MouseEvent)=>{ 
+                evt.preventDefault(); 
+                this.fireCustomEvent(CustomEventType.Selection, { selected: option });
+              }}
               class="option ${index == this.cursorIndex ? 'focused' : ''}">
                 ${renderOption(option, index == this.cursorIndex)}
             </div>
