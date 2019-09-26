@@ -452,7 +452,10 @@ class PopulateDaysAndOrgMigrationTest(MigrationTest):
         self.weekly_schedule.repeat_days = 22
         self.weekly_schedule.repeat_days_of_week = None
         self.weekly_schedule.repeat_minute_of_hour = None
-        self.weekly_schedule.save(update_fields=["repeat_days", "repeat_days_of_week", "repeat_minute_of_hour"])
+        self.weekly_schedule.repeat_hour_of_day = 12
+        self.weekly_schedule.save(
+            update_fields=["repeat_days", "repeat_days_of_week", "repeat_minute_of_hour", "repeat_hour_of_day"]
+        )
 
     def test_org_populated(self):
         self.bcast_schedule.refresh_from_db()
@@ -465,3 +468,4 @@ class PopulateDaysAndOrgMigrationTest(MigrationTest):
         self.weekly_schedule.refresh_from_db()
         self.assertEqual("MTR", self.weekly_schedule.repeat_days_of_week)
         self.assertEqual(0, self.weekly_schedule.repeat_minute_of_hour)
+        self.assertEqual(14, self.weekly_schedule.repeat_hour_of_day)
