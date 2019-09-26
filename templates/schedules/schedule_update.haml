@@ -55,7 +55,7 @@
     %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
     %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:'{{ object.next_fire|date:"U" }}'}
 
-  #recurrence{class:'{% if not object.next_fire %}hide{%endif%}'}
+  #recurrence{class:'{% if not object.next_fire %}hide{% endif %}'}
     .repeat-period
       %p.instructions
         -render_field 'repeat_period'
