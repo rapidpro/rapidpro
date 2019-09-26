@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-23 20:01+0000\n"
+"POT-Creation-Date: 2019-09-26 15:30+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3683,39 +3683,6 @@ msgstr ""
 msgid "Malformed flow, encountered non-localized definition"
 msgstr ""
 
-msgid "The flow where the activity occurred"
-msgstr ""
-
-msgid "Which flow node they came from"
-msgstr ""
-
-msgid "Which flow node they went to"
-msgstr ""
-
-msgid "When the activity occured with hourly precision"
-msgstr ""
-
-msgid "The flow node UUID of the first step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the first step"
-msgstr "El tipo de este mensaje"
-
-msgid "The flow node UUID of the second step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the second step"
-msgstr "El tipo de este mensaje"
-
-#, fuzzy
-#| msgid "When the user switched to this plan"
-msgid "When the run visited this path segment"
-msgstr "Cuándo el usuario se cambió a este plan"
-
 msgid "The flows to export"
 msgstr "Los flujos para exportar"
 
@@ -3723,13 +3690,6 @@ msgstr "Los flujos para exportar"
 #| msgid "The JSON encoded configurations for this report"
 msgid "Any configuration options for this flow export"
 msgstr "Configuraciones codificadas JSON para este informe"
-
-msgid "Unique Identifier"
-msgstr ""
-
-#, fuzzy
-msgid "The unique identifier for this label"
-msgstr "El nombre de este contacto"
 
 msgid "The name of this flow label"
 msgstr "El nombre de la etiqueta de este flujo"
@@ -5441,6 +5401,9 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "La Organización del usuario."
+
+msgid "Unique Identifier"
+msgstr ""
 
 #, fuzzy
 msgid "The unique identifier for this object"
@@ -11470,6 +11433,25 @@ msgstr "Elija cuándo le gustaría que empiece el flujo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Borrar teléfono"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the first step"
+#~ msgstr "El tipo de este mensaje"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the second step"
+#~ msgstr "El tipo de este mensaje"
+
+#, fuzzy
+#~| msgid "When the user switched to this plan"
+#~ msgid "When the run visited this path segment"
+#~ msgstr "Cuándo el usuario se cambió a este plan"
+
+#, fuzzy
+#~ msgid "The unique identifier for this label"
+#~ msgstr "El nombre de este contacto"
 
 #, fuzzy
 #~| msgid "Label Type"

@@ -1953,14 +1953,13 @@ class Org(SmartModel):
         """
         Do the dirty work of deleting this org
         """
-        from temba.msgs.models import Label
 
         # delete exports
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
 
-        for label in Label.all_objects.filter(org=self):
+        for label in self.msgs_labels(manager="all_objects").all():
             label.release(self.modified_by)
             label.delete()
 
