@@ -24,7 +24,7 @@ from temba.mailroom import FlowValidationException
 from temba.msgs.models import Label
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, matchers
+from temba.tests import AnonymousOrg, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -5333,24 +5333,24 @@ class ExportFlowResultsTest(TembaTest):
 class FlowLabelTest(TembaTest):
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
-        response = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwoletters", self.org, parent=None)
+        response = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwoletters", parent=None)
         self.assertEqual(response.name, "alongwordcomposedofmorethanthirt")
 
         # try to create another label which starts with the same 32 caracteres
         # the one we already have
-        label = FlowLabel.create_unique("alongwordcomposedofmorethanthirtytwocaracteres", self.org, parent=None)
+        label = FlowLabel.create(self.org, "alongwordcomposedofmorethanthirtytwocaracteres", parent=None)
 
         self.assertEqual(label.name, "alongwordcomposedofmorethanthi 2")
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2")
-        label = FlowLabel.create_unique("child", self.org, parent=label)
+        label = FlowLabel.create(self.org, "child", parent=label)
         self.assertEqual(str(label), "alongwordcomposedofmorethanthi 2 > child")
 
-        FlowLabel.create_unique("dog", self.org)
-        FlowLabel.create_unique("dog", self.org)
-        dog3 = FlowLabel.create_unique("dog", self.org)
+        FlowLabel.create(self.org, "dog")
+        FlowLabel.create(self.org, "dog")
+        dog3 = FlowLabel.create(self.org, "dog")
         self.assertEqual("dog 3", dog3.name)
 
-        dog4 = FlowLabel.create_unique("dog ", self.org)
+        dog4 = FlowLabel.create(self.org, "dog ")
         self.assertEqual("dog 4", dog4.name)
 
         # view the parent label, should see the child
@@ -5372,7 +5372,7 @@ class FlowLabelTest(TembaTest):
         self.assertFalse(response.context["object_list"])
 
     def test_toggle_label(self):
-        label = FlowLabel.create_unique("toggle me", self.org)
+        label = FlowLabel.create(self.org, "toggle me")
         flow = self.get_flow("favorites")
 
         changed = label.toggle_label([flow], True)
@@ -5414,7 +5414,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(FlowLabel.objects.all().count(), 3)
 
     def test_delete(self):
-        label_one = FlowLabel.create_unique("label1", self.org)
+        label_one = FlowLabel.create(self.org, "label1")
 
         delete_url = reverse("flows.flowlabel_delete", args=[label_one.pk])
 
@@ -5429,7 +5429,7 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
     def test_update(self):
-        label_one = FlowLabel.create_unique("label1", self.org)
+        label_one = FlowLabel.create(self.org, "label1")
         update_url = reverse("flows.flowlabel_update", args=[label_one.pk])
 
         # not logged in, no dice
@@ -5627,89 +5627,3 @@ class SystemChecksTest(TembaTest):
 
         with override_settings(MAILROOM_URL=None):
             self.assertEqual(mailroom_url(None)[0].msg, "No mailroom URL set, simulation will not be available")
-
-
-class PopulateSessionUUIDMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0210_drop_action_log"
-    migrate_to = "0211_populate_session_uuid"
-
-    def setUpBeforeMigration(self, apps):
-        # override the batch size constant
-        patcher = patch("temba.flows.migrations.0211_populate_session_uuid.BATCH_SIZE", 2)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        contact = self.create_contact("Bob", twitter="bob")
-
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-        FlowSession.objects.create(org=contact.org, contact=contact, uuid=None)
-
-    def test_merged(self):
-        self.assertEqual(FlowSession.objects.count(), 3)
-        self.assertEqual(FlowSession.objects.filter(uuid=None).count(), 0)
-
-
-class PopulateRunStatusMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0213_flowrun_status"
-    migrate_to = "0214_populate_run_status"
-
-    def setUpBeforeMigration(self, apps):
-        # override the batch size constant
-        patcher = patch("temba.flows.migrations.0214_populate_run_status.BATCH_SIZE", 2)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        flow1 = Flow.create_single_message(self.org, self.admin, {"eng": "Hi there"}, "eng")
-        flow2 = Flow.create_single_message(self.org, self.admin, {"eng": "Goodbye"}, "eng")
-        contact = self.create_contact("Bob", twitter="bob")
-
-        completed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="C")
-        failed = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact, status="F")
-        waiting1 = FlowSession.objects.create(
-            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow1
-        )
-        waiting2 = FlowSession.objects.create(
-            uuid=uuid4(), org=self.org, contact=contact, status="W", current_flow=flow2
-        )
-
-        def create_run(exit_type, is_active, session=None):
-            FlowRun.objects.create(
-                org=self.org,
-                contact=contact,
-                flow=flow1,
-                exit_type=exit_type,
-                is_active=is_active,
-                session=session,
-                status=None,
-            )
-
-        create_run(exit_type="I", is_active=False, session=failed)
-        create_run(exit_type="C", is_active=False)
-        create_run(exit_type="I", is_active=False)
-        create_run(exit_type="E", is_active=False)
-        create_run(exit_type="Z", is_active=False)
-        create_run(exit_type=None, is_active=True, session=waiting1)
-        create_run(exit_type=None, is_active=True, session=waiting2)  # session is waiting but different flow
-        create_run(exit_type=None, is_active=True, session=completed)  # shouldn't occur
-        create_run(exit_type=None, is_active=True)
-        create_run(exit_type=None, is_active=False)  # shouldn't occur
-
-    def test_migrate(self):
-        self.assertEqual(
-            list(FlowRun.objects.values_list("status", flat=True).order_by("id")),
-            [
-                FlowRun.STATUS_FAILED,
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_INTERRUPTED,
-                FlowRun.STATUS_EXPIRED,
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_WAITING,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_ACTIVE,
-                FlowRun.STATUS_INTERRUPTED,
-            ],
-        )
