@@ -1,3 +1,8 @@
+v5.1.44
+----------
+ * Tidy up fields on flow activity models
+ 
+
 v5.1.43
 ----------
  * Fix styling on create flow dialog
