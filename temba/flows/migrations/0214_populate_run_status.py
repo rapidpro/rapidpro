@@ -17,7 +17,7 @@ EXIT_TYPE_INTERRUPTED = "I"
 EXIT_TYPE_EXPIRED = "E"
 
 
-def calculate_status(run):
+def calculate_status(run):  # pragma: no cover
     if run.session and run.session.status == STATUS_FAILED:
         return STATUS_FAILED
 
@@ -41,7 +41,7 @@ def calculate_status(run):
     return STATUS_INTERRUPTED
 
 
-def populate_run_status(apps, schema_editor):
+def populate_run_status(apps, schema_editor):  # pragma: no cover
     FlowRun = apps.get_model("flows", "FlowRun")
     FlowSession = apps.get_model("flows", "FlowSession")
 
@@ -68,7 +68,7 @@ def populate_run_status(apps, schema_editor):
         max_id = batch[-1].id
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
