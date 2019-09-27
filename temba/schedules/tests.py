@@ -7,10 +7,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import TembaTest
-from temba.utils import json
-from temba.tests import MigrationTest
+from temba.tests import MigrationTest, TembaTest
 from temba.triggers.models import Trigger
+from temba.utils import json
 
 from .models import Schedule
 from .tasks import check_schedule_task
