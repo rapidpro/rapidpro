@@ -877,7 +877,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Extracts events from this contacts sessions that overlap with the given time window
         """
-        sessions = self.flowsession_set.filter(
+        sessions = self.sessions.filter(
             Q(created_on__gte=after, created_on__lt=before) | Q(ended_on__gte=after, ended_on__lt=before)
         )
         events = []
