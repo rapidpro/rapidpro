@@ -299,8 +299,10 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             for collection in org.get_collections(collection_type=GIFTCARDS):
                 slug_collection = slugify(collection)
-                collection_full_name = f'{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(GIFTCARDS).lower()}_{slug_collection}'
-                collection_full_name = collection_full_name.replace('-', '')
+                collection_full_name = (
+                    f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(GIFTCARDS).lower()}_{slug_collection}"
+                )
+                collection_full_name = collection_full_name.replace("-", "")
                 collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
 
