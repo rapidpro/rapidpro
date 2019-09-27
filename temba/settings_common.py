@@ -429,6 +429,7 @@ PERMISSIONS = {
         "upload_action_recording",
         "upload_media_action",
         "lookups_api",
+        "giftcards_api",
     ),
     "flows.flowsession": ("json",),
     "msgs.msg": (

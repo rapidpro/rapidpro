@@ -44,7 +44,7 @@ from temba.flows.server.serialize import serialize_environment, serialize_langua
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org, LOOKUPS
+from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -256,6 +256,7 @@ class FlowCRUDL(SmartCRUDL):
         "assets",
         "upload_media_action",
         "lookups_api",
+        "giftcards_api",
     )
 
     model = Flow
@@ -290,6 +291,17 @@ class FlowCRUDL(SmartCRUDL):
                     )
                     collection_full_name = collection_full_name.replace("-", "")
                     collections.append(dict(id=collection_full_name, text=collection))
+            return JsonResponse(dict(results=collections))
+
+    class GiftcardsApi(OrgPermsMixin, SmartListView):
+        def get(self, request, *args, **kwargs):
+            collections = []
+            org = self.request.user.get_org()
+            for collection in org.get_collections(collection_type=GIFTCARDS):
+                slug_collection = slugify(collection)
+                collection_full_name = f'{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{str(GIFTCARDS).lower()}_{slug_collection}'
+                collection_full_name = collection_full_name.replace('-', '')
+                collections.append(dict(id=collection_full_name, text=collection))
             return JsonResponse(dict(results=collections))
 
     class AllowOnlyActiveFlowMixin(object):
