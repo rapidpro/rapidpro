@@ -1098,11 +1098,6 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
-                links.append(
-                    dict(title=_("Send Message"), style="btn-primary", href="#", js_class="contact-send-button")
-                )
-
             if self.has_org_perm("contacts.contact_update"):
 
                 links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-contact", href="#"))
