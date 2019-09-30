@@ -1944,10 +1944,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for msg in self.msgs.all():
                 msg.release()
 
-            # release any channel connections
-            for conn in self.connections.all():
-                conn.release()
-
             # any urns currently owned by us
             for urn in self.urns.all():
 
@@ -1957,7 +1953,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for msg in urn.msgs.all():
                     msg.release()
 
-                # same thing goes for sessions
+                # same thing goes for connections
                 for conn in urn.connections.all():
                     conn.release()
 
@@ -1970,6 +1966,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # release our runs too
             for run in self.runs.all():
                 run.release()
+
+            for session in self.sessions.all():
+                session.release()
+
+            for conn in self.connections.all():  # pragma: needs cover
+                conn.release()
 
             # and any event fire history
             self.campaign_fires.all().delete()

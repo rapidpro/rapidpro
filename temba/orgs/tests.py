@@ -35,13 +35,15 @@ from temba.contacts.models import (
     ContactField,
     ContactGroup,
     ContactURN,
+    ExportContactsTask,
 )
-from temba.flows.models import ActionSet, Flow, FlowRun
+from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import Debit, UserSettings
 from temba.tests import ESMockWithScroll, MockResponse, TembaTest, matchers
+from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.triggers.models import Trigger
@@ -178,7 +180,7 @@ class OrgDeleteTest(TembaTest):
 
         self.setUpLocations()
 
-        # create a second org
+        # create a second child org
         self.child_org = Org.objects.create(
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -211,21 +213,52 @@ class OrgDeleteTest(TembaTest):
         # now allocate some credits to our child org
         self.org.allocate_credits(self.admin, self.child_org, 300)
 
+        parent_contact = self.create_contact("Parent Contact", "+2345123", org=self.parent_org)
+        child_contact = self.create_contact("Child Contact", "+3456123", org=self.child_org)
+
+        # add some fields
+        parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
+        child_field = self.create_field("age", "Child Age", org=self.child_org)
+
+        # add some groups
+        parent_group = self.create_group("Parent Customers", contacts=[parent_contact], org=self.parent_org)
+        child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
+
+        # add some labels
+        parent_label = self.create_label("Parent Spam", org=self.parent_org)
+        child_label = self.create_label("Child Spam", org=self.child_org)
+
         # bring in some flows
-        favorites = self.get_flow("favorites")
-        parent_contact = self.create_contact("Parent Contact", "+2345123")
-        FlowRun.objects.create(org=self.org, flow=favorites, contact=parent_contact)
+        parent_flow = self.get_flow("color_v13")
+        flow_nodes = parent_flow.as_json()["nodes"]
+        (
+            MockSessionWriter(parent_contact, parent_flow)
+            .visit(flow_nodes[0])
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(flow_nodes[4])
+            .wait()
+            .resume(msg=self.create_incoming_msg(parent_contact, "blue"))
+            .set_result("Color", "blue", "Blue", "blue")
+            .complete()
+            .save()
+        )
 
         # and our child org too
         self.org = self.child_org
-        color = self.get_flow("color")
-        child_contact = self.create_contact("Child Contact", "+3456123")
-        FlowRun.objects.create(org=self.org, flow=color, contact=child_contact)
+        child_flow = self.get_flow("color")
+
+        FlowRun.objects.create(org=self.org, flow=child_flow, contact=child_contact)
+
+        # labels for our flows
+        flow_label1 = FlowLabel.create(self.parent_org, "Cool Parent Flows")
+        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows")
+        parent_flow.labels.add(flow_label1)
+        child_flow.labels.add(flow_label2)
 
         # triggers for our flows
         parent_trigger = Trigger.create(
             self.parent_org,
-            flow=favorites,
+            flow=parent_flow,
             trigger_type=Trigger.TYPE_KEYWORD,
             user=self.user,
             channel=self.channel,
@@ -235,7 +268,7 @@ class OrgDeleteTest(TembaTest):
 
         child_trigger = Trigger.create(
             self.child_org,
-            flow=color,
+            flow=child_flow,
             trigger_type=Trigger.TYPE_KEYWORD,
             user=self.user,
             channel=self.child_channel,
@@ -249,6 +282,16 @@ class OrgDeleteTest(TembaTest):
 
         # create some archives
         self.mock_s3 = MockS3Client()
+
+        # make some exports
+        ExportFlowResultsTask.create(self.parent_org, self.admin, [parent_flow], [parent_field], True, True, (), ())
+        ExportFlowResultsTask.create(self.child_org, self.admin, [child_flow], [child_field], True, True, (), ())
+
+        ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
+        ExportContactsTask.create(self.child_org, self.admin, group=child_group)
+
+        ExportMessagesTask.create(self.parent_org, self.admin, label=parent_label, groups=[parent_group])
+        ExportMessagesTask.create(self.child_org, self.admin, label=child_label, groups=[child_group])
 
         def create_archive(org, period, rollup=None):
             file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
@@ -313,6 +356,9 @@ class OrgDeleteTest(TembaTest):
 
                 # as are our webhook events
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
+
+                # and labels
+                self.assertFalse(Label.all_objects.filter(org=org).exists())
             else:
 
                 org.refresh_from_db()
@@ -334,7 +380,7 @@ class OrgDeleteTest(TembaTest):
     def test_release_child_immediately(self):
 
         # 300 credits were given to our child org and each used one
-        self.assertEqual(699, self.parent_org.get_credits_remaining())
+        self.assertEqual(698, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
@@ -342,7 +388,7 @@ class OrgDeleteTest(TembaTest):
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
-        self.assertEqual(998, self.parent_org.get_credits_remaining())
+        self.assertEqual(996, self.parent_org.get_credits_remaining())
 
 
 class OrgTest(TembaTest):
@@ -3871,6 +3917,9 @@ class BulkExportTest(TembaTest):
 
         # our campaign
         self.assertContains(response, "Appointment Schedule")
+        self.assertNotContains(
+            response, "&quot;Appointment Schedule&quot;"
+        )  # previous bug rendered campaign names incorrectly
 
         # now let's export!
         post_data = dict(

@@ -7,10 +7,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import TembaTest
-from temba.utils import json
-from temba.tests import MigrationTest
+from temba.tests import MigrationTest, TembaTest
 from temba.triggers.models import Trigger
+from temba.utils import json
 
 from .models import Schedule
 
@@ -440,7 +439,11 @@ class PopulateDaysAndOrgMigrationTest(MigrationTest):
         )
         self.weekly_schedule.repeat_days = 22
         self.weekly_schedule.repeat_days_of_week = None
-        self.weekly_schedule.save(update_fields=["repeat_days", "repeat_days_of_week"])
+        self.weekly_schedule.repeat_minute_of_hour = None
+        self.weekly_schedule.repeat_hour_of_day = 12
+        self.weekly_schedule.save(
+            update_fields=["repeat_days", "repeat_days_of_week", "repeat_minute_of_hour", "repeat_hour_of_day"]
+        )
 
     def test_org_populated(self):
         self.bcast_schedule.refresh_from_db()
@@ -449,6 +452,8 @@ class PopulateDaysAndOrgMigrationTest(MigrationTest):
         self.trigger_schedule.refresh_from_db()
         self.assertEqual(self.org.id, self.trigger_schedule.org_id)
 
-    def test_days_of_week_populated(self):
+    def test_fields_populated(self):
         self.weekly_schedule.refresh_from_db()
         self.assertEqual("MTR", self.weekly_schedule.repeat_days_of_week)
+        self.assertEqual(0, self.weekly_schedule.repeat_minute_of_hour)
+        self.assertEqual(14, self.weekly_schedule.repeat_hour_of_day)

@@ -188,7 +188,7 @@ class MockSessionWriter:
         if not self.session:
             interrupted_on = self.output["trigger"]["triggered_on"]  # which would have happened at trigger time
 
-            self.contact.flowsession_set.filter(status=FlowSession.STATUS_WAITING).update(
+            self.contact.sessions.filter(status=FlowSession.STATUS_WAITING).update(
                 status=FlowSession.STATUS_INTERRUPTED, ended_on=timezone.now()
             )
             self.contact.runs.filter(is_active=True).update(

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-19 18:17+0000\n"
+"POT-Creation-Date: 2019-09-26 21:14+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3533,39 +3533,6 @@ msgstr ""
 msgid "Malformed flow, encountered non-localized definition"
 msgstr ""
 
-msgid "The flow where the activity occurred"
-msgstr ""
-
-msgid "Which flow node they came from"
-msgstr ""
-
-msgid "Which flow node they went to"
-msgstr ""
-
-msgid "When the activity occured with hourly precision"
-msgstr ""
-
-msgid "The flow node UUID of the first step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the first step"
-msgstr "Le type de ce message"
-
-msgid "The flow node UUID of the second step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the second step"
-msgstr "Le type de ce message"
-
-#, fuzzy
-#| msgid "When the user switched to this plan"
-msgid "When the run visited this path segment"
-msgstr "Lorsque l'utilisateur passe à ce plan"
-
 msgid "The flows to export"
 msgstr "Les flux d'exportation"
 
@@ -3573,13 +3540,6 @@ msgstr "Les flux d'exportation"
 #| msgid "The JSON encoded configurations for this report"
 msgid "Any configuration options for this flow export"
 msgstr "Les configurations JSON codées pour ce rapport"
-
-msgid "Unique Identifier"
-msgstr ""
-
-#, fuzzy
-msgid "The unique identifier for this label"
-msgstr "Le nom de ce contact"
 
 msgid "The name of this flow label"
 msgstr "Le nom de ce label de flux"
@@ -4241,11 +4201,6 @@ msgstr "Le nom de ce label"
 #| msgid "Elderly"
 msgid "Folder"
 msgstr "assez âgé"
-
-#, fuzzy
-#| msgid "Label Type"
-msgid "Label type"
-msgstr "Type de label"
 
 msgid "The date for the oldest message to export"
 msgstr ""
@@ -5280,6 +5235,9 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "L'Organisation de l'utilisateur."
+
+msgid "Unique Identifier"
+msgstr ""
 
 #, fuzzy
 msgid "The unique identifier for this object"
@@ -11056,7 +11014,7 @@ msgstr "Dim"
 
 #, fuzzy
 #| msgid "When this message was sent to the endpoint"
-msgid "The next message will be sent "
+msgid "The next message will be sent on"
 msgstr "Lorsque ce message a été envoyé à l'ordinateur d'extrémité"
 
 msgid "It will repeat every"
@@ -11242,14 +11200,9 @@ msgstr "Appel manqué déclencheur activé. Changer flux qui commence sur un app
 msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr "Attrapez tous déclencheur activé. Changer flux qui attire tous les messages."
 
-msgid ""
-"\n"
-"          The next message will be sent <span class='attn next-fire'/>.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Le prochain message sera envoyé <span class='attn next-fire'/>."
+#, fuzzy
+msgid "The next time the flow will be started is"
+msgstr "Quel flux sera débuté"
 
 msgid "month"
 msgstr "Mois"
@@ -11289,6 +11242,39 @@ msgstr "Choisissez le moment où vous desirer que le flux démarre. "
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Supprimer téléphone"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The next message will be sent <span class='attn next-fire'/>.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Le prochain message sera envoyé <span class='attn next-fire'/>."
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the first step"
+#~ msgstr "Le type de ce message"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the second step"
+#~ msgstr "Le type de ce message"
+
+#, fuzzy
+#~| msgid "When the user switched to this plan"
+#~ msgid "When the run visited this path segment"
+#~ msgstr "Lorsque l'utilisateur passe à ce plan"
+
+#, fuzzy
+#~ msgid "The unique identifier for this label"
+#~ msgstr "Le nom de ce contact"
+
+#, fuzzy
+#~| msgid "Label Type"
+#~ msgid "Label type"
+#~ msgstr "Type de label"
 
 #~ msgid "Can't create an incoming message without an org"
 #~ msgstr "Vous ne pouvez pas créer un message entrant sans une organisation"

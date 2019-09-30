@@ -15,7 +15,6 @@ from django_redis import get_redis_connection
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
-from django.core.management.base import CommandParser
 from django.db import connection
 from django.utils import timezone
 
@@ -60,10 +59,10 @@ ORG_NAMES = (
 
 # the users, channels, groups, labels and fields to create for each organization
 USERS = (
-    {"email": "org%d.admin@nyaruka.com", "role": "administrators"},
-    {"email": "org%d.editor@nyaruka.com", "role": "editors"},
-    {"email": "org%d.viewer@nyaruka.com", "role": "viewers"},
-    {"email": "org%d.surveyor@nyaruka.com", "role": "surveyors"},
+    {"email": "admin%d@nyaruka.com", "role": "administrators"},
+    {"email": "editor%d@nyaruka.com", "role": "editors"},
+    {"email": "viewer%d@nyaruka.com", "role": "viewers"},
+    {"email": "surveyor%d@nyaruka.com", "role": "surveyors"},
 )
 CHANNELS = (
     {"name": "Android", "channel_type": Channel.TYPE_ANDROID, "scheme": "tel", "address": "1234"},
@@ -95,20 +94,7 @@ GROUPS = (
     },
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
-FLOWS = (
-    {
-        "name": "Favorites",
-        "file": "favorites_timeout.json",
-        "templates": (
-            ["blue", "mutzig", "bob"],
-            ["orange", "green", "primus", "jeb"],
-            ["red", "skol", "rowan"],
-            ["red", "turbo", "nic"],
-        ),
-    },
-    {"name": "SMS Form", "file": "sms_form.json", "templates": (["22 F Seattle"], ["35 M MIAMI"])},
-    {"name": "Pick a Number", "file": "pick_a_number.json", "templates": (["1"], ["4"], ["5"], ["7"], ["8"])},
-)
+FLOWS = ("favorites_timeout.json", "sms_form.json", "pick_a_number.json")
 CAMPAIGNS = (
     {
         "name": "Doctor Reminders",
@@ -144,25 +130,18 @@ CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
 
 
 class Command(BaseCommand):
-    COMMAND_GENERATE = "generate"
-
     help = "Generates a database suitable for performance testing"
 
     # https://docs.djangoproject.com/en/2.0/releases/2.0/#call-command-validates-the-options-it-receives
     stealth_options = ("num_orgs", "num_contacts", "seed")
 
     def add_arguments(self, parser):
-        subparsers = parser.add_subparsers(
-            dest="command", help="Command to perform", parser_class=lambda **kw: CommandParser(**kw)
-        )
+        parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
+        parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
+        parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
+        parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
 
-        gen_parser = subparsers.add_parser("generate", help="Generates a clean testing database")
-        gen_parser.add_argument("--orgs", type=int, action="store", dest="num_orgs", default=10)
-        gen_parser.add_argument("--contacts", type=int, action="store", dest="num_contacts", default=10000)
-        gen_parser.add_argument("--seed", type=int, action="store", dest="seed", default=None)
-        gen_parser.add_argument("--password", type=str, action="store", dest="password", default=USER_PASSWORD)
-
-    def handle(self, command, *args, **kwargs):
+    def handle(self, *args, **kwargs):
         start = time.time()
 
         self.handle_generate(kwargs["num_orgs"], kwargs["num_contacts"], kwargs["seed"], kwargs["password"])
@@ -456,7 +435,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for f in FLOWS:
-                with open("media/test_flows/" + f["file"], "r") as flow_file:
+                with open("media/test_flows/" + f, "r") as flow_file:
                     org.import_app(json.load(flow_file), user)
 
         self._log(self.style.SUCCESS("OK") + "\n")

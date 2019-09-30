@@ -25,10 +25,6 @@
         {% else %}
           initializeDatetimePicker(minDate);
         {% endif %}
-
-        {% if object.next_fire %}
-        setNextFireText({{ object.next_fire|date:"U" }})
-        {% endif %}
     });
     
 
@@ -55,7 +51,7 @@
     %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
     %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:'{{ object.next_fire|date:"U" }}'}
 
-  #recurrence{class:'{% if not object.next_fire %}hide{%endif%}'}
+  #recurrence{class:'{% if not object.next_fire %}hide{% endif %}'}
     .repeat-period
       %p.instructions
         -render_field 'repeat_period'
@@ -84,8 +80,8 @@
   -if object.next_fire
     -spaceless
       -if object.get_broadcast
-        -trans "The next message will be sent "
-        <span class='attn next-fire'></span>.
+        -trans "The next message will be sent on"
+        <span class='attn next-fire'>{% pretty_datetime object.next_fire %}</span>.
 
     -if not object.repeat_period == 'O'
       -if object.repeat_period == 'W'

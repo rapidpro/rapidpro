@@ -6,8 +6,9 @@ import { getCompletions, CompletionSchema, getFunctions, Position, KeyedAssets, 
 import { getUrl, getAssets, Asset } from '../utils';
 import { AxiosResponse } from 'axios';
 import getCaretCoordinates from 'textarea-caret';
-import { directive, Part} from 'lit-html';
+import { directive, Part } from 'lit-html';
 import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 const marked = require('marked');
 
@@ -43,7 +44,7 @@ export default class Completion extends RapidElement {
         display: block;
       }
 
-      .container {
+      .comp-container {
         position: relative;
         height: 100%;
       }
@@ -68,7 +69,7 @@ export default class Completion extends RapidElement {
       .current-fn {
         padding: 10px;
         margin: 5px;
-        background: var(--color-widget-bg);
+        background: var(--color-primary-light);
         color: rgba(0, 0, 0, .5);
         border-radius: var(--curvature);
         font-size: 90%;
@@ -345,15 +346,15 @@ export default class Completion extends RapidElement {
   }
 
   public render(): TemplateResult {
+
+    const anchorStyles = { 
+      top: `${this.anchorPosition.top}px`,
+      left: `${this.anchorPosition.left}px`
+    }
+
     return html`
-      <style>
-        #anchor {
-          top:${this.anchorPosition.top}px;
-          left:${this.anchorPosition.left}px;
-        }
-      </style>
-      <div class="container">
-        <div id="anchor"></div>
+      <div class="comp-container">
+        <div id="anchor" style=${styleMap(anchorStyles)}></div> 
         <rp-textinput 
           name=${this.name}
           placeholder=${this.placeholder}

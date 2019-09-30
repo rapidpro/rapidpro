@@ -1788,7 +1788,7 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
-    uuid = models.UUIDField(null=True)
+    uuid = models.UUIDField(unique=True)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
@@ -1797,7 +1797,7 @@ class FlowSession(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
     # the contact that this session is with
-    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT)
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="sessions")
 
     # the channel connection used for flow sessions over IVR or USSD"),
     connection = models.OneToOneField(
@@ -1827,10 +1827,6 @@ class FlowSession(models.Model):
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
-
-    @classmethod
-    def create(cls, contact, connection):
-        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
 
     def release(self):
         self.delete()
@@ -1904,7 +1900,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
     # current status of this run
-    status = models.CharField(null=True, max_length=1, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
@@ -2454,13 +2450,19 @@ class FlowCategoryCount(SquashableModel):
 
     SQUASH_OVER = ("flow_id", "node_uuid", "result_key", "result_name", "category_name")
 
-    flow = models.ForeignKey(
-        Flow, on_delete=models.PROTECT, related_name="category_counts", help_text="The flow the result belongs to"
-    )
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="category_counts")
+
+    # the UUID of the node where this result was created
     node_uuid = models.UUIDField(db_index=True)
-    result_key = models.CharField(max_length=128, help_text="The sluggified key for the result")
-    result_name = models.CharField(max_length=128, help_text="The result the category belongs to")
-    category_name = models.CharField(max_length=128, help_text="The category name for a result")
+
+    # the key and name of the result in the flow
+    result_key = models.CharField(max_length=128)
+    result_name = models.CharField(max_length=128)
+
+    # the name of the category
+    category_name = models.CharField(max_length=128)
+
+    # the number of results with this category
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -2499,12 +2501,18 @@ class FlowPathCount(SquashableModel):
 
     SQUASH_OVER = ("flow_id", "from_uuid", "to_uuid", "period")
 
-    flow = models.ForeignKey(
-        Flow, on_delete=models.PROTECT, related_name="activity", help_text=_("The flow where the activity occurred")
-    )
-    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="path_counts")
+
+    # the exit UUID of the node this path segment starts with
+    from_uuid = models.UUIDField()
+
+    # the UUID of the node this path segment ends with
+    to_uuid = models.UUIDField()
+
+    # the hour in which this activity occurred
+    period = models.DateTimeField()
+
+    # the number of runs that tooks this path segment in that period
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -2545,14 +2553,18 @@ class FlowPathRecentRun(models.Model):
 
     id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
 
-    from_uuid = models.UUIDField(help_text=_("The flow node UUID of the first step"))
-    from_step_uuid = models.UUIDField(help_text=_("The UUID of the first step"))
+    # the node and step UUIDs of the start of the path segment
+    from_uuid = models.UUIDField()
+    from_step_uuid = models.UUIDField()
 
-    to_uuid = models.UUIDField(help_text=_("The flow node UUID of the second step"))
-    to_step_uuid = models.UUIDField(help_text=_("The UUID of the second step"))
+    # the node and step UUIDs of the end of the path segment
+    to_uuid = models.UUIDField()
+    to_step_uuid = models.UUIDField()
 
     run = models.ForeignKey(FlowRun, on_delete=models.PROTECT, related_name="recent_runs")
-    visited_on = models.DateTimeField(help_text=_("When the run visited this path segment"), default=timezone.now)
+
+    # when the run visited this path segment
+    visited_on = models.DateTimeField(default=timezone.now)
 
     def release(self):
         self.delete()
@@ -2640,8 +2652,12 @@ class FlowNodeCount(SquashableModel):
 
     SQUASH_OVER = ("node_uuid",)
 
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT)
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="node_counts")
+
+    # the UUID of the node
     node_uuid = models.UUIDField(db_index=True)
+
+    # the number of contacts/runs currently at that node
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -2672,8 +2688,12 @@ class FlowRunCount(SquashableModel):
 
     SQUASH_OVER = ("flow_id", "exit_type")
 
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="counts")
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
+
+    # the type of exit
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
+
+    # the number of runs that exited with that exit type
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -3242,20 +3262,42 @@ class FlowStartCount(SquashableModel):
 
 
 class FlowLabel(models.Model):
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    """
+    A label applied to a flow rather than a message
+    """
 
-    uuid = models.CharField(
-        max_length=36,
-        unique=True,
-        db_index=True,
-        default=generate_uuid,
-        verbose_name=_("Unique Identifier"),
-        help_text=_("The unique identifier for this label"),
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
+
+    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid)
+
     name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this flow label"))
+
     parent = models.ForeignKey(
         "FlowLabel", on_delete=models.PROTECT, verbose_name=_("Parent"), null=True, related_name="children"
     )
+
+    @classmethod
+    def create(cls, org, base, parent=None):
+
+        base = base.strip()
+
+        # truncate if necessary
+        if len(base) > 32:
+            base = base[:32]
+
+        # find the next available label by appending numbers
+        count = 2
+        while FlowLabel.objects.filter(org=org, name=base, parent=parent):
+            # make room for the number
+            if len(base) >= 32:
+                base = base[:30]
+            last = str(count - 1)
+            if base.endswith(last):
+                base = base[: -len(last)]
+            base = "%s %d" % (base.strip(), count)
+            count += 1
+
+        return FlowLabel.objects.create(org=org, name=base, parent=parent)
 
     def get_flows_count(self):
         """
@@ -3269,29 +3311,6 @@ class FlowLabel(models.Model):
             .filter(is_active=True, is_archived=False)
             .distinct()
         )
-
-    @classmethod
-    def create_unique(cls, base, org, parent=None):
-
-        base = base.strip()
-
-        # truncate if necessary
-        if len(base) > 32:
-            base = base[:32]
-
-        # find the next available label by appending numbers
-        count = 2
-        while FlowLabel.objects.filter(name=base, org=org, parent=parent):
-            # make room for the number
-            if len(base) >= 32:
-                base = base[:30]
-            last = str(count - 1)
-            if base.endswith(last):
-                base = base[: -len(last)]
-            base = "%s %d" % (base.strip(), count)
-            count += 1
-
-        return FlowLabel.objects.create(name=base, org=org, parent=parent)
 
     def toggle_label(self, flows, add):
         changed = []
