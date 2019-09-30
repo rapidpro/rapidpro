@@ -84,6 +84,18 @@ URN_SCHEME_CONFIG = (
 
 IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
+# events from sessions to include in contact history
+HISTORY_INCLUDE_EVENTS = {
+    "contact_language_changed",
+    "contact_field_changed",
+    "contact_groups_changed",
+    "contact_name_changed",
+    "contact_urns_changed",
+    "email_created",
+    "input_labels_added",
+    "run_result_changed",
+}
+
 
 class URN(object):
     """
@@ -856,7 +868,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:MAX_HISTORY]
         )
 
-        session_events = self.get_session_events(after, before, {"run_result_changed"})
+        session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
         events = chain(
@@ -887,6 +899,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     event["created_on"] = iso8601.parse_date(event["created_on"])
                     if event["type"] in types and after <= event["created_on"] < before:
                         events.append(event)
+
+            # create pseudo-event to model the start of the session
+            triggered_on = iso8601.parse_date(session.output["trigger"]["triggered_on"])
+            if after <= triggered_on < before:
+                events.append(
+                    {
+                        "type": "session_started",
+                        "created_on": triggered_on,
+                        "trigger": session.output["trigger"],
+                        "session_uuid": str(session.uuid),
+                    }
+                )
 
         return events
 

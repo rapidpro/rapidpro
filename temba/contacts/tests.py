@@ -63,7 +63,7 @@ from .search import (
     parse_query,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import activity_icon, contact_field, history_class
+from .templatetags.contacts import contact_field, history_class, history_icon
 
 
 class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
@@ -3850,32 +3850,32 @@ class ContactTest(TembaTest):
 
         # inbound
         item = {"type": "msg_received", "obj": msg}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-user"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
         item = {"type": "msg_created", "obj": msg}
         msg.direction = "O"
         msg.status = "S"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-right"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
         msg.status = "D"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-check"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
         msg.status = "F"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # outgoing voice
         msg.msg_type = "V"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-outgoing"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-call-outgoing"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # incoming voice
         item = {"type": "msg_received", "obj": msg}
         msg.direction = "I"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-incoming"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-call-incoming"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # simulate a broadcast to 2 people
@@ -3883,27 +3883,27 @@ class ContactTest(TembaTest):
         item = {"type": "msg_created", "obj": msg}
         msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
         msg.status = "F"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bullhorn"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
         item = {"type": "flow_entered", "obj": run}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
 
         run.run_event_type = "Invalid"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
 
         item = {"type": "flow_exited", "obj": run}
 
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-checkmark"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-warning"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-warning"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
 
         # manually create two event fires
         pastDate = timezone.now() - timedelta(days=1)
@@ -3912,15 +3912,15 @@ class ContactTest(TembaTest):
         )
 
         item = {"type": "campaign_fired", "obj": event_fire}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
         event_fire.fired_result = EventFire.RESULT_FIRED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
         event_fire.fired_result = EventFire.RESULT_SKIPPED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 
     def test_get_scheduled_messages(self):
