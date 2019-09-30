@@ -3917,6 +3917,9 @@ class BulkExportTest(TembaTest):
 
         # our campaign
         self.assertContains(response, "Appointment Schedule")
+        self.assertNotContains(
+            response, "&quot;Appointment Schedule&quot;"
+        )  # previous bug rendered campaign names incorrectly
 
         # now let's export!
         post_data = dict(
