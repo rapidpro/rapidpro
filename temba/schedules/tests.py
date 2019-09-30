@@ -12,25 +12,6 @@ from temba.utils import json
 
 from .models import Schedule
 
-MONDAY = 0  # 2
-TUESDAY = 1  # 4
-WEDNESDAY = 2  # 8
-THURSDAY = 3  # 16
-FRIDAY = 4  # 32
-SATURDAY = 5  # 64
-SUNDAY = 6  # 128
-
-
-def create_schedule(org, user, repeat_period, repeat_days_of_week=None, start_date=None, now=None):
-    if not now:
-        now = timezone.now()
-
-    if not start_date:
-        # Test date is 10am on a Thursday, Jan 3rd
-        start_date = datetime(2013, 1, 3, hour=10, minute=0, second=0, microsecond=0).replace(tzinfo=pytz.utc)
-
-    return Schedule.create_schedule(org, user, start_date, repeat_period, repeat_days_of_week, now=now)
-
 
 class ScheduleTest(TembaTest):
     def setUp(self):
@@ -291,7 +272,15 @@ class ScheduleTest(TembaTest):
         self.assertIsNotNone(str(schedule))
 
     def test_update(self):
-        sched = create_schedule(self.org, self.admin, Schedule.REPEAT_WEEKLY, "RS")
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
+
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
 
         # viewer can't access
@@ -365,18 +354,20 @@ class ScheduleTest(TembaTest):
         self.assertEqual(schedule.repeat_period, "D")
 
     def test_update_near_day_boundary(self):
-
         self.org.timezone = pytz.timezone("US/Eastern")
         self.org.save()
         tz = self.org.timezone
 
-        sched = create_schedule(self.org, self.admin, Schedule.REPEAT_DAILY)
-        Broadcast.create(self.org, self.admin, "Message", schedule=sched, contacts=[self.joe])
-        sched = Schedule.objects.get(pk=sched.pk)
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
 
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
-
-        self.login(self.admin)
 
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
