@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-23 20:01+0000\n"
+"POT-Creation-Date: 2019-09-26 21:14+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3421,39 +3421,6 @@ msgstr ""
 msgid "Malformed flow, encountered non-localized definition"
 msgstr ""
 
-msgid "The flow where the activity occurred"
-msgstr ""
-
-msgid "Which flow node they came from"
-msgstr ""
-
-msgid "Which flow node they went to"
-msgstr ""
-
-msgid "When the activity occured with hourly precision"
-msgstr ""
-
-msgid "The flow node UUID of the first step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the first step"
-msgstr "O tipo dessa mensagem"
-
-msgid "The flow node UUID of the second step"
-msgstr ""
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID of the second step"
-msgstr "O tipo dessa mensagem"
-
-#, fuzzy
-#| msgid "When the user switched to this plan"
-msgid "When the run visited this path segment"
-msgstr "Quando o usuário migrou para este plano"
-
 msgid "The flows to export"
 msgstr "Os fluxos para exportar"
 
@@ -3461,13 +3428,6 @@ msgstr "Os fluxos para exportar"
 #| msgid "The JSON encoded configurations for this report"
 msgid "Any configuration options for this flow export"
 msgstr "JSON codificou configurações para este relatório"
-
-msgid "Unique Identifier"
-msgstr ""
-
-#, fuzzy
-msgid "The unique identifier for this label"
-msgstr "O nome deste contato"
 
 #, fuzzy
 msgid "The name of this flow label"
@@ -5164,6 +5124,9 @@ msgstr ""
 #, fuzzy
 msgid "The organization of the user."
 msgstr "A organização utilizando esse transmissor"
+
+msgid "Unique Identifier"
+msgstr ""
 
 #, fuzzy
 msgid "The unique identifier for this object"
@@ -10600,7 +10563,7 @@ msgstr "Domingo"
 
 #, fuzzy
 #| msgid "When this message was sent to the endpoint"
-msgid "The next message will be sent "
+msgid "The next message will be sent on"
 msgstr "Quando essa mensagem foi enviada para o terminal"
 
 msgid "It will repeat every"
@@ -10783,14 +10746,9 @@ msgstr "Disparador ativado para chamadas perdidas. Mudar o fluxo que se inicia a
 msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr "Disparador ativado para capturar todas as mensagens. Mudar fluxo que captura todas as mensagens."
 
-msgid ""
-"\n"
-"          The next message will be sent <span class='attn next-fire'/>.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"A próxima mensagem será enviada <span class='attn next-fire'/>."
+#, fuzzy
+msgid "The next time the flow will be started is"
+msgstr "Qual fluxo será iniciado"
 
 msgid "month"
 msgstr "mês"
@@ -10830,6 +10788,34 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The next message will be sent <span class='attn next-fire'/>.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "A próxima mensagem será enviada <span class='attn next-fire'/>."
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the first step"
+#~ msgstr "O tipo dessa mensagem"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID of the second step"
+#~ msgstr "O tipo dessa mensagem"
+
+#, fuzzy
+#~| msgid "When the user switched to this plan"
+#~ msgid "When the run visited this path segment"
+#~ msgstr "Quando o usuário migrou para este plano"
+
+#, fuzzy
+#~ msgid "The unique identifier for this label"
+#~ msgstr "O nome deste contato"
 
 #, fuzzy
 #~| msgid "Label Type"

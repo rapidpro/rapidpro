@@ -7,7 +7,7 @@ from django.db import migrations, transaction
 BATCH_SIZE = 5000
 
 
-def populate_session_uuids(apps, schema_editor):
+def populate_session_uuids(apps, schema_editor):  # pragma: no cover
     FlowSession = apps.get_model("flows", "FlowSession")
 
     num_updated = 0
@@ -30,7 +30,7 @@ def populate_session_uuids(apps, schema_editor):
         max_id = batch[-1].id
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

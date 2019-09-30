@@ -1,6 +1,15 @@
 -extends 'flows/flow_update.haml'
 
 
+-block fields
+
+  :css
+    .modal .modal-body {
+        max-height: 450px;
+    }
+
+  {{block.super}}
+
 -block modal-script
   {{block.super}}
 

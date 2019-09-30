@@ -68,7 +68,7 @@
           {{object.msg.get_status_display}}
 
   -if object.connection_type
-    -for log in object.get_logs
+    -for log in object.channel_logs.all
       -include "channels/channellog_log.haml"
   -else
     -for log in object.log_group
