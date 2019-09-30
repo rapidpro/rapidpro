@@ -1,3 +1,35 @@
+v5.1.45
+----------
+ * Fix rendering of campaigns on export page
+ * Fix ivr channel logs
+ * Make FlowRun.status non-NULL
+ * Make FlowSession.uuid unique and indexed
+
+v5.1.44
+----------
+ * Tidy up fields on flow activity models
+ 
+
+v5.1.43
+----------
+ * Fix styling on create flow dialog
+ * Make user fields nullable on broadcasts
+ * Populate repeat_minute_of_hour in data migration
+
+v5.1.42
+----------
+ * Update trigger update views to take into account new schedule fields
+
+v5.1.41
+----------
+ * Update docs on flow start extra to be accessible via @trigger
+ * Change input selector to work cross-browser on send modal
+ * Don't inner scroll for modax fetches
+
+v5.1.40
+----------
+ * Fix issues with web components in Microsoft Edge
+
 v5.1.37
 ----------
  * Cleanup Schedule class

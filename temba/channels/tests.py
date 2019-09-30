@@ -2395,6 +2395,10 @@ class ChannelLogTest(TembaTest):
         self.assertContains(response, "15 seconds")
         self.assertContains(response, "2 results")
 
+        # make sure we can see the details of the IVR log
+        response = self.client.get(reverse("channels.channellog_connection", args=[call.id]))
+        self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
+
         # if duration isn't set explicitly, it can be calculated
         call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
         call.status = IVRCall.IN_PROGRESS

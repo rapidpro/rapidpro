@@ -21,7 +21,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Msg
+from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import dict_to_struct, json
 from temba.values.constants import Value
@@ -111,21 +111,28 @@ class TembaTestMixin:
 
         return Contact.get_or_create_by_urns(**kwargs)
 
-    def create_group(self, name, contacts=(), query=None):
-        if contacts and query:
-            raise ValueError("Can't provide contact list for a dynamic group")
+    def create_group(self, name, contacts=(), query=None, org=None):
+        assert not (contacts and query), "can't provide contact list for a dynamic group"
 
         if query:
-            return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
+            return ContactGroup.create_dynamic(org or self.org, self.user, name, query=query)
         else:
-            group = ContactGroup.create_static(self.org, self.user, name)
+            group = ContactGroup.create_static(org or self.org, self.user, name)
             if contacts:
                 group.contacts.add(*contacts)
             return group
 
-    def create_field(self, key, label, value_type=Value.TYPE_TEXT):
+    def create_label(self, name, org=None):
+        return Label.get_or_create(org or self.org, self.user, name)
+
+    def create_field(self, key, label, value_type=Value.TYPE_TEXT, org=None):
         return ContactField.user_fields.create(
-            org=self.org, key=key, label=label, value_type=value_type, created_by=self.admin, modified_by=self.admin
+            org=org or self.org,
+            key=key,
+            label=label,
+            value_type=value_type,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
 
     def create_incoming_msg(
@@ -330,7 +337,7 @@ class TembaTestMixin:
             status=status,
             duration=15,
         )
-        session = FlowSession.create(contact, connection=call)
+        session = FlowSession.objects.create(uuid=uuid4(), org=contact.org, contact=contact, connection=call)
         FlowRun.objects.create(org=self.org, flow=flow, contact=contact, connection=call, session=session)
         Msg.objects.create(
             org=self.org,

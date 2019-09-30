@@ -3,6 +3,7 @@ import { LitElement, TemplateResult, html, css } from 'lit-element';
 import Button from '../button/Button';
 import RapidElement from '../RapidElement';
 import { CustomEventType } from '../interfaces';
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 @customElement("rp-dialog")
 export default class Dialog extends RapidElement {
@@ -39,6 +40,10 @@ export default class Dialog extends RapidElement {
       .mask.open {
         opacity: 1;
         visibility: visible;
+      }
+
+      .mask.open > .dialog {
+        top: 100px;
       }
 
       .title {
@@ -128,16 +133,10 @@ export default class Dialog extends RapidElement {
 
     const height = this.getDocumentHeight();
 
+    const maskStyle = { height: `${height + 100}px`}
+
     return html`
-        <style>
-          .mask {
-            height: ${height + 100}px;
-          }
-          .mask.open > .dialog {
-            top: 100px;
-          }
-        </style>
-        <div class="mask ${this.open ? 'open' : ''}">
+        <div class="mask ${this.open ? 'open' : ''}" style=${styleMap(maskStyle)}>
           <div @keyup=${this.handleKeyUp} class="dialog">
             <div class="header">
               <div class="title">${this.title}</div>

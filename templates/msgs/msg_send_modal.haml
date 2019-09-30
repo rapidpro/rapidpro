@@ -162,7 +162,7 @@
         post = post + "&simulation=true"
       }
 
-      var text = document.querySelector("#send-form input[name='text']").value;
+      var text = document.querySelector("#send-form rp-completion").value
 
       // our post data
       var data = {
@@ -171,8 +171,6 @@
         text: text,
         csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val()
       };
-
-      console.log(data);
 
       // add the omnibox value, but only if there actually is something
       var omnibox = form.find("#omnibox").val().trim();

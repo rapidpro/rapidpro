@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-19 18:17+0000\n"
+"POT-Creation-Date: 2019-09-26 21:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2477,43 +2477,10 @@ msgstr ""
 msgid "Malformed flow, encountered non-localized definition"
 msgstr ""
 
-msgid "The flow where the activity occurred"
-msgstr ""
-
-msgid "Which flow node they came from"
-msgstr ""
-
-msgid "Which flow node they went to"
-msgstr ""
-
-msgid "When the activity occured with hourly precision"
-msgstr ""
-
-msgid "The flow node UUID of the first step"
-msgstr ""
-
-msgid "The UUID of the first step"
-msgstr ""
-
-msgid "The flow node UUID of the second step"
-msgstr ""
-
-msgid "The UUID of the second step"
-msgstr ""
-
-msgid "When the run visited this path segment"
-msgstr ""
-
 msgid "The flows to export"
 msgstr ""
 
 msgid "Any configuration options for this flow export"
-msgstr ""
-
-msgid "Unique Identifier"
-msgstr ""
-
-msgid "The unique identifier for this label"
 msgstr ""
 
 msgid "The name of this flow label"
@@ -3091,9 +3058,6 @@ msgid "The name of this label"
 msgstr ""
 
 msgid "Folder"
-msgstr ""
-
-msgid "Label type"
 msgstr ""
 
 msgid "The date for the oldest message to export"
@@ -4007,6 +3971,9 @@ msgid "Complete"
 msgstr ""
 
 msgid "The organization of the user."
+msgstr ""
+
+msgid "Unique Identifier"
 msgstr ""
 
 msgid "The unique identifier for this object"
@@ -8402,7 +8369,7 @@ msgstr ""
 msgid "Sun"
 msgstr ""
 
-msgid "The next message will be sent "
+msgid "The next message will be sent on"
 msgstr ""
 
 msgid "It will repeat every"
@@ -8560,11 +8527,7 @@ msgstr ""
 msgid "Catch all trigger activated. Change flow that catches all messages."
 msgstr ""
 
-msgid ""
-"\n"
-"          The next message will be sent <span class='attn next-fire'/>.\n"
-"\n"
-"        "
+msgid "The next time the flow will be started is"
 msgstr ""
 
 msgid "month"

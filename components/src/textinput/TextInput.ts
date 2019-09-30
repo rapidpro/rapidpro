@@ -1,5 +1,6 @@
 import { customElement, TemplateResult, html, css, property } from 'lit-element';
 import RapidElement from '../RapidElement';
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 @customElement("rp-textinput")
 export default class TextInput extends RapidElement {
@@ -82,13 +83,12 @@ export default class TextInput extends RapidElement {
   }
 
   public render(): TemplateResult {
+    const containerStyle = {
+      height: `${this.textarea ? '100%' : 'auto'}`
+    }
+
     return html`
-    <style>
-      .input-container {
-        height: ${this.textarea ? '100%' : 'auto'};
-      }
-    </style>
-    <div class="input-container" @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
+    <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
           name=${this.name}

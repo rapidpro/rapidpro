@@ -169,6 +169,7 @@ class Broadcast(models.Model):
 
     created_by = models.ForeignKey(
         User,
+        null=True,
         on_delete=models.PROTECT,
         related_name="%(app_label)s_%(class)s_creations",
         help_text="The user which originally created this item",
@@ -180,6 +181,7 @@ class Broadcast(models.Model):
 
     modified_by = models.ForeignKey(
         User,
+        null=True,
         on_delete=models.PROTECT,
         related_name="%(app_label)s_%(class)s_modifications",
         help_text="The user which last modified this item",
@@ -1265,7 +1267,7 @@ class Label(TembaModel):
 
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
 
     name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
 
@@ -1273,7 +1275,7 @@ class Label(TembaModel):
         "Label", on_delete=models.PROTECT, verbose_name=_("Folder"), null=True, related_name="children"
     )
 
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
     # define some custom managers to do the filtering of label types for us
     all_objects = models.Manager()
@@ -1282,15 +1284,14 @@ class Label(TembaModel):
 
     @classmethod
     def get_or_create(cls, org, user, name, folder=None):
+        assert not folder or folder.is_folder(), "folder must be a folder if provided"
+
         name = name.strip()
 
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        if folder and not folder.is_folder():  # pragma: needs cover
-            raise ValueError("%s is not a label folder" % str(folder))
-
-        label = cls.label_objects.filter(org=org, name__iexact=name).first()
+        label = cls.label_objects.filter(org=org, name__iexact=name, is_active=True).first()
         if label:
             return label
 
@@ -1300,11 +1301,11 @@ class Label(TembaModel):
     def get_or_create_folder(cls, org, user, name):
         name = name.strip()
 
-        if not cls.is_valid_name(name):  # pragma: needs cover
+        if not cls.is_valid_name(name):
             raise ValueError("Invalid folder name: %s" % name)
 
-        folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
-        if folder:  # pragma: needs cover
+        folder = cls.folder_objects.filter(org=org, name__iexact=name, is_active=True).first()
+        if folder:
             return folder
 
         return cls.folder_objects.create(
@@ -1316,7 +1317,8 @@ class Label(TembaModel):
         """
         Gets labels and folders organized into their hierarchy and with their message counts
         """
-        labels_and_folders = list(Label.all_objects.filter(org=org).order_by(Upper("name")))
+
+        labels_and_folders = list(Label.all_objects.filter(org=org, is_active=True).order_by(Upper("name")))
         label_counts = LabelCount.get_totals([l for l in labels_and_folders if not l.is_folder()])
 
         folder_nodes = {}
@@ -1372,8 +1374,8 @@ class Label(TembaModel):
         """
         Adds or removes this label from the given messages
         """
-        if self.is_folder():  # pragma: needs cover
-            raise ValueError("Can only assign messages to user labels")
+
+        assert not self.is_folder(), "can't assign messages to label folders"
 
         changed = set()
 
@@ -1401,7 +1403,7 @@ class Label(TembaModel):
     def is_folder(self):
         return self.label_type == Label.TYPE_FOLDER
 
-    def release(self):
+    def release(self, user):
 
         dependent_flows_count = self.dependent_flows.count()
         if dependent_flows_count > 0:
@@ -1410,20 +1412,21 @@ class Label(TembaModel):
         # release our children if we are a folder
         if self.is_folder():
             for label in self.children.all():
-                label.release()
+                label.release(user)
         else:
             Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
-        self.delete()
+
+        self.is_active = False
+        self.modified_by = user
+        self.modified_on = timezone.now()
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __str__(self):
         if self.folder:
             return "%s > %s" % (str(self.folder), self.name)
         return self.name
-
-    class Meta:
-        unique_together = ("org", "name")
 
 
 class LabelCount(SquashableModel):
