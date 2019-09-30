@@ -1788,7 +1788,7 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
-    uuid = models.UUIDField(null=True)
+    uuid = models.UUIDField(unique=True)
 
     # the modality of this session
     session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
@@ -1827,10 +1827,6 @@ class FlowSession(models.Model):
 
     # the flow of the waiting run
     current_flow = models.ForeignKey("flows.Flow", null=True, on_delete=models.PROTECT)
-
-    @classmethod
-    def create(cls, contact, connection):
-        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
 
     def release(self):
         self.delete()
@@ -1904,7 +1900,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     session = models.ForeignKey(FlowSession, on_delete=models.PROTECT, related_name="runs", null=True)
 
     # current status of this run
-    status = models.CharField(null=True, max_length=1, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
     # for an IVR session this is the connection to the IVR channel
     connection = models.ForeignKey(
