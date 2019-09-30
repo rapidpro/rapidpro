@@ -1,3 +1,10 @@
+v5.1.45
+----------
+ * Fix rendering of campaigns on export page
+ * Fix ivr channel logs
+ * Make FlowRun.status non-NULL
+ * Make FlowSession.uuid unique and indexed
+
 v5.1.44
 ----------
  * Tidy up fields on flow activity models
