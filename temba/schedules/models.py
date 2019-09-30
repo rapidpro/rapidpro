@@ -65,14 +65,7 @@ class Schedule(SmartModel):
     last_fire = models.DateTimeField(null=True)
 
     # the org this schedule belongs to
-    org = models.ForeignKey("orgs.Org", null=True, on_delete=models.PROTECT, related_name="schedules")
-
-    # deprecated, to be removed
-    repeat_days = models.IntegerField(default=0, null=True)
-
-    # deprecated, to be removed
-    STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))
-    status = models.CharField(default="U", choices=STATUS_CHOICES, max_length=1, null=True)
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="schedules")
 
     @classmethod
     def create_blank_schedule(cls, org, user):
@@ -138,10 +131,6 @@ class Schedule(SmartModel):
     def get_broadcast(self):
         if hasattr(self, "broadcast"):
             return self.broadcast
-
-    def get_trigger(self):
-        if hasattr(self, "trigger"):
-            return self.trigger
 
     @classmethod
     def get_next_fire(cls, schedule, now):
