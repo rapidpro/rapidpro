@@ -2216,6 +2216,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_claim"):
                 links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))
 
+            if self.has_org_perm("nlp.add_nlp_provider"):
+                links.append(dict(title=_("Add NLP Dataset"), href=reverse("add_nlp_provider")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 

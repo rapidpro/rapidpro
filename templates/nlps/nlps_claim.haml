@@ -1,0 +1,167 @@
+-extends "smartmin/base.html"
+-load i18n compress temba
+
+-block page-top
+  .row
+    .span12
+      %h2
+        -trans "Add a NLP Dataset"
+      .instructions
+        %p
+          -blocktrans with name=brand.name
+            To get started on using Artifical Intelligence to your RapidPro account, you need to select one of the providers and connect them to RapidPro. After connecting at least one provider, you will be able to use in flows and triggers.
+
+-block content
+
+  -for nlp_provider in nlps_providers
+    .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{}
+            .btn-container
+              .claim-glyph{class:"{{ nlp_provider.icon }}"}
+              %p.claim-text= nlp_provider.name
+        .span9
+          .claim-description
+            %div
+            {{nlp_provider.claim_blurb }}
+          %p  
+
+
+-block form-buttons
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    $(document).ready(function() {
+      var channel = $('.claim-row.recommended');
+      $('.channel-options-recommended').prepend(channel);
+    });
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        .channel-options {
+          h3 {
+            margin-top: 30px;
+          }
+        }
+
+        .checking-recommendations {
+          margin-bottom:10px;
+        }
+
+        .recommended {
+          .btn-primary {
+            background: @flat-mutedgreen;
+            border-color: @flat-mutedgreen - #111;
+          }
+
+          .claim-description {
+
+          }
+
+          .recommendation {
+            h3 {
+              margin-top: 0px;
+            }
+
+            display:inline-block;
+            padding:5px;
+            margin-top: 5px;
+            margin-bottom:10px;
+            display:inline-block;
+            .icon-star-2 {
+              color: @flat-darkwhite - #222;
+              font-size:22px;
+              float:left;
+              position:relative;
+              top: -3px;
+              margin-right:16px;
+
+
+            }
+          }
+
+        }
+    {% endlessblock %}
+
+
+-block extra-style
+  :css
+
+
+    .horizontal-channel {
+      margin-top: 30px;
+    }
+
+    .claim-description {
+      padding: 25px 40px;
+      height: 50px;
+      width:95%;
+      background: #f5f5f5;
+      font-size: 16px;
+    }
+
+    .align-text-center {
+      text-align: center;
+    }
+
+    .claim-text {
+      margin-top: 10px;
+    }
+
+    .btn-container {
+      margin-right: 10px;
+    }
+
+    .external {
+      text-align: center;
+    }
+
+    .claim-glyph {
+      line-height: 40px;
+      text-decoration: none;
+      font-size: 40px;
+      display: inline;
+      padding-bottom: 10px;
+    }
+
+    .btn-claim {
+      padding: 10px 10px;
+      width: 95%;
+      height: 78px;
+    }
+
+    .claim-row {
+      clear: both;
+      margin-bottom: 10px;
+    }
+
+    .icon-everywhere {
+      font-size: 68px;
+    }
+
+    .icon-channel-kannel {
+      font-size: 55px;
+      margin-top: -5px;
+    }
+
+    .icon-facebook-official {
+      font-size: 48px;
+    }
+
+    ul {
+      list-style-type: none;
+    }
+
+    a:hover {
+      text-decoration: none;
+    }
+
+    .claim-row .span9 {
+      margin-left: 0px;
+    }

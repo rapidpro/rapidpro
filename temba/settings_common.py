@@ -251,6 +251,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.nlps",
 )
 
 # the last installed app that uses smartmin permissions
@@ -1030,6 +1031,11 @@ CHANNEL_TYPES = [
     "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.clicksend.ClickSendType",
 ]
+
+NLP_PROVIDERS_TYPES = [
+    "temba.nlps.types.bothub.BothubType",
+]
+
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
