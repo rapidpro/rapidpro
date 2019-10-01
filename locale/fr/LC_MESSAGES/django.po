@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-27 14:51+0000\n"
+"POT-Creation-Date: 2019-10-01 15:28+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -7418,6 +7418,11 @@ msgid "Update Contact Group"
 msgstr "Mise à jour de Groupe de contacts"
 
 #, fuzzy
+#| msgid "Plan Start"
+msgid "Call Started"
+msgstr "Démarrer le plan"
+
+#, fuzzy
 #| msgid "Missed Outgoing Call"
 msgid "Missed outgoing call"
 msgstr "Appels sortants manqués"
@@ -7456,15 +7461,113 @@ msgstr "Appel entrant"
 msgid "Unknown/Unsupported"
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> updated to <b>%(value)s</b>\n"
+"          "
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> cleared\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
 #, fuzzy
-#| msgid "Plan Start"
-msgid "Call Started"
-msgstr "Démarrer le plan"
+#| msgid "Add to Group"
+msgid "Added to groups"
+msgstr "Ajouter au groupe"
+
+#, fuzzy
+#| msgid "Remove from Group"
+msgid "Removed from groups"
+msgstr "Supprimer du groupe"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Language updated to <b>%(language)s</b>\n"
+"          "
+msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
+
+#, fuzzy
+#| msgid "Language"
+msgid "Language cleared"
+msgstr "Langue"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"            Name updated to <b>%(name)s</b>\n"
+"          "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
+#, fuzzy
+#| msgid "Name already used"
+msgid "Name cleared"
+msgstr "Nom déjà utilisé"
+
+#, fuzzy
+#| msgid "Update Fields"
+msgid "URNs updated to"
+msgstr "Mettre à jour les champs"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "          Install the %(name)s app\n"
+#| "\n"
+#| "        "
+msgid ""
+"\n"
+"          Email sent with subject <b>%(subject)s</b>\n"
+"\n"
+"        "
+msgstr ""
+"\n"
+"Installer l'app %(name)s"
+
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Started"
+msgstr "Lancer un Flux"
+
+#, fuzzy
+msgid "Message labelled as"
+msgstr "Message"
 
 #, python-format
 msgid ""
 "\n"
-"          Run result <i>%(result_name)s</i> updated to <i>%(category)s</i>\n"
+"          Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>\n"
 "\n"
 "        "
 msgstr ""
