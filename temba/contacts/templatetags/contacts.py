@@ -191,8 +191,7 @@ def history_class(item):
             classes.append("warning")
         elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
-        elif item["type"] == "session_started":
-            classes.append("new-session")
+
     return " ".join(classes)
 
 
