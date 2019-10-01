@@ -155,8 +155,8 @@
           %a(href="{% url 'api.webhookresult_read' event.obj.id %}")
             .icon-docs-2
 
-        -elif event.type == 'flow_entered' and perms.flows.flowsession_json
-          %a(href="{% url 'flows.flowsession_json' event.session_uuid %}")
+        -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
+          %a(href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
             .icon-docs-2
 
 -if has_older and not recent_only
