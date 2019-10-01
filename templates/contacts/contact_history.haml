@@ -12,11 +12,11 @@
           -if call.status == 'D'
             -trans "Call Started"
           -else
-            {{call.get_status_display}}
+            {{ call.get_status_display }}
 
       -elif event.type == 'campaign_fired'
         -with event.obj as eventfire
-          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}')><
+          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.id %}')><
             {{ eventfire.event.campaign.name }}
 
           -if eventfire.fired_result == 'S'
@@ -54,11 +54,11 @@
 
       -elif event.type == 'contact_field_changed'
         -if event.value
-          -blocktrans with field=event.field.name value=event.value.text
-            Field <i>{{ key }}</i> updated to <i>{{ value }}</i>
+          -blocktrans with name=event.field.name value=event.value.text
+            Field <b>{{ name }}</b> updated to <b>{{ value }}</b>
         -else
-          -blocktrans with field=event.field.name
-            Field <i>{{ key }}</i> cleared
+          -blocktrans with name=event.field.name
+            Field <b>{{ name }}</b> cleared
 
       -elif event.type == 'contact_groups_changed'
         -if event.groups_added
@@ -75,25 +75,25 @@
       -elif event.type == 'contact_language_changed'
         -if event.language
           -blocktrans with language=event.language
-            Language updated to <i>{{ language }}</i>
+            Language updated to <b>{{ language }}</b>
         -else
           -trans "Language cleared"
 
       -elif event.type == 'contact_name_changed'
         -if event.name
           -blocktrans with name=event.name
-            Name updated to <i>{{ name }}</i>
+            Name updated to <b>{{ name }}</b>
         -else
           -trans "Name cleared"
 
       -elif event.type == 'contact_urns_changed'
         -trans "URNs updated to"
         -for urn in event.urns
-          <i>{{ urn|format_urn:user_org }}</i>{{ forloop|oxford }}
+          <b>{{ urn|format_urn:user_org }}</b>{{ forloop|oxford }}
 
       -elif event.type == 'email_created'
         -blocktrans with subject=event.subject
-          Email sent with subject <i>{{ subject }}</i>
+          Email sent with subject <b>{{ subject }}</b>
 
       -elif event.type == 'flow_entered' or event.type == 'flow_exited'
         -with event.obj as run
@@ -104,8 +104,8 @@
                 {{ run.get_exit_type_display }}
               -else
                 -trans "Started"
-              %a(href='{% url "flows.flow_editor" run.flow.uuid %}')
-                {{run.flow.name}}
+              %a(href="{% url 'flows.flow_editor' run.flow.uuid %}")
+                {{ run.flow.name }}
 
       -elif event.type == 'input_labels_added'
         -trans "Message labelled as"
@@ -130,23 +130,7 @@
 
       -elif event.type == 'run_result_changed'
         -blocktrans with name=event.name category=event.category value=event.value
-          Run result <i>{{ name }}</i> updated to <i>{{ value }}</i> with category <i>{{ category }}</i>
-
-      -elif event.type == 'session_started'
-        -trans "Session triggered by"
-        -if event.trigger.type == "campaign"
-          -trans "user"
-        -elif event.trigger.type == "channel"
-          -trans "channel event"
-        -elif event.trigger.type == "flow_action"
-          -trans "action in another flow"
-        -elif event.trigger.type == "manual"
-          -trans "user"
-        -elif event.trigger.type == "msg"
-          -trans "message"
-          -if event.trigger.keyword_match
-            -trans "with keyword"
-            <i>{{ event.trigger.keyword_match.keyword }}</i>
+          Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
 
       -elif event.type == 'webhook_called'
         -with event.obj as result
@@ -171,8 +155,8 @@
           %a(href="{% url 'api.webhookresult_read' event.obj.id %}")
             .icon-docs-2
 
-        -elif event.type == 'session_started'
-          %a(href="{% url 'flows.flowsession_json' event.session_uuid %}")
+        -elif event.type == 'flow_entered' and perms.flows.flowsession_json
+          %a(href="{% url 'flows.flowsession_json' event.obj.uuid %}")
             .icon-docs-2
 
 -if has_older and not recent_only

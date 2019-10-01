@@ -900,18 +900,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                     if event["type"] in types and after <= event["created_on"] < before:
                         events.append(event)
 
-            # create pseudo-event to model the start of the session
-            triggered_on = iso8601.parse_date(session.output["trigger"]["triggered_on"])
-            if after <= triggered_on < before:
-                events.append(
-                    {
-                        "type": "session_started",
-                        "created_on": triggered_on,
-                        "trigger": session.output["trigger"],
-                        "session_uuid": str(session.uuid),
-                    }
-                )
-
         return events
 
     def get_field_json(self, field):

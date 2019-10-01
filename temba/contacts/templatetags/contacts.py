@@ -102,7 +102,7 @@ def name(contact, org):
 
 @register.filter
 def format_urn(urn, org):
-    if org.is_anon:
+    if org and org.is_anon:
         return ContactURN.ANON_MASK_HTML
 
     if isinstance(urn, ContactURN):

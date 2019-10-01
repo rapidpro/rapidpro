@@ -3776,12 +3776,12 @@ class ContactTest(TembaTest):
         # and we should have a marker for older items
         self.assertTrue(response.context["has_older"])
 
-    def test_event_times(self):
+    def test_campaign_event_time(self):
 
         self.create_campaign()
 
         from temba.campaigns.models import CampaignEvent
-        from temba.contacts.templatetags.contacts import event_time
+        from temba.contacts.templatetags.contacts import campaign_event_time
 
         event = CampaignEvent.create_message_event(
             self.org,
@@ -3794,22 +3794,22 @@ class ContactTest(TembaTest):
         )
 
         event.unit = "D"
-        self.assertEqual("7 days after Planting Date", event_time(event))
+        self.assertEqual("7 days after Planting Date", campaign_event_time(event))
 
         event.unit = "M"
-        self.assertEqual("7 minutes after Planting Date", event_time(event))
+        self.assertEqual("7 minutes after Planting Date", campaign_event_time(event))
 
         event.unit = "H"
-        self.assertEqual("7 hours after Planting Date", event_time(event))
+        self.assertEqual("7 hours after Planting Date", campaign_event_time(event))
 
         event.offset = -1
-        self.assertEqual("1 hour before Planting Date", event_time(event))
+        self.assertEqual("1 hour before Planting Date", campaign_event_time(event))
 
         event.unit = "D"
-        self.assertEqual("1 day before Planting Date", event_time(event))
+        self.assertEqual("1 day before Planting Date", campaign_event_time(event))
 
         event.unit = "M"
-        self.assertEqual("1 minute before Planting Date", event_time(event))
+        self.assertEqual("1 minute before Planting Date", campaign_event_time(event))
 
     def test_activity_tags(self):
         self.create_campaign()
