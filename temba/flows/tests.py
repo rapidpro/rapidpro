@@ -5576,7 +5576,7 @@ class FlowSessionCRUDLTest(TembaTest):
         session = MockSessionWriter(contact, flow).wait().save().session
 
         # normal users can't see session json
-        url = reverse("flows.flowsession_json", args=[session.id])
+        url = reverse("flows.flowsession_json", args=[session.uuid])
         response = self.client.get(url)
         self.assertLoginRedirect(response)
 
