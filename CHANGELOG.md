@@ -1,3 +1,7 @@
+v5.1.48
+----------
+ * Rework contact history to include engine events
+
 v5.1.47
 ----------
  * Update to flow editor 1.6.20
