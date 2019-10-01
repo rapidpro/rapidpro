@@ -1032,11 +1032,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.clicksend.ClickSendType",
 ]
 
-NLP_PROVIDERS_TYPES = [
-    "temba.nlps.types.bothub.BothubType",
-]
-
-
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
 # -----------------------------------------------------------------------------------
