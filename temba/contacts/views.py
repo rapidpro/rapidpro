@@ -1188,27 +1188,26 @@ class ContactCRUDL(SmartCRUDL):
 
             # keep looking further back until we get at least 20 items
             while True:
-                activity = contact.get_activity(after, before)
-                if recent_only or len(activity) >= 20 or after == contact_creation:
+                history = contact.get_history(after, before)
+                if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
 
-            # mark our after as the last item in our list
-            from temba.contacts.models import MAX_HISTORY
+            from .models import MAX_HISTORY
 
-            if len(activity) >= MAX_HISTORY:
-                after = activity[-1]["time"]
+            if len(history) >= MAX_HISTORY:
+                after = history[-1]["created_on"]
 
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_activity(contact_creation, after))
+                context["has_older"] = bool(contact.get_history(contact_creation, after))
 
             context["recent_only"] = recent_only
             context["before"] = datetime_to_ms(after)
             context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
-            context["activity"] = activity
+            context["history"] = history
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
             return context
 

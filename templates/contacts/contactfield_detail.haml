@@ -31,7 +31,7 @@
           %ul
             -for campaign_event in dep_campaignevents
               %li
-                %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.pk %}"}
+                %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
                   {{campaign_event.campaign.name}} --
 
                   -# representation copied from templates/campaigns/campaignevent_read.haml
