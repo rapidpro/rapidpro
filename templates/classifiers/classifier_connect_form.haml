@@ -1,0 +1,13 @@
+-extends "smartmin/form.html"
+
+-block title
+  .medium-help.float-left{class:"{{ view.classifier_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+
+-block pre-form
+  .info
+    %p
+      {{ form_blurb }}

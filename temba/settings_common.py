@@ -236,6 +236,7 @@ INSTALLED_APPS = (
     "temba.assets",
     "temba.auth_tweaks",
     "temba.api",
+    "temba.classifiers",
     "temba.dashboard",
     "temba.public",
     "temba.policies",
@@ -325,6 +326,7 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
+    "classifiers.classifier": ("connect",),
     "contacts.contact": (
         "api",
         "block",
@@ -523,6 +525,10 @@ GROUP_PERMISSIONS = {
         "archives.archive.*",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
+        "classifiers.classifier_connect",
+        "classifiers.classifier_read",
+        "classifiers.classifier_delete",
+        "classifiers.classifier_list",
         "contacts.contact_api",
         "contacts.contact_block",
         "contacts.contact_blocked",
@@ -959,6 +965,11 @@ SEND_MESSAGES = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
+
+CLASSIFIER_TYPES = [
+    "temba.classifiers.types.luis.LuisType",
+    "temba.classifiers.types.wit.WitType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
