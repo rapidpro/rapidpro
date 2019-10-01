@@ -156,7 +156,7 @@
             .icon-docs-2
 
         -elif event.type == 'flow_entered' and perms.flows.flowsession_json
-          %a(href="{% url 'flows.flowsession_json' event.obj.uuid %}")
+          %a(href="{% url 'flows.flowsession_json' event.session_uuid %}")
             .icon-docs-2
 
 -if has_older and not recent_only

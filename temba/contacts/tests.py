@@ -3776,6 +3776,43 @@ class ContactTest(TembaTest):
         # and we should have a marker for older items
         self.assertTrue(response.context["has_older"])
 
+    def test_history_session_events(self):
+        flow = self.get_flow("color_v13")
+        nodes = flow.as_json()["nodes"]
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(nodes[0])
+            .add_contact_urn("twitter", "joey")
+            .set_contact_field("gender", "Gender", "M")
+            .set_contact_field("age", "Age", "")
+            .set_contact_language("spa")
+            .set_contact_language("")
+            .set_contact_name("Joe")
+            .set_contact_name("")
+            .set_result("Color", "red", "Red", "it's red")
+            .send_email("joe@nyaruka.com", "Test", "Hello there Joe")
+            .wait()
+            .save()
+        )
+
+        url = reverse("contacts.contact_history", args=[self.joe.uuid])
+        self.login(self.user)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "URNs updated to")
+        self.assertContains(response, "<b>blow80</b>, ")
+        self.assertContains(response, "<b>+250 781 111 111</b>, and ")
+        self.assertContains(response, "<b>joey</b>")
+        self.assertContains(response, "Field <b>Gender</b> updated to <b>M</b>")
+        self.assertContains(response, "Field <b>Age</b> cleared")
+        self.assertContains(response, "Language updated to <b>spa</b>")
+        self.assertContains(response, "Language cleared")
+        self.assertContains(response, "Name updated to <b>Joe</b>")
+        self.assertContains(response, "Name cleared")
+        self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
+        self.assertContains(response, "Email sent with subject <b>Test</b>")
+
     def test_campaign_event_time(self):
 
         self.create_campaign()

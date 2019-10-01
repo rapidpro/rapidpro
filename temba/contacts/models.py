@@ -896,7 +896,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         for session in sessions:
             for run in session.output.get("runs", []):
                 for event in run.get("events", []):
+                    event["session_uuid"] = str(session.uuid)
                     event["created_on"] = iso8601.parse_date(event["created_on"])
+
                     if event["type"] in types and after <= event["created_on"] < before:
                         events.append(event)
 
