@@ -27,28 +27,10 @@
           %p  
 
 
--block form-buttons
-
--block extra-script
-  {{block.super}}
-
-  :javascript
-    $(document).ready(function() {
-      var channel = $('.claim-row.recommended');
-      $('.channel-options-recommended').prepend(channel);
-    });
-
-
 -block extra-less
   -compress css inline
     {% lessblock %}
       :plain
-
-        .channel-options {
-          h3 {
-            margin-top: 30px;
-          }
-        }
 
         .checking-recommendations {
           margin-bottom:10px;
@@ -93,10 +75,6 @@
 -block extra-style
   :css
 
-
-    .horizontal-channel {
-      margin-top: 30px;
-    }
 
     .claim-description {
       padding: 25px 40px;
@@ -143,11 +121,6 @@
 
     .icon-everywhere {
       font-size: 68px;
-    }
-
-    .icon-channel-kannel {
-      font-size: 55px;
-      margin-top: -5px;
     }
 
     .icon-facebook-official {
