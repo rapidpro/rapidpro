@@ -44,7 +44,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils import json
 
-from .tasks import squash_msgcounts
+from .tasks import squash_msgcounts, retry_errored_messages
 from .templatetags.sms import as_icon
 
 
@@ -602,6 +602,43 @@ class MsgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
         self.assertEqual(response.context["actions"], ["label"])
+
+    def test_retry_errored(self):
+        # change our default channel to external
+        self.channel.channel_type = "EX"
+        self.channel.save()
+
+        android_channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "A",
+            name="Android Channel",
+            address="+250785551414",
+            device="Nexus 5X",
+            secret="12345678",
+            config={Channel.CONFIG_FCM_ID: "123"},
+        )
+
+        msg1 = self.create_outgoing_msg(self.joe, "errored", status="E", channel=self.channel)
+        msg1.next_attempt = timezone.now()
+        msg1.save(update_fields=["next_attempt"])
+
+        msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
+        msg2.next_attempt = timezone.now()
+        msg2.save(update_fields=["next_attempt"])
+
+        msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
+
+        retry_errored_messages()
+
+        msg1.refresh_from_db()
+        msg2.refresh_from_db()
+        msg3.refresh_from_db()
+
+        self.assertEqual("W", msg1.status)
+        self.assertEqual("E", msg2.status)
+        self.assertEqual("F", msg3.status)
 
     def test_failed(self):
         failed_url = reverse("msgs.msg_failed")
