@@ -4,7 +4,7 @@ If you prefer using PNGs, PDFs, or CSS sprites, refer to the Preferences panel o
 
 *demo.html* lists the icons that you selected. To insert your icons as inline SVGs (with the <use> element), copy the <svg> element (that contains symbol definitions) from the source of the demo.html file, below your own HTML's <body> tag. After copying this SVG, you can reference your glyphs like the following:
 
-<svg class="icon icon-pencil"><use xlink:href="#icon-pencil"></use></svg>
+<svg class="icon icon-arrow-down-bold"><use xlink:href="#icon-arrow-down-bold"></use></svg>
 
 You can get this code from the SVG tab of the IcoMoon app, or by referring to the source of the demo.html file. To see how you can change the color/size of your icons using CSS, refer to the example provided in the *style.css* file.
 

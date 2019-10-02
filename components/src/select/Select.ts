@@ -5,7 +5,6 @@ import '../options/Options';
 import RapidElement, { EventHandler } from '../RapidElement';
 import { CustomEventType } from '../interfaces';
 import TextInput from '../textinput/TextInput';
-// const flru = require('flru');
 
 import flru from 'flru';
 
@@ -17,32 +16,14 @@ export default class Select extends RapidElement {
   static get styles() {
     return css`
       :host {
-        display: flex;
-        flex-direction: column;
+        transition: all ease-in-out 200ms;
       }
 
-      .selected {
-        padding: 2px;
+      input::placeholder {
+        color: rgba(0,0,0,.15);
       }
 
 
-      .selected.multi .selected-item {
-        display: inline-block;
-        white-space: nowrap;
-        margin: 2px;
-        margin-right: 0;
-        vertical-align: middle;
-        background: rgba(100, 100, 100, .1);
-        user-select: none; 
-        border-radius: 2px;
-      }
-
-      .selected-item .name {
-        padding: 3px 8px;
-        font-size: 90%;
-        display: inline-block;
-        margin: 0;
-      }
 
       .remove-item {
         cursor: pointer;
@@ -61,12 +42,108 @@ export default class Select extends RapidElement {
         background: rgba(100, 100, 100, .1);
       }
 
-      .selected-item.focused {
-        background: rgba(100, 100, 100, .3);
+
+      
+      input:focus {
+        outline: none;
+        box-shadow: none;
+        cursor: text;
+      }
+
+      .arrow {
+        --icon-color: #ccc;
+        transition: all linear 150ms;
+        padding-right: 8px;
+      }
+
+      .arrow:hover {
+        --icon-color: #666;
+      }
+
+      .arrow.open {
+        --icon-color: #666;
+      }
+
+      .rotated {
+        transform: rotate(180deg);
       }
 
       rp-textinput {
         --color-widget-shadow-focused: #fff;
+      }
+
+      rp-icon {
+        cursor: pointer;
+      }
+
+      
+
+      .select-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        box-shadow: var(--color-widget-shadow-focused) 0 1px 1px 0px inset;
+        border-radius: var(--curvature-widget);
+        background: var(--color-widget-bg);
+        border: 1px solid var(--color-widget-border);
+
+        transition: all ease-in-out 200ms;
+        cursor: pointer;
+      }
+
+      .select-container:focus-within {
+        border-color: var(--color-focus);
+        background: var(--color-widget-bg-focused);
+        box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px;
+      }
+
+      .left {
+        width: 100%;
+      }
+
+      .selected {
+        padding: 4px;
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+
+      .selected.multi .selected-item {
+        white-space: nowrap;
+        margin: 2px;
+        vertical-align: middle;
+        background: rgba(100, 100, 100, .1);
+        user-select: none; 
+        border-radius: 2px;
+        vertical-align: middle;
+        
+      }
+
+      .selected-item .name {
+        padding: 3px 8px;
+        font-size: 90%;
+        margin: 0;
+        display: inline-block;
+      }
+
+      .selected.multi .selected-item.focused {
+        background: rgba(100, 100, 100, .3);
+      }
+
+      input {
+        cursor: pointer;
+        padding: 4px 4px;
+        font-size: 13px;
+        background: none;
+        color: var(--color-text);
+        resize: none;
+        box-shadow: none;
+        margin: none;
+        flex-grow: 1;
+        width: 50px;
+        border: none;
       }
     `
   }
@@ -315,10 +392,8 @@ export default class Select extends RapidElement {
   }
 
   private handleKeyUp(evt: KeyboardEvent) {
-
-    const ele = evt.currentTarget as TextInput;
-    this.input = ele.inputElement.value;
-
+    const ele = evt.currentTarget as HTMLInputElement;
+    this.input = ele.value;
   }
 
   private handleCancel() {
@@ -329,6 +404,11 @@ export default class Select extends RapidElement {
     this.cursorIndex = event.detail.index;
   }
 
+  private handleContainerClick(event: MouseEvent) {
+    const input = this.shadowRoot.querySelector('input');
+    input.focus();
+    input.click();
+  }
   public getEventHandlers(): EventHandler[] {
     return [
       { event: CustomEventType.Canceled, method: this.handleCancel },
@@ -338,11 +418,65 @@ export default class Select extends RapidElement {
   }
 
   public firstUpdated(changedProperties: any) {
-    this.anchorElement = this.shadowRoot.querySelector("rp-textinput");
+    this.anchorElement = this.shadowRoot.querySelector(".select-container");
+  }
+
+  private handleArrowClick(event: MouseEvent): void {
+    if (this.options.length > 0) {
+      this.options = [];
+      event.preventDefault();
+      event.stopPropagation();
+    }
   }
 
   public render(): TemplateResult {
+
     return html`
+      <div class="select-container" @click=${this.handleContainerClick}>
+        <div class="left">
+          <div class="selected ${this.multi ? 'multi' : 'single'}">
+            ${this.selected.map((selected: any, index: number)=>html`
+              <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
+                <div class="remove-item" @click=${(evt: MouseEvent)=>{ 
+                  evt.preventDefault(); 
+                  evt.stopPropagation(); 
+                  this.removeSelection(selected)
+                }}><rp-icon name="x" size="8"></rp-icon></div>
+                <div class="name">${selected.name}</div>    
+              </div>`)
+            }
+            <input 
+              @keyup=${this.handleKeyUp}
+              @keydown=${this.handleKeyDown}
+              @blur=${this.handleBlur} 
+              @focus=${this.handleFocus} 
+              @click=${this.handleClick}
+              type="text" 
+              placeholder=${this.selected.length === 0 ? this.placeholder : ""} 
+              .value=${this.input} />
+          </div>
+        </div>
+        
+        <div class="right" @click=${this.handleArrowClick}>
+          <rp-icon 
+            size="12"
+            name="arrow-down-bold" 
+            class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
+        </div>
+      </div>
+
+      <rp-options
+        cursorIndex=${this.cursorIndex}
+        @rp-selection=${this.handleOptionSelection}
+        .renderOptionDetail=${this.renderOptionDetail}
+        .renderOptionName=${this.renderOptionName}
+        .renderOption=${this.renderOption}
+        .anchorTo=${this.anchorElement}
+        .options=${this.options}
+        ?visible=${this.options.length > 0}
+      ></rp-options>`
+  
+  /*return html`
       <rp-textinput
         @keyup=${this.handleKeyUp}
         @keydown=${this.handleKeyDown}
@@ -352,9 +486,9 @@ export default class Select extends RapidElement {
         .value=${this.input}  
         placeholder=${this.placeholder}
       >
-        <div class="selected ${this.multi ? 'multi' : 'single'}">
+        <div slot="left" class="selected ${this.multi ? 'multi' : 'single'}">
           ${this.selected.map((selected: any, index: number)=>html`
-            <div class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
+            <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
               <div class="remove-item" @click=${(evt: MouseEvent)=>{ 
                 evt.preventDefault(); 
                 evt.stopPropagation(); 
@@ -363,8 +497,14 @@ export default class Select extends RapidElement {
               <div class="name">${selected.name}</div>
               
             </div>`)}
+            
         </div>
-      
+        <div slot="right" @click=${this.handleArrowClick} class="arrow-slot">
+          <rp-icon 
+            size="12"
+            name="arrow-down-bold" 
+            class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
+        </div>
     </rp-textinput>
       <rp-options
         cursorIndex=${this.cursorIndex}
@@ -376,6 +516,6 @@ export default class Select extends RapidElement {
         .options=${this.options}
         ?visible=${this.options.length > 0}
       ></rp-options>
-    `
+    `*/
   }
 }

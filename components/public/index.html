@@ -1,10 +1,7 @@
 <!doctype html>
 <html>
   <head>
-    <script>
-      
-    </script>
-
+    <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.3.0/bundles/webcomponents-sd-ce.js"></script>
   </head>
   <body>
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500" rel="stylesheet">
@@ -35,9 +32,11 @@
         /** --- secondary configuration, only for fine tuning --- */
 
         /* page text, borders, widgets */
+
         --color-text: #666;
-        --color-focus: #bbb;
         --color-borders: rgba(0,0,0,.07);
+        
+        --color-focus:  #ddd;
         --color-widget-bg: #fff;
         --color-widget-bg-focused: #fff;
         --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
@@ -82,10 +81,10 @@
       }
     </style>
 
-    <alias-editor
+    <!--alias-editor
       osmid="192787"
       endpoint="http://localhost:8888/adminboundary"
-    ></alias-editor>
+    ></alias-editor-->
    
     <rp-button name="Start Flow" primary onClick="javascript:showDialog();"></rp-button>
 
