@@ -719,10 +719,10 @@ class MsgCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<label_id>\d+)/$" % (path, action)
+            return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
 
         def derive_label(self):
-            return Label.all_objects.get(org=self.request.user.get_org(), id=self.kwargs["label_id"])
+            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -841,7 +841,7 @@ class LabelCRUDL(SmartCRUDL):
             self.object = Label.get_or_create_folder(user.get_org(), user, obj.name)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        success_url = "id@msgs.msg_filter"
+        success_url = "uuid@msgs.msg_filter"
         success_message = ""
 
         def get_form_kwargs(self):

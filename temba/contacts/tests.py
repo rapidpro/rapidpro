@@ -63,7 +63,7 @@ from .search import (
     parse_query,
 )
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
-from .templatetags.contacts import activity_icon, contact_field, history_class
+from .templatetags.contacts import contact_field, history_class, history_icon
 
 
 class ContactCRUDLTest(TembaTestMixin, _CRUDLTest):
@@ -3539,7 +3539,7 @@ class ContactTest(TembaTest):
             )
 
             # create some messages
-            for i in range(97):
+            for i in range(96):
                 self.create_incoming_msg(
                     self.joe, "Inbound message %d" % i, created_on=timezone.now() - timedelta(days=(100 - i))
                 )
@@ -3561,6 +3561,7 @@ class ContactTest(TembaTest):
                 .send_msg("What is your favorite color?", self.channel)
                 .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
                 .visit(color_split)
+                .set_result("Color", "green", "Green", "I like green")
                 .wait()
                 .save()
             )
@@ -3615,25 +3616,32 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(67):
+            with self.assertNumQueries(68):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
-            activity = response.context["activity"]
-            self.assertEqual(len(activity), 95)
-            self.assertIsInstance(activity[0]["obj"], IVRCall)
-            self.assertIsInstance(activity[1]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[2]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[3]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[4]["obj"], WebHookResult)
-            self.assertIsInstance(activity[5]["obj"], Msg)
-            self.assertEqual(activity[5]["obj"].direction, "O")
-            self.assertIsInstance(activity[6]["obj"], FlowRun)
-            self.assertIsInstance(activity[7]["obj"], Msg)
-            self.assertIsInstance(activity[8]["obj"], Msg)
-            self.assertEqual(activity[8]["obj"].text, "Inbound message 96")
-            self.assertIsInstance(activity[9]["obj"], EventFire)
-            self.assertEqual(activity[-1]["obj"].text, "Inbound message 11")
+            history = response.context["history"]
+            self.assertEqual(95, len(history))
+
+            def assertHistoryEvent(item, expected_type, obj_class=None, msg_text=None):
+                self.assertEqual(expected_type, item["type"])
+                self.assertIsInstance(item["created_on"], datetime)
+                if obj_class:
+                    self.assertIsInstance(item["obj"], obj_class)
+                if msg_text:
+                    self.assertEqual(msg_text, item["obj"].text)
+
+            assertHistoryEvent(history[0], "call_started", IVRCall)
+            assertHistoryEvent(history[1], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[2], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[3], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[4], "webhook_called", WebHookResult)
+            assertHistoryEvent(history[5], "run_result_changed")
+            assertHistoryEvent(history[6], "msg_created", Msg)
+            assertHistoryEvent(history[7], "flow_entered", FlowRun)
+            assertHistoryEvent(history[8], "msg_received", Msg)
+            assertHistoryEvent(history[9], "campaign_fired", EventFire)
+            assertHistoryEvent(history[-1], "msg_received", Msg, msg_text="Inbound message 11")
 
             self.assertContains(response, "<audio ")
             self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
@@ -3655,35 +3663,33 @@ class ContactTest(TembaTest):
             self.assertNotContains(response, "icon-bubble-notification")
 
             # activity should include 11 remaining messages and the event fire
-            activity = response.context["activity"]
-            self.assertEqual(len(activity), 12)
-            self.assertEqual(activity[0]["obj"].text, "Inbound message 10")
-            self.assertEqual(activity[10]["obj"].text, "Inbound message 0")
-            self.assertEqual(activity[11]["obj"].text, "Very old inbound message")
+            history = response.context["history"]
+            self.assertEqual(12, len(history))
+            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Inbound message 10")
+            assertHistoryEvent(history[10], "msg_received", Msg, msg_text="Inbound message 0")
+            assertHistoryEvent(history[11], "msg_received", Msg, msg_text="Very old inbound message")
 
             response = self.fetch_protected(url, self.admin)
-            activity = response.context["activity"]
+            history = response.context["history"]
 
-            self.assertEqual(len(activity), 95)
-            self.assertIsInstance(activity[5]["obj"], Msg)
-            self.assertEqual(activity[5]["obj"].text, "What is your favorite color?")
+            self.assertEqual(95, len(history))
+            assertHistoryEvent(history[6], "msg_created", Msg, msg_text="What is your favorite color?")
 
             # if a new message comes in
             self.create_incoming_msg(self.joe, "Newer message")
             response = self.fetch_protected(url, self.admin)
 
             # now we'll see the message that just came in first, followed by the call event
-            activity = response.context["activity"]
-            self.assertIsInstance(activity[0]["obj"], Msg)
-            self.assertEqual(activity[0]["obj"].text, "Newer message")
-            self.assertIsInstance(activity[1]["obj"], IVRCall)
+            history = response.context["history"]
+            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[1], "call_started", IVRCall)
 
             recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
             response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
 
             # with our recent flag on, should not see the older messages
-            activity = response.context["activity"]
-            self.assertEqual(len(activity), 9)
+            history = response.context["history"]
+            self.assertEqual(10, len(history))
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
@@ -3698,9 +3704,10 @@ class ContactTest(TembaTest):
 
             # super users can view history of any contact
             response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.superuser)
-            self.assertEqual(len(response.context["activity"]), 96)
+            self.assertEqual(96, len(response.context["history"]))
+
             response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
-            self.assertEqual(len(response.context["activity"]), 0)
+            self.assertEqual(0, len(response.context["history"]))
 
             # add a new run
             (
@@ -3713,29 +3720,26 @@ class ContactTest(TembaTest):
             )
 
             response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.admin)
-            activity = response.context["activity"]
-            self.assertEqual(len(activity), 99)
+            history = response.context["history"]
+            self.assertEqual(99, len(history))
 
             # before date should not match our last activity, that only happens when we truncate
-            self.assertNotEqual(response.context["before"], datetime_to_ms(response.context["activity"][-1]["time"]))
+            self.assertNotEqual(
+                response.context["before"], datetime_to_ms(response.context["history"][-1]["created_on"])
+            )
 
-            self.assertIsInstance(activity[0]["obj"], Msg)
-            self.assertEqual(activity[0]["obj"].direction, "O")
-            self.assertEqual(activity[1]["type"], "run-start")
-            self.assertIsInstance(activity[1]["obj"], FlowRun)
-            self.assertEqual(activity[1]["obj"].exit_type, None)
-            self.assertEqual(activity[2]["type"], "run-exit")
-            self.assertIsInstance(activity[2]["obj"], FlowRun)
-            self.assertEqual(activity[2]["obj"].exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
-            self.assertIsInstance(activity[3]["obj"], Msg)
-            self.assertEqual(activity[3]["obj"].direction, "I")
-            self.assertIsInstance(activity[4]["obj"], IVRCall)
-            self.assertIsInstance(activity[5]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[6]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[7]["obj"], ChannelEvent)
-            self.assertIsInstance(activity[8]["obj"], WebHookResult)
-            self.assertIsInstance(activity[9]["obj"], Msg)
-            self.assertIsInstance(activity[10]["obj"], FlowRun)
+            assertHistoryEvent(history[0], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[1], "flow_entered", FlowRun)
+            assertHistoryEvent(history[2], "flow_exited", FlowRun)
+            assertHistoryEvent(history[3], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[4], "call_started", IVRCall)
+            assertHistoryEvent(history[5], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[6], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[7], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[8], "webhook_called", WebHookResult)
+            assertHistoryEvent(history[9], "run_result_changed")
+            assertHistoryEvent(history[10], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[11], "flow_entered", FlowRun)
 
         # with a max history of one, we should see this event first
         with patch("temba.contacts.models.MAX_HISTORY", 1):
@@ -3753,7 +3757,7 @@ class ContactTest(TembaTest):
                 + "?before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)),
                 self.admin,
             )
-            self.assertEqual(self.message_event, response.context["activity"][0]["obj"].event)
+            self.assertEqual(self.message_event, response.context["history"][0]["obj"].event)
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(
@@ -3762,22 +3766,59 @@ class ContactTest(TembaTest):
         )
 
         # our before should be the same as the last item
-        last_item_date = datetime_to_ms(response.context["activity"][-1]["time"])
+        last_item_date = datetime_to_ms(response.context["history"][-1]["created_on"])
         self.assertEqual(response.context["before"], last_item_date)
 
         # and our after should be 90 days earlier
         self.assertEqual(response.context["after"], last_item_date - (90 * 24 * 60 * 60 * 1000))
-        self.assertEqual(len(response.context["activity"]), 50)
+        self.assertEqual(50, len(response.context["history"]))
 
         # and we should have a marker for older items
         self.assertTrue(response.context["has_older"])
 
-    def test_event_times(self):
+    def test_history_session_events(self):
+        flow = self.get_flow("color_v13")
+        nodes = flow.as_json()["nodes"]
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(nodes[0])
+            .add_contact_urn("twitter", "joey")
+            .set_contact_field("gender", "Gender", "M")
+            .set_contact_field("age", "Age", "")
+            .set_contact_language("spa")
+            .set_contact_language("")
+            .set_contact_name("Joe")
+            .set_contact_name("")
+            .set_result("Color", "red", "Red", "it's red")
+            .send_email("joe@nyaruka.com", "Test", "Hello there Joe")
+            .wait()
+            .save()
+        )
+
+        url = reverse("contacts.contact_history", args=[self.joe.uuid])
+        self.login(self.user)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "URNs updated to")
+        self.assertContains(response, "<b>blow80</b>, ")
+        self.assertContains(response, "<b>+250 781 111 111</b>, and ")
+        self.assertContains(response, "<b>joey</b>")
+        self.assertContains(response, "Field <b>Gender</b> updated to <b>M</b>")
+        self.assertContains(response, "Field <b>Age</b> cleared")
+        self.assertContains(response, "Language updated to <b>spa</b>")
+        self.assertContains(response, "Language cleared")
+        self.assertContains(response, "Name updated to <b>Joe</b>")
+        self.assertContains(response, "Name cleared")
+        self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
+        self.assertContains(response, "Email sent with subject <b>Test</b>")
+
+    def test_campaign_event_time(self):
 
         self.create_campaign()
 
         from temba.campaigns.models import CampaignEvent
-        from temba.contacts.templatetags.contacts import event_time
+        from temba.contacts.templatetags.contacts import campaign_event_time
 
         event = CampaignEvent.create_message_event(
             self.org,
@@ -3790,22 +3831,22 @@ class ContactTest(TembaTest):
         )
 
         event.unit = "D"
-        self.assertEqual("7 days after Planting Date", event_time(event))
+        self.assertEqual("7 days after Planting Date", campaign_event_time(event))
 
         event.unit = "M"
-        self.assertEqual("7 minutes after Planting Date", event_time(event))
+        self.assertEqual("7 minutes after Planting Date", campaign_event_time(event))
 
         event.unit = "H"
-        self.assertEqual("7 hours after Planting Date", event_time(event))
+        self.assertEqual("7 hours after Planting Date", campaign_event_time(event))
 
         event.offset = -1
-        self.assertEqual("1 hour before Planting Date", event_time(event))
+        self.assertEqual("1 hour before Planting Date", campaign_event_time(event))
 
         event.unit = "D"
-        self.assertEqual("1 day before Planting Date", event_time(event))
+        self.assertEqual("1 day before Planting Date", campaign_event_time(event))
 
         event.unit = "M"
-        self.assertEqual("1 minute before Planting Date", event_time(event))
+        self.assertEqual("1 minute before Planting Date", campaign_event_time(event))
 
     def test_activity_tags(self):
         self.create_campaign()
@@ -3830,7 +3871,7 @@ class ContactTest(TembaTest):
 
         result = WebHookResult.objects.get()
 
-        item = {"type": "webhook-result", "obj": result}
+        item = {"type": "webhook_called", "obj": result}
         self.assertEqual(history_class(item), "non-msg")
 
         result.status_code = 404
@@ -3838,65 +3879,68 @@ class ContactTest(TembaTest):
 
         call = self.create_incoming_call(self.reminder_flow, contact)
 
-        item = {"type": "call", "obj": call}
+        item = {"type": "call_started", "obj": call}
         self.assertEqual(history_class(item), "non-msg")
 
         call.status = IVRCall.FAILED
         self.assertEqual(history_class(item), "non-msg warning")
 
         # inbound
-        item = {"type": "msg", "obj": msg}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-user"></span>')
+        item = {"type": "msg_received", "obj": msg}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
+        item = {"type": "msg_created", "obj": msg}
         msg.direction = "O"
         msg.status = "S"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-right"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
         msg.status = "D"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-check"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
         msg.status = "F"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # outgoing voice
         msg.msg_type = "V"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-outgoing"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-call-outgoing"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # incoming voice
+        item = {"type": "msg_received", "obj": msg}
         msg.direction = "I"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-incoming"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-call-incoming"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # simulate a broadcast to 2 people
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+        item = {"type": "msg_created", "obj": msg}
         msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
         msg.status = "F"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-bullhorn"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        item = {"type": "run-start", "obj": run}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
+        item = {"type": "flow_entered", "obj": run}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
 
         run.run_event_type = "Invalid"
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')
 
-        item = {"type": "run-exit", "obj": run}
+        item = {"type": "flow_exited", "obj": run}
 
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-checkmark"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-warning"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-warning"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
 
         # manually create two event fires
         pastDate = timezone.now() - timedelta(days=1)
@@ -3904,16 +3948,16 @@ class ContactTest(TembaTest):
             event=self.message_event, contact=contact, scheduled=pastDate, fired=pastDate
         )
 
-        item = {"type": "event-fire", "obj": event_fire}
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        item = {"type": "campaign_fired", "obj": event_fire}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
         event_fire.fired_result = EventFire.RESULT_FIRED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
         event_fire.fired_result = EventFire.RESULT_SKIPPED
-        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
+        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 
     def test_get_scheduled_messages(self):
