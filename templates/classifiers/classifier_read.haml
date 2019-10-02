@@ -1,0 +1,57 @@
+-extends "smartmin/read.html"
+
+-load smartmin temba compress humanize channels
+-load i18n tz
+
+
+-block fields
+
+-block title
+  .medium-help.float-left{class:'{{object.get_type.icon}}'}
+
+  %h2.font_normalize.header-margin.title
+    {{ object.get_type.name }}
+    -trans "Classifier"
+    %span -
+    {{ object.name }}
+
+
+  .header-margin
+    -trans "Intents are synced every 15 minutes."
+
+-block content
+  %table#intents
+    -for intent in object.active_intents
+      %tr
+        %td.intent-name
+          {{ intent.name }}
+
+        %td.intent-uuid
+          {{ intent.uuid }}
+
+        %td.intent-created
+          {{ intent.created_on }}
+
+      -empty
+        %tr.empty
+          %td
+            -trans "No synced intents at this time."
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    td {
+      padding: 5px;
+    }
+
+    td.intent-uuid {
+      font-family: monospace;
+    }
+
+-block summary
+  {{ classifier.get_type.name }}
+  -trans "Classifier"
+  %span -
+  %strong
+    {{ classifier.name }}

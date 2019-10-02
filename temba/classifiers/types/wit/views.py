@@ -21,6 +21,13 @@ class ConnectView(BaseConnectView):
             if response.status_code != 200:
                 raise forms.ValidationError(_("Unable to access wit.ai with credentials, please check and try again"))
 
+            # make sure we have an intent entity, we can't classify without it
+            response = requests.get("https://api.wit.ai/entities/intent",
+                                    headers={"Authorization": f"Bearer {cleaned['access_token']}"})
+
+            if response.status_code != 200:
+                raise forms.ValidationError(_("Unable to get intent entity, make sure you have at least one intent defined"))
+
             return cleaned
 
     form_class = Form

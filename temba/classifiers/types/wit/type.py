@@ -1,5 +1,7 @@
-from ...models import ClassifierType
+from ...models import ClassifierType, Intent
 from .views import ConnectView
+
+import requests
 
 class WitType(ClassifierType):
     """
@@ -17,8 +19,22 @@ class WitType(ClassifierType):
     Connect your Wit.ai app to classify messages in your flow.
     """
 
-    def get_current_intents(self):
+    @classmethod
+    def get_active_intents_from_api(cls, classifier):
         """
-        Should return current set of available intents for the classifier
+        Gets the current intents defined by this app. In Wit intents are treated as a special case of an entity. We
+        fetch the possible values for that entity.
         """
-        raise NotImplementedError("model types must implement get_intents")
+        access_token = classifier.config.get(cls.CONFIG_ACCESS_TOKEN)
+        assert access_token is not None
+
+        response = requests.get("https://api.wit.ai/entities/intent",
+                                headers={"Authorization": f"Bearer {access_token}"})
+
+        response.raise_for_status()
+
+        intents = []
+        for intent in response.json()["values"]:
+            intents.append(Intent(name=intent["value"], external_id=intent["value"]))
+
+        return intents

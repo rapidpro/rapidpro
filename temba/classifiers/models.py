@@ -45,9 +45,10 @@ class ClassifierType(metaclass=ABCMeta):
         """
         return url(r"^connect", self.connect_view.as_view(classifier_type=self), name="connect")
 
-    def get_current_intents(self):
+    @classmethod
+    def get_active_intents_from_api(cls, classifier):
         """
-        Should return current set of available intents for the classifier
+        Should return current set of available intents for the passed in classifier by checking the provider API
         """
         raise NotImplementedError("classifier types must implement get_intents")
 
@@ -69,6 +70,13 @@ class Classifier(TembaModel):
 
     # the org this classifier is part of
     org = models.ForeignKey("orgs.Org", null=False, on_delete=models.PROTECT)
+
+    def get_type(self):
+        from .types import TYPES
+        return TYPES[self.classifier_type]
+
+    def active_intents(self):
+        return self.intents.filter(is_active=True).order_by('created_on')
 
     @classmethod
     def get_types(cls):
@@ -97,14 +105,53 @@ class Intent(models.Model):
     model type implementations to sync these periodically for use in flows etc..
     """
 
+    # intents are forever on an org, but they do get marked inactive when no longer around
     is_active = models.BooleanField(null=False, default=True)
 
-    classifier = models.ForeignKey(Classifier, on_delete=models.PROTECT)
+    # the classifier this intent is tied to
+    classifier = models.ForeignKey(Classifier, related_name="intents", on_delete=models.PROTECT)
 
-    uuid = models.UUIDField(null=False)
+    # we generate UUIDs for unique intents so that they fit our resource model
+    uuid = models.UUIDField(null=False, unique=True)
 
-    name = models.CharField(max_length=64, null=False)
+    # the name of the intent
+    name = models.CharField(max_length=255, null=False)
 
-    config = JSONField(null=False)
+    # the external id of the intent, in same cases this is the same as the name but that is provider specific
+    external_id = models.CharField(max_length=255, null=False)
 
+    # when we first saw / created this intent
     created_on = models.DateTimeField(null=False, default=timezone.now)
+
+    class Meta:
+        unique_together = (("classifier", "external_id"),)
+
+    @classmethod
+    def refresh_intents(cls, classifier):
+        # get the current intents from the API
+        intents = classifier.get_type().get_active_intents_from_api(classifier)
+
+        # external ids we have seen
+        seen = []
+
+        # for each intent
+        for intent in intents:
+            assert intent.external_id is not None
+            assert intent.name != "" and intent.name is not None
+
+            seen.append(intent.external_id)
+
+            existing = Intent.objects.filter(classifier=classifier, external_id=intent.external_id).first()
+            if existing:
+                # previously existed, reactive it
+                if not existing.is_active:
+                    existing.is_active = True
+                    existing.save(update_fields=["is_active"])
+
+            elif not existing:
+                existing = Intent.objects.create(
+                    is_active=True, classifier=classifier, uuid=generate_uuid(), name=intent.name,
+                    external_id=intent.external_id, created_on=timezone.now())
+
+        # deactivate any intent we haven't seen
+        classifier.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
