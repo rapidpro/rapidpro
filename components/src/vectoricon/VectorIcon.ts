@@ -12,7 +12,7 @@ export default class VectorIcon extends LitElement {
       }
 
       svg {
-        transition: all ease-in-out 150ms;
+        transition: transform ease-in-out 150ms;
         fill: var(--icon-color);
       }
   `;
@@ -33,7 +33,6 @@ export default class VectorIcon extends LitElement {
   public render(): TemplateResult {
 
     const svgStyle = {
-      
       width: `${this.size}px`,
       height:`${this.size}px`,
     }

@@ -32,7 +32,7 @@ export default class Options extends RapidElement {
 
       .option {
         font-size: 14px;
-        padding: 7px 14px;
+        padding: 5px 10px;
         border-radius: var(--curvature-widget);
         margin: 3px;
         cursor: pointer;

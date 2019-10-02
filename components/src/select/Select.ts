@@ -122,7 +122,7 @@ export default class Select extends RapidElement {
       }
 
       .selected-item .name {
-        padding: 3px 8px;
+        padding: 3px 5px;
         font-size: 90%;
         margin: 0;
         display: inline-block;
@@ -188,13 +188,16 @@ export default class Select extends RapidElement {
   anchorElement: HTMLElement;
 
   @property({attribute: false})
-  renderOption: (option: any, selected: boolean) => void;
+  renderOption: (option: any, selected: boolean) => TemplateResult;
 
   @property({attribute: false})
-  renderOptionName: (option: any, selected: boolean) => void;
+  renderOptionName: (option: any, selected: boolean) => TemplateResult;
 
   @property({attribute: false})
-  renderOptionDetail: (option: any, selected: boolean) => void = ()=>{};
+  renderOptionDetail: (option: any, selected: boolean) => TemplateResult = ()=> html``;
+
+  @property({attribute: false})
+  renderSelectedItem: (option: any) => TemplateResult = this.renderSelectedItemDefault;
 
   @property({attribute: false})
   getOptions: (response: AxiosResponse) => any[] = this.getOptionsDefault;
@@ -429,6 +432,10 @@ export default class Select extends RapidElement {
     }
   }
 
+  private renderSelectedItemDefault(option: any): TemplateResult {
+    return html`<div class="name">${option.name}</div>`
+  }
+
   public render(): TemplateResult {
 
     return html`
@@ -442,7 +449,7 @@ export default class Select extends RapidElement {
                   evt.stopPropagation(); 
                   this.removeSelection(selected)
                 }}><rp-icon name="x" size="8"></rp-icon></div>
-                <div class="name">${selected.name}</div>    
+                ${this.renderSelectedItem(selected)}
               </div>`)
             }
             <input 
@@ -475,47 +482,5 @@ export default class Select extends RapidElement {
         .options=${this.options}
         ?visible=${this.options.length > 0}
       ></rp-options>`
-  
-  /*return html`
-      <rp-textinput
-        @keyup=${this.handleKeyUp}
-        @keydown=${this.handleKeyDown}
-        @blur=${this.handleBlur} 
-        @focus=${this.handleFocus} 
-        @click=${this.handleClick}
-        .value=${this.input}  
-        placeholder=${this.placeholder}
-      >
-        <div slot="left" class="selected ${this.multi ? 'multi' : 'single'}">
-          ${this.selected.map((selected: any, index: number)=>html`
-            <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
-              <div class="remove-item" @click=${(evt: MouseEvent)=>{ 
-                evt.preventDefault(); 
-                evt.stopPropagation(); 
-                this.removeSelection(selected)
-              }}><rp-icon name="x" size="8"></rp-icon></div>
-              <div class="name">${selected.name}</div>
-              
-            </div>`)}
-            
-        </div>
-        <div slot="right" @click=${this.handleArrowClick} class="arrow-slot">
-          <rp-icon 
-            size="12"
-            name="arrow-down-bold" 
-            class="arrow ${this.options.length > 0 ? 'open' : ''}"></rp-icon>
-        </div>
-    </rp-textinput>
-      <rp-options
-        cursorIndex=${this.cursorIndex}
-        @rp-selection=${this.handleOptionSelection}
-        .renderOptionDetail=${this.renderOptionDetail}
-        .renderOptionName=${this.renderOptionName}
-        .renderOption=${this.renderOption}
-        .anchorTo=${this.anchorElement}
-        .options=${this.options}
-        ?visible=${this.options.length > 0}
-      ></rp-options>
-    `*/
   }
 }
