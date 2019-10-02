@@ -1,6 +1,6 @@
 from smartmin.views import SmartFormView
 from django import forms
-from gettext import gettext as _
+from django.utils.translation import ugettext_lazy as _
 from temba.classifiers.views import BaseConnectView
 
 class ConnectView(BaseConnectView):

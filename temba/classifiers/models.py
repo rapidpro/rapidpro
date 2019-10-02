@@ -1,9 +1,12 @@
+import logging
 from django.db import models
 from temba.utils.models import TembaModel, JSONField, generate_uuid
 from django.conf.urls import url
 from django.utils import timezone
 from abc import ABCMeta
 from django.template import Engine
+
+logger = logging.getLogger(__name__)
 
 class ClassifierType(metaclass=ABCMeta):
     """
@@ -129,7 +132,21 @@ class Intent(models.Model):
     @classmethod
     def refresh_intents(cls, classifier):
         # get the current intents from the API
-        intents = classifier.get_type().get_active_intents_from_api(classifier)
+        logs = []
+        intents = None
+
+        try:
+            intents = classifier.get_type().get_active_intents_from_api(classifier, logs)
+        except Exception as e:
+            logger.error("error getting intents for classifier", e)
+
+        # insert our logs
+        for log in logs:
+            log.save()
+
+        # if we were returned None as intents, then we had an error, log but don't actually update our intents
+        if intents is None:
+            return
 
         # external ids we have seen
         seen = []
@@ -155,3 +172,25 @@ class Intent(models.Model):
 
         # deactivate any intent we haven't seen
         classifier.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
+
+
+class ClassifierLog(models.Model):
+    """
+    ClassifierLog is used to log requests and responses with a classifier. This includes both flow classifications
+    and intent syncing events.
+    """
+
+    # the classifier this log is for
+    classifier = models.ForeignKey(Classifier, null=False, related_name="logs", on_delete=models.PROTECT)
+
+    # the full body of the requests / responses
+    log = models.TextField(null=False)
+
+    # whether this was an error
+    is_error = models.BooleanField(null=False)
+
+    # a short description of the result
+    description = models.CharField(max_length=255, null=False)
+
+    # when this was created
+    created_on = models.DateTimeField(null=False, default=timezone.now)

@@ -3,7 +3,7 @@ from django.urls import reverse
 from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartListView, SmartFormView
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from .models import Classifier
-from gettext import gettext as _
+from django.utils.translation import ugettext_lazy as _
 
 class BaseConnectView(OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
