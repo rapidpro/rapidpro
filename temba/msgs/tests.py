@@ -1437,7 +1437,7 @@ class MsgTest(TembaTest):
         )
 
         # filter page should have an export option
-        response = self.client.get(reverse("msgs.msg_filter", args=[label.id]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label.uuid]))
         self.assertContains(response, "Export")
 
         # try export with user label
@@ -1739,12 +1739,12 @@ class MsgCRUDLTest(TembaTest):
 
         # can't visit a filter page as a non-org user
         self.login(self.non_org_user)
-        response = self.client.get(reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # can as org viewer user
         self.login(self.user)
-        response = self.client.get(reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["actions"], ["unlabel", "label"])
         self.assertNotContains(response, reverse("msgs.label_update", args=[label3.pk]))  # can't update label
@@ -1754,7 +1754,7 @@ class MsgCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [msg6, msg3, msg2, msg1])
 
         # check viewing a folder
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["actions"], ["unlabel", "label"])
         self.assertNotContains(response, reverse("msgs.label_update", args=[folder.pk]))  # can't update folder
@@ -1764,20 +1764,20 @@ class MsgCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["object_list"]), [msg3, msg2, msg1])
 
         # search on folder by message text
-        response = self.client.get("%s?search=test2" % reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get("%s?search=test2" % reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(set(response.context_data["object_list"]), {msg2})
 
         # search on label by contact name
-        response = self.client.get("%s?search=joe" % reverse("msgs.msg_filter", args=[label3.pk]))
+        response = self.client.get("%s?search=joe" % reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(set(response.context_data["object_list"]), {msg1, msg6})
 
         # check admin users see edit and delete options for labels and folders
         self.login(self.admin)
-        response = self.client.get(reverse("msgs.msg_filter", args=[folder.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertContains(response, reverse("msgs.label_update", args=[folder.pk]))
         self.assertContains(response, reverse("msgs.label_delete", args=[folder.pk]))
 
-        response = self.client.get(reverse("msgs.msg_filter", args=[label1.pk]))
+        response = self.client.get(reverse("msgs.msg_filter", args=[label1.uuid]))
         self.assertContains(response, reverse("msgs.label_update", args=[label1.pk]))
         self.assertContains(response, reverse("msgs.label_delete", args=[label1.pk]))
 

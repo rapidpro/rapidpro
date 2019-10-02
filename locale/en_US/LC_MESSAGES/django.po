@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-26 21:14+0000\n"
+"POT-Creation-Date: 2019-10-01 15:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5532,6 +5532,9 @@ msgstr ""
 msgid "Update Contact Group"
 msgstr ""
 
+msgid "Call Started"
+msgstr ""
+
 msgid "Missed outgoing call"
 msgstr ""
 
@@ -5559,7 +5562,70 @@ msgstr ""
 msgid "Unknown/Unsupported"
 msgstr ""
 
-msgid "Call Started"
+#, python-format
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> updated to <b>%(value)s</b>\n"
+"          "
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            Field <b>%(name)s</b> cleared\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Added to groups"
+msgstr ""
+
+msgid "Removed from groups"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            Language updated to <b>%(language)s</b>\n"
+"          "
+msgstr ""
+
+msgid "Language cleared"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            Name updated to <b>%(name)s</b>\n"
+"          "
+msgstr ""
+
+msgid "Name cleared"
+msgstr ""
+
+msgid "URNs updated to"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"          Email sent with subject <b>%(subject)s</b>\n"
+"\n"
+"        "
+msgstr ""
+
+msgid "Started"
+msgstr ""
+
+msgid "Message labelled as"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"          Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>\n"
+"\n"
+"        "
 msgstr ""
 
 msgid "Successfully called"
