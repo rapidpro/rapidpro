@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-03 16:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3103,6 +3103,57 @@ msgid "Calls"
 msgstr "Llamadas"
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your Luis app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The id for your Luis app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+msgid "The name of the version of your Luis app to use"
+msgstr "El nombre de su organización"
+
+msgid "The primary key for your Luis app"
+msgstr ""
+
+msgid "The endpoint URL for your Luis app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Su apellido"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, python-brace-format
+msgid "Connect {self.classifier_type.name}"
+msgstr ""
+
+msgid "Classifiers"
+msgstr ""
+
+#, fuzzy
 msgid "Phone number"
 msgstr "Número de teléfono"
 
@@ -5069,6 +5120,9 @@ msgstr "Salir"
 #, fuzzy
 msgid "Add Channel"
 msgstr "Transmisor"
+
+msgid "Add Classifier"
+msgstr ""
 
 msgid "Import"
 msgstr "Importar"
@@ -7579,6 +7633,29 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Conectar Vumi"
+
+#, python-format
+msgid ""
+"\n"
+"            You can connect a classifier to your %(brand)s account to classify responses in flows. Just choose your\n"
+"            provider below then follow the steps to get started.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Intents are synced every 15 minutes."
+msgstr ""
+
+msgid "No synced intents at this time."
 msgstr ""
 
 msgid "Hold up!"
@@ -12378,11 +12455,6 @@ msgstr "Borrar teléfono"
 #~ msgstr "Docs API"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Su flujo ha sido retirado."
 
@@ -12391,11 +12463,6 @@ msgstr "Borrar teléfono"
 
 #~ msgid "Connect Zenvia Account"
 #~ msgstr "Conectar la cuenta de Zenvia"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name of your Viber bot"
-#~ msgstr "El nombre de su organización"
 
 #, fuzzy
 #~ msgid "Connect Viber Bot"
@@ -12835,11 +12902,6 @@ msgstr "Borrar teléfono"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Conectar Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Conectar Vumi"
 
 #, fuzzy
 #~| msgid ""

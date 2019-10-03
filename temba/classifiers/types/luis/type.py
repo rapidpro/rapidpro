@@ -3,10 +3,12 @@ from .views import ConnectView
 from django.utils import timezone
 import requests
 
+
 class LuisType(ClassifierType):
     """
     Type for classifiers from Luis.ai
     """
+
     name = "Luis.ai"
     slug = "luis"
     icon = "icon-channel-external"

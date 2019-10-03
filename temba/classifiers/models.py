@@ -9,6 +9,7 @@ from requests_toolbelt.utils import dump
 
 logger = logging.getLogger(__name__)
 
+
 class ClassifierType(metaclass=ABCMeta):
     """
     ClassifierType is our abstract base type for custom NLU providers. Each provider will
@@ -16,6 +17,7 @@ class ClassifierType(metaclass=ABCMeta):
     of running classifiers and extracting entities will be done by type specific implementations in
     GoFlow and Mailroom.
     """
+
     # the verbose name for this classifier type
     name = None
 
@@ -77,14 +79,16 @@ class Classifier(TembaModel):
 
     def get_type(self):
         from .types import TYPES
+
         return TYPES[self.classifier_type]
 
     def active_intents(self):
-        return self.intents.filter(is_active=True).order_by('created_on')
+        return self.intents.filter(is_active=True).order_by("created_on")
 
     @classmethod
     def get_types(cls):
         from .types import TYPES
+
         return TYPES.values()
 
     @classmethod
@@ -94,7 +98,6 @@ class Classifier(TembaModel):
             name=name,
             classifier_type=classifier_type,
             config=config,
-
             org=org,
             created_by=user,
             modified_by=user,
@@ -165,8 +168,12 @@ class Intent(models.Model):
 
             elif not existing:
                 existing = Intent.objects.create(
-                    is_active=True, classifier=classifier, name=intent.name,
-                    external_id=intent.external_id, created_on=timezone.now())
+                    is_active=True,
+                    classifier=classifier,
+                    name=intent.name,
+                    external_id=intent.external_id,
+                    created_on=timezone.now(),
+                )
 
         # deactivate any intent we haven't seen
         classifier.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
@@ -207,9 +214,7 @@ class ClassifierLog(models.Model):
         is_error = response.status_code == 200
         description = failure_desc if is_error else success_desc
 
-        data = dump.dump_response(response, request_prefix='>>> ', response_prefix='<<< ').decode('utf-8')
-
-        logs = []
+        data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
 
         # split by lines
         lines = data.split("\r\n")
@@ -225,6 +230,12 @@ class ClassifierLog(models.Model):
         request = "\r\n".join(request_lines)
         response = "\r\n".join(response_lines)
 
-        return ClassifierLog(classifier=classifier, url=url, request=request, response=response,
-                             is_error=is_error, description=description, created_on=timezone.now())
-
+        return ClassifierLog(
+            classifier=classifier,
+            url=url,
+            request=request,
+            response=response,
+            is_error=is_error,
+            description=description,
+            created_on=timezone.now(),
+        )

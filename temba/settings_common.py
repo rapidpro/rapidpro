@@ -326,7 +326,7 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
-    "classifiers.classifier": ("connect","api"),
+    "classifiers.classifier": ("connect", "api"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
@@ -979,10 +979,7 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
-CLASSIFIER_TYPES = [
-    "temba.classifiers.types.luis.LuisType",
-    "temba.classifiers.types.wit.WitType",
-]
+CLASSIFIER_TYPES = ["temba.classifiers.types.luis.LuisType", "temba.classifiers.types.wit.WitType"]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",

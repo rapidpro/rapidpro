@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-03 16:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -2958,6 +2958,57 @@ msgid "Calls"
 msgstr ""
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your Luis app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The id for your Luis app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+msgid "The name of the version of your Luis app to use"
+msgstr "Le nom de votre organisation"
+
+msgid "The primary key for your Luis app"
+msgstr ""
+
+msgid "The endpoint URL for your Luis app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Votre nom"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, python-brace-format
+msgid "Connect {self.classifier_type.name}"
+msgstr ""
+
+msgid "Classifiers"
+msgstr ""
+
+#, fuzzy
 msgid "Phone number"
 msgstr "Numéro de téléphone"
 
@@ -4903,6 +4954,9 @@ msgstr "Déconnexion"
 #, fuzzy
 msgid "Add Channel"
 msgstr "Channel"
+
+msgid "Add Classifier"
+msgstr ""
 
 msgid "Import"
 msgstr "Importer"
@@ -7381,6 +7435,29 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Connectez Vumi"
+
+#, python-format
+msgid ""
+"\n"
+"            You can connect a classifier to your %(brand)s account to classify responses in flows. Just choose your\n"
+"            provider below then follow the steps to get started.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Intents are synced every 15 minutes."
+msgstr ""
+
+msgid "No synced intents at this time."
 msgstr ""
 
 msgid "Hold up!"
@@ -12153,11 +12230,6 @@ msgstr "Supprimer téléphone"
 #~ msgstr "API Docs"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Votre flux a été supprimé."
 
@@ -12166,11 +12238,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Connect Zenvia Account"
 #~ msgstr "Connectez votre compte Zenvia"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name of your Viber bot"
-#~ msgstr "Le nom de votre organisation"
 
 #, fuzzy
 #~ msgid "Connect Viber Bot"
@@ -12622,11 +12689,6 @@ msgstr "Supprimer téléphone"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Connectez avec Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Connectez Vumi"
 
 #, fuzzy
 #~| msgid ""

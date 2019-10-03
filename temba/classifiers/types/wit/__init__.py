@@ -1,1 +1,1 @@
-from .type import WitType
+from .type import WitType  # noqa

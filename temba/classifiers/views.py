@@ -1,9 +1,9 @@
-from django.shortcuts import render
 from django.urls import reverse
 from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartListView, SmartFormView
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from .models import Classifier
 from django.utils.translation import ugettext_lazy as _
+
 
 class BaseConnectView(OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
@@ -25,13 +25,10 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
     def get_success_url(self):
         return reverse("classifiers.classifier_read", args=[self.object.uuid])
 
+
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = (
-        "read",
-        "list",
-        "connect",
-    )
+    actions = ("read", "list", "connect")
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"

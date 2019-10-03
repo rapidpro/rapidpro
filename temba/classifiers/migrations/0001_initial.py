@@ -12,57 +12,109 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('orgs', '0058_auto_20190723_2129'),
-    ]
+    dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL), ("orgs", "0058_auto_20190723_2129")]
 
     operations = [
         migrations.CreateModel(
-            name='Classifier',
+            name="Classifier",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
-                ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
-                ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.CharField(db_index=True, default=temba.utils.models.generate_uuid, help_text='The unique identifier for this object', max_length=36, unique=True, verbose_name='Unique Identifier')),
-                ('classifier_type', models.CharField(max_length=16)),
-                ('name', models.CharField(max_length=255)),
-                ('config', temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder)),
-                ('created_by', models.ForeignKey(help_text='The user which originally created this item', on_delete=django.db.models.deletion.PROTECT, related_name='classifiers_classifier_creations', to=settings.AUTH_USER_MODEL)),
-                ('modified_by', models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.PROTECT, related_name='classifiers_classifier_modifications', to=settings.AUTH_USER_MODEL)),
-                ('org', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='orgs.Org')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
+                (
+                    "created_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was originally created",
+                    ),
+                ),
+                (
+                    "modified_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was last modified",
+                    ),
+                ),
+                (
+                    "uuid",
+                    models.CharField(
+                        db_index=True,
+                        default=temba.utils.models.generate_uuid,
+                        help_text="The unique identifier for this object",
+                        max_length=36,
+                        unique=True,
+                        verbose_name="Unique Identifier",
+                    ),
+                ),
+                ("classifier_type", models.CharField(max_length=16)),
+                ("name", models.CharField(max_length=255)),
+                ("config", temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="The user which originally created this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="classifiers_classifier_creations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        help_text="The user which last modified this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="classifiers_classifier_modifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                ("org", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="orgs.Org")),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='ClassifierLog',
+            name="ClassifierLog",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('url', models.URLField()),
-                ('request', models.TextField()),
-                ('response', models.TextField()),
-                ('is_error', models.BooleanField()),
-                ('description', models.CharField(max_length=255)),
-                ('request_time', models.IntegerField()),
-                ('created_on', models.DateTimeField(default=django.utils.timezone.now)),
-                ('classifier', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='logs', to='classifiers.Classifier')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("url", models.URLField()),
+                ("request", models.TextField()),
+                ("response", models.TextField()),
+                ("is_error", models.BooleanField()),
+                ("description", models.CharField(max_length=255)),
+                ("request_time", models.IntegerField()),
+                ("created_on", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "classifier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="logs", to="classifiers.Classifier"
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Intent',
+            name="Intent",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True)),
-                ('name', models.CharField(max_length=255)),
-                ('external_id', models.CharField(max_length=255)),
-                ('created_on', models.DateTimeField(default=django.utils.timezone.now)),
-                ('classifier', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='intents', to='classifiers.Classifier')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("is_active", models.BooleanField(default=True)),
+                ("name", models.CharField(max_length=255)),
+                ("external_id", models.CharField(max_length=255)),
+                ("created_on", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "classifier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="intents",
+                        to="classifiers.Classifier",
+                    ),
+                ),
             ],
-            options={
-                'unique_together': {('classifier', 'external_id')},
-            },
+            options={"unique_together": {("classifier", "external_id")}},
         ),
     ]

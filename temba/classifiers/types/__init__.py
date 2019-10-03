@@ -3,8 +3,6 @@ from collections import OrderedDict
 from django.conf import settings
 from django.utils.module_loading import import_string
 
-from ..models import Classifier, ClassifierType
-
 TYPES = OrderedDict({})
 
 
@@ -12,6 +10,8 @@ def register_classifier_type(type_class):
     """
     Registers a classifier type
     """
+    global TYPES
+
     if not type_class.slug:
         type_class.slug = type_class.__module__.split(".")[-2]
 
@@ -24,6 +24,8 @@ def reload_classifier_types():
     """
     Re-loads the dynamic classifier types
     """
+    global TYPES
+
     TYPES = []
     for class_name in settings.CLASSIFIER_TYPES:
         register_classifier_type(import_string(class_name))

@@ -2,9 +2,10 @@ import logging
 
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Classifier, ClassifierType, Intent
+from .models import Classifier, Intent
 
 logger = logging.getLogger(__name__)
+
 
 @nonoverlapping_task(track_started=True, name="sync_classifier_intents", lock_timeout=300)
 def sync_classifier_intents(id=None):

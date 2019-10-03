@@ -29,7 +29,7 @@ from temba.api.v2.views_base import (
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.classifiers.models import Classifier, Intent
+from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
@@ -1146,6 +1146,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
                 },
             ],
         }
+
 
 class ClassifiersEndpoint(ListAPIMixin, BaseAPIView):
     """

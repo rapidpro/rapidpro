@@ -13,7 +13,4 @@ for cl_type in Classifier.get_types():
     if cl_urls:
         type_urls.append(url("^%s/" % cl_type.slug, include(cl_urls)))
 
-urlpatterns = [
-    url(r"^", include(ClassifierCRUDL().as_urlpatterns())),
-    url(r"^classifiers/types/", include(type_urls)),
-]
+urlpatterns = [url(r"^", include(ClassifierCRUDL().as_urlpatterns())), url(r"^classifiers/types/", include(type_urls))]

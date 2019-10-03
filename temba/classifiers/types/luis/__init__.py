@@ -1,1 +1,1 @@
-from .type import LuisType
+from .type import LuisType  # noqa

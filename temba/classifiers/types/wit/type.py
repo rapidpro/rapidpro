@@ -2,14 +2,14 @@ from ...models import ClassifierType, Intent, ClassifierLog
 from .views import ConnectView
 
 import requests
-from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
-from requests_toolbelt.utils import dump
+
 
 class WitType(ClassifierType):
     """
     Type for classifiers from Wit.ai
     """
+
     CONFIG_ACCESS_TOKEN = "access_token"
     CONFIG_APP_ID = "app_id"
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-03 16:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1972,6 +1972,46 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
+msgid "The name of your Luis app"
+msgstr ""
+
+msgid "The id for your Luis app"
+msgstr ""
+
+msgid "The name of the version of your Luis app to use"
+msgstr ""
+
+msgid "The primary key for your Luis app"
+msgstr ""
+
+msgid "The endpoint URL for your Luis app"
+msgstr ""
+
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr ""
+
+msgid "Your app's name"
+msgstr ""
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr ""
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, python-brace-format
+msgid "Connect {self.classifier_type.name}"
+msgstr ""
+
+msgid "Classifiers"
+msgstr ""
+
 msgid "Phone number"
 msgstr ""
 
@@ -3680,6 +3720,9 @@ msgid "Logout"
 msgstr ""
 
 msgid "Add Channel"
+msgstr ""
+
+msgid "Add Classifier"
 msgstr ""
 
 msgid "Import"
@@ -5505,6 +5548,27 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+msgid "Connect a Classifier"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"            You can connect a classifier to your %(brand)s account to classify responses in flows. Just choose your\n"
+"            provider below then follow the steps to get started.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Intents are synced every 15 minutes."
+msgstr ""
+
+msgid "No synced intents at this time."
 msgstr ""
 
 msgid "Hold up!"

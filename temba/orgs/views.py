@@ -2171,7 +2171,10 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("classifiers.classifier_read"):
                 formax.add_section(
-                    "classifier", reverse("classifiers.classifier_read", args=[classifier.uuid]), icon=classifier.get_type().icon, action="link"
+                    "classifier",
+                    reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                    icon=classifier.get_type().icon,
+                    action="link",
                 )
 
         def derive_formax_sections(self, formax, context):
