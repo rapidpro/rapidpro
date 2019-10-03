@@ -2,16 +2,17 @@ import { customElement, TemplateResult, html, css, property } from 'lit-element'
 import { getUrl } from '../utils';
 import axios, { AxiosResponse, CancelTokenSource, AxiosStatic } from 'axios';
 import '../options/Options';
-import RapidElement, { EventHandler } from '../RapidElement';
-import { CustomEventType } from '../interfaces';
+import { EventHandler } from '../RapidElement';
+import FormElement from '../FormElement';
 import TextInput from '../textinput/TextInput';
 
 import flru from 'flru';
+import { CustomEventType } from '../interfaces';
 
 const LOOK_AHEAD = 20;
 
 @customElement("rp-select")
-export default class Select extends RapidElement {
+export default class Select extends FormElement {
 
   static get styles() {
     return css`
@@ -134,7 +135,7 @@ export default class Select extends RapidElement {
 
       input {
         cursor: pointer;
-        padding: 4px 4px;
+        padding: 5px 4px;
         font-size: 13px;
         background: none;
         color: var(--color-text);
@@ -154,14 +155,17 @@ export default class Select extends RapidElement {
   @property({type: Boolean})
   searchOnFocus: boolean = false;
 
-  @property({type: Array})
-  selected: any[] = [];
-
   @property()
   placeholder: string = '';
 
   @property()
+  name: string = '';
+
+  @property()
   endpoint: string;
+
+  @property()
+  queryParam: string;
 
   @property({type: String})
   input: string = '';
@@ -210,7 +214,7 @@ export default class Select extends RapidElement {
   private complete: boolean;
   private page: number;
   private query: string;
-
+  
   private lruCache = flru(20);
 
   public constructor() {
@@ -220,18 +224,11 @@ export default class Select extends RapidElement {
   public updated(changedProperties: Map<string, any>) {
     super.updated(changedProperties);
 
-    if (changedProperties.has("selected")) {
-      this.input = "";
-      /* if (!this.multi) {
-        (this.shadowRoot.querySelector("input") as HTMLInputElement).blur();
-      }*/
-    }
-
-    if (changedProperties.has("input") && !changedProperties.has("selected")) {
-
+    if (changedProperties.has("input") && !changedProperties.has("values")) {
       if (this.lastQuery) {
         window.clearTimeout(this.lastQuery);
       }
+
       this.lastQuery = window.setTimeout(()=>{
         this.fetchOptions(this.input);
       }, this.quietMillis);
@@ -252,19 +249,14 @@ export default class Select extends RapidElement {
     const selected = event.detail.selected;
     
     if (this.multi) {
-      this.selected.push(selected);
+      this.addValue(selected);
     } else {
-      this.selected = [selected];
+      this.setValue(selected);
     }
 
-    this.requestUpdate("selected");
     this.options = [];
     this.input = '';
     this.selectedIndex = -1;
-
-    // event.stopPropagation();
-    // event.preventDefault();
-
   }
 
   private getOptionsDefault(response: AxiosResponse): any[] {
@@ -276,16 +268,16 @@ export default class Select extends RapidElement {
   }
 
   private removeSelection(selectionToRemove: any): void {
-    this.selected = this.selected.filter((selection: any) => selection !== selectionToRemove)
+    this.removeValue(selectionToRemove)
     this.options = [];
   }
 
   private setOptions(options: any[]) {
     // filter out any options already selected by id
     // TODO: should maybe be doing a deep equals here with option to optimize
-    if (this.selected.length > 0) {
-      if (this.selected[0].id) {
-        this.options = options.filter(option=>!this.selected.find(selected=>selected.id === option.id));
+    if (this.values.length > 0) {
+      if (this.values[0].id) {
+        this.options = options.filter(option=>!this.values.find(selected=>selected.id === option.id));
         return;
       }
     }
@@ -314,7 +306,7 @@ export default class Select extends RapidElement {
       const CancelToken = axios.CancelToken;
       this.cancelToken = CancelToken.source();
 
-      let url = this.endpoint + encodeURIComponent(query);
+      let url = this.endpoint + "&" + this.queryParam + "=" + encodeURIComponent(query);
       if (page){
         url += "&page=" + page;
       }
@@ -381,11 +373,10 @@ export default class Select extends RapidElement {
       }
 
       if (this.selectedIndex === -1) {
-        this.selectedIndex = this.selected.length - 1;
+        this.selectedIndex = this.values.length - 1;
         this.options = [];
       } else {
-        this.selected.pop();
-        this.requestUpdate("selected");
+        this.popValue();
         this.selectedIndex = -1;
       }
     } else {
@@ -421,6 +412,7 @@ export default class Select extends RapidElement {
   }
 
   public firstUpdated(changedProperties: any) {
+    super.firstUpdated(changedProperties);
     this.anchorElement = this.shadowRoot.querySelector(".select-container");
   }
 
@@ -442,7 +434,7 @@ export default class Select extends RapidElement {
       <div class="select-container" @click=${this.handleContainerClick}>
         <div class="left">
           <div class="selected ${this.multi ? 'multi' : 'single'}">
-            ${this.selected.map((selected: any, index: number)=>html`
+            ${this.values.map((selected: any, index: number)=>html`
               <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
                 <div class="remove-item" @click=${(evt: MouseEvent)=>{ 
                   evt.preventDefault(); 
@@ -459,7 +451,7 @@ export default class Select extends RapidElement {
               @focus=${this.handleFocus} 
               @click=${this.handleClick}
               type="text" 
-              placeholder=${this.selected.length === 0 ? this.placeholder : ""} 
+              placeholder=${this.values.length === 0 ? this.placeholder : ""} 
               .value=${this.input} />
           </div>
         </div>

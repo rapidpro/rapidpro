@@ -133,7 +133,7 @@ def omnibox_mixed_search(org, search, types):
         if search:
             # we use trigrams on Elasticsearch, minimum required length for a term is 3
             filtered_search_terms = (
-                search_term for search_term in search_terms if search_term != "" and len(search_term) >= 3
+                search_term for search_term in search_terms if search_term != ""  # and len(search_term) >= 3
             )
 
             must_condition = [{"match_phrase": {"urns.path": search_term}} for search_term in filtered_search_terms]
@@ -189,8 +189,6 @@ def omnibox_results_to_dict(org, results, version="1"):
 
     groups = [r for r in results if isinstance(r, ContactGroup)]
     group_counts = ContactGroupCount.get_totals(groups) if groups else {}
-
-    print(list(results))
 
     for obj in results:
         if isinstance(obj, ContactGroup):

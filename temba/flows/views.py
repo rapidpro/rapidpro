@@ -35,7 +35,8 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.fields import OmniboxField
+
+# from temba.contacts.fields import OmniboxField
 from temba.contacts.models import TEL_SCHEME, WHATSAPP_SCHEME, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
@@ -47,6 +48,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
+from temba.utils.fields import JSONField, OmniboxChoice
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
@@ -1788,13 +1790,12 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
-
                 super().__init__(*args, **kwargs)
-                self.fields["omnibox"].set_user(self.user)
 
-            omnibox = OmniboxField(
+            omnibox = JSONField(
                 label=_("Contacts & Groups"),
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
             )
 
             restart_participants = forms.BooleanField(
@@ -1813,10 +1814,19 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
-                if not starting["groups"] and not starting["contacts"]:  # pragma: needs cover
+
+                if not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
-                return starting
+                # convert to groups and contacts
+                org = self.user.get_org()
+                group_ids = [item["id"] for item in starting if item["type"] == "group"]
+                contact_ids = [item["id"] for item in starting if item["type"] == "contact"]
+
+                return {
+                    "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
+                    "contacts": Contact.objects.filter(uuid__in=contact_ids, org=org, is_active=True),
+                }
 
             def clean(self):
                 cleaned = super().clean()

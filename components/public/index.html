@@ -53,6 +53,7 @@
         /* light text goes over dark, dark over lights */
         --color-text-light: rgba(255,255,255,.92);
         --color-text-dark: rgba(0,0,0,.5);
+        --color-text-dark-secondary: rgba(0,0,0,.2);
 
         /* --color-selection: #3875d7; */
         --color-selection: rgb(var(--primary-rgb));
@@ -96,7 +97,10 @@
       <div style="position:relative">    
         <div style="padding:20px; overflow-y: scroll;">
           <rp-omnibox 
-            endpoint="http://localhost:8888/contact/omnibox/?types=cgu&v=2&search="
+            name="omni"
+            endpoint="http://localhost:8888/contact/omnibox/?v=2&search="
+            contacts
+            groups
           ></rp-select>
         </div>
       </div>
