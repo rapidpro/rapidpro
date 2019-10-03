@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-03 16:04+0000\n"
+"POT-Creation-Date: 2019-10-03 17:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5568,7 +5568,22 @@ msgstr ""
 msgid "Intents are synced every 15 minutes."
 msgstr ""
 
+msgid "Classifier Log"
+msgstr ""
+
 msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Classifier Events"
+msgstr ""
+
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Classifier: "
+msgstr ""
+
+msgid "Classifier Event"
 msgstr ""
 
 msgid "Hold up!"

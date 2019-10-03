@@ -77,6 +77,9 @@ class Classifier(TembaModel):
     # the org this classifier is part of
     org = models.ForeignKey("orgs.Org", null=False, on_delete=models.PROTECT)
 
+    def __str__(self):
+        return self.get_type().name + " - " + self.name
+
     def get_type(self):
         from .types import TYPES
 
@@ -129,6 +132,9 @@ class Intent(models.Model):
 
     class Meta:
         unique_together = (("classifier", "external_id"),)
+
+    def __str__(self):
+        return self.name
 
     @classmethod
     def refresh_intents(cls, classifier):
@@ -209,9 +215,19 @@ class ClassifierLog(models.Model):
     # when this was created
     created_on = models.DateTimeField(null=False, default=timezone.now)
 
+    def method(self):
+        if self.request:
+            return self.request.split(" ")[0]
+        return None
+
+    def status_code(self):
+        if self.response:
+            return self.response.split(" ")[1]
+        return None
+
     @classmethod
     def from_response(cls, classifier, url, response, success_desc, failure_desc):
-        is_error = response.status_code == 200
+        is_error = response.status_code != 200
         description = failure_desc if is_error else success_desc
 
         data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
@@ -223,9 +239,9 @@ class ClassifierLog(models.Model):
 
         for line in lines:
             if line.startswith(">>> "):
-                request_lines.append(line)
+                request_lines.append(line[4:])
             else:
-                response_lines.append(line)
+                response_lines.append(line[4:])
 
         request = "\r\n".join(request_lines)
         response = "\r\n".join(response_lines)

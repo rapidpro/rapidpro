@@ -19,6 +19,9 @@
   .header-margin
     -trans "Intents are synced every 15 minutes."
 
+  %a.btn.btn-tiny(href="{% url 'classifiers.classifierlog_list' classifier.uuid %}")
+    -trans "Classifier Log"
+
 -block content
   %table#intents
     -for intent in object.active_intents

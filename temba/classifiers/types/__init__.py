@@ -26,7 +26,7 @@ def reload_classifier_types():
     """
     global TYPES
 
-    TYPES = []
+    TYPES = OrderedDict({})
     for class_name in settings.CLASSIFIER_TYPES:
         register_classifier_type(import_string(class_name))
 

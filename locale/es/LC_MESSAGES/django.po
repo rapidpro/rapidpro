@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-03 16:04+0000\n"
+"POT-Creation-Date: 2019-10-03 17:11+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7655,8 +7655,30 @@ msgstr ""
 msgid "Intents are synced every 15 minutes."
 msgstr ""
 
+msgid "Classifier Log"
+msgstr ""
+
 msgid "No synced intents at this time."
 msgstr ""
+
+#, fuzzy
+msgid "Classifier Events"
+msgstr "Evento del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Classifier: "
+msgstr "Conectar Vumi"
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evento del transmisor"
 
 msgid "Hold up!"
 msgstr "¡Espere!"

@@ -1,7 +1,7 @@
 from django.conf.urls import include, url
 
 from .models import Classifier
-from .views import ClassifierCRUDL
+from .views import ClassifierCRUDL, ClassifierLogCRUDL
 
 # build up all the type specific urls
 type_urls = []
@@ -13,4 +13,8 @@ for cl_type in Classifier.get_types():
     if cl_urls:
         type_urls.append(url("^%s/" % cl_type.slug, include(cl_urls)))
 
-urlpatterns = [url(r"^", include(ClassifierCRUDL().as_urlpatterns())), url(r"^classifiers/types/", include(type_urls))]
+urlpatterns = [
+    url(r"^", include(ClassifierCRUDL().as_urlpatterns())),
+    url(r"^", include(ClassifierLogCRUDL().as_urlpatterns())),
+    url(r"^classifiers/types/", include(type_urls)),
+]

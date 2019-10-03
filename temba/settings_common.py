@@ -526,6 +526,8 @@ GROUP_PERMISSIONS = {
         "archives.archive.*",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
+        "classifiers.classifierlog_list",
+        "classifiers.classifierlog_read",
         "classifiers.classifier_api",
         "classifiers.classifier_connect",
         "classifiers.classifier_read",
