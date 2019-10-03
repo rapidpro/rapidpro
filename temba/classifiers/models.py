@@ -5,6 +5,7 @@ from django.conf.urls import url
 from django.utils import timezone
 from abc import ABCMeta
 from django.template import Engine
+from requests_toolbelt.utils import dump
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +115,6 @@ class Intent(models.Model):
     # the classifier this intent is tied to
     classifier = models.ForeignKey(Classifier, related_name="intents", on_delete=models.PROTECT)
 
-    # we generate UUIDs for unique intents so that they fit our resource model
-    uuid = models.UUIDField(null=False, unique=True)
-
     # the name of the intent
     name = models.CharField(max_length=255, null=False)
 
@@ -167,7 +165,7 @@ class Intent(models.Model):
 
             elif not existing:
                 existing = Intent.objects.create(
-                    is_active=True, classifier=classifier, uuid=generate_uuid(), name=intent.name,
+                    is_active=True, classifier=classifier, name=intent.name,
                     external_id=intent.external_id, created_on=timezone.now())
 
         # deactivate any intent we haven't seen
@@ -183,8 +181,14 @@ class ClassifierLog(models.Model):
     # the classifier this log is for
     classifier = models.ForeignKey(Classifier, null=False, related_name="logs", on_delete=models.PROTECT)
 
-    # the full body of the requests / responses
-    log = models.TextField(null=False)
+    # the url that was called
+    url = models.URLField(null=False)
+
+    # the request that was made
+    request = models.TextField(null=False)
+
+    # the response received
+    response = models.TextField(null=False)
 
     # whether this was an error
     is_error = models.BooleanField(null=False)
@@ -192,5 +196,35 @@ class ClassifierLog(models.Model):
     # a short description of the result
     description = models.CharField(max_length=255, null=False)
 
+    # how long this request took in milliseconds
+    request_time = models.IntegerField(null=False)
+
     # when this was created
     created_on = models.DateTimeField(null=False, default=timezone.now)
+
+    @classmethod
+    def from_response(cls, classifier, url, response, success_desc, failure_desc):
+        is_error = response.status_code == 200
+        description = failure_desc if is_error else success_desc
+
+        data = dump.dump_response(response, request_prefix='>>> ', response_prefix='<<< ').decode('utf-8')
+
+        logs = []
+
+        # split by lines
+        lines = data.split("\r\n")
+        request_lines = []
+        response_lines = []
+
+        for line in lines:
+            if line.startswith(">>> "):
+                request_lines.append(line)
+            else:
+                response_lines.append(line)
+
+        request = "\r\n".join(request_lines)
+        response = "\r\n".join(response_lines)
+
+        return ClassifierLog(classifier=classifier, url=url, request=request, response=response,
+                             is_error=is_error, description=description, created_on=timezone.now())
+

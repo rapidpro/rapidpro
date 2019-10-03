@@ -22,6 +22,8 @@ class WitType(ClassifierType):
     Connect your Wit.ai app to classify messages in your flow.
     """
 
+    INTENT_URL = "https://api.wit.ai/entities/intent"
+
     @classmethod
     def get_active_intents_from_api(cls, classifier, logs):
         """
@@ -31,17 +33,13 @@ class WitType(ClassifierType):
         access_token = classifier.config.get(cls.CONFIG_ACCESS_TOKEN)
         assert access_token is not None
 
-        response = requests.get("https://api.wit.ai/entities/intent",
-                                headers={"Authorization": f"Bearer {access_token}"})
+        start = timezone.now()
+        response = requests.get(cls.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
+        elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        is_error = response.status_code != 200
-        description = _("Syncing Error") if is_error else _("Synced Intents")
-
-        log = dump.dump_all(response).decode('utf-8')
-        logs.append((
-            ClassifierLog(classifier=classifier, log=log,
-                          is_error=is_error, description=description, created_on=timezone.now()))
-        )
+        log = ClassifierLog.from_response(classifier, cls.INTENT_URL, response, "Synced Intents", "Syncing Error")
+        log.request_time = elapsed
+        logs.append(log)
 
         response_json = response.json()
 
