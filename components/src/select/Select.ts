@@ -113,12 +113,15 @@ export default class Select extends FormElement {
 
       .selected.multi .selected-item {
         white-space: nowrap;
-        margin: 2px;
         vertical-align: middle;
         background: rgba(100, 100, 100, .1);
         user-select: none; 
         border-radius: 2px;
-        vertical-align: middle;
+        display: flex;
+        align-items: stretch;
+        flex-direction: row;
+
+        margin: 2px;
         
       }
 
@@ -127,6 +130,8 @@ export default class Select extends FormElement {
         font-size: 90%;
         margin: 0;
         display: inline-block;
+        flex: 1;
+        align-self: center;
       }
 
       .selected.multi .selected-item.focused {

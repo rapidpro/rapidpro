@@ -2889,9 +2889,12 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
+
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": "c-%s" % contact.uuid, "restart_participants": "on", "include_active": "on"},
+                {"omnibox": selection, "restart_participants": "on", "include_active": "on"},
                 follow=True,
             )
 
@@ -2908,9 +2911,7 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
-            self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
-            )
+            self.client.post(reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": selection}, follow=True)
 
             start = FlowStart.objects.get()
             self.assertEqual({contact}, set(start.contacts.all()))
@@ -2924,7 +2925,7 @@ class FlowCRUDLTest(TembaTest):
         # trying to start again should fail because there is already a pending start for this flow
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": "c-%s" % contact.uuid}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": selection}, follow=True
             )
 
             # should have an error now
