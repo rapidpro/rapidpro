@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-03 22:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4019,6 +4019,11 @@ msgstr "Contactos y grupos"
 
 msgid "These contacts will be added to the flow, sending the first message if appropriate."
 msgstr "Estos contactos serán agregados al flujo, enviando el primer mensaje, según convenga."
+
+#, fuzzy
+#| msgid "Create Contact Group"
+msgid "Recipients, enter contacts or groups"
+msgstr "Crear Grupo de Contactos"
 
 msgid "Restart Participants"
 msgstr "Reiniciar Participantes"

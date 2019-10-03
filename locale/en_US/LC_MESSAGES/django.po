@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-03 22:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2769,6 +2769,9 @@ msgid "Contacts & Groups"
 msgstr ""
 
 msgid "These contacts will be added to the flow, sending the first message if appropriate."
+msgstr ""
+
+msgid "Recipients, enter contacts or groups"
 msgstr ""
 
 msgid "Restart Participants"
