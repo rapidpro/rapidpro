@@ -1,0 +1,97 @@
+from temba.tests import TembaTest
+
+from .models import Classifier, ClassifierLog
+from .types.wit import WitType
+from .types.luis import LuisType
+from django.utils import timezone
+from django.urls import reverse
+
+
+class ClassifierTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+        self.setUpSecondaryOrg()
+
+        # create some classifiers
+        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
+        self.c1.intents.create(
+            name="book_flight", external_id="book_flight", created_on=timezone.now(), is_active=True
+        )
+        self.c1.intents.create(name="book_hotel", external_id="book_hotel", created_on=timezone.now(), is_active=False)
+        self.c1.intents.create(name="book_car", external_id="book_car", created_on=timezone.now(), is_active=True)
+
+        self.c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {})
+        self.c2.is_active = False
+        self.c2.save()
+
+        # on another org
+        self.c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
+
+    def test_templates(self):
+        # fetch org home page
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_home"))
+
+        # should contain classifier
+        self.assertContains(response, "Booker")
+        self.assertNotContains(response, "Old Booker")
+        self.assertNotContains(response, "Org 2 Booker")
+
+        read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
+        self.assertContains(response, read_url)
+
+        # read page
+        response = self.client.get(read_url)
+
+        # contains intents
+        self.assertContains(response, "book_flight")
+        self.assertNotContains(response, "book_hotel")
+        self.assertContains(response, "book_car")
+
+        log_url = reverse("classifiers.classifierlog_list", args=[self.c1.uuid])
+        self.assertContains(response, log_url)
+
+        # create some logs
+        l1 = ClassifierLog.objects.create(
+            classifier=self.c1,
+            url="http://org1.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            description="Sync Success",
+            request_time=10,
+        )
+
+        ClassifierLog.objects.create(
+            classifier=self.c3,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            description="Sync Failure",
+            request_time=10,
+        )
+
+        ClassifierLog.objects.create(
+            classifier=self.c2,
+            url="http://org2.bar/zap",
+            request="GET /zap",
+            response=" OK 200",
+            is_error=False,
+            description="Sync Error",
+            request_time=10,
+        )
+
+        response = self.client.get(log_url)
+        self.assertEqual(1, len(response.context["object_list"]))
+        self.assertContains(response, "Sync Success")
+        self.assertNotContains(response, "Sync Failure")
+        self.assertNotContains(response, "Sync Error")
+
+        log_url = reverse("classifiers.classifierlog_read", args=[l1.id])
+        self.assertContains(response, log_url)
+
+        response = self.client.get(log_url)
+        self.assertContains(response, "200")
+        self.assertContains(response, "http://org1.bar/zap")
+        self.assertNotContains(response, "http://org2.bar/zap")

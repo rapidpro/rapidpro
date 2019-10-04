@@ -2675,7 +2675,7 @@ class TopUpCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )
