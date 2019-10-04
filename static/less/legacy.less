@@ -1201,14 +1201,20 @@ table.list-table {
       }
 
       &.icon-nav-help-inverted {
-        &:before {
-          content: "\e90e";
+        &.active:before {
+          content: "\e90f";
+        }
+        &:hover:before {
+          content: "\e90f";
         }
       }
 
       &.icon-nav-help {
-        &:before {
-          content: "\e90f";
+        &.active:before {
+          content: "\e90e";
+        }
+        &:hover:before {
+          content: "\e90e";
         }
       }
 
