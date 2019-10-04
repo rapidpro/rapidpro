@@ -22,6 +22,9 @@ from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
+from temba.classifiers.models import Classifier
+from temba.classifiers.types.wit import WitType
+from temba.classifiers.types.luis import LuisType
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import BoundaryAlias
@@ -3856,6 +3859,42 @@ class APITest(TembaTest):
                     ],
                     "created_on": format_datetime(tt.template.created_on),
                     "modified_on": format_datetime(tt.template.modified_on),
+                }
+            ],
+        )
+
+    def test_classifiers(self):
+        url = reverse("api.v2.classifiers")
+        self.assertEndpointAccess(url)
+
+        # create some classifiers
+        c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
+        c1.intents.create(name="book_flight", external_id="book_flight", created_on=timezone.now(), is_active=True)
+        c1.intents.create(name="book_hotel", external_id="book_hotel", created_on=timezone.now(), is_active=False)
+        c1.intents.create(name="book_car", external_id="book_car", created_on=timezone.now(), is_active=True)
+
+        c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {})
+        c2.is_active = False
+        c2.save()
+
+        c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "name": "Booker",
+                    "type": "wit",
+                    "uuid": str(c1.uuid),
+                    "intents": ["book_car", "book_flight"],
+                    "created_on": format_datetime(c1.created_on),
                 }
             ],
         )
