@@ -29,18 +29,11 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = ("read", "list", "connect")
+    actions = ("read", "connect")
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
-
-        def get_queryset(self, **kwargs):
-            queryset = super().get_queryset(**kwargs)
-            return queryset.filter(org=self.request.user.get_org(), is_active=True)
-
-    class List(OrgPermsMixin, SmartListView):
-        title = _("Classifiers")
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)

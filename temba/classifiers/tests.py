@@ -1,10 +1,43 @@
-from temba.tests import TembaTest
+from temba.tests import MockResponse, TembaTest
+
+from unittest.mock import patch
 
 from .models import Classifier, ClassifierLog
+from .tasks import sync_classifier_intents
 from .types.wit import WitType
 from .types.luis import LuisType
 from django.utils import timezone
 from django.urls import reverse
+
+INTENT_RESPONSE = """
+{
+  "builtin": false,
+  "name": "intent",
+  "doc": "User-defined entity",
+  "id": "ef9236ec-22c7-e96b-6b29-886c94d23953",
+  "lang": "en",
+  "lookups": [
+    "trait"
+  ],
+  "values": [
+    {
+      "value": "book_car",
+      "expressions": [
+      ]
+    },
+    {
+      "value": "book_hotel",
+      "expressions": [
+      ]
+    },
+    {
+      "value": "book_horse",
+      "expressions": [
+      ]
+    }
+  ]
+}
+"""
 
 
 class ClassifierTest(TembaTest):
@@ -26,6 +59,38 @@ class ClassifierTest(TembaTest):
 
         # on another org
         self.c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
+
+    def test_syncing(self):
+        # will fail due to missing keys
+        sync_classifier_intents(self.c1.id)
+
+        # no intents should have been changed / removed as this was an error
+        self.assertEqual(2, self.c1.active_intents().count())
+
+        # ok, fix our config
+        self.c1.config = {WitType.CONFIG_ACCESS_TOKEN: "sesasme", WitType.CONFIG_APP_ID: "1234"}
+        self.c1.save()
+
+        # try again
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
+            sync_classifier_intents(self.c1.id)
+
+            # should have three active intents
+            intents = self.c1.active_intents()
+            self.assertEqual(3, intents.count())
+            self.assertEqual("book_car", intents[0].name)
+            self.assertEqual("book_car", intents[0].external_id)
+            self.assertEqual("book_horse", intents[1].name)
+            self.assertEqual("book_horse", intents[1].external_id)
+            self.assertEqual("book_hotel", intents[2].name)
+            self.assertEqual("book_hotel", intents[2].external_id)
+
+            # one inactive
+            self.assertEqual(1, self.c1.intents.filter(is_active=False).count())
+
+            # one classifier log
+            self.assertEqual(1, ClassifierLog.objects.filter(classifier=self.c1).count())
 
     def test_templates(self):
         # fetch org home page

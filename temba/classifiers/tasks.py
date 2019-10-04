@@ -2,7 +2,7 @@ import logging
 
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Classifier, Intent
+from .models import Classifier
 
 logger = logging.getLogger(__name__)
 
@@ -15,4 +15,4 @@ def sync_classifier_intents(id=None):
 
     # for each classifier, refresh our intents
     for classifier in classifiers:
-        Intent.refresh_intents(classifier)
+        classifier.refresh_intents()

@@ -81,15 +81,76 @@ class Classifier(TembaModel):
         return self.get_type().name + " - " + self.name
 
     def get_type(self):
+        """
+        Returns the type instance for this classifier
+        """
         from .types import TYPES
 
         return TYPES[self.classifier_type]
 
     def active_intents(self):
-        return self.intents.filter(is_active=True).order_by("created_on")
+        """
+        Returns the list of active intents on this classifier
+        """
+        return self.intents.filter(is_active=True).order_by("name")
+
+    def refresh_intents(self):
+        """
+        Refresh intents fetches the current intents from the classifier API and updates
+        the DB appropriately to match them, inserting logs for all interactions.
+        """
+        # get the current intents from the API
+        logs = []
+        intents = None
+
+        try:
+            intents = self.get_type().get_active_intents_from_api(self, logs)
+        except Exception as e:
+            logger.error("error getting intents for classifier", e)
+
+        # insert our logs
+        for log in logs:
+            log.save()
+
+        # if we were returned None as intents, then we had an error, log but don't actually update our intents
+        if intents is None:
+            return
+
+        # external ids we have seen
+        seen = []
+
+        # for each intent
+        for intent in intents:
+            assert intent.external_id is not None
+            assert intent.name != "" and intent.name is not None
+
+            seen.append(intent.external_id)
+
+            existing = self.intents.filter(external_id=intent.external_id).first()
+            if existing:
+                # previously existed, reactive it
+                if not existing.is_active:
+                    existing.is_active = True
+                    existing.save(update_fields=["is_active"])
+
+            elif not existing:
+                existing = Intent.objects.create(
+                    is_active=True,
+                    classifier=self,
+                    name=intent.name,
+                    external_id=intent.external_id,
+                    created_on=timezone.now(),
+                )
+
+        # deactivate any intent we haven't seen
+        self.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
 
     @classmethod
     def get_types(cls):
+        """
+        Returns the possible types available for classifiers
+        :return:
+        """
         from .types import TYPES
 
         return TYPES.values()
@@ -135,54 +196,6 @@ class Intent(models.Model):
 
     def __str__(self):
         return self.name
-
-    @classmethod
-    def refresh_intents(cls, classifier):
-        # get the current intents from the API
-        logs = []
-        intents = None
-
-        try:
-            intents = classifier.get_type().get_active_intents_from_api(classifier, logs)
-        except Exception as e:
-            logger.error("error getting intents for classifier", e)
-
-        # insert our logs
-        for log in logs:
-            log.save()
-
-        # if we were returned None as intents, then we had an error, log but don't actually update our intents
-        if intents is None:
-            return
-
-        # external ids we have seen
-        seen = []
-
-        # for each intent
-        for intent in intents:
-            assert intent.external_id is not None
-            assert intent.name != "" and intent.name is not None
-
-            seen.append(intent.external_id)
-
-            existing = Intent.objects.filter(classifier=classifier, external_id=intent.external_id).first()
-            if existing:
-                # previously existed, reactive it
-                if not existing.is_active:
-                    existing.is_active = True
-                    existing.save(update_fields=["is_active"])
-
-            elif not existing:
-                existing = Intent.objects.create(
-                    is_active=True,
-                    classifier=classifier,
-                    name=intent.name,
-                    external_id=intent.external_id,
-                    created_on=timezone.now(),
-                )
-
-        # deactivate any intent we haven't seen
-        classifier.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
 
 
 class ClassifierLog(models.Model):
