@@ -77,9 +77,6 @@ class Classifier(TembaModel):
     # the org this classifier is part of
     org = models.ForeignKey("orgs.Org", null=False, on_delete=models.PROTECT)
 
-    def __str__(self):
-        return self.get_type().name + " - " + self.name
-
     def get_type(self):
         """
         Returns the type instance for this classifier
@@ -194,9 +191,6 @@ class Intent(models.Model):
     class Meta:
         unique_together = (("classifier", "external_id"),)
 
-    def __str__(self):
-        return self.name
-
 
 class ClassifierLog(models.Model):
     """
@@ -229,14 +223,10 @@ class ClassifierLog(models.Model):
     created_on = models.DateTimeField(null=False, default=timezone.now)
 
     def method(self):
-        if self.request:
-            return self.request.split(" ")[0]
-        return None
+        return self.request.split(" ")[0] if self.request else None
 
     def status_code(self):
-        if self.response:
-            return self.response.split(" ")[1]
-        return None
+        return self.response.split(" ")[1] if self.response else None
 
     @classmethod
     def from_response(cls, classifier, url, response, success_desc, failure_desc):
