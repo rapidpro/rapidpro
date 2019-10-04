@@ -30,8 +30,7 @@ class WitType(ClassifierType):
         Gets the current intents defined by this app. In Wit intents are treated as a special case of an entity. We
         fetch the possible values for that entity.
         """
-        access_token = classifier.config.get(cls.CONFIG_ACCESS_TOKEN)
-        assert access_token is not None
+        access_token = classifier.config[cls.CONFIG_ACCESS_TOKEN]
 
         start = timezone.now()
         response = requests.get(cls.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
@@ -41,6 +40,7 @@ class WitType(ClassifierType):
         log.request_time = elapsed
         logs.append(log)
 
+        response.raise_for_status()
         response_json = response.json()
 
         intents = []

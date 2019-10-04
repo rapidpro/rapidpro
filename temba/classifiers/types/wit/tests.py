@@ -7,8 +7,59 @@ from temba.tests import MockResponse, TembaTest
 
 from .type import WitType
 
+INTENT_RESPONSE = """
+{
+  "builtin": false,
+  "name": "intent",
+  "doc": "User-defined entity",
+  "id": "ef9236ec-22c7-e96b-6b29-886c94d23953",
+  "lang": "en",
+  "lookups": [
+    "trait"
+  ],
+  "values": [
+    {
+      "value": "book_car",
+      "expressions": [
+      ]
+    },
+    {
+      "value": "book_flight",
+      "expressions": [
+      ]
+    }
+  ]
+}
+"""
+
 
 class WitTypeTest(TembaTest):
+    def test_sync(self):
+        c = Classifier.create(
+            self.org,
+            self.user,
+            WitType.slug,
+            "Booker",
+            {WitType.CONFIG_APP_ID: "12345", WitType.CONFIG_ACCESS_TOKEN: "sesame"},
+        )
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(400, '{ "error": "true" }')
+            logs = []
+            with self.assertRaises(Exception):
+                WitType.get_active_intents_from_api(c, logs)
+                self.assertEqual(1, len(logs))
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
+            logs = []
+            intents = WitType.get_active_intents_from_api(c, logs)
+            self.assertEqual(1, len(logs))
+            self.assertEqual(2, len(intents))
+            car = intents[0]
+            self.assertEqual("book_car", car.name)
+            self.assertEqual("book_car", car.external_id)
+
     def test_connect(self):
         url = reverse("classifiers.classifier_connect")
         response = self.client.get(url)

@@ -7,8 +7,56 @@ from temba.tests import MockResponse, TembaTest
 
 from .type import LuisType
 
+INTENT_RESPONSE = """
+[
+  {
+    "id": "b1a3c0ad-e912-4b55-a62e-6fcb77751bc5",
+    "name": "Book Car",
+    "typeId": 0,
+    "readableType": "Intent Classifier"
+  },
+  {
+    "id": "326d5197-2161-4daa-aa32-c42c7000c82c",
+    "name": "Book Hotel",
+    "typeId": 0,
+    "readableType": "Intent Classifier"
+  }
+]
+"""
+
 
 class LuisTypeTest(TembaTest):
+    def test_sync(self):
+        c = Classifier.create(
+            self.org,
+            self.user,
+            LuisType.slug,
+            "Booker",
+            {
+                LuisType.CONFIG_APP_ID: "12345",
+                LuisType.CONFIG_PRIMARY_KEY: "sesame",
+                LuisType.CONFIG_ENDPOINT_URL: "http://luis.api",
+                LuisType.CONFIG_VERSION: "0.1",
+            },
+        )
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(400, '{ "error": "true" }')
+            logs = []
+            with self.assertRaises(Exception):
+                LuisType.get_active_intents_from_api(c, logs)
+                self.assertEqual(1, len(logs))
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
+            logs = []
+            intents = LuisType.get_active_intents_from_api(c, logs)
+            self.assertEqual(1, len(logs))
+            self.assertEqual(2, len(intents))
+            car = intents[0]
+            self.assertEqual("Book Car", car.name)
+            self.assertEqual("b1a3c0ad-e912-4b55-a62e-6fcb77751bc5", car.external_id)
+
     def test_connect(self):
         url = reverse("classifiers.classifier_connect")
         response = self.client.get(url)

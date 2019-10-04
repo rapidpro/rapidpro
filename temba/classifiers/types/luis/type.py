@@ -44,6 +44,7 @@ class LuisType(ClassifierType):
         log.request_time = elapsed
         logs.append(log)
 
+        response.raise_for_status()
         response_json = response.json()
 
         intents = []
