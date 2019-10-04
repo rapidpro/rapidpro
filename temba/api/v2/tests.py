@@ -3877,7 +3877,8 @@ class APITest(TembaTest):
         c2.is_active = False
         c2.save()
 
-        c3 = Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
+        # on another org
+        Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):

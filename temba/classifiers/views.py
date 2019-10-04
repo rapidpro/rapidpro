@@ -74,7 +74,11 @@ class ClassifierLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             classifier = self.derive_classifier()
-            return ClassifierLog.objects.filter(classifier=classifier).order_by("-created_on").prefetch_related("classifier")
+            return (
+                ClassifierLog.objects.filter(classifier=classifier)
+                .order_by("-created_on")
+                .prefetch_related("classifier")
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
