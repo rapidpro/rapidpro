@@ -17,11 +17,15 @@ class ConnectView(BaseConnectView):
             from .type import LuisType
 
             cleaned = super().clean()
-            url = cleaned["endpoint_url"]
+
+            if not self.is_valid():
+                return cleaned
+
+            endpoint = cleaned["endpoint_url"]
 
             # try to look up intents
             response = requests.get(
-                url + "/apps/" + cleaned["app_id"] + "/versions/" + cleaned["version"] + "/intents",
+                endpoint + "/apps/" + cleaned["app_id"] + "/versions/" + cleaned["version"] + "/intents",
                 headers={LuisType.AUTH_HEADER: cleaned["primary_key"]},
             )
 

@@ -14,7 +14,11 @@ class ConnectView(BaseConnectView):
         def clean(self):
             cleaned = super().clean()
 
-            # if we got this far basic validation worked, try to look up our app attributes
+            # only continue if base validation passed
+            if not self.is_valid():
+                return cleaned
+
+            # try a basic call to see available entities
             response = requests.get(
                 "https://api.wit.ai/entities", headers={"Authorization": f"Bearer {cleaned['access_token']}"}
             )
@@ -41,7 +45,7 @@ class ConnectView(BaseConnectView):
 
         config = {
             WitType.CONFIG_ACCESS_TOKEN: form.cleaned_data["access_token"],
-            WitType.CONFIG_APP_ID: form.cleaned_data["app_id"],
+            WitType.CONFIG_APP_ID: str(form.cleaned_data["app_id"]),
         }
 
         self.object = Classifier.create(self.org, self.request.user, WitType.slug, form.cleaned_data["name"], config)
