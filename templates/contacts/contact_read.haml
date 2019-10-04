@@ -170,12 +170,22 @@
       %a.pull-right.show-all.upcoming
         more
   // Quick send message, chat style
+  %h5
+    -trans "Compose message"
   #msg-box 
-    %form#send
-      {% csrf_token %}
-      %input#id_text.form-control{type:"text"}
-      %button#id_send.btn.btn-primary{type:"submit"}
-        -trans "Send"
+    -if send_channel
+      %form#send
+        {% csrf_token %}
+        %input#id_text.form-control{type:"text"}
+        %button#id_send.btn.btn-primary{type:"submit"}
+          -trans "Send"
+        #errors
+    -else
+      -blocktrans with name=brand.name
+        To get started you need to add a channel to your account. A channel is a phone number or social network
+        account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+        Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+        directly.
 
   %h5
     -trans "Message History"
@@ -278,6 +288,11 @@
                 margin-top:15px;
               }
             }
+          }
+
+          tr.in {
+            background-color: rgba(86, 157, 155, 0.2);
+            font-style: italic;
           }
 
           tr.end-call {
@@ -452,16 +467,19 @@
           background-color: #fff;
           width: 100%;
 
-           &.sticky {
-            z-index: 100;
+           &.scroll {
+            z-index: 10000;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            padding: 0 50px 10px 50px;
+            padding: 0 20px 10px 20px;
+            box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            -webkit-box-sizing: border-box;
 
              #send {
-              margin: 0 0 65px 0;
+              margin: 0 0 10px 0;
             }
           }
         }
@@ -476,18 +494,23 @@
             display: block;
             width: 100%;
             height: 50px;
-            padding: 0 100px 0 10px;
+            padding: 0 80px 0 10px;
             margin-right: 15px;
             box-sizing: border-box;
             -moz-box-sizing: border-box;
             -webkit-box-sizing: border-box;
           }
 
-           button {
+          button {
             position: absolute;
             top: 0;
             right: 0;
-            height: 50px;
+            height: 100%;
+          }
+          .error {
+            background-color: transparent;
+            color: red;
+            border: none;
           }
         }
 
@@ -501,6 +524,20 @@
     var startTime = null;
 
     $(document).ready(function() {
+      var boxMessage = $('#msg-box');
+      $(window).scroll(function() {
+          if ($(this).scrollTop() > 365) {
+            boxMessage.addClass('scroll');
+          } else {
+            boxMessage.removeClass('scroll');
+          }
+      });
+
+      function goTo(elem) {
+        $('html, body').animate({
+          scrollTop: $(elem).offset().top
+        }, 500);
+      }
 
       $('.show-all.upcoming').live('click', function() {
         $(this).hide();
