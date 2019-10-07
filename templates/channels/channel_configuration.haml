@@ -39,11 +39,13 @@
           {{url.url}}
 
   -if show_public_addresses
+    %hr
+
     %h4
       -trans "IP Addresses"
 
     %p
-      Make sure the following IPs are whitelisted
+      -trans "Additionally you will need to make sure the following IP addresses are whitelisted"
 
     -for ip_address in ip_addresses
       %code= ip_address
