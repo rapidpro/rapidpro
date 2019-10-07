@@ -2,6 +2,7 @@ import { customElement, TemplateResult, html, property, css } from 'lit-element'
 import { CustomEventType } from '../interfaces';
 import RapidElement, { EventHandler } from '../RapidElement';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import { getClasses } from '../utils';
 
 @customElement("rp-options")
 export default class Options extends RapidElement {
@@ -12,15 +13,15 @@ export default class Options extends RapidElement {
         visibility: hidden;
         position: fixed;
         border-radius: var(--curvature-widget);
-        border: 0px solid var(--color-borders);
-        box-shadow: 0px 0px 2px 0px rgb(170, 170, 170);
-        background: #fff;
+        background: var(--color-widget-bg-focused);
+        box-shadow: var(--color-widget-shadow-focused) 0px 0px 2px 1px;
         z-index: 1;
+        user-select: none;        
+        border-radius: var(--curvature-widget);
       }
 
       .options {
         border-radius: var(--curvature-widget);
-        background: #fff;
         overflow-y: scroll;
         max-height: 225px;
         border: none;
@@ -66,6 +67,12 @@ export default class Options extends RapidElement {
   @property({type: Number})
   width: number;
 
+  @property({type: Number})
+  marginHorizontal: number = 1;
+
+  @property({type: Number})
+  marginVertical: number = 3;
+
   @property({type: Object})
   anchorTo: HTMLElement
 
@@ -76,7 +83,10 @@ export default class Options extends RapidElement {
   cursorIndex: number = 0;
 
   @property({type: Array})
-  options: any[]
+  options: any[];
+
+  @property({type: Boolean})
+  poppedTop: boolean;
 
   @property({attribute: false})
   renderOption: (option: any, selected: boolean) => void;
@@ -92,6 +102,7 @@ export default class Options extends RapidElement {
 
     // if our cursor changed, lets make sure our scrollbox is showing it
     if(changedProperties.has("cursorIndex")) {
+
       const focusedEle = this.shadowRoot.querySelector(".focused") as HTMLDivElement;
       if (focusedEle) {
         const scrollBox =  this.shadowRoot.querySelector(".options");
@@ -109,9 +120,12 @@ export default class Options extends RapidElement {
       }
     }
 
+    
     if(changedProperties.has("options")) {
       this.calculatePosition();
-      this.cursorIndex = 0;
+      if (!changedProperties.has("cursorIndex")) {
+        this.setCursor(0);
+      }
     }
   }
 
@@ -178,37 +192,51 @@ export default class Options extends RapidElement {
 
       if (topTop > 0 && anchorBounds.bottom + optionsBounds.height > window.innerHeight) {
         this.top = topTop; //  + window.pageYOffset;
+        this.poppedTop = true;
       } else {
         this.top = anchorBounds.bottom; //  + window.pageYOffset;
+        this.poppedTop = false;
       }
 
       this.left = anchorBounds.left;
-      this.width = anchorBounds.width;
+      this.width = anchorBounds.width - (this.marginHorizontal * 2);
     }
   }
 
   public getEventHandlers(): EventHandler[] {
     return [
-      { event: 'keydown', method: this.handleKeyDown },
-      { event: 'scroll', method: this.calculatePosition }
+      { event: 'keydown', method: this.handleKeyDown, isDocument: true },
+      { event: 'scroll', method: this.calculatePosition, isDocument: true }
     ]
   }
 
   public render(): TemplateResult {
     const renderOption = (this.renderOption || this.renderOptionDefault).bind(this);
 
+    let vertical = this.marginVertical;
+    if (this.poppedTop) {
+      vertical *= -1;
+    }
+
     const containerStyle = {
       top: `${this.top}px`,
       left: `${this.left}px`,
-      width: `${this.width}px`
+      width: `${this.width}px`,
+      'margin-left': `${this.marginHorizontal}px`,
+      'margin-top': `${vertical}px`
     }
 
     const optionsStyle = {
       width: `${this.width}px`
     }
 
+    const classes = getClasses({
+      "show": this.visible,
+      "top": this.poppedTop
+    });
+
     return html`
-      <div class="options-container ${this.visible ? "show": ""}" style=${styleMap(containerStyle)}>
+      <div class="options-container ${classes}" style=${styleMap(containerStyle)}>
         <div class="options" style=${styleMap(optionsStyle)}>
           ${this.options.map((option: any, index: number)=>html`
             <div 

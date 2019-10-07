@@ -48,7 +48,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
-from temba.utils.fields import JSONField, OmniboxChoice
+from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
@@ -1812,6 +1812,14 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Include contacts currently active in a flow"),
             )
 
+            start_type = forms.ChoiceField(
+                label=_("Select contacts or groups to start in the flow"),
+                help_text=_("Select manually, or use a query"),
+                initial=60,
+                choices=IVRCall.IVR_RETRY_CHOICES,
+                widget=SelectWidget(),
+            )
+
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
 
@@ -1853,7 +1861,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active")
+        fields = ("omnibox", "restart_participants", "include_active", "start_type")
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"

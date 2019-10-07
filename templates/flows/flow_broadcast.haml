@@ -49,6 +49,10 @@
         is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} account.
 
   -else
+
+    .field.start-type
+      {% render_field 'start_type' %}
+
     .field.omnibox
       {% render_field 'omnibox' %}
 
@@ -104,11 +108,6 @@
         %span.attn
           -trans "{{ complete_count }} times."
 
--block extra-script
-  {{ block.super }}
-  :javascript
-    prepareOmnibox();
-
 -block modal-script
   {{block.super}}
   :javascript
@@ -116,5 +115,3 @@
       useFontCheckbox("#id_restart_participants");
       useFontCheckbox("#id_include_active");
     });
-
-    prepareOmnibox();

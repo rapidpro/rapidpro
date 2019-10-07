@@ -4,6 +4,7 @@ import { CustomEventType } from './interfaces';
 export interface EventHandler {
   event: string;
   method: EventListener;
+  isDocument?: boolean;
 }
 
 export default class RapidElement extends LitElement {
@@ -15,13 +16,21 @@ export default class RapidElement extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     for (const handler of this.getEventHandlers()) {
-      document.addEventListener(handler.event, handler.method.bind(this));
+      if (handler.isDocument) {
+        document.addEventListener(handler.event, handler.method.bind(this));
+      } else {
+        this.addEventListener(handler.event, handler.method.bind(this));
+      }
     }
   }
 
   disconnectedCallback() {
     for (const handler of this.getEventHandlers()) {
-      document.removeEventListener(handler.event, handler.method);
+      if (handler.isDocument) {
+        document.removeEventListener(handler.event, handler.method);
+      } else {
+        this.removeEventListener(handler.event, handler.method);
+      }
     }
     super.disconnectedCallback();
   }

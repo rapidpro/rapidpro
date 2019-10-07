@@ -1,15 +1,22 @@
 import { customElement, TemplateResult, html, css, property } from 'lit-element';
-import { getUrl } from '../utils';
+import { getUrl, getClasses } from '../utils';
 import axios, { AxiosResponse, CancelTokenSource, AxiosStatic } from 'axios';
 import '../options/Options';
 import { EventHandler } from '../RapidElement';
 import FormElement from '../FormElement';
-import TextInput from '../textinput/TextInput';
+
+import { getId } from './helpers';
 
 import flru from 'flru';
 import { CustomEventType } from '../interfaces';
+import { styleMap } from 'lit-html/directives/style-map.js';
 
 const LOOK_AHEAD = 20;
+
+interface StaticOption {
+  name: string;
+  value: string;
+}
 
 @customElement("rp-select")
 export default class Select extends FormElement {
@@ -18,13 +25,12 @@ export default class Select extends FormElement {
     return css`
       :host {
         transition: all ease-in-out 200ms;
+        display: block;
       }
 
       input::placeholder {
         color: rgba(0,0,0,.15);
       }
-
-
 
       .remove-item {
         cursor: pointer;
@@ -42,8 +48,6 @@ export default class Select extends FormElement {
       .remove-item:hover {
         background: rgba(100, 100, 100, .1);
       }
-
-
       
       input:focus {
         outline: none;
@@ -77,30 +81,37 @@ export default class Select extends FormElement {
         cursor: pointer;
       }
 
-      
-
       .select-container {
         display: flex;
         flex-direction: row;
+        flex-wrap: nowrap;
         align-items: center;
-
-        box-shadow: var(--color-widget-shadow-focused) 0 1px 1px 0px inset;
-        border-radius: var(--curvature-widget);
-        background: var(--color-widget-bg);
         border: 1px solid var(--color-widget-border);
-
         transition: all ease-in-out 200ms;
         cursor: pointer;
+        border-radius: var(--curvature-widget);
+        
       }
 
-      .select-container:focus-within {
+
+      .select-container.multi {
+        box-shadow: var(--color-widget-shadow-focused) 0 1px 1px 0px inset;
+        background: var(--color-widget-bg);
+      }
+
+      .select-container.focused {
         border-color: var(--color-focus);
         background: var(--color-widget-bg-focused);
         box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px;
       }
 
+      .select-container:focus {
+        font-size:32px;
+      }
+
+
       .left {
-        width: 100%;
+        flex: 1;
       }
 
       .selected {
@@ -108,48 +119,86 @@ export default class Select extends FormElement {
         display: flex;
         flex-direction: row;
         align-items: stretch;
+
+      }
+
+      .multi .selected {
         flex-wrap: wrap;
       }
 
-      .selected.multi .selected-item {
-        white-space: nowrap;
+
+      .selected .selected-item {
+        display: flex;
+        overflow: hidden;
+      }
+
+      .multi .selected .selected-item {
         vertical-align: middle;
         background: rgba(100, 100, 100, .1);
         user-select: none; 
         border-radius: 2px;
-        display: flex;
         align-items: stretch;
         flex-direction: row;
-
+        flex-wrap: nowrap;
         margin: 2px;
         
       }
 
       .selected-item .name {
-        padding: 3px 5px;
-        font-size: 90%;
-        margin: 0;
-        display: inline-block;
-        flex: 1;
-        align-self: center;
+        padding: 5px 4px;
+        font-size: 13px;
       }
 
-      .selected.multi .selected-item.focused {
+      .multi .selected-item .name {
+        padding: 3px 4px;  
+        font-size: 90%;
+        margin: 0;
+        flex: 1;
+        align-self: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .multi .selected .selected-item.focused {
         background: rgba(100, 100, 100, .3);
       }
 
       input {
-        cursor: pointer;
         padding: 5px 4px;
         font-size: 13px;
+        width: 0;
+        cursor: pointer;
+        background: none;
+        resize: none;
+        box-shadow: none;
+        margin: none;
+        border: none;
+        visibility: visible;
+      }
+
+      .empty input {
+        width: 100%;
+        /* caret-color: transparent; */
+      }
+
+      .searchable input {
+        visibility: visible;
+        cursor: pointer;
         background: none;
         color: var(--color-text);
         resize: none;
         box-shadow: none;
         margin: none;
         flex-grow: 1;
-        width: 50px;
         border: none;
+        caret-color: inherit;
+      }
+
+      .placeholder {
+        padding: 5px 4px;
+        font-size: 13px;
+        color: var(--color-placeholder);
       }
     `
   }
@@ -170,7 +219,7 @@ export default class Select extends FormElement {
   endpoint: string;
 
   @property()
-  queryParam: string;
+  queryParam: string = 'q';
 
   @property({type: String})
   input: string = '';
@@ -179,18 +228,24 @@ export default class Select extends FormElement {
   options: any[] = [];
 
   @property({type: Number})
-  quietMillis: number = 200;
+  quietMillis: number = 0;
 
   @property({type: Boolean})
   fetching: boolean;
 
   @property({type: Boolean})
+  searchable: boolean = false;
+
+  @property({type: Boolean})
   cache: boolean = true;
+
+  @property({type: Boolean})
+  focused: boolean = false;
 
   @property({attribute: false})
   selectedIndex: number = -1;
 
-  @property({attribute: false})
+  @property({type: Number})
   cursorIndex: number;
 
   @property({attribute: false})
@@ -221,9 +276,36 @@ export default class Select extends FormElement {
   private query: string;
   
   private lruCache = flru(20);
-
+  private staticOptions: StaticOption[] = [];
+  
   public constructor() {
     super();
+
+    if (this.searchable) {
+      this.quietMillis = 200;
+    }
+
+    for (const child of this.children) {
+      if (child.tagName === "RP-OPTION") {
+        const name = child.getAttribute("name");
+        const value = child.getAttribute("value");
+
+        const option = {name, value};
+        this.staticOptions.push(option);
+
+        if (child.getAttribute("selected") !== null) {
+          if (this.getAttribute("multi") !== null) {
+            this.addValue(option);
+          } else {
+            this.setValue(option);
+          }
+        }
+      }
+    }
+
+    if (!this.hasAttribute('tabindex')) {
+      this.setAttribute('tabindex', "0");
+    }
   }
 
   public updated(changedProperties: Map<string, any>) {
@@ -238,9 +320,9 @@ export default class Select extends FormElement {
         this.fetchOptions(this.input);
       }, this.quietMillis);
     }
-
-       // if our cursor changed, lets make sure our scrollbox is showing it
-    if(changedProperties.has("cursorIndex")) {
+    
+    // if our cursor changed, lets make sure our scrollbox is showing it
+    if(changedProperties.has("cursorIndex") && this.endpoint) {
       if (this.options.length > 0 && 
           this.query && 
           !this.complete && 
@@ -257,6 +339,10 @@ export default class Select extends FormElement {
       this.addValue(selected);
     } else {
       this.setValue(selected);
+    }
+
+    if (!this.multi || !this.searchable) {
+      this.blur();
     }
 
     this.options = [];
@@ -281,9 +367,19 @@ export default class Select extends FormElement {
     // filter out any options already selected by id
     // TODO: should maybe be doing a deep equals here with option to optimize
     if (this.values.length > 0) {
-      if (this.values[0].id) {
-        this.options = options.filter(option=>!this.values.find(selected=>selected.id === option.id));
-        return;
+      
+      if (getId(this.values[0])) {
+        if (this.multi) {      
+          this.options = options.filter(option=>!this.values.find(selected=>getId(selected) === getId(option)));
+          return;
+        } else {
+          // single select should set our cursor to the selected item
+          this.options = options;
+
+          this.cursorIndex = options.findIndex(option=> getId(option) === getId(this.values[0]));
+          this.requestUpdate("cursorIndex");
+          return;
+        }
       }
     }
 
@@ -293,7 +389,6 @@ export default class Select extends FormElement {
   public fetchOptions(query: string, page: number = 0) {
 
     const cacheKey = `${query}_$page`;
-
     if (this.cache && this.lruCache.has(cacheKey)) {
       const {options, complete} = this.lruCache.get(cacheKey);
       this.setOptions(options);
@@ -308,50 +403,63 @@ export default class Select extends FormElement {
         this.cancelToken.cancel();
       }
 
-      const CancelToken = axios.CancelToken;
-      this.cancelToken = CancelToken.source();
-
-      let url = this.endpoint + "&" + this.queryParam + "=" + encodeURIComponent(query);
-      if (page){
-        url += "&page=" + page;
+      if (this.staticOptions.length > 0) {
+        this.setOptions(this.staticOptions.filter((option: StaticOption) => option.name.toLowerCase().indexOf(query.toLowerCase()) > -1));
       }
 
-      this.fetching = true;
-      getUrl(url, this.cancelToken.token).then((response: AxiosResponse) => {
-        if (page === 0) {
-          this.setOptions(this.getOptions(response));
-          this.cursorIndex = 0;
-          this.query = query;
-          this.complete = this.isComplete(this.options, response);          
-        } else {
-          const newResults = this.getOptions(response);
-          if (newResults.length > 0) {
-            this.setOptions([ ...this.options, ...newResults]);
+      if(this.endpoint) {
+
+        const cacheKey = `${query}_$page`;
+
+        let url = this.endpoint + "&" + this.queryParam + "=" + encodeURIComponent(query);
+        if (page){
+          url += "&page=" + page;
+        }
+
+        const CancelToken = axios.CancelToken;
+        this.cancelToken = CancelToken.source();
+  
+        this.fetching = true;
+
+        getUrl(url, this.cancelToken.token).then((response: AxiosResponse) => {
+          if (page === 0) {
+            this.cursorIndex = 0;
+            this.setOptions(this.getOptions(response));
+            this.query = query;
+            this.complete = this.isComplete(this.options, response);          
+          } else {
+            const newResults = this.getOptions(response);
+            if (newResults.length > 0) {
+              this.setOptions([ ...this.options, ...newResults]);
+            }
+            this.complete = this.isComplete(newResults, response);
           }
-          this.complete = this.isComplete(newResults, response);
-        }
 
-        if (this.cache) {
-          this.lruCache.set(cacheKey, {options: this.options, complete: this.complete });
-        }
+          if (this.cache) {
+            this.lruCache.set(cacheKey, {options: this.options, complete: this.complete });
+          }
 
-        this.fetching = false;
-        this.page = page;
-      }).catch((reason: any)=>{
-        // cancelled
-      });
+          this.fetching = false;
+          this.page = page;
+        }).catch((reason: any)=>{
+          // cancelled
+        });
+      }
+    }
+  }
+
+  private handleFocus(): void {
+    this.focused = true;
+    if (this.searchOnFocus) {
+      this.requestUpdate("input");
     }
   }
 
   private handleBlur() {
-    // we don't do this immediately so we can handle click events outside of our input
-    window.setTimeout(()=>{this.options = []}, 300);
-  }
-
-  private handleFocus(): void {
-    /* if (this.searchOnFocus) {
-      this.requestUpdate("input");
-    }*/
+    this.focused = false;
+    if (this.options.length > 0) {
+      this.options = [];
+    }
   }
 
   private handleClick(): void {
@@ -405,14 +513,27 @@ export default class Select extends FormElement {
 
   private handleContainerClick(event: MouseEvent) {
     const input = this.shadowRoot.querySelector('input');
-    input.focus();
-    input.click();
+    if(input) {
+      input.focus();
+      input.click();
+      return;
+    }
+
+    if (this.options.length > 0) {
+      this.options = [];
+      event.preventDefault();
+      event.stopPropagation();
+    } else {
+      this.requestUpdate("input");
+    }
   }
+  
   public getEventHandlers(): EventHandler[] {
     return [
       { event: CustomEventType.Canceled, method: this.handleCancel },
       { event: CustomEventType.CursorChanged, method: this.handleCursorChanged },
-      // { event: CustomEventType.Selection, method: this.handleOptionSelection },
+      { event: 'focusout', method: this.handleBlur },
+      { event: 'focusin', method: this.handleFocus }
     ];
   }
 
@@ -434,30 +555,51 @@ export default class Select extends FormElement {
   }
 
   public render(): TemplateResult {
+    const placeholder = this.values.length === 0 ? this.placeholder : "";
+  
+    const placeholderDiv = !this.searchable ? html`
+      <div class="placeholder">${placeholder}</div>
+    `:null;
+
+    const classes = getClasses({
+      "multi": this.multi,
+      "single": !this.multi,
+      "searchable": this.searchable,
+      "empty": this.values.length === 0,
+      "options": this.options.length > 0,
+      "focused": this.focused
+    });
+
+    let hasInput = this.searchable;
+
+    // if we are single select and have a selection, no input
+    if (!this.multi && this.values.length > 0) {
+      hasInput = false;
+      
+    }
 
     return html`
-      <div class="select-container" @click=${this.handleContainerClick}>
+      <div class="select-container ${classes}" @click=${this.handleContainerClick}>
         <div class="left">
-          <div class="selected ${this.multi ? 'multi' : 'single'}">
+          <div class="selected">
             ${this.values.map((selected: any, index: number)=>html`
               <div  class="selected-item ${index===this.selectedIndex ? 'focused' : ''}">
-                <div class="remove-item" @click=${(evt: MouseEvent)=>{ 
+                ${this.multi ? html`<div class="remove-item" @click=${(evt: MouseEvent)=>{ 
                   evt.preventDefault(); 
                   evt.stopPropagation(); 
                   this.removeSelection(selected)
-                }}><rp-icon name="x" size="8"></rp-icon></div>
+                }}><rp-icon name="x" size="8"></rp-icon></div>` : null }
                 ${this.renderSelectedItem(selected)}
               </div>`)
             }
-            <input 
+            ${hasInput ? html`<input 
+              style=${styleMap({'display': 'inline-block'})}
               @keyup=${this.handleKeyUp}
               @keydown=${this.handleKeyDown}
-              @blur=${this.handleBlur} 
-              @focus=${this.handleFocus} 
               @click=${this.handleClick}
               type="text" 
-              placeholder=${this.values.length === 0 ? this.placeholder : ""} 
-              .value=${this.input} />
+              placeholder=${placeholder} 
+              .value=${this.input} />`: placeholderDiv}
           </div>
         </div>
         
@@ -470,8 +612,8 @@ export default class Select extends FormElement {
       </div>
 
       <rp-options
-        cursorIndex=${this.cursorIndex}
         @rp-selection=${this.handleOptionSelection}
+        .cursorIndex=${this.cursorIndex}
         .renderOptionDetail=${this.renderOptionDetail}
         .renderOptionName=${this.renderOptionName}
         .renderOption=${this.renderOption}

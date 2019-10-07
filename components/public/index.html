@@ -41,6 +41,7 @@
         --color-widget-bg-focused: #fff;
         --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
         --color-widget-border: rgb(204,204,204);
+        --color-placeholder: #ccc;
 
         /* light colors, panel backgrounds, selection, etc */
         --color-primary-light: #eee;
@@ -78,18 +79,122 @@
         --color-label-primary-text: var(--color-text-light);        
         --color-label-secondary: rgba(0,0,0,.2);
         --color-label-secondary-text: rgba(255, 255, 255, .9);        
-
       }
+
+      rp-select {
+        width: 250px;
+      }
+
+      rp-select:focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      .example {
+        padding: 20px;
+        border: 1px solid #e6e6e6;
+        margin: 10px;
+        border-radius: 3px;
+      }
+
+      .example-header {
+        padding-bottom: 10px;
+        font-size: 12px;
+      }
+
     </style>
+
+    <div class="example">
+      <div class="example-header">Single</div>
+      <rp-select name="start-type" placeholder="Choose how to start">
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start"></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Single Initialized</div>
+      <rp-select name="start-type" placeholder="Choose how to start">
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start" selected></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Single Searchable</div>
+      <rp-select name="start-type" placeholder="Search how to start" searchable>
+        <rp-option value="0" name="Choose recipients manually"></rp-option>
+        <rp-option value="1" name="Search for contacts to start"></rp-option>
+      </rp-select>
+    </div>
+    
+    <div class="example">
+      <div class="example-header">Single Remote</div>
+      <rp-select 
+        endpoint="/contact/omnibox/?v=2"
+        queryParam="search"
+        placeholder="Contacts"
+        searchable>
+      </rp-select>
+    </div>
+    
+    <div class="example">
+      <div class="example-header">Multi</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi>
+          <rp-option value="red" name="Red"></rp-option>
+          <rp-option value="gree" name="Green"></rp-option>
+          <rp-option value="blue" name="Blue"></rp-option>
+      </rp-select>        
+    </div>
+
+    <div class="example">
+      <div class="example-header">Multi Initialized</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi>
+          <rp-option value="red" name="Red"></rp-option>
+          <rp-option value="gree" name="Green" selected></rp-option>
+          <rp-option value="blue" name="Blue" selected></rp-option>
+      </rp-select>        
+    </div>
+  
+  
+    <div class="example">
+      <div class="example-header">Multi Searchable</div>
+      <rp-select name="start-type" placeholder="Pick some colors" multi searchable>
+        <rp-option value="red" name="Red"></rp-option>
+        <rp-option value="gree" name="Green"></rp-option>
+        <rp-option value="blue" name="Blue"></rp-option>
+      </rp-select>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Multi Remote</div>
+      <rp-select 
+        endpoint="/contact/omnibox/?v=2"
+        queryParam="search"
+        placeholder="Contacts"
+        searchable
+        multi>
+      </rp-select>
+    </div>
+  
+    <div class="example">
+      <div class="example-header">Completion</div>    
+      <rp-completion     
+        completionsEndpoint="/mr/docs/completion.json"
+        functionsEndpoint="/mr/docs/functions.json"
+        fieldsEndpoint="/api/v2/fields.json"
+        textarea>
+      </rp-completion>
+    </div>
 
     <!--alias-editor
       osmid="192787"
-      endpoint="http://localhost:8888/adminboundary"
+      endpoint="/adminboundary"
     ></alias-editor-->
-   
-    <rp-button name="Start Flow" primary onClick="javascript:showDialog();"></rp-button>
+  
+    <!-- rp-button name="Start Flow" primary onClick="javascript:showDialog();"></rp-button-->
 
-    <rp-dialog 
+    <!--rp-dialog 
       size="medium"
       id="start-flow"
       title="Start Flow"
@@ -104,9 +209,10 @@
           ></rp-omnibox>
         </div>
       </div>
-    </rp-dialog>
+    </rp-dialog -->
 
     <script>
+      /*
       function showDialog() {
         document.querySelector("#start-flow").setAttribute("open", true);
       }
@@ -114,6 +220,7 @@
       document.querySelector("#start-flow").addEventListener("rp-button-clicked", (evt)=>{
         evt.target.removeAttribute("open");
       });
+      */
     </script>
 
     <script type="module" src="../src/rp-components.js"></script>
