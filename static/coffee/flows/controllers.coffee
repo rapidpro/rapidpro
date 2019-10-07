@@ -1814,7 +1814,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             'text': splitEditor.giftcard_db.selected[0]['text'],
             'id': splitEditor.giftcard_db.selected[0]['id']
           },
-          'giftcard_type': formData.giftcard_type.id
+          'giftcard_type': formData.giftcard_type
         }
 
       else if rulesetConfig.type == 'webhook'

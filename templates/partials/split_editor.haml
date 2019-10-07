@@ -94,9 +94,9 @@
         %input{ng-model:"formData.giftcard_db", search:"true", init-text:"[[ruleset.config.giftcard_db.text]]", name:"giftcard_db",
               placeholder:"Select your collection to do the query on that", required:"", init-id:"[[ruleset.config.giftcard_db.id]]",
               select-server:"/flow/giftcards_api/", type:"hidden"}
-        %select{ng-model:"formData.giftcard_type", required:"", name:"giftcard_type", ng-init:"config.id == formData.giftcard_type"
-               ng-options:"config as config.text for config in giftcardTypes", style:"width:320px;height:34px", class:"giftcard-type",
-               select2:""}
+        %select{ng-model:"formData.giftcard_type", required:"", name:"giftcard_type", style:"width:320px;height:34px", class:"giftcard-type", select2:""}
+          %option{ng-repeat:"type_ in giftcardTypes", ng-selected:"type_.id == formData.giftcard_type", value:"[[type_.id]]"} [[type_.text]]
+        %a{class:"icon-nav-help-inverted", data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Help'}
         .help-text
           -blocktrans
             The Parse API responds with JSON, each property will be added
