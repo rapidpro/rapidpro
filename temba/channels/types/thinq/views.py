@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             try:
                 cleaned = phonenumbers.parse(number, self.data["country"])
                 return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-            except Exception:
+            except Exception:  # pragma: no cover
                 raise forms.ValidationError(
                     _("Invalid phone number, please include the country code. ex: +12065551212")
                 )

@@ -23,7 +23,7 @@ class ThinQTest(TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "5259"
+        post_data["number"] = "arst"
         post_data["account_id"] = "1234"
         post_data["country"] = "US"
         post_data["token_user"] = "user1"
