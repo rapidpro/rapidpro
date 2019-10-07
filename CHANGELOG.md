@@ -1,3 +1,7 @@
+v5.1.49
+----------
+ * Fire schedules in Mailroom instead of celery
+
 v5.1.48
 ----------
  * Rework contact history to include engine events

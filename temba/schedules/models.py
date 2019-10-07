@@ -65,14 +65,7 @@ class Schedule(SmartModel):
     last_fire = models.DateTimeField(null=True)
 
     # the org this schedule belongs to
-    org = models.ForeignKey("orgs.Org", null=True, on_delete=models.PROTECT, related_name="schedules")
-
-    # deprecated, to be removed
-    repeat_days = models.IntegerField(default=0, null=True)
-
-    # deprecated, to be removed
-    STATUS_CHOICES = (("U", "Unscheduled"), ("S", "Scheduled"))
-    status = models.CharField(default="U", choices=STATUS_CHOICES, max_length=1, null=True)
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="schedules")
 
     @classmethod
     def create_blank_schedule(cls, org, user):
@@ -139,10 +132,6 @@ class Schedule(SmartModel):
         if hasattr(self, "broadcast"):
             return self.broadcast
 
-    def get_trigger(self):
-        if hasattr(self, "trigger"):
-            return self.trigger
-
     @classmethod
     def get_next_fire(cls, schedule, now):
         """
@@ -190,36 +179,6 @@ class Schedule(SmartModel):
                 next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
 
             return next_fire
-
-    def fire(self):
-        now = timezone.now()
-
-        # makes sure we are expired, noop if not
-        if self.next_fire > now:  # pragma: no cover
-            return
-
-        broadcast = self.get_broadcast()
-        trigger = self.get_trigger()
-
-        logger.info(f"Firing {str(self)}")
-
-        if broadcast:
-            broadcast.fire()
-
-        elif trigger:
-            trigger.fire_from_schedule()
-
-        else:  # pragma: no cover
-            logger.error("Tried to fire schedule but it wasn't attached to anything", extra={"schedule_id": self.id})
-
-        # save our last fire
-        self.last_fire = now
-
-        # schedule our next fire
-        self.next_fire = Schedule.get_next_fire(self, now)
-
-        # save our last fire and next fire (if any)
-        self.save(update_fields=["next_fire", "last_fire"])
 
     def get_repeat_days_display(self):
         return [Schedule.DAYS_OF_WEEK_DISPLAY[d] for d in self.repeat_days_of_week]

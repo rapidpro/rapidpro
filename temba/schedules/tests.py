@@ -7,31 +7,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.msgs.models import Broadcast
-from temba.tests import MigrationTest, TembaTest
-from temba.triggers.models import Trigger
+from temba.tests import TembaTest
 from temba.utils import json
 
 from .models import Schedule
-from .tasks import check_schedule_task
-
-MONDAY = 0  # 2
-TUESDAY = 1  # 4
-WEDNESDAY = 2  # 8
-THURSDAY = 3  # 16
-FRIDAY = 4  # 32
-SATURDAY = 5  # 64
-SUNDAY = 6  # 128
-
-
-def create_schedule(org, user, repeat_period, repeat_days_of_week=None, start_date=None, now=None):
-    if not now:
-        now = timezone.now()
-
-    if not start_date:
-        # Test date is 10am on a Thursday, Jan 3rd
-        start_date = datetime(2013, 1, 3, hour=10, minute=0, second=0, microsecond=0).replace(tzinfo=pytz.utc)
-
-    return Schedule.create_schedule(org, user, start_date, repeat_period, repeat_days_of_week, now=now)
 
 
 class ScheduleTest(TembaTest):
@@ -290,18 +269,18 @@ class ScheduleTest(TembaTest):
         schedule.next_fire = timezone.now() - timedelta(days=1)
         schedule.save(update_fields=["next_fire"])
 
-        # run our task to fire schedules
-        check_schedule_task()
-
-        # should have a new broadcasts now
-        self.assertEqual(1, Broadcast.objects.filter(id__gt=bcast.id).count())
-
-        # we should have a new fire in the future
-        schedule.refresh_from_db()
-        self.assertTrue(schedule.next_fire > timezone.now())
+        self.assertIsNotNone(str(schedule))
 
     def test_update(self):
-        sched = create_schedule(self.org, self.admin, Schedule.REPEAT_WEEKLY, "RS")
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
+
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
 
         # viewer can't access
@@ -375,18 +354,20 @@ class ScheduleTest(TembaTest):
         self.assertEqual(schedule.repeat_period, "D")
 
     def test_update_near_day_boundary(self):
-
         self.org.timezone = pytz.timezone("US/Eastern")
         self.org.save()
         tz = self.org.timezone
 
-        sched = create_schedule(self.org, self.admin, Schedule.REPEAT_DAILY)
-        Broadcast.create(self.org, self.admin, "Message", schedule=sched, contacts=[self.joe])
-        sched = Schedule.objects.get(pk=sched.pk)
+        self.login(self.admin)
+        post_data = dict(
+            text="A scheduled message to Joe", omnibox="c-%s" % self.joe.uuid, sender=self.channel.pk, schedule=True
+        )
+        self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
+
+        bcast = Broadcast.objects.get()
+        sched = bcast.schedule
 
         update_url = reverse("schedules.schedule_update", args=[sched.pk])
-
-        self.login(self.admin)
 
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
@@ -416,55 +397,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class PopulateDaysAndOrgMigrationTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0009_auto_20190822_1823"
-    migrate_to = "0011_populate_org"
-
-    def setUpBeforeMigration(self, apps):
-        # create a schedule with no org but a broadcast
-        self.bcast_schedule = Schedule.create_blank_schedule(self.org, self.admin)
-        self.bcast_schedule.org = None
-        self.bcast_schedule.save(update_fields=["org"])
-
-        group = self.create_group("Test")
-        bcast = Broadcast.create(self.org, self.admin, "hello world", groups=[group])
-        bcast.schedule = self.bcast_schedule
-        bcast.save(update_fields=["schedule"])
-
-        # create a schedule with a trigger
-        self.trigger_schedule = Schedule.create_blank_schedule(self.org, self.admin)
-        self.trigger_schedule.org = None
-        self.trigger_schedule.save(update_fields=["org"])
-
-        flow = self.get_flow("favorites_v13")
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow)
-        trigger.schedule = self.trigger_schedule
-        trigger.save(update_fields=["schedule"])
-
-        # create a weekly schedule
-        self.weekly_schedule = Schedule.create_schedule(
-            self.org, self.admin, timezone.now(), Schedule.REPEAT_WEEKLY, repeat_days_of_week="MTR"
-        )
-        self.weekly_schedule.repeat_days = 22
-        self.weekly_schedule.repeat_days_of_week = None
-        self.weekly_schedule.repeat_minute_of_hour = None
-        self.weekly_schedule.repeat_hour_of_day = 12
-        self.weekly_schedule.save(
-            update_fields=["repeat_days", "repeat_days_of_week", "repeat_minute_of_hour", "repeat_hour_of_day"]
-        )
-
-    def test_org_populated(self):
-        self.bcast_schedule.refresh_from_db()
-        self.assertEqual(self.org.id, self.bcast_schedule.org_id)
-
-        self.trigger_schedule.refresh_from_db()
-        self.assertEqual(self.org.id, self.trigger_schedule.org_id)
-
-    def test_fields_populated(self):
-        self.weekly_schedule.refresh_from_db()
-        self.assertEqual("MTR", self.weekly_schedule.repeat_days_of_week)
-        self.assertEqual(0, self.weekly_schedule.repeat_minute_of_hour)
-        self.assertEqual(14, self.weekly_schedule.repeat_hour_of_day)

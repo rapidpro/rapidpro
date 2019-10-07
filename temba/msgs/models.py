@@ -274,26 +274,6 @@ class Broadcast(models.Model):
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.next_fire is not None
 
-    def fire(self):
-        """
-        Fires a scheduled broadcast, this creates a new broadcast as self here is a placeholder for
-        the broadcast that is scheduled (as opposed to the real broadcast that is being sent)
-        """
-        broadcast = Broadcast.create(
-            self.org,
-            self.created_by,
-            self.text,
-            groups=self.groups.all(),
-            contacts=self.contacts.all(),
-            urns=self.urns.all(),
-            media=self.media,
-            base_language=self.base_language,
-            parent=self,
-        )
-
-        broadcast.send()
-        return broadcast
-
     def get_messages(self):
         return self.msgs.all()
 
