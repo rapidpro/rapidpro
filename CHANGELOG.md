@@ -1,3 +1,7 @@
+v5.1.51
+----------
+ * Add ThinQ Channel Type
+
 v5.1.50
 ----------
  * Fix contact history rendering of broadcast messages with null recipient count
