@@ -562,6 +562,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       $http.get('/flow/lookups_api/').success (data) ->
         Flow.lookup_dbs = data.results
 
+      @giftcard_types = [
+        { id: "GIFTCARD_ASSIGNING", text: "Assign Gift Card"}
+        { id: "GIFTCARD_CHECK", text: "Check Status"}
+      ]
+
       @opNames =
         'lt': '< '
         'gt': '> '

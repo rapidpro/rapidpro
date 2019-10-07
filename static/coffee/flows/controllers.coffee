@@ -970,6 +970,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.operatorConfigs = Flow.operators
   $scope.operatorLookupConfigs = []
   $scope.lookupDbs = Flow.lookup_dbs
+  $scope.giftcardTypes = Flow.giftcard_types
 
   # all org languages except default
   $scope.languages = utils.clone(Flow.languages).filter (lang) -> lang.name isnt "Default"
@@ -1122,11 +1123,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.lookup_queries_value[item_lookup_counter] = item.value
       item_lookup_counter++
 
+    formData.giftcard_type = ruleset.config.giftcard_type
+
   else
     formData.webhook_headers = []
     formData.isWebhookAdditionalOptionsVisible = false
     formData.lookup_queries = []
     formData.isLookupQueriesVisible = false
+    formData.giftcard_type = Flow.giftcard_types[0].id
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -1809,7 +1813,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           'giftcard_db': {
             'text': splitEditor.giftcard_db.selected[0]['text'],
             'id': splitEditor.giftcard_db.selected[0]['id']
-          }
+          },
+          'giftcard_type': formData.giftcard_type.id
         }
 
       else if rulesetConfig.type == 'webhook'
