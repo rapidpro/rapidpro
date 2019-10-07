@@ -1,3 +1,15 @@
+v5.1.48
+----------
+ * Rework contact history to include engine events
+
+v5.1.47
+----------
+ * Update to flow editor 1.6.20
+
+v5.1.46
+----------
+ * Rev Flow Editor v1.6.19
+
 v5.1.45
 ----------
  * Fix rendering of campaigns on export page

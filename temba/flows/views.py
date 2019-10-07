@@ -201,6 +201,7 @@ class FlowSessionCRUDL(SmartCRUDL):
     model = FlowSession
 
     class Json(SmartReadView):
+        slug_url_kwarg = "uuid"
         permission = "flows.flowsession_json"
 
         def get(self, request, *args, **kwargs):
