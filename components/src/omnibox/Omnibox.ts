@@ -141,6 +141,7 @@ export default class Omnibox extends RapidElement {
         .renderOption=${this.renderOption.bind(this)}
         .renderSelectedItem=${this.renderSelection.bind(this)}
         .inputRoot=${this}
+        searchable
         searchOnFocus
         multi
       ></rp-select>
