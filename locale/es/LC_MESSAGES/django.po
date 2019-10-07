@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-07 17:24+0000\n"
+"POT-Creation-Date: 2019-10-07 20:06+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6096,6 +6096,9 @@ msgstr ""
 #, fuzzy
 msgid "IP Addresses"
 msgstr "Dirección de correo electrónico"
+
+msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
+msgstr ""
 
 msgid "Are you sure you want to remove this number from your account?"
 msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
