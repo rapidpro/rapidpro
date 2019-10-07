@@ -1001,6 +1001,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.smscentral.SMSCentralType",
     "temba.channels.types.start.StartType",
     "temba.channels.types.telegram.TelegramType",
+    "temba.channels.types.thinq.ThinQType",
     "temba.channels.types.twiml_api.TwimlAPIType",
     "temba.channels.types.twitter.TwitterType",
     "temba.channels.types.twitter_legacy.TwitterLegacyType",

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-07 17:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1524,6 +1524,55 @@ msgstr ""
 msgid "Your authentication token is invalid, please check and try again"
 msgstr ""
 
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+
+msgid "Inbound SMS Configuration"
+msgstr ""
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+msgid "Outbound SMS Configuration"
+msgstr ""
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+msgid "Your ThinQ account id"
+msgstr ""
+
+msgid "The ThinQ number you want to connect"
+msgstr ""
+
+msgid "United States"
+msgstr ""
+
+msgid "The user name for you API token"
+msgstr ""
+
+msgid "Your API token"
+msgstr ""
+
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr ""
+
 msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 msgstr ""
 
@@ -1825,9 +1874,6 @@ msgid "The account password provided by Zenvia"
 msgstr ""
 
 msgid "United Kingdom"
-msgstr ""
-
-msgid "United States"
 msgstr ""
 
 msgid "Scension Island"

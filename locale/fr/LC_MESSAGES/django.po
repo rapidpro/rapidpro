@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-01 15:28+0000\n"
+"POT-Creation-Date: 2019-10-07 17:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -2319,6 +2319,81 @@ msgid "Your authentication token is invalid, please check and try again"
 msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
 
 #, fuzzy
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+"\n"
+"Si vous êtes basé au Kenya, vous pouvez acheter un code court à %(link_start)sAfrica's talking%(link_end)s et le connecter à TextIt en quelques simples étapes."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#| "        Africa's Talking website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+"\n"
+"Pour finir de configurer votre connection Africa's Talking vous devrez établir les rappels URLs suivants sur le\n"
+"site Africa's Talking sous votre compte."
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Inbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Outbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your ThinQ account id"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+msgid "The ThinQ number you want to connect"
+msgstr "Le pays ce numéro de téléphone est utilisé dans"
+
+msgid "United States"
+msgstr "États-Unis"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The user name for you API token"
+msgstr "Le nom de fichier pour notre exportation"
+
+#, fuzzy
+#| msgid "Your API Token is"
+msgid "Your API token"
+msgstr "Votre API Token est"
+
+#, fuzzy
+#| msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: +250788123123"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs.\n"
@@ -2776,9 +2851,6 @@ msgstr "Le mot de passe fournit par l'opérateur pour utiliser leur API"
 
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
-
-msgid "United States"
-msgstr "États-Unis"
 
 msgid "Scension Island"
 msgstr ""
@@ -14079,9 +14151,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "WebHook events are being forwarded to"
 #~ msgstr "Événements WebHook sont renvoyés à"
-
-#~ msgid "Your API Token is"
-#~ msgstr "Votre API Token est"
 
 #~ msgid "There have been"
 #~ msgstr "Il ya eu des"
