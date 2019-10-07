@@ -11,7 +11,7 @@ def noop(apps, schema_editor):
     pass
 
 
-def populate_days_of_week(apps, schema_editor):
+def populate_days_of_week(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
     WEEKDAYS = "MTWRFSU"
     updated = 0

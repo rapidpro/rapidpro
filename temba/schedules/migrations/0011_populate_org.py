@@ -7,7 +7,7 @@ def noop(apps, schema_editor):
     pass
 
 
-def populate_org(apps, schema_editor):
+def populate_org(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
     Trigger = apps.get_model("triggers", "Trigger")
     Broadcast = apps.get_model("msgs", "Broadcast")
