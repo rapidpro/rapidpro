@@ -28,7 +28,7 @@
       -for obj in object_list
         %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
           %td.clickable
-            {{ obj.classifier }}
+            {{ obj.classifier.name }}
 
           %td.clickable
             %a{ href:'{% url "classifiers.classifierlog_read" obj.id %}' }= obj.description

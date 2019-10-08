@@ -11,7 +11,7 @@ class LuisType(ClassifierType):
 
     name = "Luis.ai"
     slug = "luis"
-    icon = "icon-channel-external"
+    icon = "icon-luis"
 
     CONFIG_APP_ID = "app_id"
     CONFIG_VERSION = "version"

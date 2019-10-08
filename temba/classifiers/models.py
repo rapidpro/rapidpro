@@ -142,6 +142,14 @@ class Classifier(TembaModel):
         # deactivate any intent we haven't seen
         self.intents.filter(is_active=True).exclude(external_id__in=seen).update(is_active=False)
 
+    def release(self):
+        dependent_flows_count = self.dependent_flows.count()
+        if dependent_flows_count > 0:
+            raise ValueError(f"Cannot delete Classifier: {self.name}, used by {dependent_flows_count} flows")
+
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
     @classmethod
     def get_types(cls):
         """

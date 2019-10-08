@@ -1,9 +1,11 @@
 from django.urls import reverse
-from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartListView, SmartFormView
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
+from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartListView, SmartFormView, SmartDeleteView
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin, ModalMixin
 from .models import Classifier, ClassifierLog
 from django.utils.translation import ugettext_lazy as _
 from django.shortcuts import get_object_or_404
+from django.contrib import messages
+from django.http import HttpResponseRedirect
 
 
 class BaseConnectView(OrgPermsMixin, SmartFormView):
@@ -29,11 +31,34 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier
-    actions = ("read", "connect")
+    actions = ("read", "connect", "delete")
+
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        cancel_url = "uuid@classifiers.classifier_read"
+        title = _("Delete Classifier")
+        success_message = ""
+        fields = ("id",)
+
+        def get_success_url(self):
+            return reverse("orgs.org_home")
+
+        def post(self, request, *args, **kwargs):
+            classifier = self.get_object()
+            classifier.release()
+
+            messages.info(request, _("Your classifier has been deleted."))
+            return HttpResponseRedirect(self.get_success_url())
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
+
+        def get_gear_links(self):
+            links = []
+            if self.has_org_perm("channels.channel_delete"):
+                links.append(dict(title=_("Delete"), js_class="delete-classifier", href="#1"))
+
+            return links
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)

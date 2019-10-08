@@ -3920,10 +3920,14 @@ class ContactTest(TembaTest):
         item = {"type": "msg_created", "obj": msg}
         msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
         msg.status = "F"
+        msg.msg_type = "F"
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = "S"
         self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
+
+        msg.broadcast.recipient_count = None
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-tree-2"></span>')

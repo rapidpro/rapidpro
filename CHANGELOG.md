@@ -1,3 +1,16 @@
+v5.1.51
+----------
+ * Add ThinQ Channel Type
+
+v5.1.50
+----------
+ * Fix contact history rendering of broadcast messages with null recipient count
+ * Fix for start_session action in the editor
+
+v5.1.49
+----------
+ * Fire schedules in Mailroom instead of celery
+
 v5.1.48
 ----------
  * Rework contact history to include engine events

@@ -15,7 +15,7 @@ class WitType(ClassifierType):
 
     name = "Wit.ai"
     slug = "wit"
-    icon = "icon-channel-external"
+    icon = "icon-wit"
 
     connect_view = ConnectView
     connect_blurb = """

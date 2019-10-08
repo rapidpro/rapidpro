@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-04 19:11+0000\n"
+"POT-Creation-Date: 2019-10-08 16:48+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2231,6 +2231,81 @@ msgid "Your authentication token is invalid, please check and try again"
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 #, fuzzy
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+"\n"
+"Se sua base estiver no Quênia, você pode comprar um número curto da %(link_start)s Africa's Talking %(link_end)s e\n"
+"conectá-lo ao Textit em poucos e simples passos."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#| "        Africa's Talking website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+"\n"
+"Para finalizar a configuração de sua conexão com Africa's Talking, você precisará definir as URLs de retorno de chamada a seguir, utilizando a sua conta no site do Africa's Talking."
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Inbound SMS Configuration"
+msgstr "Configuração"
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Outbound SMS Configuration"
+msgstr "Configuração"
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your ThinQ account id"
+msgstr "Seu SID da conta Twilio"
+
+#, fuzzy
+msgid "The ThinQ number you want to connect"
+msgstr "O número de telefone ou número curto com o qual você está se conectando"
+
+msgid "United States"
+msgstr "Estados Unidos"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The user name for you API token"
+msgstr "O nome do arquivo para nossa exportação"
+
+#, fuzzy
+#| msgid "Your API Token is"
+msgid "Your API token"
+msgstr "Seu Token API é"
+
+#, fuzzy
+#| msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr "Número de telefone inválido, por favor inclua o código do país. ex:+250788123123"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs.\n"
@@ -2659,9 +2734,6 @@ msgstr "A senha fornecida pelo provedor para usar a API deles"
 
 msgid "United Kingdom"
 msgstr "Reino Unido"
-
-msgid "United States"
-msgstr "Estados Unidos"
 
 msgid "Scension Island"
 msgstr ""
@@ -5748,6 +5820,9 @@ msgstr ""
 msgid "IP Addresses"
 msgstr "Endereço de e-mail"
 
+msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
+msgstr ""
+
 msgid "Are you sure you want to remove this number from your account?"
 msgstr "Você tem certeza de que deseja remover este número de sua conta?"
 
@@ -7172,9 +7247,8 @@ msgstr "Evento do transmissor"
 msgid "Recent Classifier Events"
 msgstr "Eventos recentes do transmissor"
 
-#, fuzzy
 msgid "Classifier: "
-msgstr "Conectar Nexmo."
+msgstr ""
 
 #, fuzzy
 #| msgid "Channel Event"
@@ -13620,9 +13694,6 @@ msgstr "Remover telefone"
 
 #~ msgid "WebHook events are being forwarded to"
 #~ msgstr "Eventos do Webhook estão sendo encaminhados para"
-
-#~ msgid "Your API Token is"
-#~ msgstr "Seu Token API é"
 
 #~ msgid "There have been"
 #~ msgstr "Houve"

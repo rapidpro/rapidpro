@@ -2282,13 +2282,6 @@ class BroadcastCRUDLTest(TembaTest):
 
         self.assertEqual(response.context["object_list"].count(), 0)
 
-        broadcast.fire()
-
-        # view again with 1 item in Send History
-        response = self.client.get(reverse("msgs.broadcast_schedule_read", args=[broadcast.pk]))
-        self.assertEqual(response.context["object"], broadcast)
-        self.assertEqual(response.context["object_list"].count(), 1)
-
 
 class LabelTest(TembaTest):
     def setUp(self):
