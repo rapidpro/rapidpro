@@ -19,8 +19,13 @@ class WitType(ClassifierType):
 
     connect_view = ConnectView
     connect_blurb = """
-    Connect your Wit.ai app to classify messages in your flow.
-    """
+        <a href="https://wit.ai">Wit.ai</a> is a Facebook owned natural language platform that supports up to 132 languages. 
+        The service is free and easy to use and a great choice for small to medium sized bots.
+        """
+
+    form_blurb = """
+        You can find the parameters below on your Wit.ai console under your App settings.
+        """
 
     INTENT_URL = "https://api.wit.ai/entities/intent"
 

@@ -28,6 +28,11 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
     def get_success_url(self):
         return reverse("classifiers.classifier_read", args=[self.object.uuid])
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_blurb"] = self.classifier_type.form_blurb
+        return context
+
 
 class ClassifierCRUDL(SmartCRUDL):
     model = Classifier

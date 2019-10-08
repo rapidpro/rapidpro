@@ -22,7 +22,12 @@ class LuisType(ClassifierType):
 
     connect_view = ConnectView
     connect_blurb = """
-    Connect your Luis.ai app to classify messages in your flows.
+    <a href="https://luis.ai">Luis.ai</a> is a Microsoft Azure platform that lets you interpret natural language in 
+    your bots. It supports 13 languages and is a highly scalable paid offering.
+    """
+
+    form_blurb = """
+    You can find the attributes for your app on your Luis.ai app page.
     """
 
     @classmethod

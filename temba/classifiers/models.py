@@ -33,11 +33,20 @@ class ClassifierType(metaclass=ABCMeta):
     # the view that handles connection of a new model
     connect_view = None
 
+    # the blurb to show on the connect form page
+    connect_blurb = None
+
     def get_connect_blurb(self):
         """
         Gets the blurb for use on the connect page
         """
         return Engine.get_default().from_string(self.connect_blurb)
+
+    def get_form_blurb(self):
+        """
+        Gets the blurb for use on the connect page
+        """
+        return Engine.get_default().from_string(self.form_blurb)
 
     def get_urls(self):
         """
