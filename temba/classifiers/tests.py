@@ -8,6 +8,7 @@ from .types.wit import WitType
 from .types.luis import LuisType
 from django.utils import timezone
 from django.urls import reverse
+from django.contrib.auth.models import Group
 
 INTENT_RESPONSE = """
 {
@@ -101,6 +102,15 @@ class ClassifierTest(TembaTest):
         self.assertContains(response, "Booker")
         self.assertNotContains(response, "Old Booker")
         self.assertNotContains(response, "Org 2 Booker")
+
+        # shouldn't contain connect page
+        connect_url = reverse("classifiers.classifier_connect")
+        self.assertNotContains(response, connect_url)
+
+        # but if we are beta it does
+        self.admin.groups.add(Group.objects.get(name="Beta"))
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, connect_url)
 
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
         self.assertContains(response, read_url)
