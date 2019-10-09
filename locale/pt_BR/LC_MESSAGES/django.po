@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 17:24+0000\n"
+"POT-Creation-Date: 2019-10-09 19:32+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2912,23 +2912,27 @@ msgstr ""
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The name of your Luis app"
+msgid "The name of your LUIS app"
 msgstr "Nome da sua organização"
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The id for your Luis app"
+msgid "The id for your LUIS app"
 msgstr "Nome da sua organização"
 
 #, fuzzy
-msgid "The name of the version of your Luis app to use"
+msgid "The name of the version of your LUIS app to use"
 msgstr "Nome da sua organização"
 
-msgid "The primary key for your Luis app"
-msgstr ""
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The primary key for your LUIS app"
+msgstr "Nome da sua organização"
 
-msgid "The endpoint URL for your Luis app"
-msgstr ""
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The endpoint URL for your LUIS app"
+msgstr "Nome da sua organização"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."

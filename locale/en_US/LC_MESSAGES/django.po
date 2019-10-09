@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 17:24+0000\n"
+"POT-Creation-Date: 2019-10-09 19:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2018,19 +2018,19 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
-msgid "The name of your Luis app"
+msgid "The name of your LUIS app"
 msgstr ""
 
-msgid "The id for your Luis app"
+msgid "The id for your LUIS app"
 msgstr ""
 
-msgid "The name of the version of your Luis app to use"
+msgid "The name of the version of your LUIS app to use"
 msgstr ""
 
-msgid "The primary key for your Luis app"
+msgid "The primary key for your LUIS app"
 msgstr ""
 
-msgid "The endpoint URL for your Luis app"
+msgid "The endpoint URL for your LUIS app"
 msgstr ""
 
 msgid "Unable to get intents for your app, please check credentials and try again"
