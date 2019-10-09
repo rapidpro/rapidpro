@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 15:27+0000\n"
+"POT-Creation-Date: 2019-10-09 17:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7250,6 +7250,14 @@ msgstr ""
 
 msgid "Classifier Log"
 msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+#, fuzzy
+#| msgid "Activate"
+msgid "Active Intents"
+msgstr "Ativar"
 
 msgid "No synced intents at this time."
 msgstr ""

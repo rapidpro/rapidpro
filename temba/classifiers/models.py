@@ -1,11 +1,13 @@
 import logging
 from django.db import models
-from temba.utils.models import TembaModel, JSONField, generate_uuid
+from smartmin.models import SmartModel
+from temba.utils.models import JSONField
 from django.conf.urls import url
 from django.utils import timezone
 from abc import ABCMeta
 from django.template import Engine
 from requests_toolbelt.utils import dump
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +70,14 @@ class ClassifierType(metaclass=ABCMeta):
         raise NotImplementedError("classifier types must implement get_intents")
 
 
-class Classifier(TembaModel):
+class Classifier(SmartModel):
     """
     A classifier represents a set of intents and entity extractors. Many providers call
     these "apps".
     """
+
+    # our uuid
+    uuid = models.UUIDField(default=uuid4)
 
     # the type of this classifier
     classifier_type = models.CharField(max_length=16)
@@ -172,7 +177,7 @@ class Classifier(TembaModel):
     @classmethod
     def create(cls, org, user, classifier_type, name, config):
         return Classifier.objects.create(
-            uuid=generate_uuid(),
+            uuid=uuid4(),
             name=name,
             classifier_type=classifier_type,
             config=config,
@@ -200,7 +205,7 @@ class Intent(models.Model):
     name = models.CharField(max_length=255)
 
     # the external id of the intent, in same cases this is the same as the name but that is provider specific
-    external_id = models.CharField(max_length=255,)
+    external_id = models.CharField(max_length=255)
 
     # when we first saw / created this intent
     created_on = models.DateTimeField(default=timezone.now)
