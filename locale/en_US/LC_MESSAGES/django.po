@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 19:32+0000\n"
+"POT-Creation-Date: 2019-10-09 20:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2051,8 +2051,7 @@ msgstr ""
 msgid "Unable to get intent entity, make sure you have at least one intent defined"
 msgstr ""
 
-#, python-brace-format
-msgid "Connect {self.classifier_type.name}"
+msgid "Connect"
 msgstr ""
 
 msgid "Delete Classifier"
@@ -3775,9 +3774,6 @@ msgid "Add Classifier"
 msgstr ""
 
 msgid "Import"
-msgstr ""
-
-msgid "Connect"
 msgstr ""
 
 msgid "Login"

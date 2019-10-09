@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 19:32+0000\n"
+"POT-Creation-Date: 2019-10-09 20:58+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2958,9 +2958,9 @@ msgstr "Código de requisição inválido, por favor, verifique-o e tente novame
 msgid "Unable to get intent entity, make sure you have at least one intent defined"
 msgstr ""
 
-#, python-brace-format
-msgid "Connect {self.classifier_type.name}"
-msgstr ""
+#, fuzzy
+msgid "Connect"
+msgstr "Conecte Infobip"
 
 #, fuzzy
 #| msgid "Delete"
@@ -4930,10 +4930,6 @@ msgstr ""
 
 msgid "Import"
 msgstr "Importar"
-
-#, fuzzy
-msgid "Connect"
-msgstr "Conecte Infobip"
 
 msgid "Login"
 msgstr ""

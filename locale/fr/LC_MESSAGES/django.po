@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 19:32+0000\n"
+"POT-Creation-Date: 2019-10-09 20:58+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3077,9 +3077,10 @@ msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
 msgid "Unable to get intent entity, make sure you have at least one intent defined"
 msgstr ""
 
-#, python-brace-format
-msgid "Connect {self.classifier_type.name}"
-msgstr ""
+#, fuzzy
+#| msgid "Connect Hub9"
+msgid "Connect"
+msgstr "Connectez Hub9"
 
 #, fuzzy
 #| msgid "Delete"
@@ -5043,11 +5044,6 @@ msgstr ""
 
 msgid "Import"
 msgstr "Importer"
-
-#, fuzzy
-#| msgid "Connect Hub9"
-msgid "Connect"
-msgstr "Connectez Hub9"
 
 msgid "Login"
 msgstr ""

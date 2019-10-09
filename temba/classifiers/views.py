@@ -23,7 +23,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
         )
 
     def derive_title(self):
-        return _(f"Connect {self.classifier_type.name}")
+        return _("Connect") + " " + self.classifier_type.name
 
     def get_success_url(self):
         return reverse("classifiers.classifier_read", args=[self.object.uuid])
