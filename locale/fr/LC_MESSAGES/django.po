@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-08 16:48+0000\n"
+"POT-Creation-Date: 2019-10-09 15:27+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3078,6 +3078,19 @@ msgid "Connect {self.classifier_type.name}"
 msgstr ""
 
 #, fuzzy
+#| msgid "Delete"
+msgid "Delete Classifier"
+msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been deleted."
+msgstr "Votre flux a été supprimé."
+
+msgid "Delete"
+msgstr "Effacer"
+
+#, fuzzy
 msgid "Phone number"
 msgstr "Numéro de téléphone"
 
@@ -3438,9 +3451,6 @@ msgstr "Débloquer"
 
 msgid "Unstop"
 msgstr ""
-
-msgid "Delete"
-msgstr "Effacer"
 
 msgid "Save as Group"
 msgstr ""
@@ -7514,25 +7524,48 @@ msgstr ""
 msgid "Connect a Classifier"
 msgstr "Connectez Vumi"
 
-#, python-format
 msgid ""
 "\n"
-"            You can connect a classifier to your %(brand)s account to classify responses in flows. Just choose your\n"
-"            provider below then follow the steps to get started.\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
 "\n"
 "          "
 msgstr ""
 
-msgid "Classifier"
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
 msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
 
-msgid "Intents are synced every 15 minutes."
+msgid "Classifier"
 msgstr ""
 
 msgid "Classifier Log"
 msgstr ""
 
 msgid "No synced intents at this time."
+msgstr ""
+
+#, fuzzy
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 #, fuzzy

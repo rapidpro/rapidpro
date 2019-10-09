@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-08 16:48+0000\n"
+"POT-Creation-Date: 2019-10-09 15:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2055,6 +2055,15 @@ msgstr ""
 msgid "Connect {self.classifier_type.name}"
 msgstr ""
 
+msgid "Delete Classifier"
+msgstr ""
+
+msgid "Your classifier has been deleted."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
 msgid "Phone number"
 msgstr ""
 
@@ -2378,9 +2387,6 @@ msgid "Unblock"
 msgstr ""
 
 msgid "Unstop"
-msgstr ""
-
-msgid "Delete"
 msgstr ""
 
 msgid "Save as Group"
@@ -5599,11 +5605,18 @@ msgstr ""
 msgid "Connect a Classifier"
 msgstr ""
 
-#, python-format
 msgid ""
 "\n"
-"            You can connect a classifier to your %(brand)s account to classify responses in flows. Just choose your\n"
-"            provider below then follow the steps to get started.\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
 "\n"
 "          "
 msgstr ""
@@ -5611,13 +5624,16 @@ msgstr ""
 msgid "Classifier"
 msgstr ""
 
-msgid "Intents are synced every 15 minutes."
-msgstr ""
-
 msgid "Classifier Log"
 msgstr ""
 
 msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr ""
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Classifier Events"

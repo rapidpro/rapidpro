@@ -22,7 +22,7 @@ class LuisType(ClassifierType):
 
     connect_view = ConnectView
     connect_blurb = """
-    <a href="https://luis.ai">Luis.ai</a> is a Microsoft Azure platform that lets you interpret natural language in 
+    <a href="https://luis.ai">Luis.ai</a> is a Microsoft Azure platform that lets you interpret natural language in
     your bots. It supports 13 languages and is a highly scalable paid offering.
     """
 
