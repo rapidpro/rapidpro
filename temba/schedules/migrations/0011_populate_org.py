@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def noop(apps, schema_editor):
+def noop(apps, schema_editor):  # pragma: no cover
     pass
 
 
