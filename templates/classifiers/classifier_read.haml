@@ -59,12 +59,8 @@
         %p
           {% if object.dependent_flows.count == 0 %}
           -trans "Are you sure you want to remove this classifier from your account?"
-          .text-center
-            {{ object.name }}
           {% else %}
           - trans "This classifier cannot be removed because it in use."
-          .text-center
-            {{ object.name }}
           {% endif %}
 
         %p
@@ -85,7 +81,7 @@
 
           {% endif %}
 
-    %a#deletion-form.posterize{href:'{% url "classifiers.classifier_delete" object.pk %}'}
+    %a#deletion-form.posterize{href:'{% url "classifiers.classifier_delete" object.uuid %}'}
 
 -block extra-script
   {{block.super}}
@@ -103,6 +99,7 @@
             modal.setPrimaryButton('{% trans "Delete" %}');
 
         {% else %}
+            modal.hideSecondaryButton();
             modal.setListeners({onPrimary: function(){
               modal.dismiss();
             }}, false);

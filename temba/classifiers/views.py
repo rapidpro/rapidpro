@@ -30,7 +30,7 @@ class BaseConnectView(OrgPermsMixin, SmartFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form_blurb"] = self.classifier_type.form_blurb
+        context["form_blurb"] = self.classifier_type.get_form_blurb()
         return context
 
 
@@ -39,10 +39,11 @@ class ClassifierCRUDL(SmartCRUDL):
     actions = ("read", "connect", "delete")
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        slug_url_kwarg = "uuid"
         cancel_url = "uuid@classifiers.classifier_read"
         title = _("Delete Classifier")
         success_message = ""
-        fields = ("id",)
+        fields = ("uuid",)
 
         def get_success_url(self):
             return reverse("orgs.org_home")

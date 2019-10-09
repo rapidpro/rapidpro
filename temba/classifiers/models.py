@@ -75,16 +75,16 @@ class Classifier(TembaModel):
     """
 
     # the type of this classifier
-    classifier_type = models.CharField(max_length=16, null=False)
+    classifier_type = models.CharField(max_length=16)
 
     # the friendly name for this classifier
-    name = models.CharField(max_length=255, null=False)
+    name = models.CharField(max_length=255)
 
     # config values for this classifier
-    config = JSONField(null=False)
+    config = JSONField()
 
     # the org this classifier is part of
-    org = models.ForeignKey("orgs.Org", null=False, on_delete=models.PROTECT)
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT)
 
     def get_type(self):
         """
@@ -191,19 +191,19 @@ class Intent(models.Model):
     """
 
     # intents are forever on an org, but they do get marked inactive when no longer around
-    is_active = models.BooleanField(null=False, default=True)
+    is_active = models.BooleanField(default=True)
 
     # the classifier this intent is tied to
     classifier = models.ForeignKey(Classifier, related_name="intents", on_delete=models.PROTECT)
 
     # the name of the intent
-    name = models.CharField(max_length=255, null=False)
+    name = models.CharField(max_length=255)
 
     # the external id of the intent, in same cases this is the same as the name but that is provider specific
-    external_id = models.CharField(max_length=255, null=False)
+    external_id = models.CharField(max_length=255,)
 
     # when we first saw / created this intent
-    created_on = models.DateTimeField(null=False, default=timezone.now)
+    created_on = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = (("classifier", "external_id"),)
@@ -216,28 +216,28 @@ class ClassifierLog(models.Model):
     """
 
     # the classifier this log is for
-    classifier = models.ForeignKey(Classifier, null=False, related_name="logs", on_delete=models.PROTECT)
+    classifier = models.ForeignKey(Classifier, related_name="logs", on_delete=models.PROTECT)
 
     # the url that was called
-    url = models.URLField(null=False)
+    url = models.URLField()
 
     # the request that was made
-    request = models.TextField(null=False)
+    request = models.TextField()
 
     # the response received
-    response = models.TextField(null=False)
+    response = models.TextField()
 
     # whether this was an error
-    is_error = models.BooleanField(null=False)
+    is_error = models.BooleanField()
 
     # a short description of the result
-    description = models.CharField(max_length=255, null=False)
+    description = models.CharField(max_length=255)
 
     # how long this request took in milliseconds
-    request_time = models.IntegerField(null=False)
+    request_time = models.IntegerField()
 
     # when this was created
-    created_on = models.DateTimeField(null=False, default=timezone.now)
+    created_on = models.DateTimeField(default=timezone.now)
 
     def method(self):
         return self.request.split(" ")[0] if self.request else None
