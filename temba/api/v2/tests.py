@@ -3907,7 +3907,7 @@ class APITest(TembaTest):
         self.assertEqual(0, len(resp_json["results"]))
 
         # filter by uuid present
-        response = self.fetchJSON(url, "uuid=" + c1.uuid)
+        response = self.fetchJSON(url, "uuid=" + str(c1.uuid))
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))

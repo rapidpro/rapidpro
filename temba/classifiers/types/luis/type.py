@@ -9,7 +9,7 @@ class LuisType(ClassifierType):
     Type for classifiers from Luis.ai
     """
 
-    name = "Luis.ai"
+    name = "LUIS"
     slug = "luis"
     icon = "icon-luis"
 
@@ -22,7 +22,7 @@ class LuisType(ClassifierType):
 
     connect_view = ConnectView
     connect_blurb = """
-    <a href="https://luis.ai">Luis.ai</a> is a Microsoft Azure platform that lets you interpret natural language in
+    <a href="https://luis.ai">LUIS</a> is a Microsoft Azure platform that lets you interpret natural language in
     your bots. It supports 13 languages and is a highly scalable paid offering.
     """
 
@@ -33,7 +33,7 @@ class LuisType(ClassifierType):
     @classmethod
     def get_active_intents_from_api(cls, classifier, logs):
         """
-        Gets the current intents defined by this app, in Luis that's an attribute of the app version
+        Gets the current intents defined by this app, in LUIS that's an attribute of the app version
         """
         app_id = classifier.config[cls.CONFIG_APP_ID]
         version = classifier.config[cls.CONFIG_VERSION]
