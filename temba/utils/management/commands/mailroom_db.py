@@ -49,7 +49,7 @@ ORG1 = dict(
             name="Wit.ai",
             config=dict(app_id="67890", access_token="sesame"),
             intents=(
-                dict(name="sentiment", external_id="f3db3c1c-38b7-4e90-81cf-a8828d7e4a10"),
+                dict(name="register", external_id="register"),
             ),
         ),
     ),
