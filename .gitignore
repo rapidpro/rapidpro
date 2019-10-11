@@ -16,6 +16,7 @@ config/gen
 config/settings.py
 coverage-report
 celerybeat-schedule.db
+celerybeat-schedule
 db
 node_modules
 parser.out

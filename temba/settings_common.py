@@ -1128,6 +1128,7 @@ MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 PARSE_SERVER_NAME = ""
 PARSE_URL = ""
 PARSE_APP_ID = ""
+PARSE_REST_KEY = ""
 PARSE_MASTER_KEY = ""
 
 # Firebase Dynamic Links configuration
