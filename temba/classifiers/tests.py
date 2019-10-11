@@ -1,14 +1,15 @@
-from temba.tests import MockResponse, TembaTest
-
 from unittest.mock import patch
 
-from .models import Classifier, ClassifierLog
-from .tasks import sync_classifier_intents
-from .types.wit import WitType
-from .types.luis import LuisType
-from django.utils import timezone
-from django.urls import reverse
 from django.contrib.auth.models import Group
+from django.urls import reverse
+from django.utils import timezone
+
+from temba.request_logs.models import HTTPLog
+from temba.tests import MockResponse, TembaTest
+from .models import Classifier
+from .tasks import sync_classifier_intents
+from .types.luis import LuisType
+from .types.wit import WitType
 
 INTENT_RESPONSE = """
 {
@@ -91,7 +92,7 @@ class ClassifierTest(TembaTest):
             self.assertEqual(1, self.c1.intents.filter(is_active=False).count())
 
             # one classifier log
-            self.assertEqual(1, ClassifierLog.objects.filter(classifier=self.c1).count())
+            self.assertEqual(1, HTTPLog.objects.filter(classifier=self.c1, org=self.org).count())
 
     def test_templates(self):
         # fetch org home page
@@ -123,50 +124,6 @@ class ClassifierTest(TembaTest):
         self.assertNotContains(response, "book_hotel")
         self.assertContains(response, "book_car")
 
-        log_url = reverse("classifiers.classifierlog_list", args=[self.c1.uuid])
+        # and link to logs
+        log_url = reverse("request_logs.httplog_list", args=["classifier", self.c1.uuid])
         self.assertContains(response, log_url)
-
-        # create some logs
-        l1 = ClassifierLog.objects.create(
-            classifier=self.c1,
-            url="http://org1.bar/zap",
-            request="GET /zap",
-            response=" OK 200",
-            is_error=False,
-            description="Sync Success",
-            request_time=10,
-        )
-
-        ClassifierLog.objects.create(
-            classifier=self.c3,
-            url="http://org2.bar/zap",
-            request="GET /zap",
-            response=" OK 200",
-            is_error=False,
-            description="Sync Failure",
-            request_time=10,
-        )
-
-        ClassifierLog.objects.create(
-            classifier=self.c2,
-            url="http://org2.bar/zap",
-            request="GET /zap",
-            response=" OK 200",
-            is_error=False,
-            description="Sync Error",
-            request_time=10,
-        )
-
-        response = self.client.get(log_url)
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertContains(response, "Sync Success")
-        self.assertNotContains(response, "Sync Failure")
-        self.assertNotContains(response, "Sync Error")
-
-        log_url = reverse("classifiers.classifierlog_read", args=[l1.id])
-        self.assertContains(response, log_url)
-
-        response = self.client.get(log_url)
-        self.assertContains(response, "200")
-        self.assertContains(response, "http://org1.bar/zap")
-        self.assertNotContains(response, "http://org2.bar/zap")

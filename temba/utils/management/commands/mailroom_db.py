@@ -48,9 +48,7 @@ ORG1 = dict(
             classifier_type="wit",
             name="Wit.ai",
             config=dict(app_id="67890", access_token="sesame"),
-            intents=(
-                dict(name="register", external_id="register"),
-            ),
+            intents=(dict(name="register", external_id="register"),),
         ),
     ),
     channels=(
@@ -369,9 +367,7 @@ class Command(BaseCommand):
             # add the intents
             for intent in c["intents"]:
                 classifier.intents.create(
-                    name=intent["name"],
-                    external_id=intent["external_id"],
-                    created_on=timezone.now()
+                    name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

@@ -31,6 +31,7 @@ urlpatterns = [
     url(r"^", include("temba.orgs.urls")),
     url(r"^", include("temba.policies.urls")),
     url(r"^", include("temba.public.urls")),
+    url(r"^", include("temba.request_logs.urls")),
     url(r"^", include("temba.schedules.urls")),
     url(r"^", include("temba.triggers.urls")),
     url(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),

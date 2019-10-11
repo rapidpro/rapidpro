@@ -2,17 +2,18 @@
 -load i18n compress humanize
 
 -block page-title
-  -trans "Classifier Event"
+  HTTP Log - {{ object.get_log_type_display }}
 
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
     -trans "Classifier Event"
   %h5.header-margin
-    {{object.description}}
+    {{object.get_log_type_display}}
 
 -block above-bar
-  %a.btn.btn-secondary{ href: '{% url "classifiers.classifierlog_list" object.classifier.uuid %}' } Classifier Log
+  -if object.classifier
+    %a.btn.btn-secondary{ href: '{% url "request_logs.httplog_list" "classifier" object.classifier.uuid %}' } Classifier Log
 
 -block content
 
@@ -20,17 +21,13 @@
     .detail.classifier
       .header
         Classifier
-      %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
-        {{object.classifier}}
-    .detail.started
-      .header
-        Date
-      {{object.created_on|date:"M j, Y g:i:s a"}}
-
-    .detail.duration
-      .header
-        Duration
-      {{ object.request_time|default:"0"|intcomma }}ms
+        %a{href:'{% url "classifiers.classifier_read" object.classifier.uuid %}'}
+          {{object.classifier.name}}
+    %div(style="float:right")
+      .detail.started
+        .header
+          Date
+        {{object.created_on|date:"M j, Y g:i:s a"}}
 
   .log<
     .summary

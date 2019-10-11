@@ -27,16 +27,17 @@
 
       -for obj in object_list
         %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-          %td.clickable
+          %td
             {{ obj.classifier.name }}
 
           %td.clickable
-            %a{ href:'{% url "classifiers.classifierlog_read" obj.id %}' }= obj.description
+            %a{ href:'{% url "request_logs.httplog_read" obj.id %}' }= obj.get_log_type_display
 
-          %td.clickable{ style:'text-align: right', nowrap:'true' }
+          %td{ style:'text-align: right', nowrap:'true' }
             Request time:
             %span
               {{ obj.request_time|default:"0"|intcomma }}ms
 
-          %td.clickable{ style:'text-align: right', nowrap:'true' }
+          %td{ style:'text-align: right', nowrap:'true' }
             {{obj.created_on}}
+

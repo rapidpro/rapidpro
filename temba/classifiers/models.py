@@ -1,13 +1,14 @@
 import logging
-from django.db import models
-from smartmin.models import SmartModel
-from temba.utils.models import JSONField
-from django.conf.urls import url
-from django.utils import timezone
 from abc import ABCMeta
-from django.template import Engine
-from requests_toolbelt.utils import dump
 from uuid import uuid4
+
+from django.conf.urls import url
+from django.db import models
+from django.template import Engine
+from django.utils import timezone
+from smartmin.models import SmartModel
+
+from temba.utils.models import JSONField
 
 logger = logging.getLogger(__name__)
 
@@ -212,71 +213,3 @@ class Intent(models.Model):
 
     class Meta:
         unique_together = (("classifier", "external_id"),)
-
-
-class ClassifierLog(models.Model):
-    """
-    ClassifierLog is used to log requests and responses with a classifier. This includes both flow classifications
-    and intent syncing events.
-    """
-
-    # the classifier this log is for
-    classifier = models.ForeignKey(Classifier, related_name="logs", on_delete=models.PROTECT)
-
-    # the url that was called
-    url = models.URLField()
-
-    # the request that was made
-    request = models.TextField()
-
-    # the response received
-    response = models.TextField()
-
-    # whether this was an error
-    is_error = models.BooleanField()
-
-    # a short description of the result
-    description = models.CharField(max_length=255)
-
-    # how long this request took in milliseconds
-    request_time = models.IntegerField()
-
-    # when this was created
-    created_on = models.DateTimeField(default=timezone.now)
-
-    def method(self):
-        return self.request.split(" ")[0] if self.request else None
-
-    def status_code(self):
-        return self.response.split(" ")[1] if self.response else None
-
-    @classmethod
-    def from_response(cls, classifier, url, response, success_desc, failure_desc):
-        is_error = response.status_code != 200
-        description = failure_desc if is_error else success_desc
-
-        data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
-
-        # split by lines
-        lines = data.split("\r\n")
-        request_lines = []
-        response_lines = []
-
-        for line in lines:
-            if line.startswith(">>> "):
-                request_lines.append(line[4:])
-            else:
-                response_lines.append(line[4:])
-
-        request = "\r\n".join(request_lines)
-        response = "\r\n".join(response_lines)
-
-        return ClassifierLog(
-            classifier=classifier,
-            url=url,
-            request=request,
-            response=response,
-            is_error=is_error,
-            description=description,
-            created_on=timezone.now(),
-        )

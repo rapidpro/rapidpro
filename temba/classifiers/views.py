@@ -1,11 +1,11 @@
-from django.urls import reverse
-from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartListView, SmartFormView, SmartDeleteView
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin, ModalMixin
-from .models import Classifier, ClassifierLog
-from django.utils.translation import ugettext_lazy as _
-from django.shortcuts import get_object_or_404
 from django.contrib import messages
 from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.utils.translation import ugettext_lazy as _
+from smartmin.views import SmartCRUDL, SmartTemplateView, SmartReadView, SmartFormView, SmartDeleteView
+
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin, ModalMixin
+from .models import Classifier
 
 
 class BaseConnectView(OrgPermsMixin, SmartFormView):
@@ -75,46 +75,3 @@ class ClassifierCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["classifier_types"] = Classifier.get_types()
             return context
-
-
-class ClassifierLogCRUDL(SmartCRUDL):
-    model = ClassifierLog
-    actions = ("list", "read")
-
-    class List(OrgPermsMixin, SmartListView):
-        fields = ("classifier", "description", "created_on")
-        link_fields = ("classifier", "description", "created_on")
-        paginate_by = 50
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/(?P<classifier>[^/]+)/$" % path
-
-        def derive_classifier(self):
-            return get_object_or_404(Classifier, uuid=self.kwargs["classifier"], org=self.derive_org(), is_active=True)
-
-        def derive_org(self):
-            return self.request.user.get_org()
-
-        def derive_queryset(self, **kwargs):
-            classifier = self.derive_classifier()
-            return (
-                ClassifierLog.objects.filter(classifier=classifier)
-                .order_by("-created_on")
-                .prefetch_related("classifier")
-            )
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["classifier"] = self.derive_classifier()
-            return context
-
-    class Read(OrgPermsMixin, SmartReadView):
-        fields = ("description", "created_on")
-
-        def derive_org(self):
-            return self.request.user.get_org()
-
-        def derive_queryset(self, **kwargs):
-            queryset = super().derive_queryset(**kwargs)
-            return queryset.filter(classifier__org=self.derive_org())

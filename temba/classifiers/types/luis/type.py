@@ -1,4 +1,5 @@
-from ...models import ClassifierType, ClassifierLog, Intent
+from ...models import ClassifierType, Intent
+from temba.request_logs.models import HTTPLog
 from .views import ConnectView
 from django.utils import timezone
 import requests
@@ -45,7 +46,9 @@ class LuisType(ClassifierType):
         response = requests.get(url, headers={cls.AUTH_HEADER: primary_key})
         elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = ClassifierLog.from_response(classifier, url, response, "Synced Intents", "Syncing Error")
+        log = HTTPLog.from_response(
+            HTTPLog.INTENTS_SYNCED, url, response, "Synced Intents", "Syncing Error", classifier=classifier
+        )
         log.request_time = elapsed
         logs.append(log)
 
