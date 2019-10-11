@@ -46,9 +46,7 @@ class LuisType(ClassifierType):
         response = requests.get(url, headers={cls.AUTH_HEADER: primary_key})
         elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(
-            HTTPLog.INTENTS_SYNCED, url, response, "Synced Intents", "Syncing Error", classifier=classifier
-        )
+        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, url, response, classifier=classifier)
         log.request_time = elapsed
         logs.append(log)
 

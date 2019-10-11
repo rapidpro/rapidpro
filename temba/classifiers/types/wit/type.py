@@ -42,9 +42,7 @@ class WitType(ClassifierType):
         response = requests.get(cls.INTENT_URL, headers={"Authorization": f"Bearer {access_token}"})
         elapsed = (timezone.now() - start).total_seconds() * 1000
 
-        log = HTTPLog.from_response(
-            HTTPLog.INTENTS_SYNCED, cls.INTENT_URL, response, "Synced Intents", "Syncing Error", classifier=classifier
-        )
+        log = HTTPLog.from_response(HTTPLog.INTENTS_SYNCED, cls.INTENT_URL, response, classifier=classifier)
         log.request_time = elapsed
         logs.append(log)
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 20:58+0000\n"
+"POT-Creation-Date: 2019-10-11 19:19+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5341,6 +5341,14 @@ msgstr "El id que Vimeo usa para este video"
 msgid "Register for public beta"
 msgstr "Registrar para beta público"
 
+msgid "Intents Synced"
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Called"
+msgstr "Evento del transmisor"
+
 msgid "Never"
 msgstr "Nunca"
 
@@ -7772,23 +7780,6 @@ msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 msgid "This classifier cannot be removed because it in use."
 msgstr ""
-
-#, fuzzy
-msgid "Classifier Events"
-msgstr "Evento del transmisor"
-
-#, fuzzy
-#| msgid "Recent Channel Events"
-msgid "Recent Classifier Events"
-msgstr "Eventos recientes del transmisor"
-
-msgid "Classifier: "
-msgstr ""
-
-#, fuzzy
-#| msgid "Channel Event"
-msgid "Classifier Event"
-msgstr "Evento del transmisor"
 
 msgid "Hold up!"
 msgstr "¡Espere!"
@@ -11488,6 +11479,23 @@ msgstr ""
 
 msgid "More Videos"
 msgstr "Más videos"
+
+#, fuzzy
+msgid "Classifier Events"
+msgstr "Evento del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+msgid "Classifier: "
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evento del transmisor"
 
 #, fuzzy
 #| msgid "Create Schedule"

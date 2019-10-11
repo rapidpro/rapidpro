@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-09 20:58+0000\n"
+"POT-Creation-Date: 2019-10-11 19:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3888,6 +3888,12 @@ msgstr ""
 msgid "Register for public beta"
 msgstr ""
 
+msgid "Intents Synced"
+msgstr ""
+
+msgid "Classifier Called"
+msgstr ""
+
 msgid "Never"
 msgstr ""
 
@@ -5636,18 +5642,6 @@ msgid "Are you sure you want to remove this classifier from your account?"
 msgstr ""
 
 msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Classifier Events"
-msgstr ""
-
-msgid "Recent Classifier Events"
-msgstr ""
-
-msgid "Classifier: "
-msgstr ""
-
-msgid "Classifier Event"
 msgstr ""
 
 msgid "Hold up!"
@@ -8549,6 +8543,18 @@ msgid ""
 msgstr ""
 
 msgid "More Videos"
+msgstr ""
+
+msgid "Classifier Events"
+msgstr ""
+
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Classifier: "
+msgstr ""
+
+msgid "Classifier Event"
 msgstr ""
 
 msgid "Leave unscheduled"

@@ -4,7 +4,6 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from requests_toolbelt.utils import dump
-from smartmin.models import SmartModel
 
 from temba.orgs.models import Org
 
@@ -41,9 +40,6 @@ class HTTPLog(models.Model):
     # whether this was an error
     is_error = models.BooleanField()
 
-    # a short description of the result
-    description = models.CharField(max_length=255)
-
     # how long this request took in milliseconds
     request_time = models.IntegerField()
 
@@ -60,7 +56,7 @@ class HTTPLog(models.Model):
         return self.response.split(" ")[1] if self.response else None
 
     @classmethod
-    def from_response(cls, log_type, url, response, success_desc, failure_desc, classifier=None):
+    def from_response(cls, log_type, url, response, classifier=None):
         # remove once we have other types
         assert classifier is not None
 
@@ -68,8 +64,6 @@ class HTTPLog(models.Model):
             org = classifier.org
 
         is_error = response.status_code != 200
-        description = failure_desc if is_error else success_desc
-
         data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
 
         # split by lines
