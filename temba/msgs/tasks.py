@@ -143,7 +143,7 @@ def retry_errored_messages():
         .exclude(topup=None)
         .exclude(channel__channel_type=Channel.TYPE_ANDROID)
         .order_by("created_on")
-        .prefecth_related("channel")[:5000]
+        .prefetch_related("channel")[:5000]
     )
     Msg.send_messages(errored_msgs)
 
