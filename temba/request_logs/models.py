@@ -23,7 +23,9 @@ class HTTPLog(models.Model):
     LOG_TYPE_CHOICES = ((INTENTS_SYNCED, _("Intents Synced")), (CLASSIFIER_CALLED, _("Classifier Called")))
 
     # the classifier this log is for
-    classifier = models.ForeignKey("classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT)
+    classifier = models.ForeignKey(
+        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False
+    )
 
     # the type of log this is
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
@@ -48,6 +50,9 @@ class HTTPLog(models.Model):
 
     # the org this log is part of
     org = models.ForeignKey(Org, related_name="http_logs", on_delete=models.PROTECT)
+
+    class Meta:
+        index_together = (("classifier", "created_on"),)
 
     def method(self):
         return self.request.split(" ")[0] if self.request else None
