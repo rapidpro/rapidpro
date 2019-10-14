@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-11 19:19+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -10837,6 +10837,11 @@ msgid "Classifier Event"
 msgstr "Evento do transmissor"
 
 #, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Erro no transmissor"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Criar agendamento"
@@ -13278,9 +13283,6 @@ msgstr "Remover telefone"
 
 #~ msgid "Destination"
 #~ msgstr "Destino"
-
-#~ msgid "Channel Error"
-#~ msgstr "Erro no transmissor"
 
 #~ msgid "No Response Body"
 #~ msgstr "Nenhum corpo de resposta"

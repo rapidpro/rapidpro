@@ -51,8 +51,11 @@
         :plain
           {{ object.request }}
       %pre.prettyprint.response<
-        :plain
-          {{ object.response }}
+        -if object.response
+          :plain
+            {{ object.response }}
+        -elif object.is_error
+          -trans "Connection Error"
 
 -block extra-script
   {{ block.super }}

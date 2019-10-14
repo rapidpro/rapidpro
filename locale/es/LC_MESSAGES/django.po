@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-11 19:19+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -11498,6 +11498,11 @@ msgid "Classifier Event"
 msgstr "Evento del transmisor"
 
 #, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Error del transmisor"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Crear cronograma"
@@ -14024,9 +14029,6 @@ msgstr "Borrar teléfono"
 
 #~ msgid "Destination"
 #~ msgstr "Destino"
-
-#~ msgid "Channel Error"
-#~ msgstr "Error del transmisor"
 
 #~ msgid "No Response Body"
 #~ msgstr "Sin cuerpo de respuesta"

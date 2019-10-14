@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-11 19:19+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -8555,6 +8555,9 @@ msgid "Classifier: "
 msgstr ""
 
 msgid "Classifier Event"
+msgstr ""
+
+msgid "Connection Error"
 msgstr ""
 
 msgid "Leave unscheduled"

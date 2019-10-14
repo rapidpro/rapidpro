@@ -35,7 +35,7 @@ class HTTPLog(models.Model):
     request = models.TextField()
 
     # the response received
-    response = models.TextField()
+    response = models.TextField(null=True)
 
     # whether this was an error
     is_error = models.BooleanField()
