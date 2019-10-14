@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-03 22:10+0000\n"
+"POT-Creation-Date: 2019-10-14 22:42+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3770,6 +3770,35 @@ msgstr "Arquivar contatos"
 msgid "Include contacts currently active in a flow"
 msgstr ""
 
+#, fuzzy
+#| msgid "Contacts that will start the flow"
+msgid "Select contacts or groups to start in the flow"
+msgstr "Contatos que irão iniciar o fluxo"
+
+#, fuzzy
+#| msgid "Unlimited Contacts and Groups"
+msgid "Enter contacts and groups to start below"
+msgstr "Contatos e grupos ilimitados"
+
+#, fuzzy
+#| msgid "Your Contacts"
+msgid "Search for contacts to start"
+msgstr "Seus contatos"
+
+#, fuzzy
+msgid "Enter contact query"
+msgstr "Criar grupo de contatos"
+
+#, fuzzy
+#| msgid "Contact First Name"
+msgid "Contact query is required"
+msgstr "Primeiro nome do contato"
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid contact query"
+msgstr "Por favor, insira pelo menos 8 caracteres"
+
 msgid "You must specify at least one contact or one group to start a flow."
 msgstr ""
 
@@ -3783,10 +3812,8 @@ msgstr ""
 msgid "Add Contacts to Flow"
 msgstr "%d contatos foram adicionados para o fluxo '%s'"
 
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow does not use message templates."
-msgstr "O fluxo que está sendo iniciado"
+msgid "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+msgstr ""
 
 msgid "The message template {ref['name']} does not exist on your account and cannot be sent."
 msgstr ""
@@ -7970,9 +7997,6 @@ msgstr "iniciou este fluxo"
 msgid "Interrupt contacts currently active in flows"
 msgstr ""
 
-msgid "You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
-msgstr ""
-
 #, fuzzy
 #| msgid "The flow that is being started"
 msgid "This flow has never been started."
@@ -10894,6 +10918,11 @@ msgid "Facebook Channel"
 msgstr "Remover telefone"
 
 #, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow does not use message templates."
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#, fuzzy
 #~| msgid "The type of this message"
 #~ msgid "The UUID of the first step"
 #~ msgstr "O tipo dessa mensagem"
@@ -11149,9 +11178,6 @@ msgstr "Remover telefone"
 
 #~ msgid "Groups that will start the flow"
 #~ msgstr "Grupos que irão iniciar o fluxo"
-
-#~ msgid "Contacts that will start the flow"
-#~ msgstr "Contatos que irão iniciar o fluxo"
 
 #~ msgid "Whether to restart any participants already in this flow"
 #~ msgstr "Se reiniciar qualquer participantes que já estão nesse fluxo"
@@ -13802,9 +13828,6 @@ msgstr "Remover telefone"
 
 #~ msgid "Unlimited Flows"
 #~ msgstr "Fluxos ilimitados"
-
-#~ msgid "Unlimited Contacts and Groups"
-#~ msgstr "Contatos e grupos ilimitados"
 
 #~ msgid "REST API for sending messages"
 #~ msgstr "API REST para enviar mensagens"
