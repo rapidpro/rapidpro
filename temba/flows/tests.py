@@ -2884,7 +2884,8 @@ class FlowCRUDLTest(TembaTest):
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
 
         self.assertEqual(
-            ["omnibox", "restart_participants", "include_active", "loc"], list(response.context["form"].fields.keys())
+            ["omnibox", "restart_participants", "include_active", "start_type", "contact_query", "loc"],
+            list(response.context["form"].fields.keys()),
         )
 
         # create flow start with restart_participants and include_active both enabled
@@ -2894,7 +2895,7 @@ class FlowCRUDLTest(TembaTest):
 
             self.client.post(
                 reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "restart_participants": "on", "include_active": "on"},
+                {"omnibox": selection, "start_type": "select", "restart_participants": "on", "include_active": "on"},
                 follow=True,
             )
 
@@ -2911,7 +2912,11 @@ class FlowCRUDLTest(TembaTest):
 
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
-            self.client.post(reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": selection}, follow=True)
+            self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
+            )
 
             start = FlowStart.objects.get()
             self.assertEqual({contact}, set(start.contacts.all()))
@@ -2925,7 +2930,9 @@ class FlowCRUDLTest(TembaTest):
         # trying to start again should fail because there is already a pending start for this flow
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
             response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]), {"omnibox": selection}, follow=True
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {"omnibox": selection, "start_type": "select"},
+                follow=True,
             )
 
             # should have an error now
