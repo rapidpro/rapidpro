@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-07 20:06+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -3030,6 +3030,72 @@ msgid "Calls"
 msgstr ""
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The id for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+msgid "The name of the version of your LUIS app to use"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The primary key for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The endpoint URL for your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Votre nom"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Hub9"
+msgid "Connect"
+msgstr "Connectez Hub9"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Classifier"
+msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been deleted."
+msgstr "Votre flux a été supprimé."
+
+msgid "Delete"
+msgstr "Effacer"
+
+#, fuzzy
 msgid "Phone number"
 msgstr "Numéro de téléphone"
 
@@ -3390,9 +3456,6 @@ msgstr "Débloquer"
 
 msgid "Unstop"
 msgstr ""
-
-msgid "Delete"
-msgstr "Effacer"
 
 msgid "Save as Group"
 msgstr ""
@@ -4976,13 +5039,11 @@ msgstr "Déconnexion"
 msgid "Add Channel"
 msgstr "Channel"
 
+msgid "Add Classifier"
+msgstr ""
+
 msgid "Import"
 msgstr "Importer"
-
-#, fuzzy
-#| msgid "Connect Hub9"
-msgid "Connect"
-msgstr "Connectez Hub9"
 
 msgid "Login"
 msgstr ""
@@ -5107,6 +5168,14 @@ msgstr "L' id  vimeo utilise pour cette vidéo"
 
 msgid "Register for public beta"
 msgstr "Inscrivez-vous à la version bêta publique"
+
+msgid "Intents Synced"
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Called"
+msgstr "Evénement du relayeur"
 
 msgid "Never"
 msgstr "Jamais"
@@ -7456,6 +7525,63 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Connectez Vumi"
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+#, fuzzy
+#| msgid "Activate"
+msgid "Active Intents"
+msgstr "activer"
+
+msgid "No synced intents at this time."
+msgstr ""
+
+#, fuzzy
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Hold up!"
@@ -11168,6 +11294,28 @@ msgid "More Videos"
 msgstr "Plus de vidéos"
 
 #, fuzzy
+msgid "Classifier Events"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Channel récents événements"
+
+msgid "Classifier: "
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Erreur Relayeur"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Créer un planning"
@@ -12228,11 +12376,6 @@ msgstr "Supprimer téléphone"
 #~ msgstr "API Docs"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Votre flux a été supprimé."
 
@@ -12241,11 +12384,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Connect Zenvia Account"
 #~ msgstr "Connectez votre compte Zenvia"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name of your Viber bot"
-#~ msgstr "Le nom de votre organisation"
 
 #, fuzzy
 #~ msgid "Connect Viber Bot"
@@ -12697,11 +12835,6 @@ msgstr "Supprimer téléphone"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Connectez avec Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Connectez Vumi"
 
 #, fuzzy
 #~| msgid ""
@@ -13719,9 +13852,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Destination"
 #~ msgstr "destination"
-
-#~ msgid "Channel Error"
-#~ msgstr "Erreur Relayeur"
 
 #~ msgid "No Response Body"
 #~ msgstr "Pas de corps de réponse"

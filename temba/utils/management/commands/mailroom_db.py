@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
@@ -31,6 +32,25 @@ ORG1 = dict(
     has_locations=True,
     languages=("eng", "fra"),
     sequence_start=10000,
+    classifiers=(
+        dict(
+            uuid="097e026c-ae79-4740-af67-656dbedf0263",
+            classifier_type="luis",
+            name="LUIS",
+            config=dict(app_id="12345", version="0.1", endpoint_url="https://foo.com", primary_key="sesame"),
+            intents=(
+                dict(name="book_flight", external_id="10406609-9749-47d4-bd2b-f3b778d5a491"),
+                dict(name="book_car", external_id="65eae80b-c0fb-4054-9d64-10de08e59a62"),
+            ),
+        ),
+        dict(
+            uuid="ff2a817c-040a-4eb2-8404-7d92e8b79dd0",
+            classifier_type="wit",
+            name="Wit.ai",
+            config=dict(app_id="67890", access_token="sesame"),
+            intents=(dict(name="register", external_id="register"),),
+        ),
+    ),
     channels=(
         dict(
             name="Twilio",
@@ -179,6 +199,7 @@ ORG2 = dict(
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
         ),
     ),
+    classifiers=(),
     groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
     fields=(),
     contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
@@ -307,6 +328,7 @@ class Command(BaseCommand):
         self.create_group_contacts(spec, org, superuser)
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
+        self.create_classifiers(spec, org, superuser)
 
         return org
 
@@ -325,6 +347,28 @@ class Command(BaseCommand):
                 created_by=user,
                 modified_by=user,
             )
+
+        self._log(self.style.SUCCESS("OK") + "\n")
+
+    def create_classifiers(self, spec, org, user):
+        self._log(f"Creating {len(spec['classifiers'])} classifiers... ")
+
+        for c in spec["classifiers"]:
+            classifier = Classifier.objects.create(
+                org=org,
+                name=c["name"],
+                config=c["config"],
+                classifier_type=c["classifier_type"],
+                uuid=c["uuid"],
+                created_by=user,
+                modified_by=user,
+            )
+
+            # add the intents
+            for intent in c["intents"]:
+                classifier.intents.create(
+                    name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
+                )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

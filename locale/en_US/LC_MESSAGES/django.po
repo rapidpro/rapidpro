@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-07 20:06+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2018,6 +2018,51 @@ msgstr ""
 msgid "Calls"
 msgstr ""
 
+msgid "The name of your LUIS app"
+msgstr ""
+
+msgid "The id for your LUIS app"
+msgstr ""
+
+msgid "The name of the version of your LUIS app to use"
+msgstr ""
+
+msgid "The primary key for your LUIS app"
+msgstr ""
+
+msgid "The endpoint URL for your LUIS app"
+msgstr ""
+
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr ""
+
+msgid "Your app's name"
+msgstr ""
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr ""
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Delete Classifier"
+msgstr ""
+
+msgid "Your classifier has been deleted."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
 msgid "Phone number"
 msgstr ""
 
@@ -2341,9 +2386,6 @@ msgid "Unblock"
 msgstr ""
 
 msgid "Unstop"
-msgstr ""
-
-msgid "Delete"
 msgstr ""
 
 msgid "Save as Group"
@@ -3728,10 +3770,10 @@ msgstr ""
 msgid "Add Channel"
 msgstr ""
 
-msgid "Import"
+msgid "Add Classifier"
 msgstr ""
 
-msgid "Connect"
+msgid "Import"
 msgstr ""
 
 msgid "Login"
@@ -3844,6 +3886,12 @@ msgid "The id vimeo uses for this video"
 msgstr ""
 
 msgid "Register for public beta"
+msgstr ""
+
+msgid "Intents Synced"
+msgstr ""
+
+msgid "Classifier Called"
 msgstr ""
 
 msgid "Never"
@@ -5554,6 +5602,46 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+msgid "Connect a Classifier"
+msgstr ""
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+msgid "Active Intents"
+msgstr ""
+
+msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr ""
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Hold up!"
@@ -8455,6 +8543,21 @@ msgid ""
 msgstr ""
 
 msgid "More Videos"
+msgstr ""
+
+msgid "Classifier Events"
+msgstr ""
+
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Classifier: "
+msgstr ""
+
+msgid "Classifier Event"
+msgstr ""
+
+msgid "Connection Error"
 msgstr ""
 
 msgid "Leave unscheduled"

@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?8ujmay');
-  src:  url('fonts/temba.eot?8ujmay#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?8ujmay') format('truetype'),
-    url('fonts/temba.woff?8ujmay') format('woff'),
-    url('fonts/temba.svg?8ujmay#temba') format('svg');
+  src:  url('fonts/temba.eot?1uwrn0');
+  src:  url('fonts/temba.eot?1uwrn0#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?1uwrn0') format('truetype'),
+    url('fonts/temba.woff?1uwrn0') format('woff'),
+    url('fonts/temba.svg?1uwrn0#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,6 +25,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-chip:before {
+  content: "\e911";
+}
+.icon-luis:before {
+  content: "\e90f";
+}
+.icon-wit:before {
+  content: "\e910";
+}
 .icon-thinq:before {
   content: "\e900";
 }

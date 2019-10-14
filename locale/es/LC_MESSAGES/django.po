@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-07 20:06+0000\n"
+"POT-Creation-Date: 2019-10-14 17:15+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3181,6 +3181,72 @@ msgid "Calls"
 msgstr "Llamadas"
 
 #, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your LUIS app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The id for your LUIS app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+msgid "The name of the version of your LUIS app to use"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The primary key for your LUIS app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The endpoint URL for your LUIS app"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Su apellido"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Hub9"
+msgid "Connect"
+msgstr "Conectar Hub9"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Classifier"
+msgstr "Borrar"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been deleted."
+msgstr "Su flujo ha sido retirado."
+
+msgid "Delete"
+msgstr "Borrar"
+
+#, fuzzy
 msgid "Phone number"
 msgstr "Número de teléfono"
 
@@ -3543,9 +3609,6 @@ msgstr "Desbloquear"
 
 msgid "Unstop"
 msgstr ""
-
-msgid "Delete"
-msgstr "Borrar"
 
 msgid "Save as Group"
 msgstr "Guardar como grupo"
@@ -5148,13 +5211,11 @@ msgstr "Salir"
 msgid "Add Channel"
 msgstr "Transmisor"
 
+msgid "Add Classifier"
+msgstr ""
+
 msgid "Import"
 msgstr "Importar"
-
-#, fuzzy
-#| msgid "Connect Hub9"
-msgid "Connect"
-msgstr "Conectar Hub9"
 
 msgid "Login"
 msgstr ""
@@ -5279,6 +5340,14 @@ msgstr "El id que Vimeo usa para este video"
 
 msgid "Register for public beta"
 msgstr "Registrar para beta público"
+
+msgid "Intents Synced"
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Called"
+msgstr "Evento del transmisor"
 
 msgid "Never"
 msgstr "Nunca"
@@ -7660,6 +7729,56 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Conectar Vumi"
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+#, fuzzy
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"          Instalar el %(name)s app\n"
+"\n"
+"        "
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+#, fuzzy
+#| msgid "Activate"
+msgid "Active Intents"
+msgstr "Activar"
+
+msgid "No synced intents at this time."
+msgstr ""
+
+#, fuzzy
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Hold up!"
@@ -11362,6 +11481,28 @@ msgid "More Videos"
 msgstr "Más videos"
 
 #, fuzzy
+msgid "Classifier Events"
+msgstr "Evento del transmisor"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Eventos recientes del transmisor"
+
+msgid "Classifier: "
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evento del transmisor"
+
+#, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Error del transmisor"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Crear cronograma"
@@ -12459,11 +12600,6 @@ msgstr "Borrar teléfono"
 #~ msgstr "Docs API"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Su flujo ha sido retirado."
 
@@ -12472,11 +12608,6 @@ msgstr "Borrar teléfono"
 
 #~ msgid "Connect Zenvia Account"
 #~ msgstr "Conectar la cuenta de Zenvia"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name of your Viber bot"
-#~ msgstr "El nombre de su organización"
 
 #, fuzzy
 #~ msgid "Connect Viber Bot"
@@ -12916,11 +13047,6 @@ msgstr "Borrar teléfono"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Conectar Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Conectar Vumi"
 
 #, fuzzy
 #~| msgid ""
@@ -13903,9 +14029,6 @@ msgstr "Borrar teléfono"
 
 #~ msgid "Destination"
 #~ msgstr "Destino"
-
-#~ msgid "Channel Error"
-#~ msgstr "Error del transmisor"
 
 #~ msgid "No Response Body"
 #~ msgstr "Sin cuerpo de respuesta"

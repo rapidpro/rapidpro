@@ -46,6 +46,7 @@ from django.views.generic import View
 
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
+from temba.classifiers.models import Classifier
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
@@ -2146,6 +2147,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("channels.channel_claim"):
                 links.append(dict(title=_("Add Channel"), href=reverse("channels.channel_claim")))
 
+            if self.has_org_perm("classifiers.classifier_connect"):
+                links.append(dict(title=_("Add Classifier"), href=reverse("classifiers.classifier_connect")))
+
             if self.has_org_perm("orgs.org_export"):
                 links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
 
@@ -2161,6 +2165,16 @@ class OrgCRUDL(SmartCRUDL):
 
                 formax.add_section(
                     "channel", get_channel_read_url(channel), icon=channel.get_type().icon, action="link"
+                )
+
+        def add_classifier_section(self, formax, classifier):
+
+            if self.has_org_perm("classifiers.classifier_read"):
+                formax.add_section(
+                    "classifier",
+                    reverse("classifiers.classifier_read", args=[classifier.uuid]),
+                    icon=classifier.get_type().icon,
+                    action="link",
                 )
 
         def derive_formax_sections(self, formax, context):
@@ -2185,6 +2199,11 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client = org.get_nexmo_client()
                 if nexmo_client:  # pragma: needs cover
                     formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
+
+            if self.has_org_perm("classifiers.classifier_read"):
+                classifiers = Classifier.objects.filter(org=org, is_active=True).order_by("created_on")
+                for classifier in classifiers:
+                    self.add_classifier_section(formax, classifier)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
@@ -2656,7 +2675,7 @@ class TopUpCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by("-expires_on")
             return queryset.annotate(
                 credits_remaining=ExpressionWrapper(F("credits") - Sum(F("topupcredits__used")), IntegerField())
             )
