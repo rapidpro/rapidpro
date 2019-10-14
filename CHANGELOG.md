@@ -1,3 +1,7 @@
+v5.1.52
+----------
+ * add prefetch to retry
+
 v5.1.51
 ----------
  * Add ThinQ Channel Type
