@@ -1,3 +1,8 @@
+v5.1.53
+----------
+ * Classifier models and views
+ * HTTPLog models and views
+
 v5.1.52
 ----------
  * add prefetch to retry
