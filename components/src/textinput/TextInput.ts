@@ -20,15 +20,6 @@ export default class TextInput extends FormElement {
         align-items: stretch;
       }
 
-      .error.input-container {
-        border-color: var(--color-error);
-      }
-
-      .error.input-container:focus-within {
-        border-color: var(--color-error);
-        box-shadow: var(--widget-box-shadow-focused-error);        
-      }
-
       .input-container:focus-within {
         border-color: var(--color-focus);
         background: var(--color-widget-bg-focused);
@@ -83,9 +74,6 @@ export default class TextInput extends FormElement {
   @property({type: String})
   name: string = "";
 
-  @property({type: Boolean})
-  error: boolean;
-
   @property({type: Object})
   inputElement: HTMLInputElement;
 
@@ -113,7 +101,7 @@ export default class TextInput extends FormElement {
     }
 
     return html`
-    <div class="input-container ${this.error ? 'error' : ''}" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
+    <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
           name=${this.name}

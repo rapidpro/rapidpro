@@ -2334,6 +2334,11 @@ input[type='radio'] {
     background-color: #fff;
     border: 0;
     box-shadow: none;
+
+    --focus-rgb: var(--error-rgb);
+    --color-focus: var(--color-error);
+    --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+    --color-widget-border: var(--color-error);
   }
 }
 
