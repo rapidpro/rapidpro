@@ -10,14 +10,14 @@
       
       html {
 
-        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+        --font-family: 'Roboto', sans-serif;
+        font-family: var(--font-family);
         font-size: 13px;
         font-weight: 200;
         
         /* 
           --color-widget-bg: rgba(0, 0, 0, 0.04);
           --color-widget-bg-focused: rgba(0, 0, 0, 0.06);
-          --color-widget-shadow-focused: rgba(0, 0, 0, 0.07);
           --color-widget-border: transparent;
         */
 
@@ -28,18 +28,26 @@
         /* --primary-rgb: 35, 135, 202; */
         --primary-rgb: 52, 152, 219;
         --secondary-rgb: 0, 77, 129;
+        --focus-rgb: 82, 168, 236;
+        --error-rgb: 255, 99, 71;
+
+        --color-info: #c0d9eb;
+        --color-warning: #fff6c0;
+        --color-error: rgb(var(--error-rgb));
 
         /** --- secondary configuration, only for fine tuning --- */
 
         /* page text, borders, widgets */
 
-        --color-text: #666;
+        --color-text: #777;
         --color-borders: rgba(0,0,0,.07);
         
-        --color-focus:  #ddd;
+        --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+        --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
+        --color-focus: rgba(var(--focus-rgb), 0.8);
+        
         --color-widget-bg: #fff;
         --color-widget-bg-focused: #fff;
-        --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
         --color-widget-border: rgb(204,204,204);
         --color-placeholder: #ccc;
 
@@ -105,6 +113,20 @@
     </style>
 
     <div class="example">
+      <div class="example-header">Contact Search</div>
+      <rp-contact-search name="contact_query" endpoint="/contact/search/?samples=5&search=" placeholder="Enter a query">
+      </rp-contact-search>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Text Inputs</div>
+      <rp-textinput></rp-textinput>
+      <br/>
+      <rp-textinput textarea></rp-textinput>
+
+    </div>
+
+    <div class="example">
       <div class="example-header">Single</div>
       <rp-select name="start-type" placeholder="Choose how to start">
         <rp-option value="0" name="Choose recipients manually"></rp-option>
@@ -156,12 +178,11 @@
       </rp-select>        
     </div>
   
-  
     <div class="example">
       <div class="example-header">Multi Searchable</div>
       <rp-select name="start-type" placeholder="Pick some colors" multi searchable>
         <rp-option value="red" name="Red"></rp-option>
-        <rp-option value="gree" name="Green"></rp-option>
+        <rp-option value="green" name="Green"></rp-option>
         <rp-option value="blue" name="Blue"></rp-option>
       </rp-select>
     </div>
@@ -177,6 +198,22 @@
       </rp-select>
     </div>
   
+    <div class="example">
+      <div class="example-header">Omnibox</div>
+      <rp-omnibox
+        endpoint="/contact/omnibox/?types=cgu&v=2&search="
+      ></rp-omnibox>
+    </div>
+
+    <div class="example">
+      <div class="example-header">Omnibox Initialized</div>
+      <rp-omnibox
+        endpoint="/contact/omnibox/?types=cgu&v=2&search="
+        value='[{"id": "f916ebaa-630d-450c-b72c-268822b70a42", "name": "a new", "type": "group", "count": 0}]'
+      ></rp-omnibox>
+    </div>
+  
+
     <div class="example">
       <div class="example-header">Completion</div>    
       <rp-completion     

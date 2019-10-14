@@ -1,0 +1,9 @@
+<rp-contact-search 
+  name="{{widget.name}}"
+  endpoint="/contact/search/?samples=3&search=" 
+  placeholder="Enter a query"
+  query="{% if widget.value %}{{widget.value}}{%endif%}"
+  error="{{widget.error}}"
+  {% include "django/forms/widgets/attrs.html" %}
+>
+</rp-contact-search>

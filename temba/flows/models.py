@@ -989,7 +989,7 @@ class Flow(TembaModel):
             "completion": int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0,
         }
 
-    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
+    def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -1000,6 +1000,7 @@ class Flow(TembaModel):
             include_active=include_active,
             created_by=user,
             modified_by=user,
+            query=query,
         )
 
         contact_ids = [c.id for c in contacts]

@@ -109,6 +109,7 @@ def queue_flow_start(start):
         "flow_type": start.flow.flow_type,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),
         "group_ids": list(start.groups.values_list("id", flat=True)),
+        "query": start.query,
         "restart_participants": start.restart_participants,
         "include_active": start.include_active,
         "extra": start.extra,

@@ -25,8 +25,15 @@ class SelectField(forms.ChoiceField):
         super().__init__(choices, **kwargs)
 
 
-class SelectWidget(forms.Widget):
+class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
+
+    def render(self, name, value, attrs=None, renderer=None):
+        return super().render(name, value, attrs)
+
+
+class ContactSearchWidget(forms.Widget):
+    template_name = "utils/forms/contact_search.haml"
 
 
 class CompletionTextarea(forms.Widget):
@@ -49,6 +56,8 @@ class OmniboxChoice(forms.Widget):
         super().__init__(default_attrs)
 
     def render(self, name, value, attrs=None, renderer=None):
+        if value:
+            value = json.dumps(value)
         return super().render(name, value, attrs)
 
     def value_from_datadict(self, data, files, name):

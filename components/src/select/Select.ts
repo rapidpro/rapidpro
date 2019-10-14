@@ -73,10 +73,6 @@ export default class Select extends FormElement {
         transform: rotate(180deg);
       }
 
-      rp-textinput {
-        --color-widget-shadow-focused: #fff;
-      }
-
       rp-icon {
         cursor: pointer;
       }
@@ -93,22 +89,15 @@ export default class Select extends FormElement {
         
       }
 
-
       .select-container.multi {
-        box-shadow: var(--color-widget-shadow-focused) 0 1px 1px 0px inset;
-        background: var(--color-widget-bg);
+        /* background: var(--color-widget-bg); */
       }
 
       .select-container.focused {
-        border-color: var(--color-focus);
         background: var(--color-widget-bg-focused);
-        box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px;
+        border-color: var(--color-focus);
+        box-shadow: var(--widget-box-shadow-focused);
       }
-
-      .select-container:focus {
-        font-size:32px;
-      }
-
 
       .left {
         flex: 1;
@@ -119,6 +108,7 @@ export default class Select extends FormElement {
         display: flex;
         flex-direction: row;
         align-items: stretch;
+        user-select: none;
 
       }
 
@@ -554,9 +544,16 @@ export default class Select extends FormElement {
     return html`<div class="name">${option.name}</div>`
   }
 
+  public serializeValue(value: any): string {
+    // static options just use their value
+    if (this.staticOptions.length > 0) {
+      return value.value;
+    }
+    return super.serializeValue(value);
+  }
+
   public render(): TemplateResult {
-    const placeholder = this.values.length === 0 ? this.placeholder : "";
-  
+    const placeholder = this.values.length === 0 ? this.placeholder : "";  
     const placeholderDiv = !this.searchable ? html`
       <div class="placeholder">${placeholder}</div>
     `:null;

@@ -9,3 +9,6 @@ import './textinput/TextInput';
 import './label/Label';
 import './select/Select';
 import './completion/Completion';
+import './contactsearch/ContactSearch';
+import './loading/Loading';
+import './alert/Alert';

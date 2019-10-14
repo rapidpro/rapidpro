@@ -44,6 +44,11 @@ export default class Completion extends RapidElement {
         display: block;
       }
 
+      rp-options {
+        --widget-box-shadow-focused: 0 0 4px rgba(0, 0, 0, 0.15);
+        --color-focus: #e6e6e6;
+      }
+
       .comp-container {
         position: relative;
         height: 100%;

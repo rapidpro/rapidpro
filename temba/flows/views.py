@@ -48,7 +48,7 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, json, on_transaction_commit, str_to_bool
-from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget
+from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
 from temba.utils.s3 import public_file_storage
 from temba.utils.views import BaseActionForm, NonAtomicMixin
 
@@ -1794,6 +1794,7 @@ class FlowCRUDL(SmartCRUDL):
 
             omnibox = JSONField(
                 label=_("Contacts & Groups"),
+                required=False,
                 help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
                 widget=OmniboxChoice(attrs={"placeholder": _("Recipients, enter contacts or groups")}),
             )
@@ -1813,17 +1814,42 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             start_type = forms.ChoiceField(
-                label=_("Select contacts or groups to start in the flow"),
-                help_text=_("Select manually, or use a query"),
-                initial=60,
-                choices=IVRCall.IVR_RETRY_CHOICES,
-                widget=SelectWidget(),
+                widget=SelectWidget(attrs={"placeholder": _("Select contacts or groups to start in the flow")}),
+                choices=(
+                    ("select", _("Enter contacts and groups to start below")),
+                    ("query", _("Search for contacts to start")),
+                ),
+                initial="select",
             )
+
+            contact_query = forms.CharField(
+                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+            )
+
+            def clean_contact_query(self):
+                contact_query = self.cleaned_data["contact_query"]
+                start_type = self.data["start_type"]
+
+                if start_type == "query":
+
+                    if not contact_query.strip():
+                        raise ValidationError(_("Contact query is required"))
+
+                    # try parsing our query
+                    from temba.contacts.search import parse_query, SearchException
+
+                    try:
+                        parse_query(text=contact_query)
+                    except SearchException:
+                        raise ValidationError(_("Please enter a valid contact query"))
+
+                return contact_query
 
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
+                start_type = self.data["start_type"]
 
-                if not starting:  # pragma: needs cover
+                if start_type == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 # convert to groups and contacts
@@ -1837,6 +1863,7 @@ class FlowCRUDL(SmartCRUDL):
                 }
 
             def clean(self):
+
                 cleaned = super().clean()
 
                 # check whether there are any flow starts that are incomplete
@@ -1861,7 +1888,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active", "start_type")
+        fields = ("omnibox", "restart_participants", "include_active", "start_type", "contact_query")
         success_message = ""
         submit_button_name = _("Add Contacts to Flow")
         success_url = "uuid@flows.flow_editor"
@@ -1879,7 +1906,11 @@ class FlowCRUDL(SmartCRUDL):
                 # check to see we are using templates
                 templates = flow.metadata.get(Flow.METADATA_DEPENDENCIES, {}).get("templates", [])
                 if not templates:
-                    warnings.append(_("This flow does not use message templates."))
+                    warnings.append(
+                        _(
+                            "This flow does not use message templates. You may still start this flow but WhatsApp contacts who have not sent an incoming message in the last 24 hours may not receive it."
+                        )
+                    )
 
                 # check that this template is synced and ready to go
                 for ref in templates:
@@ -1912,6 +1943,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # save off our broadcast info
             omnibox = form.cleaned_data["omnibox"]
+            contact_query = form.cleaned_data["contact_query"]
 
             analytics.track(
                 self.request.user.username,
@@ -1924,6 +1956,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.request.user,
                 list(omnibox["groups"]),
                 list(omnibox["contacts"]),
+                contact_query,
                 restart_participants=form.cleaned_data["restart_participants"],
                 include_active=form.cleaned_data["include_active"],
             )

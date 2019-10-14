@@ -1,9 +1,10 @@
 import { customElement, TemplateResult, html, css, property } from 'lit-element';
 import RapidElement from '../RapidElement';
 import { styleMap } from 'lit-html/directives/style-map.js';
+import FormElement from '../FormElement';
 
 @customElement("rp-textinput")
-export default class TextInput extends RapidElement {
+export default class TextInput extends FormElement {
   static get styles() {
     return css`
       
@@ -19,10 +20,19 @@ export default class TextInput extends RapidElement {
         align-items: stretch;
       }
 
+      .error.input-container {
+        border-color: var(--color-error);
+      }
+
+      .error.input-container:focus-within {
+        border-color: var(--color-error);
+        box-shadow: var(--widget-box-shadow-focused-error);        
+      }
+
       .input-container:focus-within {
         border-color: var(--color-focus);
         background: var(--color-widget-bg-focused);
-        box-shadow: var(--color-widget-shadow-focused) 0px 0px 3px 0px;
+        box-shadow: var(--widget-box-shadow-focused);
       }
 
       .input-container:hover {
@@ -43,7 +53,8 @@ export default class TextInput extends RapidElement {
         font-size: 13px;
         cursor: text;
         resize: none;
-        box-shadow: var(--color-widget-shadow-focused) 0 1px 1px 0px inset;
+        font-family: var(--font-family);
+        font-weight: 300;
       }
 
       .textinput:focus {
@@ -53,7 +64,8 @@ export default class TextInput extends RapidElement {
       }
 
       .textinput::placeholder {
-        color: rgba(0,0,0,.15);
+        color: var(--color-placeholder);
+        font-family: 'Roboto', 'Helvetica Neue', sans-serif;
       }
 
     `
@@ -71,6 +83,9 @@ export default class TextInput extends RapidElement {
   @property({type: String})
   name: string = "";
 
+  @property({type: Boolean})
+  error: boolean;
+
   @property({type: Object})
   inputElement: HTMLInputElement;
 
@@ -79,13 +94,26 @@ export default class TextInput extends RapidElement {
     this.inputElement = this.shadowRoot.querySelector(".textinput");
   }
 
+  public updated(changes: Map<string, any>) {
+    super.updated(changes);
+    if (changes.has("value")) {
+      this.setValues([this.value]);
+    }
+  }
+
+  /** we just return the value since it should be a string */
+  public serializeValue(value: any): string {
+    return value;
+  }
+
+  // TODO make this a formelement and have contactsearch set the root
   public render(): TemplateResult {
     const containerStyle = {
       height: `${this.textarea ? '100%' : 'auto'}`
     }
 
     return html`
-    <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
+    <div class="input-container ${this.error ? 'error' : ''}" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
           name=${this.name}
@@ -99,6 +127,7 @@ export default class TextInput extends RapidElement {
           placeholder=${this.placeholder}
           .value=${this.value}>
       `}
+      <slot></slot>
     </div>
     `;
   }

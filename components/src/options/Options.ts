@@ -14,7 +14,8 @@ export default class Options extends RapidElement {
         position: fixed;
         border-radius: var(--curvature-widget);
         background: var(--color-widget-bg-focused);
-        box-shadow: var(--color-widget-shadow-focused) 0px 0px 2px 1px;
+        box-shadow: var(--widget-box-shadow-focused);
+        border: 1px solid var(--color-focus);
         z-index: 1;
         user-select: none;        
         border-radius: var(--curvature-widget);
@@ -68,7 +69,7 @@ export default class Options extends RapidElement {
   width: number;
 
   @property({type: Number})
-  marginHorizontal: number = 1;
+  marginHorizontal: number = 0;
 
   @property({type: Number})
   marginVertical: number = 3;
@@ -199,7 +200,7 @@ export default class Options extends RapidElement {
       }
 
       this.left = anchorBounds.left;
-      this.width = anchorBounds.width - (this.marginHorizontal * 2);
+      this.width = anchorBounds.width - 2 - (this.marginHorizontal * 2);
     }
   }
 

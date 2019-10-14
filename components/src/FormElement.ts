@@ -11,6 +11,9 @@ export default class FormElement extends RapidElement {
   @property({type: Array})
   values: any[] = [];
 
+  @property({type: String})
+  value: string = '';
+
   @property({attribute: false})
   inputRoot: HTMLElement = this;
 
@@ -43,8 +46,12 @@ export default class FormElement extends RapidElement {
     this.requestUpdate("values");
   }
 
+  public serializeValue(value: any): string {
+    return JSON.stringify(value);
+  }
+
   private updateInputs(): void {
-    for (const ele of this.hiddenInputs) {
+    for(let ele = null; ele = this.hiddenInputs.pop();) {
       ele.remove();
     }
 
@@ -52,17 +59,11 @@ export default class FormElement extends RapidElement {
       const ele = document.createElement("input");
       ele.setAttribute("type", "hidden");
       ele.setAttribute("name", this.getAttribute("name"));
-      ele.setAttribute("value", JSON.stringify(value));
+      ele.setAttribute("value", this.serializeValue(value));
       this.hiddenInputs.push(ele);
       this.inputRoot.appendChild(ele);
     }
   }
-
-  /* public firstUpdated(changedProperties: any) {    
-    // create our hidden container so it gets included in our host element's form
-    this.updateInputs();
-  }*/
-
 
   public updated(changedProperties: Map<string, any>) {
     super.updated(changedProperties);

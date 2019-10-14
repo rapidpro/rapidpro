@@ -109,28 +109,34 @@
 
       :css
         html {
-          font-family: 'Helvetica Neue', 'RobotoThin', sans-serif;
-          font-size: 13px;
-          font-weight: 200;
 
-          /* Old style matching, squared off, borded inputs, select2 colors */
-          --curvature: 0px;
-          --color-focus: #bbb;
-          --color-widget-bg: #fff;
-          --color-widget-bg-focused: #fff;
-          --color-widget-shadow-focused: rgba(0, 0, 0, 0.15);
-          --color-widget-border: rgb(204,204,204);
-          --color-selection: #3875d7;
-         
-          /* primary colors, should be dark */
+          --font-family: 'Roboto', sans-serif;
           --primary-rgb: 35, 135, 202;
           --secondary-rgb: 0, 77, 129;
+          --focus-rgb: 82, 168, 236;
+          --error-rgb: 255, 99, 71;
+
+          /* Old style matching, squared off, borded inputs, select2 colors */
+          --curvature: 4px;
+          --curvature-widget: 0px;
+          --color-focus: rgba(var(--focus-rgb), 0.8);
+          --color-widget-bg: #fff;
+          --color-widget-bg-focused: #fff;
+          --color-widget-border: rgb(204,204,204);
+         
+          /* primary colors, should be dark */
+          --color-selection: rgb(var(--primary-rgb));
 
           /** --- secondary configuration, only for fine tuning --- */
 
+
+          --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+          --widget-box-shadow-focused-error: inset 0 1px 1px rgba(var(--error-rgb), 0.075), 0 0 8px rgba(var(--error-rgb), 0.6);
+
           /* page text, borders, widgets */
-          --color-text: #666;
+          --color-text: #777;
           --color-borders: rgba(0,0,0,.07);
+          --color-placeholder: #ccc;
  
           /* light colors, panel backgrounds, selection, etc */
           --color-primary-light: #eee;
@@ -167,6 +173,19 @@
           --color-label-secondary: rgba(0,0,0,.2);
           --color-label-secondary-text: rgba(255, 255, 255, .9);    
 
+          --color-info: #c0d9eb;
+          --color-warning: #fff6c0;
+          --color-error: rgb(var(--error-rgb));
+
+          font-size: 13px;
+          font-weight: 200;
+          font-family: var(--font-family);
+
+        }
+
+        rp-select:focus {
+          outline: none;
+          box-shadow: none;
         }
 
       -compress css

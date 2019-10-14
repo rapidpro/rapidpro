@@ -40,6 +40,11 @@ export default class Omnibox extends RapidElement {
       rp-icon {
         padding-right: 5px;
       }
+
+      rp-select:focus {
+        outline: none;
+        box-shadow: none;
+      }
     `
   }      
 
@@ -61,6 +66,9 @@ export default class Omnibox extends RapidElement {
 
   @property({type: String})
   queryParameter: string = "search";
+
+  @property({type: Array})
+  value: OmniOption[] = [];
 
   @property()
   placeholder: string = 'Select recipients';
@@ -138,6 +146,7 @@ export default class Omnibox extends RapidElement {
         endpoint=${this.getEndpoint()}
         queryParam=${this.queryParameter}
         placeholder=${this.placeholder}
+        .values=${this.value}
         .renderOption=${this.renderOption.bind(this)}
         .renderSelectedItem=${this.renderSelection.bind(this)}
         .inputRoot=${this}

@@ -137,3 +137,10 @@ export const getElementOffset = (
         height: rect.height
     };
 };
+
+export const plural = (count: number, singular: string, plural: string) => {
+    return count === 1 ? singular : plural;
+};
+
+export const range = (start: number, end: number) =>
+    Array.from({ length: end - start }, (v: number, k: number) => k + start);
