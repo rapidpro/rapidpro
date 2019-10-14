@@ -1190,6 +1190,7 @@ class FlowCRUDL(SmartCRUDL):
             whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
             context["has_whatsapp_channel"] = whatsapp_channel is not None
             context["dev_mode"] = dev_mode
+            context["is_starting"] = flow.is_starting()
 
             return context
 
@@ -1941,21 +1942,31 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
+            start_type = form.cleaned_data["start_type"]
+
             # save off our broadcast info
-            omnibox = form.cleaned_data["omnibox"]
-            contact_query = form.cleaned_data["contact_query"]
+            groups = []
+            contacts = []
+            contact_query = None
+
+            if start_type == "query":
+                contact_query = form.cleaned_data["contact_query"]
+            else:
+                omnibox = form.cleaned_data["omnibox"]
+                groups = list(omnibox["groups"])
+                contacts = list(omnibox["contacts"])
 
             analytics.track(
                 self.request.user.username,
                 "temba.flow_broadcast",
-                dict(contacts=len(omnibox["contacts"]), groups=len(omnibox["groups"])),
+                dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )
 
             # activate all our contacts
             flow.async_start(
                 self.request.user,
-                list(omnibox["groups"]),
-                list(omnibox["contacts"]),
+                groups,
+                contacts,
                 contact_query,
                 restart_participants=form.cleaned_data["restart_participants"],
                 include_active=form.cleaned_data["include_active"],
