@@ -1655,6 +1655,38 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_flow_results_with_hidden_results(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_split = flow_nodes[4]
+
+        # add a spec for a hidden result to this flow.. which should not be included below
+        flow.metadata[Flow.METADATA_RESULTS].append(
+            {
+                "key": "_color_classification",
+                "name": "_Color Classification",
+                "categories": ["Success", "Skipped", "Failure"],
+                "node_uuids": [color_split["uuid"]],
+            }
+        )
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["result_fields"],
+            [
+                {
+                    "key": "color",
+                    "name": "Color",
+                    "categories": ["Orange", "Blue", "Other", "Nothing"],
+                    "node_uuids": [color_split["uuid"]],
+                    "has_categories": "true",
+                }
+            ],
+        )
+
     def test_views_viewers(self):
         # create a viewer
         self.viewer = self.create_user("Viewer")
