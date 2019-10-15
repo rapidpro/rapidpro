@@ -20,11 +20,6 @@ class JSONField(forms.Field):
         return value
 
 
-class SelectField(forms.ChoiceField):
-    def __init__(self, *, choices=(), **kwargs):
-        super().__init__(choices, **kwargs)
-
-
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
 

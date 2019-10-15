@@ -2888,6 +2888,31 @@ class FlowCRUDLTest(TembaTest):
             list(response.context["form"].fields.keys()),
         )
 
+        # create flow start with a query
+        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+
+            self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {
+                    "contact_query": "frank",
+                    "start_type": "query",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
+                follow=True,
+            )
+
+            start = FlowStart.objects.get()
+            self.assertEqual(flow, start.flow)
+            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+            self.assertTrue(start.restart_participants)
+            self.assertTrue(start.include_active)
+            self.assertEqual("frank", start.query)
+
+            mock_queue_flow_start.assert_called_once_with(start)
+
+        FlowStart.objects.all().delete()
+
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
 
