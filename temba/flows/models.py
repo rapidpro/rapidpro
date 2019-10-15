@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
+from temba.classifiers.models import Classifier
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
@@ -302,6 +303,8 @@ class Flow(TembaModel):
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
+
+    classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
 
     @classmethod
     def create(
@@ -1019,6 +1022,7 @@ class Flow(TembaModel):
         dependencies.update(self.flow_dependencies.all())
         dependencies.update(self.field_dependencies.all())
         dependencies.update(self.group_dependencies.all())
+        dependencies.update(self.classifier_dependencies.all())
         return dependencies
 
     def is_legacy(self):
@@ -1680,6 +1684,7 @@ class Flow(TembaModel):
         group_uuids = [g["uuid"] for g in dependencies.get("groups", [])]
         channel_uuids = [g["uuid"] for g in dependencies.get("channels", [])]
         label_uuids = [g["uuid"] for g in dependencies.get("labels", [])]
+        classifier_uuids = [c["uuid"] for c in dependencies.get("classifiers", [])]
 
         # still need to do lazy creation of fields in the case of a flow import
         if len(field_keys):
@@ -1702,6 +1707,7 @@ class Flow(TembaModel):
         groups = ContactGroup.user_groups.filter(org=self.org, uuid__in=group_uuids)
         channels = Channel.objects.filter(org=self.org, uuid__in=channel_uuids, is_active=True)
         labels = Label.label_objects.filter(org=self.org, uuid__in=label_uuids)
+        classifiers = Classifier.objects.filter(org=self.org, uuid__in=classifier_uuids)
 
         self.field_dependencies.clear()
         self.field_dependencies.add(*fields)
@@ -1717,6 +1723,9 @@ class Flow(TembaModel):
 
         self.label_dependencies.clear()
         self.label_dependencies.add(*labels)
+
+        self.classifier_dependencies.clear()
+        self.classifier_dependencies.add(*classifiers)
 
     def release(self):
         """
@@ -2863,10 +2872,11 @@ class ExportFlowResultsTask(BaseExportTask):
         flows = list(self.flows.filter(is_active=True))
         for flow in flows:
             for result_field in flow.metadata["results"]:
-                result_field = result_field.copy()
-                result_field["flow_uuid"] = flow.uuid
-                result_field["flow_name"] = flow.name
-                result_fields.append(result_field)
+                if not result_field["name"].startswith("_"):
+                    result_field = result_field.copy()
+                    result_field["flow_uuid"] = flow.uuid
+                    result_field["flow_name"] = flow.name
+                    result_fields.append(result_field)
 
             if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True

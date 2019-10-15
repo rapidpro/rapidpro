@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-14 22:42+0000\n"
+"POT-Creation-Date: 2019-10-15 16:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -489,8 +489,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Callback URL.\n"
 "                "
 msgstr ""
 
@@ -499,8 +499,8 @@ msgstr ""
 
 msgid ""
 "\n"
-"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/dlrcallback\" target=\"africastalking\">Delivery Reports</a>.\n"
+"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Delivery Reports.\n"
 "                "
 msgstr ""
 
@@ -1524,6 +1524,55 @@ msgstr ""
 msgid "Your authentication token is invalid, please check and try again"
 msgstr ""
 
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+
+msgid "Inbound SMS Configuration"
+msgstr ""
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+msgid "Outbound SMS Configuration"
+msgstr ""
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+msgid "Your ThinQ account id"
+msgstr ""
+
+msgid "The ThinQ number you want to connect"
+msgstr ""
+
+msgid "United States"
+msgstr ""
+
+msgid "The user name for you API token"
+msgstr ""
+
+msgid "Your API token"
+msgstr ""
+
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr ""
+
 msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 msgstr ""
 
@@ -1827,9 +1876,6 @@ msgstr ""
 msgid "United Kingdom"
 msgstr ""
 
-msgid "United States"
-msgstr ""
-
 msgid "Scension Island"
 msgstr ""
 
@@ -1970,6 +2016,51 @@ msgid "Sorry, no numbers found, please enter another pattern and try again."
 msgstr ""
 
 msgid "Calls"
+msgstr ""
+
+msgid "The name of your LUIS app"
+msgstr ""
+
+msgid "The id for your LUIS app"
+msgstr ""
+
+msgid "The name of the version of your LUIS app to use"
+msgstr ""
+
+msgid "The primary key for your LUIS app"
+msgstr ""
+
+msgid "The endpoint URL for your LUIS app"
+msgstr ""
+
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr ""
+
+msgid "Your app's name"
+msgstr ""
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr ""
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Delete Classifier"
+msgstr ""
+
+msgid "Your classifier has been deleted."
+msgstr ""
+
+msgid "Delete"
 msgstr ""
 
 msgid "Phone number"
@@ -2295,9 +2386,6 @@ msgid "Unblock"
 msgstr ""
 
 msgid "Unstop"
-msgstr ""
-
-msgid "Delete"
 msgstr ""
 
 msgid "Save as Group"
@@ -3703,10 +3791,10 @@ msgstr ""
 msgid "Add Channel"
 msgstr ""
 
-msgid "Import"
+msgid "Add Classifier"
 msgstr ""
 
-msgid "Connect"
+msgid "Import"
 msgstr ""
 
 msgid "Login"
@@ -3819,6 +3907,12 @@ msgid "The id vimeo uses for this video"
 msgstr ""
 
 msgid "Register for public beta"
+msgstr ""
+
+msgid "Intents Synced"
+msgstr ""
+
+msgid "Classifier Called"
 msgstr ""
 
 msgid "Never"
@@ -4441,6 +4535,9 @@ msgid "Unsupported"
 msgstr ""
 
 msgid "IP Addresses"
+msgstr ""
+
+msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
 msgid "Are you sure you want to remove this number from your account?"
@@ -5526,6 +5623,46 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+msgid "Connect a Classifier"
+msgstr ""
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+msgid "Active Intents"
+msgstr ""
+
+msgid "No synced intents at this time."
+msgstr ""
+
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr ""
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Hold up!"
@@ -8424,6 +8561,21 @@ msgid ""
 msgstr ""
 
 msgid "More Videos"
+msgstr ""
+
+msgid "Classifier Events"
+msgstr ""
+
+msgid "Recent Classifier Events"
+msgstr ""
+
+msgid "Classifier: "
+msgstr ""
+
+msgid "Classifier Event"
+msgstr ""
+
+msgid "Connection Error"
 msgstr ""
 
 msgid "Leave unscheduled"

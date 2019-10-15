@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-14 22:42+0000\n"
+"POT-Creation-Date: 2019-10-15 16:45+0000\n"
 "PO-Revision-Date: 2014-09-24 19:57+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: French (http://www.transifex.com/projects/p/textit/language/fr/)\n"
@@ -605,8 +605,8 @@ msgstr "URL de rappel"
 #| "      "
 msgid ""
 "\n"
-"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
+"                You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Callback URL.\n"
 "                "
 msgstr ""
 "\n"
@@ -625,8 +625,8 @@ msgstr "URL de Livraison "
 #| "      "
 msgid ""
 "\n"
-"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, then clicking on\n"
-"                <a href=\"http://www.africastalking.com/account/sms/dlrcallback\" target=\"africastalking\">Delivery Reports</a>.\n"
+"                You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page,\n"
+"                then clicking on Delivery Reports.\n"
 "                "
 msgstr ""
 "\n"
@@ -2319,6 +2319,81 @@ msgid "Your authentication token is invalid, please check and try again"
 msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
 
 #, fuzzy
+msgid ""
+"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
+"        automate your SMS numbers."
+msgstr ""
+"\n"
+"Si vous êtes basé au Kenya, vous pouvez acheter un code court à %(link_start)sAfrica's talking%(link_end)s et le connecter à TextIt en quelques simples étapes."
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the\n"
+#| "        Africa's Talking website under your account.\n"
+#| "\n"
+#| "      "
+msgid ""
+"\n"
+"        To finish configuring your ThinQ connection you'll need to set the following callback URLs\n"
+"        on the ThinQ website on the SMS -> SMS Configuration page.\n"
+"        "
+msgstr ""
+"\n"
+"Pour finir de configurer votre connection Africa's Talking vous devrez établir les rappels URLs suivants sur le\n"
+"site Africa's Talking sous votre compte."
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Inbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Inbound SMS Configuration URL to the above, making sure you select \"URL\" for Attachment Type.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Outbound SMS Configuration"
+msgstr "Configuration"
+
+msgid ""
+"\n"
+"                Set your Delivery Confirmation URL to the above, making sure you select \"Form-Data\" as the Delivery\n"
+"                Notification Format.\n"
+"                "
+msgstr ""
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your ThinQ account id"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+msgid "The ThinQ number you want to connect"
+msgstr "Le pays ce numéro de téléphone est utilisé dans"
+
+msgid "United States"
+msgstr "États-Unis"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The user name for you API token"
+msgstr "Le nom de fichier pour notre exportation"
+
+#, fuzzy
+#| msgid "Your API Token is"
+msgid "Your API token"
+msgstr "Votre API Token est"
+
+#, fuzzy
+#| msgid "Invalid phone number, please include the country code. ex: +250788123123"
+msgid "Invalid phone number, please include the country code. ex: +12065551212"
+msgstr "Numéro de téléphone incorrect, s'il vous plaît inclure le code du pays. ex: +250788123123"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "                Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs.\n"
@@ -2777,9 +2852,6 @@ msgstr "Le mot de passe fournit par l'opérateur pour utiliser leur API"
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
 
-msgid "United States"
-msgstr "États-Unis"
-
 msgid "Scension Island"
 msgstr ""
 
@@ -2956,6 +3028,69 @@ msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone 
 
 msgid "Calls"
 msgstr ""
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The name of your LUIS app"
+msgstr "Le nom de votre organisation"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The id for your LUIS app"
+msgstr "Le nom de fichier pour notre exportation"
+
+msgid "The name of the version of your LUIS app to use"
+msgstr ""
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The primary key for your LUIS app"
+msgstr "Le nom de fichier pour notre exportation"
+
+msgid "The endpoint URL for your LUIS app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to get intents for your app, please check credentials and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your app's name"
+msgstr "Votre nom"
+
+msgid "Your app's ID"
+msgstr ""
+
+msgid "Your app's server access token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Unable to access wit.ai with credentials, please check and try again"
+msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
+
+msgid "Unable to get intent entity, make sure you have at least one intent defined"
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Hub9"
+msgid "Connect"
+msgstr "Connectez Hub9"
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Classifier"
+msgstr "Effacer"
+
+#, fuzzy
+#| msgid "Your flow has been removed."
+msgid "Your classifier has been deleted."
+msgstr "Votre flux a été supprimé."
+
+msgid "Delete"
+msgstr "Effacer"
 
 #, fuzzy
 msgid "Phone number"
@@ -3318,9 +3453,6 @@ msgstr "Débloquer"
 
 msgid "Unstop"
 msgstr ""
-
-msgid "Delete"
-msgstr "Effacer"
 
 msgid "Save as Group"
 msgstr ""
@@ -4937,13 +5069,11 @@ msgstr "Déconnexion"
 msgid "Add Channel"
 msgstr "Channel"
 
+msgid "Add Classifier"
+msgstr ""
+
 msgid "Import"
 msgstr "Importer"
-
-#, fuzzy
-#| msgid "Connect Hub9"
-msgid "Connect"
-msgstr "Connectez Hub9"
 
 msgid "Login"
 msgstr ""
@@ -5068,6 +5198,12 @@ msgstr "L' id  vimeo utilise pour cette vidéo"
 
 msgid "Register for public beta"
 msgstr "Inscrivez-vous à la version bêta publique"
+
+msgid "Intents Synced"
+msgstr ""
+
+msgid "Classifier Called"
+msgstr ""
 
 msgid "Never"
 msgstr "Jamais"
@@ -5859,6 +5995,9 @@ msgstr ""
 #, fuzzy
 msgid "IP Addresses"
 msgstr "Adresse e-mail"
+
+msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
+msgstr ""
 
 msgid "Are you sure you want to remove this number from your account?"
 msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
@@ -7414,6 +7553,63 @@ msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."
+msgstr ""
+
+#, fuzzy
+#| msgid "Connect Vumi"
+msgid "Connect a Classifier"
+msgstr "Connectez Vumi"
+
+msgid ""
+"\n"
+"            Classifiers let you interpret words and phrases into intents you can act on. Various services let you\n"
+"            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your\n"
+"            contacts send you.\n"
+"\n"
+"          "
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            unsent messages\n"
+#| "          "
+#| msgid_plural ""
+#| "\n"
+#| "            unsent message\n"
+#| "          "
+msgid ""
+"\n"
+"            Select your provider below to get started.\n"
+"\n"
+"          "
+msgstr ""
+"\n"
+"            message non-envoyé\n"
+"          "
+
+msgid "Classifier"
+msgstr ""
+
+msgid "Classifier Log"
+msgstr ""
+
+msgid "Intents are synced every 5 minutes"
+msgstr ""
+
+#, fuzzy
+#| msgid "Activate"
+msgid "Active Intents"
+msgstr "activer"
+
+msgid "No synced intents at this time."
+msgstr ""
+
+#, fuzzy
+msgid "Are you sure you want to remove this classifier from your account?"
+msgstr "Etes-vous sûr de vouloir supprimer ce numéro de votre compte?"
+
+msgid "This classifier cannot be removed because it in use."
 msgstr ""
 
 msgid "Hold up!"
@@ -11123,6 +11319,28 @@ msgid "More Videos"
 msgstr "Plus de vidéos"
 
 #, fuzzy
+msgid "Classifier Events"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Recent Channel Events"
+msgid "Recent Classifier Events"
+msgstr "Channel récents événements"
+
+msgid "Classifier: "
+msgstr ""
+
+#, fuzzy
+#| msgid "Channel Event"
+msgid "Classifier Event"
+msgstr "Evénement du relayeur"
+
+#, fuzzy
+#| msgid "Channel Error"
+msgid "Connection Error"
+msgstr "Erreur Relayeur"
+
+#, fuzzy
 #| msgid "Create Schedule"
 msgid "Leave unscheduled"
 msgstr "Créer un planning"
@@ -12185,11 +12403,6 @@ msgstr "Supprimer téléphone"
 #~ msgstr "API Docs"
 
 #, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid page access token, please check it and try again."
-#~ msgstr "Code Claim invalide, s'il vous plaît vérifier et essayer à nouveau."
-
-#, fuzzy
 #~ msgid "Your phone number has been removed."
 #~ msgstr "Votre flux a été supprimé."
 
@@ -12198,11 +12411,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "Connect Zenvia Account"
 #~ msgstr "Connectez votre compte Zenvia"
-
-#, fuzzy
-#~| msgid "The name of your organization"
-#~ msgid "The name of your Viber bot"
-#~ msgstr "Le nom de votre organisation"
 
 #, fuzzy
 #~ msgid "Connect Viber Bot"
@@ -12654,11 +12862,6 @@ msgstr "Supprimer téléphone"
 #~| msgid "Connect Twilio"
 #~ msgid "Connect plivo"
 #~ msgstr "Connectez avec Twilio"
-
-#, fuzzy
-#~| msgid "Connect Vumi"
-#~ msgid "Connect Viber"
-#~ msgstr "Connectez Vumi"
 
 #, fuzzy
 #~| msgid ""
@@ -13677,9 +13880,6 @@ msgstr "Supprimer téléphone"
 #~ msgid "Destination"
 #~ msgstr "destination"
 
-#~ msgid "Channel Error"
-#~ msgstr "Erreur Relayeur"
-
 #~ msgid "No Response Body"
 #~ msgstr "Pas de corps de réponse"
 
@@ -14111,9 +14311,6 @@ msgstr "Supprimer téléphone"
 
 #~ msgid "WebHook events are being forwarded to"
 #~ msgstr "Événements WebHook sont renvoyés à"
-
-#~ msgid "Your API Token is"
-#~ msgstr "Votre API Token est"
 
 #~ msgid "There have been"
 #~ msgstr "Il ya eu des"

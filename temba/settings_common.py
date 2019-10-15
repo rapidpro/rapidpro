@@ -236,6 +236,8 @@ INSTALLED_APPS = (
     "temba.assets",
     "temba.auth_tweaks",
     "temba.api",
+    "temba.request_logs",
+    "temba.classifiers",
     "temba.dashboard",
     "temba.public",
     "temba.policies",
@@ -325,6 +327,8 @@ PERMISSIONS = {
     "api.resthooksubscriber": ("api",),
     "campaigns.campaign": ("api", "archived", "archive", "activate"),
     "campaigns.campaignevent": ("api",),
+    "classifiers.classifier": ("connect", "api"),
+    "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
         "block",
@@ -467,7 +471,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": (),
+    "Beta": ("classifiers.classifier_connect",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -524,6 +528,11 @@ GROUP_PERMISSIONS = {
         "archives.archive.*",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
+        "classifiers.classifier_api",
+        "classifiers.classifier_read",
+        "classifiers.classifier_delete",
+        "classifiers.classifier_list",
+        "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_block",
         "contacts.contact_blocked",
@@ -626,6 +635,8 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "request_logs.httplog_list",
+        "request_logs.httplog_read",
         "templates.template_api",
         "triggers.trigger.*",
     ),
@@ -642,6 +653,10 @@ GROUP_PERMISSIONS = {
         "airtime.airtimetransfer_read",
         "campaigns.campaign.*",
         "campaigns.campaignevent.*",
+        "classifiers.classifier_api",
+        "classifiers.classifier_read",
+        "classifiers.classifier_list",
+        "classifiers.intent_api",
         "contacts.contact_api",
         "contacts.contact_block",
         "contacts.contact_blocked",
@@ -727,6 +742,10 @@ GROUP_PERMISSIONS = {
         "campaigns.campaign_list",
         "campaigns.campaign_read",
         "campaigns.campaignevent_read",
+        "classifiers.classifier_api",
+        "classifiers.classifier_read",
+        "classifiers.classifier_list",
+        "classifiers.intent_api",
         "contacts.contact_blocked",
         "contacts.contact_export",
         "contacts.contact_filter",
@@ -837,7 +856,7 @@ INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24"
 CELERYBEAT_SCHEDULE = {
     "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
-    "schedules": {"task": "check_schedule_task", "schedule": timedelta(seconds=60)},
+    "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "check-credits": {"task": "check_credits_task", "schedule": timedelta(seconds=900)},
     "check-topup-expiration": {"task": "check_topup_expiration_task", "schedule": crontab(hour=2, minute=0)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
@@ -964,6 +983,8 @@ SEND_MESSAGES = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
+CLASSIFIER_TYPES = ["temba.classifiers.types.wit.WitType", "temba.classifiers.types.luis.LuisType"]
+
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
@@ -1005,6 +1026,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.smscentral.SMSCentralType",
     "temba.channels.types.start.StartType",
     "temba.channels.types.telegram.TelegramType",
+    "temba.channels.types.thinq.ThinQType",
     "temba.channels.types.twiml_api.TwimlAPIType",
     "temba.channels.types.twitter.TwitterType",
     "temba.channels.types.twitter_legacy.TwitterLegacyType",
