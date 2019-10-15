@@ -46,8 +46,8 @@ from django.views.generic import View
 
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
-from temba.classifiers.models import Classifier
 from temba.channels.models import Channel
+from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages

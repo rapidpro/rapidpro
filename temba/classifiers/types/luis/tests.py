@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.classifiers.models import Classifier
 from temba.tests import MockResponse, TembaTest
-from django.contrib.auth.models import Group
 
 from .type import LuisType
 

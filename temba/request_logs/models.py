@@ -1,9 +1,10 @@
 import logging
 
+from requests_toolbelt.utils import dump
+
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from requests_toolbelt.utils import dump
 
 from temba.orgs.models import Org
 

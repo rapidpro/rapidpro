@@ -23,8 +23,8 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.classifiers.types.wit import WitType
 from temba.classifiers.types.luis import LuisType
+from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.locations.models import BoundaryAlias

@@ -1,6 +1,6 @@
+import phonenumbers
 from smartmin.views import SmartFormView
 
-import phonenumbers
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 

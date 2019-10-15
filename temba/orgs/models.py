@@ -14,6 +14,13 @@ import regex
 import stripe
 import stripe.error
 from dateutil.relativedelta import relativedelta
+from django_redis import get_redis_connection
+from packaging.version import Version
+from requests import Session
+from smartmin.models import SmartModel
+from timezone_field import TimeZoneField
+from twilio.rest import Client as TwilioClient
+
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
@@ -25,12 +32,6 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
-from django_redis import get_redis_connection
-from packaging.version import Version
-from requests import Session
-from smartmin.models import SmartModel
-from timezone_field import TimeZoneField
-from twilio.rest import Client as TwilioClient
 
 from temba import mailroom
 from temba.archives.models import Archive

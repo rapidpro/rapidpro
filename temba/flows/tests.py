@@ -2945,6 +2945,21 @@ class FlowCRUDLTest(TembaTest):
 
         FlowStart.objects.all().delete()
 
+        # create flow start with a bogus query
+        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+            response = self.client.post(
+                reverse("flows.flow_broadcast", args=[flow.id]),
+                {
+                    "contact_query": 'name = "frank',
+                    "start_type": "query",
+                    "restart_participants": "on",
+                    "include_active": "on",
+                },
+                follow=True,
+            )
+
+            self.assertFormError(response, "form", "contact_query", "Please enter a valid contact query")
+
         # create flow start with restart_participants and include_active both enabled
         with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
 
