@@ -1,4 +1,4 @@
-import { customElement, property, html, TemplateResult, css } from 'lit-element';
+import { customElement, property, html, TemplateResult, css, LitElement } from 'lit-element';
 import RapidElement from '../RapidElement';
 import { styleMap } from 'lit-html/directives/style-map';
 import { range } from '../utils';
@@ -22,10 +22,16 @@ const hexToRgb = (hex: string): Color => {
 
 
 @customElement("rp-loading")
-export default class Loading extends RapidElement {
+export default class Loading extends LitElement {
 
   static get styles() {
     return css`
+      .unit {
+        border: 1px inset rgba(0, 0, 0, .05);
+        display: inline-block;
+        animation: pulse 0.9s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+      }
+
       @keyframes pulse {
         0% {
           transform: scale(0.2);
@@ -40,12 +46,6 @@ export default class Loading extends RapidElement {
 
       .loading {
         padding: 5px;
-      }
-
-      .loading > div {
-        border: 1px inset rgba(0, 0, 0, .05);
-        display: inline-block;
-        animation: pulse 0.9s cubic-bezier(0.3, 0, 0.7, 1) infinite;
       }
     `;
   }
@@ -78,7 +78,7 @@ export default class Loading extends RapidElement {
     };
 
     if (!this.colorRGB) {
-      return null;
+      return html`<div></div>`;
     }
 
     return html`<div class="loading" style=${styleMap(loadingStyle)}>
@@ -94,7 +94,8 @@ export default class Loading extends RapidElement {
             }, ${1 - num * (1 / this.units)})`
           }
 
-          return html`<div
+          return html`<div 
+            class="unit"
             style=${styleMap(ballStyle)}
           ></div>`
         })}

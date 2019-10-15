@@ -241,7 +241,7 @@ export default class Options extends RapidElement {
         <div class="options" style=${styleMap(optionsStyle)}>
           ${this.options.map((option: any, index: number)=>html`
             <div 
-              @mouseover=${(evt: MouseEvent)=>{
+              @mousemove=${(evt: MouseEvent)=>{
                   if (Math.abs(evt.movementX) + Math.abs(evt.movementY) > 0) {
                     this.setCursor(index);
                   }

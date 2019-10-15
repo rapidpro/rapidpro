@@ -4,7 +4,6 @@ import axios, { CancelTokenSource, AxiosResponse } from 'axios';
 import { getUrl, plural } from '../utils';
 import TextInput from '../textinput/TextInput';
 import { Contact } from '../interfaces';
-import Loading from '../loading/Loading';
 import { styleMap } from 'lit-html/directives/style-map';
 
 const QUEIT_MILLIS = 1000;

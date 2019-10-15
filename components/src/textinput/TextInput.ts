@@ -1,5 +1,4 @@
 import { customElement, TemplateResult, html, css, property } from 'lit-element';
-import RapidElement from '../RapidElement';
 import { styleMap } from 'lit-html/directives/style-map.js';
 import FormElement from '../FormElement';
 
@@ -100,7 +99,7 @@ export default class TextInput extends FormElement {
       height: `${this.textarea ? '100%' : 'auto'}`
     }
 
-    return html`
+    const result =  html`
     <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
@@ -118,5 +117,8 @@ export default class TextInput extends FormElement {
       <slot></slot>
     </div>
     `;
+
+    console.log(result);
+    return result;
   }
 }
