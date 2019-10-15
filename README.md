@@ -57,3 +57,6 @@ In late 2014, Nyaruka partnered with UNICEF to expand on the capabilities of Tex
 In brief, the Affero license states you can use the RapidPro source for any project free of charge, but that any changes you make to the source code must be available to others. Note that unlike the GPL, the AGPL requires these changes to be made public even if you do not redistribute them. If you host a version of RapidPro, you must make the same source you are hosting available for others.
 
 The software is provided under AGPL-3.0. Contributions to this project are accepted under the same license.
+
+
+TESTE
