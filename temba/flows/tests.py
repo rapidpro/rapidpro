@@ -1655,6 +1655,38 @@ class FlowTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_flow_results_with_hidden_results(self):
+        flow = self.get_flow("color_v13")
+        flow_nodes = flow.as_json()["nodes"]
+        color_split = flow_nodes[4]
+
+        # add a spec for a hidden result to this flow.. which should not be included below
+        flow.metadata[Flow.METADATA_RESULTS].append(
+            {
+                "key": "_color_classification",
+                "name": "_Color Classification",
+                "categories": ["Success", "Skipped", "Failure"],
+                "node_uuids": [color_split["uuid"]],
+            }
+        )
+
+        self.login(self.admin)
+        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["result_fields"],
+            [
+                {
+                    "key": "color",
+                    "name": "Color",
+                    "categories": ["Orange", "Blue", "Other", "Nothing"],
+                    "node_uuids": [color_split["uuid"]],
+                    "has_categories": "true",
+                }
+            ],
+        )
+
     def test_views_viewers(self):
         # create a viewer
         self.viewer = self.create_user("Viewer")
@@ -3830,6 +3862,16 @@ class ExportFlowResultsTest(TembaTest):
         color_other = flow_nodes[3]
         orange_reply = flow_nodes[1]
 
+        # add a spec for a hidden result to this flow
+        flow.metadata[Flow.METADATA_RESULTS].append(
+            {
+                "key": "_color_classification",
+                "name": "_Color Classification",
+                "categories": ["Success", "Skipped", "Failure"],
+                "node_uuids": [color_split["uuid"]],
+            }
+        )
+
         self.contact.update_urns(self.admin, ["tel:+250788382382", "twitter:erictweets"])
         devs = self.create_group("Devs", [self.contact])
 
@@ -3862,6 +3904,7 @@ class ExportFlowResultsTest(TembaTest):
             .wait()
             .resume(msg=contact1_in2)
             .set_result("Color", "orange", "Orange", "orange")
+            .set_result("_Color Classification", "orange", "Success", "color_selection")  # hidden result
             .visit(orange_reply)
             .send_msg(
                 "I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange",

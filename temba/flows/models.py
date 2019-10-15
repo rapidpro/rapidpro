@@ -2871,10 +2871,11 @@ class ExportFlowResultsTask(BaseExportTask):
         flows = list(self.flows.filter(is_active=True))
         for flow in flows:
             for result_field in flow.metadata["results"]:
-                result_field = result_field.copy()
-                result_field["flow_uuid"] = flow.uuid
-                result_field["flow_name"] = flow.name
-                result_fields.append(result_field)
+                if not result_field["name"].startswith("_"):
+                    result_field = result_field.copy()
+                    result_field["flow_uuid"] = flow.uuid
+                    result_field["flow_name"] = flow.name
+                    result_fields.append(result_field)
 
             if flow.flow_type == Flow.TYPE_SURVEY:
                 show_submitted_by = True
