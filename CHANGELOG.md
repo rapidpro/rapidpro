@@ -1,3 +1,9 @@
+v5.1.54
+----------
+ * remove fragile AT links to configuration pages
+ * Exclude hidden results from flow results page
+ * Exclude results with names starting with _ from exports
+
 v5.1.53
 ----------
  * Classifier models and views
