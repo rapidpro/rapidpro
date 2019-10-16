@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-15 16:45+0000\n"
+"POT-Creation-Date: 2019-10-16 21:10+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -11123,6 +11123,14 @@ msgstr "Escolha quando você gostaria de iniciar o fluxo."
 #, fuzzy
 msgid "Facebook Channel"
 msgstr "Remover telefone"
+
+#, fuzzy
+msgid "Enter a query"
+msgstr "Criar grupo de contatos"
+
+#, python-brace-format
+msgid "Found ${count} for ${query}"
+msgstr ""
 
 #, fuzzy
 #~| msgid "The flow that is being started"

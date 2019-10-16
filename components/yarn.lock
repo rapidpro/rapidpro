@@ -2074,6 +2074,11 @@ es-module-shims@^0.2.13:
   resolved "https://registry.yarnpkg.com/es-module-shims/-/es-module-shims-0.2.15.tgz#6a03a86eded7e27913efd75b6235b91950721c3d"
   integrity sha512-KJt8AdAIauSa9DDY442VqfiMHtFd2bG2cUtKuqycQUR7/0q2Uw+iM7ckQuma6j82u64Hz1wIG0eH+4m8l+mliA==
 
+es6-dynamic-template@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/es6-dynamic-template/-/es6-dynamic-template-2.0.0.tgz#92d50d0f365099046b5633d09cac22bf4ab8df72"
+  integrity sha512-IAqfK798nfdxi8n2QGnej/8h/IMYp+1JQ3YVAIxw12blm8hoEi3ER7xZadbQ9pX5AGYBHt4tVombHnTP/yk9LA==
+
 escape-html@~1.0.3:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/escape-html/-/escape-html-1.0.3.tgz#0258eae4d3d0c0974de1c169188ef0051d1d1988"

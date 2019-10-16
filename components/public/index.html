@@ -114,7 +114,13 @@
 
     <div class="example">
       <div class="example-header">Contact Search</div>
-      <rp-contact-search name="contact_query" endpoint="/contact/search/?samples=5&search=" placeholder="Enter a query">
+      <rp-contact-search 
+        name="contact_query" 
+        endpoint="/contact/search/?samples=5&search=" 
+        placeholder="Enter a query"
+        matches-text="${query} matches ${count} contact"
+        matches-text-plural="${query} matches ${count} contacts"
+      >
       </rp-contact-search>
     </div>
 

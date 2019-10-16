@@ -1,7 +1,7 @@
 import { customElement, TemplateResult, html, property, css } from 'lit-element';
 import RapidElement from '../RapidElement';
 import axios, { CancelTokenSource, AxiosResponse } from 'axios';
-import { getUrl, plural } from '../utils';
+import { getUrl, plural, fillTemplate } from '../utils';
 import TextInput from '../textinput/TextInput';
 import { Contact } from '../interfaces';
 import { styleMap } from 'lit-html/directives/style-map';
@@ -75,7 +75,7 @@ export default class ContactSearch extends RapidElement {
         padding: 10px 3px;
       }
 
-      .spot {
+      .query-replaced, .count-replaced {
         display: inline-block;
         background: var(--color-primary-light);
         color: var(--color-text-dark);
@@ -109,6 +109,9 @@ export default class ContactSearch extends RapidElement {
 
   @property({type: String})
   query: string = '';
+
+  @property({type: String, attribute: 'matches-text'})
+  matchesText: string = '';
 
   @property({attribute: false})
   summary: SummaryResponse;
@@ -165,6 +168,12 @@ export default class ContactSearch extends RapidElement {
       });
 
       if (!this.summary.error) {
+        const count = this.summary.total;
+        const message = fillTemplate(this.matchesText, { 
+          query: this.summary.query,
+          count
+        });
+        
         summary = html`
           <table cellspacing="0" cellpadding="0">
           <tr class="header">
@@ -190,7 +199,7 @@ export default class ContactSearch extends RapidElement {
 
           <tr class="table-footer">
             <td class="query-details" colspan=${fields.length + 3}>
-              <div class="query spot">${this.summary.query}</div> will start <div class="total spot">${this.summary.total}</div> ${plural(this.summary.total, "contact", "contacts")} 
+              ${message}
             </td>
             <td class="more">${this.summary.total > this.summary.sample.length ? html`${this.summary.total - this.summary.sample.length} more`: null}</td>
           </tr>
