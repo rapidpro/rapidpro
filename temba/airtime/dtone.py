@@ -6,8 +6,8 @@ import requests
 from django.utils.encoding import force_bytes, force_text
 
 
-class TransferToClient:
-    API_URL = "https://airtime.transferto.com/cgi-bin/shop/topup"
+class DTOneClient:
+    API_URL = "https://airtime-api.dtone.com/cgi-bin/shop/topup"
 
     def __init__(self, login, token):
         self.login = login
