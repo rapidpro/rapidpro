@@ -86,7 +86,8 @@ export default class ContactSearch extends RapidElement {
       }
 
       rp-loading {
-        margin-top: 5px;
+        margin-top: 10px;
+        margin-right: 10px;
         opacity: 0;
       }
     `

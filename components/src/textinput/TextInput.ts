@@ -99,7 +99,7 @@ export default class TextInput extends FormElement {
       height: `${this.textarea ? '100%' : 'auto'}`
     }
 
-    const result =  html`
+    return html`
     <div class="input-container" style=${styleMap(containerStyle)} @click=${()=>{ (this.shadowRoot.querySelector(".textinput") as HTMLInputElement).focus()}}>
       ${this.textarea ? html`
         <textarea class="textinput" 
@@ -117,8 +117,5 @@ export default class TextInput extends FormElement {
       <slot></slot>
     </div>
     `;
-
-    console.log(result);
-    return result;
   }
 }

@@ -35,17 +35,16 @@ export default class Loading extends LitElement {
       @keyframes pulse {
         0% {
           transform: scale(0.2);
+          opacity: .1;
         }
         20% {
           transform: scale(1);
+          opacity: 1;
         }
         100% {
           transform: scale(0.2);
+          opacity: .1;
         }
-      }
-
-      .loading {
-        padding: 5px;
       }
     `;
   }
@@ -72,32 +71,26 @@ export default class Loading extends LitElement {
   }
 
   public render(): TemplateResult {
-    const loadingStyle = {
-      width: (this.size * this.units * 2) + 10 + 'px',
-      height: this.size + 'px'
-    };
+
+    const margin = this.size / 3;
 
     if (!this.colorRGB) {
       return html`<div></div>`;
     }
 
-    return html`<div class="loading" style=${styleMap(loadingStyle)}>
+    return html`<div>
         ${range(0, this.units).map((num: number) => {
           const ballStyle = {
             'border-radius': this.square ? '0' : '50%',
             width: this.size + 'px',
             height: this.size + 'px',
-            margin: (this.size / 3) + 'px',
+            margin: margin + 'px',
             animationDelay: `-${1 - num * (1 / this.units)}s`,
             background: `rgba(${this.colorRGB.r},${this.colorRGB.g},${
               this.colorRGB.b
-            }, ${1 - num * (1 / this.units)})`
+            }, 1)`
           }
-
-          return html`<div 
-            class="unit"
-            style=${styleMap(ballStyle)}
-          ></div>`
+          return html`<div class="unit" style=${styleMap(ballStyle)}></div>`
         })}
       </div>`
   }
