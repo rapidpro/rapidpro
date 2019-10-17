@@ -7,7 +7,7 @@ from django.db.models.functions import Concat
 
 def recipients_to_urns(apps, schema_editor):
     AirtimeTransfer = apps.get_model("airtime", "AirtimeTransfer")
-    AirtimeTransfer.objects.exclude(recipient__startswith="tel:").update(
+    AirtimeTransfer.objects.exclude(recipient=None).exclude(recipient="").exclude(recipient__startswith="tel:").update(
         recipient=Concat(Value("tel:"), F("recipient"))
     )
 
