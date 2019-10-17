@@ -3,6 +3,7 @@ from django.forms import widgets
 
 from temba.utils import json
 
+from django.forms import ValidationError
 from .models import URN, Contact, ContactGroup, ContactURN
 
 
@@ -40,11 +41,14 @@ class OmniboxWidget(widgets.TextInput):
         self.__dict__["user"] = user
 
     def render(self, name, value, attrs=None, renderer=None):
+        # disable required attribute when rendering so that client side doesn't blow up from this field being hidden
+        if attrs is not None:
+            attrs["required"] = False
+
         value = self.get_json(value)
         return super().render(name, value, attrs)
 
     def get_json(self, value):
-
         if "user" not in self.__dict__:  # pragma: no cover
             raise ValueError(
                 "Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"
@@ -72,6 +76,13 @@ class OmniboxField(forms.Field):
     def set_user(self, user):
         self.user = user
         self.widget.set_user(user)
+
+    def validate(self, value):
+        if (
+            self.required
+            and len(value.get("groups", [])) + len(value.get("contacts", [])) + len(value.get("urns", [])) == 0
+        ):
+            raise ValidationError(self.error_messages["required"], code="required")
 
     def to_python(self, value):
         if "user" not in self.__dict__:  # pragma: no cover
