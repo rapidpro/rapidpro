@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.urls import reverse
 from django.utils import timezone
 
@@ -6,6 +8,7 @@ from temba.classifiers.types.wit import WitType
 from temba.tests import TembaTest
 
 from .models import HTTPLog
+from .tasks import trim_http_logs_task
 
 
 class ClassifierTest(TembaTest):
@@ -43,7 +46,7 @@ class ClassifierTest(TembaTest):
             request_time=10,
             org=self.org,
         )
-        HTTPLog.objects.create(
+        l2 = HTTPLog.objects.create(
             classifier=self.c2,
             url="http://org2.bar/zap",
             request="GET /zap",
@@ -66,3 +69,13 @@ class ClassifierTest(TembaTest):
         self.assertContains(response, "200")
         self.assertContains(response, "http://org1.bar/zap")
         self.assertNotContains(response, "http://org2.bar/zap")
+
+        # move l1 to be from a week ago
+        l1.created_on = timezone.now() - timedelta(days=7)
+        l1.save(update_fields=["created_on"])
+
+        trim_http_logs_task()
+
+        # should only have one log remaining and should be l2
+        self.assertEqual(1, HTTPLog.objects.all().count())
+        self.assertIsNotNone(HTTPLog.objects.filter(id=l2.id))

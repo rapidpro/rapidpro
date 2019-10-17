@@ -1,6 +1,8 @@
 import logging
+from datetime import timedelta
 
 from requests_toolbelt.utils import dump
+from temba.utils import chunk_list
 
 from django.db import models
 from django.utils import timezone
@@ -60,6 +62,16 @@ class HTTPLog(models.Model):
 
     def status_code(self):
         return self.response.split(" ")[1] if self.response else None
+
+    @classmethod
+    def trim(cls):
+        """
+        Deletes all HTTP Logs older than 3 days, 1000 at a time
+        """
+        cutoff = timezone.now() - timedelta(days=3)
+        ids = HTTPLog.objects.filter(created_on__lte=cutoff).values_list("id", flat=True)
+        for chunk in chunk_list(ids, 1000):
+            HTTPLog.objects.filter(id__in=chunk).delete()
 
     @classmethod
     def from_response(cls, log_type, url, response, classifier=None):
