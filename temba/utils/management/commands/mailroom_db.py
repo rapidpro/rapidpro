@@ -1,4 +1,5 @@
 import json
+import sys
 from subprocess import CalledProcessError, check_call
 
 import pytz
@@ -231,6 +232,18 @@ class Command(BaseCommand):
         # always use mailroom_test as our db
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
+
+        self._log("Checking Postgres database version... ")
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT version();")
+            row = cursor.fetchone()
+            if row[0].find("PostgreSQL 11") == 0:
+                self._log(self.style.SUCCESS("OK") + "\n")
+            else:
+                self._log(
+                    "\n" + self.style.ERROR("Incorrect Postgres Version, needs to be PG11, found: " + row[0]) + "\n"
+                )
+                sys.exit(1)
 
         self._log("Running migrations...\n")
 
