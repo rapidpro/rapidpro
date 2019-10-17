@@ -24,9 +24,9 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.classifiers.models import Classifier
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
+from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org

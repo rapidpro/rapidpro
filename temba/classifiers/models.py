@@ -2,12 +2,14 @@ import logging
 from abc import ABCMeta
 from uuid import uuid4
 
+from smartmin.models import SmartModel
+
 from django.conf.urls import url
 from django.db import models
 from django.template import Engine
 from django.utils import timezone
-from smartmin.models import SmartModel
 
+from temba.utils import on_transaction_commit
 from temba.utils.models import JSONField
 
 logger = logging.getLogger(__name__)
@@ -176,7 +178,7 @@ class Classifier(SmartModel):
         return TYPES.values()
 
     @classmethod
-    def create(cls, org, user, classifier_type, name, config):
+    def create(cls, org, user, classifier_type, name, config, sync=True):
         classifier = Classifier.objects.create(
             uuid=uuid4(),
             name=name,
@@ -190,9 +192,11 @@ class Classifier(SmartModel):
         )
 
         # trigger a sync of this classifier's intents
-        from .tasks import sync_classifier_intents
+        if sync:
+            from .tasks import sync_classifier_intents
 
-        sync_classifier_intents.delay(classifier.id)
+            on_transaction_commit(lambda: sync_classifier_intents.delay(classifier.id))
+
         return classifier
 
 

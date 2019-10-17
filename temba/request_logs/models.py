@@ -1,13 +1,14 @@
 import logging
 from datetime import timedelta
 
-from temba.utils import chunk_list
+from requests_toolbelt.utils import dump
+
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from requests_toolbelt.utils import dump
 
 from temba.orgs.models import Org
+from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +18,29 @@ class HTTPLog(models.Model):
     HTTPLog is used to log HTTP requests and responses.
     """
 
+    REQUEST_DELIM = ">!>!>! "
+    RESPONSE_DELIM = "<!<!<! "
+
     # classifier type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
+    AIRTIME_TRANSFERRED = "airtime_transferred"
 
     # possible log type choices and descriptive names
-    LOG_TYPE_CHOICES = ((INTENTS_SYNCED, _("Intents Synced")), (CLASSIFIER_CALLED, _("Classifier Called")))
+    LOG_TYPE_CHOICES = (
+        (INTENTS_SYNCED, _("Intents Synced")),
+        (CLASSIFIER_CALLED, _("Classifier Called")),
+        (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
+    )
 
     # the classifier this log is for
     classifier = models.ForeignKey(
-        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False
+        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+    )
+
+    # the airtime transfer this log is for
+    airtime_transfer = models.ForeignKey(
+        "airtime.AirtimeTransfer", related_name="http_logs", on_delete=models.PROTECT, null=True
     )
 
     # the type of log this is
@@ -81,21 +95,22 @@ class HTTPLog(models.Model):
             org = classifier.org
 
         is_error = response.status_code != 200
-        data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
+        data = dump.dump_response(
+            response, request_prefix=cls.REQUEST_DELIM, response_prefix=cls.RESPONSE_DELIM
+        ).decode("utf-8")
 
-        # split by lines
-        lines = data.split("\r\n")
-        request_lines = []
-        response_lines = []
+        # first build our array of request lines, our last item will also contain our response lines
+        request_lines = data.split(cls.REQUEST_DELIM)
 
-        for line in lines:
-            if line.startswith(">>> "):
-                request_lines.append(line[4:])
-            else:
-                response_lines.append(line[4:])
+        # now split our response lines from the last request line
+        response_lines = request_lines[-1].split(cls.RESPONSE_DELIM)
 
-        request = "\r\n".join(request_lines)
-        response = "\r\n".join(response_lines)
+        # and clean up the last and first item appropriately
+        request_lines[-1] = response_lines[0]
+        response_lines = response_lines[1:]
+
+        request = "".join(request_lines)
+        response = "".join(response_lines)
 
         return HTTPLog(
             classifier=classifier,

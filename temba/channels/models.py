@@ -998,9 +998,6 @@ class Channel(TembaModel):
 
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 
-        # any transfer associated with us go away
-        self.airtime_transfers.all().delete()
-
         # and any triggers associated with our channel get archived
         for trigger in Trigger.objects.filter(org=self.org, channel=self).all():
             trigger.channel = None
