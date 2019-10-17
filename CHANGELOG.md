@@ -1,3 +1,14 @@
+v5.1.55
+----------
+ * Sync intents on classifier creation
+ * Trim HTTP logs older than 3 days
+
+v5.1.54
+----------
+ * remove fragile AT links to configuration pages
+ * Exclude hidden results from flow results page
+ * Exclude results with names starting with _ from exports
+
 v5.1.53
 ----------
  * Classifier models and views
