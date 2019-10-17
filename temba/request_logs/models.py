@@ -18,6 +18,9 @@ class HTTPLog(models.Model):
     HTTPLog is used to log HTTP requests and responses.
     """
 
+    REQUEST_DELIM = ">!>!>! "
+    RESPONSE_DELIM = "<!<!<! "
+
     # classifier type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
@@ -92,21 +95,22 @@ class HTTPLog(models.Model):
             org = classifier.org
 
         is_error = response.status_code != 200
-        data = dump.dump_response(response, request_prefix=">>> ", response_prefix="<<< ").decode("utf-8")
+        data = dump.dump_response(
+            response, request_prefix=cls.REQUEST_DELIM, response_prefix=cls.RESPONSE_DELIM
+        ).decode("utf-8")
 
-        # split by lines
-        lines = data.split("\r\n")
-        request_lines = []
-        response_lines = []
+        # first build our array of request lines, our last item will also contain our response lines
+        request_lines = data.split(cls.REQUEST_DELIM)
 
-        for line in lines:
-            if line.startswith(">>> "):
-                request_lines.append(line[4:])
-            else:
-                response_lines.append(line[4:])
+        # now split our response lines from the last request line
+        response_lines = request_lines[-1].split(cls.RESPONSE_DELIM)
 
-        request = "\r\n".join(request_lines)
-        response = "\r\n".join(response_lines)
+        # and clean up the last and first item appropriately
+        request_lines[-1] = response_lines[0]
+        response_lines = response_lines[1:]
+
+        request = "".join(request_lines)
+        response = "".join(response_lines)
 
         return HTTPLog(
             classifier=classifier,
