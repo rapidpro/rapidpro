@@ -1,13 +1,14 @@
 import logging
 from datetime import timedelta
 
-from temba.utils import chunk_list
+from requests_toolbelt.utils import dump
+
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from requests_toolbelt.utils import dump
 
 from temba.orgs.models import Org
+from temba.utils import chunk_list
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +21,23 @@ class HTTPLog(models.Model):
     # classifier type choices
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
+    AIRTIME_TRANSFERRED = "airtime_transferred"
 
     # possible log type choices and descriptive names
-    LOG_TYPE_CHOICES = ((INTENTS_SYNCED, _("Intents Synced")), (CLASSIFIER_CALLED, _("Classifier Called")))
+    LOG_TYPE_CHOICES = (
+        (INTENTS_SYNCED, _("Intents Synced")),
+        (CLASSIFIER_CALLED, _("Classifier Called")),
+        (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
+    )
 
     # the classifier this log is for
     classifier = models.ForeignKey(
-        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False
+        "classifiers.Classifier", related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
+    )
+
+    # the airtime transfer this log is for
+    airtime_transfer = models.ForeignKey(
+        "airtime.AirtimeTransfer", related_name="http_logs", on_delete=models.PROTECT, null=True
     )
 
     # the type of log this is
