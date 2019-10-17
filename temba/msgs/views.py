@@ -78,7 +78,7 @@ def send_message_auto_complete_processor(request):
 
 
 class SendMessageForm(Form):
-    omnibox = OmniboxField()
+    omnibox = OmniboxField(required=False)
     text = forms.CharField(widget=forms.Textarea, max_length=640)
     schedule = forms.BooleanField(widget=forms.HiddenInput, required=False)
     step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
