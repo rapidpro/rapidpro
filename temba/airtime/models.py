@@ -23,7 +23,7 @@ class AirtimeTransfer(models.Model):
     # URN that sent the transfer
     sender = models.CharField(max_length=64, null=True)
 
-    currency = models.CharField(max_length=32, null=True, blank=True)
+    currency = models.CharField(max_length=32, null=True)
 
     desired_amount = models.DecimalField(max_digits=10, decimal_places=2)
 

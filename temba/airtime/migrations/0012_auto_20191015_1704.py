@@ -20,10 +20,6 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="airtimetransfer", name="modified_by"),
         migrations.RemoveField(model_name="airtimetransfer", name="modified_on"),
         migrations.AlterField(
-            model_name="airtimetransfer", name="amount", field=models.DecimalField(decimal_places=2, max_digits=10)
-        ),
-        migrations.RenameField(model_name="airtimetransfer", old_name="amount", new_name="actual_amount"),
-        migrations.AlterField(
             model_name="airtimetransfer",
             name="contact",
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="contacts.Contact"),
@@ -40,7 +36,6 @@ class Migration(migrations.Migration):
             name="status",
             field=models.CharField(choices=[("S", "Success"), ("F", "Failed")], max_length=1),
         ),
-        migrations.RenameField(model_name="airtimetransfer", old_name="denomination", new_name="currency"),
         migrations.AlterField(
             model_name="airtimetransfer",
             name="created_on",
@@ -50,9 +45,17 @@ class Migration(migrations.Migration):
             model_name="airtimetransfer", name="sender", field=models.CharField(max_length=64, null=True)
         ),
         migrations.AddField(
+            model_name="airtimetransfer", name="currency", field=models.CharField(max_length=32, null=True)
+        ),
+        migrations.AlterField(
+            model_name="airtimetransfer", name="amount", field=models.DecimalField(decimal_places=2, max_digits=10)
+        ),
+        migrations.RenameField(model_name="airtimetransfer", old_name="amount", new_name="actual_amount"),
+        migrations.AlterField(
             model_name="airtimetransfer",
-            name="desired_amount",
+            name="denomination",
             field=models.DecimalField(decimal_places=2, default=Decimal(0), max_digits=10),
             preserve_default=False,
         ),
+        migrations.RenameField(model_name="airtimetransfer", old_name="denomination", new_name="desired_amount"),
     ]
